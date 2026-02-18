@@ -1,4 +1,6 @@
 {
   "navigation.dashboard": "Dashboard",
+  "navigation.language": "Language",
+  "navigation.theme": "Theme",
   "navigation.todos": "Todos"
 }

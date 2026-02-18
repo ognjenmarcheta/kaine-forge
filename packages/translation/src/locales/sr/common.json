@@ -1,4 +1,6 @@
 {
   "button.save": "Sacuvaj",
-  "button.cancel": "Otkazi"
+  "button.cancel": "Otkazi",
+  "button.delete": "Obrisi",
+  "error.generic": "Doslo je do greske"
 }

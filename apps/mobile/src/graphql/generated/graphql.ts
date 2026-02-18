@@ -102,6 +102,10 @@ export type GetMobileTodosQuery = {
   }>;
 };
 
+export type HealthQueryVariables = Exact<{ [key: string]: never }>;
+
+export type HealthQuery = { __typename?: "Query"; health: string };
+
 export type GetTodosQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
@@ -220,6 +224,20 @@ export const GetMobileTodosDocument = {
     }
   ]
 } as unknown as DocumentNode<GetMobileTodosQuery, GetMobileTodosQueryVariables>;
+export const HealthDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "Health" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "health" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<HealthQuery, HealthQueryVariables>;
 export const GetTodosDocument = {
   kind: "Document",
   definitions: [

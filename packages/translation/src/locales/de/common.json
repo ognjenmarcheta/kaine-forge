@@ -1,4 +1,6 @@
 {
   "button.save": "Speichern",
-  "button.cancel": "Abbrechen"
+  "button.cancel": "Abbrechen",
+  "button.delete": "Loschen",
+  "error.generic": "Etwas ist schiefgelaufen"
 }

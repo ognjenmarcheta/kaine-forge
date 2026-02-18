@@ -23,7 +23,10 @@
     "@repo/ui": "workspace:*",
     "graphql": "^16.11.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.13.0",
+    "urql": "^5.0.1",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/react": "^19.1.10",

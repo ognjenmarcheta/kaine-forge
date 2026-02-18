@@ -2,6 +2,12 @@
   "extends": "../../packages/config/typescript/tsconfig.react.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "paths": {
+      "@repo/auth": ["../../packages/auth/src/index.ts"],
+      "@repo/db": ["../../packages/db/src/index.ts"],
+      "@repo/translation": ["../../packages/translation/src/index.ts"],
+      "@repo/ui": ["../../packages/ui/src/index.ts"]
+    },
     "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],

@@ -4,7 +4,7 @@ import { cn } from "../../lib/cn";
 import { buttonVariants } from "../../lib/variants";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  intent?: "primary" | "subtle";
+  intent?: "primary" | "subtle" | "danger";
   size?: "sm" | "md" | "lg";
 };
 
