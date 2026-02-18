@@ -85,10 +85,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let isActive = true;
 
     void (async () => {
-      try {
-        const storedSession = await getStoredSession(AUTH_DEFINITION.storageKey);
-        const nextSession = await fetchSession(storedSession);
+      const storedSession = await getStoredSession(AUTH_DEFINITION.storageKey);
+      let nextSession: AuthSession | null = storedSession;
 
+      try {
+        nextSession = await fetchSession(storedSession);
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("auth session refresh failed", error);
+        }
+      }
+
+      try {
         if (!isActive) {
           return;
         }
@@ -133,7 +141,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const logout = useCallback(async () => {
-    await logoutRequest(session);
+    try {
+      await logoutRequest(session);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("auth logout request failed", error);
+      }
+    }
+
     setSession(null);
     await setStoredSession(AUTH_DEFINITION.storageKey, null);
   }, [session]);

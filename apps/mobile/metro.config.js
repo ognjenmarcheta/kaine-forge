@@ -1,8 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { getDefaultConfig } from "expo/metro-config";
-import { withNativeWind } from "nativewind/metro";
+import { getDefaultConfig } from "expo/metro-config.js";
+import { withNativeWind } from "nativewind/dist/metro/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
