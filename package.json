@@ -6,7 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=20",
     "build": "turbo run build",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "turbo run format --continue",
