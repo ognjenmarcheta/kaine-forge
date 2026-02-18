@@ -2,3 +2,5 @@ node_modules
 dist
 .turbo
 coverage
+src-tauri/target
+src-tauri/gen

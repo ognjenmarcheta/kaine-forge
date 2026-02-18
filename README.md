@@ -7,6 +7,7 @@ Phase 1 foundation for a Turborepo + pnpm monorepo.
 - Node.js >= 20
 - pnpm >= 10
 - Docker (for local PostgreSQL)
+- Rust toolchain (for Tauri desktop app)
 
 ## Setup
 
@@ -19,6 +20,8 @@ pnpm db:push
 pnpm db:seed
 pnpm dev
 ```
+
+Desktop app now uses Tauri v2 and loads the web app at `http://localhost:3000` in development.
 
 ## One-command bootstrap
 

@@ -10,6 +10,8 @@ export default [
       "**/node_modules/**",
       "**/.turbo/**",
       "**/coverage/**",
+      "**/src-tauri/target/**",
+      "**/src-tauri/gen/**",
       "apps/*/src/graphql/generated/**"
     ]
   },

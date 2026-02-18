@@ -6,7 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "turbo run dev --concurrency=20",
+    "dev": "turbo run dev --concurrency=20 --continue=always",
     "build": "turbo run build",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "turbo run format --continue",
@@ -25,7 +25,6 @@
     "db:migrate": "pnpm --filter @repo/db run db:migrate",
     "db:seed": "pnpm --filter @repo/db run db:seed",
     "db:studio": "pnpm --filter @repo/db run db:studio",
-    "desktop:setup": "pnpm rebuild electron",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -52,10 +51,5 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.43.0",
     "vitest": "^3.2.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron"
-    ]
   }
 }

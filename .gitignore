@@ -11,3 +11,5 @@ coverage/
 .env.*.local
 .DS_Store
 .idea/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
