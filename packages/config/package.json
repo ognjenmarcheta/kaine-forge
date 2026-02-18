@@ -1,0 +1,34 @@
+{
+  "name": "@repo/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/node": "./eslint/node.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint": "./eslint/index.js",
+    "./prettier": "./prettier/index.cjs",
+    "./tailwind/preset": "./tailwind/preset.js",
+    "./typescript/tsconfig.base.json": "./typescript/tsconfig.base.json",
+    "./typescript/tsconfig.node.json": "./typescript/tsconfig.node.json",
+    "./typescript/tsconfig.react.json": "./typescript/tsconfig.react.json",
+    "./typescript/tsconfig.native.json": "./typescript/tsconfig.native.json"
+  },
+  "scripts": {
+    "dev": "echo \"@repo/config has no dev runtime\"",
+    "build": "echo \"@repo/config has no build step\"",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "echo \"@repo/config has no TypeScript sources to type-check\"",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0"
+  }
+}

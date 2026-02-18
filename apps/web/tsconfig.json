@@ -1,0 +1,9 @@
+{
+  "extends": "../../packages/config/typescript/tsconfig.react.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
+  "exclude": ["src/graphql/generated/**/*"]
+}

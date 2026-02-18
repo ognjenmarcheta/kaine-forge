@@ -1,0 +1,10 @@
+query GetMobileTodos($limit: Int, $offset: Int) {
+  todos(limit: $limit, offset: $offset) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}

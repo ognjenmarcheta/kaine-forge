@@ -1,3 +1,12 @@
 .worktrees/
 /.turbo/cache
 /.pnpm-store/v10/projects
+node_modules/
+.pnpm-store/
+dist/
+.turbo/
+coverage/
+.env
+.env.local
+.env.*.local
+.DS_Store

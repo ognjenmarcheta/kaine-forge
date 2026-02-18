@@ -1,0 +1,66 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "description": "Build all workspaces in dependency order",
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "description": "Run development tasks in watch mode",
+      "cache": false,
+      "persistent": true
+    },
+    "check": {
+      "description": "Run local workspace check command",
+      "dependsOn": ["^build"]
+    },
+    "format": {
+      "description": "Format workspace files"
+    },
+    "format:check": {
+      "description": "Check formatting"
+    },
+    "lint": {
+      "description": "Lint workspace source"
+    },
+    "lint:fix": {
+      "description": "Autofix lint issues"
+    },
+    "typecheck": {
+      "description": "Type-check workspace source"
+    },
+    "test": {
+      "description": "Run workspace tests"
+    },
+    "clean": {
+      "description": "Remove workspace build outputs",
+      "cache": false
+    },
+    "db:generate": {
+      "description": "Generate Drizzle migrations",
+      "cache": false
+    },
+    "db:push": {
+      "description": "Push schema to local database",
+      "cache": false
+    },
+    "db:migrate": {
+      "description": "Apply database migrations",
+      "cache": false
+    },
+    "db:seed": {
+      "description": "Seed development database",
+      "cache": false
+    },
+    "db:studio": {
+      "description": "Open Drizzle Studio",
+      "cache": false
+    },
+    "generate": {
+      "description": "Generate GraphQL typed clients"
+    }
+  }
+}
