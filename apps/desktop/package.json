@@ -3,9 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "dist/main/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "pnpm run build && electron ./dist/main/index.js",
     "build": "tsc -p tsconfig.json",
+    "start": "electron ./dist/main/index.js",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -15,5 +17,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "electron": "^40.4.1"
   }
 }
