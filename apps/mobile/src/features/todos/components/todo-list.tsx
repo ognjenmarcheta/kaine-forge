@@ -1,0 +1,31 @@
+import { FlatList, Text } from "react-native";
+
+import { TodoItemCard } from "./todo-item";
+import { useTranslation } from "../../../hooks/use-translation";
+import type { TodoItem } from "../todos.type";
+
+interface TodoListProps {
+  items: TodoItem[];
+  onDelete: (id: string) => void;
+  onEdit: (item: TodoItem) => void;
+  onToggle: (item: TodoItem) => void;
+}
+
+export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
+  const { t } = useTranslation();
+
+  if (items.length === 0) {
+    return <Text className="text-sm text-text-subtle">{t("todos.empty")}</Text>;
+  }
+
+  return (
+    <FlatList
+      contentContainerStyle={{ gap: 10 }}
+      data={items}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <TodoItemCard item={item} onDelete={onDelete} onEdit={onEdit} onToggle={onToggle} />
+      )}
+    />
+  );
+}

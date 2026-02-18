@@ -1,9 +1,17 @@
 {
   "extends": "../../packages/config/typescript/tsconfig.native.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "types": ["react", "react-native"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
+  ],
   "exclude": ["src/graphql/generated/**/*"]
 }

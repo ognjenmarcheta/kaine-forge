@@ -1,4 +1,13 @@
 {
   "todos.title": "Aufgaben",
-  "todos.create": "Neue Aufgabe"
+  "todos.create": "Neue Aufgabe",
+  "todos.loading": "Aufgaben werden geladen...",
+  "todos.empty": "Noch keine Aufgaben. Erstelle deine erste.",
+  "todos.completed": "Erledigt",
+  "todos.pending": "Offen",
+  "todos.editTitle": "Aufgabe bearbeiten",
+  "todos.deleteConfirmTitle": "Aufgabe loschen",
+  "todos.deleteConfirmMessage": "Diese Aufgabe loschen?",
+  "todos.form.titlePlaceholder": "Titel",
+  "todos.form.descriptionPlaceholder": "Beschreibung"
 }

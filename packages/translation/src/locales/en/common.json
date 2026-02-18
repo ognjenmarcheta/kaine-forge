@@ -1,6 +1,7 @@
 {
   "button.save": "Save",
   "button.cancel": "Cancel",
+  "button.edit": "Edit",
   "button.delete": "Delete",
   "error.generic": "Something went wrong"
 }

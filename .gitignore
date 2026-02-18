@@ -13,3 +13,5 @@ coverage/
 .idea/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+apps/mobile/.expo/
+apps/mobile/.expo-shared/

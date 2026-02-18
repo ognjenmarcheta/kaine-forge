@@ -1,3 +1,6 @@
 {
-  "dashboard.title": "Overview"
+  "dashboard.title": "Overview",
+  "dashboard.subtitle": "Cross-platform workspace snapshot",
+  "dashboard.signedInAs": "Signed in as",
+  "dashboard.unknownUser": "Unknown user"
 }

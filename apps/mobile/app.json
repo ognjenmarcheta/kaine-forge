@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Kaine Forge Mobile",
+    "slug": "kaine-forge-mobile",
+    "scheme": "kaineforge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

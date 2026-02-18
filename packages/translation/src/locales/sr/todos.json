@@ -1,4 +1,13 @@
 {
   "todos.title": "Zadaci",
-  "todos.create": "Novi zadatak"
+  "todos.create": "Novi zadatak",
+  "todos.loading": "Ucitam zadatke...",
+  "todos.empty": "Jos nema zadataka. Napravite prvi.",
+  "todos.completed": "Zavrseno",
+  "todos.pending": "Na cekanju",
+  "todos.editTitle": "Izmeni zadatak",
+  "todos.deleteConfirmTitle": "Obrisi zadatak",
+  "todos.deleteConfirmMessage": "Obrisi ovaj zadatak?",
+  "todos.form.titlePlaceholder": "Naslov",
+  "todos.form.descriptionPlaceholder": "Opis"
 }

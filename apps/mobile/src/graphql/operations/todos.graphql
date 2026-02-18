@@ -8,3 +8,40 @@ query GetMobileTodos($limit: Int, $offset: Int) {
     updatedAt
   }
 }
+
+mutation CreateMobileTodo($input: CreateTodoInput!) {
+  createTodo(input: $input) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateMobileTodo($id: ID!, $input: UpdateTodoInput!) {
+  updateTodo(id: $id, input: $input) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteMobileTodo($id: ID!) {
+  deleteTodo(id: $id)
+}
+
+mutation ToggleMobileTodo($id: ID!) {
+  toggleTodo(id: $id) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}

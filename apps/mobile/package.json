@@ -2,10 +2,14 @@
   "name": "@repo/mobile",
   "version": "0.0.0",
   "private": true,
+  "main": "expo-router/entry",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "dev": "expo start",
+    "dev:ios": "expo start --ios",
+    "dev:android": "expo start --android",
+    "build": "tsc --noEmit",
+    "start": "expo start",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -14,10 +18,31 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "clean": "rm -rf dist .turbo"
+    "clean": "rm -rf dist .turbo .expo"
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
-    "graphql": "^16.11.0"
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/drawer": "^7.8.1",
+    "@repo/auth": "workspace:*",
+    "@repo/translation": "workspace:*",
+    "expo": "^54.0.33",
+    "expo-router": "^6.0.23",
+    "expo-status-bar": "^3.0.9",
+    "graphql": "^16.11.0",
+    "nativewind": "^4.2.1",
+    "react": "^19.2.4",
+    "react-native": "^0.84.0",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-reanimated": "^4.2.2",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "^4.23.0",
+    "urql": "^5.0.1",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-native": "^0.73.0",
+    "tailwindcss": "^3.4.17"
   }
 }

@@ -1,0 +1,100 @@
+import { useEffect, useState } from "react";
+import { Modal, Pressable, Text, TextInput, View } from "react-native";
+
+import { useTranslation } from "../../../hooks/use-translation";
+import type { TodoDraft } from "../todos.type";
+
+interface TodoFormModalProps {
+  initialDraft: TodoDraft;
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (draft: TodoDraft) => Promise<void>;
+  title: string;
+}
+
+export function TodoFormModal({
+  initialDraft,
+  isOpen,
+  onClose,
+  onSubmit,
+  title
+}: TodoFormModalProps) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState<TodoDraft>(initialDraft);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDraft(initialDraft);
+    }
+  }, [initialDraft, isOpen]);
+
+  async function submit() {
+    if (!draft.title.trim()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit(draft);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal animationType="slide" transparent visible={isOpen}>
+      <View className="flex-1 justify-end bg-black/40">
+        <View className="rounded-t-2xl bg-background-surface p-4">
+          <Text className="text-lg font-semibold text-text-default">{title}</Text>
+
+          <View className="mt-3 gap-3">
+            <TextInput
+              className="rounded-lg border border-border-default bg-background-default px-3 py-2 text-text-default"
+              placeholder={t("todos.form.titlePlaceholder")}
+              placeholderTextColor="#6b7280"
+              value={draft.title}
+              onChangeText={(value) => {
+                setDraft((current) => ({ ...current, title: value }));
+              }}
+            />
+            <TextInput
+              className="rounded-lg border border-border-default bg-background-default px-3 py-2 text-text-default"
+              multiline
+              numberOfLines={3}
+              placeholder={t("todos.form.descriptionPlaceholder")}
+              placeholderTextColor="#6b7280"
+              textAlignVertical="top"
+              value={draft.description}
+              onChangeText={(value) => {
+                setDraft((current) => ({ ...current, description: value }));
+              }}
+            />
+          </View>
+
+          <View className="mt-4 flex-row justify-end gap-2">
+            <Pressable
+              className="rounded-md border border-border-default px-3 py-2"
+              onPress={onClose}
+            >
+              <Text className="text-sm text-text-default">{t("button.cancel")}</Text>
+            </Pressable>
+            <Pressable
+              className="rounded-md bg-background-brand px-3 py-2"
+              disabled={isSubmitting}
+              onPress={() => {
+                void submit();
+              }}
+            >
+              <Text className="text-sm text-text-inverse">
+                {isSubmitting ? "..." : t("button.save")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}

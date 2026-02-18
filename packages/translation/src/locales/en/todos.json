@@ -1,4 +1,13 @@
 {
   "todos.title": "Todos",
-  "todos.create": "New todo"
+  "todos.create": "New todo",
+  "todos.loading": "Loading todos...",
+  "todos.empty": "No todos yet. Create your first one.",
+  "todos.completed": "Completed",
+  "todos.pending": "Pending",
+  "todos.editTitle": "Edit todo",
+  "todos.deleteConfirmTitle": "Delete todo",
+  "todos.deleteConfirmMessage": "Delete this todo?",
+  "todos.form.titlePlaceholder": "Title",
+  "todos.form.descriptionPlaceholder": "Description"
 }

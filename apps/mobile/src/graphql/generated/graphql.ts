@@ -84,6 +84,10 @@ export type UpdateTodoInput = {
   title?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
+
+export type MobileHealthQuery = { __typename?: "Query"; health: string };
+
 export type GetMobileTodosQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
@@ -100,6 +104,64 @@ export type GetMobileTodosQuery = {
     createdAt: any;
     updatedAt: any;
   }>;
+};
+
+export type CreateMobileTodoMutationVariables = Exact<{
+  input: CreateTodoInput;
+}>;
+
+export type CreateMobileTodoMutation = {
+  __typename?: "Mutation";
+  createTodo: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type UpdateMobileTodoMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+  input: UpdateTodoInput;
+}>;
+
+export type UpdateMobileTodoMutation = {
+  __typename?: "Mutation";
+  updateTodo: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type DeleteMobileTodoMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type DeleteMobileTodoMutation = { __typename?: "Mutation"; deleteTodo: boolean };
+
+export type ToggleMobileTodoMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type ToggleMobileTodoMutation = {
+  __typename?: "Mutation";
+  toggleTodo: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -170,6 +232,20 @@ export type ToggleTodoMutation = {
   toggleTodo: { __typename?: "Todo"; id: string; completed: boolean };
 };
 
+export const MobileHealthDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "MobileHealth" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "health" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<MobileHealthQuery, MobileHealthQueryVariables>;
 export const GetMobileTodosDocument = {
   kind: "Document",
   definitions: [
@@ -224,6 +300,196 @@ export const GetMobileTodosDocument = {
     }
   ]
 } as unknown as DocumentNode<GetMobileTodosQuery, GetMobileTodosQueryVariables>;
+export const CreateMobileTodoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "CreateMobileTodo" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "CreateTodoInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createTodo" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<CreateMobileTodoMutation, CreateMobileTodoMutationVariables>;
+export const UpdateMobileTodoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "UpdateMobileTodo" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "UpdateTodoInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateTodo" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<UpdateMobileTodoMutation, UpdateMobileTodoMutationVariables>;
+export const DeleteMobileTodoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DeleteMobileTodo" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteTodo" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DeleteMobileTodoMutation, DeleteMobileTodoMutationVariables>;
+export const ToggleMobileTodoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "ToggleMobileTodo" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "toggleTodo" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<ToggleMobileTodoMutation, ToggleMobileTodoMutationVariables>;
 export const HealthDocument = {
   kind: "Document",
   definitions: [

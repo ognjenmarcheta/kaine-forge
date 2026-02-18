@@ -1,3 +1,6 @@
 {
-  "dashboard.title": "Pregled"
+  "dashboard.title": "Pregled",
+  "dashboard.subtitle": "Pregled radnog prostora na svim platformama",
+  "dashboard.signedInAs": "Prijavljeni korisnik",
+  "dashboard.unknownUser": "Nepoznat korisnik"
 }

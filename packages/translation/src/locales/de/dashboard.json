@@ -1,3 +1,6 @@
 {
-  "dashboard.title": "Ubersicht"
+  "dashboard.title": "Ubersicht",
+  "dashboard.subtitle": "Plattformubergreifende Arbeitsbereichsansicht",
+  "dashboard.signedInAs": "Angemeldet als",
+  "dashboard.unknownUser": "Unbekannter Benutzer"
 }
