@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/auth": ["packages/auth/src/index.ts"],
+      "@repo/config/*": ["packages/config/*"],
+      "@repo/db": ["packages/db/src/index.ts"],
+      "@repo/translation": ["packages/translation/src/index.ts"],
+      "@repo/ui": ["packages/ui/src/index.ts"]
+    }
+  }
+}

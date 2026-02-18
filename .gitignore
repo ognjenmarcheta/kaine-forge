@@ -1,0 +1,10 @@
+.worktrees/
+node_modules/
+.pnpm-store/
+dist/
+.turbo/
+coverage/
+.env
+.env.local
+.env.*.local
+.DS_Store
