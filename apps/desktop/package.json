@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "pnpm run build && electron ./dist/main/index.js",
+    "dev": "pnpm run build && tsx ./scripts/dev.ts",
     "build": "tsc -p tsconfig.json",
     "start": "electron ./dist/main/index.js",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
