@@ -65,6 +65,9 @@ importers:
       '@repo/translation':
         specifier: workspace:*
         version: link:../../packages/translation
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(@types/pg@8.16.0)(kysely@0.28.11)(pg@8.18.0)
       graphql:
         specifier: ^16.11.0
         version: 16.12.0
