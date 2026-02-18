@@ -1,15 +1,30 @@
 # kaine-forge monorepo
 
-Phase 1 foundation for a Turborepo + pnpm monorepo.
+Production-oriented Turborepo + pnpm monorepo with:
+
+- `apps/api` (GraphQL Yoga)
+- `apps/web` (React + Vite)
+- `apps/desktop` (Tauri v2 shell)
+- `apps/mobile` (Expo + React Native)
+- shared packages for auth/db/translation/ui/config/codegen
+
+## Current phase status
+
+- Phase 1: Foundation ✅
+- Phase 2: API ✅
+- Phase 3: Web ✅
+- Phase 4: Desktop (Tauri) ✅
+- Phase 5: Mobile ✅
+- Phase 6: Polish/production-readiness ⏳ in progress
 
 ## Prerequisites
 
-- Node.js >= 20
-- pnpm >= 10
-- Docker (for local PostgreSQL)
-- Rust toolchain (for Tauri desktop app)
+- Node.js `>=20` (CI uses Node 22)
+- pnpm `10.29.3`
+- Docker (local PostgreSQL)
+- Rust toolchain (desktop/Tauri)
 
-## Setup
+## Quickstart
 
 ```bash
 cp .env.example .env
@@ -21,18 +36,55 @@ pnpm db:seed
 pnpm dev
 ```
 
-Desktop app now uses Tauri v2 and loads the web app at `http://localhost:3000` in development.
-
 ## One-command bootstrap
 
 ```bash
 pnpm initialize
 ```
 
-`initialize` performs dependency reinstall, build, db generation/push/seed, then starts dev tasks.
+`initialize` performs reinstall, build, database generate/push/seed, then starts dev tasks.
 
-## Turborepo notes
+## Root scripts
 
-- Uses Turborepo `tasks` with per-task `description` metadata.
-- Worktree use is supported and recommended for parallel branches.
-- Remote cache is optional; run `pnpm dlx turbo login` and `pnpm dlx turbo link` when needed.
+- `pnpm dev` run all workspace dev tasks (with `--continue=always`)
+- `pnpm build` build all workspaces
+- `pnpm build:core` build API + Web (and dependency graph)
+- `pnpm check` format/lint/typecheck/test across workspaces
+- `pnpm check:ci` CI gate alias
+- `pnpm generate` GraphQL codegen
+- `pnpm db:*` database lifecycle commands
+
+## CI
+
+Workflows:
+
+- `.github/workflows/ci-pr.yml`
+  - required fast gate for PRs (`format:check`, `lint`, `typecheck`, `test`)
+  - core build gate (`build:core`)
+- `.github/workflows/security.yml`
+  - dependency audit + secret scanning
+- `.github/workflows/deep-checks.yml`
+  - scheduled deeper checks (mobile export and desktop validation)
+
+## Troubleshooting
+
+### Mobile (Expo)
+
+- If bundling or module resolution looks stale:
+
+```bash
+pnpm --filter @repo/mobile exec expo start -c
+```
+
+- If testing on physical device, set `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GRAPHQL_URL` to LAN IP, not `localhost`.
+
+### Desktop (Tauri)
+
+- Desktop dev expects web app at `http://localhost:3000`.
+
+## Documentation
+
+- Contributor guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Architecture decisions: `docs/adr/`
+- Release checklist: `docs/release-checklist.md`

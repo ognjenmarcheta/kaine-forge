@@ -1,0 +1,28 @@
+# ADR 0003: Fast Required PR Gate + Deeper Scheduled Checks
+
+- Status: Accepted
+- Date: 2026-02-18
+
+## Context
+
+The monorepo contains web, API, desktop, mobile, and shared packages. Running full heavy validation on every PR slows feedback loops.
+
+## Decision
+
+Use a two-tier CI strategy:
+
+1. Required PR gate (fast):
+   - format/lint/typecheck/test
+   - core build (API + web dependency graph)
+2. Scheduled/manual deep checks:
+   - mobile export validation
+   - desktop-specific validation
+
+## Consequences
+
+- Pros:
+  - fast signal on everyday PRs
+  - deeper confidence on schedule without blocking iteration speed
+- Cons:
+  - deep runtime issues may appear after PR merge window
+  - requires active monitoring of scheduled workflow failures

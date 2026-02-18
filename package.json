@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "turbo run dev --concurrency=20 --continue=always",
     "build": "turbo run build",
+    "build:core": "turbo run build --filter=@repo/api --filter=@repo/web",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "check:ci": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "turbo run format --continue",
     "format:check": "turbo run format:check --continue",
     "lint": "turbo run lint --continue",
