@@ -19,10 +19,12 @@ const config: CodegenConfig = {
         documentMode: "documentNode",
         exposeMutationKeys: true,
         exposeQueryKeys: true,
-        fetcher: "graphql-request",
+        fetcher: {
+          func: "../../lib/graphql-codegen-fetcher#useGraphqlFetcher",
+          isReactHook: true
+        },
         legacyMode: false,
-        reactQueryVersion: 5,
-        useTypeImports: true
+        reactQueryVersion: 5
       }
     },
     "../../apps/mobile/src/graphql/generated/": {
@@ -37,10 +39,12 @@ const config: CodegenConfig = {
         documentMode: "documentNode",
         exposeMutationKeys: true,
         exposeQueryKeys: true,
-        fetcher: "graphql-request",
+        fetcher: {
+          func: "../../lib/graphql-codegen-fetcher#useGraphqlFetcher",
+          isReactHook: true
+        },
         legacyMode: false,
-        reactQueryVersion: 5,
-        useTypeImports: true
+        reactQueryVersion: 5
       }
     }
   }

@@ -15,14 +15,11 @@ import {
   useToggleTodoMutation,
   useUpdateTodoMutation
 } from "../../graphql/generated/react-query";
-import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
-import { createGraphqlClient } from "../../lib/graphql-client";
 
 export function TodosRoute() {
   const { t } = useTranslation();
-  const { session } = useAuth();
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
   const queryClient = useQueryClient();
 
@@ -30,7 +27,6 @@ export function TodosRoute() {
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const client = useMemo(() => createGraphqlClient(session), [session]);
   const listVariables = useMemo(
     () => ({
       limit: TODOS_CONFIG.pageSize,
@@ -46,18 +42,18 @@ export function TodosRoute() {
     [activeOrganizationId, listVariables]
   );
 
-  const todosQuery = useGetTodosQuery(client, listVariables, {
+  const todosQuery = useGetTodosQuery(listVariables, {
     queryKey: todosQueryKey,
     enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
   });
 
-  const createMutation = useCreateTodoMutation(client);
+  const createMutation = useCreateTodoMutation();
 
-  const updateMutation = useUpdateTodoMutation(client);
+  const updateMutation = useUpdateTodoMutation();
 
-  const deleteMutation = useDeleteTodoMutation(client);
+  const deleteMutation = useDeleteTodoMutation();
 
-  const toggleMutation = useToggleTodoMutation(client);
+  const toggleMutation = useToggleTodoMutation();
 
   const invalidateTodos = async (queryKey: readonly unknown[]) => {
     if (!activeOrganizationId) {

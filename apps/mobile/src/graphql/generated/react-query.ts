@@ -1,11 +1,5 @@
-import type { GraphQLClient } from "graphql-request";
-import type { RequestInit } from "graphql-request/dist/types.dom";
-import {
-  useQuery,
-  useMutation,
-  type UseQueryOptions,
-  type UseMutationOptions
-} from "@tanstack/react-query";
+import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
+import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -17,20 +11,6 @@ export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> =
 export type Incremental<T> =
   | T
   | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
-
-function fetcher<TData, TVariables extends { [key: string]: any }>(
-  client: GraphQLClient,
-  query: string,
-  variables?: TVariables,
-  requestHeaders?: RequestInit["headers"]
-) {
-  return async (): Promise<TData> =>
-    client.request({
-      document: query,
-      variables,
-      requestHeaders
-    });
-}
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
   ID: { input: string; output: string };
@@ -212,21 +192,16 @@ export const MobileHealthDocument = `
     `;
 
 export const useMobileHealthQuery = <TData = MobileHealthQuery, TError = unknown>(
-  client: GraphQLClient,
   variables?: MobileHealthQueryVariables,
   options?: Omit<UseQueryOptions<MobileHealthQuery, TError, TData>, "queryKey"> & {
     queryKey?: UseQueryOptions<MobileHealthQuery, TError, TData>["queryKey"];
-  },
-  headers?: RequestInit["headers"]
+  }
 ) => {
   return useQuery<MobileHealthQuery, TError, TData>({
     queryKey: variables === undefined ? ["MobileHealth"] : ["MobileHealth", variables],
-    queryFn: fetcher<MobileHealthQuery, MobileHealthQueryVariables>(
-      client,
-      MobileHealthDocument,
-      variables,
-      headers
-    ),
+    queryFn: useGraphqlFetcher<MobileHealthQuery, MobileHealthQueryVariables>(
+      MobileHealthDocument
+    ).bind(null, variables),
     ...options
   });
 };
@@ -248,21 +223,16 @@ export const GetMobileTodosDocument = `
     `;
 
 export const useGetMobileTodosQuery = <TData = GetMobileTodosQuery, TError = unknown>(
-  client: GraphQLClient,
   variables?: GetMobileTodosQueryVariables,
   options?: Omit<UseQueryOptions<GetMobileTodosQuery, TError, TData>, "queryKey"> & {
     queryKey?: UseQueryOptions<GetMobileTodosQuery, TError, TData>["queryKey"];
-  },
-  headers?: RequestInit["headers"]
+  }
 ) => {
   return useQuery<GetMobileTodosQuery, TError, TData>({
     queryKey: variables === undefined ? ["GetMobileTodos"] : ["GetMobileTodos", variables],
-    queryFn: fetcher<GetMobileTodosQuery, GetMobileTodosQueryVariables>(
-      client,
-      GetMobileTodosDocument,
-      variables,
-      headers
-    ),
+    queryFn: useGraphqlFetcher<GetMobileTodosQuery, GetMobileTodosQueryVariables>(
+      GetMobileTodosDocument
+    ).bind(null, variables),
     ...options
   });
 };
@@ -284,25 +254,19 @@ export const CreateMobileTodoDocument = `
     `;
 
 export const useCreateMobileTodoMutation = <TError = unknown, TContext = unknown>(
-  client: GraphQLClient,
   options?: UseMutationOptions<
     CreateMobileTodoMutation,
     TError,
     CreateMobileTodoMutationVariables,
     TContext
-  >,
-  headers?: RequestInit["headers"]
+  >
 ) => {
   return useMutation<CreateMobileTodoMutation, TError, CreateMobileTodoMutationVariables, TContext>(
     {
       mutationKey: ["CreateMobileTodo"],
-      mutationFn: (variables?: CreateMobileTodoMutationVariables) =>
-        fetcher<CreateMobileTodoMutation, CreateMobileTodoMutationVariables>(
-          client,
-          CreateMobileTodoDocument,
-          variables,
-          headers
-        )(),
+      mutationFn: useGraphqlFetcher<CreateMobileTodoMutation, CreateMobileTodoMutationVariables>(
+        CreateMobileTodoDocument
+      ),
       ...options
     }
   );
@@ -324,25 +288,19 @@ export const UpdateMobileTodoDocument = `
     `;
 
 export const useUpdateMobileTodoMutation = <TError = unknown, TContext = unknown>(
-  client: GraphQLClient,
   options?: UseMutationOptions<
     UpdateMobileTodoMutation,
     TError,
     UpdateMobileTodoMutationVariables,
     TContext
-  >,
-  headers?: RequestInit["headers"]
+  >
 ) => {
   return useMutation<UpdateMobileTodoMutation, TError, UpdateMobileTodoMutationVariables, TContext>(
     {
       mutationKey: ["UpdateMobileTodo"],
-      mutationFn: (variables?: UpdateMobileTodoMutationVariables) =>
-        fetcher<UpdateMobileTodoMutation, UpdateMobileTodoMutationVariables>(
-          client,
-          UpdateMobileTodoDocument,
-          variables,
-          headers
-        )(),
+      mutationFn: useGraphqlFetcher<UpdateMobileTodoMutation, UpdateMobileTodoMutationVariables>(
+        UpdateMobileTodoDocument
+      ),
       ...options
     }
   );
@@ -357,25 +315,19 @@ export const DeleteMobileTodoDocument = `
     `;
 
 export const useDeleteMobileTodoMutation = <TError = unknown, TContext = unknown>(
-  client: GraphQLClient,
   options?: UseMutationOptions<
     DeleteMobileTodoMutation,
     TError,
     DeleteMobileTodoMutationVariables,
     TContext
-  >,
-  headers?: RequestInit["headers"]
+  >
 ) => {
   return useMutation<DeleteMobileTodoMutation, TError, DeleteMobileTodoMutationVariables, TContext>(
     {
       mutationKey: ["DeleteMobileTodo"],
-      mutationFn: (variables?: DeleteMobileTodoMutationVariables) =>
-        fetcher<DeleteMobileTodoMutation, DeleteMobileTodoMutationVariables>(
-          client,
-          DeleteMobileTodoDocument,
-          variables,
-          headers
-        )(),
+      mutationFn: useGraphqlFetcher<DeleteMobileTodoMutation, DeleteMobileTodoMutationVariables>(
+        DeleteMobileTodoDocument
+      ),
       ...options
     }
   );
@@ -397,25 +349,19 @@ export const ToggleMobileTodoDocument = `
     `;
 
 export const useToggleMobileTodoMutation = <TError = unknown, TContext = unknown>(
-  client: GraphQLClient,
   options?: UseMutationOptions<
     ToggleMobileTodoMutation,
     TError,
     ToggleMobileTodoMutationVariables,
     TContext
-  >,
-  headers?: RequestInit["headers"]
+  >
 ) => {
   return useMutation<ToggleMobileTodoMutation, TError, ToggleMobileTodoMutationVariables, TContext>(
     {
       mutationKey: ["ToggleMobileTodo"],
-      mutationFn: (variables?: ToggleMobileTodoMutationVariables) =>
-        fetcher<ToggleMobileTodoMutation, ToggleMobileTodoMutationVariables>(
-          client,
-          ToggleMobileTodoDocument,
-          variables,
-          headers
-        )(),
+      mutationFn: useGraphqlFetcher<ToggleMobileTodoMutation, ToggleMobileTodoMutationVariables>(
+        ToggleMobileTodoDocument
+      ),
       ...options
     }
   );
