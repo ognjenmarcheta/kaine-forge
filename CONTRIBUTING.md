@@ -90,6 +90,13 @@ pnpm release:version
 
 - `main` merges trigger `.github/workflows/release.yml`, which runs quality gates and handles
   Changesets-based version/tag/release automation.
+- Preferred setup: allow the default token in repository settings:
+  `https://github.com/ognjenmarcheta/kaine-forge/settings/actions` -> **Workflow permissions** ->
+  select **Read and write permissions** and enable **Allow GitHub Actions to create and approve pull requests**.
+- If your org policy blocks PR creation via `GITHUB_TOKEN`, set repository variable
+  `RELEASE_USE_PAT=true` and add secret `RELEASE_PLEASE_TOKEN` (PAT with repo permissions).
+- If release fails with `Bad credentials`, rotate/remove `RELEASE_PLEASE_TOKEN` or disable
+  `RELEASE_USE_PAT` to fall back to `GITHUB_TOKEN`.
 
 ## Coding standards
 

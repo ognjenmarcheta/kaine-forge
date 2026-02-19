@@ -85,8 +85,8 @@ jobs:
           title: "chore(release): version packages"
           commit: "chore(release): version packages"
         env:
-          # Use a bot PAT when provided because some repos block PR creation with GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Default to GITHUB_TOKEN. Use PAT only when explicitly enabled via vars.RELEASE_USE_PAT=true.
+          GITHUB_TOKEN: ${{ vars.RELEASE_USE_PAT == 'true' && secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Push release tags
         if: steps.changesets.outputs.published == 'true'
@@ -105,7 +105,7 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         env:
           # Keep release API auth aligned with the token used by changesets/action.
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ vars.RELEASE_USE_PAT == 'true' && secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           TAGS="$(git tag --points-at HEAD)"
           if [ -z "$TAGS" ]; then
