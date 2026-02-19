@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-import { db } from "../client";
 import { usersTable } from "../schema/users.schema";
 
 const TEST_USER = {
@@ -12,6 +11,7 @@ const TEST_USER = {
 } as const;
 
 export async function seedUsers(): Promise<void> {
+  const { db } = await import("../client");
   const passwordHash = createHash("sha256").update(TEST_USER.password).digest("hex");
 
   await db
@@ -34,6 +34,7 @@ export async function seedUsers(): Promise<void> {
 }
 
 export async function getSeedUser() {
+  const { db } = await import("../client");
   const users = await db
     .select()
     .from(usersTable)
