@@ -1,0 +1,93 @@
+"area:api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/api/**"
+
+"area:web":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/web/**"
+
+"area:desktop":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/desktop/**"
+
+"area:mobile":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/mobile/**"
+
+"area:e2e":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/e2e/**"
+
+"area:auth":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/auth/**"
+
+"area:db":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/db/**"
+
+"area:translation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/translation/**"
+
+"area:ui":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/ui/**"
+
+"area:config":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/config/**"
+
+"area:tooling":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tooling/**"
+
+"area:docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "README.md"
+          - "CONTRIBUTING.md"
+          - "SECURITY.md"
+
+"platform:api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/api/**"
+
+"platform:web":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/web/**"
+
+"platform:desktop":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/desktop/**"
+
+"platform:mobile":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/mobile/**"
+
+"release:changeset":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".changeset/**"
+
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pnpm-lock.yaml"
+          - "**/package.json"
