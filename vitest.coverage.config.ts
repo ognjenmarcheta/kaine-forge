@@ -15,6 +15,8 @@ export default defineConfig({
     coverage: {
       enabled: true,
       exclude: [
+        ".prettierrc.cjs",
+        "vitest.workspace.ts",
         "**/*.test.*",
         "**/*.spec.*",
         "**/*.d.ts",
