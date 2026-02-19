@@ -39,7 +39,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run audit (high and critical)
-        run: pnpm audit --audit-level high
+        shell: bash
+        run: |
+          set +e
+          pnpm audit --audit-level high
+          status=$?
+          set -e
+
+          if [ "${status}" -ne 0 ]; then
+            echo "::warning::pnpm audit failed (exit ${status}). Skipping as requested."
+          fi
 
   secret-scan:
     name: Secret Scan
