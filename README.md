@@ -17,6 +17,7 @@ Production-oriented Turborepo + pnpm monorepo with:
 - Phase 5: Mobile ✅
 - Phase 6: Polish/production-readiness ✅
 - Phase 7: Quality gates (e2e + a11y + i18n lint) ✅
+- Phase 8: Release engineering (changesets + GitHub releases) ✅
 
 ## Prerequisites
 
@@ -54,6 +55,9 @@ pnpm initialize
 - `pnpm check` format/lint/typecheck/test across workspaces
 - `pnpm check:ci` CI gate alias
 - `pnpm test:e2e` run Playwright web/api e2e suite with a11y assertions
+- `pnpm release:status` inspect pending changeset release metadata
+- `pnpm release:version` apply version/changelog updates from changesets
+- `pnpm release:publish` create release tags (no npm publish)
 - `pnpm generate` GraphQL codegen
 - `pnpm db:*` database lifecycle commands
 
@@ -69,6 +73,8 @@ Workflows:
   - dependency audit + secret scanning
 - `.github/workflows/deep-checks.yml`
   - scheduled deeper checks (mobile export and desktop validation)
+- `.github/workflows/release.yml`
+  - automated release flow on `main` with quality gates + Changesets + GitHub releases
 
 ## Troubleshooting
 
@@ -97,6 +103,26 @@ pnpm --filter @repo/mobile exec expo start -c
 ```bash
 pnpm test:e2e
 ```
+
+### Releases (Changesets)
+
+- Add release metadata in PRs with:
+
+```bash
+pnpm changeset
+```
+
+- Inspect pending changes:
+
+```bash
+pnpm release:status
+```
+
+- The release workflow runs on merges to `main` and:
+  - enforces `check:ci` and `test:e2e`
+  - creates/updates a version PR from pending changesets
+  - on version PR merge, tags versions and creates GitHub Releases
+- For non-releasable source changes, use PR label `release:skip-changeset`.
 
 ## Documentation
 

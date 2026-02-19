@@ -5,28 +5,35 @@
 - [ ] `pnpm install --frozen-lockfile`
 - [ ] `pnpm check`
 - [ ] `pnpm build:core`
+- [ ] `pnpm test:e2e`
 - [ ] `pnpm --filter @repo/desktop check`
 - [ ] `pnpm --filter @repo/mobile check`
 
-## 2. Database and schema
+## 2. Changesets and versioning
+
+- [ ] Confirm PR includes `.changeset/*.md` for releasable source changes
+- [ ] Use label `release:skip-changeset` only for non-releasable source changes
+- [ ] Validate pending release metadata (`pnpm release:status`)
+
+## 3. Database and schema
 
 - [ ] Confirm migration state (`pnpm db:generate`, `pnpm db:migrate` as needed)
 - [ ] Validate GraphQL schema/codegen consistency (`pnpm generate`)
 
-## 3. Runtime smoke checks
+## 4. Runtime smoke checks
 
 - [ ] API starts and health query returns `ok`
 - [ ] Web auth + todos CRUD smoke test
 - [ ] Desktop shell loads web app in dev
 - [ ] Mobile app launches with `expo start -c`
 
-## 4. Security and dependency checks
+## 5. Security and dependency checks
 
 - [ ] Review `security.yml` workflow status (audit + secret scan)
 - [ ] Verify no secrets or tokens are present in changed files
 
-## 5. Release notes and versioning
+## 6. Release automation verification
 
-- [ ] Summarize user-visible changes
-- [ ] Document breaking changes (if any)
-- [ ] Tag/branch according to release policy
+- [ ] Confirm `.github/workflows/release.yml` passed on `main`
+- [ ] Confirm release PR was created/updated by Changesets action
+- [ ] After release PR merge, confirm tags were created and GitHub Release exists

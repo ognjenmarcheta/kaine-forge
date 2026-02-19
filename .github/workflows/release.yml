@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10.29.3"
+
+jobs:
+  release:
+    name: Version and Release
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: monorepo_dev
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d monorepo_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare environment
+        run: |
+          cat << 'EOF' > .env
+          DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
+          BETTER_AUTH_SECRET=ci-release-secret
+          BETTER_AUTH_URL=http://localhost:4000
+          API_PORT=4000
+          API_URL=http://localhost:4000
+          VITE_API_URL=http://localhost:4000
+          VITE_GRAPHQL_URL=http://localhost:4000/graphql
+          EXPO_PUBLIC_API_URL=http://localhost:4000
+          EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+          EOF
+
+      - name: Run quality gates
+        run: |
+          pnpm run check:ci
+          pnpm run test:e2e
+
+      - name: Version packages or publish tags
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm run release:version
+          publish: pnpm run release:publish
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push release tags
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          TAGS="$(git tag --points-at HEAD)"
+          if [ -z "$TAGS" ]; then
+            echo "No release tags created on this commit."
+            exit 0
+          fi
+
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && git push origin "refs/tags/$tag"
+          done <<< "$TAGS"
+
+      - name: Create GitHub Releases for tags
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAGS="$(git tag --points-at HEAD)"
+          if [ -z "$TAGS" ]; then
+            echo "No release tags found for GitHub release creation."
+            exit 0
+          fi
+
+          while IFS= read -r tag; do
+            if [ -z "$tag" ]; then
+              continue
+            fi
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "GitHub release already exists for $tag"
+            else
+              gh release create "$tag" --title "$tag" --generate-notes
+            fi
+          done <<< "$TAGS"

@@ -50,6 +50,13 @@ pnpm dev
 - Describe behavior change and risk.
 - Include test coverage notes.
 - Keep PRs small enough for quick review.
+- For source changes (`apps/**`, `packages/**`, `tooling/**`), add release metadata:
+
+```bash
+pnpm changeset
+```
+
+- If a source change is intentionally non-releasable, add PR label `release:skip-changeset`.
 
 Required CI checks are defined in `.github/workflows/ci-pr.yml`.
 
@@ -58,6 +65,23 @@ Required CI checks are defined in `.github/workflows/ci-pr.yml`.
 - Playwright tests live in `apps/e2e`.
 - `pnpm test:e2e` covers sign-in + todo lifecycle and baseline axe checks.
 - On CI failures, inspect uploaded artifacts (`playwright-report`, `test-results`).
+
+## Release flow
+
+- Check pending release metadata:
+
+```bash
+pnpm release:status
+```
+
+- Apply version/changelog changes locally (for maintainers):
+
+```bash
+pnpm release:version
+```
+
+- `main` merges trigger `.github/workflows/release.yml`, which runs quality gates and handles
+  Changesets-based version/tag/release automation.
 
 ## Coding standards
 

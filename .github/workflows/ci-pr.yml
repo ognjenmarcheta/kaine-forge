@@ -11,12 +11,44 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   NODE_VERSION: "22"
   PNPM_VERSION: "10.29.3"
 
 jobs:
+  changeset-required:
+    name: Changeset Required
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect source and changeset files
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            source:
+              - "apps/**"
+              - "packages/**"
+              - "tooling/**"
+            changeset:
+              - ".changeset/*.md"
+
+      - name: Enforce release metadata
+        if: |
+          steps.changes.outputs.source == 'true' &&
+          steps.changes.outputs.changeset == 'false' &&
+          !contains(github.event.pull_request.labels.*.name, 'release:skip-changeset')
+        run: |
+          echo "Source changes detected without a .changeset entry."
+          echo "Run 'pnpm changeset' and commit the generated file,"
+          echo "or add label 'release:skip-changeset' for non-releasable changes."
+          exit 1
+
   check-fast:
     name: Check Fast
     runs-on: ubuntu-latest
