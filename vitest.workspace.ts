@@ -8,6 +8,7 @@ export default defineWorkspace([
   "packages/auth",
   "packages/config",
   "packages/db",
+  "packages/query",
   "packages/translation",
   "packages/ui",
   "tooling/graphql-codegen"

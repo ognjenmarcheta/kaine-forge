@@ -1,18 +1,18 @@
 import { resolveFeatureFlags } from "@repo/feature-flags";
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { invalidateOrgScopedQueries, queryKeys } from "@repo/query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
-import { AUTH_CONFIG } from "../features/auth/auth.config";
-import type { AuthSession } from "../features/auth/auth.type";
 import {
   resolveOrganizationSelection,
   type OrganizationOption
 } from "../features/organizations/organization-selection.util";
 import { useAuth } from "../hooks/use-auth";
-
-interface ListOrganizationsResponse {
-  activeOrganizationId: string | null;
-  organizations: OrganizationOption[];
-}
+import {
+  createOrganizationRequest,
+  listOrganizationsRequest,
+  setActiveOrganizationRequest
+} from "../lib/auth-api";
 
 export interface OrganizationContextValue {
   organizations: OrganizationOption[];
@@ -46,52 +46,6 @@ function writeStoredOrganizationId(organizationId: string | null): void {
   window.localStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
-async function fetchOrganizations(): Promise<ListOrganizationsResponse> {
-  const response = await fetch(AUTH_CONFIG.routes.organizationList, {
-    credentials: "include",
-    method: "GET"
-  });
-
-  if (!response.ok) {
-    throw new Error(`organization list request failed (${String(response.status)})`);
-  }
-
-  return (await response.json()) as ListOrganizationsResponse;
-}
-
-async function requestSetActiveOrganization(organizationId: string): Promise<void> {
-  const response = await fetch(AUTH_CONFIG.routes.setActiveOrganization, {
-    body: JSON.stringify({ organizationId }),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  if (!response.ok) {
-    throw new Error(`set active organization request failed (${String(response.status)})`);
-  }
-}
-
-async function requestCreateOrganization(name: string): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.createOrganization, {
-    body: JSON.stringify({ name }),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  if (!response.ok) {
-    throw new Error(`create organization request failed (${String(response.status)})`);
-  }
-
-  const payload = (await response.json()) as { session: AuthSession };
-  return payload.session;
-}
-
 export const OrganizationContext = createContext<OrganizationContextValue | null>(null);
 
 interface OrganizationProviderProps {
@@ -100,90 +54,109 @@ interface OrganizationProviderProps {
 
 export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const { session } = useAuth();
+  const queryClient = useQueryClient();
+
   const featureFlags = useMemo(
     () => resolveFeatureFlags(import.meta.env as Record<string, string | undefined>),
     []
   );
-  const [isLoading, setIsLoading] = useState(false);
-  const [organizations, setOrganizations] = useState<OrganizationOption[]>([]);
-  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
 
-  const setActiveOrganization = useCallback(async (organizationId: string) => {
-    await requestSetActiveOrganization(organizationId);
-    setActiveOrganizationId(organizationId);
-    writeStoredOrganizationId(organizationId);
-  }, []);
+  const organizationsQuery = useQuery({
+    queryKey: queryKeys.organizations(),
+    queryFn: listOrganizationsRequest,
+    enabled: Boolean(session),
+    staleTime: 30 * 1000
+  });
 
-  const createOrganization = useCallback(async (name: string) => {
-    const nextSession = await requestCreateOrganization(name);
-    const payload = await fetchOrganizations();
-    const nextActiveOrganizationId =
-      nextSession.activeOrganizationId ?? payload.activeOrganizationId;
+  const setActiveOrganizationMutation = useMutation({
+    mutationFn: setActiveOrganizationRequest,
+    onSuccess: async (nextSession) => {
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      writeStoredOrganizationId(nextSession.activeOrganizationId);
+      await invalidateOrgScopedQueries(queryClient);
+    }
+  });
 
-    setOrganizations(payload.organizations);
-    setActiveOrganizationId(nextActiveOrganizationId);
-    writeStoredOrganizationId(nextActiveOrganizationId);
-  }, []);
+  const createOrganizationMutation = useMutation({
+    mutationFn: createOrganizationRequest,
+    onSuccess: async (nextSession) => {
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      writeStoredOrganizationId(nextSession.activeOrganizationId);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations()
+      });
+      await invalidateOrgScopedQueries(queryClient);
+    }
+  });
+
+  const organizations = useMemo(
+    () => organizationsQuery.data?.organizations ?? [],
+    [organizationsQuery.data?.organizations]
+  );
+  const activeOrganizationId = session?.activeOrganizationId ?? null;
+
+  const setActiveOrganization = useCallback(
+    async (organizationId: string) => {
+      await setActiveOrganizationMutation.mutateAsync(organizationId);
+    },
+    [setActiveOrganizationMutation]
+  );
+
+  const createOrganization = useCallback(
+    async (name: string) => {
+      await createOrganizationMutation.mutateAsync(name);
+    },
+    [createOrganizationMutation]
+  );
 
   useEffect(() => {
-    let mounted = true;
-
     if (!session) {
-      setOrganizations([]);
-      setActiveOrganizationId(null);
       writeStoredOrganizationId(null);
       return;
     }
 
-    void (async () => {
-      setIsLoading(true);
+    if (!organizationsQuery.data || setActiveOrganizationMutation.status === "pending") {
+      return;
+    }
 
-      try {
-        const payload = await fetchOrganizations();
+    const payload = organizationsQuery.data;
+    const rememberedOrganizationId = featureFlags.organizationsVisible
+      ? readStoredOrganizationId()
+      : null;
+    const selectedOrganization = resolveOrganizationSelection({
+      organizations: payload.organizations,
+      rememberedOrganizationId
+    });
+    const preferredOrganizationId =
+      selectedOrganization?.id ?? payload.activeOrganizationId ?? session.activeOrganizationId;
 
-        if (!mounted) {
-          return;
-        }
+    if (!preferredOrganizationId) {
+      writeStoredOrganizationId(null);
+      return;
+    }
 
-        setOrganizations(payload.organizations);
-        const rememberedOrganizationId = featureFlags.organizationsVisible
-          ? readStoredOrganizationId()
-          : null;
-        const selectedOrganization = resolveOrganizationSelection({
-          organizations: payload.organizations,
-          rememberedOrganizationId
-        });
-        const nextActiveOrganizationId =
-          selectedOrganization?.id ?? payload.activeOrganizationId ?? null;
+    if (preferredOrganizationId !== session.activeOrganizationId) {
+      void setActiveOrganizationMutation.mutateAsync(preferredOrganizationId);
+      return;
+    }
 
-        if (
-          nextActiveOrganizationId &&
-          payload.activeOrganizationId &&
-          nextActiveOrganizationId !== payload.activeOrganizationId
-        ) {
-          await requestSetActiveOrganization(nextActiveOrganizationId);
-        }
-
-        setActiveOrganizationId(nextActiveOrganizationId);
-        writeStoredOrganizationId(nextActiveOrganizationId);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [featureFlags.organizationsVisible, session]);
+    writeStoredOrganizationId(preferredOrganizationId);
+  }, [
+    featureFlags.organizationsVisible,
+    organizationsQuery.data,
+    session,
+    setActiveOrganizationMutation
+  ]);
 
   const value = useMemo<OrganizationContextValue>(
     () => ({
       organizations,
       activeOrganizationId,
       organizationsVisible: featureFlags.organizationsVisible,
-      isLoading,
+      isLoading:
+        organizationsQuery.status === "pending" ||
+        setActiveOrganizationMutation.status === "pending" ||
+        createOrganizationMutation.status === "pending",
       setActiveOrganization,
       createOrganization
     }),
@@ -191,7 +164,9 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       organizations,
       activeOrganizationId,
       featureFlags.organizationsVisible,
-      isLoading,
+      organizationsQuery.status,
+      setActiveOrganizationMutation.status,
+      createOrganizationMutation.status,
       setActiveOrganization,
       createOrganization
     ]

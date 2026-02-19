@@ -6,6 +6,7 @@ export interface AuthUser {
 
 export interface AuthSession {
   expiresAt: string;
+  activeOrganizationId: string | null;
   user: AuthUser;
 }
 

@@ -1,4 +1,4 @@
-import type { Client } from "urql";
+import { GraphQLClient } from "graphql-request";
 
 import type { CreateTodoPayload, TodoItem, UpdateTodoPayload } from "./todos.type";
 import {
@@ -19,47 +19,36 @@ import {
   type UpdateTodoMutationVariables
 } from "../../graphql/generated/graphql";
 
-function ensureData<T>(data: T | undefined, message: string): T {
-  if (!data) {
-    throw new Error(message);
-  }
-
-  return data;
-}
-
 export async function listTodos(
-  client: Client,
+  client: GraphQLClient,
   variables: GetTodosQueryVariables
 ): Promise<TodoItem[]> {
-  const result = await client
-    .query<GetTodosQuery, GetTodosQueryVariables>(GetTodosDocument, variables)
-    .toPromise();
+  const data = await client.request<GetTodosQuery, GetTodosQueryVariables>(
+    GetTodosDocument,
+    variables
+  );
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  return ensureData(result.data, "todos response missing").todos;
+  return data.todos;
 }
 
-export async function createTodo(client: Client, input: CreateTodoPayload): Promise<TodoItem> {
+export async function createTodo(
+  client: GraphQLClient,
+  input: CreateTodoPayload
+): Promise<TodoItem> {
   const variables: CreateTodoMutationVariables = {
     input
   };
 
-  const result = await client
-    .mutation<CreateTodoMutation, CreateTodoMutationVariables>(CreateTodoDocument, variables)
-    .toPromise();
+  const data = await client.request<CreateTodoMutation, CreateTodoMutationVariables>(
+    CreateTodoDocument,
+    variables
+  );
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  return ensureData(result.data, "create todo response missing").createTodo;
+  return data.createTodo;
 }
 
 export async function updateTodo(
-  client: Client,
+  client: GraphQLClient,
   id: string,
   input: UpdateTodoPayload
 ): Promise<TodoItem> {
@@ -68,52 +57,41 @@ export async function updateTodo(
     input
   };
 
-  const result = await client
-    .mutation<UpdateTodoMutation, UpdateTodoMutationVariables>(UpdateTodoDocument, variables)
-    .toPromise();
+  const data = await client.request<UpdateTodoMutation, UpdateTodoMutationVariables>(
+    UpdateTodoDocument,
+    variables
+  );
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  return ensureData(result.data, "update todo response missing").updateTodo;
+  return data.updateTodo;
 }
 
-export async function deleteTodo(client: Client, id: string): Promise<boolean> {
+export async function deleteTodo(client: GraphQLClient, id: string): Promise<boolean> {
   const variables: DeleteTodoMutationVariables = {
     id
   };
 
-  const result = await client
-    .mutation<DeleteTodoMutation, DeleteTodoMutationVariables>(DeleteTodoDocument, variables)
-    .toPromise();
+  const data = await client.request<DeleteTodoMutation, DeleteTodoMutationVariables>(
+    DeleteTodoDocument,
+    variables
+  );
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  return ensureData(result.data, "delete todo response missing").deleteTodo;
+  return data.deleteTodo;
 }
 
-export async function toggleTodo(client: Client, id: string): Promise<TodoItem> {
+export async function toggleTodo(client: GraphQLClient, id: string): Promise<TodoItem> {
   const variables: ToggleTodoMutationVariables = {
     id
   };
 
-  const result = await client
-    .mutation<ToggleTodoMutation, ToggleTodoMutationVariables>(ToggleTodoDocument, variables)
-    .toPromise();
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  const data = ensureData(result.data, "toggle todo response missing").toggleTodo;
+  const data = await client.request<ToggleTodoMutation, ToggleTodoMutationVariables>(
+    ToggleTodoDocument,
+    variables
+  );
 
   return {
-    completed: data.completed,
+    completed: data.toggleTodo.completed,
     description: null,
-    id: data.id,
+    id: data.toggleTodo.id,
     title: ""
   };
 }
