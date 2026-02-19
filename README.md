@@ -54,6 +54,7 @@ pnpm initialize
 - `pnpm build:core` build API + Web (and dependency graph)
 - `pnpm check` format/lint/typecheck/test across workspaces
 - `pnpm check:ci` CI gate alias
+- `pnpm coverage` monorepo Vitest coverage with enforced thresholds
 - `pnpm test:e2e` run Playwright web/api e2e suite with a11y assertions
 - `pnpm release:status` inspect pending changeset release metadata
 - `pnpm release:version` apply version/changelog updates from changesets
@@ -66,7 +67,7 @@ pnpm initialize
 Workflows:
 
 - `.github/workflows/ci-pr.yml`
-  - required fast gate for PRs (`format:check`, `lint`, `typecheck`, `test`)
+  - required fast gate for PRs (`format:check`, `lint`, `typecheck`, `test`, `coverage`)
   - core build gate (`build:core`)
   - e2e gate (`test:e2e`) with PostgreSQL service and Playwright artifacts
 - `.github/workflows/security.yml`
@@ -103,6 +104,12 @@ pnpm --filter @repo/mobile exec expo start -c
 ```bash
 pnpm test:e2e
 ```
+
+### API Security Runtime
+
+- `API_CORS_ORIGINS` optional comma-separated allowlist for GraphQL/API origins.
+- `API_GRAPHQL_MAX_DEPTH` optional positive integer query depth cap (default `8`).
+- Error masking is automatically enabled when `NODE_ENV=production`.
 
 ### Releases (Changesets)
 

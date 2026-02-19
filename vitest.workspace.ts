@@ -1,0 +1,14 @@
+import { defineWorkspace } from "vitest/config";
+
+export default defineWorkspace([
+  "apps/api",
+  "apps/desktop",
+  "apps/mobile",
+  "apps/web",
+  "packages/auth",
+  "packages/config",
+  "packages/db",
+  "packages/translation",
+  "packages/ui",
+  "tooling/graphql-codegen"
+]);

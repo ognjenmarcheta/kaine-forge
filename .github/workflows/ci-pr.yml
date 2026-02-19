@@ -82,6 +82,9 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      - name: Coverage threshold
+        run: pnpm run coverage
+
   build-core:
     name: Build Core Apps
     runs-on: ubuntu-latest

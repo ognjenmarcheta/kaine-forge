@@ -22,6 +22,11 @@ export const translationInstance: i18n = i18next.createInstance();
 void translationInstance.init({
   fallbackLng: DEFAULT_LANGUAGE,
   lng: DEFAULT_LANGUAGE,
+  ns: ["auth", "common", "dashboard", "navigation", "todos"],
+  defaultNS: "common",
+  fallbackNS: ["auth", "dashboard", "navigation", "todos"],
+  keySeparator: false,
+  returnNull: false,
   resources: {
     de: {
       auth: authDe,

@@ -7,16 +7,26 @@ import { handleAuthRoute } from "./features/auth/auth.router";
 import { formatApiError } from "./middleware/error.middleware";
 import { loggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
+import { createDepthLimitPlugin, resolveApiRuntimeConfig } from "./server.config";
 
 export function createApiServer() {
   const auth = createServerAuth();
+  const runtimeConfig = resolveApiRuntimeConfig(process.env);
+  const cors =
+    runtimeConfig.allowedCorsOrigins === undefined
+      ? true
+      : {
+          credentials: true,
+          origin: runtimeConfig.allowedCorsOrigins
+        };
 
   const yoga = createYoga({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
-    plugins: [loggerPlugin],
+    plugins: [loggerPlugin, createDepthLimitPlugin(runtimeConfig.maxQueryDepth)],
     context: async ({ request }) => createContext(request),
-    maskedErrors: false
+    maskedErrors: runtimeConfig.maskedErrors,
+    cors
   });
 
   const server = createServer(async (req, res) => {
@@ -33,7 +43,9 @@ export function createApiServer() {
 
       yoga(req, res);
     } catch (error) {
-      const normalized = formatApiError(error);
+      const normalized = formatApiError(error, {
+        exposeDetails: runtimeConfig.exposeErrorDetails
+      });
       res.statusCode = 500;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(normalized));
