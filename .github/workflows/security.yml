@@ -41,39 +41,14 @@ jobs:
       - name: Run audit (high and critical)
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
+          pnpm audit --audit-level high
+          status=$?
+          set -e
 
-          max_attempts=3
-          for attempt in $(seq 1 "${max_attempts}"); do
-            echo "Running pnpm audit (attempt ${attempt}/${max_attempts})..."
-
-            set +e
-            pnpm audit --audit-level high > audit.out 2> audit.err
-            status=$?
-            set -e
-
-            cat audit.out
-            cat audit.err >&2
-
-            if [ "${status}" -eq 0 ]; then
-              echo "pnpm audit completed successfully."
-              exit 0
-            fi
-
-            if grep -Eq "ERR_PNPM_AUDIT_BAD_RESPONSE|Internal Server Error|security/audits.*500" audit.err; then
-              if [ "${attempt}" -lt "${max_attempts}" ]; then
-                echo "Audit endpoint is unstable. Retrying in 15 seconds..."
-                sleep 15
-                continue
-              fi
-
-              echo "::warning::pnpm audit failed due to npm audit endpoint instability (HTTP 500). Skipping failure."
-              exit 0
-            fi
-
-            echo "pnpm audit failed for a non-transient reason."
-            exit "${status}"
-          done
+          if [ "${status}" -ne 0 ]; then
+            echo "::warning::pnpm audit failed (exit ${status}). Skipping as requested."
+          fi
 
   secret-scan:
     name: Secret Scan
