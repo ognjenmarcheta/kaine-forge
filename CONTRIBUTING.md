@@ -50,6 +50,13 @@ pnpm dev
 - Describe behavior change and risk.
 - Include test coverage notes.
 - Keep PRs small enough for quick review.
+- Use conventional PR titles to enable automatic `type:*` labels:
+  - `feat(scope): ...`
+  - `fix(scope): ...`
+  - `docs(scope): ...`
+  - `chore(scope): ...`
+- Area/platform/release/dependency labels are auto-applied from changed files.
+- `release:skip-changeset` remains a manual label for intentionally non-releasable source changes.
 - For source changes (`apps/**`, `packages/**`, `tooling/**`), add release metadata:
 
 ```bash
@@ -59,6 +66,7 @@ pnpm changeset
 - If a source change is intentionally non-releasable, add PR label `release:skip-changeset`.
 
 Required CI checks are defined in `.github/workflows/ci-pr.yml`.
+Automated labeling is defined in `.github/workflows/labeler.yml`.
 
 ## E2E and Accessibility
 

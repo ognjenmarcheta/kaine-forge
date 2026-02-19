@@ -1,0 +1,87 @@
+name: PR Labeler
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Apply PR labels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply file-based labels
+        uses: actions/labeler@v5
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          configuration-path: .github/labeler.yml
+          sync-labels: false
+
+      - name: Apply type label from PR title
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = context.payload.pull_request?.title ?? "";
+            const number = context.payload.pull_request?.number;
+
+            if (!number) {
+              core.info("No PR number available.");
+              return;
+            }
+
+            const typePatterns = [
+              [/^build(\(.+\))?:/i, "type:build"],
+              [/^chore(\(.+\))?:/i, "type:chore"],
+              [/^ci(\(.+\))?:/i, "type:ci"],
+              [/^docs(\(.+\))?:/i, "type:docs"],
+              [/^feat(\(.+\))?:/i, "type:feat"],
+              [/^fix(\(.+\))?:/i, "type:fix"],
+              [/^perf(\(.+\))?:/i, "type:perf"],
+              [/^refactor(\(.+\))?:/i, "type:refactor"],
+              [/^revert(\(.+\))?:/i, "type:revert"],
+              [/^style(\(.+\))?:/i, "type:style"],
+              [/^test(\(.+\))?:/i, "type:test"]
+            ];
+
+            const matchedType = typePatterns.find(([pattern]) => pattern.test(title))?.[1];
+            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number
+            });
+
+            const currentNames = currentLabels.map((label) => label.name);
+            const staleTypeLabels = currentNames.filter(
+              (name) => name.startsWith("type:") && name !== matchedType
+            );
+
+            for (const label of staleTypeLabels) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: number,
+                  name: label
+                });
+              } catch (error) {
+                core.warning(`Could not remove stale label ${label}: ${error.message}`);
+              }
+            }
+
+            if (matchedType && !currentNames.includes(matchedType)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                labels: [matchedType]
+              });
+            }

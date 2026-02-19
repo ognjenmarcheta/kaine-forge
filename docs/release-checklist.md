@@ -4,6 +4,7 @@
 
 - [ ] `pnpm install --frozen-lockfile`
 - [ ] `pnpm check`
+- [ ] `pnpm coverage`
 - [ ] `pnpm build:core`
 - [ ] `pnpm test:e2e`
 - [ ] `pnpm --filter @repo/desktop check`
@@ -23,6 +24,8 @@
 ## 4. Runtime smoke checks
 
 - [ ] API starts and health query returns `ok`
+- [ ] API rejects overly deep GraphQL query (`API_GRAPHQL_MAX_DEPTH`)
+- [ ] API CORS allowlist (`API_CORS_ORIGINS`) matches deployment origins
 - [ ] Web auth + todos CRUD smoke test
 - [ ] Desktop shell loads web app in dev
 - [ ] Mobile app launches with `expo start -c`
