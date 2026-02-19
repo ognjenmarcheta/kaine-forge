@@ -6,6 +6,7 @@ export const todosTypeDefs = /* GraphQL */ `
     title: String!
     description: String
     completed: Boolean!
+    organizationId: ID!
     createdAt: DateTime!
     updatedAt: DateTime!
   }

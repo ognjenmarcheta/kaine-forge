@@ -1,6 +1,9 @@
 {
   "navigation.dashboard": "Kontrolna tabla",
   "navigation.language": "Jezik",
+  "navigation.organization": "Organizacija",
+  "navigation.organizationCreate": "Kreiraj organizaciju",
+  "navigation.organizationName": "Naziv organizacije",
   "navigation.theme": "Tema",
   "navigation.todos": "Zadaci"
 }

@@ -9,10 +9,12 @@ import { createTodo, deleteTodo, listTodos, updateTodo } from "./todos.adapter";
 import { TODOS_CONFIG } from "./todos.config";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { toCreatePayload, toUpdatePayload } from "./todos.util";
+import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 
 export function TodosRoute() {
   const { t } = useTranslation();
+  const { activeOrganizationId } = useOrganization();
   const client = useClient();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +44,7 @@ export function TodosRoute() {
 
   useEffect(() => {
     void reloadTodos();
-  }, [reloadTodos]);
+  }, [activeOrganizationId, reloadTodos]);
 
   async function handleCreate(draft: TodoDraft) {
     try {

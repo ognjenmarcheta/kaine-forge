@@ -7,6 +7,7 @@ export function createUrqlClient(session: AuthSession | null) {
   return createClient({
     exchanges: [cacheExchange, fetchExchange],
     fetchOptions: () => ({
+      credentials: "include",
       headers: {
         ...authHeaders(session)
       }

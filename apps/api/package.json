@@ -20,6 +20,7 @@
   "dependencies": {
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/feature-flags": "workspace:*",
     "@repo/translation": "workspace:*",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",

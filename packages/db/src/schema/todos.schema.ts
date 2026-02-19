@@ -1,5 +1,6 @@
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
 
 export const todosTable = pgTable("todos", {
@@ -10,6 +11,9 @@ export const todosTable = pgTable("todos", {
   userId: uuid("user_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizationsTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

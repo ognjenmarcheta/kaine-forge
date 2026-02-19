@@ -5,3 +5,11 @@ export function requireUser(ctx: { user: { id: string } | null }): { id: string 
 
   return ctx.user;
 }
+
+export function requireActiveOrganizationId(ctx: { activeOrganizationId: string | null }): string {
+  if (!ctx.activeOrganizationId) {
+    throw new Error("active organization required");
+  }
+
+  return ctx.activeOrganizationId;
+}

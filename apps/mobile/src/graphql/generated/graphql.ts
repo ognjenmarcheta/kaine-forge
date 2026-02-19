@@ -52,9 +52,29 @@ export type MutationUpdateTodoArgs = {
   input: UpdateTodoInput;
 };
 
+export type Organization = {
+  __typename?: "Organization";
+  id: Scalars["ID"]["output"];
+  name: Scalars["String"]["output"];
+  role: Scalars["String"]["output"];
+  slug: Scalars["String"]["output"];
+};
+
+export type OrganizationMember = {
+  __typename?: "OrganizationMember";
+  email: Scalars["String"]["output"];
+  id: Scalars["ID"]["output"];
+  name: Scalars["String"]["output"];
+  role: Scalars["String"]["output"];
+  userId: Scalars["ID"]["output"];
+};
+
 export type Query = {
   __typename?: "Query";
+  currentOrganization?: Maybe<Organization>;
   health: Scalars["String"]["output"];
+  members: Array<OrganizationMember>;
+  organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
 };
@@ -74,6 +94,7 @@ export type Todo = {
   createdAt: Scalars["DateTime"]["output"];
   description?: Maybe<Scalars["String"]["output"]>;
   id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
   title: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
 };
