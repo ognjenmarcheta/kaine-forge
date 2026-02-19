@@ -73,6 +73,7 @@ jobs:
       - name: Run quality gates
         run: |
           pnpm run check:ci
+          pnpm run build:core
           pnpm run test:e2e
 
       - name: Version packages or publish tags

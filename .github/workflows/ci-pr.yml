@@ -143,6 +143,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build API and Web with dependencies
+        run: pnpm run build:core
+
       - name: Install Playwright browser
         run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
 
