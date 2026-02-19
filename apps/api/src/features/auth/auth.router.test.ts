@@ -1,4 +1,4 @@
-import type { ServerAuth } from "@repo/auth";
+import type { ServerAuth } from "@repo/auth/auth.type";
 import type { IncomingMessage, IncomingHttpHeaders, ServerResponse } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 

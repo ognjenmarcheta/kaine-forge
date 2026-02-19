@@ -1,4 +1,4 @@
-import { createServerAuth } from "@repo/auth";
+import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import { resolveFeatureFlags } from "@repo/feature-flags";
 import { t } from "@repo/translation";

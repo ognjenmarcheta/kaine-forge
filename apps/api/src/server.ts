@@ -1,4 +1,4 @@
-import { createServerAuth } from "@repo/auth";
+import { createServerAuth } from "@repo/auth/server";
 import { createYoga } from "graphql-yoga";
 import type { IncomingHttpHeaders } from "node:http";
 import { createServer } from "node:http";

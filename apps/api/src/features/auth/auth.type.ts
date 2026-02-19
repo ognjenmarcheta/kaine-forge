@@ -1,4 +1,4 @@
-import type { ServerAuth } from "@repo/auth";
+import type { ServerAuth } from "@repo/auth/auth.type";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 export interface AuthRouteContext {

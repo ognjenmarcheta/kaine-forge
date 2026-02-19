@@ -1,9 +1,9 @@
+import { AUTH_DEFINITIONS } from "@repo/auth/auth.definition";
 import {
-  AUTH_DEFINITIONS,
   type CreateOrganizationInput,
   type LoginInput,
   type SignupInput
-} from "@repo/auth";
+} from "@repo/auth/auth.type";
 
 import { AUTH_ROUTES } from "./auth.definition";
 import type { AuthRouteContext } from "./auth.type";
