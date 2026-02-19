@@ -15,3 +15,5 @@ apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/mobile/.expo/
 apps/mobile/.expo-shared/
+apps/e2e/playwright-report/
+apps/e2e/test-results/

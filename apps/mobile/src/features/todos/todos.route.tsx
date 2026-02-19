@@ -23,6 +23,7 @@ export function TodosRoute() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
 
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
+  const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 
   const reloadTodos = useCallback(async () => {
     try {
@@ -108,9 +109,7 @@ export function TodosRoute() {
       <View className="mb-3 flex-row items-center justify-between">
         <View>
           <Text className="text-2xl font-semibold text-text-default">{t("todos.title")}</Text>
-          <Text className="text-sm text-text-subtle">
-            {completedCount}/{todos.length} {t("todos.completed")}
-          </Text>
+          <Text className="text-sm text-text-subtle">{completionSummary}</Text>
         </View>
         <Pressable
           className="rounded-md bg-background-brand px-3 py-2"

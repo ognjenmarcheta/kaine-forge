@@ -34,7 +34,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
   return (
     <form className="web-form" onSubmit={onSubmit}>
       <label className="web-form__field">
-        <span>Email</span>
+        <span>{t("common.emailLabel")}</span>
         <Input
           required
           autoComplete="email"
@@ -45,7 +45,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
       </label>
 
       <label className="web-form__field">
-        <span>Password</span>
+        <span>{t("common.passwordLabel")}</span>
         <Input
           required
           autoComplete="current-password"

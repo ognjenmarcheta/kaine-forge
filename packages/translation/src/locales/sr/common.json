@@ -1,4 +1,11 @@
 {
+  "common.appName": "Kaine Forge",
+  "common.emailLabel": "Email",
+  "common.loading": "Ucitavanje",
+  "common.loadingSession": "Ucitavanje sesije...",
+  "common.nameLabel": "Puno ime",
+  "common.notAvailable": "-",
+  "common.passwordLabel": "Lozinka",
   "button.save": "Sacuvaj",
   "button.cancel": "Otkazi",
   "button.edit": "Izmeni",

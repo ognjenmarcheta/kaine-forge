@@ -74,3 +74,73 @@ jobs:
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
+
+  e2e-web-api:
+    name: E2E Web/API
+    runs-on: ubuntu-latest
+    needs: build-core
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: monorepo_dev
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d monorepo_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+
+      - name: Prepare environment
+        run: |
+          cat << 'EOF' > .env
+          DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
+          BETTER_AUTH_SECRET=ci-e2e-secret
+          BETTER_AUTH_URL=http://localhost:4000
+          API_PORT=4000
+          API_URL=http://localhost:4000
+          VITE_API_URL=http://localhost:4000
+          VITE_GRAPHQL_URL=http://localhost:4000/graphql
+          EXPO_PUBLIC_API_URL=http://localhost:4000
+          EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+          EOF
+
+      - name: Prepare database schema and seed
+        run: |
+          pnpm run db:push
+          pnpm run db:seed
+
+      - name: Run Playwright e2e
+        run: pnpm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results

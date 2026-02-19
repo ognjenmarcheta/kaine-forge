@@ -24,6 +24,7 @@
     "test:watch": "vitest --passWithNoTests",
     "clean": "rm -rf dist .turbo",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:ensure": "tsx src/seed/ensure-db.ts",
     "db:push": "drizzle-kit push --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:seed": "tsx src/seed/index.ts",

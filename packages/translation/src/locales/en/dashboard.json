@@ -1,4 +1,11 @@
 {
+  "dashboard.cards.delivery.description": "Follow completion trends this week.",
+  "dashboard.cards.delivery.title": "Delivery",
+  "dashboard.cards.flow.description": "Spot blocked tasks across squads.",
+  "dashboard.cards.flow.title": "Flow",
+  "dashboard.cards.workload.description": "Track active work and velocity.",
+  "dashboard.cards.workload.title": "Workload",
+  "dashboard.summary": "Operational summary for your personal workspace.",
   "dashboard.title": "Overview",
   "dashboard.subtitle": "Cross-platform workspace snapshot",
   "dashboard.signedInAs": "Signed in as",

@@ -43,6 +43,10 @@
       "description": "Generate Drizzle migrations",
       "cache": false
     },
+    "db:ensure": {
+      "description": "Ensure development database exists",
+      "cache": false
+    },
     "db:push": {
       "description": "Push schema to local database",
       "cache": false

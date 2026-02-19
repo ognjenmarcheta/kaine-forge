@@ -15,7 +15,8 @@ Production-oriented Turborepo + pnpm monorepo with:
 - Phase 3: Web ✅
 - Phase 4: Desktop (Tauri) ✅
 - Phase 5: Mobile ✅
-- Phase 6: Polish/production-readiness ⏳ in progress
+- Phase 6: Polish/production-readiness ✅
+- Phase 7: Quality gates (e2e + a11y + i18n lint) ⏳ in progress
 
 ## Prerequisites
 
@@ -31,6 +32,7 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 pnpm db:generate
+pnpm db:ensure
 pnpm db:push
 pnpm db:seed
 pnpm dev
@@ -51,6 +53,7 @@ pnpm initialize
 - `pnpm build:core` build API + Web (and dependency graph)
 - `pnpm check` format/lint/typecheck/test across workspaces
 - `pnpm check:ci` CI gate alias
+- `pnpm test:e2e` run Playwright web/api e2e suite with a11y assertions
 - `pnpm generate` GraphQL codegen
 - `pnpm db:*` database lifecycle commands
 
@@ -61,6 +64,7 @@ Workflows:
 - `.github/workflows/ci-pr.yml`
   - required fast gate for PRs (`format:check`, `lint`, `typecheck`, `test`)
   - core build gate (`build:core`)
+  - e2e gate (`test:e2e`) with PostgreSQL service and Playwright artifacts
 - `.github/workflows/security.yml`
   - dependency audit + secret scanning
 - `.github/workflows/deep-checks.yml`
@@ -81,6 +85,18 @@ pnpm --filter @repo/mobile exec expo start -c
 ### Desktop (Tauri)
 
 - Desktop dev expects web app at `http://localhost:3000`.
+
+### E2E (Playwright)
+
+- Ensure local Postgres is running and seeded (`pnpm db:ensure && pnpm db:push && pnpm db:seed`).
+- `pnpm test:e2e` auto-installs Chromium on first run.
+- E2E spins isolated servers on `http://127.0.0.1:3010` (web) and `http://127.0.0.1:4010` (api) to avoid conflicts with regular dev ports.
+- `pnpm test:e2e` also runs `db:ensure` + `db:push` + `db:seed` before the suite.
+- Run:
+
+```bash
+pnpm test:e2e
+```
 
 ## Documentation
 

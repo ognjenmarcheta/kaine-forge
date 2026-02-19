@@ -1,4 +1,11 @@
 {
+  "dashboard.cards.delivery.description": "Prati trend zavrsavanja zadataka ove nedelje.",
+  "dashboard.cards.delivery.title": "Isporuka",
+  "dashboard.cards.flow.description": "Uoci blokirane zadatke kroz timove.",
+  "dashboard.cards.flow.title": "Tok",
+  "dashboard.cards.workload.description": "Prati aktivan rad i tempo.",
+  "dashboard.cards.workload.title": "Opterecenje",
+  "dashboard.summary": "Operativni pregled za vas licni radni prostor.",
   "dashboard.title": "Pregled",
   "dashboard.subtitle": "Pregled radnog prostora na svim platformama",
   "dashboard.signedInAs": "Prijavljeni korisnik",

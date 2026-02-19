@@ -1,6 +1,7 @@
 import { Button, Input, Textarea } from "@repo/ui";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoDraft, TodoItem } from "../todos.type";
 
 interface TodoEditDialogProps {
@@ -11,6 +12,7 @@ interface TodoEditDialogProps {
 }
 
 export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDialogProps) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<TodoDraft>({
     description: "",
     title: ""
@@ -39,11 +41,11 @@ export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDial
 
   return (
     <div className="web-dialog-backdrop" role="presentation">
-      <section aria-label="Edit todo" className="web-dialog">
-        <h2>Edit todo</h2>
+      <section aria-label={t("todos.editTitle")} className="web-dialog">
+        <h2>{t("todos.editTitle")}</h2>
         <form className="web-form" onSubmit={handleSubmit}>
           <label className="web-form__field">
-            <span>Title</span>
+            <span>{t("todos.form.titlePlaceholder")}</span>
             <Input
               required
               value={draft.title}
@@ -56,7 +58,7 @@ export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDial
             />
           </label>
           <label className="web-form__field">
-            <span>Description</span>
+            <span>{t("todos.form.descriptionPlaceholder")}</span>
             <Textarea
               value={draft.description}
               onChange={(event) =>
@@ -69,10 +71,10 @@ export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDial
           </label>
           <div className="web-form__row">
             <Button intent="subtle" type="button" onClick={onClose}>
-              Cancel
+              {t("button.cancel")}
             </Button>
             <Button disabled={isSubmitting} type="submit">
-              Save
+              {t("button.save")}
             </Button>
           </div>
         </form>

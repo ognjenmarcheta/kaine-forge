@@ -16,11 +16,11 @@ export function AuthRoute() {
   const copy = useMemo(
     () => ({
       login: {
-        subtitle: "Use seeded credentials to access the app.",
+        subtitle: t("auth.login.subtitle"),
         title: t("auth.login.title")
       },
       signup: {
-        subtitle: "Create a workspace identity for this device.",
+        subtitle: t("auth.signup.subtitle"),
         title: t("auth.signup.title")
       }
     }),
@@ -28,7 +28,7 @@ export function AuthRoute() {
   );
 
   if (isLoading) {
-    return <AuthLayout subtitle="Checking session..." title="Loading" />;
+    return <AuthLayout subtitle={t("common.loadingSession")} title={t("common.loading")} />;
   }
 
   if (session) {

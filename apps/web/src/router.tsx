@@ -24,7 +24,7 @@ function ShellLayout() {
   const toggleSidebar = useSidebarStore((state) => state.toggleSidebar);
 
   if (isLoading) {
-    return <p className="web-loading">Loading session...</p>;
+    return <p className="web-loading">{t("common.loadingSession")}</p>;
   }
 
   if (!session) {
@@ -35,7 +35,7 @@ function ShellLayout() {
     <AppLayout
       header={
         <Header
-          left={<strong className="web-logo">Kaine Forge</strong>}
+          left={<strong className="web-logo">{t("common.appName")}</strong>}
           right={
             <>
               <LanguageSwitcher

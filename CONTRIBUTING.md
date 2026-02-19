@@ -17,6 +17,7 @@ Run before opening a PR:
 ```bash
 pnpm check
 pnpm build:core
+pnpm test:e2e
 ```
 
 For workspace-focused work:
@@ -32,6 +33,7 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 pnpm db:generate
+pnpm db:ensure
 pnpm db:push
 pnpm db:seed
 ```
@@ -51,10 +53,17 @@ pnpm dev
 
 Required CI checks are defined in `.github/workflows/ci-pr.yml`.
 
+## E2E and Accessibility
+
+- Playwright tests live in `apps/e2e`.
+- `pnpm test:e2e` covers sign-in + todo lifecycle and baseline axe checks.
+- On CI failures, inspect uploaded artifacts (`playwright-report`, `test-results`).
+
 ## Coding standards
 
 - TypeScript strict mode is expected.
 - Avoid `any` unless unavoidable.
 - No user-facing hardcoded strings where i18n keys are expected.
+- `apps/web` and `apps/mobile` enforce no JSX string literals and translated accessibility/placeholder/title props.
 - Keep feature modules aligned with naming conventions:
   - `.type.ts`, `.util.ts`, `.adapter.ts`, `.route.tsx`, `.definition.ts`, etc.

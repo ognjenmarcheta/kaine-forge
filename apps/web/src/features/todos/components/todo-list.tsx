@@ -1,4 +1,5 @@
 import { TodoItemRow } from "./todo-item";
+import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
 
 interface TodoListProps {
@@ -9,8 +10,10 @@ interface TodoListProps {
 }
 
 export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
+  const { t } = useTranslation();
+
   if (items.length === 0) {
-    return <p className="web-muted">No todos yet. Create your first one.</p>;
+    return <p className="web-muted">{t("todos.empty")}</p>;
   }
 
   return (

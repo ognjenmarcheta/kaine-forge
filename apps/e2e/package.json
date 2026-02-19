@@ -1,0 +1,22 @@
+{
+  "name": "@repo/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "playwright test --ui",
+    "pretest:e2e": "playwright install chromium",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf playwright-report test-results .turbo"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.55.0"
+  }
+}

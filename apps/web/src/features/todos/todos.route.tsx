@@ -22,6 +22,7 @@ export function TodosRoute() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
 
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
+  const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 
   const reloadTodos = useCallback(async () => {
     try {
@@ -69,7 +70,7 @@ export function TodosRoute() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this todo?")) {
+    if (!window.confirm(t("todos.deleteConfirmMessage"))) {
       return;
     }
 
@@ -101,14 +102,12 @@ export function TodosRoute() {
       <header className="web-todos__header">
         <div>
           <h1>{t("todos.title")}</h1>
-          <p className="web-muted">
-            {completedCount}/{todos.length} completed
-          </p>
+          <p className="web-muted">{completionSummary}</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
 
-      {isLoading ? <p className="web-muted">Loading todos...</p> : null}
+      {isLoading ? <p className="web-muted">{t("todos.loading")}</p> : null}
       {error ? <p className="web-form__error">{error}</p> : null}
       {!isLoading ? (
         <TodoList

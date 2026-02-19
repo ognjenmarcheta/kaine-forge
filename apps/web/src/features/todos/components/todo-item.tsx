@@ -1,5 +1,6 @@
 import { Button } from "@repo/ui";
 
+import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
 
 interface TodoItemProps {
@@ -10,6 +11,8 @@ interface TodoItemProps {
 }
 
 export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps) {
+  const { t } = useTranslation();
+
   return (
     <li className="web-todos__item">
       <label className="web-todos__toggle">
@@ -28,13 +31,13 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
           {item.title}
         </span>
       </label>
-      <p className="web-todos__description">{item.description || "-"}</p>
+      <p className="web-todos__description">{item.description || t("common.notAvailable")}</p>
       <div className="web-todos__actions">
         <Button intent="subtle" size="sm" type="button" onClick={() => onEdit(item)}>
-          Edit
+          {t("button.edit")}
         </Button>
         <Button intent="danger" size="sm" type="button" onClick={() => onDelete(item.id)}>
-          Delete
+          {t("button.delete")}
         </Button>
       </div>
     </li>

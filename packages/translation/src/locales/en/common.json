@@ -1,4 +1,11 @@
 {
+  "common.appName": "Kaine Forge",
+  "common.emailLabel": "Email",
+  "common.loading": "Loading",
+  "common.loadingSession": "Loading session...",
+  "common.nameLabel": "Full name",
+  "common.notAvailable": "-",
+  "common.passwordLabel": "Password",
   "button.save": "Save",
   "button.cancel": "Cancel",
   "button.edit": "Edit",

@@ -35,12 +35,12 @@ export function SignupForm({ onDone }: SignupFormProps) {
   return (
     <form className="web-form" onSubmit={onSubmit}>
       <label className="web-form__field">
-        <span>Full name</span>
+        <span>{t("common.nameLabel")}</span>
         <Input required value={name} onChange={(event) => setName(event.target.value)} />
       </label>
 
       <label className="web-form__field">
-        <span>Email</span>
+        <span>{t("common.emailLabel")}</span>
         <Input
           required
           autoComplete="email"
@@ -51,7 +51,7 @@ export function SignupForm({ onDone }: SignupFormProps) {
       </label>
 
       <label className="web-form__field">
-        <span>Password</span>
+        <span>{t("common.passwordLabel")}</span>
         <Input
           required
           autoComplete="new-password"

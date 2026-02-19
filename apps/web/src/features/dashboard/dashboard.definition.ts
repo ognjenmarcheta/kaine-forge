@@ -1,16 +1,16 @@
 export const DASHBOARD_DEFINITION = {
   cards: [
     {
-      description: "Track active work and velocity.",
-      title: "Workload"
+      descriptionKey: "dashboard.cards.workload.description",
+      titleKey: "dashboard.cards.workload.title"
     },
     {
-      description: "Spot blocked tasks across squads.",
-      title: "Flow"
+      descriptionKey: "dashboard.cards.flow.description",
+      titleKey: "dashboard.cards.flow.title"
     },
     {
-      description: "Follow completion trends this week.",
-      title: "Delivery"
+      descriptionKey: "dashboard.cards.delivery.description",
+      titleKey: "dashboard.cards.delivery.title"
     }
   ]
 } as const;
