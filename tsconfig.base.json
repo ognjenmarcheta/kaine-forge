@@ -17,8 +17,10 @@
     "baseUrl": ".",
     "paths": {
       "@repo/auth": ["packages/auth/src/index.ts"],
+      "@repo/auth/*": ["packages/auth/src/*"],
       "@repo/config/*": ["packages/config/*"],
       "@repo/db": ["packages/db/src/index.ts"],
+      "@repo/feature-flags": ["packages/feature-flags/src/index.ts"],
       "@repo/translation": ["packages/translation/src/index.ts"],
       "@repo/ui": ["packages/ui/src/index.ts"]
     }

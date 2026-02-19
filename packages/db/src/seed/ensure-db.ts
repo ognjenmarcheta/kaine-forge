@@ -1,7 +1,8 @@
 import { config } from "dotenv";
+import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
 
-config({ path: "../../.env" });
+config({ path: fileURLToPath(new URL("../../../../.env", import.meta.url)) });
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];

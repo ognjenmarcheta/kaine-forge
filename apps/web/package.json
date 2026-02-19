@@ -19,6 +19,7 @@
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
     "@repo/auth": "workspace:*",
+    "@repo/feature-flags": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
     "graphql": "^16.11.0",

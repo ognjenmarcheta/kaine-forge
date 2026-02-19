@@ -1,8 +1,9 @@
-import { createServerAuth } from "@repo/auth";
+import { createServerAuth } from "@repo/auth/server";
 import { createYoga } from "graphql-yoga";
+import type { IncomingHttpHeaders } from "node:http";
 import { createServer } from "node:http";
 
-import { createContext } from "./context";
+import { createContext, createContextFromHeaders } from "./context";
 import { handleAuthRoute } from "./features/auth/auth.router";
 import { formatApiError } from "./middleware/error.middleware";
 import { loggerPlugin } from "./plugins/logger.plugin";
@@ -24,7 +25,15 @@ export function createApiServer() {
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
     plugins: [loggerPlugin, createDepthLimitPlugin(runtimeConfig.maxQueryDepth)],
-    context: async ({ request }) => createContext(request),
+    context: async (initialContext) => {
+      const nodeHeaders = (initialContext as { req?: { headers?: IncomingHttpHeaders } }).req
+        ?.headers;
+      if (nodeHeaders) {
+        return createContextFromHeaders(nodeHeaders);
+      }
+
+      return createContext(initialContext.request);
+    },
     maskedErrors: runtimeConfig.maskedErrors,
     cors
   });

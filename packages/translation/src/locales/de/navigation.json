@@ -1,6 +1,9 @@
 {
   "navigation.dashboard": "Ubersicht",
   "navigation.language": "Sprache",
+  "navigation.organization": "Organisation",
+  "navigation.organizationCreate": "Organisation erstellen",
+  "navigation.organizationName": "Organisationsname",
   "navigation.theme": "Design",
   "navigation.todos": "Aufgaben"
 }

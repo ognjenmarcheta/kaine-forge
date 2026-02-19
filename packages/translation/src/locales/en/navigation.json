@@ -1,6 +1,9 @@
 {
   "navigation.dashboard": "Dashboard",
   "navigation.language": "Language",
+  "navigation.organization": "Organization",
+  "navigation.organizationCreate": "Create organization",
+  "navigation.organizationName": "Organization name",
   "navigation.theme": "Theme",
   "navigation.todos": "Todos"
 }

@@ -30,7 +30,7 @@ export default defineConfig({
       command:
         "API_PORT=4010 BETTER_AUTH_URL=http://127.0.0.1:4010 pnpm --filter @repo/api exec node --import tsx src/index.ts",
       cwd: repoRoot,
-      url: "http://127.0.0.1:4010/api/auth/session",
+      url: "http://127.0.0.1:4010/api/auth/get-session",
       reuseExistingServer: true,
       timeout: 180_000
     },

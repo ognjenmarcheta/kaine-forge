@@ -10,6 +10,18 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./auth.definition": {
+      "types": "./dist/auth.definition.d.ts",
+      "default": "./dist/auth.definition.js"
+    },
+    "./auth.type": {
+      "types": "./dist/auth.type.d.ts",
+      "default": "./dist/auth.type.js"
+    },
+    "./auth.util": {
+      "types": "./dist/auth.util.d.ts",
+      "default": "./dist/auth.util.js"
+    },
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
@@ -34,6 +46,7 @@
   },
   "dependencies": {
     "@repo/db": "workspace:*",
-    "better-auth": "^1.3.13"
+    "better-auth": "^1.3.13",
+    "drizzle-orm": "^0.44.5"
   }
 }

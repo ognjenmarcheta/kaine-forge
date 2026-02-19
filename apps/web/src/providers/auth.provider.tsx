@@ -16,6 +16,7 @@ async function parseJson<T>(response: Response): Promise<T> {
 async function loginRequest(input: { email: string; password: string }): Promise<AuthSession> {
   const response = await fetch(AUTH_CONFIG.routes.login, {
     body: JSON.stringify(input),
+    credentials: "include",
     headers: {
       "content-type": "application/json"
     },
@@ -28,6 +29,7 @@ async function loginRequest(input: { email: string; password: string }): Promise
 
 async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
   const response = await fetch(AUTH_CONFIG.routes.session, {
+    credentials: "include",
     headers: authHeaders(session),
     method: "GET"
   });
@@ -42,9 +44,28 @@ async function fetchSession(session: AuthSession | null): Promise<AuthSession | 
 
 async function logoutRequest(session: AuthSession | null): Promise<void> {
   await fetch(AUTH_CONFIG.routes.logout, {
+    credentials: "include",
     headers: authHeaders(session),
     method: "POST"
   });
+}
+
+async function signupRequest(input: {
+  email: string;
+  name: string;
+  password: string;
+}): Promise<AuthSession> {
+  const response = await fetch(AUTH_CONFIG.routes.signup, {
+    body: JSON.stringify(input),
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    method: "POST"
+  });
+
+  const body = await parseJson<{ session: AuthSession }>(response);
+  return body.session;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -86,23 +107,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
   }, []);
 
-  const signup = useCallback(
-    async (input: { email: string; name: string; password: string }) => {
-      await login({ email: input.email, password: input.password });
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              user: {
-                ...current.user,
-                name: input.name
-              }
-            }
-          : current
-      );
-    },
-    [login]
-  );
+  const signup = useCallback(async (input: { email: string; name: string; password: string }) => {
+    const nextSession = await signupRequest(input);
+    setSession(nextSession);
+    setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
+  }, []);
 
   const logout = useCallback(async () => {
     await logoutRequest(session);
