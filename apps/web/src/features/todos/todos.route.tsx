@@ -1,15 +1,20 @@
-import { queryKeys } from "@repo/query";
 import { Button } from "@repo/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { TodoCreateDialog } from "./components/todo-create-dialog";
 import { TodoEditDialog } from "./components/todo-edit-dialog";
 import { TodoList } from "./components/todo-list";
-import { createTodo, deleteTodo, listTodos, updateTodo } from "./todos.adapter";
 import { TODOS_CONFIG } from "./todos.config";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { toCreatePayload, toUpdatePayload } from "./todos.util";
+import {
+  useCreateTodoMutation,
+  useDeleteTodoMutation,
+  useGetTodosQuery,
+  useToggleTodoMutation,
+  useUpdateTodoMutation
+} from "../../graphql/generated/react-query";
 import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
@@ -33,47 +38,48 @@ export function TodosRoute() {
     }),
     []
   );
+  const todosQueryKey = useMemo(
+    () =>
+      activeOrganizationId
+        ? [...useGetTodosQuery.getKey(listVariables), activeOrganizationId]
+        : ["GetTodos", "inactive"],
+    [activeOrganizationId, listVariables]
+  );
 
-  const todosQuery = useQuery({
-    queryKey: activeOrganizationId
-      ? queryKeys.todos(activeOrganizationId, listVariables)
-      : ["todos", "inactive"],
-    queryFn: () => listTodos(client, listVariables),
+  const todosQuery = useGetTodosQuery(client, listVariables, {
+    queryKey: todosQueryKey,
     enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
   });
 
-  const createMutation = useMutation({
-    mutationFn: (draft: TodoDraft) => createTodo(client, toCreatePayload(draft))
-  });
+  const createMutation = useCreateTodoMutation(client);
 
-  const updateMutation = useMutation({
-    mutationFn: (input: { draft: TodoDraft; id: string; current: TodoItem }) =>
-      updateTodo(client, input.id, toUpdatePayload(input.draft, input.current))
-  });
+  const updateMutation = useUpdateTodoMutation(client);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteTodo(client, id)
-  });
+  const deleteMutation = useDeleteTodoMutation(client);
 
-  const invalidateTodos = async () => {
+  const toggleMutation = useToggleTodoMutation(client);
+
+  const invalidateTodos = async (queryKey: readonly unknown[]) => {
     if (!activeOrganizationId) {
       return;
     }
 
     await queryClient.invalidateQueries({
-      queryKey: ["todos", activeOrganizationId]
+      queryKey
     });
   };
 
-  const todos = useMemo(() => todosQuery.data ?? [], [todosQuery.data]);
+  const todos = useMemo(() => todosQuery.data?.todos ?? [], [todosQuery.data]);
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
   const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 
   async function handleCreate(draft: TodoDraft) {
     try {
       setActionError(null);
-      await createMutation.mutateAsync(draft);
-      await invalidateTodos();
+      await createMutation.mutateAsync({
+        input: toCreatePayload(draft)
+      });
+      await invalidateTodos(todosQueryKey);
     } catch {
       setActionError(t("error.generic"));
     }
@@ -87,12 +93,11 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await updateMutation.mutateAsync({
-        draft,
         id: editingTodo.id,
-        current: editingTodo
+        input: toUpdatePayload(draft, editingTodo)
       });
       setEditingTodo(null);
-      await invalidateTodos();
+      await invalidateTodos(todosQueryKey);
     } catch {
       setActionError(t("error.generic"));
     }
@@ -105,8 +110,10 @@ export function TodosRoute() {
 
     try {
       setActionError(null);
-      await deleteMutation.mutateAsync(id);
-      await invalidateTodos();
+      await deleteMutation.mutateAsync({
+        id
+      });
+      await invalidateTodos(todosQueryKey);
     } catch {
       setActionError(t("error.generic"));
     }
@@ -115,18 +122,10 @@ export function TodosRoute() {
   async function handleToggle(item: TodoItem) {
     try {
       setActionError(null);
-      await updateMutation.mutateAsync({
-        draft: {
-          description: item.description ?? "",
-          title: item.title
-        },
-        id: item.id,
-        current: {
-          ...item,
-          completed: !item.completed
-        }
+      await toggleMutation.mutateAsync({
+        id: item.id
       });
-      await invalidateTodos();
+      await invalidateTodos(todosQueryKey);
     } catch {
       setActionError(t("error.generic"));
     }
