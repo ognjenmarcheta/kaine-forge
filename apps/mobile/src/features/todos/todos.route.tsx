@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { TodoFormModal } from "./components/todo-form-modal";
 import { TodoList } from "./components/todo-list";
@@ -8,6 +8,7 @@ import { TODOS_CONFIG } from "./todos.config";
 import { TODO_DEFINITION } from "./todos.definition";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { toCreatePayload, toUpdatePayload } from "./todos.util";
+import { ConfirmModal } from "../../components/confirm-modal";
 import { ScreenContainer } from "../../components/screen-container";
 import {
   useCreateMobileTodoMutation,
@@ -26,6 +27,7 @@ export function TodosRoute() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const listVariables = useMemo(
@@ -101,29 +103,24 @@ export function TodosRoute() {
   }
 
   function handleDelete(id: string) {
-    Alert.alert(t("todos.deleteConfirmTitle"), t("todos.deleteConfirmMessage"), [
-      {
-        style: "cancel",
-        text: t("button.cancel")
-      },
-      {
-        style: "destructive",
-        text: t("button.delete"),
-        onPress: () => {
-          void (async () => {
-            try {
-              setActionError(null);
-              await deleteMutation.mutateAsync({
-                id
-              });
-              await invalidateTodos(todosQueryKey);
-            } catch {
-              setActionError(t("error.generic"));
-            }
-          })();
-        }
-      }
-    ]);
+    setDeletingTodoId(id);
+  }
+
+  async function confirmDelete() {
+    if (!deletingTodoId) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+      await deleteMutation.mutateAsync({
+        id: deletingTodoId
+      });
+      setDeletingTodoId(null);
+      await invalidateTodos(todosQueryKey);
+    } catch {
+      setActionError(t("error.generic"));
+    }
   }
 
   async function handleToggle(item: TodoItem) {
@@ -184,6 +181,18 @@ export function TodosRoute() {
         title={t("todos.editTitle")}
         onClose={() => setEditingTodo(null)}
         onSubmit={handleEdit}
+      />
+      <ConfirmModal
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("button.delete")}
+        isConfirming={deleteMutation.status === "pending"}
+        isOpen={Boolean(deletingTodoId)}
+        message={t("todos.deleteConfirmMessage")}
+        title={t("todos.deleteConfirmTitle")}
+        onCancel={() => setDeletingTodoId(null)}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
       />
     </ScreenContainer>
   );

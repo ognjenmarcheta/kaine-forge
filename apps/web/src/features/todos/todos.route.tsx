@@ -8,6 +8,7 @@ import { TodoList } from "./components/todo-list";
 import { TODOS_CONFIG } from "./todos.config";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { toCreatePayload, toUpdatePayload } from "./todos.util";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 import {
   useCreateTodoMutation,
   useDeleteTodoMutation,
@@ -25,6 +26,7 @@ export function TodosRoute() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const listVariables = useMemo(
@@ -99,16 +101,21 @@ export function TodosRoute() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm(t("todos.deleteConfirmMessage"))) {
+  function handleDelete(id: string) {
+    setDeletingTodoId(id);
+  }
+
+  async function confirmDelete() {
+    if (!deletingTodoId) {
       return;
     }
 
     try {
       setActionError(null);
       await deleteMutation.mutateAsync({
-        id
+        id: deletingTodoId
       });
+      setDeletingTodoId(null);
       await invalidateTodos(todosQueryKey);
     } catch {
       setActionError(t("error.generic"));
@@ -161,6 +168,18 @@ export function TodosRoute() {
         todo={editingTodo}
         onClose={() => setEditingTodo(null)}
         onSubmit={handleEdit}
+      />
+      <ConfirmDialog
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("button.delete")}
+        isConfirming={deleteMutation.status === "pending"}
+        isOpen={Boolean(deletingTodoId)}
+        message={t("todos.deleteConfirmMessage")}
+        title={t("todos.deleteConfirmTitle")}
+        onCancel={() => setDeletingTodoId(null)}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
       />
     </section>
   );
