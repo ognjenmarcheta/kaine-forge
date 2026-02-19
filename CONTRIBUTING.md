@@ -44,6 +44,12 @@ Then:
 pnpm dev
 ```
 
+Turbo docs quick lookup:
+
+```bash
+pnpm exec turbo docs "<query>"
+```
+
 ## Pull requests
 
 - Link relevant issue/task.
