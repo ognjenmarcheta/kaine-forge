@@ -6,20 +6,6 @@
   padding: 24px;
 }
 
-.web-nav-link {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--color-text-default);
-  font-weight: 600;
-  padding: 10px 12px;
-  text-decoration: none;
-}
-
-.web-nav-link.active {
-  background: var(--color-background-neutral);
-  border-color: var(--color-border-default);
-}
-
 .web-auth__tabs {
   display: grid;
   gap: 8px;

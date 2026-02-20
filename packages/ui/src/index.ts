@@ -13,7 +13,6 @@ export * from "./components/primitives/modal";
 export * from "./components/primitives/select";
 export * from "./components/primitives/textarea";
 export * from "./hooks/use-media-query";
-export * from "./hooks/use-sidebar";
 export * from "./lib/cn";
 export * from "./lib/forms/simple-form-config";
 export * from "./lib/forms/use-ui-form";

@@ -1,5 +1,23 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
-import { AppLayout, Header, LabeledSelect, Sidebar, UserMenu } from "@repo/ui";
+import {
+  AppLayout,
+  Header,
+  LabeledSelect,
+  resolveSidebarMenuButtonClassName,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+  UserMenu
+} from "@repo/ui";
 import { useState } from "react";
 import { Navigate, NavLink, Outlet, createBrowserRouter } from "react-router-dom";
 
@@ -11,7 +29,6 @@ import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
-import { useSidebarStore } from "./stores/sidebar.store";
 
 const THEME_OPTIONS = [
   { label: "System", value: "system" },
@@ -30,8 +47,6 @@ function ShellLayout() {
   } = useOrganization();
   const { language, setLanguage, t } = useTranslation();
   const { setThemeMode, themeMode } = useTheme();
-  const isCollapsed = useSidebarStore((state) => state.isCollapsed);
-  const toggleSidebar = useSidebarStore((state) => state.toggleSidebar);
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
 
   if (isLoading) {
@@ -42,8 +57,12 @@ function ShellLayout() {
     return <Navigate replace to="/auth" />;
   }
 
-  return (
-    <>
+  const currentSession = session;
+
+  function ShellBody() {
+    const { open } = useSidebar();
+
+    return (
       <AppLayout
         header={
           <Header
@@ -89,7 +108,7 @@ function ShellLayout() {
                   }}
                 />
                 <UserMenu
-                  displayName={session.user.name}
+                  displayName={currentSession.user.name}
                   logoutLabel={t("auth.logout")}
                   onLogout={() => void logout()}
                 />
@@ -97,18 +116,60 @@ function ShellLayout() {
             }
           />
         }
-        main={<Outlet />}
+        main={
+          <SidebarInset>
+            <Outlet />
+          </SidebarInset>
+        }
         sidebar={
-          <Sidebar collapsed={isCollapsed} onToggle={toggleSidebar}>
-            <NavLink className="web-nav-link" to="/dashboard">
-              {isCollapsed ? "D" : t("navigation.dashboard")}
-            </NavLink>
-            <NavLink className="web-nav-link" to="/todos">
-              {isCollapsed ? "T" : t("navigation.todos")}
-            </NavLink>
+          <Sidebar>
+            <SidebarHeader>
+              <SidebarTrigger />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <NavLink
+                        className={({ isActive }) =>
+                          resolveSidebarMenuButtonClassName({
+                            isActive
+                          })
+                        }
+                        to="/dashboard"
+                      >
+                        {open ? t("navigation.dashboard") : "D"}
+                      </NavLink>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <NavLink
+                        className={({ isActive }) =>
+                          resolveSidebarMenuButtonClassName({
+                            isActive
+                          })
+                        }
+                        to="/todos"
+                      >
+                        {open ? t("navigation.todos") : "T"}
+                      </NavLink>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+            <SidebarRail />
           </Sidebar>
         }
       />
+    );
+  }
+
+  return (
+    <>
+      <SidebarProvider defaultOpen storageKey="kaine.sidebar.open">
+        <ShellBody />
+      </SidebarProvider>
       <OrganizationCreateDialog
         isOpen={isCreateOrganizationOpen}
         onClose={() => setIsCreateOrganizationOpen(false)}
