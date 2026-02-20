@@ -1,7 +1,6 @@
 export * from "./components/composed/header";
-export * from "./components/composed/language-switcher";
+export * from "./components/composed/labeled-select";
 export * from "./components/composed/sidebar";
-export * from "./components/composed/theme-switcher";
 export * from "./components/composed/user-menu";
 export * from "./components/layouts/app-layout";
 export * from "./components/layouts/auth-layout";
@@ -11,6 +10,7 @@ export * from "./components/primitives/confirm-modal";
 export * from "./components/primitives/input";
 export * from "./components/primitives/form-modal";
 export * from "./components/primitives/modal";
+export * from "./components/primitives/select";
 export * from "./components/primitives/textarea";
 export * from "./hooks/use-media-query";
 export * from "./hooks/use-sidebar";

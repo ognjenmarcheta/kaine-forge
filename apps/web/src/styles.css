@@ -20,12 +20,6 @@
   border-color: var(--color-border-default);
 }
 
-.web-organization-controls {
-  align-items: flex-end;
-  display: flex;
-  gap: 8px;
-}
-
 .web-auth__tabs {
   display: grid;
   gap: 8px;

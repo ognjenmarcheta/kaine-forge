@@ -1,13 +1,5 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
-import {
-  AppLayout,
-  Button,
-  Header,
-  LanguageSwitcher,
-  Sidebar,
-  ThemeSwitcher,
-  UserMenu
-} from "@repo/ui";
+import { AppLayout, Header, LabeledSelect, Sidebar, UserMenu } from "@repo/ui";
 import { useState } from "react";
 import { Navigate, NavLink, Outlet, createBrowserRouter } from "react-router-dom";
 
@@ -59,44 +51,38 @@ function ShellLayout() {
             right={
               <>
                 {organizationsVisible ? (
-                  <div className="web-organization-controls">
-                    <LanguageSwitcher
-                      label={t("navigation.organization")}
-                      options={organizations.map((organization) => ({
-                        label: organization.name,
-                        value: organization.id
-                      }))}
-                      value={activeOrganizationId ?? organizations[0]?.id ?? ""}
-                      onChange={(value) => {
-                        void setActiveOrganization(value);
-                      }}
-                    />
-                    <Button
-                      intent="subtle"
-                      size="sm"
-                      type="button"
-                      onClick={() => setIsCreateOrganizationOpen(true)}
-                    >
-                      {t("navigation.organizationCreate")}
-                    </Button>
-                  </div>
+                  <LabeledSelect
+                    actionItem={{
+                      label: t("navigation.organizationCreate"),
+                      onSelect: () => setIsCreateOrganizationOpen(true)
+                    }}
+                    label={t("navigation.organization")}
+                    options={organizations.map((organization) => ({
+                      label: organization.name,
+                      value: organization.id
+                    }))}
+                    value={activeOrganizationId ?? organizations[0]?.id}
+                    onValueChange={(value) => {
+                      void setActiveOrganization(value);
+                    }}
+                  />
                 ) : null}
-                <LanguageSwitcher
+                <LabeledSelect
                   label={t("navigation.language")}
                   options={SUPPORTED_LANGUAGES.map((value) => ({
                     label: value.toUpperCase(),
                     value
                   }))}
                   value={language}
-                  onChange={(value) => {
+                  onValueChange={(value) => {
                     void setLanguage(value);
                   }}
                 />
-                <ThemeSwitcher
+                <LabeledSelect
                   label={t("navigation.theme")}
                   options={[...THEME_OPTIONS]}
                   value={themeMode}
-                  onChange={(value) => {
+                  onValueChange={(value) => {
                     if (value === "dark" || value === "light" || value === "system") {
                       setThemeMode(value);
                     }
