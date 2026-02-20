@@ -1,5 +1,16 @@
 # @repo/mobile
 
+## 1.2.0
+
+### Minor Changes
+
+- 0ebaed1: Change graphql client
+
+### Patch Changes
+
+- Updated dependencies [0ebaed1]
+  - @repo/query@1.2.0
+
 ## 1.1.0
 
 ### Minor Changes

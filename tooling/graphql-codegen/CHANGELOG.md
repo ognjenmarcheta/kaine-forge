@@ -1,5 +1,11 @@
 # @repo/graphql-codegen
 
+## 1.2.0
+
+### Minor Changes
+
+- 0ebaed1: Change graphql client
+
 ## 1.1.0
 
 ### Minor Changes
