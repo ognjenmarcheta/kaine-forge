@@ -20,13 +20,16 @@
     "@graphql-typed-document-node/core": "^3.2.0",
     "@repo/auth": "workspace:*",
     "@repo/feature-flags": "workspace:*",
+    "@repo/query": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query-devtools": "^5.91.3",
     "graphql": "^16.11.0",
+    "graphql-request": "^7.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.13.0",
-    "urql": "^5.0.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

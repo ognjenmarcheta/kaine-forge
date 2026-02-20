@@ -16,6 +16,7 @@ const TODOS_CREATE = /^(New todo|todos\.create)$/;
 const TODO_TITLE_LABEL = /^(Title|todos\.form\.titlePlaceholder)$/;
 const TODO_DESCRIPTION_LABEL = /^(Description|todos\.form\.descriptionPlaceholder)$/;
 const TODO_DELETE = /^(Delete|button\.delete)$/;
+const TODO_DELETE_CONFIRM_TITLE = /^(Delete todo|todos\.deleteConfirmTitle)$/;
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/auth");
@@ -54,12 +55,13 @@ test("sign in and complete todo lifecycle", async ({ page }) => {
   await todoCheckbox.click();
   await expect(todoRow.getByRole("checkbox")).toBeChecked();
 
-  page.once("dialog", async (dialog) => {
-    await dialog.accept();
-  });
   await todoRow.getByRole("button", { name: TODO_DELETE }).click();
+  const confirmDialog = page.getByRole("dialog", { name: TODO_DELETE_CONFIRM_TITLE });
+  await expect(confirmDialog).toBeVisible();
+  await confirmDialog.getByRole("button", { name: TODO_DELETE }).click();
+  await expect(confirmDialog).not.toBeVisible();
 
-  await expect(page.getByText(todoTitle)).not.toBeVisible();
+  await expect(page.locator("li", { hasText: todoTitle })).toHaveCount(0);
 });
 
 test("has no critical or serious a11y violations on core pages", async ({ page }) => {

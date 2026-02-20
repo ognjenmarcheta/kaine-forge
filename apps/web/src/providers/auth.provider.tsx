@@ -1,72 +1,11 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { queryKeys, resetAuthBoundQueries } from "@repo/query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
-import { AUTH_CONFIG } from "../features/auth/auth.config";
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
-import { authHeaders, getStoredSession, setStoredSession } from "../features/auth/auth.util";
-
-async function parseJson<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new Error(`auth request failed (${String(response.status)})`);
-  }
-
-  return (await response.json()) as T;
-}
-
-async function loginRequest(input: { email: string; password: string }): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.login, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession }>(response);
-  return body.session;
-}
-
-async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
-  const response = await fetch(AUTH_CONFIG.routes.session, {
-    credentials: "include",
-    headers: authHeaders(session),
-    method: "GET"
-  });
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  const body = await parseJson<{ session: AuthSession | null }>(response);
-  return body.session;
-}
-
-async function logoutRequest(session: AuthSession | null): Promise<void> {
-  await fetch(AUTH_CONFIG.routes.logout, {
-    credentials: "include",
-    headers: authHeaders(session),
-    method: "POST"
-  });
-}
-
-async function signupRequest(input: {
-  email: string;
-  name: string;
-  password: string;
-}): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.signup, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession }>(response);
-  return body.session;
-}
+import { getStoredSession, setStoredSession } from "../features/auth/auth.util";
+import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -75,59 +14,74 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<AuthSession | null>(() =>
-    getStoredSession(AUTH_DEFINITION.storageKey)
-  );
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.session(),
+    queryFn: () => fetchSession(getStoredSession(AUTH_DEFINITION.storageKey)),
+    staleTime: 0
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: loginRequest
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: signupRequest
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: logoutRequest
+  });
+
+  const session = (sessionQuery.data ?? null) as AuthSession | null;
 
   useEffect(() => {
-    let mounted = true;
-    const storedSession = getStoredSession(AUTH_DEFINITION.storageKey);
+    if (sessionQuery.status === "pending") {
+      return;
+    }
 
-    void (async () => {
-      const nextSession = await fetchSession(storedSession);
+    setStoredSession(AUTH_DEFINITION.storageKey, session);
+  }, [session, sessionQuery.status]);
 
-      if (!mounted) {
-        return;
-      }
+  const login = useCallback(
+    async (input: { email: string; password: string }) => {
+      const nextSession = await loginMutation.mutateAsync(input);
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations()
+      });
+    },
+    [loginMutation, queryClient]
+  );
 
-      setSession(nextSession);
-      setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
-      setIsLoading(false);
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const login = useCallback(async (input: { email: string; password: string }) => {
-    const nextSession = await loginRequest(input);
-    setSession(nextSession);
-    setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
-  }, []);
-
-  const signup = useCallback(async (input: { email: string; name: string; password: string }) => {
-    const nextSession = await signupRequest(input);
-    setSession(nextSession);
-    setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
-  }, []);
+  const signup = useCallback(
+    async (input: { email: string; name: string; password: string }) => {
+      const nextSession = await signupMutation.mutateAsync(input);
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations()
+      });
+    },
+    [queryClient, signupMutation]
+  );
 
   const logout = useCallback(async () => {
-    await logoutRequest(session);
-    setSession(null);
+    await logoutMutation.mutateAsync(session);
+    resetAuthBoundQueries(queryClient);
+    queryClient.setQueryData(queryKeys.session(), null);
     setStoredSession(AUTH_DEFINITION.storageKey, null);
-  }, [session]);
+  }, [logoutMutation, queryClient, session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isLoading,
+      isLoading: sessionQuery.status === "pending",
       login,
       logout,
       session,
       signup
     }),
-    [isLoading, login, logout, session, signup]
+    [login, logout, session, sessionQuery.status, signup]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

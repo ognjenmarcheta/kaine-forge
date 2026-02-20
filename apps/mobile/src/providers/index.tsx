@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 import { AuthProvider } from "./auth.provider";
-import { GraphqlProvider } from "./graphql.provider";
+import { OrganizationProvider } from "./organization.provider";
+import { QueryProvider } from "./query.provider";
 import { ThemeProvider } from "./theme.provider";
 import { TranslationProvider } from "./translation.provider";
 
@@ -13,9 +14,11 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <TranslationProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <GraphqlProvider>{children}</GraphqlProvider>
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <OrganizationProvider>{children}</OrganizationProvider>
+          </AuthProvider>
+        </QueryProvider>
       </ThemeProvider>
     </TranslationProvider>
   );

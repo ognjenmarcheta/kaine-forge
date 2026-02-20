@@ -1,18 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { queryKeys, resetAuthBoundQueries } from "@repo/query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
-import { AUTH_CONFIG } from "../features/auth/auth.config";
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
-import { authHeaders } from "../features/auth/auth.util";
-
-async function parseJson<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new Error(`auth request failed (${String(response.status)})`);
-  }
-
-  return (await response.json()) as T;
-}
+import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
 
 async function getStoredSession(storageKey: string): Promise<AuthSession | null> {
   const raw = await AsyncStorage.getItem(storageKey);
@@ -37,40 +30,6 @@ async function setStoredSession(storageKey: string, session: AuthSession | null)
   await AsyncStorage.setItem(storageKey, JSON.stringify(session));
 }
 
-async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
-  const response = await fetch(AUTH_CONFIG.routes.session, {
-    headers: authHeaders(session),
-    method: "GET"
-  });
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  const body = await parseJson<{ session: AuthSession | null }>(response);
-  return body.session;
-}
-
-async function loginRequest(input: { email: string; password: string }): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.login, {
-    body: JSON.stringify(input),
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession }>(response);
-  return body.session;
-}
-
-async function logoutRequest(session: AuthSession | null): Promise<void> {
-  await fetch(AUTH_CONFIG.routes.logout, {
-    headers: authHeaders(session),
-    method: "POST"
-  });
-}
-
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
@@ -78,90 +37,93 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let isActive = true;
-
-    void (async () => {
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.session(),
+    queryFn: async () => {
       const storedSession = await getStoredSession(AUTH_DEFINITION.storageKey);
-      let nextSession: AuthSession | null = storedSession;
 
       try {
-        nextSession = await fetchSession(storedSession);
+        return await fetchSession(storedSession);
       } catch (error) {
         if (__DEV__) {
           console.warn("auth session refresh failed", error);
         }
+
+        return storedSession;
       }
+    },
+    staleTime: 0
+  });
 
-      try {
-        if (!isActive) {
-          return;
-        }
+  const loginMutation = useMutation({
+    mutationFn: loginRequest
+  });
 
-        setSession(nextSession);
-        await setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    })();
+  const signupMutation = useMutation({
+    mutationFn: signupRequest
+  });
 
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  const logoutMutation = useMutation({
+    mutationFn: logoutRequest
+  });
 
-  const login = useCallback(async (input: { email: string; password: string }) => {
-    const nextSession = await loginRequest(input);
-    setSession(nextSession);
-    await setStoredSession(AUTH_DEFINITION.storageKey, nextSession);
-  }, []);
+  const session = (sessionQuery.data ?? null) as AuthSession | null;
+
+  useEffect(() => {
+    if (sessionQuery.status === "pending") {
+      return;
+    }
+
+    void setStoredSession(AUTH_DEFINITION.storageKey, session);
+  }, [session, sessionQuery.status]);
+
+  const login = useCallback(
+    async (input: { email: string; password: string }) => {
+      const nextSession = await loginMutation.mutateAsync(input);
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations()
+      });
+    },
+    [loginMutation, queryClient]
+  );
 
   const signup = useCallback(
     async (input: { email: string; name: string; password: string }) => {
-      await login({ email: input.email, password: input.password });
-
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              user: {
-                ...current.user,
-                name: input.name
-              }
-            }
-          : current
-      );
+      const nextSession = await signupMutation.mutateAsync(input);
+      queryClient.setQueryData(queryKeys.session(), nextSession);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations()
+      });
     },
-    [login]
+    [queryClient, signupMutation]
   );
 
   const logout = useCallback(async () => {
     try {
-      await logoutRequest(session);
+      await logoutMutation.mutateAsync(session);
     } catch (error) {
       if (__DEV__) {
         console.warn("auth logout request failed", error);
       }
     }
 
-    setSession(null);
+    resetAuthBoundQueries(queryClient);
+    queryClient.setQueryData(queryKeys.session(), null);
     await setStoredSession(AUTH_DEFINITION.storageKey, null);
-  }, [session]);
+  }, [logoutMutation, queryClient, session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isLoading,
+      isLoading: sessionQuery.status === "pending",
       login,
       logout,
       session,
       signup
     }),
-    [isLoading, login, logout, session, signup]
+    [login, logout, session, sessionQuery.status, signup]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       "@repo/auth": path.join(workspaceRoot, "packages/auth/src/index.ts"),
       "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),
+      "@repo/query": path.join(workspaceRoot, "packages/query/src/index.ts"),
       "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts"),
       "@repo/ui": path.join(workspaceRoot, "packages/ui/src/index.ts")
     }
