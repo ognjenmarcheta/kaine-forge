@@ -1,6 +1,15 @@
-import { Button } from "@repo/ui";
+import {
+  Button,
+  ConfigFormModal,
+  FormModal,
+  Input,
+  Textarea,
+  useUiForm,
+  type SimpleFieldConfig,
+  type SimpleFormValues
+} from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { TodoCreateDialog } from "./components/todo-create-dialog";
 import { TodoEditDialog } from "./components/todo-edit-dialog";
@@ -19,6 +28,13 @@ import {
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 
+interface TodoExampleDraft {
+  description: string;
+  markCompleted: boolean;
+  planningNotes: string;
+  title: string;
+}
+
 export function TodosRoute() {
   const { t } = useTranslation();
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
@@ -28,6 +44,9 @@ export function TodosRoute() {
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isSimpleExampleOpen, setIsSimpleExampleOpen] = useState(false);
+  const [isSimpleExampleSubmitting, setIsSimpleExampleSubmitting] = useState(false);
+  const [isAdvancedExampleOpen, setIsAdvancedExampleOpen] = useState(false);
 
   const listVariables = useMemo(
     () => ({
@@ -50,12 +69,58 @@ export function TodosRoute() {
   });
 
   const createMutation = useCreateTodoMutation();
-
   const updateMutation = useUpdateTodoMutation();
-
   const deleteMutation = useDeleteTodoMutation();
-
   const toggleMutation = useToggleTodoMutation();
+
+  const simpleExampleFields = useMemo<SimpleFieldConfig[]>(
+    () => [
+      {
+        label: t("todos.examples.simple.title"),
+        name: "title",
+        required: true,
+        type: "text"
+      },
+      {
+        label: t("todos.examples.simple.description"),
+        name: "description",
+        type: "textarea"
+      },
+      {
+        label: t("todos.examples.simple.markCompleted"),
+        name: "markCompleted",
+        type: "checkbox"
+      }
+    ],
+    [t]
+  );
+
+  const advancedDefaultValues: TodoExampleDraft = {
+    description: "",
+    markCompleted: false,
+    planningNotes: "",
+    title: ""
+  };
+
+  const advancedExampleForm = useUiForm({
+    defaultValues: advancedDefaultValues,
+    onSubmit: async ({ value }) => {
+      await createTodoFromDraft(
+        {
+          description: value.description,
+          title: value.title
+        },
+        value.markCompleted
+      );
+      setIsAdvancedExampleOpen(false);
+    }
+  });
+
+  useEffect(() => {
+    if (isAdvancedExampleOpen) {
+      advancedExampleForm.reset();
+    }
+  }, [advancedExampleForm, isAdvancedExampleOpen]);
 
   const invalidateTodos = async (queryKey: readonly unknown[]) => {
     if (!activeOrganizationId) {
@@ -71,13 +136,25 @@ export function TodosRoute() {
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
   const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 
+  async function createTodoFromDraft(draft: TodoDraft, markCompleted = false) {
+    setActionError(null);
+
+    const created = await createMutation.mutateAsync({
+      input: toCreatePayload(draft)
+    });
+
+    if (markCompleted) {
+      await toggleMutation.mutateAsync({
+        id: created.createTodo.id
+      });
+    }
+
+    await invalidateTodos(todosQueryKey);
+  }
+
   async function handleCreate(draft: TodoDraft) {
     try {
-      setActionError(null);
-      await createMutation.mutateAsync({
-        input: toCreatePayload(draft)
-      });
-      await invalidateTodos(todosQueryKey);
+      await createTodoFromDraft(draft, false);
     } catch {
       setActionError(t("error.generic"));
     }
@@ -147,6 +224,19 @@ export function TodosRoute() {
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
 
+      <section className="web-todos__examples">
+        <h2>{t("todos.examples.title")}</h2>
+        <p className="web-muted">{t("todos.examples.description")}</p>
+        <div className="web-todos__examples-actions">
+          <Button intent="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
+            {t("todos.examples.simple.open")}
+          </Button>
+          <Button intent="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
+            {t("todos.examples.advanced.open")}
+          </Button>
+        </div>
+      </section>
+
       {isLoading ? <p className="web-muted">{t("todos.loading")}</p> : null}
       {error ? <p className="web-form__error">{error}</p> : null}
       {!isLoading ? (
@@ -181,6 +271,125 @@ export function TodosRoute() {
           void confirmDelete();
         }}
       />
+      <ConfigFormModal
+        cancelLabel={t("button.cancel")}
+        defaultValues={{
+          description: "",
+          markCompleted: false,
+          title: ""
+        }}
+        description={t("todos.examples.simple.descriptionText")}
+        fields={simpleExampleFields}
+        isSubmitting={isSimpleExampleSubmitting}
+        open={isSimpleExampleOpen}
+        submitLabel={t("todos.examples.simple.submit")}
+        title={t("todos.examples.simple.modalTitle")}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsSimpleExampleOpen(false);
+          }
+        }}
+        onSubmit={async (values: SimpleFormValues) => {
+          const title = typeof values.title === "string" ? values.title : "";
+          const description = typeof values.description === "string" ? values.description : "";
+          const markCompleted = values.markCompleted === true;
+
+          try {
+            setIsSimpleExampleSubmitting(true);
+            await createTodoFromDraft(
+              {
+                description,
+                title
+              },
+              markCompleted
+            );
+            setIsSimpleExampleOpen(false);
+          } catch {
+            setActionError(t("error.generic"));
+          } finally {
+            setIsSimpleExampleSubmitting(false);
+          }
+        }}
+      />
+      <FormModal
+        cancelLabel={t("button.cancel")}
+        description={t("todos.examples.advanced.descriptionText")}
+        isSubmitting={createMutation.status === "pending" || toggleMutation.status === "pending"}
+        open={isAdvancedExampleOpen}
+        submitLabel={t("todos.examples.advanced.submit")}
+        title={t("todos.examples.advanced.modalTitle")}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAdvancedExampleOpen(false);
+          }
+        }}
+        onSubmit={() => advancedExampleForm.handleSubmit()}
+      >
+        <advancedExampleForm.Field
+          name="title"
+          validators={{
+            onChange: ({ value }) =>
+              value.trim().length > 0 ? undefined : t("todos.examples.error.titleRequired")
+          }}
+        >
+          {(fieldApi) => (
+            <label className="web-form__field" htmlFor="advanced-example-title">
+              <span>{t("todos.examples.advanced.title")}</span>
+              <Input
+                id="advanced-example-title"
+                value={fieldApi.state.value}
+                onBlur={fieldApi.handleBlur}
+                onChange={(event) => fieldApi.handleChange(event.target.value)}
+              />
+              {fieldApi.state.meta.isTouched && fieldApi.state.meta.errors[0] ? (
+                <span className="web-form__error">{String(fieldApi.state.meta.errors[0])}</span>
+              ) : null}
+            </label>
+          )}
+        </advancedExampleForm.Field>
+        <div className="web-todos__advanced-grid">
+          <advancedExampleForm.Field name="description">
+            {(fieldApi) => (
+              <label className="web-form__field" htmlFor="advanced-example-description">
+                <span>{t("todos.examples.advanced.description")}</span>
+                <Textarea
+                  id="advanced-example-description"
+                  value={fieldApi.state.value}
+                  onBlur={fieldApi.handleBlur}
+                  onChange={(event) => fieldApi.handleChange(event.target.value)}
+                />
+              </label>
+            )}
+          </advancedExampleForm.Field>
+          <advancedExampleForm.Field name="planningNotes">
+            {(fieldApi) => (
+              <label className="web-form__field" htmlFor="advanced-example-notes">
+                <span>{t("todos.examples.advanced.notes")}</span>
+                <Textarea
+                  id="advanced-example-notes"
+                  value={fieldApi.state.value}
+                  onBlur={fieldApi.handleBlur}
+                  onChange={(event) => fieldApi.handleChange(event.target.value)}
+                />
+              </label>
+            )}
+          </advancedExampleForm.Field>
+        </div>
+        <advancedExampleForm.Field name="markCompleted">
+          {(fieldApi) => (
+            <label className="web-todos__advanced-checkbox" htmlFor="advanced-example-complete">
+              <input
+                checked={fieldApi.state.value}
+                id="advanced-example-complete"
+                type="checkbox"
+                onBlur={fieldApi.handleBlur}
+                onChange={(event) => fieldApi.handleChange(event.target.checked)}
+              />
+              <span>{t("todos.examples.advanced.markCompleted")}</span>
+            </label>
+          )}
+        </advancedExampleForm.Field>
+      </FormModal>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { Button } from "@repo/ui";
+import { ConfirmModal } from "@repo/ui";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -21,24 +21,20 @@ export function ConfirmDialog({
   onConfirm,
   onCancel
 }: ConfirmDialogProps) {
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div className="web-dialog-backdrop" role="presentation">
-      <section aria-label={title} className="web-dialog" role="dialog" aria-modal="true">
-        <h2>{title}</h2>
-        <p className="web-muted">{message}</p>
-        <div className="web-form__row">
-          <Button disabled={isConfirming} intent="subtle" type="button" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button disabled={isConfirming} intent="danger" type="button" onClick={onConfirm}>
-            {isConfirming ? "..." : confirmLabel}
-          </Button>
-        </div>
-      </section>
-    </div>
+    <ConfirmModal
+      cancelLabel={cancelLabel}
+      confirmLabel={confirmLabel}
+      description={message}
+      isConfirming={isConfirming}
+      open={isOpen}
+      title={title}
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open) {
+          onCancel();
+        }
+      }}
+    />
   );
 }
