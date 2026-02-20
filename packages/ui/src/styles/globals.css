@@ -277,8 +277,11 @@ body {
   border: 0;
   border-radius: 999px;
   cursor: ew-resize;
+  height: 100%;
   inset: 0 -4px 0 auto;
+  min-height: 0;
   opacity: 0;
+  padding: 0;
   position: absolute;
   width: 8px;
 }
@@ -544,6 +547,7 @@ body {
   height: 28px;
   justify-content: center;
   line-height: 1;
+  padding: 0;
   width: 28px;
 }
 

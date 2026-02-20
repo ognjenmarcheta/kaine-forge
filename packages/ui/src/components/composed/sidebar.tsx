@@ -5,12 +5,12 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ButtonHTMLAttributes,
   type HTMLAttributes,
   type ReactNode
 } from "react";
 
 import { cn } from "../../lib/cn";
+import { Button, type ButtonProps } from "../primitives/button";
 
 const DEFAULT_SIDEBAR_STORAGE_KEY = "kaine.sidebar.open";
 
@@ -41,7 +41,7 @@ interface SidebarMenuButtonClassNameInput {
   isActive?: boolean;
 }
 
-interface SidebarMenuButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface SidebarMenuButtonProps extends Omit<ButtonProps, "asChild"> {
   isActive?: boolean;
 }
 
@@ -216,8 +216,9 @@ export function SidebarMenuItem({ children, className, ...props }: HTMLAttribute
 
 export function SidebarMenuButton({ className, isActive, ...props }: SidebarMenuButtonProps) {
   return (
-    <button
+    <Button
       className={resolveSidebarMenuButtonClassName({ className, isActive })}
+      intent="subtle"
       type="button"
       {...props}
     />
@@ -228,9 +229,10 @@ export function SidebarTrigger({ children, className, onClick, ...props }: Sideb
   const { open, toggle } = useSidebar();
 
   return (
-    <button
+    <Button
       aria-label="Toggle sidebar"
       className={cn("ui-sidebar__trigger", className)}
+      intent="subtle"
       type="button"
       onClick={(event) => {
         toggle();
@@ -239,7 +241,7 @@ export function SidebarTrigger({ children, className, onClick, ...props }: Sideb
       {...props}
     >
       {children ?? (open ? "<<" : ">>")}
-    </button>
+    </Button>
   );
 }
 
@@ -247,9 +249,10 @@ export function SidebarRail({ className, onClick, ...props }: SidebarMenuButtonP
   const { toggle } = useSidebar();
 
   return (
-    <button
+    <Button
       aria-label="Resize sidebar"
       className={cn("ui-sidebar__rail", className)}
+      intent="subtle"
       type="button"
       onClick={(event) => {
         toggle();

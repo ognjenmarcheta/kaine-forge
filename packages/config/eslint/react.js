@@ -82,8 +82,34 @@ export default [
           selector:
             "JSXAttribute[name.name='accessibilityLabel'] > JSXExpressionContainer > Literal[value!=null][value!='']",
           message: "Use translation key for accessibilityLabel values."
+        },
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message: "Use @repo/ui Button component instead of native <button>."
+        },
+        {
+          selector: "JSXElement > JSXOpeningElement[name.name='button']",
+          message: "Use @repo/ui Button component instead of native <button>."
         }
       ]
+    }
+  },
+  {
+    files: ["packages/ui/src/**/*.{tsx,jsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message: "Use @repo/ui Button component instead of native <button>."
+        }
+      ]
+    }
+  },
+  {
+    files: ["packages/ui/src/components/primitives/button.tsx"],
+    rules: {
+      "no-restricted-syntax": "off"
     }
   }
 ];

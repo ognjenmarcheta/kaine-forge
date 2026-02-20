@@ -105,9 +105,15 @@ export function Modal({
             </div>
             {showCloseButton ? (
               <Dialog.Close asChild>
-                <button aria-label={closeButtonLabel} className="ui-modal__close" type="button">
+                <Button
+                  aria-label={closeButtonLabel}
+                  className="ui-modal__close"
+                  intent="subtle"
+                  size="sm"
+                  type="button"
+                >
                   x
-                </button>
+                </Button>
               </Dialog.Close>
             ) : null}
           </header>
