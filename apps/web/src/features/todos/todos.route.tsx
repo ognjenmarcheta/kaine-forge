@@ -1,5 +1,6 @@
 import {
   Button,
+  Checkbox,
   ConfigFormModal,
   FormModal,
   Input,
@@ -378,12 +379,11 @@ export function TodosRoute() {
         <advancedExampleForm.Field name="markCompleted">
           {(fieldApi) => (
             <label className="web-todos__advanced-checkbox" htmlFor="advanced-example-complete">
-              <input
+              <Checkbox
                 checked={fieldApi.state.value}
                 id="advanced-example-complete"
-                type="checkbox"
                 onBlur={fieldApi.handleBlur}
-                onChange={(event) => fieldApi.handleChange(event.target.checked)}
+                onCheckedChange={(checked) => fieldApi.handleChange(checked === true)}
               />
               <span>{t("todos.examples.advanced.markCompleted")}</span>
             </label>

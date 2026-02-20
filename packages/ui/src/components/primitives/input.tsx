@@ -1,9 +1,11 @@
-import type { InputHTMLAttributes } from "react";
+import { forwardRef, type ComponentProps } from "react";
 
 import { cn } from "../../lib/cn";
 
-type InputProps = InputHTMLAttributes<HTMLInputElement>;
+export type InputProps = ComponentProps<"input">;
 
-export function Input({ className, ...props }: InputProps) {
-  return <input className={cn("ui-input", className)} {...props} />;
-}
+export const Input = forwardRef<HTMLInputElement, InputProps>(({ className, ...props }, ref) => {
+  return <input className={cn("ui-input", className)} ref={ref} {...props} />;
+});
+
+Input.displayName = "Input";

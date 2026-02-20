@@ -1,4 +1,4 @@
-import { Button } from "@repo/ui";
+import { Button, Checkbox } from "@repo/ui";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
@@ -16,10 +16,10 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
   return (
     <li className="web-todos__item">
       <label className="web-todos__toggle">
-        <input
+        <Checkbox
+          aria-label={item.title}
           checked={item.completed}
-          type="checkbox"
-          onChange={() => {
+          onCheckedChange={() => {
             onToggle(item);
           }}
         />
