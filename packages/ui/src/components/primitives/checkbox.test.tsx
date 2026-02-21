@@ -11,7 +11,7 @@ describe("Checkbox", () => {
 
     expect(markup).toContain('data-slot="checkbox"');
     expect(markup).toContain('data-slot="checkbox-indicator"');
-    expect(markup).toContain("peer border-input");
+    expect(markup).toContain("peer border-[var(--ds-border)]");
     expect(markup).toContain("custom-class");
     expect(markup).toContain('aria-label="Mark completed"');
     expect(markup).toContain('data-state="checked"');
