@@ -15,7 +15,7 @@ export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
   const { t } = useTranslation();
 
   if (items.length === 0) {
-    return <Text className="text-sm text-text-subtle">{t("todos.empty")}</Text>;
+    return <Text className="text-sm text-ds-text-subtle">{t("todos.empty")}</Text>;
   }
 
   return (

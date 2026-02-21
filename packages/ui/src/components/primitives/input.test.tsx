@@ -11,7 +11,7 @@ describe("Input", () => {
 
     expect(markup).toContain("<input");
     expect(markup).toContain('data-slot="input"');
-    expect(markup).toContain("border-input");
+    expect(markup).toContain("border-[var(--ds-border)]");
     expect(markup).toContain("focus-visible:ring-[3px]");
     expect(markup).toContain("custom-class");
     expect(markup).toContain('placeholder="Todo title"');

@@ -37,12 +37,12 @@ export function ConfirmModal({
     <Modal
       actions={[
         {
-          intent: "subtle",
+          appearance: "subtle",
           label: cancelLabel,
           onClick: () => onOpenChange(false)
         },
         {
-          intent: "danger",
+          appearance: "danger",
           label: confirmLabel,
           loading: isConfirming,
           onClick: onConfirm

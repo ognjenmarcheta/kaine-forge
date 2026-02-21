@@ -52,30 +52,30 @@ export default function AppLayout() {
           <View className="mr-3 flex-row items-center gap-2">
             <Pressable
               accessibilityLabel={t("navigation.language")}
-              className="rounded-md border border-border-default px-2 py-1"
+              className="rounded-md border border-ds-border px-2 py-1"
               onPress={() => {
                 void setLanguage(nextLanguage(language));
               }}
             >
-              <Text className="text-xs text-text-default">{language.toUpperCase()}</Text>
+              <Text className="text-xs text-ds-text">{language.toUpperCase()}</Text>
             </Pressable>
             <Pressable
               accessibilityLabel={t("navigation.theme")}
-              className="rounded-md border border-border-default px-2 py-1"
+              className="rounded-md border border-ds-border px-2 py-1"
               onPress={() => {
                 setThemeMode(nextTheme(themeMode));
               }}
             >
-              <Text className="text-xs text-text-default">{themeMode.toUpperCase()}</Text>
+              <Text className="text-xs text-ds-text">{themeMode.toUpperCase()}</Text>
             </Pressable>
             <Pressable
               accessibilityLabel={t("auth.logout")}
-              className="rounded-md border border-border-danger px-2 py-1"
+              className="rounded-md border border-ds-border-danger px-2 py-1"
               onPress={() => {
                 void logout();
               }}
             >
-              <Text className="text-xs text-text-danger">{t("auth.logout")}</Text>
+              <Text className="text-xs text-ds-text-danger">{t("auth.logout")}</Text>
             </Pressable>
           </View>
         ),

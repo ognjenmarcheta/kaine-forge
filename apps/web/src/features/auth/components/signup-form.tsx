@@ -1,4 +1,4 @@
-import { Button, Input } from "@repo/ui";
+import { Button, Field, FieldError, FieldLabel, Input } from "@repo/ui";
 import { useState, type FormEvent } from "react";
 
 import { useAuth } from "../../../hooks/use-auth";
@@ -33,37 +33,44 @@ export function SignupForm({ onDone }: SignupFormProps) {
   }
 
   return (
-    <form className="web-form" onSubmit={onSubmit}>
-      <label className="web-form__field">
-        <span>{t("common.nameLabel")}</span>
-        <Input required value={name} onChange={(event) => setName(event.target.value)} />
-      </label>
-
-      <label className="web-form__field">
-        <span>{t("common.emailLabel")}</span>
+    <form className="grid gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
+      <Field>
+        <FieldLabel htmlFor="signup-name">{t("common.nameLabel")}</FieldLabel>
         <Input
+          id="signup-name"
+          required
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="signup-email">{t("common.emailLabel")}</FieldLabel>
+        <Input
+          id="signup-email"
           required
           autoComplete="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
-      </label>
+      </Field>
 
-      <label className="web-form__field">
-        <span>{t("common.passwordLabel")}</span>
+      <Field>
+        <FieldLabel htmlFor="signup-password">{t("common.passwordLabel")}</FieldLabel>
         <Input
+          id="signup-password"
           required
           autoComplete="new-password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-      </label>
+      </Field>
 
-      {error ? <p className="web-form__error">{error}</p> : null}
+      {error ? <FieldError>{error}</FieldError> : null}
 
-      <Button disabled={isSubmitting} size="md" type="submit">
+      <Button disabled={isSubmitting} type="submit">
         {isSubmitting ? "..." : t("auth.signup.title")}
       </Button>
     </form>

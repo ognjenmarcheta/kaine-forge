@@ -6,7 +6,7 @@ function Skeleton({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
+      className={cn("bg-[var(--ds-background-neutral)] animate-pulse rounded-md", className)}
       {...props}
     />
   );

@@ -37,11 +37,17 @@ export function AuthRoute() {
 
   return (
     <AuthLayout subtitle={copy[mode].subtitle} title={copy[mode].title}>
-      <div className="web-auth__tabs">
-        <Button intent={mode === "login" ? "primary" : "subtle"} onClick={() => setMode("login")}>
+      <div className="mb-[var(--ds-space-150)] grid grid-cols-2 gap-[var(--ds-space-100)]">
+        <Button
+          appearance={mode === "login" ? "default" : "subtle"}
+          onClick={() => setMode("login")}
+        >
           {t("auth.login.title")}
         </Button>
-        <Button intent={mode === "signup" ? "primary" : "subtle"} onClick={() => setMode("signup")}>
+        <Button
+          appearance={mode === "signup" ? "default" : "subtle"}
+          onClick={() => setMode("signup")}
+        >
           {t("auth.signup.title")}
         </Button>
       </div>

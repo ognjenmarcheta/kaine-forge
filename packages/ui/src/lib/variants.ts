@@ -2,19 +2,23 @@ import { cva } from "class-variance-authority";
 
 export const buttonVariants = cva("ui-button", {
   variants: {
-    intent: {
-      primary: "ui-button--primary",
+    appearance: {
+      default: "ui-button--primary",
+      secondary: "ui-button--subtle",
       subtle: "ui-button--subtle",
+      ghost: "ui-button--ghost",
+      link: "ui-button--link",
+      warning: "ui-button--warning",
       danger: "ui-button--danger"
     },
-    size: {
-      sm: "ui-button--sm",
-      md: "ui-button--md",
-      lg: "ui-button--lg"
+    spacing: {
+      compact: "ui-button--sm",
+      default: "ui-button--md",
+      spacious: "ui-button--lg"
     }
   },
   defaultVariants: {
-    intent: "primary",
-    size: "md"
+    appearance: "default",
+    spacing: "default"
   }
 });

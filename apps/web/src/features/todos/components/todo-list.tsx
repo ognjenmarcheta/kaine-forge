@@ -13,11 +13,11 @@ export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
   const { t } = useTranslation();
 
   if (items.length === 0) {
-    return <p className="web-muted">{t("todos.empty")}</p>;
+    return <p className="text-[color:var(--ds-text-subtle)]">{t("todos.empty")}</p>;
   }
 
   return (
-    <ul className="web-todos__list">
+    <ul className="m-0 grid list-none gap-[var(--ds-space-100)] p-0">
       {items.map((item) => (
         <TodoItemRow
           key={item.id}

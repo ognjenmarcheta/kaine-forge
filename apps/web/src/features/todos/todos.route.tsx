@@ -2,6 +2,9 @@ import {
   Button,
   Checkbox,
   ConfigFormModal,
+  Field,
+  FieldError,
+  FieldLabel,
   FormModal,
   Input,
   Textarea,
@@ -216,30 +219,32 @@ export function TodosRoute() {
   const error = actionError ?? (todosQuery.error ? t("error.generic") : null);
 
   return (
-    <section className="web-todos">
-      <header className="web-todos__header">
+    <section className="grid gap-[var(--ds-space-200)]">
+      <header className="flex items-center justify-between gap-[var(--ds-space-150)]">
         <div>
           <h1>{t("todos.title")}</h1>
-          <p className="web-muted">{completionSummary}</p>
+          <p className="text-[color:var(--ds-text-subtle)]">{completionSummary}</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
 
-      <section className="web-todos__examples">
+      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
         <h2>{t("todos.examples.title")}</h2>
-        <p className="web-muted">{t("todos.examples.description")}</p>
-        <div className="web-todos__examples-actions">
-          <Button intent="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
+        <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.examples.description")}</p>
+        <div className="flex flex-wrap gap-[var(--ds-space-150)]">
+          <Button appearance="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
             {t("todos.examples.simple.open")}
           </Button>
-          <Button intent="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
+          <Button appearance="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
             {t("todos.examples.advanced.open")}
           </Button>
         </div>
       </section>
 
-      {isLoading ? <p className="web-muted">{t("todos.loading")}</p> : null}
-      {error ? <p className="web-form__error">{error}</p> : null}
+      {isLoading ? (
+        <p className="text-[color:var(--ds-text-subtle)]">{t("todos.loading")}</p>
+      ) : null}
+      {error ? <FieldError>{error}</FieldError> : null}
       {!isLoading ? (
         <TodoList
           items={todos}
@@ -334,8 +339,10 @@ export function TodosRoute() {
           }}
         >
           {(fieldApi) => (
-            <label className="web-form__field" htmlFor="advanced-example-title">
-              <span>{t("todos.examples.advanced.title")}</span>
+            <Field>
+              <FieldLabel htmlFor="advanced-example-title">
+                {t("todos.examples.advanced.title")}
+              </FieldLabel>
               <Input
                 id="advanced-example-title"
                 value={fieldApi.state.value}
@@ -343,42 +350,49 @@ export function TodosRoute() {
                 onChange={(event) => fieldApi.handleChange(event.target.value)}
               />
               {fieldApi.state.meta.isTouched && fieldApi.state.meta.errors[0] ? (
-                <span className="web-form__error">{String(fieldApi.state.meta.errors[0])}</span>
+                <FieldError>{String(fieldApi.state.meta.errors[0])}</FieldError>
               ) : null}
-            </label>
+            </Field>
           )}
         </advancedExampleForm.Field>
-        <div className="web-todos__advanced-grid">
+        <div className="grid grid-cols-1 gap-[var(--ds-space-150)] md:grid-cols-2">
           <advancedExampleForm.Field name="description">
             {(fieldApi) => (
-              <label className="web-form__field" htmlFor="advanced-example-description">
-                <span>{t("todos.examples.advanced.description")}</span>
+              <Field>
+                <FieldLabel htmlFor="advanced-example-description">
+                  {t("todos.examples.advanced.description")}
+                </FieldLabel>
                 <Textarea
                   id="advanced-example-description"
                   value={fieldApi.state.value}
                   onBlur={fieldApi.handleBlur}
                   onChange={(event) => fieldApi.handleChange(event.target.value)}
                 />
-              </label>
+              </Field>
             )}
           </advancedExampleForm.Field>
           <advancedExampleForm.Field name="planningNotes">
             {(fieldApi) => (
-              <label className="web-form__field" htmlFor="advanced-example-notes">
-                <span>{t("todos.examples.advanced.notes")}</span>
+              <Field>
+                <FieldLabel htmlFor="advanced-example-notes">
+                  {t("todos.examples.advanced.notes")}
+                </FieldLabel>
                 <Textarea
                   id="advanced-example-notes"
                   value={fieldApi.state.value}
                   onBlur={fieldApi.handleBlur}
                   onChange={(event) => fieldApi.handleChange(event.target.value)}
                 />
-              </label>
+              </Field>
             )}
           </advancedExampleForm.Field>
         </div>
         <advancedExampleForm.Field name="markCompleted">
           {(fieldApi) => (
-            <label className="web-todos__advanced-checkbox" htmlFor="advanced-example-complete">
+            <label
+              className="flex items-center gap-[var(--ds-space-100)]"
+              htmlFor="advanced-example-complete"
+            >
               <Checkbox
                 checked={fieldApi.state.value}
                 id="advanced-example-complete"

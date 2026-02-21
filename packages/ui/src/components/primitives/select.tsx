@@ -1,4 +1,5 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { Check, ChevronDown } from "lucide-react";
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
 
 import { cn } from "../../lib/cn";
@@ -13,10 +14,15 @@ export const SelectTrigger = forwardRef<
   ElementRef<typeof SelectPrimitive.Trigger>,
   ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ children, className, ...props }, ref) => (
-  <SelectPrimitive.Trigger className={cn("ui-select__trigger", className)} ref={ref} {...props}>
+  <SelectPrimitive.Trigger
+    className={cn("ui-select__trigger", className)}
+    data-slot="select-trigger"
+    ref={ref}
+    {...props}
+  >
     {children}
     <SelectPrimitive.Icon aria-hidden className="ui-select__icon">
-      v
+      <ChevronDown className="size-3.5" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -30,6 +36,7 @@ export const SelectContent = forwardRef<
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       className={cn("ui-select__content", className)}
+      data-slot="select-content"
       position={position}
       ref={ref}
       {...props}
@@ -47,10 +54,15 @@ export const SelectItem = forwardRef<
   ElementRef<typeof SelectPrimitive.Item>,
   ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ children, className, ...props }, ref) => (
-  <SelectPrimitive.Item className={cn("ui-select__item", className)} ref={ref} {...props}>
+  <SelectPrimitive.Item
+    className={cn("ui-select__item", className)}
+    data-slot="select-item"
+    ref={ref}
+    {...props}
+  >
     <span className="ui-select__item-indicator-wrap">
       <SelectPrimitive.ItemIndicator className="ui-select__item-indicator">
-        x
+        <Check className="size-3.5" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
