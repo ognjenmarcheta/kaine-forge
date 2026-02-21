@@ -37,7 +37,7 @@ export function AuthRoute() {
 
   return (
     <AuthLayout subtitle={copy[mode].subtitle} title={copy[mode].title}>
-      <div className="mb-[var(--ds-space-150)] grid grid-cols-2 gap-[var(--ds-space-100)]">
+      <div className="mb-ds-150 grid grid-cols-2 gap-ds-100">
         <Button
           appearance={mode === "login" ? "default" : "subtle"}
           onClick={() => setMode("login")}

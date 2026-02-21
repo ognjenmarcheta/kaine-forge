@@ -32,7 +32,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
   }
 
   return (
-    <form className="grid gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
+    <form className="grid gap-ds-150" onSubmit={onSubmit}>
       <Field>
         <FieldLabel htmlFor="login-email">{t("common.emailLabel")}</FieldLabel>
         <Input
