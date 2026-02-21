@@ -3,23 +3,23 @@ import {
   AppLayout,
   Header,
   LabeledSelect,
-  resolveSidebarMenuButtonClassName,
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-  useSidebar,
   UserMenu
 } from "@repo/ui";
 import { useState } from "react";
-import { Navigate, NavLink, Outlet, createBrowserRouter } from "react-router-dom";
+import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "react-router-dom";
 
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
@@ -60,7 +60,9 @@ function ShellLayout() {
   const currentSession = session;
 
   function ShellBody() {
-    const { open } = useSidebar();
+    const location = useLocation();
+    const isDashboardActive = location.pathname === "/dashboard";
+    const isTodosActive = location.pathname === "/todos";
 
     return (
       <AppLayout
@@ -117,7 +119,7 @@ function ShellLayout() {
           />
         }
         main={
-          <SidebarInset>
+          <SidebarInset className="ui-app-shell__content">
             <Outlet />
           </SidebarInset>
         }
@@ -128,31 +130,18 @@ function ShellLayout() {
             </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
+                <SidebarGroupLabel>{t("common.appName")}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <NavLink
-                        className={({ isActive }) =>
-                          resolveSidebarMenuButtonClassName({
-                            isActive
-                          })
-                        }
-                        to="/dashboard"
-                      >
-                        {open ? t("navigation.dashboard") : "D"}
-                      </NavLink>
+                      <SidebarMenuButton asChild isActive={isDashboardActive}>
+                        <NavLink to="/dashboard">{t("navigation.dashboard")}</NavLink>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <NavLink
-                        className={({ isActive }) =>
-                          resolveSidebarMenuButtonClassName({
-                            isActive
-                          })
-                        }
-                        to="/todos"
-                      >
-                        {open ? t("navigation.todos") : "T"}
-                      </NavLink>
+                      <SidebarMenuButton asChild isActive={isTodosActive}>
+                        <NavLink to="/todos">{t("navigation.todos")}</NavLink>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
@@ -167,7 +156,7 @@ function ShellLayout() {
 
   return (
     <>
-      <SidebarProvider defaultOpen storageKey="kaine.sidebar.open">
+      <SidebarProvider defaultOpen>
         <ShellBody />
       </SidebarProvider>
       <OrganizationCreateDialog
