@@ -133,6 +133,8 @@ pnpm release:status
 
 ## Documentation
 
+- Monorepo AI guide: `MONOREPO_GUIDE.md`
+- Design system: `DESIGN_SYSTEM.md`
 - Contributor guide: `CONTRIBUTING.md`
 - Security policy: `SECURITY.md`
 - Architecture decisions: `docs/adr/`
