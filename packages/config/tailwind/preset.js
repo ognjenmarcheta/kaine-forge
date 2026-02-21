@@ -3,46 +3,197 @@ export default {
   theme: {
     extend: {
       colors: {
-        text: {
-          default: "var(--color-text-default)",
-          subtle: "var(--color-text-subtle)",
-          inverse: "var(--color-text-inverse)",
-          danger: "var(--color-text-danger)",
-          success: "var(--color-text-success)",
-          warning: "var(--color-text-warning)"
+        "ds-text": {
+          DEFAULT: "var(--ds-text)",
+          subtle: "var(--ds-text-subtle)",
+          subtlest: "var(--ds-text-subtlest)",
+          inverse: "var(--ds-text-inverse)",
+          disabled: "var(--ds-text-disabled)",
+          brand: "var(--ds-text-brand)",
+          success: "var(--ds-text-success)",
+          danger: "var(--ds-text-danger)",
+          warning: {
+            DEFAULT: "var(--ds-text-warning)",
+            inverse: "var(--ds-text-warning-inverse)"
+          },
+          attention: "var(--ds-text-attention)",
+          severe: "var(--ds-text-severe)",
+          information: "var(--ds-text-information)",
+          discovery: "var(--ds-text-discovery)",
+          open: "var(--ds-text-open)",
+          closed: "var(--ds-text-closed)",
+          done: "var(--ds-text-done)",
+          selected: "var(--ds-text-selected)"
         },
-        background: {
-          default: "var(--color-background-default)",
-          surface: "var(--color-background-surface)",
-          raised: "var(--color-background-surface-raised)",
-          brand: "var(--color-background-brand-bold)",
-          danger: "var(--color-background-danger)",
-          success: "var(--color-background-success)",
-          neutral: "var(--color-background-neutral)"
+        "ds-bg": {
+          DEFAULT: "var(--ds-background-default)",
+          neutral: {
+            DEFAULT: "var(--ds-background-neutral)",
+            subtle: "var(--ds-background-neutral-subtle)",
+            "subtle-hovered": "var(--ds-background-neutral-subtle-hovered)",
+            hovered: "var(--ds-background-neutral-hovered)",
+            bold: "var(--ds-background-neutral-bold)"
+          },
+          brand: {
+            bold: "var(--ds-background-brand-bold)",
+            "bold-hovered": "var(--ds-background-brand-bold-hovered)"
+          },
+          success: {
+            DEFAULT: "var(--ds-background-success)",
+            bold: "var(--ds-background-success-bold)"
+          },
+          danger: {
+            DEFAULT: "var(--ds-background-danger)",
+            bold: "var(--ds-background-danger-bold)"
+          },
+          warning: {
+            DEFAULT: "var(--ds-background-warning)",
+            bold: "var(--ds-background-warning-bold)"
+          },
+          attention: {
+            DEFAULT: "var(--ds-background-attention)",
+            bold: "var(--ds-background-attention-bold)"
+          },
+          severe: {
+            DEFAULT: "var(--ds-background-severe)",
+            bold: "var(--ds-background-severe-bold)"
+          },
+          information: {
+            DEFAULT: "var(--ds-background-information)",
+            bold: "var(--ds-background-information-bold)"
+          },
+          discovery: {
+            DEFAULT: "var(--ds-background-discovery)",
+            bold: "var(--ds-background-discovery-bold)"
+          },
+          selected: {
+            DEFAULT: "var(--ds-background-selected)",
+            bold: "var(--ds-background-selected-bold)"
+          },
+          open: "var(--ds-background-open)",
+          closed: "var(--ds-background-closed)",
+          done: "var(--ds-background-done)"
         },
-        border: {
-          default: "var(--color-border-default)",
-          focused: "var(--color-border-focused)",
-          brand: "var(--color-border-brand)",
-          danger: "var(--color-border-danger)"
+        "ds-border": {
+          DEFAULT: "var(--ds-border)",
+          bold: "var(--ds-border-bold)",
+          focused: "var(--ds-border-focused)",
+          selected: "var(--ds-border-selected)",
+          brand: "var(--ds-border-brand)",
+          success: "var(--ds-border-success)",
+          danger: "var(--ds-border-danger)",
+          warning: "var(--ds-border-warning)",
+          attention: "var(--ds-border-attention)",
+          severe: "var(--ds-border-severe)",
+          information: "var(--ds-border-information)",
+          discovery: "var(--ds-border-discovery)"
+        },
+        "ds-surface": {
+          DEFAULT: "var(--ds-surface)",
+          sunken: "var(--ds-surface-sunken)",
+          raised: "var(--ds-surface-raised)",
+          "raised-hovered": "var(--ds-surface-raised-hovered)",
+          "raised-pressed": "var(--ds-surface-raised-pressed)",
+          overlay: "var(--ds-surface-overlay)",
+          "overlay-hovered": "var(--ds-surface-overlay-hovered)",
+          "overlay-pressed": "var(--ds-surface-overlay-pressed)"
+        },
+        "ds-icon": {
+          DEFAULT: "var(--ds-icon)",
+          subtle: "var(--ds-icon-subtle)",
+          inverse: "var(--ds-icon-inverse)",
+          disabled: "var(--ds-icon-disabled)",
+          brand: "var(--ds-icon-brand)",
+          success: "var(--ds-icon-success)",
+          danger: "var(--ds-icon-danger)",
+          warning: "var(--ds-icon-warning)",
+          attention: "var(--ds-icon-attention)",
+          severe: "var(--ds-icon-severe)",
+          information: "var(--ds-icon-information)",
+          discovery: "var(--ds-icon-discovery)"
+        },
+        "ds-link": {
+          DEFAULT: "var(--ds-link)",
+          pressed: "var(--ds-link-pressed)"
+        },
+        "ds-blanket": {
+          DEFAULT: "var(--ds-blanket)"
         }
       },
+      fontFamily: {
+        sans: "var(--ds-font-family-sans)",
+        mono: "var(--ds-font-family-mono)"
+      },
+      fontSize: {
+        "heading-display": ["3rem", { lineHeight: "1.15" }],
+        "heading-xxl": ["2.1875rem", { lineHeight: "1.14" }],
+        "heading-xl": ["1.8125rem", { lineHeight: "1.1" }],
+        "heading-lg": ["1.5rem", { lineHeight: "1.17" }],
+        "heading-md": ["1.25rem", { lineHeight: "1.2" }],
+        "heading-sm": ["1rem", { lineHeight: "1.25" }],
+        "heading-xs": ["0.875rem", { lineHeight: "1.14" }],
+        "heading-xxs": ["0.75rem", { lineHeight: "1.33" }],
+        "body-lg": ["1rem", { lineHeight: "1.5" }],
+        body: ["0.875rem", { lineHeight: "1.43" }],
+        "body-sm": ["0.75rem", { lineHeight: "1.5" }],
+        "body-xs": ["0.6875rem", { lineHeight: "1.45" }]
+      },
+      fontWeight: {
+        light: "var(--ds-font-weight-light)",
+        regular: "var(--ds-font-weight-regular)",
+        medium: "var(--ds-font-weight-medium)",
+        semibold: "var(--ds-font-weight-semibold)",
+        bold: "var(--ds-font-weight-bold)"
+      },
+      lineHeight: {
+        default: "var(--ds-lineHeight-default)",
+        condensed: "var(--ds-lineHeight-condensed)",
+        tight: "var(--ds-lineHeight-tight)"
+      },
+      borderRadius: {
+        none: "0",
+        sm: "var(--ds-radius-050)",
+        DEFAULT: "var(--ds-radius-100)",
+        md: "var(--ds-radius-200)",
+        lg: "var(--ds-radius-300)",
+        xl: "var(--ds-radius-400)",
+        full: "9999px"
+      },
+      borderColor: {
+        DEFAULT: "var(--ds-border)",
+        bold: "var(--ds-border-bold)",
+        focused: "var(--ds-border-focused)",
+        selected: "var(--ds-border-selected)",
+        brand: "var(--ds-border-brand)",
+        success: "var(--ds-border-success)",
+        danger: "var(--ds-border-danger)",
+        warning: "var(--ds-border-warning)",
+        attention: "var(--ds-border-attention)",
+        severe: "var(--ds-border-severe)",
+        information: "var(--ds-border-information)",
+        discovery: "var(--ds-border-discovery)"
+      },
       boxShadow: {
-        raised: "var(--shadow-raised)",
-        overlay: "var(--shadow-overlay)",
-        floating: "var(--shadow-floating)"
+        raised: "var(--ds-shadow-raised)",
+        overlay: "var(--ds-shadow-overlay)",
+        floating: "var(--ds-shadow-floating)",
+        overflow: "var(--ds-shadow-overflow)",
+        none: "none"
       },
       spacing: {
-        1: "4px",
-        2: "8px",
-        3: "12px",
-        4: "16px",
-        5: "20px",
-        6: "24px",
-        8: "32px",
-        10: "40px",
-        12: "48px",
-        16: "64px"
+        "ds-025": "var(--ds-space-025)",
+        "ds-050": "var(--ds-space-050)",
+        "ds-075": "var(--ds-space-075)",
+        "ds-100": "var(--ds-space-100)",
+        "ds-150": "var(--ds-space-150)",
+        "ds-200": "var(--ds-space-200)",
+        "ds-250": "var(--ds-space-250)",
+        "ds-300": "var(--ds-space-300)",
+        "ds-400": "var(--ds-space-400)",
+        "ds-500": "var(--ds-space-500)",
+        "ds-600": "var(--ds-space-600)",
+        "ds-800": "var(--ds-space-800)",
+        "ds-1000": "var(--ds-space-1000)"
       }
     }
   }
