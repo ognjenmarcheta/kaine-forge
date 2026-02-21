@@ -11,4 +11,12 @@ describe("Sidebar token semantics", () => {
     expect(source).not.toContain("hsl(var(--sidebar-border))");
     expect(source).not.toContain("hsl(var(--sidebar-accent))");
   });
+
+  it("uses only --ds-* token references, not sidebar bridge variables", () => {
+    expect(source).not.toContain("bg-sidebar-accent");
+    expect(source).not.toContain("text-sidebar-foreground");
+    expect(source).not.toContain("bg-sidebar-primary");
+    expect(source).not.toContain("border-sidebar-border");
+    expect(source).not.toContain("ring-sidebar-ring");
+  });
 });
