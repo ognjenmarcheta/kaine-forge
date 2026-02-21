@@ -939,6 +939,21 @@ body {
   width: 12px;
 }
 
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--ds-border-width-focused) var(--ds-border-focused);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-width: 900px) {
   .ui-sidebar {
     border-bottom: 1px solid var(--ds-border);
