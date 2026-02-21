@@ -23,7 +23,43 @@ export default {
           open: "var(--ds-text-open)",
           closed: "var(--ds-text-closed)",
           done: "var(--ds-text-done)",
-          selected: "var(--ds-text-selected)"
+          selected: "var(--ds-text-selected)",
+          "accent-blue": {
+            DEFAULT: "var(--ds-text-accent-blue)",
+            bolder: "var(--ds-text-accent-blue-bolder)"
+          },
+          "accent-teal": {
+            DEFAULT: "var(--ds-text-accent-teal)",
+            bolder: "var(--ds-text-accent-teal-bolder)"
+          },
+          "accent-green": {
+            DEFAULT: "var(--ds-text-accent-green)",
+            bolder: "var(--ds-text-accent-green-bolder)"
+          },
+          "accent-lime": {
+            DEFAULT: "var(--ds-text-accent-lime)",
+            bolder: "var(--ds-text-accent-lime-bolder)"
+          },
+          "accent-yellow": {
+            DEFAULT: "var(--ds-text-accent-yellow)",
+            bolder: "var(--ds-text-accent-yellow-bolder)"
+          },
+          "accent-orange": {
+            DEFAULT: "var(--ds-text-accent-orange)",
+            bolder: "var(--ds-text-accent-orange-bolder)"
+          },
+          "accent-red": {
+            DEFAULT: "var(--ds-text-accent-red)",
+            bolder: "var(--ds-text-accent-red-bolder)"
+          },
+          "accent-magenta": {
+            DEFAULT: "var(--ds-text-accent-magenta)",
+            bolder: "var(--ds-text-accent-magenta-bolder)"
+          },
+          "accent-purple": {
+            DEFAULT: "var(--ds-text-accent-purple)",
+            bolder: "var(--ds-text-accent-purple-bolder)"
+          }
         },
         "ds-bg": {
           DEFAULT: "var(--ds-background-default)",
@@ -83,7 +119,52 @@ export default {
           },
           open: "var(--ds-background-open)",
           closed: "var(--ds-background-closed)",
-          done: "var(--ds-background-done)"
+          done: "var(--ds-background-done)",
+          "accent-blue": {
+            subtlest: "var(--ds-background-accent-blue-subtlest)",
+            subtle: "var(--ds-background-accent-blue-subtle)",
+            bolder: "var(--ds-background-accent-blue-bolder)"
+          },
+          "accent-teal": {
+            subtlest: "var(--ds-background-accent-teal-subtlest)",
+            subtle: "var(--ds-background-accent-teal-subtle)",
+            bolder: "var(--ds-background-accent-teal-bolder)"
+          },
+          "accent-green": {
+            subtlest: "var(--ds-background-accent-green-subtlest)",
+            subtle: "var(--ds-background-accent-green-subtle)",
+            bolder: "var(--ds-background-accent-green-bolder)"
+          },
+          "accent-lime": {
+            subtlest: "var(--ds-background-accent-lime-subtlest)",
+            subtle: "var(--ds-background-accent-lime-subtle)",
+            bolder: "var(--ds-background-accent-lime-bolder)"
+          },
+          "accent-yellow": {
+            subtlest: "var(--ds-background-accent-yellow-subtlest)",
+            subtle: "var(--ds-background-accent-yellow-subtle)",
+            bolder: "var(--ds-background-accent-yellow-bolder)"
+          },
+          "accent-orange": {
+            subtlest: "var(--ds-background-accent-orange-subtlest)",
+            subtle: "var(--ds-background-accent-orange-subtle)",
+            bolder: "var(--ds-background-accent-orange-bolder)"
+          },
+          "accent-red": {
+            subtlest: "var(--ds-background-accent-red-subtlest)",
+            subtle: "var(--ds-background-accent-red-subtle)",
+            bolder: "var(--ds-background-accent-red-bolder)"
+          },
+          "accent-magenta": {
+            subtlest: "var(--ds-background-accent-magenta-subtlest)",
+            subtle: "var(--ds-background-accent-magenta-subtle)",
+            bolder: "var(--ds-background-accent-magenta-bolder)"
+          },
+          "accent-purple": {
+            subtlest: "var(--ds-background-accent-purple-subtlest)",
+            subtle: "var(--ds-background-accent-purple-subtle)",
+            bolder: "var(--ds-background-accent-purple-bolder)"
+          }
         },
         "ds-border": {
           DEFAULT: "var(--ds-border)",
@@ -97,7 +178,16 @@ export default {
           attention: "var(--ds-border-attention)",
           severe: "var(--ds-border-severe)",
           information: "var(--ds-border-information)",
-          discovery: "var(--ds-border-discovery)"
+          discovery: "var(--ds-border-discovery)",
+          "accent-blue": "var(--ds-border-accent-blue)",
+          "accent-teal": "var(--ds-border-accent-teal)",
+          "accent-green": "var(--ds-border-accent-green)",
+          "accent-lime": "var(--ds-border-accent-lime)",
+          "accent-yellow": "var(--ds-border-accent-yellow)",
+          "accent-orange": "var(--ds-border-accent-orange)",
+          "accent-red": "var(--ds-border-accent-red)",
+          "accent-magenta": "var(--ds-border-accent-magenta)",
+          "accent-purple": "var(--ds-border-accent-purple)"
         },
         "ds-surface": {
           DEFAULT: "var(--ds-surface)",
@@ -121,7 +211,16 @@ export default {
           attention: "var(--ds-icon-attention)",
           severe: "var(--ds-icon-severe)",
           information: "var(--ds-icon-information)",
-          discovery: "var(--ds-icon-discovery)"
+          discovery: "var(--ds-icon-discovery)",
+          "accent-blue": "var(--ds-icon-accent-blue)",
+          "accent-teal": "var(--ds-icon-accent-teal)",
+          "accent-green": "var(--ds-icon-accent-green)",
+          "accent-lime": "var(--ds-icon-accent-lime)",
+          "accent-yellow": "var(--ds-icon-accent-yellow)",
+          "accent-orange": "var(--ds-icon-accent-orange)",
+          "accent-red": "var(--ds-icon-accent-red)",
+          "accent-magenta": "var(--ds-icon-accent-magenta)",
+          "accent-purple": "var(--ds-icon-accent-purple)"
         },
         "ds-link": {
           DEFAULT: "var(--ds-link)",
