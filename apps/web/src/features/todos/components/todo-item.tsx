@@ -14,8 +14,8 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
   const { t } = useTranslation();
 
   return (
-    <li className="web-todos__item">
-      <label className="web-todos__toggle">
+    <li className="grid grid-cols-1 items-center gap-[var(--ds-space-150)] rounded-[var(--ds-radius-200)] border border-[var(--ds-border)] bg-[var(--ds-surface)] px-[var(--ds-space-150)] py-[calc(var(--ds-space-100)+var(--ds-space-025))] md:grid-cols-[minmax(240px,_1fr)_minmax(120px,_1fr)_auto]">
+      <label className="flex items-center gap-[var(--ds-space-100)]">
         <Checkbox
           aria-label={item.title}
           checked={item.completed}
@@ -25,14 +25,18 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
         />
         <span
           className={
-            item.completed ? "web-todos__title web-todos__title--completed" : "web-todos__title"
+            item.completed
+              ? "text-[color:var(--ds-text-subtle)] line-through"
+              : "text-[color:var(--ds-text)]"
           }
         >
           {item.title}
         </span>
       </label>
-      <p className="web-todos__description">{item.description || t("common.notAvailable")}</p>
-      <div className="web-todos__actions">
+      <p className="m-0 text-[color:var(--ds-text-subtle)]">
+        {item.description || t("common.notAvailable")}
+      </p>
+      <div className="flex gap-[var(--ds-space-100)]">
         <Button appearance="subtle" spacing="compact" type="button" onClick={() => onEdit(item)}>
           {t("button.edit")}
         </Button>

@@ -1,4 +1,4 @@
-import { Button, Input } from "@repo/ui";
+import { Button, Field, FieldError, FieldLabel, Input } from "@repo/ui";
 import { useState, type FormEvent } from "react";
 
 import { useAuth } from "../../../hooks/use-auth";
@@ -32,30 +32,32 @@ export function LoginForm({ onDone }: LoginFormProps) {
   }
 
   return (
-    <form className="web-form" onSubmit={onSubmit}>
-      <label className="web-form__field">
-        <span>{t("common.emailLabel")}</span>
+    <form className="grid gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
+      <Field>
+        <FieldLabel htmlFor="login-email">{t("common.emailLabel")}</FieldLabel>
         <Input
+          id="login-email"
           required
           autoComplete="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
-      </label>
+      </Field>
 
-      <label className="web-form__field">
-        <span>{t("common.passwordLabel")}</span>
+      <Field>
+        <FieldLabel htmlFor="login-password">{t("common.passwordLabel")}</FieldLabel>
         <Input
+          id="login-password"
           required
           autoComplete="current-password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-      </label>
+      </Field>
 
-      {error ? <p className="web-form__error">{error}</p> : null}
+      {error ? <FieldError>{error}</FieldError> : null}
 
       <Button disabled={isSubmitting} type="submit">
         {isSubmitting ? "..." : t("auth.login.title")}

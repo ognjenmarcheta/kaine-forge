@@ -50,7 +50,11 @@ function ShellLayout() {
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
 
   if (isLoading) {
-    return <p className="web-loading">{t("common.loadingSession")}</p>;
+    return (
+      <p className="p-[var(--ds-space-300)] text-[color:var(--ds-text-subtle)]">
+        {t("common.loadingSession")}
+      </p>
+    );
   }
 
   if (!session) {
@@ -68,7 +72,7 @@ function ShellLayout() {
       <AppLayout
         header={
           <Header
-            left={<strong className="web-logo">{t("common.appName")}</strong>}
+            left={<strong>{t("common.appName")}</strong>}
             right={
               <>
                 {organizationsVisible ? (

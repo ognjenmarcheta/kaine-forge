@@ -31,12 +31,17 @@ export default {
             DEFAULT: "var(--ds-background-neutral)",
             subtle: "var(--ds-background-neutral-subtle)",
             "subtle-hovered": "var(--ds-background-neutral-subtle-hovered)",
+            "subtle-pressed": "var(--ds-background-neutral-subtle-pressed)",
             hovered: "var(--ds-background-neutral-hovered)",
-            bold: "var(--ds-background-neutral-bold)"
+            pressed: "var(--ds-background-neutral-pressed)",
+            bold: "var(--ds-background-neutral-bold)",
+            "bold-hovered": "var(--ds-background-neutral-bold-hovered)",
+            "bold-pressed": "var(--ds-background-neutral-bold-pressed)"
           },
           brand: {
             bold: "var(--ds-background-brand-bold)",
-            "bold-hovered": "var(--ds-background-brand-bold-hovered)"
+            "bold-hovered": "var(--ds-background-brand-bold-hovered)",
+            "bold-pressed": "var(--ds-background-brand-bold-pressed)"
           },
           success: {
             DEFAULT: "var(--ds-background-success)",
@@ -48,7 +53,9 @@ export default {
           },
           warning: {
             DEFAULT: "var(--ds-background-warning)",
-            bold: "var(--ds-background-warning-bold)"
+            bold: "var(--ds-background-warning-bold)",
+            "bold-hovered": "var(--ds-background-warning-bold-hovered)",
+            "bold-pressed": "var(--ds-background-warning-bold-pressed)"
           },
           attention: {
             DEFAULT: "var(--ds-background-attention)",
@@ -68,7 +75,11 @@ export default {
           },
           selected: {
             DEFAULT: "var(--ds-background-selected)",
-            bold: "var(--ds-background-selected-bold)"
+            hovered: "var(--ds-background-selected-hovered)",
+            pressed: "var(--ds-background-selected-pressed)",
+            bold: "var(--ds-background-selected-bold)",
+            "bold-hovered": "var(--ds-background-selected-bold-hovered)",
+            "bold-pressed": "var(--ds-background-selected-bold-pressed)"
           },
           open: "var(--ds-background-open)",
           closed: "var(--ds-background-closed)",
@@ -117,7 +128,8 @@ export default {
           pressed: "var(--ds-link-pressed)"
         },
         "ds-blanket": {
-          DEFAULT: "var(--ds-blanket)"
+          DEFAULT: "var(--ds-blanket)",
+          selected: "var(--ds-blanket-selected)"
         }
       },
       fontFamily: {
