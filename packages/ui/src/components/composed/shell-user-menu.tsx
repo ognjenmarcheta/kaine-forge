@@ -51,7 +51,7 @@ export function ShellUserMenu({
             <SidebarMenuButton
               aria-label={ariaLabel ?? displayName}
               className={cn(
-                "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                "data-[state=open]:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:text-[color:var(--ds-text)]",
                 className
               )}
               size="lg"

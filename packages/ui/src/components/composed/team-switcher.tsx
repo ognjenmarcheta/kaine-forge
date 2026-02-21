@@ -58,7 +58,7 @@ export function TeamSwitcher({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton aria-label={ariaLabel ?? label} className={className} size="lg">
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+              <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
                 <ActiveIcon className="size-4" />
               </div>
               <div className="grid flex-1 min-w-0 text-left leading-tight">
