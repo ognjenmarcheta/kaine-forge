@@ -49,7 +49,11 @@ function ShellLayout() {
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
 
   if (isLoading) {
-    return <p className="p-ds-300 text-ds-text-subtle">{t("common.loadingSession")}</p>;
+    return (
+      <p className="p-[var(--ds-space-300)] text-[color:var(--ds-text-subtle)]">
+        {t("common.loadingSession")}
+      </p>
+    );
   }
 
   if (!session) {
@@ -78,12 +82,12 @@ function ShellLayout() {
     return (
       <AppLayout
         header={
-          <header className="flex h-16 shrink-0 items-center gap-ds-100 border-b border-ds-border transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-ds-100 px-ds-200">
+          <header className="flex h-16 shrink-0 items-center gap-[var(--ds-space-100)] border-b border-[var(--ds-border)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
               <SidebarTrigger className="-ml-1" />
               <Separator
                 orientation="vertical"
-                className="mr-ds-100 data-[orientation=vertical]:h-4"
+                className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
               />
               <Breadcrumbs items={breadcrumbItems} />
             </div>

@@ -219,19 +219,19 @@ export function TodosRoute() {
   const error = actionError ?? (todosQuery.error ? t("error.generic") : null);
 
   return (
-    <section className="grid gap-ds-200">
-      <header className="flex items-center justify-between gap-ds-150">
+    <section className="grid gap-[var(--ds-space-200)]">
+      <header className="flex items-center justify-between gap-[var(--ds-space-150)]">
         <div>
           <h1>{t("todos.title")}</h1>
-          <p className="text-ds-text-subtle">{completionSummary}</p>
+          <p className="text-[color:var(--ds-text-subtle)]">{completionSummary}</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
 
-      <section className="flex flex-col gap-ds-150 rounded-lg border border-ds-border bg-ds-surface p-ds-200">
+      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
         <h2>{t("todos.examples.title")}</h2>
-        <p className="m-0 text-ds-text-subtle">{t("todos.examples.description")}</p>
-        <div className="flex flex-wrap gap-ds-150">
+        <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.examples.description")}</p>
+        <div className="flex flex-wrap gap-[var(--ds-space-150)]">
           <Button appearance="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
             {t("todos.examples.simple.open")}
           </Button>
@@ -241,7 +241,9 @@ export function TodosRoute() {
         </div>
       </section>
 
-      {isLoading ? <p className="text-ds-text-subtle">{t("todos.loading")}</p> : null}
+      {isLoading ? (
+        <p className="text-[color:var(--ds-text-subtle)]">{t("todos.loading")}</p>
+      ) : null}
       {error ? <FieldError>{error}</FieldError> : null}
       {!isLoading ? (
         <TodoList
@@ -353,7 +355,7 @@ export function TodosRoute() {
             </Field>
           )}
         </advancedExampleForm.Field>
-        <div className="grid grid-cols-1 gap-ds-150 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-[var(--ds-space-150)] md:grid-cols-2">
           <advancedExampleForm.Field name="description">
             {(fieldApi) => (
               <Field>
@@ -387,7 +389,10 @@ export function TodosRoute() {
         </div>
         <advancedExampleForm.Field name="markCompleted">
           {(fieldApi) => (
-            <label className="flex items-center gap-ds-100" htmlFor="advanced-example-complete">
+            <label
+              className="flex items-center gap-[var(--ds-space-100)]"
+              htmlFor="advanced-example-complete"
+            >
               <Checkbox
                 checked={fieldApi.state.value}
                 id="advanced-example-complete"

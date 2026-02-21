@@ -33,7 +33,7 @@ export function SignupForm({ onDone }: SignupFormProps) {
   }
 
   return (
-    <form className="grid gap-ds-150" onSubmit={onSubmit}>
+    <form className="grid gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
       <Field>
         <FieldLabel htmlFor="signup-name">{t("common.nameLabel")}</FieldLabel>
         <Input
