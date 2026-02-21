@@ -386,7 +386,7 @@ body {
 .ui-button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-300);
   cursor: pointer;
   display: inline-flex;
   font-weight: 600;
@@ -407,13 +407,13 @@ body {
 .ui-textarea:focus-visible,
 .ui-select__trigger:focus-visible,
 .ui-checkbox:focus-visible {
-  outline: 2px solid var(--color-border-focused);
+  outline: 2px solid var(--ds-border-focused);
   outline-offset: 2px;
 }
 
 .ui-button--primary {
-  background: var(--color-background-brand-bold);
-  color: var(--color-text-inverse);
+  background: var(--ds-background-brand-bold);
+  color: var(--ds-text-inverse);
 }
 
 .ui-button--primary:hover {
@@ -421,48 +421,48 @@ body {
 }
 
 .ui-button--subtle {
-  background: var(--color-background-neutral);
-  border-color: var(--color-border-default);
-  color: var(--color-text-default);
+  background: var(--ds-background-neutral);
+  border-color: var(--ds-border);
+  color: var(--ds-text);
 }
 
 .ui-button--subtle:hover {
-  background: color-mix(in srgb, var(--color-background-neutral) 70%, #000 6%);
+  background: color-mix(in srgb, var(--ds-background-neutral) 70%, #000 6%);
 }
 
 .ui-button--danger {
-  background: var(--color-background-danger);
-  border-color: var(--color-border-danger);
-  color: var(--color-text-danger);
+  background: var(--ds-background-danger);
+  border-color: var(--ds-border-danger);
+  color: var(--ds-text-danger);
 }
 
 .ui-button--sm {
-  font-size: 12px;
-  height: 32px;
-  padding: 0 12px;
+  font-size: 0.75rem;
+  height: var(--ds-control-small);
+  padding: 0 var(--ds-space-150);
 }
 
 .ui-button--md {
-  font-size: 14px;
-  height: 38px;
-  padding: 0 14px;
+  font-size: 0.875rem;
+  height: var(--ds-control-medium);
+  padding: 0 var(--ds-space-150);
 }
 
 .ui-button--lg {
-  font-size: 15px;
-  height: 44px;
-  padding: 0 18px;
+  font-size: 1rem;
+  height: var(--ds-control-large);
+  padding: 0 var(--ds-space-200);
 }
 
 .ui-input,
 .ui-textarea,
 .ui-select__trigger {
-  background: var(--color-background-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 10px;
-  color: var(--color-text-default);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-300);
+  color: var(--ds-text);
   font: inherit;
-  padding: 10px 12px;
+  padding: var(--ds-space-150) var(--ds-space-150);
   width: 100%;
 }
 
@@ -473,29 +473,29 @@ body {
 
 .ui-header {
   align-items: center;
-  background: var(--color-background-surface);
-  border-bottom: 1px solid var(--color-border-default);
+  background: var(--ds-surface);
+  border-bottom: 1px solid var(--ds-border);
   display: flex;
   justify-content: space-between;
   min-height: 64px;
-  padding: 12px 20px;
+  padding: var(--ds-space-150) var(--ds-space-250);
 }
 
 .ui-header__left,
 .ui-header__right {
   align-items: center;
   display: flex;
-  gap: 12px;
+  gap: var(--ds-space-150);
 }
 
 .ui-sidebar {
-  background: var(--color-background-surface);
-  border-right: 1px solid var(--color-border-default);
+  background: var(--ds-surface);
+  border-right: 1px solid var(--ds-border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--ds-space-100);
   min-height: calc(100vh - 64px);
-  padding: 12px 10px 12px 12px;
+  padding: var(--ds-space-150) var(--ds-space-150) var(--ds-space-150) var(--ds-space-150);
   position: relative;
   width: 240px;
 }
@@ -513,7 +513,7 @@ body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--ds-space-100);
   min-height: 0;
   overflow: auto;
 }
@@ -525,11 +525,11 @@ body {
 
 .ui-sidebar__group {
   display: grid;
-  gap: 6px;
+  gap: var(--ds-space-075);
 }
 
 .ui-sidebar__group-label {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -543,12 +543,12 @@ body {
 
 .ui-sidebar__group-content {
   display: grid;
-  gap: 4px;
+  gap: var(--ds-space-050);
 }
 
 .ui-sidebar__menu {
   display: grid;
-  gap: 4px;
+  gap: var(--ds-space-050);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -563,14 +563,14 @@ body {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--color-text-default);
+  border-radius: var(--ds-radius-200);
+  color: var(--ds-text);
   cursor: pointer;
   display: flex;
   font: inherit;
   font-weight: 600;
   min-height: 38px;
-  padding: 10px 12px;
+  padding: var(--ds-space-150) var(--ds-space-150);
   text-decoration: none;
   transition:
     background-color 120ms ease,
@@ -579,12 +579,12 @@ body {
 
 .ui-sidebar__menu-button:hover,
 .ui-sidebar__trigger:hover {
-  background: var(--color-background-neutral);
+  background: var(--ds-background-neutral);
 }
 
 .ui-sidebar__menu-button--active {
-  background: var(--color-background-neutral);
-  border-color: var(--color-border-default);
+  background: var(--ds-background-neutral);
+  border-color: var(--ds-border);
 }
 
 .ui-sidebar__trigger {
@@ -619,7 +619,7 @@ body {
 
 .ui-sidebar--collapsed .ui-sidebar__menu-button {
   justify-content: center;
-  padding-inline: 8px;
+  padding-inline: var(--ds-space-100);
 }
 
 .ui-app-shell__body {
@@ -628,18 +628,18 @@ body {
 
 .ui-app-shell__content {
   min-height: calc(100vh - 64px);
-  padding: 24px;
+  padding: var(--ds-space-300);
   width: 100%;
 }
 
 .ui-switcher {
   align-items: center;
   display: inline-flex;
-  gap: 8px;
+  gap: var(--ds-space-100);
 }
 
 .ui-switcher__label {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   font-size: 12px;
 }
 
@@ -650,45 +650,45 @@ body {
 .ui-select__trigger {
   align-items: center;
   display: inline-flex;
-  gap: 8px;
+  gap: var(--ds-space-100);
   justify-content: space-between;
 }
 
 .ui-select__icon {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   font-size: 10px;
   line-height: 1;
 }
 
 .ui-select__content {
-  background: var(--color-background-surface-raised);
-  border: 1px solid var(--color-border-default);
-  border-radius: 10px;
-  box-shadow: var(--shadow-overlay);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-300);
+  box-shadow: var(--ds-shadow-overlay);
   overflow: hidden;
   z-index: 1002;
 }
 
 .ui-select__viewport {
-  padding: 4px;
+  padding: var(--ds-space-050);
 }
 
 .ui-select__item {
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--ds-radius-200);
   cursor: pointer;
   display: grid;
-  gap: 8px;
+  gap: var(--ds-space-100);
   grid-template-columns: 18px 1fr;
   line-height: 1;
   min-height: 34px;
   outline: none;
-  padding: 8px 10px;
+  padding: var(--ds-space-100) var(--ds-space-150);
   user-select: none;
 }
 
 .ui-select__item[data-highlighted] {
-  background: var(--color-background-neutral);
+  background: var(--ds-background-neutral);
 }
 
 .ui-select__item[data-disabled] {
@@ -698,7 +698,7 @@ body {
 
 .ui-select__item-indicator-wrap {
   align-items: center;
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   display: inline-flex;
   justify-content: center;
 }
@@ -709,24 +709,24 @@ body {
 }
 
 .ui-select__separator {
-  background: var(--color-border-default);
+  background: var(--ds-border);
   height: 1px;
-  margin: 4px 8px;
+  margin: var(--ds-space-050) var(--ds-space-100);
 }
 
 .ui-select__item--action {
-  color: var(--color-background-brand-bold);
+  color: var(--ds-background-brand-bold);
   font-weight: 600;
 }
 
 .ui-user-menu {
   align-items: center;
   display: inline-flex;
-  gap: 10px;
+  gap: var(--ds-space-100);
 }
 
 .ui-user-menu__name {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   font-size: 13px;
 }
 
@@ -735,16 +735,16 @@ body {
   display: flex;
   justify-content: center;
   min-height: 100vh;
-  padding: 24px;
+  padding: var(--ds-space-300);
 }
 
 .ui-auth-layout__card {
-  background: var(--color-background-surface-raised);
-  border: 1px solid var(--color-border-default);
-  border-radius: 16px;
-  box-shadow: var(--shadow-overlay);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-400);
+  box-shadow: var(--ds-shadow-overlay);
   max-width: 460px;
-  padding: 24px;
+  padding: var(--ds-space-300);
   width: 100%;
 }
 
@@ -753,13 +753,13 @@ body {
 }
 
 .ui-auth-layout__subtitle {
-  color: var(--color-text-subtle);
-  margin: 8px 0 24px;
+  color: var(--ds-text-subtle);
+  margin: var(--ds-space-100) 0 var(--ds-space-300);
 }
 
 .ui-modal__overlay {
   align-items: center;
-  background: rgba(9, 30, 66, 0.35);
+  background: var(--ds-blanket);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -768,16 +768,16 @@ body {
 }
 
 .ui-modal__content {
-  background: var(--color-background-surface-raised);
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-  box-shadow: var(--shadow-overlay);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-300);
+  box-shadow: var(--ds-shadow-overlay);
   display: grid;
-  gap: 18px;
+  gap: var(--ds-space-200);
   left: 50%;
   max-height: calc(100vh - 24px);
   overflow: auto;
-  padding: 20px;
+  padding: var(--ds-space-250);
   position: fixed;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -786,7 +786,7 @@ body {
 }
 
 .ui-modal__content:focus-visible {
-  outline: 2px solid var(--color-border-focused);
+  outline: 2px solid var(--ds-border-focused);
   outline-offset: 1px;
 }
 
@@ -819,13 +819,13 @@ body {
 .ui-modal__header {
   align-items: flex-start;
   display: flex;
-  gap: 12px;
+  gap: var(--ds-space-150);
   justify-content: space-between;
 }
 
 .ui-modal__header-text {
   display: grid;
-  gap: 6px;
+  gap: var(--ds-space-075);
 }
 
 .ui-modal__title {
@@ -835,32 +835,32 @@ body {
 }
 
 .ui-modal__description {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   margin: 0;
 }
 
 .ui-modal__body {
   display: grid;
-  gap: 12px;
+  gap: var(--ds-space-150);
 }
 
 .ui-modal__footer {
-  border-top: 1px solid var(--color-border-default);
-  padding-top: 12px;
+  border-top: 1px solid var(--ds-border);
+  padding-top: var(--ds-space-150);
 }
 
 .ui-modal__actions {
   display: flex;
-  gap: 10px;
+  gap: var(--ds-space-100);
   justify-content: flex-end;
 }
 
 .ui-modal__close {
   align-items: center;
   background: transparent;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  color: var(--color-text-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  color: var(--ds-text-subtle);
   cursor: pointer;
   display: inline-flex;
   font-size: 14px;
@@ -874,22 +874,22 @@ body {
 
 .ui-form {
   display: grid;
-  gap: 12px;
+  gap: var(--ds-space-150);
 }
 
 .ui-form__field {
   display: grid;
   font-size: 14px;
-  gap: 6px;
+  gap: var(--ds-space-075);
 }
 
 .ui-form__hint {
-  color: var(--color-text-subtle);
+  color: var(--ds-text-subtle);
   font-size: 12px;
 }
 
 .ui-form__error {
-  color: var(--color-text-danger);
+  color: var(--ds-text-danger);
   font-size: 13px;
   margin: 0;
 }
@@ -898,15 +898,15 @@ body {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-100);
 }
 
 .ui-checkbox {
   align-items: center;
-  background: var(--color-background-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  color: var(--color-text-inverse);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-100);
+  color: var(--ds-text-inverse);
   cursor: pointer;
   display: inline-flex;
   height: 16px;
@@ -918,8 +918,8 @@ body {
 
 .ui-checkbox[data-state="checked"],
 .ui-checkbox[data-state="indeterminate"] {
-  background: var(--color-background-brand-bold);
-  border-color: var(--color-border-brand);
+  background: var(--ds-background-brand-bold);
+  border-color: var(--ds-border-brand);
 }
 
 .ui-checkbox[data-disabled] {
@@ -929,7 +929,7 @@ body {
 
 .ui-checkbox__indicator {
   align-items: center;
-  color: var(--color-text-inverse);
+  color: var(--ds-text-inverse);
   display: inline-flex;
   justify-content: center;
 }
@@ -941,7 +941,7 @@ body {
 
 @media (max-width: 900px) {
   .ui-sidebar {
-    border-bottom: 1px solid var(--color-border-default);
+    border-bottom: 1px solid var(--ds-border);
     border-right: 0;
     min-height: 0;
     width: 100%;
