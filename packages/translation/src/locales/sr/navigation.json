@@ -4,6 +4,10 @@
   "navigation.organization": "Organizacija",
   "navigation.organizationCreate": "Kreiraj organizaciju",
   "navigation.organizationName": "Naziv organizacije",
+  "navigation.settings": "Podešavanja",
   "navigation.theme": "Tema",
+  "navigation.themeDark": "Tamna",
+  "navigation.themeLight": "Svetla",
+  "navigation.themeSystem": "Sistemska",
   "navigation.todos": "Zadaci"
 }

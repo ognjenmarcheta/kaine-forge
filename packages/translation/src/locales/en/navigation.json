@@ -4,6 +4,10 @@
   "navigation.organization": "Organization",
   "navigation.organizationCreate": "Create organization",
   "navigation.organizationName": "Organization name",
+  "navigation.settings": "Settings",
   "navigation.theme": "Theme",
+  "navigation.themeDark": "Dark",
+  "navigation.themeLight": "Light",
+  "navigation.themeSystem": "System",
   "navigation.todos": "Todos"
 }
