@@ -25,4 +25,14 @@ describe("Design token coverage", () => {
       }
     }
   });
+
+  it("does not contain shadcn bridge variable definitions", () => {
+    expect(css).not.toContain("--background: var(--ds-");
+    expect(css).not.toContain("--foreground: var(--ds-");
+    expect(css).not.toContain("--primary: var(--ds-");
+    expect(css).not.toContain("--muted: var(--ds-");
+    expect(css).not.toContain("--accent: var(--ds-");
+    expect(css).not.toContain("--destructive: var(--ds-");
+    expect(css).not.toContain("--sidebar: var(--ds-");
+  });
 });
