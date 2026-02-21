@@ -436,6 +436,34 @@ body {
   color: var(--ds-text-danger);
 }
 
+.ui-button--ghost {
+  background: transparent;
+  color: var(--ds-text);
+}
+
+.ui-button--ghost:hover {
+  background: var(--ds-background-neutral);
+}
+
+.ui-button--link {
+  background: transparent;
+  color: var(--ds-link);
+  text-decoration: none;
+}
+
+.ui-button--link:hover {
+  text-decoration: underline;
+}
+
+.ui-button--warning {
+  background: var(--ds-background-warning-bold);
+  color: var(--ds-text-warning-inverse);
+}
+
+.ui-button--warning:hover {
+  filter: brightness(0.95);
+}
+
 .ui-button--sm {
   font-size: 0.75rem;
   height: var(--ds-control-small);

@@ -5,17 +5,21 @@ import { cn } from "../../lib/cn";
 import { buttonVariants } from "../../lib/variants";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  appearance?: "danger" | "default" | "ghost" | "link" | "secondary" | "subtle" | "warning";
   asChild?: boolean;
-  intent?: "primary" | "subtle" | "danger";
-  size?: "sm" | "md" | "lg";
+  spacing?: "compact" | "default" | "spacious";
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ asChild = false, className, intent, size, ...props }, ref) => {
+  ({ asChild = false, appearance, className, spacing, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
 
     return (
-      <Comp className={cn(buttonVariants({ intent, size }), className)} ref={ref} {...props} />
+      <Comp
+        className={cn(buttonVariants({ appearance, spacing }), className)}
+        ref={ref}
+        {...props}
+      />
     );
   }
 );

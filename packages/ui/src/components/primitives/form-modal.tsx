@@ -49,7 +49,7 @@ export function FormModal({
       description={description}
       footer={
         <div className="ui-modal__actions">
-          <Button intent="subtle" type="button" onClick={() => onOpenChange(false)}>
+          <Button appearance="subtle" type="button" onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </Button>
           <Button disabled={isSubmitting} form={formId} type="submit">

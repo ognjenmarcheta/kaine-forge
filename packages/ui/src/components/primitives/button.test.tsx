@@ -6,7 +6,7 @@ import { Button } from "./button";
 describe("Button", () => {
   it("applies variant classes and forwards props", () => {
     const markup = renderToStaticMarkup(
-      <Button className="custom-class" intent="danger" size="lg" type="button">
+      <Button appearance="danger" className="custom-class" spacing="spacious" type="button">
         Delete
       </Button>
     );
@@ -21,7 +21,7 @@ describe("Button", () => {
 
   it("renders child element instead of native button when asChild is true", () => {
     const markup = renderToStaticMarkup(
-      <Button asChild intent="subtle">
+      <Button asChild appearance="subtle">
         <a href="/settings">Settings</a>
       </Button>
     );

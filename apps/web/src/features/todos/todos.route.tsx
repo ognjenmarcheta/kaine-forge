@@ -229,10 +229,10 @@ export function TodosRoute() {
         <h2>{t("todos.examples.title")}</h2>
         <p className="web-muted">{t("todos.examples.description")}</p>
         <div className="web-todos__examples-actions">
-          <Button intent="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
+          <Button appearance="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
             {t("todos.examples.simple.open")}
           </Button>
-          <Button intent="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
+          <Button appearance="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
             {t("todos.examples.advanced.open")}
           </Button>
         </div>

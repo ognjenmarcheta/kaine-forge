@@ -57,7 +57,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
 
       {error ? <p className="web-form__error">{error}</p> : null}
 
-      <Button disabled={isSubmitting} size="md" type="submit">
+      <Button disabled={isSubmitting} type="submit">
         {isSubmitting ? "..." : t("auth.login.title")}
       </Button>
     </form>

@@ -33,10 +33,15 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
       </label>
       <p className="web-todos__description">{item.description || t("common.notAvailable")}</p>
       <div className="web-todos__actions">
-        <Button intent="subtle" size="sm" type="button" onClick={() => onEdit(item)}>
+        <Button appearance="subtle" spacing="compact" type="button" onClick={() => onEdit(item)}>
           {t("button.edit")}
         </Button>
-        <Button intent="danger" size="sm" type="button" onClick={() => onDelete(item.id)}>
+        <Button
+          appearance="danger"
+          spacing="compact"
+          type="button"
+          onClick={() => onDelete(item.id)}
+        >
           {t("button.delete")}
         </Button>
       </div>

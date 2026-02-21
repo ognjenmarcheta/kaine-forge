@@ -63,7 +63,7 @@ export function SignupForm({ onDone }: SignupFormProps) {
 
       {error ? <p className="web-form__error">{error}</p> : null}
 
-      <Button disabled={isSubmitting} size="md" type="submit">
+      <Button disabled={isSubmitting} type="submit">
         {isSubmitting ? "..." : t("auth.signup.title")}
       </Button>
     </form>

@@ -7,8 +7,8 @@ import { cn } from "../../lib/cn";
 export type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
 export interface ModalAction {
+  appearance?: "danger" | "default" | "ghost" | "link" | "secondary" | "subtle" | "warning";
   disabled?: boolean;
-  intent?: "danger" | "primary" | "subtle";
   label: ReactNode;
   loading?: boolean;
   onClick?: () => void;
@@ -50,7 +50,7 @@ function renderActions(actions: ModalAction[]) {
         <Button
           key={index}
           disabled={action.disabled || action.loading}
-          intent={action.intent}
+          appearance={action.appearance}
           type={action.type ?? "button"}
           onClick={action.onClick}
         >
@@ -108,8 +108,8 @@ export function Modal({
                 <Button
                   aria-label={closeButtonLabel}
                   className="ui-modal__close"
-                  intent="subtle"
-                  size="sm"
+                  appearance="subtle"
+                  spacing="compact"
                   type="button"
                 >
                   x
