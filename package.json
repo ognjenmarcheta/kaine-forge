@@ -33,6 +33,8 @@
     "db:migrate": "pnpm --filter @repo/db run db:migrate",
     "db:seed": "pnpm --filter @repo/db run db:seed",
     "db:studio": "pnpm --filter @repo/db run db:studio",
+    "ui:shadcn:add": "pnpm dlx shadcn@latest add -c packages/ui",
+    "ui:shadcn:view": "pnpm dlx shadcn@latest view",
     "prepare": "husky"
   },
   "lint-staged": {

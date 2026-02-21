@@ -4,19 +4,15 @@ import { describe, expect, it } from "vitest";
 import { Input } from "./input";
 
 describe("Input", () => {
-  it("is implemented as a forwardRef component", () => {
-    expect((Input as unknown as { $$typeof?: symbol }).$$typeof).toBe(
-      Symbol.for("react.forward_ref")
-    );
-  });
-
-  it("renders with the base class and forwards native props", () => {
+  it("renders shadcn data-slot and utility classes with native props", () => {
     const markup = renderToStaticMarkup(
       <Input className="custom-class" placeholder="Todo title" required type="text" />
     );
 
     expect(markup).toContain("<input");
-    expect(markup).toContain("ui-input");
+    expect(markup).toContain('data-slot="input"');
+    expect(markup).toContain("border-input");
+    expect(markup).toContain("focus-visible:ring-[3px]");
     expect(markup).toContain("custom-class");
     expect(markup).toContain('placeholder="Todo title"');
     expect(markup).toContain('type="text"');

@@ -2,6 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { useEffect, useMemo } from "react";
 
 import { Checkbox } from "./checkbox";
+import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from "./field";
 import { FormModal } from "./form-modal";
 import { Input } from "./input";
 import type { ModalProps } from "./modal";
@@ -114,24 +115,27 @@ export function ConfigFormModal({
 
             if (field.type === "checkbox") {
               return (
-                <label className="ui-form__checkbox" htmlFor={field.name}>
+                <Field data-invalid={error ? true : undefined} orientation="horizontal">
                   <Checkbox
                     checked={fieldApi.state.value === true}
                     id={field.name}
                     onBlur={fieldApi.handleBlur}
                     onCheckedChange={(checked) => fieldApi.handleChange(checked === true)}
                   />
-                  <span>{field.label}</span>
-                  {error ? <span className="ui-form__error">{error}</span> : null}
-                </label>
+                  <FieldContent>
+                    <FieldLabel htmlFor={field.name}>{field.label}</FieldLabel>
+                    {error ? <FieldError>{error}</FieldError> : null}
+                  </FieldContent>
+                </Field>
               );
             }
 
             return (
-              <label className="ui-form__field" htmlFor={field.name}>
-                <span>{field.label}</span>
+              <Field data-invalid={error ? true : undefined}>
+                <FieldLabel htmlFor={field.name}>{field.label}</FieldLabel>
                 {field.type === "textarea" ? (
                   <Textarea
+                    aria-invalid={error ? true : undefined}
                     id={field.name}
                     placeholder={field.placeholder}
                     required={field.required}
@@ -141,6 +145,7 @@ export function ConfigFormModal({
                   />
                 ) : (
                   <Input
+                    aria-invalid={error ? true : undefined}
                     id={field.name}
                     placeholder={field.placeholder}
                     required={field.required}
@@ -150,10 +155,10 @@ export function ConfigFormModal({
                   />
                 )}
                 {field.description ? (
-                  <small className="ui-form__hint">{field.description}</small>
+                  <FieldDescription>{field.description}</FieldDescription>
                 ) : null}
-                {error ? <span className="ui-form__error">{error}</span> : null}
-              </label>
+                {error ? <FieldError>{error}</FieldError> : null}
+              </Field>
             );
           }}
         </form.Field>

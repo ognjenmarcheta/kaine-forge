@@ -6,6 +6,7 @@ export * from "./components/layouts/app-layout";
 export * from "./components/layouts/auth-layout";
 export * from "./components/primitives/button";
 export * from "./components/primitives/checkbox";
+export * from "./components/primitives/field";
 export * from "./components/primitives/config-form-modal";
 export * from "./components/primitives/confirm-modal";
 export * from "./components/primitives/input";
