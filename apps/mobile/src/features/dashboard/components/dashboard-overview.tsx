@@ -11,15 +11,17 @@ export function DashboardOverview() {
 
   return (
     <ScreenContainer>
-      <Text className="text-2xl font-semibold text-text-default">{t("dashboard.title")}</Text>
-      <Text className="mt-1 text-sm text-text-subtle">{t(DASHBOARD_DEFINITION.subtitleKey)}</Text>
+      <Text className="text-2xl font-semibold text-ds-text">{t("dashboard.title")}</Text>
+      <Text className="mt-1 text-sm text-ds-text-subtle">
+        {t(DASHBOARD_DEFINITION.subtitleKey)}
+      </Text>
 
-      <View className="mt-4 rounded-xl bg-background-surface p-4 shadow-raised">
-        <Text className="text-sm text-text-subtle">{t("dashboard.signedInAs")}</Text>
-        <Text className="mt-1 text-base font-medium text-text-default">
+      <View className="mt-4 rounded-xl bg-ds-surface p-4 shadow-raised">
+        <Text className="text-sm text-ds-text-subtle">{t("dashboard.signedInAs")}</Text>
+        <Text className="mt-1 text-base font-medium text-ds-text">
           {session?.user.name ?? t("dashboard.unknownUser")}
         </Text>
-        <Text className="text-sm text-text-subtle">{session?.user.email ?? "-"}</Text>
+        <Text className="text-sm text-ds-text-subtle">{session?.user.email ?? "-"}</Text>
       </View>
     </ScreenContainer>
   );

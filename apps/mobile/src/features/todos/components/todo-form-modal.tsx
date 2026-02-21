@@ -47,12 +47,12 @@ export function TodoFormModal({
   return (
     <Modal animationType="slide" transparent visible={isOpen}>
       <View className="flex-1 justify-end bg-black/40">
-        <View className="rounded-t-2xl bg-background-surface p-4">
-          <Text className="text-lg font-semibold text-text-default">{title}</Text>
+        <View className="rounded-t-2xl bg-ds-surface p-4">
+          <Text className="text-lg font-semibold text-ds-text">{title}</Text>
 
           <View className="mt-3 gap-3">
             <TextInput
-              className="rounded-lg border border-border-default bg-background-default px-3 py-2 text-text-default"
+              className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
               placeholder={t("todos.form.titlePlaceholder")}
               placeholderTextColor="#6b7280"
               value={draft.title}
@@ -61,7 +61,7 @@ export function TodoFormModal({
               }}
             />
             <TextInput
-              className="rounded-lg border border-border-default bg-background-default px-3 py-2 text-text-default"
+              className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
               multiline
               numberOfLines={3}
               placeholder={t("todos.form.descriptionPlaceholder")}
@@ -75,20 +75,17 @@ export function TodoFormModal({
           </View>
 
           <View className="mt-4 flex-row justify-end gap-2">
-            <Pressable
-              className="rounded-md border border-border-default px-3 py-2"
-              onPress={onClose}
-            >
-              <Text className="text-sm text-text-default">{t("button.cancel")}</Text>
+            <Pressable className="rounded-md border border-ds-border px-3 py-2" onPress={onClose}>
+              <Text className="text-sm text-ds-text">{t("button.cancel")}</Text>
             </Pressable>
             <Pressable
-              className="rounded-md bg-background-brand px-3 py-2"
+              className="rounded-md bg-ds-bg-brand-bold px-3 py-2"
               disabled={isSubmitting}
               onPress={() => {
                 void submit();
               }}
             >
-              <Text className="text-sm text-text-inverse">
+              <Text className="text-sm text-ds-text-inverse">
                 {isSubmitting ? "..." : t("button.save")}
               </Text>
             </Pressable>

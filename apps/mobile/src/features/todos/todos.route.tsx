@@ -142,19 +142,19 @@ export function TodosRoute() {
     <ScreenContainer>
       <View className="mb-3 flex-row items-center justify-between">
         <View>
-          <Text className="text-2xl font-semibold text-text-default">{t("todos.title")}</Text>
-          <Text className="text-sm text-text-subtle">{completionSummary}</Text>
+          <Text className="text-2xl font-semibold text-ds-text">{t("todos.title")}</Text>
+          <Text className="text-sm text-ds-text-subtle">{completionSummary}</Text>
         </View>
         <Pressable
-          className="rounded-md bg-background-brand px-3 py-2"
+          className="rounded-md bg-ds-bg-brand-bold px-3 py-2"
           onPress={() => setIsCreateOpen(true)}
         >
-          <Text className="font-medium text-text-inverse">{t("todos.create")}</Text>
+          <Text className="font-medium text-ds-text-inverse">{t("todos.create")}</Text>
         </Pressable>
       </View>
 
-      {error ? <Text className="mb-2 text-sm text-text-danger">{error}</Text> : null}
-      {isLoading ? <Text className="text-sm text-text-subtle">{t("todos.loading")}</Text> : null}
+      {error ? <Text className="mb-2 text-sm text-ds-text-danger">{error}</Text> : null}
+      {isLoading ? <Text className="text-sm text-ds-text-subtle">{t("todos.loading")}</Text> : null}
       {!isLoading ? (
         <TodoList
           items={todos}

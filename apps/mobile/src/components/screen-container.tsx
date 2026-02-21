@@ -6,5 +6,5 @@ interface ScreenContainerProps {
 }
 
 export function ScreenContainer({ children }: ScreenContainerProps) {
-  return <View className="flex-1 bg-background-default p-4">{children}</View>;
+  return <View className="flex-1 bg-ds-bg p-4">{children}</View>;
 }
