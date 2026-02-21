@@ -65,6 +65,87 @@
   --ds-link: #0c66e4;
   --ds-link-pressed: #0055cc;
 
+  /* ── Accent: Blue ── */
+  --ds-text-accent-blue: #0055cc;
+  --ds-text-accent-blue-bolder: #09326c;
+  --ds-icon-accent-blue: #1d7afc;
+  --ds-background-accent-blue-subtlest: #e9f2ff;
+  --ds-background-accent-blue-subtle: #cce0ff;
+  --ds-background-accent-blue-bolder: #0c66e4;
+  --ds-border-accent-blue: #1d7afc;
+
+  /* ── Accent: Teal ── */
+  --ds-text-accent-teal: #206a83;
+  --ds-text-accent-teal-bolder: #164555;
+  --ds-icon-accent-teal: #2898bd;
+  --ds-background-accent-teal-subtlest: #e7f5f7;
+  --ds-background-accent-teal-subtle: #c6edfb;
+  --ds-background-accent-teal-bolder: #227d9b;
+  --ds-border-accent-teal: #2898bd;
+
+  /* ── Accent: Green ── */
+  --ds-text-accent-green: #216e4e;
+  --ds-text-accent-green-bolder: #164b35;
+  --ds-icon-accent-green: #22a06b;
+  --ds-background-accent-green-subtlest: #dffcf0;
+  --ds-background-accent-green-subtle: #baf3db;
+  --ds-background-accent-green-bolder: #1f845a;
+  --ds-border-accent-green: #22a06b;
+
+  /* ── Accent: Lime ── */
+  --ds-text-accent-lime: #4c6b1f;
+  --ds-text-accent-lime-bolder: #37471f;
+  --ds-icon-accent-lime: #6a9a23;
+  --ds-background-accent-lime-subtlest: #efffd6;
+  --ds-background-accent-lime-subtle: #d3f1a7;
+  --ds-background-accent-lime-bolder: #5b7f24;
+  --ds-border-accent-lime: #6a9a23;
+
+  /* ── Accent: Yellow ── */
+  --ds-text-accent-yellow: #7f5f01;
+  --ds-text-accent-yellow-bolder: #533f04;
+  --ds-icon-accent-yellow: #cf9f02;
+  --ds-background-accent-yellow-subtlest: #fff7d6;
+  --ds-background-accent-yellow-subtle: #f8e6a0;
+  --ds-background-accent-yellow-bolder: #946f00;
+  --ds-border-accent-yellow: #cf9f02;
+
+  /* ── Accent: Orange ── */
+  --ds-text-accent-orange: #a54800;
+  --ds-text-accent-orange-bolder: #702e00;
+  --ds-icon-accent-orange: #d97008;
+  --ds-background-accent-orange-subtlest: #fff3eb;
+  --ds-background-accent-orange-subtle: #fedec8;
+  --ds-background-accent-orange-bolder: #b65c02;
+  --ds-border-accent-orange: #d97008;
+
+  /* ── Accent: Red ── */
+  --ds-text-accent-red: #ae2a19;
+  --ds-text-accent-red-bolder: #601e16;
+  --ds-icon-accent-red: #e34935;
+  --ds-background-accent-red-subtlest: #ffedeb;
+  --ds-background-accent-red-subtle: #ffd2cc;
+  --ds-background-accent-red-bolder: #ca3521;
+  --ds-border-accent-red: #e34935;
+
+  /* ── Accent: Magenta ── */
+  --ds-text-accent-magenta: #943d73;
+  --ds-text-accent-magenta-bolder: #50253f;
+  --ds-icon-accent-magenta: #cd519d;
+  --ds-background-accent-magenta-subtlest: #ffecf8;
+  --ds-background-accent-magenta-subtle: #fdd0ec;
+  --ds-background-accent-magenta-bolder: #ae4787;
+  --ds-border-accent-magenta: #cd519d;
+
+  /* ── Accent: Purple ── */
+  --ds-text-accent-purple: #5e4db2;
+  --ds-text-accent-purple-bolder: #352c63;
+  --ds-icon-accent-purple: #8270db;
+  --ds-background-accent-purple-subtlest: #f3f0ff;
+  --ds-background-accent-purple-subtle: #dfd8fd;
+  --ds-background-accent-purple-bolder: #6e5dc6;
+  --ds-border-accent-purple: #8270db;
+
   /* ── Icon ── */
   --ds-icon: #44546f;
   --ds-icon-subtle: #626f86;
@@ -292,6 +373,87 @@
   --ds-text-selected: #579dff;
   --ds-link: #579dff;
   --ds-link-pressed: #85b8ff;
+
+  /* ── Accent: Blue ── */
+  --ds-text-accent-blue: #579dff;
+  --ds-text-accent-blue-bolder: #bcd6f0;
+  --ds-icon-accent-blue: #579dff;
+  --ds-background-accent-blue-subtlest: #1c2b41;
+  --ds-background-accent-blue-subtle: #09326c;
+  --ds-background-accent-blue-bolder: #579dff;
+  --ds-border-accent-blue: #579dff;
+
+  /* ── Accent: Teal ── */
+  --ds-text-accent-teal: #60c6d2;
+  --ds-text-accent-teal-bolder: #b3dfe5;
+  --ds-icon-accent-teal: #60c6d2;
+  --ds-background-accent-teal-subtlest: #1e3137;
+  --ds-background-accent-teal-subtle: #164555;
+  --ds-background-accent-teal-bolder: #60c6d2;
+  --ds-border-accent-teal: #60c6d2;
+
+  /* ── Accent: Green ── */
+  --ds-text-accent-green: #4bce97;
+  --ds-text-accent-green-bolder: #baf3db;
+  --ds-icon-accent-green: #4bce97;
+  --ds-background-accent-green-subtlest: #1c3329;
+  --ds-background-accent-green-subtle: #164b35;
+  --ds-background-accent-green-bolder: #4bce97;
+  --ds-border-accent-green: #4bce97;
+
+  /* ── Accent: Lime ── */
+  --ds-text-accent-lime: #94c748;
+  --ds-text-accent-lime-bolder: #d3f1a7;
+  --ds-icon-accent-lime: #94c748;
+  --ds-background-accent-lime-subtlest: #28311b;
+  --ds-background-accent-lime-subtle: #37471f;
+  --ds-background-accent-lime-bolder: #94c748;
+  --ds-border-accent-lime: #94c748;
+
+  /* ── Accent: Yellow ── */
+  --ds-text-accent-yellow: #f5cd47;
+  --ds-text-accent-yellow-bolder: #f8e6a0;
+  --ds-icon-accent-yellow: #f5cd47;
+  --ds-background-accent-yellow-subtlest: #332e1b;
+  --ds-background-accent-yellow-subtle: #533f04;
+  --ds-background-accent-yellow-bolder: #f5cd47;
+  --ds-border-accent-yellow: #f5cd47;
+
+  /* ── Accent: Orange ── */
+  --ds-text-accent-orange: #faa53d;
+  --ds-text-accent-orange-bolder: #fedec8;
+  --ds-icon-accent-orange: #faa53d;
+  --ds-background-accent-orange-subtlest: #341a04;
+  --ds-background-accent-orange-subtle: #702e00;
+  --ds-background-accent-orange-bolder: #faa53d;
+  --ds-border-accent-orange: #faa53d;
+
+  /* ── Accent: Red ── */
+  --ds-text-accent-red: #f87462;
+  --ds-text-accent-red-bolder: #ffd2cc;
+  --ds-icon-accent-red: #f87462;
+  --ds-background-accent-red-subtlest: #42221f;
+  --ds-background-accent-red-subtle: #601e16;
+  --ds-background-accent-red-bolder: #f87462;
+  --ds-border-accent-red: #f87462;
+
+  /* ── Accent: Magenta ── */
+  --ds-text-accent-magenta: #e774bb;
+  --ds-text-accent-magenta-bolder: #fdd0ec;
+  --ds-icon-accent-magenta: #e774bb;
+  --ds-background-accent-magenta-subtlest: #3d2232;
+  --ds-background-accent-magenta-subtle: #50253f;
+  --ds-background-accent-magenta-bolder: #e774bb;
+  --ds-border-accent-magenta: #e774bb;
+
+  /* ── Accent: Purple ── */
+  --ds-text-accent-purple: #9f8fef;
+  --ds-text-accent-purple-bolder: #dfd8fd;
+  --ds-icon-accent-purple: #9f8fef;
+  --ds-background-accent-purple-subtlest: #2b2440;
+  --ds-background-accent-purple-subtle: #352c63;
+  --ds-background-accent-purple-bolder: #9f8fef;
+  --ds-border-accent-purple: #9f8fef;
 
   /* ── Icon ── */
   --ds-icon: #8c9bab;
