@@ -5,13 +5,15 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
-  --font-sans: "Segoe UI", "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--ds-font-family-sans);
+  --font-mono: var(--ds-font-family-mono);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: var(--ds-radius-050);
+  --radius-md: var(--ds-radius-200);
+  --radius-lg: var(--ds-radius-300);
+  --radius-xl: var(--ds-radius-400);
 
+  /* shadcn color bridges */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -41,56 +43,190 @@
 }
 
 :root {
-  --color-text-default: #172b4d;
-  --color-text-subtle: #44546f;
-  --color-text-inverse: #ffffff;
-  --color-text-danger: #ae2e24;
-  --color-text-success: #216e4e;
-  --color-text-warning: #a54800;
+  /* ── Text ── */
+  --ds-text: #172b4d;
+  --ds-text-subtle: #626f86;
+  --ds-text-subtlest: #8590a2;
+  --ds-text-inverse: #ffffff;
+  --ds-text-disabled: #8590a2;
+  --ds-text-brand: #0c66e4;
+  --ds-text-success: #216e4e;
+  --ds-text-danger: #ae2a19;
+  --ds-text-warning: #a54800;
+  --ds-text-warning-inverse: #172b4d;
+  --ds-text-attention: #9a6700;
+  --ds-text-severe: #a54800;
+  --ds-text-information: #0055cc;
+  --ds-text-discovery: #5e4db2;
+  --ds-text-open: #5e4db2;
+  --ds-text-closed: #ae2a19;
+  --ds-text-done: #216e4e;
+  --ds-text-selected: #0c66e4;
+  --ds-link: #0c66e4;
+  --ds-link-pressed: #0055cc;
 
-  --color-background-default: #f1f4f9;
-  --color-background-surface: #ffffff;
-  --color-background-surface-raised: #ffffff;
-  --color-background-brand-bold: #0c66e4;
-  --color-background-danger: #ffebe6;
-  --color-background-success: #dcfff1;
-  --color-background-neutral: #ebecf0;
+  /* ── Icon ── */
+  --ds-icon: #44546f;
+  --ds-icon-subtle: #626f86;
+  --ds-icon-inverse: #ffffff;
+  --ds-icon-disabled: #8590a2;
+  --ds-icon-brand: #0c66e4;
+  --ds-icon-success: #22a06b;
+  --ds-icon-danger: #e34935;
+  --ds-icon-warning: #cf9f02;
+  --ds-icon-attention: #d4a72c;
+  --ds-icon-severe: #cf9f02;
+  --ds-icon-information: #1d7afc;
+  --ds-icon-discovery: #8270db;
+  --ds-icon-open: #8270db;
+  --ds-icon-closed: #e34935;
+  --ds-icon-done: #22a06b;
 
-  --color-border-default: #dfe1e6;
-  --color-border-focused: #388bff;
-  --color-border-brand: #0c66e4;
-  --color-border-danger: #e34935;
+  /* ── Background ── */
+  --ds-background-default: #ffffff;
+  --ds-background-neutral-subtle: #00000000;
+  --ds-background-neutral-subtle-hovered: #091e420f;
+  --ds-background-neutral: #091e4208;
+  --ds-background-neutral-hovered: #091e420f;
+  --ds-background-neutral-bold: #44546f;
+  --ds-background-brand-bold: #0c66e4;
+  --ds-background-brand-bold-hovered: #0055cc;
+  --ds-background-success: #dffcf0;
+  --ds-background-success-bold: #216e4e;
+  --ds-background-danger: #ffedeb;
+  --ds-background-danger-bold: #ca3521;
+  --ds-background-warning: #fff7d6;
+  --ds-background-warning-bold: #e2b203;
+  --ds-background-attention: #fff8c5;
+  --ds-background-attention-bold: #9a6700;
+  --ds-background-severe: #fff1e5;
+  --ds-background-severe-bold: #a54800;
+  --ds-background-information: #e9f2ff;
+  --ds-background-information-bold: #0c66e4;
+  --ds-background-discovery: #f3f0ff;
+  --ds-background-discovery-bold: #6e5dc6;
+  --ds-background-selected: #e9f2ff;
+  --ds-background-selected-bold: #0c66e4;
+  --ds-background-open: #f3f0ff;
+  --ds-background-closed: #ffedeb;
+  --ds-background-done: #dffcf0;
 
-  --shadow-raised: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
-  --shadow-overlay: 0 4px 8px -2px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
-  --radius: 10px;
+  /* ── Surface ── */
+  --ds-surface: #ffffff;
+  --ds-surface-sunken: #f7f8f9;
+  --ds-surface-raised: #ffffff;
+  --ds-surface-raised-hovered: #f7f8f9;
+  --ds-surface-raised-pressed: #f1f2f4;
+  --ds-surface-overlay: #ffffff;
+  --ds-surface-overlay-hovered: #f7f8f9;
+  --ds-surface-overlay-pressed: #f1f2f4;
 
-  --background: var(--color-background-default);
-  --foreground: var(--color-text-default);
-  --card: var(--color-background-surface);
-  --card-foreground: var(--color-text-default);
-  --popover: var(--color-background-surface-raised);
-  --popover-foreground: var(--color-text-default);
-  --primary: var(--color-background-brand-bold);
-  --primary-foreground: var(--color-text-inverse);
-  --secondary: var(--color-background-neutral);
-  --secondary-foreground: var(--color-text-default);
-  --muted: var(--color-background-neutral);
-  --muted-foreground: var(--color-text-subtle);
-  --accent: var(--color-background-neutral);
-  --accent-foreground: var(--color-text-default);
-  --destructive: var(--color-text-danger);
-  --border: var(--color-border-default);
-  --input: var(--color-border-default);
-  --ring: var(--color-border-focused);
+  /* ── Border ── */
+  --ds-border: #091e4224;
+  --ds-border-bold: #758195;
+  --ds-border-focused: #388bff;
+  --ds-border-selected: #0c66e4;
+  --ds-border-brand: #0c66e4;
+  --ds-border-success: #22a06b;
+  --ds-border-danger: #e34935;
+  --ds-border-warning: #cf9f02;
+  --ds-border-attention: #d4a72c;
+  --ds-border-severe: #cf9f02;
+  --ds-border-information: #1d7afc;
+  --ds-border-discovery: #8270db;
 
-  color: var(--color-text-default);
-  font-family:
-    "Segoe UI",
-    "SF Pro Text",
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  /* ── Shadow ── */
+  --ds-shadow-raised: 0px 1px 1px #091e4240, 0px 0px 1px #091e424f;
+  --ds-shadow-overlay: 0px 8px 12px #091e4226, 0px 0px 1px #091e424f;
+  --ds-shadow-floating: 0px 12px 28px 0 rgba(9, 30, 66, 0.2), 0px 4px 10px 0 rgba(9, 30, 66, 0.1);
+  --ds-shadow-overflow: 0px 0px 8px #091e4229, 0px 0px 1px #091e424f;
+
+  /* ── Blanket ── */
+  --ds-blanket: #091e427a;
+
+  /* ── Spacing ── */
+  --ds-space-0: 0px;
+  --ds-space-025: 0.125rem;
+  --ds-space-050: 0.25rem;
+  --ds-space-075: 0.375rem;
+  --ds-space-100: 0.5rem;
+  --ds-space-150: 0.75rem;
+  --ds-space-200: 1rem;
+  --ds-space-250: 1.25rem;
+  --ds-space-300: 1.5rem;
+  --ds-space-400: 2rem;
+  --ds-space-500: 2.5rem;
+  --ds-space-600: 3rem;
+  --ds-space-800: 4rem;
+  --ds-space-1000: 5rem;
+  --ds-space-negative-025: -0.125rem;
+  --ds-space-negative-050: -0.25rem;
+  --ds-space-negative-075: -0.375rem;
+  --ds-space-negative-100: -0.5rem;
+  --ds-space-negative-150: -0.75rem;
+  --ds-space-negative-200: -1rem;
+  --ds-space-negative-300: -1.5rem;
+  --ds-space-negative-400: -2rem;
+
+  /* ── Typography ── */
+  --ds-font-family-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Noto Sans", Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --ds-font-family-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --ds-font-weight-light: 300;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+  --ds-lineHeight-default: 1.5;
+  --ds-lineHeight-condensed: 1.25;
+  --ds-lineHeight-tight: 1;
+
+  /* ── Border width ── */
+  --ds-border-width: 1px;
+  --ds-border-width-selected: 2px;
+  --ds-border-width-focused: 2px;
+  --ds-border-width-thick: 3px;
+
+  /* ── Border radius ── */
+  --ds-radius-050: 3px;
+  --ds-radius-100: 4px;
+  --ds-radius-200: 8px;
+  --ds-radius-300: 12px;
+  --ds-radius-400: 16px;
+  --ds-radius-round: 50%;
+  --ds-radius-pill: 9999px;
+
+  /* ── Control size ── */
+  --ds-control-xsmall: 24px;
+  --ds-control-small: 28px;
+  --ds-control-medium: 32px;
+  --ds-control-large: 40px;
+  --ds-control-xlarge: 48px;
+
+  /* ── shadcn bridge variables ── */
+  --background: var(--ds-background-default);
+  --foreground: var(--ds-text);
+  --card: var(--ds-surface);
+  --card-foreground: var(--ds-text);
+  --popover: var(--ds-surface-overlay);
+  --popover-foreground: var(--ds-text);
+  --primary: var(--ds-background-brand-bold);
+  --primary-foreground: var(--ds-text-inverse);
+  --secondary: var(--ds-background-neutral);
+  --secondary-foreground: var(--ds-text);
+  --muted: var(--ds-background-neutral);
+  --muted-foreground: var(--ds-text-subtle);
+  --accent: var(--ds-background-neutral);
+  --accent-foreground: var(--ds-text);
+  --destructive: var(--ds-text-danger);
+  --border: var(--ds-border);
+  --input: var(--ds-border);
+  --ring: var(--ds-border-focused);
+  --radius: var(--ds-radius-200);
+
+  /* ── Sidebar ── */
   --sidebar: hsl(0 0% 98%);
   --sidebar-foreground: hsl(240 5.3% 26.1%);
   --sidebar-primary: hsl(240 5.9% 10%);
@@ -99,47 +235,134 @@
   --sidebar-accent-foreground: hsl(240 5.9% 10%);
   --sidebar-border: hsl(220 13% 91%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
+
+  color: var(--ds-text);
+  font-family: var(--ds-font-family-sans);
 }
 
 :root[data-theme="dark"] {
-  --color-text-default: #dee4ea;
-  --color-text-subtle: #98a7b8;
-  --color-text-inverse: #091e42;
-  --color-text-danger: #ffb3a7;
-  --color-text-success: #83e0bd;
-  --color-text-warning: #ffd1a3;
+  /* ── Text ── */
+  --ds-text: #b6c2cf;
+  --ds-text-subtle: #8c9bab;
+  --ds-text-subtlest: #738496;
+  --ds-text-inverse: #1d2125;
+  --ds-text-disabled: #bfdbf847;
+  --ds-text-brand: #579dff;
+  --ds-text-success: #4bce97;
+  --ds-text-danger: #f87462;
+  --ds-text-warning: #f5cd47;
+  --ds-text-warning-inverse: #1d2125;
+  --ds-text-attention: #d29922;
+  --ds-text-severe: #f5cd47;
+  --ds-text-information: #579dff;
+  --ds-text-discovery: #9f8fef;
+  --ds-text-open: #9f8fef;
+  --ds-text-closed: #f87462;
+  --ds-text-done: #4bce97;
+  --ds-text-selected: #579dff;
+  --ds-link: #579dff;
+  --ds-link-pressed: #85b8ff;
 
-  --color-background-default: #0f131a;
-  --color-background-surface: #1a202b;
-  --color-background-surface-raised: #252d3a;
-  --color-background-brand-bold: #3b82f6;
-  --color-background-danger: #3c1f20;
-  --color-background-success: #173629;
-  --color-background-neutral: #232a35;
+  /* ── Icon ── */
+  --ds-icon: #8c9bab;
+  --ds-icon-subtle: #738496;
+  --ds-icon-inverse: #1d2125;
+  --ds-icon-disabled: #bfdbf847;
+  --ds-icon-brand: #579dff;
+  --ds-icon-success: #4bce97;
+  --ds-icon-danger: #f87462;
+  --ds-icon-warning: #f5cd47;
+  --ds-icon-attention: #d29922;
+  --ds-icon-severe: #f5cd47;
+  --ds-icon-information: #579dff;
+  --ds-icon-discovery: #9f8fef;
+  --ds-icon-open: #9f8fef;
+  --ds-icon-closed: #f87462;
+  --ds-icon-done: #4bce97;
 
-  --color-border-default: #334155;
-  --color-border-focused: #60a5fa;
-  --color-border-brand: #3b82f6;
-  --color-border-danger: #f87171;
+  /* ── Background ── */
+  --ds-background-default: #1d2125;
+  --ds-background-neutral-subtle: #ffffff00;
+  --ds-background-neutral-subtle-hovered: #a1bdd914;
+  --ds-background-neutral: #a1bdd914;
+  --ds-background-neutral-hovered: #a1bdd91f;
+  --ds-background-neutral-bold: #9fadbc;
+  --ds-background-brand-bold: #579dff;
+  --ds-background-brand-bold-hovered: #85b8ff;
+  --ds-background-success: #1c3329;
+  --ds-background-success-bold: #4bce97;
+  --ds-background-danger: #42221f;
+  --ds-background-danger-bold: #f87462;
+  --ds-background-warning: #332e1b;
+  --ds-background-warning-bold: #f5cd47;
+  --ds-background-attention: #341a04;
+  --ds-background-attention-bold: #d29922;
+  --ds-background-severe: #341a04;
+  --ds-background-severe-bold: #f5cd47;
+  --ds-background-information: #1c2b41;
+  --ds-background-information-bold: #579dff;
+  --ds-background-discovery: #2b2440;
+  --ds-background-discovery-bold: #9f8fef;
+  --ds-background-selected: #1c2b41;
+  --ds-background-selected-bold: #579dff;
+  --ds-background-open: #2b2440;
+  --ds-background-closed: #42221f;
+  --ds-background-done: #1c3329;
 
-  --background: var(--color-background-default);
-  --foreground: var(--color-text-default);
-  --card: var(--color-background-surface);
-  --card-foreground: var(--color-text-default);
-  --popover: var(--color-background-surface-raised);
-  --popover-foreground: var(--color-text-default);
-  --primary: var(--color-background-brand-bold);
-  --primary-foreground: var(--color-text-inverse);
-  --secondary: var(--color-background-neutral);
-  --secondary-foreground: var(--color-text-default);
-  --muted: var(--color-background-neutral);
-  --muted-foreground: var(--color-text-subtle);
-  --accent: var(--color-background-neutral);
-  --accent-foreground: var(--color-text-default);
-  --destructive: var(--color-text-danger);
-  --border: var(--color-border-default);
-  --input: var(--color-border-default);
-  --ring: var(--color-border-focused);
+  /* ── Surface ── */
+  --ds-surface: #1d2125;
+  --ds-surface-sunken: #161a1d;
+  --ds-surface-raised: #22272b;
+  --ds-surface-raised-hovered: #282e33;
+  --ds-surface-raised-pressed: #2c333a;
+  --ds-surface-overlay: #282e33;
+  --ds-surface-overlay-hovered: #2c333a;
+  --ds-surface-overlay-pressed: #38414a;
+
+  /* ── Border ── */
+  --ds-border: #a6c5e229;
+  --ds-border-bold: #738496;
+  --ds-border-focused: #579dff;
+  --ds-border-selected: #579dff;
+  --ds-border-brand: #579dff;
+  --ds-border-success: #4bce97;
+  --ds-border-danger: #f87462;
+  --ds-border-warning: #f5cd47;
+  --ds-border-attention: #d29922;
+  --ds-border-severe: #f5cd47;
+  --ds-border-information: #579dff;
+  --ds-border-discovery: #9f8fef;
+
+  /* ── Shadow ── */
+  --ds-shadow-raised: 0px 1px 1px #03040442, 0px 0px 1px #bcd6f00a;
+  --ds-shadow-overlay: 0px 8px 12px #0304045c, 0px 0px 1px #bcd6f00a;
+  --ds-shadow-floating: 0px 12px 28px 0 rgba(0, 0, 0, 0.5), 0px 4px 10px 0 rgba(0, 0, 0, 0.3);
+  --ds-shadow-overflow: 0px 0px 8px #0304045c, 0px 0px 1px #bcd6f00a;
+
+  /* ── Blanket ── */
+  --ds-blanket: #03040480;
+
+  /* ── shadcn bridge variables ── */
+  --background: var(--ds-background-default);
+  --foreground: var(--ds-text);
+  --card: var(--ds-surface);
+  --card-foreground: var(--ds-text);
+  --popover: var(--ds-surface-overlay);
+  --popover-foreground: var(--ds-text);
+  --primary: var(--ds-background-brand-bold);
+  --primary-foreground: var(--ds-text-inverse);
+  --secondary: var(--ds-background-neutral);
+  --secondary-foreground: var(--ds-text);
+  --muted: var(--ds-background-neutral);
+  --muted-foreground: var(--ds-text-subtle);
+  --accent: var(--ds-background-neutral);
+  --accent-foreground: var(--ds-text);
+  --destructive: var(--ds-text-danger);
+  --border: var(--ds-border);
+  --input: var(--ds-border);
+  --ring: var(--ds-border-focused);
+
+  /* ── Sidebar ── */
   --sidebar: hsl(240 5.9% 10%);
   --sidebar-foreground: hsl(240 4.8% 95.9%);
   --sidebar-primary: hsl(224.3 76.3% 48%);
@@ -156,8 +379,8 @@
 
 body {
   margin: 0;
-  background: var(--color-background-default);
-  color: var(--color-text-default);
+  background: var(--ds-background-default);
+  color: var(--ds-text);
 }
 
 .ui-button {
