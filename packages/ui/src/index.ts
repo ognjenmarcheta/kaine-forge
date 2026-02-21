@@ -1,5 +1,7 @@
+export * from "./components/composed/breadcrumbs";
 export * from "./components/composed/header";
 export * from "./components/composed/labeled-select";
+export * from "./components/composed/pagination";
 export * from "./components/composed/sidebar";
 export * from "./components/composed/user-menu";
 export * from "./components/layouts/app-layout";
