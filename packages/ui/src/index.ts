@@ -12,6 +12,7 @@ export * from "./components/primitives/avatar";
 export * from "./components/primitives/badge";
 export * from "./components/primitives/banner";
 export * from "./components/primitives/button";
+export * from "./components/primitives/card";
 export * from "./components/primitives/checkbox";
 export * from "./components/primitives/collapsible";
 export * from "./components/primitives/context-menu";

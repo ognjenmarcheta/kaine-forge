@@ -1,4 +1,5 @@
 import { t } from "@repo/translation";
+import { Card, CardDescription, CardHeader, CardTitle } from "@repo/ui";
 
 import { DASHBOARD_DEFINITION } from "../dashboard.definition";
 
@@ -12,13 +13,12 @@ export function DashboardOverview() {
 
       <div className="grid gap-[var(--ds-space-150)] [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
         {DASHBOARD_DEFINITION.cards.map((card) => (
-          <article
-            key={card.titleKey}
-            className="rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface-raised)] p-[var(--ds-space-200)] shadow-raised"
-          >
-            <h2 className="mt-0">{t(card.titleKey)}</h2>
-            <p>{t(card.descriptionKey)}</p>
-          </article>
+          <Card key={card.titleKey}>
+            <CardHeader>
+              <CardTitle>{t(card.titleKey)}</CardTitle>
+              <CardDescription>{t(card.descriptionKey)}</CardDescription>
+            </CardHeader>
+          </Card>
         ))}
       </div>
     </section>
