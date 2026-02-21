@@ -228,7 +228,7 @@ export function TodosRoute() {
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
 
-      <section className="flex flex-col gap-ds-150 rounded-lg border bg-ds-surface p-ds-200">
+      <section className="flex flex-col gap-ds-150 rounded-lg border border-ds-border bg-ds-surface p-ds-200">
         <h2>{t("todos.examples.title")}</h2>
         <p className="m-0 text-ds-text-subtle">{t("todos.examples.description")}</p>
         <div className="flex flex-wrap gap-ds-150">

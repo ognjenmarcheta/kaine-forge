@@ -78,7 +78,7 @@ function ShellLayout() {
     return (
       <AppLayout
         header={
-          <header className="flex h-16 shrink-0 items-center gap-ds-100 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <header className="flex h-16 shrink-0 items-center gap-ds-100 border-b border-ds-border transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-ds-100 px-ds-200">
               <SidebarTrigger className="-ml-1" />
               <Separator

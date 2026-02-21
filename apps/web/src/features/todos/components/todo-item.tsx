@@ -14,7 +14,7 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
   const { t } = useTranslation();
 
   return (
-    <li className="grid grid-cols-1 items-center gap-ds-150 rounded-md border bg-ds-surface px-ds-150 py-2.5 md:grid-cols-[minmax(240px,_1fr)_minmax(120px,_1fr)_auto]">
+    <li className="grid grid-cols-1 items-center gap-ds-150 rounded-md border border-ds-border bg-ds-surface px-ds-150 py-2.5 md:grid-cols-[minmax(240px,_1fr)_minmax(120px,_1fr)_auto]">
       <label className="flex items-center gap-ds-100">
         <Checkbox
           aria-label={item.title}
