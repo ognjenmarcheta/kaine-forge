@@ -154,7 +154,7 @@ Low contrast                                              Maximum contrast
 All tokens are defined as CSS custom properties in a global stylesheet, imported at the application root:
 
 ```css
-/* packages/ui/src/styles/tokens.css */
+/* packages/ui/src/styles/globals.css */
 @layer tokens {
   :root {
     /* Base tokens — raw scale values (never use directly) */

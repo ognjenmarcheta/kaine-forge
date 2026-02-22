@@ -27,12 +27,14 @@ turbo-monorepo/
 │   ├── web/            # React 19 + Vite SPA
 │   ├── api/            # Node.js + GraphQL Yoga server
 │   ├── desktop/        # Tauri v2 (Rust backend, web frontend)
-│   └── mobile/         # Expo / React Native
+│   ├── mobile/         # Expo / React Native
+│   └── e2e/            # Playwright end-to-end tests
 ├── packages/
 │   ├── auth/           # better-auth (server + client, org plugin)
 │   ├── config/         # ESLint, TS, Prettier, Tailwind configs
 │   ├── db/             # Drizzle schemas, migrations, seed
 │   ├── feature-flags/  # Config-driven feature toggles
+│   ├── query/          # Shared React Query keys + cache helpers
 │   ├── translation/    # i18next + locale JSON files
 │   └── ui/             # Design system: shadcn/ui + Atlassian-inspired tokens
 ├── tooling/
@@ -59,16 +61,16 @@ import { Button, Sidebar, OrganizationSwitcher } from "@repo/ui";
 
 | Layer            | Technology                                             | Version Target             |
 | ---------------- | ------------------------------------------------------ | -------------------------- |
-| Monorepo         | Turborepo + pnpm workspaces                            | Turborepo ^2.x, pnpm ^9.x  |
+| Monorepo         | Turborepo + pnpm workspaces                            | Turborepo ^2.x, pnpm ^10.x |
 | Language         | TypeScript (strict mode everywhere)                    | ^5.7+                      |
 | Frontend         | React                                                  | ^19.x                      |
-| Bundler          | Vite                                                   | ^6.x                       |
+| Bundler          | Vite                                                   | ^7.x                       |
 | Styling          | Tailwind CSS v4 + shadcn/ui                            | Tailwind ^4.x              |
 | Design system    | Custom, Atlassian-inspired with `--ds-*` tokens        | See DESIGN_SYSTEM.md       |
 | State management | Zustand                                                | ^5.x                       |
 | API runtime      | Node.js                                                | >= 20                      |
 | GraphQL server   | GraphQL Yoga                                           | ^5.x                       |
-| GraphQL client   | urql                                                   | ^4.x                       |
+| GraphQL client   | TanStack React Query + graphql-request                 | React Query ^5.x           |
 | GraphQL codegen  | GraphQL Code Generator                                 | ^5.x                       |
 | ORM              | Drizzle ORM                                            | ^0.38+                     |
 | Database         | PostgreSQL                                             | 17                         |
@@ -77,11 +79,11 @@ import { Button, Sidebar, OrganizationSwitcher } from "@repo/ui";
 | Feature toggling | Custom `@repo/feature-flags` (config-driven)           | —                          |
 | i18n             | i18next + react-i18next                                | i18next ^24.x              |
 | Desktop          | Tauri v2 (Rust backend)                                | ^2.x                       |
-| Mobile           | React Native via Expo (SDK 52)                         | Expo ^52.x                 |
+| Mobile           | React Native via Expo (SDK 54)                         | Expo ^54.x                 |
 | Code quality     | ESLint v9 (flat config), Prettier, Husky + lint-staged | ESLint ^9.x, Prettier ^3.x |
 | Testing          | Vitest (unit/integration), Playwright (e2e)            | Vitest ^3.x                |
 
-**Do not introduce alternative libraries** for any of the above without explicit approval. For example: no axios (use urql for GraphQL, fetch for REST), no styled-components (use Tailwind + tokens), no Redux (use Zustand), no Prisma (use Drizzle), no Jest (use Vitest).
+**Do not introduce alternative libraries** for any of the above without explicit approval. For example: no axios (use generated React Query hooks + `graphql-request` for GraphQL, `fetch` for REST), no styled-components (use Tailwind + tokens), no Redux (use Zustand), no Prisma (use Drizzle), no Jest (use Vitest).
 
 ---
 
@@ -95,8 +97,9 @@ Every file in a feature module follows: `{feature-name}.{purpose}.{ext}`
 | ---------------- | ---------------------------------------------------------------------------- | ----------------------- |
 | `.type.ts`       | TypeScript interfaces, types, enums                                          | `todos.type.ts`         |
 | `.util.ts`       | Pure utility/helper functions                                                | `todos.util.ts`         |
-| `.adapter.ts`    | Data layer (DB queries on API, urql operations on client)                    | `todos.adapter.ts`      |
+| `.adapter.ts`    | Data layer (DB queries on API, client-side integration helpers when needed)  | `todos.adapter.ts`      |
 | `.router.ts`     | Server-side GraphQL resolvers/route handlers                                 | `todos.router.ts`       |
+| `.schema.ts`     | GraphQL SDL/type definitions for API features                                | `todos.schema.ts`       |
 | `.route.tsx`     | Client-side page/route component                                             | `todos.route.tsx`       |
 | `.config.ts`     | Feature-specific configuration values                                        | `todos.config.ts`       |
 | `.definition.ts` | Constants, enums, magic strings — the ONE allowed place for hardcoded values | `todos.definition.ts`   |
@@ -136,7 +139,9 @@ export const TODOS_DEFINITIONS = {
 | Write a GraphQL resolver            | `apps/api/src/features/{name}/{name}.router.ts`                             |
 | Write database queries (API side)   | `apps/api/src/features/{name}/{name}.adapter.ts`                            |
 | Define a GraphQL operation (client) | `apps/{web,mobile}/src/graphql/operations/{name}.graphql`                   |
-| Write urql hooks (client side)      | `apps/{web,mobile}/src/features/{name}/{name}.adapter.ts`                   |
+| Generate GraphQL typed docs/hooks   | `apps/{web,mobile}/src/graphql/generated/` (includes `react-query.ts`)      |
+| Define GraphQL fetcher helper       | `apps/{web,mobile}/src/lib/graphql-codegen-fetcher.ts`                      |
+| Add shared query keys/cache helpers | `packages/query/src/`                                                       |
 | Build a page/screen                 | `apps/{web,mobile}/src/features/{name}/{name}.route.tsx`                    |
 | Build a shared UI component         | `packages/ui/src/components/primitives/` or `composed/`                     |
 | Add a feature-specific component    | `apps/{web,mobile}/src/features/{name}/components/`                         |
@@ -272,13 +277,14 @@ The API generates `schema.graphql` which is committed to the repo. Client apps w
 
 ### 8.2 — Operation File Location
 
-- API schema types/resolvers: `apps/api/src/features/{name}/{name}.router.ts`
+- API schema type definitions (SDL): `apps/api/src/features/{name}/{name}.schema.ts`
+- API resolvers: `apps/api/src/features/{name}/{name}.router.ts`
 - Client operation documents: `apps/{web,mobile}/src/graphql/operations/{name}.graphql`
 - Generated output: `apps/{web,mobile}/src/graphql/generated/`
 
 ### 8.3 — Client Data Fetching
 
-The urql client uses cookie-based auth. The session cookie carries the active organization. No manual `organizationId` passing in queries — the API resolves it from the session context.
+Client apps use generated React Query hooks (GraphQL Codegen) backed by `graphql-request`. Requests use cookie-based auth. The session cookie carries the active organization. No manual `organizationId` passing in queries — the API resolves it from the session context.
 
 ```graphql
 # Client just asks for todos — API scopes by active org automatically
@@ -563,9 +569,9 @@ UI state (sidebar collapsed, active theme, active org) lives in Zustand stores. 
 - Web/Desktop: localStorage via Zustand `persist` middleware.
 - Mobile: AsyncStorage via Zustand `persist` middleware with AsyncStorage adapter.
 
-### 14.3 — Server State via urql
+### 14.3 — Server State via React Query
 
-Data from the API is fetched and cached through urql. Do not duplicate server state in Zustand. Use urql's cache for data, Zustand for UI state.
+Data from the API is fetched and cached through TanStack React Query (via generated GraphQL hooks). Do not duplicate server state in Zustand. Use React Query for server data, Zustand for UI state.
 
 ---
 
@@ -575,13 +581,11 @@ Data from the API is fetched and cached through urql. Do not duplicate server st
 // src/providers/index.tsx
 <TranslationProvider>
   <ThemeProvider>
-    <AuthProvider>
-      <FeatureFlagProvider>
-        <GraphQLProvider>
-          <OrganizationProvider>{children}</OrganizationProvider>
-        </GraphQLProvider>
-      </FeatureFlagProvider>
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <OrganizationProvider>{children}</OrganizationProvider>
+      </AuthProvider>
+    </QueryProvider>
   </ThemeProvider>
 </TranslationProvider>
 ```
@@ -815,7 +819,7 @@ EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
 | Using `px` for spacing                         | Use space tokens (`--ds-space-*`) via Tailwind classes                                      |
 | Adding a library for something already covered | Check the tech stack table first                                                            |
 | Creating a new CSS file                        | Add token to `globals.css`, map in preset, use via utility                                  |
-| Storing server data in Zustand                 | Use urql cache for server data, Zustand for UI state                                        |
+| Storing server data in Zustand                 | Use React Query for server data, Zustand for UI state                                       |
 | Making UI components data-aware                | Primitives/composed components are prop-driven and data-agnostic                            |
 | Skipping validation on forms                   | Use `react-hook-form` + Zod resolver with validators from `@repo/db/validators`             |
 | Forgetting to scope by feature flag            | Check if the feature should be gated by `ORGANIZATIONS_VISIBLE` or future flags             |
