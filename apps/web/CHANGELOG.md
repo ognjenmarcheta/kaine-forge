@@ -1,5 +1,14 @@
 # @repo/web
 
+## 1.2.1
+
+### Patch Changes
+
+- 532bf1a: UI update
+- Updated dependencies [07b5833]
+- Updated dependencies [532bf1a]
+  - @repo/ui@1.1.1
+
 ## 1.2.0
 
 ### Minor Changes
