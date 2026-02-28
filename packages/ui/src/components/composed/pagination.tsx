@@ -54,7 +54,7 @@ function getPageNumbers(
 }
 
 const paginationButtonClass =
-  "inline-flex h-[var(--ds-control-medium)] w-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-200)] text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex h-[var(--ds-control-medium)] w-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-200)] text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] disabled:pointer-events-none disabled:text-[color:var(--ds-text-disabled)] disabled:cursor-not-allowed";
 
 const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
   (
