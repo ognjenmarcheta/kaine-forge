@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  resolveOrganizationSelection,
-  type OrganizationOption
-} from "./organizations-selection.util";
+import { resolveOrganizationSelection, type OrganizationOption } from "./organizations.util";
 
-describe("organizations-selection.util", () => {
+describe("organizations.util", () => {
   const organizations: OrganizationOption[] = [
     { id: "org-1", name: "Personal" },
     { id: "org-2", name: "Workspace" }

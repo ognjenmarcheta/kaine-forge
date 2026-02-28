@@ -6,7 +6,7 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 import {
   resolveOrganizationSelection,
   type OrganizationOption
-} from "../features/organizations/organizations-selection.util";
+} from "../features/organizations/organizations.util";
 import { useAuth } from "../hooks/use-auth";
 import {
   createOrganizationRequest,
