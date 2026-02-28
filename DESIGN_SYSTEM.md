@@ -1,8 +1,26 @@
 # Design System Documentation
 
-> Built on [Atlassian Design System](https://atlassian.design/) foundations with select practices from [GitHub's Primer](https://primer.style/), adapted for **Tailwind CSS v4**, **shadcn/ui**, and **CSS custom properties**.
+> Built on [Atlassian Design System](https://atlassian.design/) foundations with select practices from [GitHub's Primer](https://primer.style/), adapted for **Tailwind CSS v4** in `@repo/ui` and web/desktop surfaces, **NativeWind (Tailwind CSS v3 pipeline)** on mobile, and **CSS custom properties** across all platforms.
 
 > **Scope note:** Unless explicitly marked as future/optional, this document describes behavior and token/theme support that is currently implemented in the repository.
+>
+> <!-- TEMPLATE_POLICY_BLOCK_START -->
+>
+> **Template-repo context:** This repository is a monorepo boilerplate template. This design system defines current defaults for reuse, not compatibility guarantees with older patterns.
+>
+> **Clean-slate policy:** Because this is a boilerplate template repository, backward compatibility is not required for superseded design patterns. Rules here define current-state requirements, not migration guidance.
+>
+> **Non-goals:** This document intentionally excludes:
+>
+> - backward-compatibility commitments for older token/component patterns
+> - migration/deprecation playbooks for retired visual conventions
+> - dual-standard visual support policies
+>
+> When adopting this template for a product repository, remove this `TEMPLATE_POLICY_BLOCK` and define a product-specific design compatibility policy.
+>
+> <!-- TEMPLATE_POLICY_BLOCK_END -->
+>
+> **Document boundary:** This document is authoritative for visual language, design tokens, theming, and styling behavior. `MONOREPO_GUIDE.md` remains authoritative for architecture, package topology, runtime/data rules, and engineering conventions.
 
 ---
 

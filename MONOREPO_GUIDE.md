@@ -8,6 +8,24 @@
 > - `DESIGN_SYSTEM.md` — Design token specification & visual language
 
 > **Scope note:** Unless explicitly marked as future/optional, every rule in this guide describes current implemented behavior in this repository.
+>
+> <!-- TEMPLATE_POLICY_BLOCK_START -->
+>
+> **Template-repo context:** This repository is a monorepo boilerplate template used to define current best-practice defaults. Conventions may be replaced directly as standards evolve.
+>
+> **Clean-slate policy:** Because this is a boilerplate template repository, backward compatibility is not required for superseded conventions. Standards in this guide are current-state requirements, not migration advice.
+>
+> **Non-goals:** This guide intentionally excludes:
+>
+> - backward-compatibility commitments for older patterns
+> - migration/deprecation playbooks for retired conventions
+> - dual-standard support policies
+>
+> When adopting this template for a product repository, remove this `TEMPLATE_POLICY_BLOCK` and define a project-specific compatibility policy.
+>
+> <!-- TEMPLATE_POLICY_BLOCK_END -->
+>
+> **Document boundary:** This guide is authoritative for monorepo architecture, package boundaries, code organization, runtime/data rules, and engineering conventions. `DESIGN_SYSTEM.md` is authoritative for visual language, tokens, theming, and component styling behavior.
 
 ---
 
@@ -61,30 +79,30 @@ import { Button, Sidebar, OrganizationSwitcher } from "@repo/ui";
 
 ## 3. Technology Stack — Exact Choices
 
-| Layer            | Technology                                             | Version Target                 |
-| ---------------- | ------------------------------------------------------ | ------------------------------ |
-| Monorepo         | Turborepo + pnpm workspaces                            | Turborepo ^2.x, pnpm ^10.x     |
-| Language         | TypeScript (strict mode everywhere)                    | ^5.7+                          |
-| Frontend         | React                                                  | ^19.x                          |
-| Bundler          | Vite                                                   | ^7.x                           |
-| Styling (Web/UI) | Tailwind CSS v4 + shadcn/ui                            | Tailwind ^4.x                  |
-| Styling (Mobile) | NativeWind + Tailwind CSS v3 compatibility             | NativeWind ^4.x, Tailwind ^3.x |
-| Design system    | Custom, Atlassian-inspired with `--ds-*` tokens        | See DESIGN_SYSTEM.md           |
-| State management | Zustand                                                | ^5.x                           |
-| API runtime      | Node.js                                                | >= 20                          |
-| GraphQL server   | GraphQL Yoga                                           | ^5.x                           |
-| GraphQL client   | TanStack React Query + graphql-request                 | React Query ^5.x               |
-| GraphQL codegen  | GraphQL Code Generator                                 | ^5.x                           |
-| ORM              | Drizzle ORM                                            | ^0.38+                         |
-| Database         | PostgreSQL                                             | 17                             |
-| Auth             | better-auth                                            | ^1.x                           |
-| Multi-tenancy    | better-auth organization plugin                        | (part of better-auth)          |
-| Feature toggling | Custom `@repo/feature-flags` (config-driven)           | —                              |
-| i18n             | i18next + react-i18next                                | i18next ^24.x                  |
-| Desktop          | Tauri v2 (Rust backend)                                | ^2.x                           |
-| Mobile           | React Native via Expo (SDK 54)                         | Expo ^54.x                     |
-| Code quality     | ESLint v9 (flat config), Prettier, Husky + lint-staged | ESLint ^9.x, Prettier ^3.x     |
-| Testing          | Vitest (unit/integration), Playwright (e2e)            | Vitest ^3.x                    |
+| Layer            | Technology                                               | Version Target                 |
+| ---------------- | -------------------------------------------------------- | ------------------------------ |
+| Monorepo         | Turborepo + pnpm workspaces                              | Turborepo ^2.x, pnpm ^10.x     |
+| Language         | TypeScript (strict mode everywhere)                      | ^5.7+                          |
+| Frontend         | React                                                    | ^19.x                          |
+| Bundler          | Vite                                                     | ^7.x                           |
+| Styling (Web/UI) | Tailwind CSS v4 + shadcn/ui                              | Tailwind ^4.x                  |
+| Styling (Mobile) | NativeWind + Tailwind CSS v3 (mobile runtime constraint) | NativeWind ^4.x, Tailwind ^3.x |
+| Design system    | Custom, Atlassian-inspired with `--ds-*` tokens          | See DESIGN_SYSTEM.md           |
+| State management | Zustand                                                  | ^5.x                           |
+| API runtime      | Node.js                                                  | >= 20                          |
+| GraphQL server   | GraphQL Yoga                                             | ^5.x                           |
+| GraphQL client   | TanStack React Query + graphql-request                   | React Query ^5.x               |
+| GraphQL codegen  | GraphQL Code Generator                                   | ^5.x                           |
+| ORM              | Drizzle ORM                                              | ^0.38+                         |
+| Database         | PostgreSQL                                               | 17                             |
+| Auth             | better-auth                                              | ^1.x                           |
+| Multi-tenancy    | better-auth organization plugin                          | (part of better-auth)          |
+| Feature toggling | Custom `@repo/feature-flags` (config-driven)             | —                              |
+| i18n             | i18next + react-i18next                                  | i18next ^24.x                  |
+| Desktop          | Tauri v2 (Rust backend)                                  | ^2.x                           |
+| Mobile           | React Native via Expo (SDK 54)                           | Expo ^54.x                     |
+| Code quality     | ESLint v9 (flat config), Prettier, Husky + lint-staged   | ESLint ^9.x, Prettier ^3.x     |
+| Testing          | Vitest (unit/integration), Playwright (e2e)              | Vitest ^3.x                    |
 
 **Do not introduce alternative libraries** for any of the above without explicit approval. For example: no axios (use generated React Query hooks + `graphql-request` for GraphQL, `fetch` for REST), no styled-components (use Tailwind + tokens), no Redux (use Zustand), no Prisma (use Drizzle), no Jest (use Vitest).
 

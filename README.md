@@ -131,6 +131,14 @@ pnpm release:status
   - on version PR merge, tags versions and creates GitHub Releases
 - For non-releasable source changes, use PR label `release:skip-changeset`.
 
+## Template adoption note
+
+This repository is a monorepo boilerplate template. When adopting it for a real product, remove template-only policy text and replace it with project-specific policy.
+
+1. Delete the block between `TEMPLATE_POLICY_BLOCK_START` and `TEMPLATE_POLICY_BLOCK_END` in `MONOREPO_GUIDE.md`.
+2. Delete the block between `TEMPLATE_POLICY_BLOCK_START` and `TEMPLATE_POLICY_BLOCK_END` in `DESIGN_SYSTEM.md`.
+3. Add your own compatibility/versioning policy for your product repository.
+
 ## Documentation
 
 - Monorepo AI guide: `MONOREPO_GUIDE.md`
