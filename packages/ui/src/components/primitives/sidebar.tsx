@@ -468,7 +468,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-[var(--ds-border-focused)] transition-[width,height,padding] hover:bg-[var(--ds-background-neutral-hovered)] hover:text-[color:var(--ds-text)] focus-visible:ring-2 active:bg-[var(--ds-background-neutral-hovered)] active:text-[color:var(--ds-text)] disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-[var(--ds-background-neutral-hovered)] data-[active=true]:font-medium data-[active=true]:text-[color:var(--ds-text)] data-[state=open]:hover:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:hover:text-[color:var(--ds-text)] group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-[var(--ds-border-focused)] transition-[width,height,padding] hover:bg-[var(--ds-background-neutral-hovered)] hover:text-[color:var(--ds-text)] focus-visible:ring-2 active:bg-[var(--ds-background-neutral-hovered)] active:text-[color:var(--ds-text)] disabled:pointer-events-none disabled:text-[color:var(--ds-text-disabled)] group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:text-[color:var(--ds-text-disabled)] data-[active=true]:bg-[var(--ds-background-neutral-hovered)] data-[active=true]:font-medium data-[active=true]:text-[color:var(--ds-text)] data-[state=open]:hover:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:hover:text-[color:var(--ds-text)] group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -670,7 +670,7 @@ function SidebarMenuSubButton({
       data-size={size}
       data-active={isActive}
       className={cn(
-        "text-[color:var(--ds-text)] ring-[var(--ds-border-focused)] hover:bg-[var(--ds-background-neutral-hovered)] hover:text-[color:var(--ds-text)] active:bg-[var(--ds-background-neutral-hovered)] active:text-[color:var(--ds-text)] [&>svg]:text-[color:var(--ds-text)] flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 outline-hidden focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+        "text-[color:var(--ds-text)] ring-[var(--ds-border-focused)] hover:bg-[var(--ds-background-neutral-hovered)] hover:text-[color:var(--ds-text)] active:bg-[var(--ds-background-neutral-hovered)] active:text-[color:var(--ds-text)] [&>svg]:text-[color:var(--ds-text)] flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 outline-hidden focus-visible:ring-2 disabled:pointer-events-none disabled:text-[color:var(--ds-text-disabled)] aria-disabled:pointer-events-none aria-disabled:text-[color:var(--ds-text-disabled)] [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
         "data-[active=true]:bg-[var(--ds-background-neutral-hovered)] data-[active=true]:text-[color:var(--ds-text)]",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
