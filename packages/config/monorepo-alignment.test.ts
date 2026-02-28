@@ -119,7 +119,7 @@ describe("monorepo alignment", () => {
 
     expect(monorepoGuide).toContain("| Styling (Web/UI) | Tailwind CSS v4 + shadcn/ui");
     expect(monorepoGuide).toContain(
-      "| Styling (Mobile) | NativeWind + Tailwind CSS v3 compatibility"
+      "| Styling (Mobile) | NativeWind + Tailwind CSS v3 (mobile runtime constraint)"
     );
   });
 
@@ -135,6 +135,16 @@ describe("monorepo alignment", () => {
     expect(monorepoGuide).toContain("// feature-flags.definition.ts");
     expect(monorepoGuide).toContain("// feature-flags.config.ts");
     expect(monorepoGuide).not.toContain("packages/feature-flags/src/flags.config.ts");
+  });
+
+  it("does not expose legacy flags alias exports in feature-flags package", () => {
+    const packageJson = readJson("packages/feature-flags/package.json") as {
+      exports?: Record<string, unknown>;
+    };
+    const exportsMap = packageJson.exports ?? {};
+
+    expect(exportsMap).not.toHaveProperty("./flags.definition");
+    expect(exportsMap).not.toHaveProperty("./flags.config");
   });
 
   it("avoids hardcoded english labels in shared ui primitives", () => {

@@ -653,7 +653,7 @@ Expo with Expo Router for file-based routing. NativeWind for Tailwind-style styl
 ### 17.3 — File-Based Routing
 
 ```
-src/app/
+apps/mobile/app/
 ├── _layout.tsx           # Root (providers)
 ├── (auth)/
 │   ├── login.tsx
@@ -787,7 +787,7 @@ When implementing a new feature (e.g., "projects"), follow these steps in order:
 
 - [ ] Unit tests for adapter, utils, validators.
 - [ ] Component render tests.
-- [ ] E2E test spec in `apps/web/e2e/{feature}.spec.ts`.
+- [ ] E2E test spec in `apps/e2e/tests/{feature}.e2e.ts`.
 
 ---
 

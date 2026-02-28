@@ -14,17 +14,9 @@
       "types": "./dist/feature-flags.definition.d.ts",
       "default": "./dist/feature-flags.definition.js"
     },
-    "./flags.definition": {
-      "types": "./dist/flags.definition.d.ts",
-      "default": "./dist/flags.definition.js"
-    },
     "./feature-flags.config": {
       "types": "./dist/feature-flags.config.d.ts",
       "default": "./dist/feature-flags.config.js"
-    },
-    "./flags.config": {
-      "types": "./dist/flags.config.d.ts",
-      "default": "./dist/flags.config.js"
     },
     "./feature-flags.type": {
       "types": "./dist/feature-flags.type.d.ts",
