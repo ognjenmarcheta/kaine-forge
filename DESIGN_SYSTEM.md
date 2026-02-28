@@ -1498,7 +1498,7 @@ A tabular display for structured data (e.g., todos list, members list).
 
 ### 10.10 — Form Pattern
 
-Forms are composed from primitives and wrapped with `react-hook-form` + Zod validation.
+Forms are composed from primitives and wrapped with TanStack Form (`@tanstack/react-form`) + Zod validation.
 
 **Structure:** Field groups → FormField → Label + Control + HelperMessage/ErrorMessage.
 

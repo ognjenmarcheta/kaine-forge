@@ -444,7 +444,7 @@ Avoid writing custom CSS files. If a style cannot be expressed with Tailwind uti
 - Can import from `@repo/ui`, `@repo/translation`, `@repo/auth`, `@repo/feature-flags`, `@repo/db` (types/validators).
 - Can use Zustand stores.
 - Must use translation keys for all user-facing strings.
-- Form components use `react-hook-form` + Zod resolver using validators from `@repo/db/validators`.
+- Form components use TanStack Form (`useUiForm` from `@repo/ui`) with validators from `@repo/db/validators`.
 
 ### 10.5 — Control Sizes
 
@@ -843,7 +843,7 @@ EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
 | Creating a new CSS file                        | Add token to `globals.css`, map in preset, use via utility                                  |
 | Storing server data in Zustand                 | Use React Query for server data, Zustand for UI state                                       |
 | Making UI components data-aware                | Primitives/composed components are prop-driven and data-agnostic                            |
-| Skipping validation on forms                   | Use `react-hook-form` + Zod resolver with validators from `@repo/db/validators`             |
+| Skipping validation on forms                   | Use TanStack Form (`useUiForm` from `@repo/ui`) with validators from `@repo/db/validators`  |
 | Forgetting to scope by feature flag            | Check if the feature should be gated by `ORGANIZATIONS_VISIBLE` or future flags             |
 | Using `dangerouslySetInnerHTML`                | Never. React handles XSS prevention.                                                        |
 | Committing `.env`                              | Only `.env.example` is committed                                                            |
