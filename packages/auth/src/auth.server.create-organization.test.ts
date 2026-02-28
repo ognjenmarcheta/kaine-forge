@@ -156,7 +156,7 @@ describe("auth.server createOrganization", () => {
     );
     organizationInsertResponses = [[], [{ id: "org-2" }]];
 
-    const { createServerAuth } = await import("./server");
+    const { createServerAuth } = await import("./auth.server");
     const auth = createServerAuth();
 
     const result = await auth.createOrganization({

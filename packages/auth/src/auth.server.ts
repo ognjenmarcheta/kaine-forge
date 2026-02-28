@@ -5,6 +5,7 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
+import { ORGANIZATION_ROLES } from "./auth.permissions";
 import type {
   AuthSession,
   AuthSessionResult,
@@ -13,7 +14,6 @@ import type {
   SignupInput
 } from "./auth.type";
 import { resolveActiveOrganizationId, slugifyOrganizationName } from "./auth.util";
-import { ORGANIZATION_ROLES } from "./permissions";
 
 interface OrganizationWriteExecutor {
   insert: typeof db.insert;
