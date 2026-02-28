@@ -601,7 +601,9 @@ body {
 
 .ui-button:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  color: var(--ds-text-disabled);
+  background: var(--ds-background-neutral-subtle);
+  border-color: transparent;
 }
 
 .ui-button:focus-visible,
@@ -940,7 +942,7 @@ body {
 
 .ui-select__item[data-disabled] {
   cursor: not-allowed;
-  opacity: 0.6;
+  color: var(--ds-text-disabled);
 }
 
 .ui-select__item-indicator-wrap {
@@ -1169,7 +1171,9 @@ body {
 
 .ui-checkbox[data-disabled] {
   cursor: not-allowed;
-  opacity: 0.6;
+  color: var(--ds-text-disabled);
+  border-color: var(--ds-border);
+  background: var(--ds-background-neutral-subtle);
 }
 
 .ui-checkbox__indicator {
