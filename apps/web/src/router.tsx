@@ -92,7 +92,7 @@ function ShellLayout() {
                 orientation="vertical"
                 className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
               />
-              <Breadcrumbs items={breadcrumbItems} />
+              <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
             </div>
           </header>
         }

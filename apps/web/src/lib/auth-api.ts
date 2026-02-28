@@ -1,7 +1,7 @@
 import { AUTH_CONFIG } from "../features/auth/auth.config";
 import type { AuthSession } from "../features/auth/auth.type";
 import { authHeaders } from "../features/auth/auth.util";
-import type { OrganizationOption } from "../features/organizations/organization-selection.util";
+import type { OrganizationOption } from "../features/organizations/organizations-selection.util";
 
 export interface ListOrganizationsResponse {
   activeOrganizationId: string | null;

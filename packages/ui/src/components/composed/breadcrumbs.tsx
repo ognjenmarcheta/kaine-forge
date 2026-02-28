@@ -9,12 +9,13 @@ interface BreadcrumbItem {
 }
 
 interface BreadcrumbsProps extends React.HTMLAttributes<HTMLElement> {
+  ariaLabel: string;
   items: BreadcrumbItem[];
 }
 
 const Breadcrumbs = React.forwardRef<HTMLElement, BreadcrumbsProps>(
-  ({ className, items, ...props }, ref) => (
-    <nav ref={ref} aria-label="Breadcrumb" className={cn(className)} {...props}>
+  ({ ariaLabel, className, items, ...props }, ref) => (
+    <nav ref={ref} aria-label={ariaLabel} className={cn(className)} {...props}>
       <ol className="flex items-center gap-1 text-body-sm">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

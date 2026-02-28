@@ -4,9 +4,14 @@ import * as React from "react";
 import { cn } from "../../lib/cn";
 
 interface PaginationProps extends React.HTMLAttributes<HTMLElement> {
+  ariaLabel: string;
   currentPage: number;
+  firstPageLabel: string;
+  lastPageLabel: string;
+  nextPageLabel: string;
   totalPages: number;
   onPageChange: (page: number) => void;
+  previousPageLabel: string;
   siblingCount?: number;
 }
 
@@ -52,14 +57,29 @@ const paginationButtonClass =
   "inline-flex h-[var(--ds-control-medium)] w-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-200)] text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] disabled:pointer-events-none disabled:opacity-50";
 
 const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
-  ({ className, currentPage, totalPages, onPageChange, siblingCount = 1, ...props }, ref) => {
+  (
+    {
+      ariaLabel,
+      className,
+      currentPage,
+      firstPageLabel,
+      lastPageLabel,
+      nextPageLabel,
+      onPageChange,
+      previousPageLabel,
+      siblingCount = 1,
+      totalPages,
+      ...props
+    },
+    ref
+  ) => {
     const pages = getPageNumbers(currentPage, totalPages, siblingCount);
 
     return (
       <nav
         ref={ref}
         role="navigation"
-        aria-label="Pagination"
+        aria-label={ariaLabel}
         className={cn("flex items-center gap-1", className)}
         {...props}
       >
@@ -72,7 +92,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
             paginationButtonClass,
             "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
           )}
-          aria-label="First page"
+          aria-label={firstPageLabel}
         >
           <ChevronsLeft className="h-4 w-4" />
         </button>
@@ -84,7 +104,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
             paginationButtonClass,
             "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
           )}
-          aria-label="Previous page"
+          aria-label={previousPageLabel}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -123,7 +143,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
             paginationButtonClass,
             "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
           )}
-          aria-label="Next page"
+          aria-label={nextPageLabel}
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -135,7 +155,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
             paginationButtonClass,
             "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
           )}
-          aria-label="Last page"
+          aria-label={lastPageLabel}
         >
           <ChevronsRight className="h-4 w-4" />
         </button>
