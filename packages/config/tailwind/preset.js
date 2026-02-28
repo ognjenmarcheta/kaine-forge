@@ -81,11 +81,15 @@ export default {
           },
           success: {
             DEFAULT: "var(--ds-background-success)",
-            bold: "var(--ds-background-success-bold)"
+            bold: "var(--ds-background-success-bold)",
+            "bold-hovered": "var(--ds-background-success-bold-hovered)",
+            "bold-pressed": "var(--ds-background-success-bold-pressed)"
           },
           danger: {
             DEFAULT: "var(--ds-background-danger)",
-            bold: "var(--ds-background-danger-bold)"
+            bold: "var(--ds-background-danger-bold)",
+            "bold-hovered": "var(--ds-background-danger-bold-hovered)",
+            "bold-pressed": "var(--ds-background-danger-bold-pressed)"
           },
           warning: {
             DEFAULT: "var(--ds-background-warning)",
@@ -95,19 +99,27 @@ export default {
           },
           attention: {
             DEFAULT: "var(--ds-background-attention)",
-            bold: "var(--ds-background-attention-bold)"
+            bold: "var(--ds-background-attention-bold)",
+            "bold-hovered": "var(--ds-background-attention-bold-hovered)",
+            "bold-pressed": "var(--ds-background-attention-bold-pressed)"
           },
           severe: {
             DEFAULT: "var(--ds-background-severe)",
-            bold: "var(--ds-background-severe-bold)"
+            bold: "var(--ds-background-severe-bold)",
+            "bold-hovered": "var(--ds-background-severe-bold-hovered)",
+            "bold-pressed": "var(--ds-background-severe-bold-pressed)"
           },
           information: {
             DEFAULT: "var(--ds-background-information)",
-            bold: "var(--ds-background-information-bold)"
+            bold: "var(--ds-background-information-bold)",
+            "bold-hovered": "var(--ds-background-information-bold-hovered)",
+            "bold-pressed": "var(--ds-background-information-bold-pressed)"
           },
           discovery: {
             DEFAULT: "var(--ds-background-discovery)",
-            bold: "var(--ds-background-discovery-bold)"
+            bold: "var(--ds-background-discovery-bold)",
+            "bold-hovered": "var(--ds-background-discovery-bold-hovered)",
+            "bold-pressed": "var(--ds-background-discovery-bold-pressed)"
           },
           selected: {
             DEFAULT: "var(--ds-background-selected)",
@@ -304,7 +316,15 @@ export default {
         "ds-500": "var(--ds-space-500)",
         "ds-600": "var(--ds-space-600)",
         "ds-800": "var(--ds-space-800)",
-        "ds-1000": "var(--ds-space-1000)"
+        "ds-1000": "var(--ds-space-1000)",
+        "ds-negative-025": "var(--ds-space-negative-025)",
+        "ds-negative-050": "var(--ds-space-negative-050)",
+        "ds-negative-075": "var(--ds-space-negative-075)",
+        "ds-negative-100": "var(--ds-space-negative-100)",
+        "ds-negative-150": "var(--ds-space-negative-150)",
+        "ds-negative-200": "var(--ds-space-negative-200)",
+        "ds-negative-300": "var(--ds-space-negative-300)",
+        "ds-negative-400": "var(--ds-space-negative-400)"
       }
     }
   }
