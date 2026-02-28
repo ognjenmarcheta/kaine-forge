@@ -2,6 +2,8 @@
 
 > Built on [Atlassian Design System](https://atlassian.design/) foundations with select practices from [GitHub's Primer](https://primer.style/), adapted for **Tailwind CSS v4**, **shadcn/ui**, and **CSS custom properties**.
 
+> **Scope note:** Unless explicitly marked as future/optional, this document describes behavior and token/theme support that is currently implemented in the repository.
+
 ---
 
 ## Table of Contents
@@ -971,13 +973,13 @@ A theme is a collection of token values designed to achieve a look or style. Swi
 
 ### 8.1 — Available Themes
 
-| Theme  | Attribute            | Description                    |
-| ------ | -------------------- | ------------------------------ |
-| Light  | `data-theme="light"` | Default. White/light surfaces. |
-| Dark   | `data-theme="dark"`  | Dark surfaces, light text.     |
-| System | Resolved at runtime  | Matches OS preference.         |
-
-Future themes: `light-high-contrast`, `dark-high-contrast`, `light-increased-contrast`.
+| Theme               | Attribute                          | Description                                              |
+| ------------------- | ---------------------------------- | -------------------------------------------------------- |
+| Light               | `data-theme="light"`               | Default. White/light surfaces.                           |
+| Dark                | `data-theme="dark"`                | Dark surfaces, light text.                               |
+| Light High Contrast | `data-theme="light-high-contrast"` | High-contrast light mode for increased readability.      |
+| Dark High Contrast  | `data-theme="dark-high-contrast"`  | High-contrast dark mode for increased readability.       |
+| System              | Resolved at runtime                | Matches OS preference and resolves to `light` or `dark`. |
 
 ### 8.2 — Theme Application
 
@@ -992,7 +994,7 @@ The active theme is set on the `<html>` element:
 The Zustand `theme.store.ts` manages theme selection:
 
 ```ts
-type ThemeMode = "light" | "dark" | "system";
+type ThemeMode = "light" | "dark" | "system" | "light-high-contrast" | "dark-high-contrast";
 
 const useThemeStore = create(
   persist(
@@ -1005,7 +1007,7 @@ const useThemeStore = create(
 );
 ```
 
-The `ThemeProvider` resolves `"system"` by listening to `window.matchMedia('(prefers-color-scheme: dark)')` and applies the resolved mode to `document.documentElement.dataset.theme`.
+The `ThemeProvider` resolves `"system"` by listening to `window.matchMedia('(prefers-color-scheme: dark)')` and applies the final mode (`light`, `dark`, `light-high-contrast`, or `dark-high-contrast`) to `document.documentElement.dataset.theme`.
 
 ### 8.4 — Dark Mode Surface Behavior
 
@@ -1020,9 +1022,9 @@ Overlay: #282E33  (lightest)
 
 This compensates for the fact that shadows are much harder to see on dark backgrounds. The combination of lighter surface + shadow creates sufficient visual separation.
 
-### 8.5 — High Contrast (Future Enhancement)
+### 8.5 — High Contrast
 
-A high-contrast variant can be added by defining `[data-theme="light-high-contrast"]` and `[data-theme="dark-high-contrast"]` layers that override functional tokens to meet ≥ 7:1 contrast ratios. This adjusts scale steps rather than redefining token references.
+High-contrast variants are implemented via `[data-theme="light-high-contrast"]` and `[data-theme="dark-high-contrast"]` layers that override functional tokens to increase contrast ratios. This adjusts scale steps rather than redefining token references.
 
 ### 8.6 — Color Vision Deficiency Support (Future Enhancement)
 

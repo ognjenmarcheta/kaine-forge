@@ -84,6 +84,59 @@ describe("monorepo alignment", () => {
     expect(globalsCss).toContain(':root[data-theme="dark-high-contrast"]');
   });
 
+  it("documents implemented theme modes consistently across guides", () => {
+    const monorepoGuide = readText("MONOREPO_GUIDE.md");
+    const designSystem = readText("DESIGN_SYSTEM.md");
+
+    expect(monorepoGuide).toContain(
+      "Implemented modes: `light`, `dark`, `light-high-contrast`, `dark-high-contrast`."
+    );
+    expect(monorepoGuide).not.toContain("Two modes: `light` and `dark`");
+
+    expect(designSystem).toContain('data-theme="light-high-contrast"');
+    expect(designSystem).toContain('data-theme="dark-high-contrast"');
+    expect(designSystem).toContain('"light-high-contrast"');
+    expect(designSystem).toContain('"dark-high-contrast"');
+    expect(designSystem).not.toContain("### 8.5 — High Contrast (Future Enhancement)");
+  });
+
+  it("keeps GraphQL SDL naming guidance consistent", () => {
+    const monorepoGuide = readText("MONOREPO_GUIDE.md");
+
+    expect(monorepoGuide).toContain(
+      "API schema type definitions (SDL): `apps/api/src/features/{name}/{name}.schema.ts`"
+    );
+    expect(monorepoGuide).toContain(
+      "- [ ] Create `{feature}.schema.ts` — GraphQL SDL definitions."
+    );
+    expect(monorepoGuide).not.toContain(
+      "- [ ] Create `{feature}.type.ts` — GraphQL type definitions."
+    );
+  });
+
+  it("documents platform-specific styling stack accurately", () => {
+    const monorepoGuide = readText("MONOREPO_GUIDE.md");
+
+    expect(monorepoGuide).toContain("| Styling (Web/UI) | Tailwind CSS v4 + shadcn/ui");
+    expect(monorepoGuide).toContain(
+      "| Styling (Mobile) | NativeWind + Tailwind CSS v3 compatibility"
+    );
+  });
+
+  it("uses feature-flags naming as the canonical package convention", () => {
+    const monorepoGuide = readText("MONOREPO_GUIDE.md");
+
+    expect(monorepoGuide).toContain(
+      "`packages/feature-flags/src/feature-flags.definition.ts` + `feature-flags.config.ts`"
+    );
+    expect(monorepoGuide).toContain(
+      "Flags are defined in `packages/feature-flags/src/feature-flags.config.ts` as a typed object."
+    );
+    expect(monorepoGuide).toContain("// feature-flags.definition.ts");
+    expect(monorepoGuide).toContain("// feature-flags.config.ts");
+    expect(monorepoGuide).not.toContain("packages/feature-flags/src/flags.config.ts");
+  });
+
   it("avoids hardcoded english labels in shared ui primitives", () => {
     const sheetSource = readText("packages/ui/src/components/primitives/sheet.tsx");
     const sidebarSource = readText("packages/ui/src/components/primitives/sidebar.tsx");
