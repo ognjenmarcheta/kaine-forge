@@ -92,18 +92,24 @@ function getSessionToken(ctx: AuthRouteContext): string | null {
   return parseCookieValue(cookieHeader, AUTH_DEFINITIONS.COOKIE_NAME);
 }
 
+function isProductionEnv(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 function setSessionCookie(ctx: AuthRouteContext, sessionToken: string): void {
   const maxAge = AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS;
+  const secure = isProductionEnv() ? "; Secure" : "";
   ctx.res.setHeader(
     "set-cookie",
-    `${AUTH_DEFINITIONS.COOKIE_NAME}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${String(maxAge)}`
+    `${AUTH_DEFINITIONS.COOKIE_NAME}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${String(maxAge)}${secure}`
   );
 }
 
 function clearSessionCookie(ctx: AuthRouteContext): void {
+  const secure = isProductionEnv() ? "; Secure" : "";
   ctx.res.setHeader(
     "set-cookie",
-    `${AUTH_DEFINITIONS.COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+    `${AUTH_DEFINITIONS.COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`
   );
 }
 

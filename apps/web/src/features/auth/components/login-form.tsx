@@ -1,5 +1,5 @@
-import { Button, Field, FieldError, FieldLabel, Input } from "@repo/ui";
-import { useState, type FormEvent } from "react";
+import { Button, Field, FieldError, FieldLabel, Input, useUiForm } from "@repo/ui";
+import { useState } from "react";
 
 import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
@@ -8,54 +8,92 @@ interface LoginFormProps {
   onDone: () => void;
 }
 
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
 export function LoginForm({ onDone }: LoginFormProps) {
   const { login } = useAuth();
   const { t } = useTranslation();
-  const [email, setEmail] = useState("test@test.test");
-  const [password, setPassword] = useState("ChangeMe123!");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      await login({ email, password });
-      onDone();
-    } catch {
-      setError(t("error.generic"));
-    } finally {
-      setIsSubmitting(false);
+  const form = useUiForm({
+    defaultValues: {
+      email: "test@test.test",
+      password: "ChangeMe123!"
+    } satisfies LoginFormValues,
+    onSubmit: async ({ value }) => {
+      try {
+        setError(null);
+        await login({ email: value.email, password: value.password });
+        onDone();
+      } catch {
+        setError(t("error.generic"));
+      }
     }
-  }
+  });
+
+  const isSubmitting = form.state.isSubmitting;
 
   return (
-    <form className="grid gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
-      <Field>
-        <FieldLabel htmlFor="login-email">{t("common.emailLabel")}</FieldLabel>
-        <Input
-          id="login-email"
-          required
-          autoComplete="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </Field>
+    <form
+      className="grid gap-[var(--ds-space-150)]"
+      onSubmit={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void form.handleSubmit();
+      }}
+    >
+      <form.Field
+        name="email"
+        validators={{
+          onChange: ({ value }) =>
+            value.trim().length === 0 ? t("auth.form.error.emailRequired") : undefined
+        }}
+      >
+        {(fieldApi) => (
+          <Field>
+            <FieldLabel htmlFor="login-email">{t("common.emailLabel")}</FieldLabel>
+            <Input
+              id="login-email"
+              autoComplete="email"
+              type="email"
+              value={fieldApi.state.value}
+              onBlur={fieldApi.handleBlur}
+              onChange={(event) => fieldApi.handleChange(event.target.value)}
+            />
+            {fieldApi.state.meta.isTouched && fieldApi.state.meta.errors[0] ? (
+              <FieldError>{String(fieldApi.state.meta.errors[0])}</FieldError>
+            ) : null}
+          </Field>
+        )}
+      </form.Field>
 
-      <Field>
-        <FieldLabel htmlFor="login-password">{t("common.passwordLabel")}</FieldLabel>
-        <Input
-          id="login-password"
-          required
-          autoComplete="current-password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </Field>
+      <form.Field
+        name="password"
+        validators={{
+          onChange: ({ value }) =>
+            value.length === 0 ? t("auth.form.error.passwordRequired") : undefined
+        }}
+      >
+        {(fieldApi) => (
+          <Field>
+            <FieldLabel htmlFor="login-password">{t("common.passwordLabel")}</FieldLabel>
+            <Input
+              id="login-password"
+              autoComplete="current-password"
+              type="password"
+              value={fieldApi.state.value}
+              onBlur={fieldApi.handleBlur}
+              onChange={(event) => fieldApi.handleChange(event.target.value)}
+            />
+            {fieldApi.state.meta.isTouched && fieldApi.state.meta.errors[0] ? (
+              <FieldError>{String(fieldApi.state.meta.errors[0])}</FieldError>
+            ) : null}
+          </Field>
+        )}
+      </form.Field>
 
       {error ? <FieldError>{error}</FieldError> : null}
 

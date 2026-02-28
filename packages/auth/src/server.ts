@@ -13,6 +13,7 @@ import type {
   SignupInput
 } from "./auth.type";
 import { resolveActiveOrganizationId, slugifyOrganizationName } from "./auth.util";
+import { ORGANIZATION_ROLES } from "./permissions";
 
 interface OrganizationWriteExecutor {
   insert: typeof db.insert;
@@ -100,7 +101,7 @@ async function ensurePersonalOrganizationForUser(userId: string) {
       await db.insert(membersTable).values({
         userId,
         organizationId: currentOrganization.id,
-        role: "owner"
+        role: ORGANIZATION_ROLES.OWNER
       });
     }
 
@@ -164,7 +165,7 @@ async function createOwnedOrganizationForUser(params: {
       .values({
         userId: params.userId,
         organizationId: organization.id,
-        role: "owner"
+        role: ORGANIZATION_ROLES.OWNER
       })
       .onConflictDoNothing();
 

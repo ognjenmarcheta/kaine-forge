@@ -1,9 +1,11 @@
-import { t } from "@repo/translation";
 import { Card, CardDescription, CardHeader, CardTitle } from "@repo/ui";
 
+import { useTranslation } from "../../../hooks/use-translation";
 import { DASHBOARD_DEFINITION } from "../dashboard.definition";
 
 export function DashboardOverview() {
+  const { t } = useTranslation();
+
   return (
     <section className="grid gap-[var(--ds-space-200)]">
       <header>

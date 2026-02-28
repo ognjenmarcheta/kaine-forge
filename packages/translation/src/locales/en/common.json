@@ -7,6 +7,7 @@
   "common.nameLabel": "Full name",
   "common.notAvailable": "-",
   "common.passwordLabel": "Password",
+  "common.confirmPasswordLabel": "Confirm password",
   "button.save": "Save",
   "common.close": "Close",
   "button.cancel": "Cancel",
