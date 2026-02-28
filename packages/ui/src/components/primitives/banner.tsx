@@ -47,7 +47,7 @@ const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
         <button
           type="button"
           onClick={onDismiss}
-          className="shrink-0 rounded-[var(--ds-radius-100)] p-1 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+          className="shrink-0 rounded-[var(--ds-radius-100)] p-1 hover:bg-[var(--ds-background-neutral-subtle-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
           aria-label={dismissLabel}
         >
           <X className="h-4 w-4" />
