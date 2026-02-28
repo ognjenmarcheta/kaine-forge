@@ -10,6 +10,7 @@ export interface ModalAction {
   appearance?: "danger" | "default" | "ghost" | "link" | "secondary" | "subtle" | "warning";
   disabled?: boolean;
   label: ReactNode;
+  loadingLabel?: ReactNode;
   loading?: boolean;
   onClick?: () => void;
   type?: "button" | "submit";
@@ -50,11 +51,11 @@ function renderActions(actions: ModalAction[]) {
         <Button
           key={index}
           disabled={action.disabled || action.loading}
-          appearance={action.appearance}
           type={action.type ?? "button"}
           onClick={action.onClick}
+          {...(action.appearance ? { appearance: action.appearance } : {})}
         >
-          {action.loading ? "..." : action.label}
+          {action.loading ? (action.loadingLabel ?? action.label) : action.label}
         </Button>
       ))}
     </div>
@@ -64,7 +65,7 @@ function renderActions(actions: ModalAction[]) {
 export function Modal({
   actions = [],
   children,
-  closeButtonLabel = "Close",
+  closeButtonLabel,
   closeOnEscape = true,
   closeOnOverlayClick = true,
   description,
@@ -76,6 +77,8 @@ export function Modal({
   size = "md",
   title
 }: ModalProps) {
+  const resolvedCloseButtonLabel = closeButtonLabel ?? title;
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -106,7 +109,7 @@ export function Modal({
             {showCloseButton ? (
               <Dialog.Close asChild>
                 <Button
-                  aria-label={closeButtonLabel}
+                  aria-label={resolvedCloseButtonLabel}
                   className="ui-modal__close"
                   appearance="subtle"
                   spacing="compact"

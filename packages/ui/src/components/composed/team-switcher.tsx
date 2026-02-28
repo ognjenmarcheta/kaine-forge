@@ -85,8 +85,8 @@ export function TeamSwitcher({
 
               return (
                 <DropdownMenuItem
-                  disabled={team.disabled}
                   key={team.value}
+                  {...(team.disabled !== undefined ? { disabled: team.disabled } : {})}
                   onSelect={() => {
                     if (!team.disabled) {
                       onValueChange(team.value);

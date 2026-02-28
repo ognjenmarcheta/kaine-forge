@@ -31,7 +31,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     void (async () => {
       const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
 
-      if (stored === "light" || stored === "dark" || stored === "system") {
+      if (
+        stored === "light" ||
+        stored === "dark" ||
+        stored === "system" ||
+        stored === "light-high-contrast" ||
+        stored === "dark-high-contrast"
+      ) {
         setThemeMode(stored);
       }
 
@@ -53,7 +59,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     void AsyncStorage.setItem(THEME_STORAGE_KEY, themeMode);
   }, [isHydrating, themeMode]);
 
-  const resolvedTheme = themeMode === "system" ? systemTheme : themeMode;
+  const resolvedTheme =
+    themeMode === "system"
+      ? systemTheme
+      : themeMode === "light-high-contrast"
+        ? "light"
+        : themeMode === "dark-high-contrast"
+          ? "dark"
+          : themeMode;
 
   const value = useMemo(
     () => ({

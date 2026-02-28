@@ -4,10 +4,15 @@
   "navigation.organization": "Organizacija",
   "navigation.organizationCreate": "Kreiraj organizaciju",
   "navigation.organizationName": "Naziv organizacije",
+  "navigation.mobileSidebarDescription": "Prikazuje mobilni bocni panel",
   "navigation.settings": "Podešavanja",
+  "navigation.sidebarTitle": "Bocni panel",
   "navigation.theme": "Tema",
   "navigation.themeDark": "Tamna",
+  "navigation.themeDarkHighContrast": "Tamna visok kontrast",
   "navigation.themeLight": "Svetla",
+  "navigation.themeLightHighContrast": "Svetla visok kontrast",
   "navigation.themeSystem": "Sistemska",
+  "navigation.toggleSidebar": "Preklopi bocni panel",
   "navigation.todos": "Zadaci"
 }

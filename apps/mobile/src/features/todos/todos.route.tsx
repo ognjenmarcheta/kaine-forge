@@ -184,6 +184,7 @@ export function TodosRoute() {
       />
       <ConfirmModal
         cancelLabel={t("button.cancel")}
+        confirmingLabel={t("common.loadingShort")}
         confirmLabel={t("button.delete")}
         isConfirming={deleteMutation.status === "pending"}
         isOpen={Boolean(deletingTodoId)}

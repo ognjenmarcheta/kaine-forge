@@ -9,6 +9,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./translation.config": {
+      "types": "./dist/translation.config.d.ts",
+      "default": "./dist/translation.config.js"
+    },
+    "./translation.definition": {
+      "types": "./dist/translation.definition.d.ts",
+      "default": "./dist/translation.definition.js"
+    },
+    "./translation.type": {
+      "types": "./dist/translation.type.d.ts",
+      "default": "./dist/translation.type.js"
+    },
+    "./translation.util": {
+      "types": "./dist/translation.util.d.ts",
+      "default": "./dist/translation.util.js"
     }
   },
   "scripts": {

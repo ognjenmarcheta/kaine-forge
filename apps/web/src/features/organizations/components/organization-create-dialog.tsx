@@ -21,7 +21,7 @@ export function OrganizationCreateDialog({
   const fields = useMemo<SimpleFieldConfig[]>(
     () => [
       {
-        label: t("navigation.organizationName"),
+        label: t("organizations.name"),
         name: "name",
         required: true,
         type: "text"
@@ -41,7 +41,7 @@ export function OrganizationCreateDialog({
       isSubmitting={isSubmitting}
       open={isOpen}
       submitLabel={t("button.save")}
-      title={t("navigation.organizationCreate")}
+      title={t("organizations.create")}
       onOpenChange={(open) => {
         if (!open) {
           setError(null);

@@ -64,17 +64,19 @@ export function LabeledSelect({
   placeholder,
   value
 }: LabeledSelectProps) {
+  const displayValue = resolveSelectDisplayValue(value);
+
   return (
     <label className="ui-switcher">
       <span className="ui-switcher__label">{label}</span>
       <Select
         disabled={disabled}
-        value={resolveSelectDisplayValue(value)}
+        {...(displayValue ? { value: displayValue } : {})}
         onValueChange={(nextValue) => {
           applyLabeledSelectChange({
-            actionItem,
             nextValue,
-            onValueChange
+            onValueChange,
+            ...(actionItem ? { actionItem } : {})
           });
         }}
       >
@@ -83,7 +85,11 @@ export function LabeledSelect({
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem disabled={option.disabled} key={option.value} value={option.value}>
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              {...(option.disabled !== undefined ? { disabled: option.disabled } : {})}
+            >
               {option.label}
             </SelectItem>
           ))}

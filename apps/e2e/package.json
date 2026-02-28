@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "playwright test --ui",
+    "build": "echo \"@repo/e2e has no build step\"",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "test": "vitest run --passWithNoTests",
     "pretest:e2e": "playwright install chromium",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.0",
+    "vitest": "^3.2.4"
   }
 }

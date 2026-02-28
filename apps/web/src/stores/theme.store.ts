@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ThemeMode = "dark" | "light" | "system";
+export type ThemeMode = "dark" | "light" | "system" | "light-high-contrast" | "dark-high-contrast";
 
 interface ThemeStore {
   setThemeMode: (mode: ThemeMode) => void;
@@ -16,7 +16,13 @@ function getStoredThemeMode(): ThemeMode {
 
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
 
-  if (stored === "light" || stored === "dark" || stored === "system") {
+  if (
+    stored === "light" ||
+    stored === "dark" ||
+    stored === "system" ||
+    stored === "light-high-contrast" ||
+    stored === "dark-high-contrast"
+  ) {
     return stored;
   }
 

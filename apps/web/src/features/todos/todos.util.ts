@@ -1,9 +1,16 @@
 import type { TodoDraft, TodoItem } from "./todos.type";
 
 export function toCreatePayload(draft: TodoDraft): { description?: string; title: string } {
+  const title = draft.title.trim();
+  const description = draft.description.trim();
+
+  if (!description) {
+    return { title };
+  }
+
   return {
-    description: draft.description.trim() || undefined,
-    title: draft.title.trim()
+    description,
+    title
   };
 }
 

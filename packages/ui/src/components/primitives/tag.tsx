@@ -25,11 +25,12 @@ const tagVariants = cva(
 );
 
 interface TagProps extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof tagVariants> {
+  removeLabel?: string;
   onRemove?: () => void;
 }
 
 const Tag = React.forwardRef<HTMLSpanElement, TagProps>(
-  ({ className, appearance, onRemove, children, ...props }, ref) => (
+  ({ className, appearance, removeLabel, onRemove, children, ...props }, ref) => (
     <span ref={ref} className={cn(tagVariants({ appearance }), className)} {...props}>
       {children}
       {onRemove && (
@@ -38,7 +39,7 @@ const Tag = React.forwardRef<HTMLSpanElement, TagProps>(
           type="button"
           onClick={onRemove}
           className="ml-0.5 inline-flex items-center justify-center rounded-[var(--ds-radius-050)] p-0.5 text-[color:var(--ds-icon-subtle)] hover:text-[color:var(--ds-icon)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ds-border-focused)]"
-          aria-label="Remove"
+          aria-label={removeLabel}
         >
           <X className="h-3 w-3" />
         </button>

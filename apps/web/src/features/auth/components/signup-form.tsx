@@ -71,7 +71,7 @@ export function SignupForm({ onDone }: SignupFormProps) {
       {error ? <FieldError>{error}</FieldError> : null}
 
       <Button disabled={isSubmitting} type="submit">
-        {isSubmitting ? "..." : t("auth.signup.title")}
+        {isSubmitting ? t("common.loadingShort") : t("auth.signup.title")}
       </Button>
     </form>
   );

@@ -158,16 +158,16 @@ export function ShellSelectControl({
           >
             {options.map((option) => (
               <DropdownMenuItem
-                disabled={option.disabled}
                 key={option.value}
+                {...(option.disabled !== undefined ? { disabled: option.disabled } : {})}
                 onSelect={() => {
                   if (option.disabled) {
                     return;
                   }
                   applyShellSelectControlChange({
-                    actionItem,
                     nextValue: option.value,
-                    onValueChange
+                    onValueChange,
+                    ...(actionItem ? { actionItem } : {})
                   });
                 }}
               >

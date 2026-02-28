@@ -39,7 +39,11 @@ export function NavMain({ groupLabel, items, renderLink }: NavMainProps) {
 
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={item.isActive} tooltip={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  {...(item.isActive !== undefined ? { isActive: item.isActive } : {})}
+                >
                   {renderLink ? (
                     renderLink(item, content)
                   ) : (

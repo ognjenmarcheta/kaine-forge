@@ -85,16 +85,16 @@ export function ConfigFormModal({
   return (
     <FormModal
       cancelLabel={cancelLabel}
-      closeButtonLabel={closeButtonLabel}
-      closeOnEscape={closeOnEscape}
-      closeOnOverlayClick={closeOnOverlayClick}
-      description={description}
+      {...(closeButtonLabel ? { closeButtonLabel } : {})}
+      {...(closeOnEscape !== undefined ? { closeOnEscape } : {})}
+      {...(closeOnOverlayClick !== undefined ? { closeOnOverlayClick } : {})}
+      {...(description ? { description } : {})}
       isSubmitting={isSubmitting || form.state.isSubmitting}
       onOpenChange={onOpenChange}
       onSubmit={() => form.handleSubmit()}
       open={open}
-      showCloseButton={showCloseButton}
-      size={size}
+      {...(showCloseButton !== undefined ? { showCloseButton } : {})}
+      {...(size ? { size } : {})}
       submitLabel={submitLabel}
       title={title}
     >

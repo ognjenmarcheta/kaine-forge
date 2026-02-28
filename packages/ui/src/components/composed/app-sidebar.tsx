@@ -9,29 +9,47 @@ import {
 } from "../primitives/sidebar";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  mobileSheetCloseLabel?: string;
+  mobileSheetDescription?: string;
+  mobileSheetTitle?: string;
   navMain: React.ReactNode;
   navPreferences?: React.ReactNode;
+  railLabel?: string;
+  triggerLabel?: string;
   teamSwitcher?: React.ReactNode;
   user?: React.ReactNode;
 }
 
 export function AppSidebar({
   collapsible = "icon",
+  mobileSheetCloseLabel,
+  mobileSheetDescription,
+  mobileSheetTitle,
   navMain,
   navPreferences,
+  railLabel,
   teamSwitcher,
+  triggerLabel,
   user,
   ...props
 }: AppSidebarProps) {
+  const resolvedRailLabel = railLabel ?? triggerLabel;
+
   return (
-    <Sidebar collapsible={collapsible} {...props}>
+    <Sidebar
+      collapsible={collapsible}
+      {...(mobileSheetCloseLabel ? { mobileSheetCloseLabel } : {})}
+      {...(mobileSheetDescription ? { mobileSheetDescription } : {})}
+      {...(mobileSheetTitle ? { mobileSheetTitle } : {})}
+      {...props}
+    >
       <SidebarHeader>{teamSwitcher}</SidebarHeader>
       <SidebarContent>{navMain}</SidebarContent>
       <SidebarFooter>
         {navPreferences}
         {user}
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail {...(resolvedRailLabel ? { label: resolvedRailLabel } : {})} />
     </Sidebar>
   );
 }

@@ -1,4 +1,4 @@
-import "../../../packages/ui/src/styles/globals.css";
+import "@repo/ui/styles/globals.css";
 import "./styles.css";
 
 import { StrictMode } from "react";

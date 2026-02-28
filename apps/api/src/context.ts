@@ -29,7 +29,7 @@ export async function createContextFromHeaders(headers: RequestHeaders): Promise
     t,
     user: session?.user ?? null,
     activeOrganizationId: session?.activeOrganizationId ?? null,
-    featureFlags: resolveFeatureFlags(process.env)
+    featureFlags: resolveFeatureFlags()
   };
 }
 

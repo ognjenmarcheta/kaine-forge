@@ -46,7 +46,7 @@ export function TodoFormModal({
 
   return (
     <Modal animationType="slide" transparent visible={isOpen}>
-      <View className="flex-1 justify-end bg-black/40">
+      <View className="flex-1 justify-end bg-ds-blanket">
         <View className="rounded-t-2xl bg-ds-surface p-4">
           <Text className="text-lg font-semibold text-ds-text">{title}</Text>
 
@@ -54,7 +54,7 @@ export function TodoFormModal({
             <TextInput
               className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
               placeholder={t("todos.form.titlePlaceholder")}
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="var(--ds-text-subtlest)"
               value={draft.title}
               onChangeText={(value) => {
                 setDraft((current) => ({ ...current, title: value }));
@@ -65,7 +65,7 @@ export function TodoFormModal({
               multiline
               numberOfLines={3}
               placeholder={t("todos.form.descriptionPlaceholder")}
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="var(--ds-text-subtlest)"
               textAlignVertical="top"
               value={draft.description}
               onChangeText={(value) => {
@@ -86,7 +86,7 @@ export function TodoFormModal({
               }}
             >
               <Text className="text-sm text-ds-text-inverse">
-                {isSubmitting ? "..." : t("button.save")}
+                {isSubmitting ? t("common.loadingShort") : t("button.save")}
               </Text>
             </Pressable>
           </View>

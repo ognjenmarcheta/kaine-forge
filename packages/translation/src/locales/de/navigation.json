@@ -4,10 +4,15 @@
   "navigation.organization": "Organisation",
   "navigation.organizationCreate": "Organisation erstellen",
   "navigation.organizationName": "Organisationsname",
+  "navigation.mobileSidebarDescription": "Zeigt die mobile Seitenleiste an",
   "navigation.settings": "Einstellungen",
+  "navigation.sidebarTitle": "Seitenleiste",
   "navigation.theme": "Design",
   "navigation.themeDark": "Dunkel",
+  "navigation.themeDarkHighContrast": "Dunkel hoher Kontrast",
   "navigation.themeLight": "Hell",
+  "navigation.themeLightHighContrast": "Hell hoher Kontrast",
   "navigation.themeSystem": "System",
+  "navigation.toggleSidebar": "Seitenleiste umschalten",
   "navigation.todos": "Aufgaben"
 }

@@ -41,10 +41,12 @@ function SheetOverlay({
 function SheetContent({
   className,
   children,
+  closeLabel,
   side = "right",
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
+  closeLabel?: string;
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
@@ -71,7 +73,7 @@ function SheetContent({
         {showCloseButton ? (
           <SheetPrimitive.Close className="ring-offset-[var(--ds-background-default)] focus:ring-[var(--ds-border-focused)] data-[state=open]:bg-[var(--ds-background-neutral)] absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            {closeLabel ? <span className="sr-only">{closeLabel}</span> : null}
           </SheetPrimitive.Close>
         ) : null}
       </SheetPrimitive.Content>

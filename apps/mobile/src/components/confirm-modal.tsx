@@ -4,6 +4,7 @@ interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
   message: string;
+  confirmingLabel: string;
   confirmLabel: string;
   cancelLabel: string;
   isConfirming?: boolean;
@@ -15,6 +16,7 @@ export function ConfirmModal({
   isOpen,
   title,
   message,
+  confirmingLabel,
   confirmLabel,
   cancelLabel,
   isConfirming = false,
@@ -23,7 +25,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Modal animationType="fade" transparent visible={isOpen}>
-      <View className="flex-1 items-center justify-center bg-black/40 px-5">
+      <View className="flex-1 items-center justify-center bg-ds-blanket px-5">
         <View className="w-full max-w-md rounded-2xl bg-ds-surface p-4">
           <Text className="text-lg font-semibold text-ds-text">{title}</Text>
           <Text className="mt-2 text-sm text-ds-text-subtle">{message}</Text>
@@ -41,7 +43,7 @@ export function ConfirmModal({
               onPress={onConfirm}
             >
               <Text className="text-sm text-ds-text-inverse">
-                {isConfirming ? "..." : confirmLabel}
+                {isConfirming ? confirmingLabel : confirmLabel}
               </Text>
             </Pressable>
           </View>

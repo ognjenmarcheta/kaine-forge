@@ -3,7 +3,7 @@ import type {
   GetMobileTodosQuery,
   ToggleMobileTodoMutation,
   UpdateTodoInput
-} from "../../graphql/generated/graphql";
+} from "../../graphql/generated/react-query";
 
 export type TodoItem = NonNullable<GetMobileTodosQuery["todos"]>[number];
 

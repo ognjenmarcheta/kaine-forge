@@ -1,4 +1,4 @@
-import { resolveFeatureFlags } from "@repo/feature-flags";
+import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
 import { invalidateOrgScopedQueries, queryKeys } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
@@ -56,10 +56,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
 
-  const featureFlags = useMemo(
-    () => resolveFeatureFlags(import.meta.env as Record<string, string | undefined>),
-    []
-  );
+  const featureFlags = useMemo(() => resolveFeatureFlags(), []);
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),
@@ -120,7 +117,10 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     }
 
     const payload = organizationsQuery.data;
-    const rememberedOrganizationId = featureFlags.organizationsVisible
+    const rememberedOrganizationId = isFeatureEnabled(
+      FEATURE_FLAGS.ORGANIZATIONS_VISIBLE,
+      featureFlags
+    )
       ? readStoredOrganizationId()
       : null;
     const selectedOrganization = resolveOrganizationSelection({
@@ -141,18 +141,13 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     }
 
     writeStoredOrganizationId(preferredOrganizationId);
-  }, [
-    featureFlags.organizationsVisible,
-    organizationsQuery.data,
-    session,
-    setActiveOrganizationMutation
-  ]);
+  }, [featureFlags, organizationsQuery.data, session, setActiveOrganizationMutation]);
 
   const value = useMemo<OrganizationContextValue>(
     () => ({
       organizations,
       activeOrganizationId,
-      organizationsVisible: featureFlags.organizationsVisible,
+      organizationsVisible: isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags),
       isLoading:
         organizationsQuery.status === "pending" ||
         setActiveOrganizationMutation.status === "pending" ||
@@ -163,7 +158,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     [
       organizations,
       activeOrganizationId,
-      featureFlags.organizationsVisible,
+      featureFlags,
       organizationsQuery.status,
       setActiveOrganizationMutation.status,
       createOrganizationMutation.status,

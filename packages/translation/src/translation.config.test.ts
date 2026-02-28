@@ -5,8 +5,11 @@ import { translationInstance } from "./translation.config";
 describe("translation.config", () => {
   it("loads configured languages", () => {
     expect(translationInstance.hasResourceBundle("en", "common")).toBe(true);
+    expect(translationInstance.hasResourceBundle("en", "organizations")).toBe(true);
     expect(translationInstance.hasResourceBundle("sr", "common")).toBe(true);
+    expect(translationInstance.hasResourceBundle("sr", "organizations")).toBe(true);
     expect(translationInstance.hasResourceBundle("de", "common")).toBe(true);
+    expect(translationInstance.hasResourceBundle("de", "organizations")).toBe(true);
   });
 
   it("returns translated keys for known entries", async () => {

@@ -9,8 +9,24 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./primitives/sheet": {
+      "types": "./dist/components/primitives/sheet.d.ts",
+      "default": "./dist/components/primitives/sheet.js"
+    },
+    "./primitives/sidebar": {
+      "types": "./dist/components/primitives/sidebar.d.ts",
+      "default": "./dist/components/primitives/sidebar.js"
+    },
+    "./styles/globals.css": "./src/styles/globals.css"
   },
+  "sideEffects": [
+    "./src/styles/globals.css"
+  ],
+  "files": [
+    "dist",
+    "src/styles/globals.css"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",

@@ -9,6 +9,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./query.definition": {
+      "types": "./dist/query.definition.d.ts",
+      "default": "./dist/query.definition.js"
+    },
+    "./query.util": {
+      "types": "./dist/query.util.d.ts",
+      "default": "./dist/query.util.js"
     }
   },
   "scripts": {

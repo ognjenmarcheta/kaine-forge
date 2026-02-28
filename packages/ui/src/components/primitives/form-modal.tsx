@@ -20,6 +20,7 @@ export interface FormModalProps extends Pick<
   children: ReactNode;
   isSubmitting?: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  submittingLabel?: string;
   submitLabel: string;
 }
 
@@ -36,6 +37,7 @@ export function FormModal({
   open,
   showCloseButton,
   size,
+  submittingLabel,
   submitLabel,
   title
 }: FormModalProps) {
@@ -43,24 +45,24 @@ export function FormModal({
 
   return (
     <Modal
-      closeButtonLabel={closeButtonLabel}
-      closeOnEscape={closeOnEscape}
-      closeOnOverlayClick={closeOnOverlayClick}
-      description={description}
+      {...(closeButtonLabel ? { closeButtonLabel } : {})}
+      {...(closeOnEscape !== undefined ? { closeOnEscape } : {})}
+      {...(closeOnOverlayClick !== undefined ? { closeOnOverlayClick } : {})}
+      {...(description ? { description } : {})}
       footer={
         <div className="ui-modal__actions">
           <Button appearance="subtle" type="button" onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </Button>
           <Button disabled={isSubmitting} form={formId} type="submit">
-            {isSubmitting ? "..." : submitLabel}
+            {isSubmitting ? (submittingLabel ?? submitLabel) : submitLabel}
           </Button>
         </div>
       }
       onOpenChange={onOpenChange}
       open={open}
-      showCloseButton={showCloseButton}
-      size={size}
+      {...(showCloseButton !== undefined ? { showCloseButton } : {})}
+      {...(size ? { size } : {})}
       title={title}
     >
       <form

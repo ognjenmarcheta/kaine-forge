@@ -27,7 +27,9 @@ import { useTranslation } from "./hooks/use-translation";
 const THEME_OPTIONS = [
   { labelKey: "navigation.themeSystem", value: "system" },
   { labelKey: "navigation.themeLight", value: "light" },
-  { labelKey: "navigation.themeDark", value: "dark" }
+  { labelKey: "navigation.themeDark", value: "dark" },
+  { labelKey: "navigation.themeLightHighContrast", value: "light-high-contrast" },
+  { labelKey: "navigation.themeDarkHighContrast", value: "dark-high-contrast" }
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
@@ -69,6 +71,7 @@ function ShellLayout() {
     const currentRouteKey =
       ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
       "navigation.dashboard";
+    const activeTeamValue = activeOrganizationId ?? organizations[0]?.id;
     const breadcrumbItems = [
       {
         href: "/dashboard",
@@ -84,7 +87,7 @@ function ShellLayout() {
         header={
           <header className="flex h-16 shrink-0 items-center gap-[var(--ds-space-100)] border-b border-[var(--ds-border)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
-              <SidebarTrigger className="-ml-1" />
+              <SidebarTrigger className="-ml-1" label={t("navigation.toggleSidebar")} />
               <Separator
                 orientation="vertical"
                 className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
@@ -100,6 +103,9 @@ function ShellLayout() {
         }
         sidebar={
           <AppSidebar
+            mobileSheetCloseLabel={t("common.close")}
+            mobileSheetDescription={t("navigation.mobileSidebarDescription")}
+            mobileSheetTitle={t("navigation.sidebarTitle")}
             navMain={
               <NavMain
                 groupLabel={t("common.appName")}
@@ -136,7 +142,13 @@ function ShellLayout() {
                 theme={{
                   label: t("navigation.theme"),
                   onValueChange: (value) => {
-                    if (value === "dark" || value === "light" || value === "system") {
+                    if (
+                      value === "dark" ||
+                      value === "light" ||
+                      value === "system" ||
+                      value === "light-high-contrast" ||
+                      value === "dark-high-contrast"
+                    ) {
                       setThemeMode(value);
                     }
                   },
@@ -148,6 +160,7 @@ function ShellLayout() {
                 }}
               />
             }
+            railLabel={t("navigation.toggleSidebar")}
             teamSwitcher={
               organizationsVisible ? (
                 <TeamSwitcher
@@ -165,7 +178,7 @@ function ShellLayout() {
                     subtitle: t("navigation.organization"),
                     value: organization.id
                   }))}
-                  value={activeOrganizationId ?? organizations[0]?.id}
+                  {...(activeTeamValue ? { value: activeTeamValue } : {})}
                 />
               ) : null
             }

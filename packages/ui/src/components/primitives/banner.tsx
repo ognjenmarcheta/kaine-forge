@@ -25,12 +25,13 @@ const bannerVariants = cva(
 
 interface BannerProps
   extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof bannerVariants> {
+  dismissLabel?: string;
   icon?: React.ReactNode;
   onDismiss?: () => void;
 }
 
 const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
-  ({ className, appearance, icon, onDismiss, children, ...props }, ref) => (
+  ({ className, appearance, dismissLabel, icon, onDismiss, children, ...props }, ref) => (
     <div
       ref={ref}
       role="alert"
@@ -47,7 +48,7 @@ const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
           type="button"
           onClick={onDismiss}
           className="shrink-0 rounded-[var(--ds-radius-100)] p-1 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
-          aria-label="Dismiss"
+          aria-label={dismissLabel}
         >
           <X className="h-4 w-4" />
         </button>

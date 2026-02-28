@@ -11,6 +11,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      "@repo/ui/styles/globals.css": path.join(workspaceRoot, "packages/ui/src/styles/globals.css"),
       "@repo/auth": path.join(workspaceRoot, "packages/auth/src/index.ts"),
       "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),
       "@repo/query": path.join(workspaceRoot, "packages/query/src/index.ts"),

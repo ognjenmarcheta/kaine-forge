@@ -42,7 +42,7 @@ export function LoginForm() {
             className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
             keyboardType="email-address"
             placeholder={t("auth.form.emailPlaceholder")}
-            placeholderTextColor="#6b7280"
+            placeholderTextColor="var(--ds-text-subtlest)"
             value={email}
             onChangeText={setEmail}
           />
@@ -50,7 +50,7 @@ export function LoginForm() {
             autoComplete="password"
             className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
             placeholder={t("auth.form.passwordPlaceholder")}
-            placeholderTextColor="#6b7280"
+            placeholderTextColor="var(--ds-text-subtlest)"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -64,7 +64,7 @@ export function LoginForm() {
             }}
           >
             <Text className="font-medium text-ds-text-inverse">
-              {isSubmitting ? "..." : t("auth.login.title")}
+              {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
             </Text>
           </Pressable>
         </View>

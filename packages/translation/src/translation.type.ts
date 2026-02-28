@@ -1,1 +1,7 @@
-export type TranslationNamespace = "common" | "auth" | "navigation" | "dashboard" | "todos";
+export type TranslationNamespace =
+  | "common"
+  | "auth"
+  | "navigation"
+  | "dashboard"
+  | "todos"
+  | "organizations";

@@ -7,6 +7,7 @@ import { Pressable, Text, View } from "react-native";
 import { useAuth } from "../../src/hooks/use-auth";
 import { useTheme } from "../../src/hooks/use-theme";
 import { useTranslation } from "../../src/hooks/use-translation";
+import type { ThemeMode } from "../../src/stores/theme.store";
 
 function nextLanguage(current: string): string {
   const index = SUPPORTED_LANGUAGES.indexOf(current as (typeof SUPPORTED_LANGUAGES)[number]);
@@ -18,13 +19,21 @@ function nextLanguage(current: string): string {
   return SUPPORTED_LANGUAGES[(index + 1) % SUPPORTED_LANGUAGES.length] ?? SUPPORTED_LANGUAGES[0];
 }
 
-function nextTheme(current: "dark" | "light" | "system"): "dark" | "light" | "system" {
+function nextTheme(current: ThemeMode): ThemeMode {
   if (current === "system") {
     return "light";
   }
 
   if (current === "light") {
     return "dark";
+  }
+
+  if (current === "dark") {
+    return "light-high-contrast";
+  }
+
+  if (current === "light-high-contrast") {
+    return "dark-high-contrast";
   }
 
   return "system";

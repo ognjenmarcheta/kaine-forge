@@ -30,10 +30,12 @@
       "description": "Autofix lint issues"
     },
     "typecheck": {
-      "description": "Type-check workspace source"
+      "description": "Type-check workspace source",
+      "dependsOn": ["^build"]
     },
     "test": {
-      "description": "Run workspace tests"
+      "description": "Run workspace tests",
+      "dependsOn": ["^build"]
     },
     "clean": {
       "description": "Remove workspace build outputs",

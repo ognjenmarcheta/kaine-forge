@@ -4,16 +4,19 @@ import authDe from "./de/auth.json";
 import commonDe from "./de/common.json";
 import dashboardDe from "./de/dashboard.json";
 import navigationDe from "./de/navigation.json";
+import organizationsDe from "./de/organizations.json";
 import todosDe from "./de/todos.json";
 import authEn from "./en/auth.json";
 import commonEn from "./en/common.json";
 import dashboardEn from "./en/dashboard.json";
 import navigationEn from "./en/navigation.json";
+import organizationsEn from "./en/organizations.json";
 import todosEn from "./en/todos.json";
 import authSr from "./sr/auth.json";
 import commonSr from "./sr/common.json";
 import dashboardSr from "./sr/dashboard.json";
 import navigationSr from "./sr/navigation.json";
+import organizationsSr from "./sr/organizations.json";
 import todosSr from "./sr/todos.json";
 
 function sortedKeys(record: Record<string, unknown>): string[] {
@@ -25,6 +28,7 @@ const baseline = {
   common: sortedKeys(commonEn),
   dashboard: sortedKeys(dashboardEn),
   navigation: sortedKeys(navigationEn),
+  organizations: sortedKeys(organizationsEn),
   todos: sortedKeys(todosEn)
 };
 
@@ -34,6 +38,7 @@ describe("translation locale consistency", () => {
     expect(sortedKeys(commonSr)).toEqual(baseline.common);
     expect(sortedKeys(dashboardSr)).toEqual(baseline.dashboard);
     expect(sortedKeys(navigationSr)).toEqual(baseline.navigation);
+    expect(sortedKeys(organizationsSr)).toEqual(baseline.organizations);
     expect(sortedKeys(todosSr)).toEqual(baseline.todos);
   });
 
@@ -42,6 +47,7 @@ describe("translation locale consistency", () => {
     expect(sortedKeys(commonDe)).toEqual(baseline.common);
     expect(sortedKeys(dashboardDe)).toEqual(baseline.dashboard);
     expect(sortedKeys(navigationDe)).toEqual(baseline.navigation);
+    expect(sortedKeys(organizationsDe)).toEqual(baseline.organizations);
     expect(sortedKeys(todosDe)).toEqual(baseline.todos);
   });
 });

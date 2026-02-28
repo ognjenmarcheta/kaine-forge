@@ -4,10 +4,15 @@
   "navigation.organization": "Organization",
   "navigation.organizationCreate": "Create organization",
   "navigation.organizationName": "Organization name",
+  "navigation.mobileSidebarDescription": "Displays the mobile sidebar",
   "navigation.settings": "Settings",
+  "navigation.sidebarTitle": "Sidebar",
   "navigation.theme": "Theme",
   "navigation.themeDark": "Dark",
+  "navigation.themeDarkHighContrast": "Dark high contrast",
   "navigation.themeLight": "Light",
+  "navigation.themeLightHighContrast": "Light high contrast",
   "navigation.themeSystem": "System",
+  "navigation.toggleSidebar": "Toggle sidebar",
   "navigation.todos": "Todos"
 }

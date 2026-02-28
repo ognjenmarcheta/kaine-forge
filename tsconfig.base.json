@@ -2,13 +2,16 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
-    "module": "ESNext",
+    "module": "ES2022",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "declaration": true,
@@ -20,10 +23,15 @@
       "@repo/auth/*": ["packages/auth/src/*"],
       "@repo/config/*": ["packages/config/*"],
       "@repo/db": ["packages/db/src/index.ts"],
+      "@repo/db/*": ["packages/db/src/*"],
       "@repo/feature-flags": ["packages/feature-flags/src/index.ts"],
+      "@repo/feature-flags/*": ["packages/feature-flags/src/*"],
       "@repo/query": ["packages/query/src/index.ts"],
+      "@repo/query/*": ["packages/query/src/*"],
       "@repo/translation": ["packages/translation/src/index.ts"],
-      "@repo/ui": ["packages/ui/src/index.ts"]
+      "@repo/translation/*": ["packages/translation/src/*"],
+      "@repo/ui": ["packages/ui/src/index.ts"],
+      "@repo/ui/*": ["packages/ui/src/*"]
     }
   }
 }

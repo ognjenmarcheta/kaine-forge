@@ -60,7 +60,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
       {error ? <FieldError>{error}</FieldError> : null}
 
       <Button disabled={isSubmitting} type="submit">
-        {isSubmitting ? "..." : t("auth.login.title")}
+        {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
       </Button>
     </form>
   );

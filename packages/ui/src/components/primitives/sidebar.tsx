@@ -132,18 +132,26 @@ function SidebarProvider({
   );
 }
 
+type SidebarProps = React.ComponentProps<"div"> & {
+  collapsible?: "offcanvas" | "icon" | "none";
+  mobileSheetCloseLabel?: string;
+  mobileSheetDescription?: string;
+  mobileSheetTitle?: string;
+  side?: "left" | "right";
+  variant?: "sidebar" | "floating" | "inset";
+};
+
 function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  mobileSheetCloseLabel,
+  mobileSheetDescription,
+  mobileSheetTitle,
   className,
   children,
   ...props
-}: React.ComponentProps<"div"> & {
-  side?: "left" | "right";
-  variant?: "sidebar" | "floating" | "inset";
-  collapsible?: "offcanvas" | "icon" | "none";
-}) {
+}: SidebarProps) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
   if (collapsible === "none") {
@@ -165,6 +173,7 @@ function Sidebar({
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
+          {...(mobileSheetCloseLabel ? { closeLabel: mobileSheetCloseLabel } : {})}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
@@ -177,8 +186,10 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            {mobileSheetTitle ? <SheetTitle>{mobileSheetTitle}</SheetTitle> : null}
+            {mobileSheetDescription ? (
+              <SheetDescription>{mobileSheetDescription}</SheetDescription>
+            ) : null}
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -232,7 +243,12 @@ function Sidebar({
   );
 }
 
-function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<"button">) {
+function SidebarTrigger({
+  className,
+  label,
+  onClick,
+  ...props
+}: React.ComponentProps<"button"> & { label?: string }) {
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -252,12 +268,17 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<"
       {...props}
     >
       <PanelLeftIcon className="size-4" />
-      <span className="sr-only">Toggle Sidebar</span>
+      {label ? <span className="sr-only">{label}</span> : null}
     </button>
   );
 }
 
-function SidebarRail({ className, onClick, ...props }: React.ComponentProps<"button">) {
+function SidebarRail({
+  className,
+  label,
+  onClick,
+  ...props
+}: React.ComponentProps<"button"> & { label?: string }) {
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -265,9 +286,9 @@ function SidebarRail({ className, onClick, ...props }: React.ComponentProps<"but
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label={label}
       tabIndex={-1}
-      title="Toggle Sidebar"
+      title={label}
       type="button"
       className={cn(
         "hover:after:bg-[var(--ds-border)] absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 border-0 bg-transparent p-0 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
