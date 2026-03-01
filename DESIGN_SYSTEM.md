@@ -65,7 +65,7 @@ Accessibility is baked into foundations, not bolted on after. Tokens are designe
 
 ### 1.6 — Adaptable
 
-The system must work across color modes (light, dark, high contrast), viewport sizes (mobile through ultrawide), input methods (pointer, touch, keyboard), and platforms (web, desktop via Tauri, mobile via Expo). Tokens and patterns are designed to flex without breaking.
+The system must work across color modes (light, dark), viewport sizes (mobile through ultrawide), input methods (pointer, touch, keyboard), and platforms (web, desktop via Tauri, mobile via Expo). Tokens and patterns are designed to flex without breaking.
 
 ### 1.7 — Token-first
 
@@ -583,7 +583,7 @@ These rules ensure readability and visual harmony:
 2. **Bold backgrounds always pair with inverse text.** Never place semantic foreground colors on bold backgrounds — use `--ds-text-inverse` instead.
 3. **Subtle text (`--ds-text-subtle`) only pairs with default or subtle surfaces.** Never combine muted text with colored backgrounds.
 4. **Never use color alone to convey meaning.** Always pair with text labels, icons, or patterns.
-5. **Minimum contrast ratios:** Normal text ≥ 4.5:1, large text ≥ 3:1, interactive elements ≥ 3:1 against adjacent colors. High-contrast themes target ≥ 7:1.
+5. **Minimum contrast ratios:** Normal text ≥ 4.5:1, large text ≥ 3:1, interactive elements ≥ 3:1 against adjacent colors.
 6. **Don't use accents for semantic meaning.** If something represents "success", use `*.success` tokens, not `*.accent.green`.
 
 ### 3.13 — Color in Tailwind
@@ -991,13 +991,11 @@ A theme is a collection of token values designed to achieve a look or style. Swi
 
 ### 8.1 — Available Themes
 
-| Theme               | Attribute                          | Description                                              |
-| ------------------- | ---------------------------------- | -------------------------------------------------------- |
-| Light               | `data-theme="light"`               | Default. White/light surfaces.                           |
-| Dark                | `data-theme="dark"`                | Dark surfaces, light text.                               |
-| Light High Contrast | `data-theme="light-high-contrast"` | High-contrast light mode for increased readability.      |
-| Dark High Contrast  | `data-theme="dark-high-contrast"`  | High-contrast dark mode for increased readability.       |
-| System              | Resolved at runtime                | Matches OS preference and resolves to `light` or `dark`. |
+| Theme  | Attribute            | Description                                              |
+| ------ | -------------------- | -------------------------------------------------------- |
+| Light  | `data-theme="light"` | Default. White/light surfaces.                           |
+| Dark   | `data-theme="dark"`  | Dark surfaces, light text.                               |
+| System | Resolved at runtime  | Matches OS preference and resolves to `light` or `dark`. |
 
 ### 8.2 — Theme Application
 
@@ -1012,7 +1010,7 @@ The active theme is set on the `<html>` element:
 The Zustand `theme.store.ts` manages theme selection:
 
 ```ts
-type ThemeMode = "light" | "dark" | "system" | "light-high-contrast" | "dark-high-contrast";
+type ThemeMode = "light" | "dark" | "system";
 
 const useThemeStore = create(
   persist(
@@ -1025,7 +1023,7 @@ const useThemeStore = create(
 );
 ```
 
-The `ThemeProvider` resolves `"system"` by listening to `window.matchMedia('(prefers-color-scheme: dark)')` and applies the final mode (`light`, `dark`, `light-high-contrast`, or `dark-high-contrast`) to `document.documentElement.dataset.theme`.
+The `ThemeProvider` resolves `"system"` by listening to `window.matchMedia('(prefers-color-scheme: dark)')` and applies the final mode (`light` or `dark`) to `document.documentElement.dataset.theme`.
 
 ### 8.4 — Dark Mode Surface Behavior
 
@@ -1040,15 +1038,11 @@ Overlay: #282E33  (lightest)
 
 This compensates for the fact that shadows are much harder to see on dark backgrounds. The combination of lighter surface + shadow creates sufficient visual separation.
 
-### 8.5 — High Contrast
-
-High-contrast variants are implemented via `[data-theme="light-high-contrast"]` and `[data-theme="dark-high-contrast"]` layers that override functional tokens to increase contrast ratios. This adjusts scale steps rather than redefining token references.
-
-### 8.6 — Color Vision Deficiency Support (Future Enhancement)
+### 8.5 — Color Vision Deficiency Support (Future Enhancement)
 
 CVD-friendly themes (protanopia/deuteranopia, tritanopia) can be layered by redefining the chromatic base scales — swapping green for blue, red for orange, etc. — while keeping all functional token references unchanged. The scales themselves change, not the semantic mapping.
 
-### 8.7 — Custom Theme Variables
+### 8.6 — Custom Theme Variables
 
 When you need colors beyond the token set, scope them to `data-theme`:
 
@@ -1066,7 +1060,7 @@ When you need colors beyond the token set, scope them to `data-theme`:
 
 Use this sparingly. Prefer official tokens whenever possible.
 
-### 8.8 — Theme Token Values (Light & Dark)
+### 8.7 — Theme Token Values (Light & Dark)
 
 ```css
 :root,
@@ -1541,7 +1535,6 @@ Accessibility is built into the token system, component primitives, and UI patte
 | Normal text (< 18px)     | 4.5:1         | WCAG 1.4.3 AA  |
 | Large text (≥ 18px)      | 3:1           | WCAG 1.4.3 AA  |
 | UI components & graphics | 3:1           | WCAG 1.4.11 AA |
-| High-contrast themes     | 7:1           | AAA target     |
 
 All `--ds-*` tokens are designed to meet these ratios in both light and dark themes. Accent colors on `subtlest` backgrounds are paired with accent borders to meet the 3:1 non-text contrast requirement.
 

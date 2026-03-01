@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type ThemeMode = "dark" | "light" | "system" | "light-high-contrast" | "dark-high-contrast";
+export type ThemeMode = "dark" | "light" | "system";
 
 interface ThemeStore {
   setThemeMode: (mode: ThemeMode) => void;

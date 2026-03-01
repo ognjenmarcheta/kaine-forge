@@ -29,14 +29,6 @@ function nextTheme(current: ThemeMode): ThemeMode {
     return "dark";
   }
 
-  if (current === "dark") {
-    return "light-high-contrast";
-  }
-
-  if (current === "light-high-contrast") {
-    return "dark-high-contrast";
-  }
-
   return "system";
 }
 

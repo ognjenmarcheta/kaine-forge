@@ -76,28 +76,25 @@ describe("monorepo alignment", () => {
     ]);
   });
 
-  it("defines token base layer and high-contrast theme selectors", () => {
+  it("defines token base layer with light and dark themes", () => {
     const globalsCss = readText("packages/ui/src/styles/globals.css");
 
     expect(globalsCss).toContain("--ds-base-");
-    expect(globalsCss).toContain(':root[data-theme="light-high-contrast"]');
-    expect(globalsCss).toContain(':root[data-theme="dark-high-contrast"]');
+    expect(globalsCss).toContain(':root[data-theme="dark"]');
+    expect(globalsCss).not.toContain(':root[data-theme="light-high-contrast"]');
+    expect(globalsCss).not.toContain(':root[data-theme="dark-high-contrast"]');
   });
 
   it("documents implemented theme modes consistently across guides", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
     const designSystem = readText("DESIGN_SYSTEM.md");
 
-    expect(monorepoGuide).toContain(
-      "Implemented modes: `light`, `dark`, `light-high-contrast`, `dark-high-contrast`."
-    );
-    expect(monorepoGuide).not.toContain("Two modes: `light` and `dark`");
+    expect(monorepoGuide).toContain("Implemented modes: `light`, `dark`.");
+    expect(monorepoGuide).not.toContain("light-high-contrast");
+    expect(monorepoGuide).not.toContain("dark-high-contrast");
 
-    expect(designSystem).toContain('data-theme="light-high-contrast"');
-    expect(designSystem).toContain('data-theme="dark-high-contrast"');
-    expect(designSystem).toContain('"light-high-contrast"');
-    expect(designSystem).toContain('"dark-high-contrast"');
-    expect(designSystem).not.toContain("### 8.5 — High Contrast (Future Enhancement)");
+    expect(designSystem).not.toContain("light-high-contrast");
+    expect(designSystem).not.toContain("dark-high-contrast");
   });
 
   it("keeps GraphQL SDL naming guidance consistent", () => {

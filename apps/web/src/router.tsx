@@ -27,9 +27,7 @@ import { useTranslation } from "./hooks/use-translation";
 const THEME_OPTIONS = [
   { labelKey: "navigation.themeSystem", value: "system" },
   { labelKey: "navigation.themeLight", value: "light" },
-  { labelKey: "navigation.themeDark", value: "dark" },
-  { labelKey: "navigation.themeLightHighContrast", value: "light-high-contrast" },
-  { labelKey: "navigation.themeDarkHighContrast", value: "dark-high-contrast" }
+  { labelKey: "navigation.themeDark", value: "dark" }
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
@@ -142,13 +140,7 @@ function ShellLayout() {
                 theme={{
                   label: t("navigation.theme"),
                   onValueChange: (value) => {
-                    if (
-                      value === "dark" ||
-                      value === "light" ||
-                      value === "system" ||
-                      value === "light-high-contrast" ||
-                      value === "dark-high-contrast"
-                    ) {
+                    if (value === "dark" || value === "light" || value === "system") {
                       setThemeMode(value);
                     }
                   },

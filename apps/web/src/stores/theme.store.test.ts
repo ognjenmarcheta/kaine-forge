@@ -52,27 +52,4 @@ describe("theme.store", () => {
     expect(stored).toBeDefined();
     expect(stored).toContain('"themeMode":"dark"');
   });
-
-  it("accepts and persists high-contrast theme modes", async () => {
-    const { useThemeStore } = await import("./theme.store");
-
-    useThemeStore.getState().setThemeMode("light-high-contrast");
-
-    expect(useThemeStore.getState().themeMode).toBe("light-high-contrast");
-
-    const stored = localStorageMap.get("kaine.theme.mode");
-    expect(stored).toBeDefined();
-    expect(stored).toContain('"themeMode":"light-high-contrast"');
-  });
-
-  it("hydrates high-contrast theme mode from localStorage", async () => {
-    localStorageMap.set(
-      "kaine.theme.mode",
-      JSON.stringify({ state: { themeMode: "dark-high-contrast" }, version: 0 })
-    );
-
-    const { useThemeStore } = await import("./theme.store");
-
-    expect(useThemeStore.getState().themeMode).toBe("dark-high-contrast");
-  });
 });

@@ -399,11 +399,11 @@ Use the Tailwind preset from `@repo/config/tailwind/preset.js`. It maps all `--d
 
 ### 9.6 — Theming
 
-Themes are applied via `data-theme` attribute on `<html>`. Implemented modes: `light`, `dark`, `light-high-contrast`, `dark-high-contrast`. The `system` preference mode resolves at runtime to `light` or `dark`.
+Themes are applied via `data-theme` attribute on `<html>`. Implemented modes: `light`, `dark`. The `system` preference mode resolves at runtime to `light` or `dark`.
 
 ```html
 <html data-theme="light">
-  <!-- or "dark", "light-high-contrast", "dark-high-contrast" -->
+  <!-- or "dark" -->
 </html>
 ```
 
