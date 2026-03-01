@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS, useFeatureFlag } from "@repo/feature-flags";
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import { Redirect } from "expo-router";
 import { Drawer } from "expo-router/drawer";
@@ -43,6 +44,7 @@ export default function AppLayout() {
   const { isLoading, logout, session } = useAuth();
   const { language, setLanguage, t } = useTranslation();
   const { setThemeMode, themeMode } = useTheme();
+  const isOrganizationsVisible = useFeatureFlag(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE);
 
   const headerTitle = useMemo(() => t("navigation.dashboard"), [t]);
 
@@ -108,6 +110,15 @@ export default function AppLayout() {
           title: t("navigation.todos")
         }}
       />
+      {isOrganizationsVisible ? (
+        <Drawer.Screen
+          name="members"
+          options={{
+            drawerLabel: t("navigation.members"),
+            title: t("navigation.members")
+          }}
+        />
+      ) : null}
     </Drawer>
   );
 }
