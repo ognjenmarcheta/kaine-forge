@@ -1,12 +1,6 @@
-export interface OrganizationOption {
-  id: string;
-  name: string;
-}
+import type { OrganizationOption, ResolveOrganizationSelectionInput } from "./organizations.type";
 
-interface ResolveOrganizationSelectionInput {
-  organizations: OrganizationOption[];
-  rememberedOrganizationId: string | null;
-}
+export type { OrganizationOption };
 
 export function resolveOrganizationSelection(
   input: ResolveOrganizationSelectionInput

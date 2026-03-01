@@ -126,6 +126,9 @@ Every file in a feature module follows: `{feature-name}.{purpose}.{ext}`
 | `.definition.ts` | Constants, enums, magic strings — the ONE allowed place for hardcoded values | `todos.definition.ts`   |
 | `.validator.ts`  | Zod schemas and validation logic                                             | `todos.validator.ts`    |
 | `.store.ts`      | Zustand store                                                                | `sidebar.store.ts`      |
+| `.hook.ts`       | React hooks (custom feature hooks)                                           | `feature-flags.hook.ts` |
+| `.server.ts`     | Server-side entry point / logic                                              | `auth.server.ts`        |
+| `.client.ts`     | Client-side entry point / logic                                              | `auth.client.ts`        |
 | `.test.ts`       | Unit/integration tests                                                       | `todos.adapter.test.ts` |
 | `.graphql`       | GraphQL operation documents                                                  | `todos.graphql`         |
 
