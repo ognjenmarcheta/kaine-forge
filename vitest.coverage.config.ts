@@ -8,6 +8,7 @@ export default defineConfig({
       "apps/web",
       "packages/auth",
       "packages/db",
+      "packages/logger",
       "packages/translation",
       "packages/ui"
     ],

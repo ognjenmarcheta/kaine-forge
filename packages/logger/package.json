@@ -1,0 +1,49 @@
+{
+  "name": "@repo/logger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./logger.definition": {
+      "types": "./dist/logger.definition.d.ts",
+      "default": "./dist/logger.definition.js"
+    },
+    "./logger.config": {
+      "types": "./dist/logger.config.d.ts",
+      "default": "./dist/logger.config.js"
+    },
+    "./logger.type": {
+      "types": "./dist/logger.type.d.ts",
+      "default": "./dist/logger.type.js"
+    },
+    "./logger.util": {
+      "types": "./dist/logger.util.d.ts",
+      "default": "./dist/logger.util.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.0.0"
+  }
+}

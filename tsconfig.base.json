@@ -29,6 +29,8 @@
       "@repo/db/*": ["packages/db/src/*"],
       "@repo/feature-flags": ["packages/feature-flags/src/index.ts"],
       "@repo/feature-flags/*": ["packages/feature-flags/src/*"],
+      "@repo/logger": ["packages/logger/src/index.ts"],
+      "@repo/logger/*": ["packages/logger/src/*"],
       "@repo/query": ["packages/query/src/index.ts"],
       "@repo/query/*": ["packages/query/src/*"],
       "@repo/translation": ["packages/translation/src/index.ts"],

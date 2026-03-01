@@ -7,6 +7,7 @@ export default defineWorkspace([
   "apps/web",
   "packages/auth",
   "packages/config",
+  "packages/logger",
   "packages/db",
   "packages/query",
   "packages/translation",

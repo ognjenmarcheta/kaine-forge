@@ -1,7 +1,11 @@
+import { createLogger } from "@repo/logger";
+
 import { pool } from "../client";
 import { ensureOwnerMembership, ensurePersonalOrganization } from "./organizations.seed";
 import { getSeedUser } from "./users.seed";
 import { seedUsers } from "./users.seed";
+
+const logger = createLogger({ name: "db-seed" });
 
 async function run(): Promise<void> {
   await seedUsers();
@@ -12,7 +16,7 @@ async function run(): Promise<void> {
 }
 
 run().catch(async (error) => {
-  console.error("db seed failed", error);
+  logger.error({ err: error }, "db seed failed");
   await pool.end();
   process.exitCode = 1;
 });

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createLogger } from "@repo/logger";
 import { queryKeys, resetAuthBoundQueries } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
@@ -6,6 +7,8 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
 import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
+
+const logger = createLogger({ name: "mobile-auth" });
 
 async function getStoredSession(storageKey: string): Promise<AuthSession | null> {
   const raw = await AsyncStorage.getItem(storageKey);
@@ -47,9 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         return await fetchSession(storedSession);
       } catch (error) {
-        if (__DEV__) {
-          console.warn("auth session refresh failed", error);
-        }
+        logger.warn({ err: error }, "auth session refresh failed");
 
         return storedSession;
       }
@@ -105,9 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await logoutMutation.mutateAsync(session);
     } catch (error) {
-      if (__DEV__) {
-        console.warn("auth logout request failed", error);
-      }
+      logger.warn({ err: error }, "auth logout request failed");
     }
 
     resetAuthBoundQueries(queryClient);

@@ -1,8 +1,11 @@
+import { createLogger } from "@repo/logger";
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
 
 config({ path: fileURLToPath(new URL("../../../../.env", import.meta.url)) });
+
+const logger = createLogger({ name: "db-ensure" });
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -37,15 +40,15 @@ async function run(): Promise<void> {
     );
 
     if (existingDatabase.rowCount && existingDatabase.rows[0]?.exists === 1) {
-      console.log(`database "${databaseName}" already exists`);
+      logger.info({ databaseName }, "database already exists");
       return;
     }
 
     await pool.query(`create database ${quoteIdentifier(databaseName)}`);
-    console.log(`created database "${databaseName}"`);
+    logger.info({ databaseName }, "created database");
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "42P04") {
-      console.log(`database "${databaseName}" already exists`);
+      logger.info({ databaseName }, "database already exists");
       return;
     }
 
@@ -56,6 +59,6 @@ async function run(): Promise<void> {
 }
 
 run().catch((error) => {
-  console.error("db ensure failed", error);
+  logger.error({ err: error }, "db ensure failed");
   process.exitCode = 1;
 });
