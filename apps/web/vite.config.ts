@@ -26,7 +26,8 @@ export default defineConfig({
         target: apiProxyTarget
       },
       "/graphql": {
-        target: apiProxyTarget
+        target: apiProxyTarget,
+        ws: true
       }
     }
   }
