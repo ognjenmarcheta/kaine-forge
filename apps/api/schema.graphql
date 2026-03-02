@@ -17,6 +17,10 @@ type Mutation {
 
 type Subscription {
   _empty: Boolean
+  todoCreated: Todo!
+  todoUpdated: Todo!
+  todoDeleted: TodoDeletedPayload!
+  todoToggled: Todo!
 }
 
 type Organization {
@@ -55,4 +59,9 @@ input UpdateTodoInput {
   title: String
   description: String
   completed: Boolean
+}
+
+type TodoDeletedPayload {
+  id: ID!
+  organizationId: ID!
 }

@@ -1,3 +1,5 @@
+import { filter, pipe } from "graphql-yoga";
+
 import {
   createTodo,
   deleteTodo,
@@ -44,32 +46,100 @@ export const todosResolvers = {
       const activeOrganizationId = requireActiveOrganizationId(ctx);
       const input = args.input as CreateTodoInput;
 
-      return createTodo(user.id, activeOrganizationId, {
+      const result = await createTodo(user.id, activeOrganizationId, {
         title: ensureTodoTitle(input.title),
         description: parseOptionalDescription(input.description ?? null)
       });
+
+      ctx.pubsub.publish("todo:created", result);
+      return result;
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
       const user = requireUser(ctx);
       const activeOrganizationId = requireActiveOrganizationId(ctx);
       const input = args.input as UpdateTodoInput;
 
-      return updateTodo(
+      const result = await updateTodo(
         user.id,
         activeOrganizationId,
         args.id,
         applyTodoPatch(input as UpdateTodoInput & Record<string, unknown>)
       );
+
+      ctx.pubsub.publish("todo:updated", result);
+      return result;
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const user = requireUser(ctx);
       const activeOrganizationId = requireActiveOrganizationId(ctx);
-      return deleteTodo(user.id, activeOrganizationId, args.id);
+      const result = await deleteTodo(user.id, activeOrganizationId, args.id);
+
+      if (result) {
+        ctx.pubsub.publish("todo:deleted", {
+          id: args.id,
+          organizationId: activeOrganizationId
+        });
+      }
+
+      return result;
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const user = requireUser(ctx);
       const activeOrganizationId = requireActiveOrganizationId(ctx);
-      return toggleTodo(user.id, activeOrganizationId, args.id);
+      const result = await toggleTodo(user.id, activeOrganizationId, args.id);
+
+      ctx.pubsub.publish("todo:toggled", result);
+      return result;
+    }
+  },
+  Subscription: {
+    todoCreated: {
+      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+        const organizationId = requireActiveOrganizationId(ctx);
+        return pipe(
+          ctx.pubsub.subscribe("todo:created"),
+          filter((payload) => payload.organizationId === organizationId)
+        );
+      },
+      resolve(payload: unknown) {
+        return payload;
+      }
+    },
+    todoUpdated: {
+      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+        const organizationId = requireActiveOrganizationId(ctx);
+        return pipe(
+          ctx.pubsub.subscribe("todo:updated"),
+          filter((payload) => payload.organizationId === organizationId)
+        );
+      },
+      resolve(payload: unknown) {
+        return payload;
+      }
+    },
+    todoDeleted: {
+      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+        const organizationId = requireActiveOrganizationId(ctx);
+        return pipe(
+          ctx.pubsub.subscribe("todo:deleted"),
+          filter((payload) => payload.organizationId === organizationId)
+        );
+      },
+      resolve(payload: unknown) {
+        return payload;
+      }
+    },
+    todoToggled: {
+      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+        const organizationId = requireActiveOrganizationId(ctx);
+        return pipe(
+          ctx.pubsub.subscribe("todo:toggled"),
+          filter((payload) => payload.organizationId === organizationId)
+        );
+      },
+      resolve(payload: unknown) {
+        return payload;
+      }
     }
   }
 };

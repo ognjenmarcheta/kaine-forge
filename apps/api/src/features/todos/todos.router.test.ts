@@ -1,3 +1,4 @@
+import { createPubSub } from "graphql-yoga";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./todos.adapter", () => ({
@@ -11,8 +12,11 @@ vi.mock("./todos.adapter", () => ({
 
 import * as todosAdapter from "./todos.adapter";
 import { todosResolvers } from "./todos.router";
+import type { PubSubEventMap } from "../../pubsub";
 
 describe("todos.router", () => {
+  const testPubsub = createPubSub<PubSubEventMap>();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -70,7 +74,7 @@ describe("todos.router", () => {
           title: "  New Todo  "
         }
       },
-      { activeOrganizationId: "org-1", user: { id: "user-1" } } as never
+      { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
     );
 
     expect(todosAdapter.createTodo).toHaveBeenCalledWith("user-1", "org-1", {
@@ -101,7 +105,7 @@ describe("todos.router", () => {
           title: "  Edited title  "
         }
       },
-      { activeOrganizationId: "org-1", user: { id: "user-1" } } as never
+      { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
     );
 
     expect(todosAdapter.updateTodo).toHaveBeenCalledWith("user-1", "org-1", "todo-1", {

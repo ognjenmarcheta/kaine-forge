@@ -33,4 +33,16 @@ export const todosTypeDefs = /* GraphQL */ `
     deleteTodo(id: ID!): Boolean!
     toggleTodo(id: ID!): Todo!
   }
+
+  type TodoDeletedPayload {
+    id: ID!
+    organizationId: ID!
+  }
+
+  extend type Subscription {
+    todoCreated: Todo!
+    todoUpdated: Todo!
+    todoDeleted: TodoDeletedPayload!
+    todoToggled: Todo!
+  }
 `;
