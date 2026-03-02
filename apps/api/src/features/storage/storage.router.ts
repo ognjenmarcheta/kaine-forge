@@ -8,6 +8,7 @@ import {
   resolveStorageConfig,
   validateFile
 } from "@repo/storage";
+import type { StorageConfig } from "@repo/storage";
 import { randomUUID } from "node:crypto";
 
 import { createFileRecord, getFileById, listFiles, updateFileStatus } from "./storage.adapter";
@@ -16,8 +17,22 @@ import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 import type { ApiContext } from "../../context";
 import { requireActiveOrganizationId, requireUser } from "../../middleware/auth.middleware";
 
-const storageConfig = resolveStorageConfig();
-const s3 = createStorageClient(storageConfig);
+let _storageConfig: StorageConfig | null = null;
+let _s3: ReturnType<typeof createStorageClient> | null = null;
+
+function getStorageConfig(): StorageConfig {
+  if (!_storageConfig) {
+    _storageConfig = resolveStorageConfig();
+  }
+  return _storageConfig;
+}
+
+function getS3Client(): ReturnType<typeof createStorageClient> {
+  if (!_s3) {
+    _s3 = createStorageClient(getStorageConfig());
+  }
+  return _s3;
+}
 
 type ResolverContext = ApiContext;
 
@@ -65,7 +80,7 @@ export const storageResolvers = {
       const file = await createFileRecord({
         id: fileId,
         key,
-        bucket: storageConfig.bucket,
+        bucket: getStorageConfig().bucket,
         originalName: input.originalName,
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
@@ -76,11 +91,11 @@ export const storageResolvers = {
       });
 
       const presigned = await generatePresignedUploadUrl(
-        s3,
-        storageConfig.bucket,
+        getS3Client(),
+        getStorageConfig().bucket,
         key,
         input.mimeType,
-        storageConfig.presignedUrlExpirySeconds
+        getStorageConfig().presignedUrlExpirySeconds
       );
 
       return {
@@ -104,7 +119,7 @@ export const storageResolvers = {
         throw new Error(`file status is ${file.status}, expected pending`);
       }
 
-      const exists = await objectExists(s3, storageConfig.bucket, file.key);
+      const exists = await objectExists(getS3Client(), getStorageConfig().bucket, file.key);
 
       if (!exists) {
         throw new Error("file has not been uploaded to storage");
@@ -123,7 +138,7 @@ export const storageResolvers = {
       }
 
       try {
-        await deleteObject(s3, storageConfig.bucket, file.key);
+        await deleteObject(getS3Client(), getStorageConfig().bucket, file.key);
       } catch (err) {
         ctx.logger.warn({ err, fileId: file.id, key: file.key }, "failed to delete object from S3");
       }
@@ -139,10 +154,10 @@ export const storageResolvers = {
       }
 
       const result = await generatePresignedDownloadUrl(
-        s3,
-        storageConfig.bucket,
+        getS3Client(),
+        getStorageConfig().bucket,
         parent.key,
-        storageConfig.presignedUrlExpirySeconds
+        getStorageConfig().presignedUrlExpirySeconds
       );
 
       return result.url;
