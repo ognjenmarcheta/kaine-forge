@@ -1,0 +1,51 @@
+{
+  "name": "@repo/storage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./storage.definition": {
+      "types": "./dist/storage.definition.d.ts",
+      "default": "./dist/storage.definition.js"
+    },
+    "./storage.config": {
+      "types": "./dist/storage.config.d.ts",
+      "default": "./dist/storage.config.js"
+    },
+    "./storage.type": {
+      "types": "./dist/storage.type.d.ts",
+      "default": "./dist/storage.type.js"
+    },
+    "./storage.client": {
+      "types": "./dist/storage.client.d.ts",
+      "default": "./dist/storage.client.js"
+    },
+    "./storage.util": {
+      "types": "./dist/storage.util.d.ts",
+      "default": "./dist/storage.util.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0"
+  }
+}
