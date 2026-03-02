@@ -88,6 +88,15 @@ export type QueryTodosArgs = {
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
+export type Subscription = {
+  __typename?: "Subscription";
+  _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  todoCreated: Todo;
+  todoDeleted: TodoDeletedPayload;
+  todoToggled: Todo;
+  todoUpdated: Todo;
+};
+
 export type Todo = {
   __typename?: "Todo";
   completed: Scalars["Boolean"]["output"];
@@ -97,6 +106,12 @@ export type Todo = {
   organizationId: Scalars["ID"]["output"];
   title: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
+};
+
+export type TodoDeletedPayload = {
+  __typename?: "TodoDeletedPayload";
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
 };
 
 export type UpdateTodoInput = {
@@ -171,6 +186,58 @@ export type ToggleTodoMutationVariables = Exact<{
 export type ToggleTodoMutation = {
   __typename?: "Mutation";
   toggleTodo: { __typename?: "Todo"; id: string; completed: boolean };
+};
+
+export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoCreatedSubscription = {
+  __typename?: "Subscription";
+  todoCreated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoUpdatedSubscription = {
+  __typename?: "Subscription";
+  todoUpdated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoDeletedSubscription = {
+  __typename?: "Subscription";
+  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
+};
+
+export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoToggledSubscription = {
+  __typename?: "Subscription";
+  todoToggled: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
 };
 
 export const HealthDocument = `
@@ -322,3 +389,48 @@ export const useToggleTodoMutation = <TError = unknown, TContext = unknown>(
 };
 
 useToggleTodoMutation.getKey = () => ["ToggleTodo"];
+
+export const OnTodoCreatedDocument = `
+    subscription OnTodoCreated {
+  todoCreated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export const OnTodoUpdatedDocument = `
+    subscription OnTodoUpdated {
+  todoUpdated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export const OnTodoDeletedDocument = `
+    subscription OnTodoDeleted {
+  todoDeleted {
+    id
+    organizationId
+  }
+}
+    `;
+export const OnTodoToggledDocument = `
+    subscription OnTodoToggled {
+  todoToggled {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+    `;

@@ -45,3 +45,43 @@ mutation ToggleMobileTodo($id: ID!) {
     updatedAt
   }
 }
+
+subscription OnMobileTodoCreated {
+  todoCreated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+subscription OnMobileTodoUpdated {
+  todoUpdated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+subscription OnMobileTodoDeleted {
+  todoDeleted {
+    id
+    organizationId
+  }
+}
+
+subscription OnMobileTodoToggled {
+  todoToggled {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}

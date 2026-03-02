@@ -88,6 +88,15 @@ export type QueryTodosArgs = {
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
+export type Subscription = {
+  __typename?: "Subscription";
+  _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  todoCreated: Todo;
+  todoDeleted: TodoDeletedPayload;
+  todoToggled: Todo;
+  todoUpdated: Todo;
+};
+
 export type Todo = {
   __typename?: "Todo";
   completed: Scalars["Boolean"]["output"];
@@ -97,6 +106,12 @@ export type Todo = {
   organizationId: Scalars["ID"]["output"];
   title: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
+};
+
+export type TodoDeletedPayload = {
+  __typename?: "TodoDeletedPayload";
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
 };
 
 export type UpdateTodoInput = {
@@ -171,6 +186,58 @@ export type ToggleTodoMutationVariables = Exact<{
 export type ToggleTodoMutation = {
   __typename?: "Mutation";
   toggleTodo: { __typename?: "Todo"; id: string; completed: boolean };
+};
+
+export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoCreatedSubscription = {
+  __typename?: "Subscription";
+  todoCreated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoUpdatedSubscription = {
+  __typename?: "Subscription";
+  todoUpdated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoDeletedSubscription = {
+  __typename?: "Subscription";
+  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
+};
+
+export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnTodoToggledSubscription = {
+  __typename?: "Subscription";
+  todoToggled: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
 };
 
 export const HealthDocument = {
@@ -423,3 +490,119 @@ export const ToggleTodoDocument = {
     }
   ]
 } as unknown as DocumentNode<ToggleTodoMutation, ToggleTodoMutationVariables>;
+export const OnTodoCreatedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnTodoCreated" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoCreated" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OnTodoCreatedSubscription, OnTodoCreatedSubscriptionVariables>;
+export const OnTodoUpdatedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnTodoUpdated" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoUpdated" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OnTodoUpdatedSubscription, OnTodoUpdatedSubscriptionVariables>;
+export const OnTodoDeletedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnTodoDeleted" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoDeleted" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "organizationId" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OnTodoDeletedSubscription, OnTodoDeletedSubscriptionVariables>;
+export const OnTodoToggledDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnTodoToggled" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoToggled" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OnTodoToggledSubscription, OnTodoToggledSubscriptionVariables>;

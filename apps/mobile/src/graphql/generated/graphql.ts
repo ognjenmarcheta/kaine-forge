@@ -88,6 +88,15 @@ export type QueryTodosArgs = {
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
+export type Subscription = {
+  __typename?: "Subscription";
+  _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  todoCreated: Todo;
+  todoDeleted: TodoDeletedPayload;
+  todoToggled: Todo;
+  todoUpdated: Todo;
+};
+
 export type Todo = {
   __typename?: "Todo";
   completed: Scalars["Boolean"]["output"];
@@ -97,6 +106,12 @@ export type Todo = {
   organizationId: Scalars["ID"]["output"];
   title: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
+};
+
+export type TodoDeletedPayload = {
+  __typename?: "TodoDeletedPayload";
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
 };
 
 export type UpdateTodoInput = {
@@ -175,6 +190,58 @@ export type ToggleMobileTodoMutationVariables = Exact<{
 export type ToggleMobileTodoMutation = {
   __typename?: "Mutation";
   toggleTodo: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnMobileTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnMobileTodoCreatedSubscription = {
+  __typename?: "Subscription";
+  todoCreated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnMobileTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnMobileTodoUpdatedSubscription = {
+  __typename?: "Subscription";
+  todoUpdated: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type OnMobileTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnMobileTodoDeletedSubscription = {
+  __typename?: "Subscription";
+  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
+};
+
+export type OnMobileTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnMobileTodoToggledSubscription = {
+  __typename?: "Subscription";
+  todoToggled: {
     __typename?: "Todo";
     id: string;
     title: string;
@@ -443,3 +510,131 @@ export const ToggleMobileTodoDocument = {
     }
   ]
 } as unknown as DocumentNode<ToggleMobileTodoMutation, ToggleMobileTodoMutationVariables>;
+export const OnMobileTodoCreatedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnMobileTodoCreated" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoCreated" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnMobileTodoCreatedSubscription,
+  OnMobileTodoCreatedSubscriptionVariables
+>;
+export const OnMobileTodoUpdatedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnMobileTodoUpdated" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoUpdated" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnMobileTodoUpdatedSubscription,
+  OnMobileTodoUpdatedSubscriptionVariables
+>;
+export const OnMobileTodoDeletedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnMobileTodoDeleted" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoDeleted" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "organizationId" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnMobileTodoDeletedSubscription,
+  OnMobileTodoDeletedSubscriptionVariables
+>;
+export const OnMobileTodoToggledDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnMobileTodoToggled" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoToggled" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnMobileTodoToggledSubscription,
+  OnMobileTodoToggledSubscriptionVariables
+>;

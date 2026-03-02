@@ -37,3 +37,43 @@ mutation ToggleTodo($id: ID!) {
     completed
   }
 }
+
+subscription OnTodoCreated {
+  todoCreated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+subscription OnTodoUpdated {
+  todoUpdated {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
+
+subscription OnTodoDeleted {
+  todoDeleted {
+    id
+    organizationId
+  }
+}
+
+subscription OnTodoToggled {
+  todoToggled {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+  }
+}
