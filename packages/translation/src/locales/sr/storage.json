@@ -1,0 +1,21 @@
+{
+  "storage.upload": "Otpremi",
+  "storage.uploading": "Otpremanje...",
+  "storage.uploadSuccess": "Fajl uspesno otpremljen",
+  "storage.uploadError": "Greska pri otpremanju fajla",
+  "storage.delete": "Obrisi",
+  "storage.deleteConfirmTitle": "Obrisi fajl",
+  "storage.deleteConfirmMessage": "Obrisi ovaj fajl?",
+  "storage.fileSize": "Velicina fajla",
+  "storage.fileType": "Tip fajla",
+  "storage.fileName": "Naziv fajla",
+  "storage.status": "Status",
+  "storage.status.pending": "Na cekanju",
+  "storage.status.uploaded": "Otpremljeno",
+  "storage.status.deleted": "Obrisano",
+  "storage.noFiles": "Jos nema fajlova",
+  "storage.download": "Preuzmi",
+  "storage.validation.fileTooLarge": "Fajl je prevelik",
+  "storage.validation.invalidType": "Tip fajla nije dozvoljen",
+  "storage.progress": "Napredak otpremanja"
+}

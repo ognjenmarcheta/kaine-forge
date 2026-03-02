@@ -1,0 +1,21 @@
+{
+  "storage.upload": "Upload",
+  "storage.uploading": "Uploading...",
+  "storage.uploadSuccess": "File uploaded successfully",
+  "storage.uploadError": "Failed to upload file",
+  "storage.delete": "Delete",
+  "storage.deleteConfirmTitle": "Delete file",
+  "storage.deleteConfirmMessage": "Delete this file?",
+  "storage.fileSize": "File size",
+  "storage.fileType": "File type",
+  "storage.fileName": "File name",
+  "storage.status": "Status",
+  "storage.status.pending": "Pending",
+  "storage.status.uploaded": "Uploaded",
+  "storage.status.deleted": "Deleted",
+  "storage.noFiles": "No files yet",
+  "storage.download": "Download",
+  "storage.validation.fileTooLarge": "File is too large",
+  "storage.validation.invalidType": "File type is not allowed",
+  "storage.progress": "Upload progress"
+}

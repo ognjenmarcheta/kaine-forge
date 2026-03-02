@@ -1,0 +1,21 @@
+{
+  "storage.upload": "Hochladen",
+  "storage.uploading": "Wird hochgeladen...",
+  "storage.uploadSuccess": "Datei erfolgreich hochgeladen",
+  "storage.uploadError": "Fehler beim Hochladen der Datei",
+  "storage.delete": "Loschen",
+  "storage.deleteConfirmTitle": "Datei loschen",
+  "storage.deleteConfirmMessage": "Diese Datei loschen?",
+  "storage.fileSize": "Dateigrosse",
+  "storage.fileType": "Dateityp",
+  "storage.fileName": "Dateiname",
+  "storage.status": "Status",
+  "storage.status.pending": "Ausstehend",
+  "storage.status.uploaded": "Hochgeladen",
+  "storage.status.deleted": "Geloscht",
+  "storage.noFiles": "Noch keine Dateien",
+  "storage.download": "Herunterladen",
+  "storage.validation.fileTooLarge": "Datei ist zu gross",
+  "storage.validation.invalidType": "Dateityp ist nicht erlaubt",
+  "storage.progress": "Upload-Fortschritt"
+}
