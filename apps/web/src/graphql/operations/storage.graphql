@@ -1,0 +1,58 @@
+query GetFile($id: ID!) {
+  file(id: $id) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+query GetFiles($filter: FilesFilterInput) {
+  files(filter: $filter) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+mutation RequestUploadUrl($input: RequestUploadInput!) {
+  requestUploadUrl(input: $input) {
+    fileId
+    uploadUrl
+    key
+    expiresIn
+  }
+}
+
+mutation ConfirmUpload($fileId: ID!) {
+  confirmUpload(fileId: $fileId) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteFile($fileId: ID!) {
+  deleteFile(fileId: $fileId)
+}

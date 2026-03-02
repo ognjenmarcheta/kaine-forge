@@ -26,21 +26,66 @@ export type CreateTodoInput = {
   title: Scalars["String"]["input"];
 };
 
+export type FileInfo = {
+  __typename?: "FileInfo";
+  bucket: Scalars["String"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  downloadUrl?: Maybe<Scalars["String"]["output"]>;
+  entityId?: Maybe<Scalars["ID"]["output"]>;
+  entityType?: Maybe<Scalars["String"]["output"]>;
+  id: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  mimeType: Scalars["String"]["output"];
+  originalName: Scalars["String"]["output"];
+  sizeBytes: Scalars["Int"]["output"];
+  status: FileStatus;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
+export enum FileStatus {
+  Deleted = "deleted",
+  Pending = "pending",
+  Uploaded = "uploaded"
+}
+
+export type FilesFilterInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  status?: InputMaybe<FileStatus>;
+};
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  confirmUpload: FileInfo;
   createTodo: Todo;
+  deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
+};
+
+export type MutationConfirmUploadArgs = {
+  fileId: Scalars["ID"]["input"];
 };
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
 };
 
+export type MutationDeleteFileArgs = {
+  fileId: Scalars["ID"]["input"];
+};
+
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationRequestUploadUrlArgs = {
+  input: RequestUploadInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -69,14 +114,32 @@ export type OrganizationMember = {
   userId: Scalars["ID"]["output"];
 };
 
+export type PresignedUploadResponse = {
+  __typename?: "PresignedUploadResponse";
+  expiresIn: Scalars["Int"]["output"];
+  fileId: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  uploadUrl: Scalars["String"]["output"];
+};
+
 export type Query = {
   __typename?: "Query";
   currentOrganization?: Maybe<Organization>;
+  file?: Maybe<FileInfo>;
+  files: Array<FileInfo>;
   health: Scalars["String"]["output"];
   members: Array<OrganizationMember>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryFileArgs = {
+  id: Scalars["ID"]["input"];
+};
+
+export type QueryFilesArgs = {
+  filter?: InputMaybe<FilesFilterInput>;
 };
 
 export type QueryTodoArgs = {
@@ -86,6 +149,14 @@ export type QueryTodoArgs = {
 export type QueryTodosArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type RequestUploadInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  mimeType: Scalars["String"]["input"];
+  originalName: Scalars["String"]["input"];
+  sizeBytes: Scalars["Int"]["input"];
 };
 
 export type Subscription = {
@@ -123,6 +194,91 @@ export type UpdateTodoInput = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { __typename?: "Query"; health: string };
+
+export type GetFileQueryVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type GetFileQuery = {
+  __typename?: "Query";
+  file?: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  } | null;
+};
+
+export type GetFilesQueryVariables = Exact<{
+  filter?: InputMaybe<FilesFilterInput>;
+}>;
+
+export type GetFilesQuery = {
+  __typename?: "Query";
+  files: Array<{
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type RequestUploadUrlMutationVariables = Exact<{
+  input: RequestUploadInput;
+}>;
+
+export type RequestUploadUrlMutation = {
+  __typename?: "Mutation";
+  requestUploadUrl: {
+    __typename?: "PresignedUploadResponse";
+    fileId: string;
+    uploadUrl: string;
+    key: string;
+    expiresIn: number;
+  };
+};
+
+export type ConfirmUploadMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type ConfirmUploadMutation = {
+  __typename?: "Mutation";
+  confirmUpload: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type DeleteFileMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type DeleteFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]["input"]>;
@@ -254,6 +410,238 @@ export const HealthDocument = {
     }
   ]
 } as unknown as DocumentNode<HealthQuery, HealthQueryVariables>;
+export const GetFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetFileQuery, GetFileQueryVariables>;
+export const GetFilesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetFiles" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "filter" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "FilesFilterInput" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filter" },
+                value: { kind: "Variable", name: { kind: "Name", value: "filter" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetFilesQuery, GetFilesQueryVariables>;
+export const RequestUploadUrlDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RequestUploadUrl" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "RequestUploadInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "requestUploadUrl" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "fileId" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "expiresIn" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<RequestUploadUrlMutation, RequestUploadUrlMutationVariables>;
+export const ConfirmUploadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "ConfirmUpload" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "confirmUpload" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "fileId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<ConfirmUploadMutation, ConfirmUploadMutationVariables>;
+export const DeleteFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DeleteFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "fileId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
 export const GetTodosDocument = {
   kind: "Document",
   definitions: [

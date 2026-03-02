@@ -26,21 +26,66 @@ export type CreateTodoInput = {
   title: Scalars["String"]["input"];
 };
 
+export type FileInfo = {
+  __typename?: "FileInfo";
+  bucket: Scalars["String"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  downloadUrl?: Maybe<Scalars["String"]["output"]>;
+  entityId?: Maybe<Scalars["ID"]["output"]>;
+  entityType?: Maybe<Scalars["String"]["output"]>;
+  id: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  mimeType: Scalars["String"]["output"];
+  originalName: Scalars["String"]["output"];
+  sizeBytes: Scalars["Int"]["output"];
+  status: FileStatus;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
+export enum FileStatus {
+  Deleted = "deleted",
+  Pending = "pending",
+  Uploaded = "uploaded"
+}
+
+export type FilesFilterInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  status?: InputMaybe<FileStatus>;
+};
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  confirmUpload: FileInfo;
   createTodo: Todo;
+  deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
+};
+
+export type MutationConfirmUploadArgs = {
+  fileId: Scalars["ID"]["input"];
 };
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
 };
 
+export type MutationDeleteFileArgs = {
+  fileId: Scalars["ID"]["input"];
+};
+
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationRequestUploadUrlArgs = {
+  input: RequestUploadInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -69,14 +114,32 @@ export type OrganizationMember = {
   userId: Scalars["ID"]["output"];
 };
 
+export type PresignedUploadResponse = {
+  __typename?: "PresignedUploadResponse";
+  expiresIn: Scalars["Int"]["output"];
+  fileId: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  uploadUrl: Scalars["String"]["output"];
+};
+
 export type Query = {
   __typename?: "Query";
   currentOrganization?: Maybe<Organization>;
+  file?: Maybe<FileInfo>;
+  files: Array<FileInfo>;
   health: Scalars["String"]["output"];
   members: Array<OrganizationMember>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryFileArgs = {
+  id: Scalars["ID"]["input"];
+};
+
+export type QueryFilesArgs = {
+  filter?: InputMaybe<FilesFilterInput>;
 };
 
 export type QueryTodoArgs = {
@@ -86,6 +149,14 @@ export type QueryTodoArgs = {
 export type QueryTodosArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type RequestUploadInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  mimeType: Scalars["String"]["input"];
+  originalName: Scalars["String"]["input"];
+  sizeBytes: Scalars["Int"]["input"];
 };
 
 export type Subscription = {
@@ -123,6 +194,91 @@ export type UpdateTodoInput = {
 export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MobileHealthQuery = { __typename?: "Query"; health: string };
+
+export type GetMobileFileQueryVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type GetMobileFileQuery = {
+  __typename?: "Query";
+  file?: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  } | null;
+};
+
+export type GetMobileFilesQueryVariables = Exact<{
+  filter?: InputMaybe<FilesFilterInput>;
+}>;
+
+export type GetMobileFilesQuery = {
+  __typename?: "Query";
+  files: Array<{
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type RequestMobileUploadUrlMutationVariables = Exact<{
+  input: RequestUploadInput;
+}>;
+
+export type RequestMobileUploadUrlMutation = {
+  __typename?: "Mutation";
+  requestUploadUrl: {
+    __typename?: "PresignedUploadResponse";
+    fileId: string;
+    uploadUrl: string;
+    key: string;
+    expiresIn: number;
+  };
+};
+
+export type ConfirmMobileUploadMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type ConfirmMobileUploadMutation = {
+  __typename?: "Mutation";
+  confirmUpload: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type DeleteMobileFileMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type DeleteMobileFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
 
 export type GetMobileTodosQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]["input"]>;
@@ -266,6 +422,241 @@ export const MobileHealthDocument = {
     }
   ]
 } as unknown as DocumentNode<MobileHealthQuery, MobileHealthQueryVariables>;
+export const GetMobileFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetMobileFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetMobileFileQuery, GetMobileFileQueryVariables>;
+export const GetMobileFilesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetMobileFiles" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "filter" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "FilesFilterInput" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filter" },
+                value: { kind: "Variable", name: { kind: "Name", value: "filter" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetMobileFilesQuery, GetMobileFilesQueryVariables>;
+export const RequestMobileUploadUrlDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RequestMobileUploadUrl" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "RequestUploadInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "requestUploadUrl" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "fileId" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "expiresIn" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  RequestMobileUploadUrlMutation,
+  RequestMobileUploadUrlMutationVariables
+>;
+export const ConfirmMobileUploadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "ConfirmMobileUpload" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "confirmUpload" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "fileId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<ConfirmMobileUploadMutation, ConfirmMobileUploadMutationVariables>;
+export const DeleteMobileFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DeleteMobileFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "fileId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DeleteMobileFileMutation, DeleteMobileFileMutationVariables>;
 export const GetMobileTodosDocument = {
   kind: "Document",
   definitions: [

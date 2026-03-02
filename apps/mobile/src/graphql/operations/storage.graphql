@@ -1,0 +1,58 @@
+query GetMobileFile($id: ID!) {
+  file(id: $id) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+query GetMobileFiles($filter: FilesFilterInput) {
+  files(filter: $filter) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+mutation RequestMobileUploadUrl($input: RequestUploadInput!) {
+  requestUploadUrl(input: $input) {
+    fileId
+    uploadUrl
+    key
+    expiresIn
+  }
+}
+
+mutation ConfirmMobileUpload($fileId: ID!) {
+  confirmUpload(fileId: $fileId) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteMobileFile($fileId: ID!) {
+  deleteFile(fileId: $fileId)
+}

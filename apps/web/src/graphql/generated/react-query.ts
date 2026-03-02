@@ -26,21 +26,66 @@ export type CreateTodoInput = {
   title: Scalars["String"]["input"];
 };
 
+export type FileInfo = {
+  __typename?: "FileInfo";
+  bucket: Scalars["String"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  downloadUrl?: Maybe<Scalars["String"]["output"]>;
+  entityId?: Maybe<Scalars["ID"]["output"]>;
+  entityType?: Maybe<Scalars["String"]["output"]>;
+  id: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  mimeType: Scalars["String"]["output"];
+  originalName: Scalars["String"]["output"];
+  sizeBytes: Scalars["Int"]["output"];
+  status: FileStatus;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
+export enum FileStatus {
+  Deleted = "deleted",
+  Pending = "pending",
+  Uploaded = "uploaded"
+}
+
+export type FilesFilterInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  status?: InputMaybe<FileStatus>;
+};
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  confirmUpload: FileInfo;
   createTodo: Todo;
+  deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
+};
+
+export type MutationConfirmUploadArgs = {
+  fileId: Scalars["ID"]["input"];
 };
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
 };
 
+export type MutationDeleteFileArgs = {
+  fileId: Scalars["ID"]["input"];
+};
+
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationRequestUploadUrlArgs = {
+  input: RequestUploadInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -69,14 +114,32 @@ export type OrganizationMember = {
   userId: Scalars["ID"]["output"];
 };
 
+export type PresignedUploadResponse = {
+  __typename?: "PresignedUploadResponse";
+  expiresIn: Scalars["Int"]["output"];
+  fileId: Scalars["ID"]["output"];
+  key: Scalars["String"]["output"];
+  uploadUrl: Scalars["String"]["output"];
+};
+
 export type Query = {
   __typename?: "Query";
   currentOrganization?: Maybe<Organization>;
+  file?: Maybe<FileInfo>;
+  files: Array<FileInfo>;
   health: Scalars["String"]["output"];
   members: Array<OrganizationMember>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryFileArgs = {
+  id: Scalars["ID"]["input"];
+};
+
+export type QueryFilesArgs = {
+  filter?: InputMaybe<FilesFilterInput>;
 };
 
 export type QueryTodoArgs = {
@@ -86,6 +149,14 @@ export type QueryTodoArgs = {
 export type QueryTodosArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type RequestUploadInput = {
+  entityId?: InputMaybe<Scalars["ID"]["input"]>;
+  entityType?: InputMaybe<Scalars["String"]["input"]>;
+  mimeType: Scalars["String"]["input"];
+  originalName: Scalars["String"]["input"];
+  sizeBytes: Scalars["Int"]["input"];
 };
 
 export type Subscription = {
@@ -123,6 +194,91 @@ export type UpdateTodoInput = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { __typename?: "Query"; health: string };
+
+export type GetFileQueryVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type GetFileQuery = {
+  __typename?: "Query";
+  file?: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  } | null;
+};
+
+export type GetFilesQueryVariables = Exact<{
+  filter?: InputMaybe<FilesFilterInput>;
+}>;
+
+export type GetFilesQuery = {
+  __typename?: "Query";
+  files: Array<{
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    entityType?: string | null;
+    entityId?: string | null;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type RequestUploadUrlMutationVariables = Exact<{
+  input: RequestUploadInput;
+}>;
+
+export type RequestUploadUrlMutation = {
+  __typename?: "Mutation";
+  requestUploadUrl: {
+    __typename?: "PresignedUploadResponse";
+    fileId: string;
+    uploadUrl: string;
+    key: string;
+    expiresIn: number;
+  };
+};
+
+export type ConfirmUploadMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type ConfirmUploadMutation = {
+  __typename?: "Mutation";
+  confirmUpload: {
+    __typename?: "FileInfo";
+    id: string;
+    key: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: FileStatus;
+    downloadUrl?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type DeleteFileMutationVariables = Exact<{
+  fileId: Scalars["ID"]["input"];
+}>;
+
+export type DeleteFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]["input"]>;
@@ -264,6 +420,166 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
+
+export const GetFileDocument = `
+    query GetFile($id: ID!) {
+  file(id: $id) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+export const useGetFileQuery = <TData = GetFileQuery, TError = unknown>(
+  variables: GetFileQueryVariables,
+  options?: Omit<UseQueryOptions<GetFileQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetFileQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetFileQuery, TError, TData>({
+    queryKey: ["GetFile", variables],
+    queryFn: useGraphqlFetcher<GetFileQuery, GetFileQueryVariables>(GetFileDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useGetFileQuery.getKey = (variables: GetFileQueryVariables) => ["GetFile", variables];
+
+export const GetFilesDocument = `
+    query GetFiles($filter: FilesFilterInput) {
+  files(filter: $filter) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    entityType
+    entityId
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+export const useGetFilesQuery = <TData = GetFilesQuery, TError = unknown>(
+  variables?: GetFilesQueryVariables,
+  options?: Omit<UseQueryOptions<GetFilesQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetFilesQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetFilesQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetFiles"] : ["GetFiles", variables],
+    queryFn: useGraphqlFetcher<GetFilesQuery, GetFilesQueryVariables>(GetFilesDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useGetFilesQuery.getKey = (variables?: GetFilesQueryVariables) =>
+  variables === undefined ? ["GetFiles"] : ["GetFiles", variables];
+
+export const RequestUploadUrlDocument = `
+    mutation RequestUploadUrl($input: RequestUploadInput!) {
+  requestUploadUrl(input: $input) {
+    fileId
+    uploadUrl
+    key
+    expiresIn
+  }
+}
+    `;
+
+export const useRequestUploadUrlMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    RequestUploadUrlMutation,
+    TError,
+    RequestUploadUrlMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<RequestUploadUrlMutation, TError, RequestUploadUrlMutationVariables, TContext>(
+    {
+      mutationKey: ["RequestUploadUrl"],
+      mutationFn: useGraphqlFetcher<RequestUploadUrlMutation, RequestUploadUrlMutationVariables>(
+        RequestUploadUrlDocument
+      ),
+      ...options
+    }
+  );
+};
+
+useRequestUploadUrlMutation.getKey = () => ["RequestUploadUrl"];
+
+export const ConfirmUploadDocument = `
+    mutation ConfirmUpload($fileId: ID!) {
+  confirmUpload(fileId: $fileId) {
+    id
+    key
+    originalName
+    mimeType
+    sizeBytes
+    status
+    downloadUrl
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+export const useConfirmUploadMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    ConfirmUploadMutation,
+    TError,
+    ConfirmUploadMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<ConfirmUploadMutation, TError, ConfirmUploadMutationVariables, TContext>({
+    mutationKey: ["ConfirmUpload"],
+    mutationFn: useGraphqlFetcher<ConfirmUploadMutation, ConfirmUploadMutationVariables>(
+      ConfirmUploadDocument
+    ),
+    ...options
+  });
+};
+
+useConfirmUploadMutation.getKey = () => ["ConfirmUpload"];
+
+export const DeleteFileDocument = `
+    mutation DeleteFile($fileId: ID!) {
+  deleteFile(fileId: $fileId)
+}
+    `;
+
+export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<DeleteFileMutation, TError, DeleteFileMutationVariables, TContext>
+) => {
+  return useMutation<DeleteFileMutation, TError, DeleteFileMutationVariables, TContext>({
+    mutationKey: ["DeleteFile"],
+    mutationFn: useGraphqlFetcher<DeleteFileMutation, DeleteFileMutationVariables>(
+      DeleteFileDocument
+    ),
+    ...options
+  });
+};
+
+useDeleteFileMutation.getKey = () => ["DeleteFile"];
 
 export const GetTodosDocument = `
     query GetTodos($limit: Int, $offset: Int) {

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { baseTypeDefs } from "./base";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
+import { storageTypeDefs } from "../features/storage/storage.schema";
 import { todosTypeDefs } from "../features/todos/todos.schema";
 
 const logger = createLogger({ name: "schema-gen" });
@@ -14,7 +15,9 @@ const filename = fileURLToPath(import.meta.url);
 const directory = dirname(filename);
 const outputPath = join(directory, "../../schema.graphql");
 
-const schema = buildSchema(`${baseTypeDefs}\n${organizationsTypeDefs}\n${todosTypeDefs}`);
+const schema = buildSchema(
+  `${baseTypeDefs}\n${organizationsTypeDefs}\n${todosTypeDefs}\n${storageTypeDefs}`
+);
 
 await writeFile(outputPath, `${printSchema(schema)}\n`, "utf8");
 logger.info({ outputPath }, "wrote schema");
