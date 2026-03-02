@@ -1,4 +1,5 @@
 export * from "./accounts.validator";
+export * from "./files.validator";
 export * from "./organizations.validator";
 export * from "./sessions.validator";
 export * from "./todos.validator";
