@@ -13,5 +13,9 @@
   "button.cancel": "Cancel",
   "button.edit": "Edit",
   "button.delete": "Delete",
-  "error.generic": "Something went wrong"
+  "error.generic": "Something went wrong",
+  "connection.connected": "Connected",
+  "connection.connecting": "Connecting...",
+  "connection.disconnected": "Disconnected",
+  "connection.reconnecting": "Reconnecting..."
 }

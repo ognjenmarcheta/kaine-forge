@@ -13,5 +13,9 @@
   "button.cancel": "Otkazi",
   "button.edit": "Izmeni",
   "button.delete": "Obrisi",
-  "error.generic": "Doslo je do greske"
+  "error.generic": "Doslo je do greske",
+  "connection.connected": "Povezano",
+  "connection.connecting": "Povezivanje...",
+  "connection.disconnected": "Prekinuta veza",
+  "connection.reconnecting": "Ponovno povezivanje..."
 }

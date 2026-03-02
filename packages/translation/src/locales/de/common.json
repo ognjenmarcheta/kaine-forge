@@ -13,5 +13,9 @@
   "button.cancel": "Abbrechen",
   "button.edit": "Bearbeiten",
   "button.delete": "Loschen",
-  "error.generic": "Etwas ist schiefgelaufen"
+  "error.generic": "Etwas ist schiefgelaufen",
+  "connection.connected": "Verbunden",
+  "connection.connecting": "Verbindung wird hergestellt...",
+  "connection.disconnected": "Getrennt",
+  "connection.reconnecting": "Erneut verbinden..."
 }
