@@ -84,6 +84,7 @@ pnpm release:status               # inspect pending changes
 | `@repo/translation`   | i18next + locale JSON files                                   |
 | `@repo/feature-flags` | Config-driven feature toggles                                 |
 | `@repo/query`         | GraphQL client utilities                                      |
+| `@repo/storage`       | S3-compatible file storage with presigned URLs                |
 | `@repo/config`        | ESLint, Prettier, Tailwind, TypeScript shared configs         |
 
 ### Data Flow
@@ -125,6 +126,10 @@ React components use kebab-case: `todo-list.tsx`, `login-form.tsx`.
 | Zustand store        | `apps/{web,mobile}/src/stores/{name}.store.ts`                              |
 | Translations         | `packages/translation/src/locales/{lang}/{namespace}.json`                  |
 | Feature flag         | `packages/feature-flags/src/flags.definition.ts` + `flags.config.ts`        |
+| Storage schema       | `packages/db/src/schema/files.schema.ts`                                    |
+| Storage resolvers    | `apps/api/src/features/storage/`                                            |
+| Storage ops          | `apps/{web,mobile}/src/graphql/operations/storage.graphql`                  |
+| Upload hook          | `apps/{web,mobile}/src/hooks/use-file-upload.ts`                            |
 | Design token         | `packages/ui/src/styles/globals.css` + `packages/config/tailwind/preset.js` |
 
 ### Hard Rules

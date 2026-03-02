@@ -55,6 +55,7 @@ turbo-monorepo/
 │   ├── db/             # Drizzle schemas, migrations, seed
 │   ├── feature-flags/  # Config-driven feature toggles
 │   ├── query/          # Shared React Query keys + cache helpers
+│   ├── storage/        # S3-compatible file storage (presigned URLs)
 │   ├── translation/    # i18next + locale JSON files
 │   └── ui/             # Design system: shadcn/ui + Atlassian-inspired tokens
 ├── tooling/
@@ -173,6 +174,7 @@ export const TODOS_DEFINITIONS = {
 | Add a translation namespace         | `packages/translation/src/locales/{lang}/{namespace}.json`                           |
 | Define a feature flag               | `packages/feature-flags/src/feature-flags.definition.ts` + `feature-flags.config.ts` |
 | Add shared auth logic               | `packages/auth/src/`                                                                 |
+| Add storage utilities               | `packages/storage/src/`                                                              |
 | Add a design token                  | `packages/ui/src/styles/globals.css` + `packages/config/tailwind/preset.js`          |
 
 ---
