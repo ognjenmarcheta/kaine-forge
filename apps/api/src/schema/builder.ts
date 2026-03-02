@@ -19,6 +19,7 @@ export const apiSchema = createSchema({
     Mutation: {
       ...todosResolvers.Mutation
     },
+    Subscription: {},
     DateTime: {
       serialize(value: unknown) {
         if (value instanceof Date) {

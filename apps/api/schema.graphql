@@ -15,6 +15,10 @@ type Mutation {
   toggleTodo(id: ID!): Todo!
 }
 
+type Subscription {
+  _empty: Boolean
+}
+
 type Organization {
   id: ID!
   name: String!
