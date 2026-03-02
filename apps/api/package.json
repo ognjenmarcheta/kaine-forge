@@ -22,6 +22,7 @@
     "@repo/db": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/logger": "workspace:*",
+    "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",
