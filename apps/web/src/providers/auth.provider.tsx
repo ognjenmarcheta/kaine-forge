@@ -6,6 +6,7 @@ import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
 import { getStoredSession, setStoredSession } from "../features/auth/auth.util";
 import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
+import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(async () => {
     await logoutMutation.mutateAsync(session);
+    disposeSubscriptionClient();
     resetAuthBoundQueries(queryClient);
     queryClient.setQueryData(queryKeys.session(), null);
     setStoredSession(AUTH_DEFINITION.storageKey, null);

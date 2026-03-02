@@ -7,6 +7,7 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
 import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
+import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
 const logger = createLogger({ name: "mobile-auth" });
 
@@ -109,6 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logger.warn({ err: error }, "auth logout request failed");
     }
 
+    disposeSubscriptionClient();
     resetAuthBoundQueries(queryClient);
     queryClient.setQueryData(queryKeys.session(), null);
     await setStoredSession(AUTH_DEFINITION.storageKey, null);
