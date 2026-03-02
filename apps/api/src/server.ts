@@ -1,8 +1,10 @@
 import { createServerAuth } from "@repo/auth/server";
 import type { Logger } from "@repo/logger";
+import { useServer } from "graphql-ws/use/ws";
 import { createYoga } from "graphql-yoga";
-import type { IncomingHttpHeaders } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { createServer } from "node:http";
+import { WebSocketServer } from "ws";
 
 import { createContext, createContextFromHeaders } from "./context";
 import { handleAuthRoute } from "./features/auth/auth.router";
@@ -69,8 +71,54 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
     }
   });
 
+  const wsServer = new WebSocketServer({ server, path: "/graphql" });
+
+  useServer(
+    {
+      schema: apiSchema,
+      context: async (ctx) => {
+        const req = ctx.extra.request as IncomingMessage;
+        const headers = req.headers;
+        const connectionParams = ctx.connectionParams as Record<string, string> | undefined;
+
+        if (connectionParams) {
+          const mergedHeaders: IncomingHttpHeaders = { ...headers };
+          for (const [key, value] of Object.entries(connectionParams)) {
+            if (typeof value === "string") {
+              mergedHeaders[key.toLowerCase()] = value;
+            }
+          }
+          return createContextFromHeaders(mergedHeaders, logger);
+        }
+
+        return createContextFromHeaders(headers, logger);
+      },
+      onConnect: async (ctx) => {
+        const req = ctx.extra.request as IncomingMessage;
+        const headers = req.headers;
+        const connectionParams = ctx.connectionParams as Record<string, string> | undefined;
+
+        const mergedHeaders: IncomingHttpHeaders = { ...headers };
+        if (connectionParams) {
+          for (const [key, value] of Object.entries(connectionParams)) {
+            if (typeof value === "string") {
+              mergedHeaders[key.toLowerCase()] = value;
+            }
+          }
+        }
+
+        const authInstance = createServerAuth();
+        const session = await authInstance.getSessionFromHeaders(mergedHeaders);
+        if (!session) return false;
+        return true;
+      }
+    },
+    wsServer
+  );
+
   return {
     server,
-    yoga
+    yoga,
+    wsServer
   };
 }
