@@ -30,6 +30,7 @@ import {
   useUpdateTodoMutation
 } from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
+import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
 
 interface TodoExampleDraft {
@@ -76,6 +77,32 @@ export function TodosRoute() {
   const updateMutation = useUpdateTodoMutation();
   const deleteMutation = useDeleteTodoMutation();
   const toggleMutation = useToggleTodoMutation();
+
+  const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
+
+  useSubscription({
+    query: "subscription { todoCreated { id } }",
+    enabled: subscriptionEnabled,
+    invalidateKeys: [todosQueryKey]
+  });
+
+  useSubscription({
+    query: "subscription { todoUpdated { id } }",
+    enabled: subscriptionEnabled,
+    invalidateKeys: [todosQueryKey]
+  });
+
+  useSubscription({
+    query: "subscription { todoDeleted { id } }",
+    enabled: subscriptionEnabled,
+    invalidateKeys: [todosQueryKey]
+  });
+
+  useSubscription({
+    query: "subscription { todoToggled { id } }",
+    enabled: subscriptionEnabled,
+    invalidateKeys: [todosQueryKey]
+  });
 
   const simpleExampleFields = useMemo<SimpleFieldConfig[]>(
     () => [
