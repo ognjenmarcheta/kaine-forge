@@ -5,6 +5,8 @@ import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
+import { pubsub } from "./pubsub";
+
 export interface ApiContextUser {
   id: string;
   email: string;
@@ -18,6 +20,7 @@ export interface ApiContext {
   activeOrganizationId: string | null;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
+  pubsub: typeof pubsub;
 }
 
 type RequestHeaders = Headers | IncomingHttpHeaders;
@@ -40,7 +43,8 @@ export async function createContextFromHeaders(
     user: session?.user ?? null,
     activeOrganizationId: session?.activeOrganizationId ?? null,
     featureFlags: resolveFeatureFlags(),
-    logger: contextLogger
+    logger: contextLogger,
+    pubsub
   };
 }
 
