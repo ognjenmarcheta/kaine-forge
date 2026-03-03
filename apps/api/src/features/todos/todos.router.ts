@@ -18,6 +18,7 @@ import {
 } from "./todos.util";
 import type { ApiContext } from "../../context";
 import { requireActiveOrganizationId, requireUser } from "../../middleware/auth.middleware";
+import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 
 type TodosQueryArgs = { limit?: number; offset?: number };
 type TodoByIdArgs = { id: string };
@@ -26,6 +27,19 @@ type UpdateTodoArgs = { id: string; input: UpdateTodoInput };
 type ResolverContext = ApiContext;
 
 export const todosResolvers = {
+  Todo: {
+    async attachments(parent: { id: string; organizationId: string }) {
+      try {
+        return await listFiles(parent.organizationId, {
+          entityType: "todo",
+          entityId: parent.id,
+          status: "uploaded"
+        });
+      } catch {
+        return [];
+      }
+    }
+  },
   Query: {
     async todos(_parent: unknown, args: TodosQueryArgs, ctx: ResolverContext) {
       const user = requireUser(ctx);
@@ -72,6 +86,13 @@ export const todosResolvers = {
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const user = requireUser(ctx);
       const activeOrganizationId = requireActiveOrganizationId(ctx);
+
+      try {
+        await deleteFilesByEntity(activeOrganizationId, "todo", args.id);
+      } catch (err) {
+        ctx.logger.warn({ err, todoId: args.id }, "failed to soft-delete todo attachments");
+      }
+
       const result = await deleteTodo(user.id, activeOrganizationId, args.id);
 
       if (result) {
