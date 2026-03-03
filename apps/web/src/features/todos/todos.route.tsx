@@ -275,6 +275,9 @@ export function TodosRoute() {
       {!isLoading ? (
         <TodoList
           items={todos}
+          onAttachmentChanged={() => {
+            void invalidateTodos(todosQueryKey);
+          }}
           onDelete={handleDelete}
           onEdit={(item) => setEditingTodo(item)}
           onToggle={handleToggle}

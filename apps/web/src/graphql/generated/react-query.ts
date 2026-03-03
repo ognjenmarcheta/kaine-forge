@@ -170,6 +170,7 @@ export type Subscription = {
 
 export type Todo = {
   __typename?: "Todo";
+  attachments: Array<FileInfo>;
   completed: Scalars["Boolean"]["output"];
   createdAt: Scalars["DateTime"]["output"];
   description?: Maybe<Scalars["String"]["output"]>;
@@ -295,6 +296,14 @@ export type GetTodosQuery = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   }>;
 };
 
@@ -310,6 +319,14 @@ export type CreateTodoMutation = {
     title: string;
     description?: string | null;
     completed: boolean;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -326,6 +343,14 @@ export type UpdateTodoMutation = {
     title: string;
     description?: string | null;
     completed: boolean;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -341,7 +366,19 @@ export type ToggleTodoMutationVariables = Exact<{
 
 export type ToggleTodoMutation = {
   __typename?: "Mutation";
-  toggleTodo: { __typename?: "Todo"; id: string; completed: boolean };
+  toggleTodo: {
+    __typename?: "Todo";
+    id: string;
+    completed: boolean;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
+  };
 };
 
 export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
@@ -356,6 +393,14 @@ export type OnTodoCreatedSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -371,6 +416,14 @@ export type OnTodoUpdatedSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -393,6 +446,14 @@ export type OnTodoToggledSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -588,6 +649,13 @@ export const GetTodosDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -620,6 +688,13 @@ export const CreateTodoDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
     `;
@@ -645,6 +720,13 @@ export const UpdateTodoDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
     `;
@@ -688,6 +770,13 @@ export const ToggleTodoDocument = `
   toggleTodo(id: $id) {
     id
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
     `;
@@ -713,6 +802,13 @@ export const OnTodoCreatedDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -725,6 +821,13 @@ export const OnTodoUpdatedDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -745,6 +848,13 @@ export const OnTodoToggledDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }

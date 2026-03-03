@@ -1,16 +1,24 @@
 import { Button, Checkbox } from "@repo/ui";
 
+import { TodoAttachments } from "./todo-attachments";
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
 
 interface TodoItemProps {
   item: TodoItem;
+  onAttachmentChanged: () => void;
   onDelete: (id: string) => void;
   onEdit: (item: TodoItem) => void;
   onToggle: (item: TodoItem) => void;
 }
 
-export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps) {
+export function TodoItemRow({
+  item,
+  onAttachmentChanged,
+  onDelete,
+  onEdit,
+  onToggle
+}: TodoItemProps) {
   const { t } = useTranslation();
 
   return (
@@ -48,6 +56,13 @@ export function TodoItemRow({ item, onDelete, onEdit, onToggle }: TodoItemProps)
         >
           {t("button.delete")}
         </Button>
+      </div>
+      <div className="md:col-span-3">
+        <TodoAttachments
+          attachments={item.attachments}
+          todoId={item.id}
+          onChanged={onAttachmentChanged}
+        />
       </div>
     </li>
   );

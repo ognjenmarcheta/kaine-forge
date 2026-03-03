@@ -27,5 +27,15 @@
   "todos.examples.advanced.description": "Sta treba uraditi?",
   "todos.examples.advanced.notes": "Beleznice planiranja",
   "todos.examples.advanced.markCompleted": "Oznaci zadatak odmah kao zavrsen",
-  "todos.examples.error.titleRequired": "Naziv je obavezan"
+  "todos.examples.error.titleRequired": "Naziv je obavezan",
+  "todos.attachments.title": "Prilozi",
+  "todos.attachments.attach": "Prilozi fajl",
+  "todos.attachments.uploading": "Otpremanje...",
+  "todos.attachments.empty": "Nema priloga",
+  "todos.attachments.download": "Preuzmi",
+  "todos.attachments.delete": "Ukloni",
+  "todos.attachments.deleteConfirmTitle": "Ukloni prilog",
+  "todos.attachments.deleteConfirmMessage": "Ukloni ovaj prilog?",
+  "todos.attachments.error.uploadFailed": "Otpremanje fajla nije uspelo",
+  "todos.attachments.error.deleteFailed": "Uklanjanje priloga nije uspelo"
 }

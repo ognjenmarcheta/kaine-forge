@@ -26,6 +26,7 @@ export const apiSchema = createSchema({
     Subscription: {
       ...todosResolvers.Subscription
     },
+    Todo: todosResolvers.Todo,
     FileInfo: storageResolvers.FileInfo,
     DateTime: {
       serialize(value: unknown) {

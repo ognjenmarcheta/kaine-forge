@@ -27,5 +27,15 @@
   "todos.examples.advanced.description": "What should be done?",
   "todos.examples.advanced.notes": "Planning notes",
   "todos.examples.advanced.markCompleted": "Mark todo as completed right away",
-  "todos.examples.error.titleRequired": "Title is required"
+  "todos.examples.error.titleRequired": "Title is required",
+  "todos.attachments.title": "Attachments",
+  "todos.attachments.attach": "Attach file",
+  "todos.attachments.uploading": "Uploading...",
+  "todos.attachments.empty": "No attachments",
+  "todos.attachments.download": "Download",
+  "todos.attachments.delete": "Remove",
+  "todos.attachments.deleteConfirmTitle": "Remove attachment",
+  "todos.attachments.deleteConfirmMessage": "Remove this attachment?",
+  "todos.attachments.error.uploadFailed": "Failed to upload file",
+  "todos.attachments.error.deleteFailed": "Failed to remove attachment"
 }

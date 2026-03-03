@@ -7,6 +7,7 @@ export const todosTypeDefs = /* GraphQL */ `
     description: String
     completed: Boolean!
     organizationId: ID!
+    attachments: [FileInfo!]!
     createdAt: DateTime!
     updatedAt: DateTime!
   }

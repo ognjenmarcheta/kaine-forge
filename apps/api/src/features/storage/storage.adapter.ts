@@ -1,5 +1,5 @@
 import { db, filesTable, type File } from "@repo/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
@@ -99,4 +99,23 @@ export async function updateFileStatus(
   }
 
   return file;
+}
+
+export async function deleteFilesByEntity(
+  organizationId: string,
+  entityType: string,
+  entityId: string
+): Promise<File[]> {
+  return db
+    .update(filesTable)
+    .set({ status: "deleted", updatedAt: new Date() })
+    .where(
+      and(
+        eq(filesTable.organizationId, organizationId),
+        eq(filesTable.entityType, entityType),
+        eq(filesTable.entityId, entityId),
+        ne(filesTable.status, "deleted")
+      )
+    )
+    .returning();
 }

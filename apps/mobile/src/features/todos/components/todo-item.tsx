@@ -1,16 +1,24 @@
 import { Pressable, Text, View } from "react-native";
 
+import { TodoAttachments } from "./todo-attachments";
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
 
 interface TodoItemCardProps {
   item: TodoItem;
+  onAttachmentChanged: () => void;
   onDelete: (id: string) => void;
   onEdit: (item: TodoItem) => void;
   onToggle: (item: TodoItem) => void;
 }
 
-export function TodoItemCard({ item, onDelete, onEdit, onToggle }: TodoItemCardProps) {
+export function TodoItemCard({
+  item,
+  onAttachmentChanged,
+  onDelete,
+  onEdit,
+  onToggle
+}: TodoItemCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -41,6 +49,11 @@ export function TodoItemCard({ item, onDelete, onEdit, onToggle }: TodoItemCardP
           </Pressable>
         </View>
       </View>
+      <TodoAttachments
+        attachments={item.attachments}
+        todoId={item.id}
+        onChanged={onAttachmentChanged}
+      />
     </View>
   );
 }

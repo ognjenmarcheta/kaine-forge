@@ -4,6 +4,13 @@ query GetMobileTodos($limit: Int, $offset: Int) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -15,6 +22,13 @@ mutation CreateMobileTodo($input: CreateTodoInput!) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -26,6 +40,13 @@ mutation UpdateMobileTodo($id: ID!, $input: UpdateTodoInput!) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -41,6 +62,13 @@ mutation ToggleMobileTodo($id: ID!) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -52,6 +80,13 @@ subscription OnMobileTodoCreated {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -63,6 +98,13 @@ subscription OnMobileTodoUpdated {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -81,6 +123,13 @@ subscription OnMobileTodoToggled {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }

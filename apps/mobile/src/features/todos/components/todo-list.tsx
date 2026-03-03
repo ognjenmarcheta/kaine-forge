@@ -6,12 +6,19 @@ import type { TodoItem } from "../todos.type";
 
 interface TodoListProps {
   items: TodoItem[];
+  onAttachmentChanged: () => void;
   onDelete: (id: string) => void;
   onEdit: (item: TodoItem) => void;
   onToggle: (item: TodoItem) => void;
 }
 
-export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
+export function TodoList({
+  items,
+  onAttachmentChanged,
+  onDelete,
+  onEdit,
+  onToggle
+}: TodoListProps) {
   const { t } = useTranslation();
 
   if (items.length === 0) {
@@ -24,7 +31,13 @@ export function TodoList({ items, onDelete, onEdit, onToggle }: TodoListProps) {
       data={items}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <TodoItemCard item={item} onDelete={onDelete} onEdit={onEdit} onToggle={onToggle} />
+        <TodoItemCard
+          item={item}
+          onAttachmentChanged={onAttachmentChanged}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggle={onToggle}
+        />
       )}
     />
   );

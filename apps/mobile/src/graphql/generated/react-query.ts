@@ -170,6 +170,7 @@ export type Subscription = {
 
 export type Todo = {
   __typename?: "Todo";
+  attachments: Array<FileInfo>;
   completed: Scalars["Boolean"]["output"];
   createdAt: Scalars["DateTime"]["output"];
   description?: Maybe<Scalars["String"]["output"]>;
@@ -295,6 +296,14 @@ export type GetMobileTodosQuery = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   }>;
 };
 
@@ -312,6 +321,14 @@ export type CreateMobileTodoMutation = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -330,6 +347,14 @@ export type UpdateMobileTodoMutation = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -353,6 +378,14 @@ export type ToggleMobileTodoMutation = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -368,6 +401,14 @@ export type OnMobileTodoCreatedSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -383,6 +424,14 @@ export type OnMobileTodoUpdatedSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -405,6 +454,14 @@ export type OnMobileTodoToggledSubscription = {
     completed: boolean;
     createdAt: any;
     updatedAt: any;
+    attachments: Array<{
+      __typename?: "FileInfo";
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl?: string | null;
+    }>;
   };
 };
 
@@ -617,6 +674,13 @@ export const GetMobileTodosDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -648,6 +712,13 @@ export const CreateMobileTodoDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -682,6 +753,13 @@ export const UpdateMobileTodoDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -743,6 +821,13 @@ export const ToggleMobileTodoDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -777,6 +862,13 @@ export const OnMobileTodoCreatedDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -789,6 +881,13 @@ export const OnMobileTodoUpdatedDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -809,6 +908,13 @@ export const OnMobileTodoToggledDocument = `
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }

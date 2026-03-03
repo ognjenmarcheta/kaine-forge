@@ -30,6 +30,7 @@
     "@repo/translation": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
     "expo": "^54.0.33",
+    "expo-document-picker": "^55.0.8",
     "expo-router": "^6.0.23",
     "expo-status-bar": "^3.0.9",
     "graphql": "^16.11.0",

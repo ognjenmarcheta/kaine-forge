@@ -27,5 +27,15 @@
   "todos.examples.advanced.description": "Was soll erledigt werden?",
   "todos.examples.advanced.notes": "Planungsnotizen",
   "todos.examples.advanced.markCompleted": "Aufgabe sofort als erledigt markieren",
-  "todos.examples.error.titleRequired": "Titel ist erforderlich"
+  "todos.examples.error.titleRequired": "Titel ist erforderlich",
+  "todos.attachments.title": "Anhange",
+  "todos.attachments.attach": "Datei anhangen",
+  "todos.attachments.uploading": "Hochladen...",
+  "todos.attachments.empty": "Keine Anhange",
+  "todos.attachments.download": "Herunterladen",
+  "todos.attachments.delete": "Entfernen",
+  "todos.attachments.deleteConfirmTitle": "Anhang entfernen",
+  "todos.attachments.deleteConfirmMessage": "Diesen Anhang entfernen?",
+  "todos.attachments.error.uploadFailed": "Datei konnte nicht hochgeladen werden",
+  "todos.attachments.error.deleteFailed": "Anhang konnte nicht entfernt werden"
 }

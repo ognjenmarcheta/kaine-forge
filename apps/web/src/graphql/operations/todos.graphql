@@ -4,6 +4,13 @@ query GetTodos($limit: Int, $offset: Int) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -15,6 +22,13 @@ mutation CreateTodo($input: CreateTodoInput!) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
 
@@ -24,6 +38,13 @@ mutation UpdateTodo($id: ID!, $input: UpdateTodoInput!) {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
 
@@ -35,6 +56,13 @@ mutation ToggleTodo($id: ID!) {
   toggleTodo(id: $id) {
     id
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
 
@@ -44,6 +72,13 @@ subscription OnTodoCreated {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -55,6 +90,13 @@ subscription OnTodoUpdated {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
@@ -73,6 +115,13 @@ subscription OnTodoToggled {
     title
     description
     completed
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
     createdAt
     updatedAt
   }
