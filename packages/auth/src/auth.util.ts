@@ -39,7 +39,11 @@ function parseCookieHeader(headers: Headers | IncomingHttpHeaders): Record<strin
       const value = valueParts.join("=");
 
       if (key) {
-        cookies[key] = decodeURIComponent(value);
+        try {
+          cookies[key] = decodeURIComponent(value);
+        } catch {
+          cookies[key] = value;
+        }
       }
 
       return cookies;

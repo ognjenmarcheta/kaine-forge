@@ -53,5 +53,6 @@ COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
 COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
 
+USER node
 EXPOSE 4000
 CMD ["node", "apps/api/dist/index.js"]

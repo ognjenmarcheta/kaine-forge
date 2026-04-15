@@ -44,7 +44,7 @@ function resolveAllowedCorsOrigin(origin: string | null): string | null {
   const allowedOrigins = parseAllowedCorsOrigins(process.env.API_CORS_ORIGINS);
 
   if (!allowedOrigins) {
-    return origin;
+    return null;
   }
 
   return allowedOrigins.includes(origin) ? origin : null;

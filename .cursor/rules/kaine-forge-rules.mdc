@@ -7,7 +7,7 @@ alwaysApply: true
 
 # Kaine Forge Cursor Rules
 
-This file is generated from `.ai/cursor-rules.md`. Do not edit generated Cursor rules directly.
+This is the canonical source for Cursor rules. Edit here, then run `pnpm ai:sync`.
 
 Before code changes:
 

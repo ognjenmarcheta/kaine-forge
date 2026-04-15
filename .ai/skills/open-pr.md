@@ -13,8 +13,9 @@ Use this skill when preparing local work for a pull request.
 1. Confirm the working tree scope with `git status --short`.
 2. Confirm the branch is not `main`.
 3. Review changed files for unrelated edits.
-4. Run `pnpm ai:sync:check` when `.ai/` or generated assistant files are touched.
-5. If source packages or apps changed, decide whether a `.changeset/*.md` file is required or whether the PR should carry `release:skip-changeset`.
+4. When `.ai/` sources are edited, run `pnpm ai:sync` and then `pnpm ai:sync:check`.
+5. When only generated assistant files are touched, run `pnpm ai:sync:check`.
+6. If source packages or apps changed, decide whether a `.changeset/*.md` file is required or whether the PR should carry `release:skip-changeset`.
 
 ## Validation
 

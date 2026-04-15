@@ -8,7 +8,7 @@ export type InputProps = TextInputProps & {
 };
 
 export const Input = forwardRef<ElementRef<typeof TextInput>, InputProps>(
-  ({ className, placeholderTextColor = "var(--ds-text-subtlest)", ...props }, ref) => (
+  ({ className, placeholderTextColor, ...props }, ref) => (
     <TextInput
       ref={ref}
       className={cn(

@@ -92,7 +92,10 @@ function parseMcpConfig(raw: unknown): McpConfig {
     if (typeof value.command === "string") {
       server.command = value.command;
     }
-    if (isStringArray(value.args)) {
+    if (value.args !== undefined) {
+      if (!isStringArray(value.args)) {
+        throw new Error(`MCP server "${name}" args must be an array of strings.`);
+      }
       server.args = value.args;
     }
     if (typeof value.url === "string") {
@@ -100,11 +103,17 @@ function parseMcpConfig(raw: unknown): McpConfig {
     }
 
     const env = readStringRecord(value.env);
+    if (value.env !== undefined && !env) {
+      throw new Error(`MCP server "${name}" env must be an object of string values.`);
+    }
     if (env && Object.keys(env).length > 0) {
       server.env = env;
     }
 
     const headers = readStringRecord(value.headers);
+    if (value.headers !== undefined && !headers) {
+      throw new Error(`MCP server "${name}" headers must be an object of string values.`);
+    }
     if (headers && Object.keys(headers).length > 0) {
       server.headers = headers;
     }
@@ -158,19 +167,21 @@ function parseSkillFrontmatter(
   body: string;
   metadata: Record<string, string>;
 } {
-  if (!raw.startsWith("---\n")) {
+  const normalized = normalizeNewlines(raw);
+
+  if (!normalized.startsWith("---\n")) {
     throw new Error(
       `${fileName ?? "skill"}: missing YAML frontmatter (expected '---\\n...\\n---\\n').`
     );
   }
 
-  const end = raw.indexOf("\n---\n", 4);
+  const end = normalized.indexOf("\n---\n", 4);
   if (end === -1) {
     throw new Error(`${fileName ?? "skill"}: unclosed YAML frontmatter (missing closing '---').`);
   }
 
-  const frontmatter = raw.slice(4, end);
-  const body = raw.slice(end + "\n---\n".length);
+  const frontmatter = normalized.slice(4, end);
+  const body = normalized.slice(end + "\n---\n".length);
   const metadata: Record<string, string> = {};
 
   for (const line of frontmatter.split("\n")) {
@@ -198,6 +209,10 @@ function stripQuotes(value: string): string {
   return value;
 }
 
+function normalizeNewlines(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
+
 function sanitizeSkillName(value: string): string {
   return value
     .toLowerCase()
@@ -206,17 +221,19 @@ function sanitizeSkillName(value: string): string {
 }
 
 function withHtmlNoticeAfterFrontmatter(raw: string): string {
-  if (!raw.startsWith("---\n")) {
-    return `${HTML_NOTICE}\n\n${raw.trim()}\n`;
+  const normalized = normalizeNewlines(raw);
+
+  if (!normalized.startsWith("---\n")) {
+    return `${HTML_NOTICE}\n\n${normalized.trim()}\n`;
   }
 
-  const end = raw.indexOf("\n---\n", 4);
+  const end = normalized.indexOf("\n---\n", 4);
   if (end === -1) {
-    return `${HTML_NOTICE}\n\n${raw.trim()}\n`;
+    return `${HTML_NOTICE}\n\n${normalized.trim()}\n`;
   }
 
-  const frontmatter = raw.slice(0, end + "\n---\n".length).trimEnd();
-  const body = raw.slice(end + "\n---\n".length).trim();
+  const frontmatter = normalized.slice(0, end + "\n---\n".length).trimEnd();
+  const body = normalized.slice(end + "\n---\n".length).trim();
 
   return `${frontmatter}\n\n${HTML_NOTICE}\n\n${body}\n`;
 }
@@ -416,9 +433,8 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
       }
 
       const relativePath = path.relative(repoRoot, skillFile);
-      if (checkMode) {
-        drift.push(relativePath);
-      } else {
+      drift.push(relativePath);
+      if (!checkMode) {
         rmSync(skillFile, { force: true });
         try {
           if (readdirSync(entryPath).length === 0) {
@@ -448,9 +464,8 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
     }
 
     const relativePath = path.relative(repoRoot, entryPath);
-    if (checkMode) {
-      drift.push(relativePath);
-    } else {
+    drift.push(relativePath);
+    if (!checkMode) {
       rmSync(entryPath, { force: true });
     }
   }

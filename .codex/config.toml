@@ -9,4 +9,4 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "."]
 
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest"]
+args = ["-y", "@playwright/mcp@0.0.70"]

@@ -45,13 +45,13 @@ Run `pnpm ai:sync`. The generated `.claude/skills/<name>/SKILL.md` and `.cursor/
 
 ## Adding a personal skill
 
-Create it directly under `.claude/skills/<name>/SKILL.md` (not in `.ai/`), and add the directory to `.gitignore` by name:
+Create it under `.claude/skills/_<name>/SKILL.md` (note the underscore prefix). The sync script skips directories starting with `_` during stale cleanup.
+
+Add the directory to `.gitignore`:
 
 ```text
-.claude/skills/<name>/
+.claude/skills/_<name>/
 ```
-
-The sync script ignores it because it's not in `.ai/`.
 
 ## MCP servers
 

@@ -25,9 +25,10 @@ async function parseJson<T>(response: Response): Promise<T> {
 }
 
 function syncSessionToken(sessionToken: string | null | undefined): void {
-  if (typeof sessionToken === "string") {
-    setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, sessionToken);
-  }
+  setStoredSessionToken(
+    AUTH_DEFINITION.tokenStorageKey,
+    typeof sessionToken === "string" ? sessionToken : null
+  );
 }
 
 export async function loginRequest(input: {
