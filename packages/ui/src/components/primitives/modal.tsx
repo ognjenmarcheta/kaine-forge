@@ -77,7 +77,7 @@ export function Modal({
   size = "md",
   title
 }: ModalProps) {
-  const resolvedCloseButtonLabel = closeButtonLabel ?? title;
+  const resolvedCloseButtonLabel = closeButtonLabel ?? "Close";
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
