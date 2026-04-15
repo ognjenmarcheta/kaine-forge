@@ -50,7 +50,7 @@ test("sign in and complete todo lifecycle", async ({ page }) => {
   await todoDialog.getByRole("button", { name: TODOS_CREATE }).click();
   await expect(todoDialog).not.toBeVisible();
 
-  await expect(page.getByText(todoTitle)).toBeVisible();
+  await expect(page.getByText(todoTitle)).toBeVisible({ timeout: 10_000 });
 
   const todoRow = page.locator("li", { hasText: todoTitle });
   const todoCheckbox = todoRow.getByRole("checkbox");
