@@ -1,5 +1,12 @@
 # @repo/ui
 
+## 1.1.1
+
+### Patch Changes
+
+- 07b5833: Migrate all UI primitives from shadcn bridge variables to direct --ds-\* design token references and add accent color token suite (9 hues x 7 token types)
+- 532bf1a: UI update
+
 ## 1.1.0
 
 ### Minor Changes
