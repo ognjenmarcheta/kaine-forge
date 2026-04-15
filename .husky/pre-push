@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
+set -e
 pnpm ai:sync:check
 pnpm typecheck
