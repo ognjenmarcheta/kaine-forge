@@ -12,7 +12,9 @@ The monorepo contains web, API, desktop, mobile, and shared packages. Running fu
 Use a two-tier CI strategy:
 
 1. Required PR gate (fast):
+   - AI assistant generated-file drift check
    - format/lint/typecheck/test
+   - coverage threshold
    - core build (API + web dependency graph)
 2. Scheduled/manual deep checks:
    - mobile export validation

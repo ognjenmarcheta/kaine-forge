@@ -1,30 +1,25 @@
-# kaine-forge monorepo
+# Kaine Forge
 
-Production-oriented Turborepo + pnpm monorepo with:
+Kaine Forge is a production-oriented Turborepo template for building a full-stack TypeScript product from one repository. It includes a GraphQL API, React web app, Tauri desktop shell, Expo mobile app, shared packages, release automation, Docker build paths, and an AI assistant scaffold that keeps multiple coding tools aligned.
 
-- `apps/api` (GraphQL Yoga)
-- `apps/web` (React + Vite)
-- `apps/desktop` (Tauri v2 shell)
-- `apps/mobile` (Expo + React Native)
-- shared packages for auth/db/translation/ui/config/codegen
+Use it when you want a reusable starter with strong defaults instead of a blank monorepo.
 
-## Current phase status
+## What You Get
 
-- Phase 1: Foundation ✅
-- Phase 2: API ✅
-- Phase 3: Web ✅
-- Phase 4: Desktop (Tauri) ✅
-- Phase 5: Mobile ✅
-- Phase 6: Polish/production-readiness ✅
-- Phase 7: Quality gates (e2e + a11y + i18n lint) ✅
-- Phase 8: Release engineering (changesets + GitHub releases) ✅
+- `apps/api`: GraphQL Yoga API with better-auth sessions, organization-scoped data, Drizzle/Postgres, startup checks, optional production migrations, CORS/preflight handling, and cookie-first auth with bearer-token fallback.
+- `apps/web`: React 19 and Vite SPA with root-aware env loading, API/GraphQL proxying, generated GraphQL hooks, design-system tokens, and nginx Docker runtime.
+- `apps/desktop`: Tauri v2 shell around the web app.
+- `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
+- `apps/e2e`: Playwright web/API tests with accessibility coverage.
+- `packages/*`: shared auth, db, logger, config, feature flags, query helpers, storage, translation, web UI, and mobile UI packages.
+- `.ai/`: canonical AI assistant guidance, skills, MCP placeholders, Cursor rules, Codex/Claude outputs, and Serena memories/config.
 
 ## Prerequisites
 
 - Node.js `>=20` (CI uses Node 22)
 - pnpm `10.29.3`
-- Docker (local PostgreSQL)
-- Rust toolchain (desktop/Tauri)
+- Docker Desktop or compatible Docker runtime for Postgres, MinIO, and image builds
+- Rust toolchain for desktop/Tauri work
 
 ## Quickstart
 
@@ -39,112 +34,141 @@ pnpm db:seed
 pnpm dev
 ```
 
-## One-command bootstrap
+The dev command runs all workspace dev tasks through Turborepo. To scope commands, stay at the repo root and use `pnpm --filter <workspace> <script>`.
+
+Examples:
+
+```bash
+pnpm --filter @repo/api test
+pnpm --filter @repo/web typecheck
+pnpm --filter @repo/mobile-ui typecheck
+```
+
+## One-Command Bootstrap
 
 ```bash
 pnpm initialize
 ```
 
-`initialize` performs reinstall, build, database generate/push/seed, then starts dev tasks.
+`initialize` reinstalls dependencies, builds the repo, generates/pushes/seeds the database, then starts development tasks.
 
-## Root scripts
+## Environment
 
-- `pnpm dev` run all workspace dev tasks (with `--continue=always`)
-- `pnpm build` build all workspaces
-- `pnpm build:core` build API + Web (and dependency graph)
-- `pnpm check` format/lint/typecheck/test across workspaces
-- `pnpm check:ci` CI gate alias
-- `pnpm coverage` monorepo Vitest coverage with enforced thresholds
-- `pnpm test:e2e` run Playwright web/api e2e suite with a11y assertions
-- `pnpm release:status` inspect pending changeset release metadata
-- `pnpm release:version` apply version/changelog updates from changesets
-- `pnpm release:publish` create release tags (no npm publish)
-- `pnpm generate` GraphQL codegen
-- `pnpm db:*` database lifecycle commands
+Start from `.env.example`. Important variables:
 
-## CI
+- `DATABASE_URL`: Postgres connection string. `sslmode=verify-ca` and `sslmode=verify-full` enable strict certificate verification; other SSL modes use safer non-strict TLS handling when present.
+- `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: auth runtime settings.
+- `API_RUN_MIGRATIONS`: optional boolean. Defaults to `false` outside production and `true` in production.
+- `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins.
+- `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap.
+- `ORGANIZATIONS_VISIBLE`, `VITE_ORGANIZATIONS_VISIBLE`, `EXPO_PUBLIC_ORGANIZATIONS_VISIBLE`: members/organization UI visibility flags.
+- `VITE_API_PROXY_TARGET`: optional Vite dev proxy target for `/api` and `/graphql`; defaults to `http://localhost:4000`.
+- `VITE_API_URL`, `VITE_GRAPHQL_URL`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GRAPHQL_URL`: client runtime URLs.
+- `S3_*`: S3-compatible storage settings. Local development uses MinIO from `docker-compose.yml`.
 
-Workflows:
+Auth is cookie-first. The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable.
 
-- `.github/workflows/ci-pr.yml`
-  - required fast gate for PRs (`format:check`, `lint`, `typecheck`, `test`, `coverage`)
-  - core build gate (`build:core`)
-  - e2e gate (`test:e2e`) with PostgreSQL service and Playwright artifacts
-- `.github/workflows/security.yml`
-  - dependency audit + secret scanning
-- `.github/workflows/deep-checks.yml`
-  - scheduled deeper checks (mobile export and desktop validation)
-- `.github/workflows/release.yml`
-  - automated release flow on `main` with quality gates + Changesets + GitHub releases
+## GraphQL and Database Flow
 
-## Troubleshooting
+- API SDL lives in feature modules under `apps/api/src/features/*`.
+- Runtime schema and schema generation share the same central feature registry.
+- The committed API schema is `apps/api/schema.graphql`.
+- Web and mobile GraphQL operations live under `apps/{web,mobile}/src/graphql/operations`.
+- Generated client artifacts live under `apps/{web,mobile}/src/graphql/generated`.
 
-### Mobile (Expo)
-
-- If bundling or module resolution looks stale:
+Common commands:
 
 ```bash
-pnpm --filter @repo/mobile exec expo start -c
+pnpm generate
+pnpm db:generate
+pnpm db:push
+pnpm db:migrate
+pnpm db:seed
 ```
 
-- If testing on physical device, set `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GRAPHQL_URL` to LAN IP, not `localhost`.
+`@repo/db/migrate` exports `runMigrations()` for API startup and deployment workflows.
 
-### Desktop (Tauri)
+## Docker
 
-- Desktop dev expects web app at `http://localhost:3000`.
-
-### E2E (Playwright)
-
-- Ensure local Postgres is running and seeded (`pnpm db:ensure && pnpm db:push && pnpm db:seed`).
-- `pnpm test:e2e` auto-installs Chromium on first run.
-- E2E spins isolated servers on `http://127.0.0.1:3010` (web) and `http://127.0.0.1:4010` (api) to avoid conflicts with regular dev ports.
-- `pnpm test:e2e` also runs `db:ensure` + `db:push` + `db:seed` before the suite.
-- Run:
+The API and web images use Turborepo prune so image builds only install the needed workspace graph.
 
 ```bash
+docker build -f Dockerfile.api -t kaine-forge-api .
+docker build -f Dockerfile.web -t kaine-forge-web .
+```
+
+The API image runs `node apps/api/dist/index.js`. The web image serves `apps/web/dist` through nginx on port `3000`, proxies `/api` and `/graphql` to `API_BACKEND_URL`, supports GraphQL websocket upgrades, and falls back to `index.html` for SPA routes.
+
+Example web runtime:
+
+```bash
+docker run --rm -p 3000:3000 -e API_BACKEND_URL=http://host.docker.internal:4000 kaine-forge-web
+```
+
+## AI Assistant Scaffold
+
+`.ai/` is the source of truth for team AI assistant guidance.
+
+- `.ai/guide.md`: short cross-tool guide generated into `AGENTS.md` and `CLAUDE.md`.
+- `.ai/skills/*.md`: reusable workflows generated into Claude, Codex, and Cursor skill formats.
+- `.ai/mcp.json`: generic MCP server placeholders only; no secrets.
+- `.ai/cursor-rules.md`: Cursor wrapper rules.
+- `.ai/serena-project.yml`: generic Serena project config.
+- `.ai/serena-memories/*.md`: canonical Serena memory sources.
+
+Run after changing canonical AI files:
+
+```bash
+pnpm ai:sync
+pnpm ai:sync:check
+```
+
+Generated assistant files are tracked for team consistency. Personal/local assistant state is ignored, including `.claude/settings.local.json`, `.claude/hooks/`, `.claude/plans/`, `.claude/skills/_personal/`, `.cursor/rules/user/`, `.cursor/worktrees.json`, `.augment/`, `.serena/cache/`, and `*.pkl`.
+
+## Quality Gates
+
+Common validation:
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm coverage
+pnpm build:core
 pnpm test:e2e
 ```
 
-### API Security Runtime
+`pnpm check` runs format, lint, typecheck, and tests. CI also runs `pnpm ai:sync:check`, coverage, core builds, and Playwright e2e.
 
-- `API_CORS_ORIGINS` optional comma-separated allowlist for GraphQL/API origins.
-- `API_GRAPHQL_MAX_DEPTH` optional positive integer query depth cap (default `8`).
-- `API_RUN_MIGRATIONS` optional boolean. Defaults to `false` outside production and `true` in production.
-- Error masking is automatically enabled when `NODE_ENV=production`.
+## Release Flow
 
-### Releases (Changesets)
-
-- Add release metadata in PRs with:
+Changesets are used for release metadata and changelog/version updates.
 
 ```bash
 pnpm changeset
-```
-
-- Inspect pending changes:
-
-```bash
 pnpm release:status
+pnpm release:version
+pnpm release:publish
 ```
 
-- The release workflow runs on merges to `main` and:
-  - enforces `check:ci` and `test:e2e`
-  - creates/updates a version PR from pending changesets
-  - on version PR merge, tags versions and creates GitHub Releases
-- For non-releasable source changes, use PR label `release:skip-changeset`.
+Source changes in `apps/**`, `packages/**`, or `tooling/**` need a `.changeset/*.md` file unless the PR is intentionally non-releasable and labeled `release:skip-changeset`.
 
-## Template adoption note
+## Template Adoption Checklist
 
-This repository is a monorepo boilerplate template. When adopting it for a real product, remove template-only policy text and replace it with project-specific policy.
+1. Replace Kaine Forge naming, repository links, and deployment URLs with product-specific values.
+2. Remove the `TEMPLATE_POLICY_BLOCK` sections from `MONOREPO_GUIDE.md` and `DESIGN_SYSTEM.md`.
+3. Replace template compatibility policy with your product compatibility/versioning policy.
+4. Rotate all secrets and rewrite `.env.example` defaults for your environments.
+5. Review `.ai/` skills and MCP placeholders; add org-specific integrations only in downstream projects.
+6. Confirm CI required checks and branch protection match your team workflow.
 
-1. Delete the block between `TEMPLATE_POLICY_BLOCK_START` and `TEMPLATE_POLICY_BLOCK_END` in `MONOREPO_GUIDE.md`.
-2. Delete the block between `TEMPLATE_POLICY_BLOCK_START` and `TEMPLATE_POLICY_BLOCK_END` in `DESIGN_SYSTEM.md`.
-3. Add your own compatibility/versioning policy for your product repository.
+## Documentation Map
 
-## Documentation
-
-- Monorepo AI guide: `MONOREPO_GUIDE.md`
-- Design system: `DESIGN_SYSTEM.md`
-- Contributor guide: `CONTRIBUTING.md`
-- Security policy: `SECURITY.md`
-- Architecture decisions: `docs/adr/`
-- Release checklist: `docs/release-checklist.md`
+- `MONOREPO_GUIDE.md`: architecture, FDD conventions, runtime rules, scripts, and feature workflow.
+- `DESIGN_SYSTEM.md`: token system, theming, UI rules, accessibility, and mobile/web styling split.
+- `CONTRIBUTING.md`: branch, PR, checks, and release contribution workflow.
+- `SECURITY.md`: vulnerability reporting and hardening expectations.
+- `docs/README.md`: documentation index.
+- `docs/adr/`: architecture decision records.
+- `docs/release-checklist.md`: release validation checklist.

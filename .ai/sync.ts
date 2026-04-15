@@ -9,10 +9,12 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { format as formatWithPrettier } from "prettier";
 
 const GENERATED_MARKER = "GENERATED FROM .ai; DO NOT EDIT DIRECTLY.";
 const HTML_NOTICE = `<!-- ${GENERATED_MARKER} Run pnpm ai:sync. -->`;
 const TOML_NOTICE = `# ${GENERATED_MARKER} Run pnpm ai:sync.`;
+const HASH_NOTICE = `# ${GENERATED_MARKER} Run pnpm ai:sync.`;
 
 const aiDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(aiDir, "..");
@@ -288,12 +290,17 @@ function tomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-function queueTargets(): GeneratedTarget[] {
+async function formatJson(content: string): Promise<string> {
+  return formatWithPrettier(content, { parser: "json" });
+}
+
+async function queueTargets(): Promise<GeneratedTarget[]> {
   const guide = readUtf8(path.join(aiDir, "guide.md"));
   const cursorRules = readUtf8(path.join(aiDir, "cursor-rules.md"));
   const skills = readSkills();
   const mcpRaw = JSON.parse(readUtf8(path.join(aiDir, "mcp.json"))) as unknown;
   const mcpConfig = parseMcpConfig(mcpRaw);
+  const mcpJson = await formatJson(`${JSON.stringify(mcpConfig, null, 2)}\n`);
   const targets: GeneratedTarget[] = [];
 
   targets.push({
@@ -305,11 +312,11 @@ function queueTargets(): GeneratedTarget[] {
     path: path.join(repoRoot, "CLAUDE.md")
   });
   targets.push({
-    content: `${JSON.stringify(mcpConfig, null, 2)}\n`,
+    content: mcpJson,
     path: path.join(repoRoot, ".mcp.json")
   });
   targets.push({
-    content: `${JSON.stringify(mcpConfig, null, 2)}\n`,
+    content: mcpJson,
     path: path.join(repoRoot, ".cursor", "mcp.json")
   });
   targets.push({
@@ -343,6 +350,14 @@ function queueTargets(): GeneratedTarget[] {
     targets.push({
       content: `${HTML_NOTICE}\n\n${readUtf8(path.join(memoriesDir, fileName)).trim()}\n`,
       path: path.join(repoRoot, ".serena", "memories", fileName)
+    });
+  }
+
+  const serenaProjectPath = path.join(aiDir, "serena-project.yml");
+  if (existsSync(serenaProjectPath)) {
+    targets.push({
+      content: `${HASH_NOTICE}\n\n${readUtf8(serenaProjectPath).trim()}\n`,
+      path: path.join(repoRoot, ".serena", "project.yml")
     });
   }
 
@@ -429,8 +444,8 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
   return drift;
 }
 
-function main(): void {
-  const targets = queueTargets();
+async function main(): Promise<void> {
+  const targets = await queueTargets();
   const skills = readSkills();
   const drift = [...writeOrCheckTargets(targets), ...removeStaleGeneratedSkillOutputs(skills)];
 
@@ -451,4 +466,7 @@ function main(): void {
   }
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

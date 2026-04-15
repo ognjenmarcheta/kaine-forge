@@ -3,6 +3,8 @@
 Date: 2026-02-21  
 Mode: Strict spec conformance (`DESIGN_SYSTEM.md` treated as authoritative)
 
+> Historical note: this audit records the state of the implementation on 2026-02-21. `DESIGN_SYSTEM.md` has since been refreshed for the template's current web/mobile split and should be treated as the live source of truth.
+
 ## Scope
 
 - Design spec: `DESIGN_SYSTEM.md`

@@ -13,6 +13,8 @@ pnpm changeset
 
 Choose the affected package(s), select the bump type, and write a short summary.
 
+Documentation-only, AI-scaffold-only, CI-only, and repository-policy-only changes normally do not need a changeset unless they change a published workspace package behavior.
+
 ## Local release commands
 
 ```bash

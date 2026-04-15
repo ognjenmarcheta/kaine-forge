@@ -15,6 +15,8 @@
 - DB seed: `pnpm db:seed`
 - Sync AI files: `pnpm ai:sync`
 - Check AI file drift: `pnpm ai:sync:check`
+- Docker API build: `docker build -f Dockerfile.api -t kaine-forge-api .`
+- Docker web build: `docker build -f Dockerfile.web -t kaine-forge-web .`
 
 Scoped examples:
 

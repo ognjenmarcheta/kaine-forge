@@ -10,7 +10,7 @@ Use this skill when `.ai/` sources changed or when generated assistant files may
 
 ## Workflow
 
-1. Read `.ai/guide.md`, `.ai/skills/`, `.ai/mcp.json`, `.ai/cursor-rules.md`, and `.ai/serena-memories/` as needed.
+1. Read `.ai/guide.md`, `.ai/skills/`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/` as needed.
 2. Run `pnpm ai:sync`.
 3. Run `pnpm ai:sync:check`.
 4. If `--check` reports drift, inspect the named files and rerun `pnpm ai:sync`.
@@ -27,6 +27,7 @@ Use this skill when `.ai/` sources changed or when generated assistant files may
 - `.cursor/mcp.json`
 - `.codex/config.toml`
 - `.cursor/rules/kaine-forge-rules.mdc`
+- `.serena/project.yml`
 - `.serena/memories/*.md`
 
 Generated files include a notice. Personal/local assistant files must remain untouched.

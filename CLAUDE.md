@@ -43,7 +43,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 
 ## AI Skills
 
-Reusable AI workflows live in `.ai/skills/`. Run `pnpm ai:sync` after adding or editing a skill so Claude, Codex, Cursor, and other generated assistant files stay aligned. Generated assistant files should not be edited directly.
+Reusable AI workflows live in `.ai/skills/`. Run `pnpm ai:sync` after adding or editing a skill, MCP server, Serena memory, or Serena project config so Claude, Codex, Cursor, Serena, and other generated assistant files stay aligned. Generated assistant files should not be edited directly.
 
 Use skills when they match the task:
 
@@ -55,6 +55,8 @@ Use skills when they match the task:
 - `review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
 
 Downstream products can add more skills in `.ai/skills/` without changing this generator.
+
+Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`.
 
 ## Generated Skills Index
 
