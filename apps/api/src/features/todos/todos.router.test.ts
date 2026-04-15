@@ -10,6 +10,11 @@ vi.mock("./todos.adapter", () => ({
   updateTodo: vi.fn()
 }));
 
+vi.mock("../storage/storage.adapter", () => ({
+  deleteFilesByEntity: vi.fn(),
+  listFiles: vi.fn()
+}));
+
 import * as todosAdapter from "./todos.adapter";
 import { todosResolvers } from "./todos.router";
 import type { PubSubEventMap } from "../../pubsub";

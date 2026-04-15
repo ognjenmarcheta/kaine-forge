@@ -70,6 +70,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: AI assistant drift check
+        run: pnpm run ai:sync:check
+
       - name: Format check
         run: pnpm run format:check
 

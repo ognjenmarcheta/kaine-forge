@@ -1,5 +1,14 @@
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogOverlay,
+  DialogTitle,
+  Input
+} from "@repo/mobile-ui";
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { View } from "react-native";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoDraft } from "../todos.type";
@@ -45,27 +54,24 @@ export function TodoFormModal({
   }
 
   return (
-    <Modal animationType="slide" transparent visible={isOpen}>
-      <View className="flex-1 justify-end bg-ds-blanket">
-        <View className="rounded-t-2xl bg-ds-surface p-4">
-          <Text className="text-lg font-semibold text-ds-text">{title}</Text>
+    <Dialog animationType="slide" isOpen={isOpen} onClose={onClose}>
+      <DialogOverlay className="justify-end px-0">
+        <DialogContent position="bottom">
+          <DialogTitle>{title}</DialogTitle>
 
           <View className="mt-3 gap-3">
-            <TextInput
-              className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
+            <Input
               placeholder={t("todos.form.titlePlaceholder")}
-              placeholderTextColor="var(--ds-text-subtlest)"
               value={draft.title}
               onChangeText={(value) => {
                 setDraft((current) => ({ ...current, title: value }));
               }}
             />
-            <TextInput
-              className="rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-ds-text"
+            <Input
+              className="min-h-24"
               multiline
               numberOfLines={3}
               placeholder={t("todos.form.descriptionPlaceholder")}
-              placeholderTextColor="var(--ds-text-subtlest)"
               textAlignVertical="top"
               value={draft.description}
               onChangeText={(value) => {
@@ -74,24 +80,22 @@ export function TodoFormModal({
             />
           </View>
 
-          <View className="mt-4 flex-row justify-end gap-2">
-            <Pressable className="rounded-md border border-ds-border px-3 py-2" onPress={onClose}>
-              <Text className="text-sm text-ds-text">{t("button.cancel")}</Text>
-            </Pressable>
-            <Pressable
-              className="rounded-md bg-ds-bg-brand-bold px-3 py-2"
+          <DialogFooter>
+            <Button appearance="secondary" spacing="compact" onPress={onClose}>
+              {t("button.cancel")}
+            </Button>
+            <Button
               disabled={isSubmitting}
+              spacing="compact"
               onPress={() => {
                 void submit();
               }}
             >
-              <Text className="text-sm text-ds-text-inverse">
-                {isSubmitting ? t("common.loadingShort") : t("button.save")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
+              {isSubmitting ? t("common.loadingShort") : t("button.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogOverlay>
+    </Dialog>
   );
 }

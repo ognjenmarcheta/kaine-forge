@@ -1,42 +1,67 @@
 # Release Checklist
 
-## 1. Pre-release validation
+Use this checklist before merging a release PR or cutting a manual release from the template.
+
+## 1. Generated Files
+
+- [ ] `pnpm ai:sync`
+- [ ] `pnpm ai:sync:check`
+- [ ] `pnpm generate` if GraphQL schema or operations changed
+- [ ] Confirm generated files are intentionally included or intentionally unchanged
+
+## 2. Quality Gates
 
 - [ ] `pnpm install --frozen-lockfile`
-- [ ] `pnpm check`
+- [ ] `pnpm format:check`
+- [ ] `pnpm lint`
+- [ ] `pnpm typecheck`
+- [ ] `pnpm test`
 - [ ] `pnpm coverage`
 - [ ] `pnpm build:core`
 - [ ] `pnpm test:e2e`
-- [ ] `pnpm --filter @repo/desktop check`
-- [ ] `pnpm --filter @repo/mobile check`
 
-## 2. Changesets and versioning
+## 3. Workspace-Specific Gates
 
-- [ ] Confirm PR includes `.changeset/*.md` for releasable source changes
-- [ ] Use label `release:skip-changeset` only for non-releasable source changes
-- [ ] Validate pending release metadata (`pnpm release:status`)
+- [ ] `pnpm --filter @repo/api test`
+- [ ] `pnpm --filter @repo/web test`
+- [ ] `pnpm --filter @repo/mobile typecheck`
+- [ ] `pnpm --filter @repo/mobile-ui typecheck`
+- [ ] `pnpm --filter @repo/desktop check` when desktop code changed
 
-## 3. Database and schema
+## 4. Database and Runtime
 
-- [ ] Confirm migration state (`pnpm db:generate`, `pnpm db:migrate` as needed)
-- [ ] Validate GraphQL schema/codegen consistency (`pnpm generate`)
+- [ ] Confirm migration state and whether `pnpm db:generate` is needed
+- [ ] Validate `pnpm db:migrate` for migration-based deployments
+- [ ] Confirm `API_RUN_MIGRATIONS` default is appropriate for the target environment
+- [ ] Confirm `API_CORS_ORIGINS` matches deployment origins
+- [ ] Confirm Postgres SSL settings in `DATABASE_URL`
+- [ ] Smoke test API startup and database connectivity
 
-## 4. Runtime smoke checks
+## 5. Docker
 
-- [ ] API starts and health query returns `ok`
-- [ ] API rejects overly deep GraphQL query (`API_GRAPHQL_MAX_DEPTH`)
-- [ ] API CORS allowlist (`API_CORS_ORIGINS`) matches deployment origins
-- [ ] Web auth + todos CRUD smoke test
-- [ ] Desktop shell loads web app in dev
-- [ ] Mobile app launches with `expo start -c`
+- [ ] Build API image: `docker build -f Dockerfile.api -t kaine-forge-api .`
+- [ ] Build web image: `docker build -f Dockerfile.web -t kaine-forge-web .`
+- [ ] Smoke test web nginx proxying for `/api` and `/graphql` when Docker is available
 
-## 5. Security and dependency checks
+## 6. Changesets and Release Metadata
 
-- [ ] Review `security.yml` workflow status (audit + secret scan)
-- [ ] Verify no secrets or tokens are present in changed files
+- [ ] Source changes in `apps/**`, `packages/**`, or `tooling/**` include `.changeset/*.md`
+- [ ] Non-releasable source changes use `release:skip-changeset`
+- [ ] `pnpm release:status`
+- [ ] Review generated changelog/version output before merging a version PR
 
-## 6. Release automation verification
+## 7. Security Review
 
-- [ ] Confirm `.github/workflows/release.yml` passed on `main`
-- [ ] Confirm release PR was created/updated by Changesets action
-- [ ] After release PR merge, confirm tags were created and GitHub Release exists
+- [ ] No secrets, tokens, `.env` files, local assistant state, or Serena cache files are tracked
+- [ ] `.ai/mcp.json` contains placeholders only
+- [ ] Auth/session changes preserve cookie-first behavior and bearer-token fallback safety
+- [ ] GraphQL changes preserve auth, organization scoping, and validation
+- [ ] Storage changes preserve least-privilege S3-compatible defaults
+
+## 8. Release Automation
+
+- [ ] `.github/workflows/ci-pr.yml` passed
+- [ ] `.github/workflows/security.yml` passed or known findings are triaged
+- [ ] `.github/workflows/release.yml` passed on `main`
+- [ ] Version PR was created or updated by Changesets
+- [ ] Tags and GitHub Releases exist after version PR merge

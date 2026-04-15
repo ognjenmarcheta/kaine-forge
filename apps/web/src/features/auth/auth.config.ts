@@ -6,6 +6,7 @@ export const AUTH_CONFIG = {
     session: "/api/auth/get-session",
     signup: "/api/auth/sign-up/email",
     organizationList: "/api/auth/organization/list",
+    organizationMembers: "/api/auth/organization/get-members",
     setActiveOrganization: "/api/auth/organization/set-active",
     createOrganization: "/api/auth/organization/create"
   }

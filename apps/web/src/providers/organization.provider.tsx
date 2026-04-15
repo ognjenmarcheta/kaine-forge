@@ -18,6 +18,7 @@ export interface OrganizationContextValue {
   organizations: OrganizationOption[];
   activeOrganizationId: string | null;
   organizationsVisible: boolean;
+  hasError: boolean;
   isLoading: boolean;
   setActiveOrganization: (organizationId: string) => Promise<void>;
   createOrganization: (name: string) => Promise<void>;
@@ -148,6 +149,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       organizations,
       activeOrganizationId,
       organizationsVisible: isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags),
+      hasError: organizationsQuery.status === "error",
       isLoading:
         organizationsQuery.status === "pending" ||
         setActiveOrganizationMutation.status === "pending" ||

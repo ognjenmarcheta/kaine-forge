@@ -1,6 +1,7 @@
+import { Button, Separator, Text } from "@repo/mobile-ui";
 import * as DocumentPicker from "expo-document-picker";
 import { useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, View } from "react-native";
 
 import { ConfirmModal } from "../../../components/confirm-modal";
 import { useDeleteMobileFileMutation } from "../../../graphql/generated/react-query";
@@ -94,20 +95,22 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
   const progressText = `${t("todos.attachments.uploading")} ${uploader.progress.toString()}%`;
 
   return (
-    <View className="mt-2 border-t border-ds-border pt-2">
+    <View className="mt-3">
+      <Separator className="mb-3" />
       <View className="flex-row items-center justify-between">
         <Text className="text-xs text-ds-text-subtlest">{t("todos.attachments.title")}</Text>
         <View className="flex-row items-center gap-2">
           {isUploading ? <Text className="text-xs text-ds-text-subtle">{progressText}</Text> : null}
-          <Pressable
-            className="rounded-md border border-ds-border px-2 py-1"
+          <Button
+            appearance="secondary"
             disabled={isUploading}
+            spacing="compact"
             onPress={() => {
               void handlePickFile();
             }}
           >
-            <Text className="text-xs text-ds-text">{t("todos.attachments.attach")}</Text>
-          </Pressable>
+            {t("todos.attachments.attach")}
+          </Button>
         </View>
       </View>
 

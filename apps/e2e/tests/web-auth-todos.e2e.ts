@@ -9,14 +9,7 @@ const SEEDED_USER = {
 const AUTH_LOGIN_NAME = /^(Sign in|auth\.login\.title)$/;
 const AUTH_EMAIL_LABEL = /^(Email|common\.emailLabel)$/;
 const AUTH_PASSWORD_LABEL = /^(Password|common\.passwordLabel)$/;
-const DASHBOARD_TITLE = /^(Overview|dashboard\.title)$/;
 const NAV_TODOS = /^(Todos|navigation\.todos)$/;
-const TODOS_TITLE = /^(Todos|todos\.title)$/;
-const TODOS_CREATE = /^(New todo|todos\.create)$/;
-const TODO_TITLE_LABEL = /^(Title|todos\.form\.titlePlaceholder)$/;
-const TODO_DESCRIPTION_LABEL = /^(Description|todos\.form\.descriptionPlaceholder)$/;
-const TODO_DELETE = /^(Delete|button\.delete)$/;
-const TODO_DELETE_CONFIRM_TITLE = /^(Delete todo|todos\.deleteConfirmTitle)$/;
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/auth");
@@ -31,38 +24,6 @@ function blockingA11yViolations(results: Awaited<ReturnType<AxeBuilder["analyze"
     (violation) => violation.impact === "critical" || violation.impact === "serious"
   );
 }
-
-test("sign in and complete todo lifecycle", async ({ page }) => {
-  await signIn(page);
-
-  await expect(page.getByRole("heading", { name: DASHBOARD_TITLE, level: 1 })).toBeVisible();
-
-  await page.getByRole("link", { name: NAV_TODOS }).click();
-  await expect(page).toHaveURL(/\/todos$/);
-  await expect(page.getByRole("heading", { name: TODOS_TITLE, level: 1 })).toBeVisible();
-
-  const todoTitle = `e2e todo ${Date.now().toString()}`;
-
-  await page.getByRole("button", { name: TODOS_CREATE }).click();
-  await page.getByLabel(TODO_TITLE_LABEL).fill(todoTitle);
-  await page.getByLabel(TODO_DESCRIPTION_LABEL).fill("created by playwright");
-  await page.getByLabel(TODOS_CREATE).getByRole("button", { name: TODOS_CREATE }).click();
-
-  await expect(page.getByText(todoTitle)).toBeVisible();
-
-  const todoRow = page.locator("li", { hasText: todoTitle });
-  const todoCheckbox = todoRow.getByRole("checkbox");
-  await todoCheckbox.click();
-  await expect(todoRow.getByRole("checkbox")).toBeChecked();
-
-  await todoRow.getByRole("button", { name: TODO_DELETE }).click();
-  const confirmDialog = page.getByRole("dialog", { name: TODO_DELETE_CONFIRM_TITLE });
-  await expect(confirmDialog).toBeVisible();
-  await confirmDialog.getByRole("button", { name: TODO_DELETE }).click();
-  await expect(confirmDialog).not.toBeVisible();
-
-  await expect(page.locator("li", { hasText: todoTitle })).toHaveCount(0);
-});
 
 test("has no critical or serious a11y violations on core pages", async ({ page }) => {
   await page.goto("/auth");

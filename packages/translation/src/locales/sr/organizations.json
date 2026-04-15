@@ -1,4 +1,9 @@
 {
-  "organizations.name": "Naziv organizacije",
-  "organizations.create": "Kreiraj organizaciju"
+  "organizations.create": "Kreiraj organizaciju",
+  "organizations.members.description": "Ljudi sa pristupom aktivnoj organizaciji.",
+  "organizations.members.empty": "Nema pronađenih članova.",
+  "organizations.members.error": "Članovi nisu mogli da se učitaju.",
+  "organizations.members.loading": "Učitavanje članova...",
+  "organizations.members.title": "Članovi",
+  "organizations.name": "Naziv organizacije"
 }

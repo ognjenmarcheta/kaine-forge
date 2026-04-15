@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+FROM base AS pruner
+WORKDIR /app
+RUN pnpm add -g turbo@2
+COPY . .
+RUN turbo prune @repo/api --docker
+
+FROM base AS builder
+WORKDIR /app
+
+COPY --from=pruner /app/.npmrc ./
+COPY --from=pruner /app/out/json/ ./
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile
+
+COPY --from=pruner /app/out/full/ ./
+COPY --from=pruner /app/packages/config/ ./packages/config/
+COPY --from=pruner /app/tsconfig.base.json ./
+COPY --from=pruner /app/scripts/fix-esm-extensions.mjs ./scripts/fix-esm-extensions.mjs
+
+RUN pnpm turbo run build --filter=@repo/api... \
+  && node scripts/fix-esm-extensions.mjs \
+    apps/api/dist \
+    packages/auth/dist \
+    packages/db/dist \
+    packages/feature-flags/dist \
+    packages/logger/dist \
+    packages/storage/dist \
+    packages/translation/dist \
+  && test -f apps/api/dist/index.js
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=pruner /app/.npmrc ./
+COPY --from=pruner /app/out/json/ ./
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
+COPY --from=builder /app/packages/auth/dist/ ./packages/auth/dist/
+COPY --from=builder /app/packages/db/dist/ ./packages/db/dist/
+COPY --from=builder /app/packages/db/drizzle/ ./packages/db/drizzle/
+COPY --from=builder /app/packages/feature-flags/dist/ ./packages/feature-flags/dist/
+COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
+COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
+COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
+
+USER node
+EXPOSE 4000
+CMD ["node", "apps/api/dist/index.js"]

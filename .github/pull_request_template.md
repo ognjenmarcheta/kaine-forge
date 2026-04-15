@@ -8,10 +8,8 @@
 
 ## Scope
 
-- In scope:
-  -
-- Out of scope:
-  -
+- ## In scope:
+- ## Out of scope:
 
 ## Risk & Impact
 
@@ -26,6 +24,11 @@
 
 ## Validation
 
+- [ ] `pnpm ai:sync:check`
+- [ ] `pnpm format:check`
+- [ ] `pnpm lint`
+- [ ] `pnpm typecheck`
+- [ ] `pnpm test`
 - [ ] `pnpm check`
 - [ ] `pnpm coverage`
 - [ ] `pnpm build:core`

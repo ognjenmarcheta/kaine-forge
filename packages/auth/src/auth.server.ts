@@ -1,7 +1,6 @@
 import { db, membersTable, organizationsTable, sessionsTable, usersTable } from "@repo/db";
 import { and, asc, eq, gt } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
-import type { IncomingHttpHeaders } from "node:http";
 
 import { getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
@@ -13,52 +12,19 @@ import type {
   ServerAuth,
   SignupInput
 } from "./auth.type";
-import { resolveActiveOrganizationId, slugifyOrganizationName } from "./auth.util";
+import {
+  getSessionTokenFromHeaders,
+  resolveActiveOrganizationId,
+  slugifyOrganizationName
+} from "./auth.util";
 
 interface OrganizationWriteExecutor {
   insert: typeof db.insert;
   update: typeof db.update;
 }
 
-function readHeader(headers: Headers | IncomingHttpHeaders, name: string): string | null {
-  if (headers instanceof Headers) {
-    return headers.get(name);
-  }
-
-  const header = headers[name.toLowerCase()];
-
-  if (Array.isArray(header)) {
-    return header[0] ?? null;
-  }
-
-  return header ?? null;
-}
-
 function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
-}
-
-function parseCookieHeader(headers: Headers | IncomingHttpHeaders): Record<string, string> {
-  const cookieHeader = readHeader(headers, "cookie");
-
-  if (!cookieHeader) {
-    return {};
-  }
-
-  return cookieHeader
-    .split(";")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .reduce<Record<string, string>>((cookies, entry) => {
-      const [key, ...valueParts] = entry.split("=");
-      const value = valueParts.join("=");
-
-      if (key) {
-        cookies[key] = decodeURIComponent(value);
-      }
-
-      return cookies;
-    }, {});
 }
 
 async function resolveUserByEmail(email: string) {
@@ -268,7 +234,7 @@ export function createServerAuth(): ServerAuth {
 
   return {
     async getSessionFromHeaders(headers) {
-      const sessionToken = parseCookieHeader(headers)[AUTH_DEFINITIONS.COOKIE_NAME] ?? null;
+      const sessionToken = getSessionTokenFromHeaders(headers);
 
       if (!sessionToken) {
         return null;

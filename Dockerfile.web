@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+FROM base AS pruner
+WORKDIR /app
+RUN pnpm add -g turbo@2
+COPY . .
+RUN turbo prune @repo/web --docker
+
+FROM base AS builder
+WORKDIR /app
+
+ARG VITE_API_URL
+ARG VITE_GRAPHQL_URL
+ARG VITE_ORGANIZATIONS_VISIBLE
+
+COPY --from=pruner /app/.npmrc ./
+COPY --from=pruner /app/out/json/ ./
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile
+
+COPY --from=pruner /app/out/full/ ./
+COPY --from=pruner /app/packages/config/ ./packages/config/
+COPY --from=pruner /app/tsconfig.base.json ./
+
+RUN pnpm turbo run build --filter=@repo/web... \
+  && test -f apps/web/dist/index.html
+
+FROM nginx:alpine AS runner
+
+RUN rm /etc/nginx/conf.d/default.conf
+COPY apps/web/nginx.conf /etc/nginx/default.conf.template
+COPY --from=builder /app/apps/web/dist/ /usr/share/nginx/html/
+
+ENV API_BACKEND_URL=http://localhost:4000
+
+EXPOSE 3000
+CMD ["sh", "-c", "envsubst '$API_BACKEND_URL' < /etc/nginx/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]

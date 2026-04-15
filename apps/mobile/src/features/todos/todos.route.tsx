@@ -1,6 +1,7 @@
+import { Button, Text } from "@repo/mobile-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 
 import { TodoFormModal } from "./components/todo-form-modal";
 import { TodoList } from "./components/todo-list";
@@ -145,12 +146,9 @@ export function TodosRoute() {
           <Text className="text-2xl font-semibold text-ds-text">{t("todos.title")}</Text>
           <Text className="text-sm text-ds-text-subtle">{completionSummary}</Text>
         </View>
-        <Pressable
-          className="rounded-md bg-ds-bg-brand-bold px-3 py-2"
-          onPress={() => setIsCreateOpen(true)}
-        >
-          <Text className="font-medium text-ds-text-inverse">{t("todos.create")}</Text>
-        </Pressable>
+        <Button spacing="compact" onPress={() => setIsCreateOpen(true)}>
+          {t("todos.create")}
+        </Button>
       </View>
 
       {error ? <Text className="mb-2 text-sm text-ds-text-danger">{error}</Text> : null}

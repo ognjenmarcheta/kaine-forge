@@ -1,4 +1,13 @@
-import { Modal, Pressable, Text, View } from "react-native";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogTitle
+} from "@repo/mobile-ui";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -24,31 +33,33 @@ export function ConfirmModal({
   onCancel
 }: ConfirmModalProps) {
   return (
-    <Modal animationType="fade" transparent visible={isOpen}>
-      <View className="flex-1 items-center justify-center bg-ds-blanket px-5">
-        <View className="w-full max-w-md rounded-2xl bg-ds-surface p-4">
-          <Text className="text-lg font-semibold text-ds-text">{title}</Text>
-          <Text className="mt-2 text-sm text-ds-text-subtle">{message}</Text>
-          <View className="mt-4 flex-row justify-end gap-2">
-            <Pressable
-              className="rounded-md border border-ds-border px-3 py-2"
+    <Dialog isOpen={isOpen} onClose={onCancel}>
+      <DialogOverlay>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              appearance="secondary"
               disabled={isConfirming}
+              spacing="compact"
               onPress={onCancel}
             >
-              <Text className="text-sm text-ds-text">{cancelLabel}</Text>
-            </Pressable>
-            <Pressable
-              className="rounded-md bg-ds-bg-danger px-3 py-2"
+              {cancelLabel}
+            </Button>
+            <Button
+              appearance="danger"
               disabled={isConfirming}
+              spacing="compact"
               onPress={onConfirm}
             >
-              <Text className="text-sm text-ds-text-inverse">
-                {isConfirming ? confirmingLabel : confirmLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
+              {isConfirming ? confirmingLabel : confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogOverlay>
+    </Dialog>
   );
 }

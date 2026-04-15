@@ -1,4 +1,9 @@
 {
-  "organizations.name": "Organization name",
-  "organizations.create": "Create organization"
+  "organizations.create": "Create organization",
+  "organizations.members.description": "People with access to the active organization.",
+  "organizations.members.empty": "No members found.",
+  "organizations.members.error": "Members could not be loaded.",
+  "organizations.members.loading": "Loading members...",
+  "organizations.members.title": "Members",
+  "organizations.name": "Organization name"
 }

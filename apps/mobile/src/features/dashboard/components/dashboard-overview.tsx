@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { Card, CardContent, CardHeader, CardTitle, Text } from "@repo/mobile-ui";
 
 import { ScreenContainer } from "../../../components/screen-container";
 import { useAuth } from "../../../hooks/use-auth";
@@ -11,18 +11,20 @@ export function DashboardOverview() {
 
   return (
     <ScreenContainer>
-      <Text className="text-2xl font-semibold text-ds-text">{t("dashboard.title")}</Text>
-      <Text className="mt-1 text-sm text-ds-text-subtle">
+      <Text variant="heading">{t("dashboard.title")}</Text>
+      <Text variant="caption" className="mt-1">
         {t(DASHBOARD_DEFINITION.subtitleKey)}
       </Text>
 
-      <View className="mt-4 rounded-xl bg-ds-surface p-4 shadow-raised">
-        <Text className="text-sm text-ds-text-subtle">{t("dashboard.signedInAs")}</Text>
-        <Text className="mt-1 text-base font-medium text-ds-text">
-          {session?.user.name ?? t("dashboard.unknownUser")}
-        </Text>
-        <Text className="text-sm text-ds-text-subtle">{session?.user.email ?? "-"}</Text>
-      </View>
+      <Card className="mt-4">
+        <CardHeader>
+          <Text variant="caption">{t("dashboard.signedInAs")}</Text>
+          <CardTitle>{session?.user.name ?? t("dashboard.unknownUser")}</CardTitle>
+        </CardHeader>
+        <CardContent className="mt-2">
+          <Text variant="caption">{session?.user.email ?? "-"}</Text>
+        </CardContent>
+      </Card>
     </ScreenContainer>
   );
 }

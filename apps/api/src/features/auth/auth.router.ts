@@ -4,6 +4,7 @@ import {
   type LoginInput,
   type SignupInput
 } from "@repo/auth/auth.type";
+import { getSessionTokenFromHeaders } from "@repo/auth/auth.util";
 
 import { AUTH_ROUTES } from "./auth.definition";
 import type { AuthRouteContext } from "./auth.type";
@@ -12,6 +13,71 @@ function sendJson(ctx: AuthRouteContext, status: number, body: unknown): void {
   ctx.res.statusCode = status;
   ctx.res.setHeader("content-type", "application/json");
   ctx.res.end(JSON.stringify(body));
+}
+
+function readHeader(header: string | string[] | undefined): string | null {
+  if (Array.isArray(header)) {
+    return header[0] ?? null;
+  }
+
+  return header ?? null;
+}
+
+function parseAllowedCorsOrigins(value: string | undefined): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const origins = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return origins.length > 0 ? origins : undefined;
+}
+
+function resolveAllowedCorsOrigin(origin: string | null): string | null {
+  if (!origin) {
+    return null;
+  }
+
+  const allowedOrigins = parseAllowedCorsOrigins(process.env.API_CORS_ORIGINS);
+
+  if (!allowedOrigins) {
+    return null;
+  }
+
+  return allowedOrigins.includes(origin) ? origin : null;
+}
+
+function applyCorsHeaders(ctx: AuthRouteContext): void {
+  const allowedOrigin = resolveAllowedCorsOrigin(readHeader(ctx.req.headers.origin));
+
+  if (!allowedOrigin) {
+    return;
+  }
+
+  ctx.res.setHeader("access-control-allow-credentials", "true");
+  ctx.res.setHeader("access-control-allow-headers", "content-type, authorization");
+  ctx.res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  ctx.res.setHeader("access-control-allow-origin", allowedOrigin);
+  const existingVary = ctx.res.getHeader("vary");
+  const rawValues = Array.isArray(existingVary)
+    ? existingVary.map(String)
+    : existingVary !== undefined
+      ? [String(existingVary)]
+      : [];
+  const existingTokens = rawValues
+    .flatMap((value) => value.split(","))
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const hasOrigin = existingTokens.some((token) => token.toLowerCase() === "origin");
+
+  if (!hasOrigin) {
+    existingTokens.push("Origin");
+  }
+
+  ctx.res.setHeader("vary", existingTokens.join(", "));
 }
 
 async function parseJsonBody(ctx: AuthRouteContext): Promise<Record<string, unknown>> {
@@ -61,35 +127,8 @@ function parseCreateOrganizationInput(payload: Record<string, unknown>): CreateO
   return { name };
 }
 
-function parseCookieValue(cookieHeader: string | undefined, key: string): string | null {
-  if (!cookieHeader) {
-    return null;
-  }
-
-  const entries = cookieHeader
-    .split(";")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  for (const entry of entries) {
-    const [cookieKey, ...valueParts] = entry.split("=");
-
-    if (cookieKey === key) {
-      return decodeURIComponent(valueParts.join("="));
-    }
-  }
-
-  return null;
-}
-
 function getSessionToken(ctx: AuthRouteContext): string | null {
-  const cookieHeader = ctx.req.headers.cookie;
-
-  if (Array.isArray(cookieHeader)) {
-    return parseCookieValue(cookieHeader[0], AUTH_DEFINITIONS.COOKIE_NAME);
-  }
-
-  return parseCookieValue(cookieHeader, AUTH_DEFINITIONS.COOKIE_NAME);
+  return getSessionTokenFromHeaders(ctx.req.headers);
 }
 
 function isProductionEnv(): boolean {
@@ -114,16 +153,29 @@ function clearSessionCookie(ctx: AuthRouteContext): void {
 }
 
 export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
-  const origin = `http://${ctx.req.headers.host ?? "localhost"}`;
+  const forwardedProto = readHeader(ctx.req.headers["x-forwarded-proto"])?.split(",")[0]?.trim();
+  const forwardedHost = readHeader(ctx.req.headers["x-forwarded-host"])?.split(",")[0]?.trim();
+  const protocol = forwardedProto || (isProductionEnv() ? "https" : "http");
+  const host = forwardedHost || readHeader(ctx.req.headers.host) || "localhost";
+  const origin = `${protocol}://${host}`;
   const url = new URL(ctx.req.url ?? "/", origin);
 
   if (!url.pathname.startsWith("/api/auth")) {
     return false;
   }
 
+  applyCorsHeaders(ctx);
+
+  if (ctx.req.method === "OPTIONS") {
+    ctx.res.statusCode = 204;
+    ctx.res.end();
+    return true;
+  }
+
   try {
     if (ctx.req.method === "GET" && url.pathname === AUTH_ROUTES.GET_SESSION) {
       const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
+      const sessionToken = getSessionToken(ctx);
 
       if (!session) {
         sendJson(ctx, 204, {});
@@ -131,7 +183,8 @@ export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       }
 
       sendJson(ctx, 200, {
-        session
+        session,
+        ...(sessionToken ? { sessionToken } : {})
       });
 
       return true;
@@ -144,7 +197,8 @@ export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       setSessionCookie(ctx, result.sessionToken);
 
       sendJson(ctx, 200, {
-        session: result.session
+        session: result.session,
+        sessionToken: result.sessionToken
       });
 
       return true;
@@ -157,7 +211,8 @@ export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       setSessionCookie(ctx, result.sessionToken);
 
       sendJson(ctx, 200, {
-        session: result.session
+        session: result.session,
+        sessionToken: result.sessionToken
       });
 
       return true;

@@ -1,4 +1,5 @@
-import { FlatList, Text } from "react-native";
+import { Text } from "@repo/mobile-ui";
+import { FlatList } from "react-native";
 
 import { TodoItemCard } from "./todo-item";
 import { useTranslation } from "../../../hooks/use-translation";

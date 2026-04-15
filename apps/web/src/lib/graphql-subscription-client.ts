@@ -1,19 +1,25 @@
 import { createClient, type Client } from "graphql-ws";
 
+import { authHeaders } from "../features/auth/auth.util";
+
 let subscriptionClient: Client | null = null;
 
 function resolveWsUrl(): string {
   if (typeof window === "undefined") {
     return "ws://localhost:3000/graphql";
   }
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/graphql`;
+
+  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL ?? "/graphql";
+  const httpUrl = new URL(graphqlUrl, window.location.origin);
+  httpUrl.protocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
+  return httpUrl.toString();
 }
 
 export function getSubscriptionClient(): Client {
   if (!subscriptionClient) {
     subscriptionClient = createClient({
       url: resolveWsUrl(),
+      connectionParams: () => authHeaders(null),
       shouldRetry: () => true,
       retryAttempts: Infinity,
       retryWait: async (retryCount) => {
