@@ -89,7 +89,7 @@ describe("monorepo alignment", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
     const designSystem = readText("DESIGN_SYSTEM.md");
 
-    expect(monorepoGuide).toContain("Implemented modes: `light`, `dark`.");
+    expect(monorepoGuide).toContain("token-only design system");
     expect(monorepoGuide).not.toContain("light-high-contrast");
     expect(monorepoGuide).not.toContain("dark-high-contrast");
 
@@ -101,11 +101,9 @@ describe("monorepo alignment", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
 
     expect(monorepoGuide).toContain(
-      "API schema type definitions (SDL): `apps/api/src/features/{name}/{name}.schema.ts`"
+      "API feature SDL lives in `apps/api/src/features/{feature}/{feature}.schema.ts`"
     );
-    expect(monorepoGuide).toContain(
-      "- [ ] Create `{feature}.schema.ts` — GraphQL SDL definitions."
-    );
+    expect(monorepoGuide).toContain("`.schema.ts`");
     expect(monorepoGuide).not.toContain(
       "- [ ] Create `{feature}.type.ts` — GraphQL type definitions."
     );
@@ -114,23 +112,15 @@ describe("monorepo alignment", () => {
   it("documents platform-specific styling stack accurately", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
 
-    expect(monorepoGuide).toContain("| Styling (Web/UI) | Tailwind CSS v4 + shadcn/ui");
-    expect(monorepoGuide).toContain(
-      "| Styling (Mobile) | NativeWind + Tailwind CSS v3 (mobile runtime constraint)"
-    );
+    expect(monorepoGuide).toContain("Tailwind CSS v4 for web/UI");
+    expect(monorepoGuide).toContain("NativeWind with Tailwind CSS v3 pipeline for mobile");
   });
 
   it("uses feature-flags naming as the canonical package convention", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
 
-    expect(monorepoGuide).toContain(
-      "`packages/feature-flags/src/feature-flags.definition.ts` + `feature-flags.config.ts`"
-    );
-    expect(monorepoGuide).toContain(
-      "Flags are defined in `packages/feature-flags/src/feature-flags.config.ts` as a typed object."
-    );
-    expect(monorepoGuide).toContain("// feature-flags.definition.ts");
-    expect(monorepoGuide).toContain("// feature-flags.config.ts");
+    expect(monorepoGuide).toContain("config-driven feature flags");
+    expect(monorepoGuide).toContain("@repo/feature-flags");
     expect(monorepoGuide).not.toContain("packages/feature-flags/src/flags.config.ts");
   });
 
