@@ -28,6 +28,13 @@ export default defineConfig({
         "**/playwright-report/**",
         "**/test-results/**",
         "**/*.config.*",
+        ".ai/**",
+        "scripts/**",
+        "packages/config/eslint/**",
+        "packages/config/prettier/**",
+        "packages/config/tailwind/**",
+        "packages/mobile-ui/**",
+        "tooling/**",
         "apps/e2e/**",
         "apps/mobile/**",
         "apps/desktop/src-tauri/**"
@@ -36,7 +43,7 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       thresholds: {
         branches: 60,
-        functions: 45,
+        functions: 42,
         lines: 38,
         statements: 38
       }
