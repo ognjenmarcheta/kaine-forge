@@ -39,6 +39,17 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Sync AI assistant files: `pnpm ai:sync`
 - Check AI assistant drift: `pnpm ai:sync:check`
 
+## AI Behavioral Guidelines
+
+Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's observations):
+
+- **Think before coding.** State assumptions explicitly. If multiple interpretations exist, present them instead of picking silently. Push back when a simpler approach exists. If something is unclear, stop and ask.
+- **Simplicity first.** Write the minimum code that solves the problem. No unrequested features, no abstractions for single-use code, no speculative flexibility or error handling for impossible scenarios. If 200 lines could be 50, rewrite it.
+- **Surgical changes.** Touch only what you must. Do not improve adjacent code, comments, or formatting. Match existing style. Remove imports/variables that your changes made unused, but do not remove pre-existing dead code unless asked.
+- **Goal-driven execution.** Transform tasks into verifiable goals. For multi-step work, state a brief plan with verification checks. Loop until success criteria are met.
+
+These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
 ## AI Skills
 
 Reusable AI workflows live in `.ai/skills/`. Run `pnpm ai:sync` after adding or editing a skill, MCP server, Serena memory, or Serena project config so Claude, Codex, Cursor, Serena, and other generated assistant files stay aligned. Generated assistant files should not be edited directly.
