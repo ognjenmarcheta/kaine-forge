@@ -62,13 +62,15 @@ function applyCorsHeaders(ctx: AuthRouteContext): void {
   ctx.res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   ctx.res.setHeader("access-control-allow-origin", allowedOrigin);
   const existingVary = ctx.res.getHeader("vary");
-  const existingTokens =
-    typeof existingVary === "string"
-      ? existingVary
-          .split(",")
-          .map((token) => token.trim())
-          .filter(Boolean)
+  const rawValues = Array.isArray(existingVary)
+    ? existingVary.map(String)
+    : existingVary !== undefined
+      ? [String(existingVary)]
       : [];
+  const existingTokens = rawValues
+    .flatMap((value) => value.split(","))
+    .map((token) => token.trim())
+    .filter(Boolean);
   const hasOrigin = existingTokens.some((token) => token.toLowerCase() === "origin");
 
   if (!hasOrigin) {
