@@ -9,6 +9,8 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { format as formatWithPrettier } from "prettier";
+
 const GENERATED_MARKER = "GENERATED FROM .ai; DO NOT EDIT DIRECTLY.";
 const GENERATED_NOTICE = `${GENERATED_MARKER} Run pnpm ai:sync.`;
 const HTML_NOTICE = `<!-- ${GENERATED_NOTICE} -->`;
@@ -314,12 +316,15 @@ function tomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-function queueTargets(skills: Skill[]): GeneratedTarget[] {
+async function queueTargets(skills: Skill[]): Promise<GeneratedTarget[]> {
   const guide = readUtf8(path.join(aiDir, "guide.md"));
   const cursorRules = readUtf8(path.join(aiDir, "cursor-rules.md"));
   const mcpRaw = JSON.parse(readUtf8(path.join(aiDir, "mcp.json"))) as unknown;
   const mcpConfig = parseMcpConfig(mcpRaw);
-  const mcpJson = `${JSON.stringify({ _generated: GENERATED_NOTICE, ...mcpConfig }, null, 2)}\n`;
+  const mcpJson = await formatWithPrettier(
+    JSON.stringify({ _generated: GENERATED_NOTICE, ...mcpConfig }, null, 2),
+    { parser: "json" }
+  );
   const targets: GeneratedTarget[] = [];
 
   targets.push({
@@ -486,9 +491,9 @@ function writeOrCheckTargetsDetailed(targets: GeneratedTarget[]): SyncResult[] {
   return results;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const skills = readSkills();
-  const targets = queueTargets(skills);
+  const targets = await queueTargets(skills);
   const results = writeOrCheckTargetsDetailed(targets);
   const staleDrift = removeStaleGeneratedSkillOutputs(skills);
 
@@ -528,9 +533,7 @@ function main(): void {
   }
 }
 
-try {
-  main();
-} catch (error: unknown) {
+main().catch((error: unknown) => {
   console.error(error);
   process.exit(1);
-}
+});
