@@ -18,6 +18,7 @@ Findings should lead the response, ordered by severity:
 - Missing tests for risky behavior.
 - GraphQL schema/codegen drift.
 - TypeScript looseness, especially `any`.
+- Unnecessary complexity, scope creep, or speculative abstractions beyond what was requested.
 - UI violations of `DESIGN_SYSTEM.md`, including hardcoded styles or untranslated strings.
 - Template-specific mistakes that would leak project-specific assumptions downstream.
 

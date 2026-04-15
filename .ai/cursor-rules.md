@@ -13,6 +13,13 @@ Before code changes:
 - Read `DESIGN_SYSTEM.md` for UI, styling, theming, tokens, or component work.
 - Prefer `.ai/guide.md` and generated `AGENTS.md` for assistant workflow guidance.
 
+Behavioral guidelines:
+
+- Think before coding. State assumptions explicitly. If unclear, ask before implementing.
+- Simplicity first. Minimum code that solves the problem. No speculative features or abstractions.
+- Surgical changes. Touch only what you must. Do not improve adjacent code unless asked.
+- Goal-driven execution. Define verifiable success criteria. Loop until met.
+
 Core constraints:
 
 - Work from the repository root.
