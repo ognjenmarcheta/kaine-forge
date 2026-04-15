@@ -46,7 +46,10 @@ test("sign in and complete todo lifecycle", async ({ page }) => {
   await page.getByRole("button", { name: TODOS_CREATE }).click();
   await page.getByLabel(TODO_TITLE_LABEL).fill(todoTitle);
   await page.getByLabel(TODO_DESCRIPTION_LABEL).fill("created by playwright");
-  await page.getByRole("dialog").getByRole("button", { name: TODOS_CREATE }).click();
+  await page
+    .getByRole("dialog", { name: TODOS_CREATE })
+    .getByRole("button", { name: TODOS_CREATE })
+    .click();
 
   await expect(page.getByText(todoTitle)).toBeVisible();
 
