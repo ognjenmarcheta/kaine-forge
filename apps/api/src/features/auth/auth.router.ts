@@ -61,7 +61,21 @@ function applyCorsHeaders(ctx: AuthRouteContext): void {
   ctx.res.setHeader("access-control-allow-headers", "content-type, authorization");
   ctx.res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   ctx.res.setHeader("access-control-allow-origin", allowedOrigin);
-  ctx.res.setHeader("vary", "Origin");
+  const existingVary = ctx.res.getHeader("vary");
+  const existingTokens =
+    typeof existingVary === "string"
+      ? existingVary
+          .split(",")
+          .map((token) => token.trim())
+          .filter(Boolean)
+      : [];
+  const hasOrigin = existingTokens.some((token) => token.toLowerCase() === "origin");
+
+  if (!hasOrigin) {
+    existingTokens.push("Origin");
+  }
+
+  ctx.res.setHeader("vary", existingTokens.join(", "));
 }
 
 async function parseJsonBody(ctx: AuthRouteContext): Promise<Record<string, unknown>> {
@@ -137,10 +151,10 @@ function clearSessionCookie(ctx: AuthRouteContext): void {
 }
 
 export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
-  const forwardedProto = readHeader(ctx.req.headers["x-forwarded-proto"]);
-  const forwardedHost = readHeader(ctx.req.headers["x-forwarded-host"]);
-  const protocol = forwardedProto ?? (isProductionEnv() ? "https" : "http");
-  const host = forwardedHost ?? readHeader(ctx.req.headers.host) ?? "localhost";
+  const forwardedProto = readHeader(ctx.req.headers["x-forwarded-proto"])?.split(",")[0]?.trim();
+  const forwardedHost = readHeader(ctx.req.headers["x-forwarded-host"])?.split(",")[0]?.trim();
+  const protocol = forwardedProto || (isProductionEnv() ? "https" : "http");
+  const host = forwardedHost || readHeader(ctx.req.headers.host) || "localhost";
   const origin = `${protocol}://${host}`;
   const url = new URL(ctx.req.url ?? "/", origin);
 
