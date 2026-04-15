@@ -9,12 +9,11 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { format as formatWithPrettier } from "prettier";
-
 const GENERATED_MARKER = "GENERATED FROM .ai; DO NOT EDIT DIRECTLY.";
-const HTML_NOTICE = `<!-- ${GENERATED_MARKER} Run pnpm ai:sync. -->`;
-const TOML_NOTICE = `# ${GENERATED_MARKER} Run pnpm ai:sync.`;
-const HASH_NOTICE = `# ${GENERATED_MARKER} Run pnpm ai:sync.`;
+const GENERATED_NOTICE = `${GENERATED_MARKER} Run pnpm ai:sync.`;
+const HTML_NOTICE = `<!-- ${GENERATED_NOTICE} -->`;
+const TOML_NOTICE = `# ${GENERATED_NOTICE}`;
+const HASH_NOTICE = `# ${GENERATED_NOTICE}`;
 
 const aiDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(aiDir, "..");
@@ -99,12 +98,12 @@ function parseMcpConfig(raw: unknown): McpConfig {
     }
 
     const env = readStringRecord(value.env);
-    if (env) {
+    if (env && Object.keys(env).length > 0) {
       server.env = env;
     }
 
     const headers = readStringRecord(value.headers);
-    if (headers) {
+    if (headers && Object.keys(headers).length > 0) {
       server.headers = headers;
     }
 
@@ -127,11 +126,17 @@ function readSkills(): Skill[] {
     .map((fileName) => {
       const sourcePath = path.join(skillsDir, fileName);
       const raw = readUtf8(sourcePath).trim();
-      const parsed = parseSkillFrontmatter(raw);
+      const parsed = parseSkillFrontmatter(raw, fileName);
       const fallbackName = fileName.replace(/\.md$/, "");
       const name = sanitizeSkillName(parsed.metadata.name ?? fallbackName);
       const description = parsed.metadata.description ?? "No description provided.";
       const argumentHint = parsed.metadata["argument-hint"];
+
+      if (parsed.metadata.name && sanitizeSkillName(parsed.metadata.name) !== fallbackName) {
+        throw new Error(
+          `${fileName}: frontmatter name "${parsed.metadata.name}" does not match file name "${fallbackName}".`
+        );
+      }
 
       return {
         ...(argumentHint ? { argumentHint } : {}),
@@ -144,17 +149,22 @@ function readSkills(): Skill[] {
     });
 }
 
-function parseSkillFrontmatter(raw: string): {
+function parseSkillFrontmatter(
+  raw: string,
+  fileName?: string
+): {
   body: string;
   metadata: Record<string, string>;
 } {
   if (!raw.startsWith("---\n")) {
-    return { body: raw, metadata: {} };
+    throw new Error(
+      `${fileName ?? "skill"}: missing YAML frontmatter (expected '---\\n...\\n---\\n').`
+    );
   }
 
   const end = raw.indexOf("\n---\n", 4);
   if (end === -1) {
-    return { body: raw, metadata: {} };
+    throw new Error(`${fileName ?? "skill"}: unclosed YAML frontmatter (missing closing '---').`);
   }
 
   const frontmatter = raw.slice(4, end);
@@ -214,13 +224,27 @@ function buildSkillsIndex(skills: Skill[]): string {
 }
 
 function buildAgentDoc(guide: string, skills: Skill[]): string {
+  const trimmed = guide.trim();
+  const skillsSection = `## Generated Skills Index
+
+${buildSkillsIndex(skills)}`;
+
+  const importantNotesIdx = trimmed.indexOf("\n## Important Notes");
+  if (importantNotesIdx !== -1) {
+    return `${HTML_NOTICE}
+
+${trimmed.slice(0, importantNotesIdx)}
+
+${skillsSection}
+${trimmed.slice(importantNotesIdx)}
+`;
+  }
+
   return `${HTML_NOTICE}
 
-${guide.trim()}
+${trimmed}
 
-## Generated Skills Index
-
-${buildSkillsIndex(skills)}
+${skillsSection}
 `;
 }
 
@@ -290,17 +314,12 @@ function tomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-async function formatJson(content: string): Promise<string> {
-  return formatWithPrettier(content, { parser: "json" });
-}
-
-async function queueTargets(): Promise<GeneratedTarget[]> {
+function queueTargets(skills: Skill[]): GeneratedTarget[] {
   const guide = readUtf8(path.join(aiDir, "guide.md"));
   const cursorRules = readUtf8(path.join(aiDir, "cursor-rules.md"));
-  const skills = readSkills();
   const mcpRaw = JSON.parse(readUtf8(path.join(aiDir, "mcp.json"))) as unknown;
   const mcpConfig = parseMcpConfig(mcpRaw);
-  const mcpJson = await formatJson(`${JSON.stringify(mcpConfig, null, 2)}\n`);
+  const mcpJson = `${JSON.stringify({ _generated: GENERATED_NOTICE, ...mcpConfig }, null, 2)}\n`;
   const targets: GeneratedTarget[] = [];
 
   targets.push({
@@ -364,27 +383,6 @@ async function queueTargets(): Promise<GeneratedTarget[]> {
   return targets;
 }
 
-function writeOrCheckTargets(targets: GeneratedTarget[]): string[] {
-  const drift: string[] = [];
-
-  for (const target of targets) {
-    const existing = existsSync(target.path) ? readUtf8(target.path) : null;
-    if (existing === target.content) {
-      continue;
-    }
-
-    if (checkMode) {
-      drift.push(path.relative(repoRoot, target.path));
-      continue;
-    }
-
-    mkdirSync(path.dirname(target.path), { recursive: true });
-    writeFileSync(target.path, target.content, "utf8");
-  }
-
-  return drift;
-}
-
 function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
   const drift: string[] = [];
   const skillNames = new Set(skills.map((skill) => skill.name));
@@ -398,6 +396,10 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
     }
 
     for (const entry of readdirSync(baseDir)) {
+      if (entry.startsWith("_")) {
+        continue;
+      }
+
       const entryPath = path.join(baseDir, entry);
       if (!statSync(entryPath).isDirectory() || skillNames.has(entry)) {
         continue;
@@ -408,11 +410,18 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
         continue;
       }
 
-      const relativePath = path.relative(repoRoot, entryPath);
+      const relativePath = path.relative(repoRoot, skillFile);
       if (checkMode) {
         drift.push(relativePath);
       } else {
-        rmSync(entryPath, { force: true, recursive: true });
+        rmSync(skillFile, { force: true });
+        try {
+          if (readdirSync(entryPath).length === 0) {
+            rmSync(entryPath, { recursive: true });
+          }
+        } catch {
+          // Directory not empty or already removed; ignore.
+        }
       }
     }
   }
@@ -444,29 +453,84 @@ function removeStaleGeneratedSkillOutputs(skills: Skill[]): string[] {
   return drift;
 }
 
-async function main(): Promise<void> {
-  const targets = await queueTargets();
-  const skills = readSkills();
-  const drift = [...writeOrCheckTargets(targets), ...removeStaleGeneratedSkillOutputs(skills)];
+interface SyncResult {
+  filePath: string;
+  status: "created" | "out-of-sync" | "removed" | "unchanged" | "updated";
+}
 
-  if (drift.length > 0) {
-    if (checkMode) {
-      console.error("Generated AI assistant files are out of sync:");
-      for (const filePath of drift) {
-        console.error(`- ${filePath}`);
-      }
-      process.exit(1);
+function writeOrCheckTargetsDetailed(targets: GeneratedTarget[]): SyncResult[] {
+  const results: SyncResult[] = [];
+
+  for (const target of targets) {
+    const existing = existsSync(target.path) ? readUtf8(target.path) : null;
+    const relativePath = path.relative(repoRoot, target.path);
+
+    if (existing === target.content) {
+      results.push({ filePath: relativePath, status: "unchanged" });
+      continue;
     }
+
+    if (checkMode) {
+      results.push({ filePath: relativePath, status: "out-of-sync" });
+      continue;
+    }
+
+    mkdirSync(path.dirname(target.path), { recursive: true });
+    writeFileSync(target.path, target.content, "utf8");
+    results.push({
+      filePath: relativePath,
+      status: existing === null ? "created" : "updated"
+    });
+  }
+
+  return results;
+}
+
+function main(): void {
+  const skills = readSkills();
+  const targets = queueTargets(skills);
+  const results = writeOrCheckTargetsDetailed(targets);
+  const staleDrift = removeStaleGeneratedSkillOutputs(skills);
+
+  for (const filePath of staleDrift) {
+    results.push({ filePath, status: checkMode ? "out-of-sync" : "removed" });
+  }
+
+  const outOfSync = results.filter((r) => r.status === "out-of-sync");
+  if (outOfSync.length > 0) {
+    console.error(`${outOfSync.length} generated file(s) out-of-date:`);
+    for (const r of outOfSync) {
+      console.error(`  ${r.filePath}`);
+    }
+    console.error("\nRun: pnpm ai:sync");
+    process.exit(1);
   }
 
   if (checkMode) {
-    console.log("AI assistant generated files are in sync.");
+    console.log(`OK: ${results.length} generated file(s) in sync.`);
+    return;
+  }
+
+  const changed = results.filter((r) => r.status !== "unchanged");
+  console.log(`Canonical sources:`);
+  console.log(`  .ai/guide.md`);
+  console.log(`  .ai/skills/*.md (${skills.length} skill${skills.length === 1 ? "" : "s"})`);
+  console.log(`  .ai/mcp.json`);
+  console.log(`  .ai/cursor-rules.md`);
+  console.log("");
+  if (changed.length === 0) {
+    console.log(`All ${results.length} generated file(s) already up-to-date.`);
   } else {
-    console.log("AI assistant files synced.");
+    console.log("Changes:");
+    for (const r of changed) {
+      console.log(`  [${r.status}] ${r.filePath}`);
+    }
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  main();
+} catch (error: unknown) {
   console.error(error);
   process.exit(1);
-});
+}

@@ -1,17 +1,16 @@
 {
+  "_generated": "GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync.",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
-      "env": {}
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
     },
     "context7": {
       "url": "https://mcp.context7.com/mcp"
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"],
-      "env": {}
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }
