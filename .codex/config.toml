@@ -1,0 +1,12 @@
+# GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync.
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "."]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]

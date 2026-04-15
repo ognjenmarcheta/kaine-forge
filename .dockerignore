@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output and caches
+dist/
+build/
+.turbo/
+.next/
+*.tsbuildinfo
+
+# Version control
+.git/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+apps/e2e/playwright-report/
+apps/e2e/test-results/
+
+# Editor and local assistant state
+.idea/
+.vscode/
+.serena/cache/
+.claude/settings.local.json
+.claude/hooks/
+.claude/plans/
+.cursor/worktrees.json
+
+# OS files
+.DS_Store
+Thumbs.db

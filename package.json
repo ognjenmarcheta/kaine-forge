@@ -26,6 +26,8 @@
     "clean-deps": "find . -name node_modules -type d -prune -exec rm -rf {} +",
     "reinstall-deps": "pnpm run clean-deps && pnpm install",
     "initialize": "pnpm run reinstall-deps && pnpm run build && pnpm run db:generate && pnpm run db:push && pnpm run db:seed && pnpm run dev",
+    "ai:sync": "tsx .ai/sync.ts",
+    "ai:sync:check": "tsx .ai/sync.ts --check",
     "generate": "pnpm --filter @repo/graphql-codegen run generate",
     "db:generate": "pnpm --filter @repo/db run db:generate",
     "db:ensure": "pnpm --filter @repo/db run db:ensure",

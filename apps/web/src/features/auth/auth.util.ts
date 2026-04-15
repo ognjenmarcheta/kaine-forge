@@ -1,3 +1,4 @@
+import { AUTH_DEFINITION } from "./auth.definition";
 import type { AuthSession } from "./auth.type";
 
 function readLocalStorage(key: string): string | null {
@@ -47,7 +48,28 @@ export function setStoredSession(storageKey: string, session: AuthSession | null
   writeLocalStorage(storageKey, JSON.stringify(session));
 }
 
+export function getStoredSessionToken(storageKey: string): string | null {
+  return readLocalStorage(storageKey);
+}
+
+export function setStoredSessionToken(storageKey: string, sessionToken: string | null): void {
+  if (!sessionToken) {
+    removeLocalStorage(storageKey);
+    return;
+  }
+
+  writeLocalStorage(storageKey, sessionToken);
+}
+
 export function authHeaders(session: AuthSession | null): Record<string, string> {
   void session;
-  return {};
+  const sessionToken = getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey);
+
+  if (!sessionToken) {
+    return {};
+  }
+
+  return {
+    authorization: `Bearer ${sessionToken}`
+  };
 }

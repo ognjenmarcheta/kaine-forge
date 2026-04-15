@@ -11,8 +11,26 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL must be defined");
 }
 
+function resolveSslConfig(connectionString: string): { rejectUnauthorized: boolean } | undefined {
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode")?.toLowerCase();
+
+    if (!sslMode || sslMode === "disable") {
+      return undefined;
+    }
+
+    return {
+      rejectUnauthorized: sslMode === "verify-ca" || sslMode === "verify-full"
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 const pool = new Pool({
-  connectionString: databaseUrl
+  connectionString: databaseUrl,
+  ssl: resolveSslConfig(databaseUrl)
 });
 
 export const db = drizzle(pool);

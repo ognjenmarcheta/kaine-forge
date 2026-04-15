@@ -18,6 +18,13 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules")
 ];
 
+config.resolver.extraNodeModules = {
+  react: path.resolve(projectRoot, "node_modules/react"),
+  "react-native": path.resolve(projectRoot, "node_modules/react-native"),
+  "react-native-css-interop": path.resolve(projectRoot, "node_modules/react-native-css-interop")
+};
+
 export default withNativeWind(config, {
-  input: "./src/styles/global.css"
+  input: "./src/styles/global.css",
+  inlineRem: 16
 });

@@ -12,9 +12,11 @@ export default defineConfig({
         "packages/auth/src/auth.definition.ts"
       ),
       "@repo/auth/auth.type": path.join(workspaceRoot, "packages/auth/src/auth.type.ts"),
+      "@repo/auth/auth.util": path.join(workspaceRoot, "packages/auth/src/auth.util.ts"),
       "@repo/auth/server": path.join(workspaceRoot, "packages/auth/src/server.ts"),
       "@repo/db": path.join(workspaceRoot, "packages/db/src/index.ts"),
       "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),
+      "@repo/storage": path.join(workspaceRoot, "packages/storage/src/index.ts"),
       "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts")
     }
   }

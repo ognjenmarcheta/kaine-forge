@@ -18,6 +18,7 @@ import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "rea
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
+import { OrganizationsRoute } from "./features/organizations/organizations.route";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
@@ -32,6 +33,7 @@ const THEME_OPTIONS = [
 
 const ROUTE_TO_BREADCRUMB = {
   "/dashboard": "navigation.dashboard",
+  "/members": "navigation.members",
   "/todos": "navigation.todos"
 } as const;
 
@@ -39,6 +41,8 @@ function ShellLayout() {
   const { isLoading, logout, session } = useAuth();
   const {
     activeOrganizationId,
+    hasError,
+    isLoading: isOrganizationLoading,
     organizations,
     organizationsVisible,
     setActiveOrganization,
@@ -65,11 +69,30 @@ function ShellLayout() {
   function ShellBody() {
     const location = useLocation();
     const isDashboardActive = location.pathname === "/dashboard";
+    const isMembersActive = location.pathname === "/members";
     const isTodosActive = location.pathname === "/todos";
     const currentRouteKey =
       ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
       "navigation.dashboard";
-    const activeTeamValue = activeOrganizationId ?? organizations[0]?.id;
+    const teamOptions =
+      organizations.length > 0
+        ? organizations.map((organization) => ({
+            name: organization.name,
+            subtitle: t("navigation.organization"),
+            value: organization.id
+          }))
+        : [
+            {
+              disabled: true,
+              name:
+                isOrganizationLoading && !hasError
+                  ? t("navigation.organizationLoading")
+                  : t("navigation.organizationUnavailable"),
+              subtitle: t("navigation.organization"),
+              value: "organization-placeholder"
+            }
+          ];
+    const activeTeamValue = activeOrganizationId ?? organizations[0]?.id ?? teamOptions[0]?.value;
     const breadcrumbItems = [
       {
         href: "/dashboard",
@@ -117,7 +140,16 @@ function ShellLayout() {
                     href: "/todos",
                     isActive: isTodosActive,
                     title: t("navigation.todos")
-                  }
+                  },
+                  ...(organizationsVisible
+                    ? [
+                        {
+                          href: "/members",
+                          isActive: isMembersActive,
+                          title: t("navigation.members")
+                        }
+                      ]
+                    : [])
                 ]}
                 renderLink={(item, content) => <NavLink to={item.href ?? "#"}>{content}</NavLink>}
               />
@@ -163,13 +195,11 @@ function ShellLayout() {
                   className="w-full min-w-0 max-w-none"
                   label={t("navigation.organization")}
                   onValueChange={(value) => {
-                    void setActiveOrganization(value);
+                    if (value !== "organization-placeholder") {
+                      void setActiveOrganization(value);
+                    }
                   }}
-                  teams={organizations.map((organization) => ({
-                    name: organization.name,
-                    subtitle: t("navigation.organization"),
-                    value: organization.id
-                  }))}
+                  teams={teamOptions}
                   {...(activeTeamValue ? { value: activeTeamValue } : {})}
                 />
               ) : null
@@ -221,6 +251,10 @@ export const appRouter = createBrowserRouter([
       {
         element: <TodosRoute />,
         path: "todos"
+      },
+      {
+        element: <OrganizationsRoute />,
+        path: "members"
       }
     ]
   },

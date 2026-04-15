@@ -17,3 +17,14 @@ apps/mobile/.expo/
 apps/mobile/.expo-shared/
 apps/e2e/playwright-report/
 apps/e2e/test-results/
+
+# AI assistant local/personal state
+.claude/settings.local.json
+.claude/hooks/
+.claude/plans/
+.claude/skills/_personal/
+.cursor/rules/user/
+.cursor/worktrees.json
+.augment/
+.serena/cache/
+*.pkl

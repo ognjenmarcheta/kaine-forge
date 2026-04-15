@@ -1,9 +1,68 @@
+import type { IncomingHttpHeaders } from "node:http";
+
+import { AUTH_DEFINITIONS } from "./auth.definition";
+
 interface ResolveActiveOrganizationIdInput {
   availableOrganizationIds: string[];
   requestedActiveOrganizationId: string | null;
 }
 
 const DEFAULT_ORGANIZATION_SLUG = "organization";
+
+function readHeader(headers: Headers | IncomingHttpHeaders, name: string): string | null {
+  if (headers instanceof Headers) {
+    return headers.get(name);
+  }
+
+  const header = headers[name.toLowerCase()];
+
+  if (Array.isArray(header)) {
+    return header[0] ?? null;
+  }
+
+  return header ?? null;
+}
+
+function parseCookieHeader(headers: Headers | IncomingHttpHeaders): Record<string, string> {
+  const cookieHeader = readHeader(headers, "cookie");
+
+  if (!cookieHeader) {
+    return {};
+  }
+
+  return cookieHeader
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((cookies, entry) => {
+      const [key, ...valueParts] = entry.split("=");
+      const value = valueParts.join("=");
+
+      if (key) {
+        cookies[key] = decodeURIComponent(value);
+      }
+
+      return cookies;
+    }, {});
+}
+
+export function getSessionTokenFromHeaders(headers: Headers | IncomingHttpHeaders): string | null {
+  const authorizationHeader = readHeader(headers, "authorization");
+
+  if (authorizationHeader) {
+    const [scheme, ...valueParts] = authorizationHeader.trim().split(/\s+/);
+
+    if (scheme?.toLowerCase() === "bearer") {
+      const token = valueParts.join(" ").trim();
+
+      if (token) {
+        return token;
+      }
+    }
+  }
+
+  return parseCookieHeader(headers)[AUTH_DEFINITIONS.COOKIE_NAME] ?? null;
+}
 
 export function resolveActiveOrganizationId(
   input: ResolveActiveOrganizationIdInput

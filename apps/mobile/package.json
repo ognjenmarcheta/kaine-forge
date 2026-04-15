@@ -26,6 +26,7 @@
     "@react-navigation/drawer": "^7.5.0",
     "@repo/auth": "workspace:*",
     "@repo/logger": "workspace:*",
+    "@repo/mobile-ui": "workspace:*",
     "@repo/query": "workspace:*",
     "@repo/translation": "workspace:*",
     "@tanstack/react-query": "^5.90.21",

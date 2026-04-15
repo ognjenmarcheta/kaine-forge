@@ -1,158 +1,66 @@
-# CLAUDE.md
+<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+# Kaine Forge AI Guide
 
-## Authoritative References
+This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, better-auth organizations, and shared `@repo/*` packages.
 
-Read before generating, modifying, or reviewing code:
+## Required Reading
 
-- `MONOREPO_GUIDE.md` — Architecture, conventions, naming patterns, constraints (single source of truth)
-- `DESIGN_SYSTEM.md` — Design tokens, color roles, spacing, typography, component behavior
-- `AGENTS.md` — Priority and conflict resolution between the two
+- Read `MONOREPO_GUIDE.md` before generating, modifying, or reviewing code.
+- Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work.
+- Treat `MONOREPO_GUIDE.md` as authoritative for architecture, package boundaries, naming, data rules, GraphQL flow, and engineering conventions.
+- Treat `DESIGN_SYSTEM.md` as authoritative for visual language, tokens, theming, and component behavior.
+
+## Working Rules
+
+- Work from the repo root unless a command explicitly needs a workspace directory.
+- Use `pnpm --filter <workspace> <script>` for scoped commands, for example `pnpm --filter @repo/api test`.
+- Keep changes surgical. Avoid broad refactors unless the task explicitly asks for them.
+- Prefer tests that prove the requested behavior over snapshot churn or unrelated coverage.
+- Preserve Feature-Driven Development naming: `{feature}.{purpose}.ts(x)` inside feature folders.
+- Preserve `@repo/*` package boundaries. Do not import through internal package paths.
+- Keep TypeScript strict. Do not use `any`; use `unknown` with narrowing when needed.
+- Keep user-facing strings in translation JSON files and access them through i18n helpers.
+- Use generated GraphQL operations and schema generation flow. Do not hand-edit generated GraphQL outputs.
+- Keep organization-scoped data organization-scoped. Resolve active organization from session/context.
+- Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
+- Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
+- Do not commit secrets or local assistant state.
 
 ## Common Commands
 
-```bash
-# Bootstrap (one command)
-pnpm initialize
+- Install dependencies: `pnpm install`
+- Run all dev tasks: `pnpm dev`
+- Generate GraphQL artifacts: `pnpm generate`
+- Run full check: `pnpm check`
+- Format check: `pnpm format:check`
+- Lint: `pnpm lint`
+- Typecheck: `pnpm typecheck`
+- Test: `pnpm test`
+- Build API and web core: `pnpm run build:core`
+- Sync AI assistant files: `pnpm ai:sync`
+- Check AI assistant drift: `pnpm ai:sync:check`
 
-# Manual setup
-cp .env.example .env && docker compose up -d && pnpm install
-pnpm db:generate && pnpm db:ensure && pnpm db:push && pnpm db:seed
+## AI Skills
 
-# Development
-pnpm dev                          # all apps in parallel
-pnpm --filter @repo/web dev       # single workspace
-pnpm --filter @repo/api dev       # API only
+Reusable AI workflows live in `.ai/skills/`. Run `pnpm ai:sync` after adding or editing a skill so Claude, Codex, Cursor, and other generated assistant files stay aligned. Generated assistant files should not be edited directly.
 
-# Quality gates (run before PR)
-pnpm check                        # format:check + lint + typecheck + test
-pnpm build:core                   # build API + Web
-pnpm test:e2e                     # Playwright (seeds DB, spins isolated servers)
+Use skills when they match the task:
 
-# Single workspace check
-pnpm --filter <workspace> check
+- `sync-docs`: regenerate and verify generated assistant files.
+- `test`: plan or write tests for a specified system under test.
+- `open-pr`: prepare a draft PR with repo checks and template expectations.
+- `rebase`: safely rebase a feature branch onto `main`.
+- `fix-ci`: investigate and fix failing CI from logs and local reproduction.
+- `review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
 
-# Testing
-pnpm test                         # all unit/integration tests (Vitest)
-pnpm --filter @repo/api test      # single workspace tests
-pnpm coverage                     # monorepo coverage with thresholds
+Downstream products can add more skills in `.ai/skills/` without changing this generator.
 
-# Linting & formatting
-pnpm lint                         # ESLint (flat config v9)
-pnpm lint:fix                     # autofix
-pnpm format                       # Prettier write
-pnpm format:check                 # Prettier check only
-pnpm typecheck                    # tsc --noEmit across workspaces
+## Generated Skills Index
 
-# Database (Drizzle + PostgreSQL 17)
-pnpm db:generate                  # generate migrations
-pnpm db:push                      # push schema to local DB
-pnpm db:migrate                   # apply migrations
-pnpm db:seed                      # seed test data (test@test.test / ChangeMe123!)
-pnpm db:studio                    # Drizzle Studio GUI
-
-# GraphQL codegen
-pnpm generate
-
-# Releases
-pnpm changeset                    # add release metadata
-pnpm release:status               # inspect pending changes
-```
-
-## Architecture
-
-**Turborepo + pnpm monorepo** with Feature-Driven Development (FDD).
-
-### Apps
-
-| App            | Stack                                        | Port      |
-| -------------- | -------------------------------------------- | --------- |
-| `apps/api`     | GraphQL Yoga + Node.js                       | 4000      |
-| `apps/web`     | React 19 + Vite                              | 3000      |
-| `apps/desktop` | Tauri v2 (Rust backend, serves web frontend) | —         |
-| `apps/mobile`  | Expo / React Native                          | —         |
-| `apps/e2e`     | Playwright test suite                        | 3010/4010 |
-
-### Shared Packages (`@repo/*` scope)
-
-| Package               | Purpose                                                       |
-| --------------------- | ------------------------------------------------------------- |
-| `@repo/db`            | Drizzle schemas, types (drizzle-zod), validators, migrations  |
-| `@repo/auth`          | better-auth server/client with organization plugin            |
-| `@repo/ui`            | shadcn/ui primitives + composed components (web/desktop only) |
-| `@repo/translation`   | i18next + locale JSON files                                   |
-| `@repo/feature-flags` | Config-driven feature toggles                                 |
-| `@repo/query`         | GraphQL client utilities                                      |
-| `@repo/storage`       | S3-compatible file storage with presigned URLs                |
-| `@repo/config`        | ESLint, Prettier, Tailwind, TypeScript shared configs         |
-
-### Data Flow
-
-```
-Web/Mobile/Desktop → GraphQL (urql/graphql-request)
-                   → GraphQL Yoga (apps/api)
-                   → Drizzle ORM (packages/db)
-                   → PostgreSQL 17
-```
-
-### Multi-Tenancy
-
-All data is organization-scoped. Every data table has `organizationId` FK. The API extracts `activeOrganizationId` from the better-auth session and scopes all queries. Users get a "Personal" org on signup.
-
-## Key Conventions
-
-### File Naming (FDD)
-
-Files follow `{feature-name}.{purpose}.{ext}`:
-`.type.ts`, `.util.ts`, `.adapter.ts`, `.router.ts`, `.route.tsx`, `.config.ts`, `.definition.ts`, `.validator.ts`, `.store.ts`, `.test.ts`, `.graphql`
-
-React components use kebab-case: `todo-list.tsx`, `login-form.tsx`.
-
-### Where Things Go
-
-| Need                 | Location                                                                    |
-| -------------------- | --------------------------------------------------------------------------- |
-| DB table             | `packages/db/src/schema/{name}.schema.ts`                                   |
-| Zod validator        | `packages/db/src/validators/{name}.validator.ts`                            |
-| Inferred types       | `packages/db/src/types/{name}.type.ts`                                      |
-| API resolver         | `apps/api/src/features/{name}/{name}.router.ts`                             |
-| API DB queries       | `apps/api/src/features/{name}/{name}.adapter.ts`                            |
-| GraphQL ops (client) | `apps/{web,mobile}/src/graphql/operations/{name}.graphql`                   |
-| Client data hooks    | `apps/{web,mobile}/src/features/{name}/{name}.adapter.ts`                   |
-| Page component       | `apps/{web,mobile}/src/features/{name}/{name}.route.tsx`                    |
-| Feature component    | `apps/{web,mobile}/src/features/{name}/components/`                         |
-| Shared UI component  | `packages/ui/src/components/primitives/` or `composed/`                     |
-| Zustand store        | `apps/{web,mobile}/src/stores/{name}.store.ts`                              |
-| Translations         | `packages/translation/src/locales/{lang}/{namespace}.json`                  |
-| Feature flag         | `packages/feature-flags/src/flags.definition.ts` + `flags.config.ts`        |
-| Storage schema       | `packages/db/src/schema/files.schema.ts`                                    |
-| Storage resolvers    | `apps/api/src/features/storage/`                                            |
-| Storage ops          | `apps/{web,mobile}/src/graphql/operations/storage.graphql`                  |
-| Upload hook          | `apps/{web,mobile}/src/hooks/use-file-upload.ts`                            |
-| Design token         | `packages/ui/src/styles/globals.css` + `packages/config/tailwind/preset.js` |
-
-### Hard Rules
-
-- **No `any`** — use `unknown` and narrow. Exception: generated code only.
-- **No hardcoded user-facing strings** — all go through `t()` / `useTranslation()`.
-- **No hardcoded colors/spacing** — use `--ds-*` tokens via Tailwind utility classes.
-- **No alternative libraries** for anything in the tech stack (no axios, styled-components, Redux, Prisma, Jest).
-- **Import through package exports only** — `@repo/db/schema`, not internal paths.
-- **Schema-derived types** — Drizzle schemas are the source of truth; types/validators derived via drizzle-zod.
-- **UI component tiers** — Primitives (data-agnostic, prop-driven), Composed (prop-driven, no stores), Feature (can use stores, translation, auth).
-- **Server data in urql cache, UI state in Zustand** — don't duplicate server state.
-
-### Commit Style
-
-Conventional commits: `feat(scope):`, `fix(scope):`, `chore(scope):`, `docs(scope):`
-
-Source changes (`apps/**`, `packages/**`, `tooling/**`) require `pnpm changeset` or the `release:skip-changeset` PR label.
-
-## Environment Variables
-
-Server-side: plain names (`DATABASE_URL`, `API_PORT`). Vite client: `VITE_` prefix. Expo client: `EXPO_PUBLIC_` prefix. See `.env.example` for all values.
-
-## TypeScript Config
-
-Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`. Target: ES2022, module resolution: Bundler.
+- `fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
+- `open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
+- `rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
+- `review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `sync-docs`: Regenerate and validate generated AI assistant files from canonical .ai sources.
+- `test`: Write or verify tests for a specified system under test using Kaine Forge conventions.

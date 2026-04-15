@@ -4,11 +4,9 @@ import type { AuthSession } from "../features/auth/auth.type";
 import { authHeaders } from "../features/auth/auth.util";
 
 function resolveGraphqlUrl(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3000/graphql";
-  }
-
-  return new URL("/graphql", window.location.origin).toString();
+  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL ?? "/graphql";
+  const origin = typeof window === "undefined" ? "http://localhost:3000" : window.location.origin;
+  return new URL(graphqlUrl, origin).toString();
 }
 
 export function createGraphqlClient(session: AuthSession | null): GraphQLClient {

@@ -109,6 +109,7 @@ pnpm test:e2e
 
 - `API_CORS_ORIGINS` optional comma-separated allowlist for GraphQL/API origins.
 - `API_GRAPHQL_MAX_DEPTH` optional positive integer query depth cap (default `8`).
+- `API_RUN_MIGRATIONS` optional boolean. Defaults to `false` outside production and `true` in production.
 - Error masking is automatically enabled when `NODE_ENV=production`.
 
 ### Releases (Changesets)
