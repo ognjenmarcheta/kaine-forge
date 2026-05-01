@@ -1,19 +1,7 @@
-# @repo/db
+# @repo/mobile-ui
 
-## 1.1.1
+## 1.0.1
 
 ### Patch Changes
 
 - efcb73a: Backport template-safe runtime hardening, Docker support, bearer auth fallback, organization members wiring, mobile UI primitives, and generated AI assistant scaffold.
-
-## 1.1.0
-
-### Minor Changes
-
-- 42437fd: Multitenancy and organization implementation
-
-## 1.0.0
-
-### Major Changes
-
-- 9633894: First release test
