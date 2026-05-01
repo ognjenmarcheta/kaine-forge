@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy to .ai.local/mcp.json and edit. Personal MCPs are merged into every per-tool config on `pnpm ai:install`. Team entries in .ai/mcp.json win on name collisions.",
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "some-mcp-package"],
+      "env": {
+        "API_KEY": "${MY_API_KEY}"
+      }
+    }
+  }
+}

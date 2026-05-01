@@ -1,4 +1,4 @@
-<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
+<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->
 
 # Project Overview
 

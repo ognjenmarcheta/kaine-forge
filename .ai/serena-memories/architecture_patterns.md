@@ -10,4 +10,4 @@
 - Generated GraphQL artifacts are produced by `pnpm generate`; do not hand-edit generated files.
 - Runtime GraphQL schema and schema generation use the same central feature registry.
 - Feature flags are config-driven in `@repo/feature-flags`.
-- `.ai/` is canonical for assistant guidance; generated assistant files should not be edited directly.
+- `.ai/` is canonical for assistant guidance; installed assistant files should not be edited directly.

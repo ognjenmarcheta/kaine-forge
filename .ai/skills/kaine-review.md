@@ -1,5 +1,5 @@
 ---
-name: review
+name: kaine-review
 description: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
 argument-hint: diff, branch, PR, or path
 ---

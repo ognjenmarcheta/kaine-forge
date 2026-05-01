@@ -13,8 +13,8 @@
 - DB push: `pnpm db:push`
 - DB migrate: `pnpm db:migrate`
 - DB seed: `pnpm db:seed`
-- Sync AI files: `pnpm ai:sync`
-- Check AI file drift: `pnpm ai:sync:check`
+- Install AI files: `pnpm ai:install`
+- Check AI setup and drift: `pnpm ai:doctor`
 - Docker API build: `docker build -f Dockerfile.api -t kaine-forge-api .`
 - Docker web build: `docker build -f Dockerfile.web -t kaine-forge-web .`
 

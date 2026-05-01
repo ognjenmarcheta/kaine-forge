@@ -1,72 +1,64 @@
-# Claude Code configuration
+# AI assistant configuration
 
-This directory is (almost) entirely **generated** from the canonical sources in [`.ai/`](../.ai/). Do not edit files here by hand unless they are marked as personal.
+The committed AI setup is split into shared canonical sources and local install state. `pnpm ai:install` reads the canonical sources and writes per-agent configs into gitignored locations.
 
-**To change anything agent-facing**, edit the source in `.ai/` and run `pnpm ai:sync`. See [`.ai/skills/sync-docs.md`](../.ai/skills/sync-docs.md) for details.
+## Shared, committed
 
-## What's in this directory
+| Path                       | Purpose                                                               |
+| -------------------------- | --------------------------------------------------------------------- |
+| `AGENTS.md`                | Generated repository instructions for all agents from `.ai/guide.md`. |
+| `CLAUDE.md`                | One-line `@AGENTS.md` import.                                         |
+| `.ai/guide.md`             | Canonical guide content for AGENTS/Claude.                            |
+| `.ai/skills/kaine-*.md`    | Shared skill sources. Names must start with `kaine-`.                 |
+| `.ai/mcp.json`             | Shared MCP server catalog. Secrets stay in local env vars.            |
+| `.ai/cursor-rules.md`      | Cursor rule source, installed locally only when requested.            |
+| `.ai/serena-project.yml`   | Canonical Serena project source.                                      |
+| `.ai/serena-memories/*.md` | Canonical Serena memory sources.                                      |
 
-### Generated from `.ai/` (do not edit)
+## Local, gitignored
 
-| Path                     | Generated from         |
-| ------------------------ | ---------------------- |
-| `skills/<name>/SKILL.md` | `.ai/skills/<name>.md` |
+| Path                                                              | Purpose                                                                      |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `.claude/skills/kaine-<name>/SKILL.md`                            | Installed Claude skills.                                                     |
+| `.agents/skills/kaine-<name>/SKILL.md`                            | Installed Codex skills. Codex reads `.agents/skills/`, not `.codex/skills/`. |
+| `.cursor/skills/kaine-<name>/SKILL.md`                            | Installed Cursor skills.                                                     |
+| `.opencode/skills/kaine-<name>/SKILL.md`                          | Installed OpenCode skills.                                                   |
+| `.mcp.json`                                                       | Installed Claude MCP config.                                                 |
+| `.codex/config.toml`                                              | Installed Codex MCP config.                                                  |
+| `.cursor/mcp.json`, `.cursor/rules/`                              | Installed Cursor config.                                                     |
+| `opencode.json`                                                   | Installed OpenCode MCP config.                                               |
+| `.ai.local/mcp.env`                                               | Personal env-var values for `${VAR}` substitution.                           |
+| `.ai.local/mcp.json`                                              | Personal MCP servers, merged into every per-tool config.                     |
+| `.claude/settings.local.json`, `.claude/hooks/`, `.claude/plans/` | Personal Claude runtime state.                                               |
 
-### Hand-edited (Claude Code runtime only)
+## Ownership: the `kaine-` prefix rule
 
-| Path                  | Purpose                                                                           |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `settings.json`       | Team-level Claude Code settings (permissions, hooks, enabled plugins). Committed. |
-| `settings.local.json` | Your personal overrides. Gitignored.                                              |
+Skills whose names start with `kaine-` are team-managed. The installer creates and updates them on every run.
 
-### Personal (gitignored)
+Skills with any other name are yours. The installer never touches them.
 
-| Path                | Purpose                                   |
-| ------------------- | ----------------------------------------- |
-| `hooks/`            | Hook scripts                              |
-| `plans/`            | Ephemeral planning files                  |
-| `skills/_personal/` | Support files referenced by shared skills |
+To customize a team skill, copy it to a non-prefixed name and edit the copy. The original keeps getting updates; your fork is permanent.
 
-Personal skills live at the top level because Claude Code does not scan nested subdirectories under `skills/`.
-
-## Adding a team skill
-
-Create `.ai/skills/<name>.md` with frontmatter:
-
-```yaml
----
-name: <name>
-description: One sentence on when to use this skill.
-argument-hint: <optional>
----
+```bash
+cp -r .claude/skills/kaine-open-pr .claude/skills/open-pr-mine
 ```
 
-Run `pnpm ai:sync`. The generated `.claude/skills/<name>/SKILL.md` and `.cursor/rules/skill-<name>.mdc` appear automatically.
+The `kaine-` prefix is reserved. Do not use it for personal skills.
 
-## Adding a personal skill
+## Commands
 
-Create it under `.claude/skills/_<name>/SKILL.md` (note the underscore prefix). The sync script skips directories starting with `_` during stale cleanup.
-
-Add the directory to `.gitignore`:
-
-```text
-.claude/skills/_<name>/
+```bash
+pnpm ai:install --agent claude
+pnpm ai:install --agent codex
+pnpm ai:install --agent cursor
+pnpm ai:install --agent opencode
+pnpm ai:doctor
 ```
 
-## MCP servers
+`pnpm ai:install` installs local skills and MCP config for the selected agent. With no flags it prompts interactively. It writes gitignored files; team skills are always overwritten so the team source is the source of truth.
 
-Team MCP servers are configured once in [`.ai/mcp.json`](../.ai/mcp.json). The sync generates:
-
-- `.mcp.json` (Claude Code)
-- `.cursor/mcp.json` (Cursor)
-- `.codex/config.toml` (Codex)
+`pnpm ai:doctor` reports local install status, MCP command availability, missing environment variables, skill lint errors, and drift. It exits non-zero if any skill fails lint.
 
 ## Serena
 
-The Serena MCP server is wired up via `.ai/mcp.json`. The project-level Serena setup (`.serena/project.yml` and the pre-built memories under `.serena/memories/`) is generated from `.ai/serena-project.yml` and `.ai/serena-memories/`.
-
-## Enforcement
-
-- `pnpm ai:sync` — regenerate everything
-- `pnpm ai:sync:check` — exit 1 if any generated file is out-of-date
-- Pre-push hook runs `--check` so drift cannot leave your machine
+The Serena SessionStart hook is configured in `settings.json` so Claude automatically asks Serena for its system prompt override when available. Shared Serena project config and memories are generated from `.ai/serena-project.yml` and `.ai/serena-memories/`.

@@ -1,5 +1,3 @@
-<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
-
 # Kaine Forge AI Guide
 
 This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, better-auth organizations, and shared `@repo/*` packages.
@@ -38,8 +36,8 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
 - Build API and web core: `pnpm run build:core`
-- Sync AI assistant files: `pnpm ai:sync`
-- Check AI assistant drift: `pnpm ai:sync:check`
+- Install local AI assistant files: `pnpm ai:install`
+- Check AI assistant setup and drift: `pnpm ai:doctor`
 
 ## AI Behavioral Guidelines
 
@@ -54,26 +52,28 @@ These guidelines bias toward caution over speed. For trivial tasks, use judgment
 
 ## AI Skills
 
-Reusable AI workflows live in `.ai/skills/`. Run `pnpm ai:sync` after adding or editing a skill, MCP server, Serena memory, or Serena project config so Claude, Codex, Cursor, Serena, and other generated assistant files stay aligned. Generated assistant files should not be edited directly.
+Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, and Serena seed files. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, and local per-agent installs stay aligned. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
+
+Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and leaves your personal copies alone.
 
 Use skills when they match the task:
 
-- `sync-docs`: regenerate and verify generated assistant files.
-- `test`: plan or write tests for a specified system under test.
-- `open-pr`: prepare a draft PR with repo checks and template expectations.
-- `rebase`: safely rebase a feature branch onto `main`.
-- `fix-ci`: investigate and fix failing CI from logs and local reproduction.
-- `review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-sync-docs`: reinstall and verify AI assistant files.
+- `kaine-test`: plan or write tests for a specified system under test.
+- `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.
+- `kaine-rebase`: safely rebase a feature branch onto `main`.
+- `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
+- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
 
 Downstream products can add more skills in `.ai/skills/` without changing this generator.
 
-Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`.
+Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
 
 ## Generated Skills Index
 
-- `fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
-- `open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
-- `rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
-- `review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
-- `sync-docs`: Regenerate and validate generated AI assistant files from canonical .ai sources.
-- `test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
+- `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
+- `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
+- `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
+- `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
+- `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.

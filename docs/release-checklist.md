@@ -2,12 +2,12 @@
 
 Use this checklist before merging a release PR or cutting a manual release from the template.
 
-## 1. Generated Files
+## 1. AI And Generated Files
 
-- [ ] `pnpm ai:sync`
-- [ ] `pnpm ai:sync:check`
+- [ ] `pnpm ai:install`
+- [ ] `pnpm ai:doctor`
 - [ ] `pnpm generate` if GraphQL schema or operations changed
-- [ ] Confirm generated files are intentionally included or intentionally unchanged
+- [ ] Confirm tracked shared AI files (`AGENTS.md`, `CLAUDE.md`, `.serena/`) are intentionally updated or unchanged
 
 ## 2. Quality Gates
 
@@ -54,6 +54,7 @@ Use this checklist before merging a release PR or cutting a manual release from 
 
 - [ ] No secrets, tokens, `.env` files, local assistant state, or Serena cache files are tracked
 - [ ] `.ai/mcp.json` contains placeholders only
+- [ ] `.ai.local/`, local installed skill directories, and per-agent MCP configs are not tracked
 - [ ] Auth/session changes preserve cookie-first behavior and bearer-token fallback safety
 - [ ] GraphQL changes preserve auth, organization scoping, and validation
 - [ ] Storage changes preserve least-privilege S3-compatible defaults

@@ -70,8 +70,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: AI assistant drift check
-        run: pnpm run ai:sync:check
+      - name: AI tooling doctor
+        run: pnpm run ai:doctor
 
       - name: Format check
         run: pnpm run format:check

@@ -59,16 +59,16 @@ pnpm exec turbo docs "<query>"
 
 ## AI Assistant Files
 
-`.ai/` is canonical for shared assistant guidance. Do not edit generated assistant outputs directly.
+`.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
 
 After changing `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, or `.ai/serena-memories/*.md`, run:
 
 ```bash
-pnpm ai:sync
-pnpm ai:sync:check
+pnpm ai:install
+pnpm ai:doctor
 ```
 
-Generated outputs include `AGENTS.md`, `CLAUDE.md`, `.claude/skills/*`, `.codex/skills/*`, `.cursor/rules/*`, `.mcp.json`, `.cursor/mcp.json`, `.codex/config.toml`, `.serena/project.yml`, and `.serena/memories/*`.
+Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `.serena/project.yml`, and `.serena/memories/*`. Local gitignored outputs include `.claude/skills/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`.
 
 ## Pull Requests
 
@@ -93,7 +93,7 @@ Before opening a PR, run the narrowest relevant checks plus the root gates for b
 For documentation or AI scaffold changes:
 
 ```bash
-pnpm ai:sync:check
+pnpm ai:doctor
 pnpm format:check
 ```
 

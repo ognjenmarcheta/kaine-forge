@@ -12,7 +12,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
 - `apps/e2e`: Playwright web/API tests with accessibility coverage.
 - `packages/*`: shared auth, db, logger, config, feature flags, query helpers, storage, translation, web UI, and mobile UI packages.
-- `.ai/`: canonical AI assistant guidance, skills, MCP placeholders, Cursor rules, Codex/Claude outputs, and Serena memories/config.
+- `.ai/`: canonical AI assistant guide, skills, MCP catalog, Cursor rules, and Serena seed files.
 
 ## Prerequisites
 
@@ -107,23 +107,24 @@ docker run --rm -p 3000:3000 -e API_BACKEND_URL=http://host.docker.internal:4000
 
 ## AI Assistant Scaffold
 
-`.ai/` is the source of truth for team AI assistant guidance.
+`.ai/` is the source of truth for shared AI assistant guidance.
 
-- `.ai/guide.md`: short cross-tool guide generated into `AGENTS.md` and `CLAUDE.md`.
-- `.ai/skills/*.md`: reusable workflows generated into Claude, Codex, and Cursor skill formats.
-- `.ai/mcp.json`: generic MCP server placeholders only; no secrets.
-- `.ai/cursor-rules.md`: Cursor wrapper rules.
-- `.ai/serena-project.yml`: generic Serena project config.
-- `.ai/serena-memories/*.md`: canonical Serena memory sources.
+- `.ai/guide.md`: guide content installed into `AGENTS.md` and `CLAUDE.md`.
+- `.ai/skills/kaine-*.md`: team-managed canonical skill sources.
+- `.ai/mcp.json`: shared MCP catalog with `${VAR}` placeholders.
+- `.ai/mcp.env.example`: local env template for MCP substitution.
+- `.ai/mcp.json.example`: personal MCP override example for `.ai.local/mcp.json`.
+- `.ai/cursor-rules.md`: Cursor rules source.
+- `.ai/serena-project.yml` and `.ai/serena-memories/*.md`: canonical Serena sources.
 
 Run after changing canonical AI files:
 
 ```bash
-pnpm ai:sync
-pnpm ai:sync:check
+pnpm ai:install
+pnpm ai:doctor
 ```
 
-Generated assistant files are tracked for team consistency. Personal/local assistant state is ignored, including `.claude/settings.local.json`, `.claude/hooks/`, `.claude/plans/`, `.claude/skills/_personal/`, `.cursor/rules/user/`, `.cursor/worktrees.json`, `.augment/`, `.serena/cache/`, and `*.pkl`.
+Installed agent outputs are local and gitignored, including `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`. Personal MCP values and overrides live in `.ai.local/`.
 
 ## Quality Gates
 
@@ -139,7 +140,7 @@ pnpm build:core
 pnpm test:e2e
 ```
 
-`pnpm check` runs format, lint, typecheck, and tests. CI also runs `pnpm ai:sync:check`, coverage, core builds, and Playwright e2e.
+`pnpm check` runs format, lint, typecheck, and tests. CI also runs `pnpm ai:doctor`, coverage, core builds, and Playwright e2e.
 
 ## Release Flow
 

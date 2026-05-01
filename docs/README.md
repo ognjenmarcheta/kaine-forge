@@ -7,7 +7,7 @@ Use this index to find the right source of truth quickly.
 - `../README.md`: template overview, quickstart, runtime notes, Docker, AI scaffold, adoption checklist.
 - `../MONOREPO_GUIDE.md`: architecture, package boundaries, FDD naming, runtime rules, data/auth/GraphQL flow, and implementation workflow.
 - `../DESIGN_SYSTEM.md`: design tokens, web/mobile UI split, theming, component styling, layout, and accessibility.
-- `../CONTRIBUTING.md`: local setup, PR expectations, checks, AI sync, and release workflow.
+- `../CONTRIBUTING.md`: local setup, PR expectations, checks, AI install/doctor flow, and release workflow.
 - `../SECURITY.md`: vulnerability reporting, supported security surfaces, and hardening rules.
 
 ## Operational Docs
@@ -28,9 +28,9 @@ Use this index to find the right source of truth quickly.
 Canonical AI assistant sources live in `../.ai/`.
 
 - `../.ai/guide.md`: generated into `AGENTS.md` and `CLAUDE.md`.
-- `../.ai/skills/*.md`: generated into Claude, Codex, and Cursor skill outputs.
-- `../.ai/mcp.json`: generated into MCP config outputs.
+- `../.ai/skills/*.md`: canonical skill sources for local agent installs.
+- `../.ai/mcp.json`: canonical MCP catalog for local agent installs.
 - `../.ai/serena-project.yml`: generated into `.serena/project.yml`.
 - `../.ai/serena-memories/*.md`: generated into Serena memories.
 
-Run `pnpm ai:sync` after editing canonical AI sources.
+Run `pnpm ai:install` and `pnpm ai:doctor` after editing canonical AI sources.

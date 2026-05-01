@@ -1,5 +1,5 @@
 ---
-name: test
+name: kaine-test
 description: Write or verify tests for a specified system under test using Kaine Forge conventions.
 argument-hint: SUT path, behavior, or failing test
 ---

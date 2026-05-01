@@ -262,18 +262,18 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command              | Purpose                              |
-| -------------------- | ------------------------------------ |
-| `pnpm dev`           | run dev tasks                        |
-| `pnpm build`         | build all workspaces                 |
-| `pnpm build:core`    | build API and web dependency graph   |
-| `pnpm check`         | format check, lint, typecheck, test  |
-| `pnpm coverage`      | Vitest coverage thresholds           |
-| `pnpm test:e2e`      | Playwright web/API suite             |
-| `pnpm generate`      | GraphQL codegen                      |
-| `pnpm db:*`          | database lifecycle commands          |
-| `pnpm ai:sync`       | regenerate generated assistant files |
-| `pnpm ai:sync:check` | fail on generated assistant drift    |
+| Command           | Purpose                                  |
+| ----------------- | ---------------------------------------- |
+| `pnpm dev`        | run dev tasks                            |
+| `pnpm build`      | build all workspaces                     |
+| `pnpm build:core` | build API and web dependency graph       |
+| `pnpm check`      | format check, lint, typecheck, test      |
+| `pnpm coverage`   | Vitest coverage thresholds               |
+| `pnpm test:e2e`   | Playwright web/API suite                 |
+| `pnpm generate`   | GraphQL codegen                          |
+| `pnpm db:*`       | database lifecycle commands              |
+| `pnpm ai:install` | install shared assistant files locally   |
+| `pnpm ai:doctor`  | lint canonical AI files and report drift |
 
 Use scoped commands from the repo root:
 
@@ -286,7 +286,7 @@ pnpm --filter @repo/mobile-ui typecheck
 ## 17. Quality Gates
 
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
-- Pre-push runs `pnpm ai:sync:check` and `pnpm typecheck`.
+- Pre-push runs `pnpm ai:doctor` and `pnpm typecheck`.
 - PR CI runs AI drift check, format check, lint, typecheck, tests, coverage, core build, and e2e.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 
@@ -294,7 +294,7 @@ Before finishing a substantial task, run the narrowest useful workspace checks p
 
 ## 18. AI Assistant Scaffold
 
-`.ai/` is canonical. Generated assistant files should not be edited directly.
+`.ai/` is canonical. Installed assistant files should not be edited directly.
 
 Canonical sources:
 
@@ -305,21 +305,25 @@ Canonical sources:
 - `.ai/serena-project.yml`
 - `.ai/serena-memories/*.md`
 
-Generated outputs:
+Tracked shared outputs:
 
 - `AGENTS.md`
 - `CLAUDE.md`
-- `.claude/skills/<skill>/SKILL.md`
-- `.codex/skills/<skill>/SKILL.md`
-- `.cursor/rules/skill-<skill>.mdc`
-- `.cursor/rules/kaine-forge-rules.mdc`
-- `.mcp.json`
-- `.cursor/mcp.json`
-- `.codex/config.toml`
 - `.serena/project.yml`
 - `.serena/memories/*.md`
 
-MCP config must use placeholders only. Do not commit secrets or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
+Local gitignored outputs:
+
+- `.claude/skills/<skill>/SKILL.md`
+- `.agents/skills/<skill>/SKILL.md`
+- `.cursor/skills/<skill>/SKILL.md`
+- `.cursor/rules/kaine-rules.mdc`
+- `.mcp.json`
+- `.cursor/mcp.json`
+- `.codex/config.toml`
+- `opencode.json`
+
+MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
 
 ## 19. Adding a Feature
 
@@ -335,17 +339,17 @@ MCP config must use placeholders only. Do not commit secrets or org-specific ser
 
 ## 20. Common Mistakes to Avoid
 
-| Mistake                                               | Correct approach                                        |
-| ----------------------------------------------------- | ------------------------------------------------------- |
-| Hardcoding user-facing strings                        | Add translation keys and use i18n helpers               |
-| Using `any`                                           | Use a real type or `unknown` with narrowing             |
-| Importing package internals                           | Import through `@repo/*` exports                        |
-| Passing `organizationId` from clients for scoped data | Resolve active organization from session/context        |
-| Editing generated GraphQL files                       | Edit SDL/operations and run `pnpm generate`             |
-| Editing generated assistant files                     | Edit `.ai/` and run `pnpm ai:sync`                      |
-| Using raw colors or spacing in UI                     | Use design-system tokens                                |
-| Importing web UI into mobile                          | Use `@repo/mobile-ui`                                   |
-| Adding org-specific tools to the template             | Keep them downstream in project-specific `.ai/` sources |
+| Mistake                                               | Correct approach                                         |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| Hardcoding user-facing strings                        | Add translation keys and use i18n helpers                |
+| Using `any`                                           | Use a real type or `unknown` with narrowing              |
+| Importing package internals                           | Import through `@repo/*` exports                         |
+| Passing `organizationId` from clients for scoped data | Resolve active organization from session/context         |
+| Editing generated GraphQL files                       | Edit SDL/operations and run `pnpm generate`              |
+| Editing assistant guidance or skills                  | Edit `.ai/` and run `pnpm ai:install` + `pnpm ai:doctor` |
+| Using raw colors or spacing in UI                     | Use design-system tokens                                 |
+| Importing web UI into mobile                          | Use `@repo/mobile-ui`                                    |
+| Adding org-specific tools to the template             | Keep them downstream in project-specific `.ai/` sources  |
 
 ## 21. Reference Docs
 

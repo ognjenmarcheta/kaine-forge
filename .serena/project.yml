@@ -1,4 +1,4 @@
-# GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync.
+# GENERATED FILE. Do not edit directly. Run: pnpm ai:install
 
 # Generic Serena project configuration for this template.
 ignore_all_files_in_gitignore: true

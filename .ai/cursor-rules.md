@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Kaine Forge Cursor Rules
 
-This is the canonical source for Cursor rules. Edit here, then run `pnpm ai:sync`.
+This is the canonical source for Cursor rules. Edit here, then run `pnpm ai:install`.
 
 Before code changes:
 
@@ -29,4 +29,4 @@ Core constraints:
 - Keep user-facing strings in translation files.
 - Use design tokens only for styling.
 - Keep strict TypeScript and avoid `any`.
-- Run `pnpm ai:sync` after editing `.ai/` sources.
+- Run `pnpm ai:install` after editing `.ai/` sources.

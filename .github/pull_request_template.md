@@ -24,7 +24,7 @@
 
 ## Validation
 
-- [ ] `pnpm ai:sync:check`
+- [ ] `pnpm ai:doctor`
 - [ ] `pnpm format:check`
 - [ ] `pnpm lint`
 - [ ] `pnpm typecheck`

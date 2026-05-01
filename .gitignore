@@ -19,12 +19,20 @@ apps/e2e/playwright-report/
 apps/e2e/test-results/
 
 # AI assistant local/personal state
+.ai.local/
+.agents/
 .claude/settings.local.json
 .claude/hooks/
 .claude/plans/
-.claude/skills/_personal/
-.cursor/rules/user/
+.claude/skills/*/
+.codex/config.toml
+.cursor/mcp.json
+.cursor/rules/
+.cursor/skills/
 .cursor/worktrees.json
+.mcp.json
+.opencode/
+opencode.json
 .augment/
 .serena/cache/
 *.pkl

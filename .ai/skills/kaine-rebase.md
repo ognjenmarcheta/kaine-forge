@@ -1,10 +1,8 @@
 ---
-name: rebase
+name: kaine-rebase
 description: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 argument-hint: target branch, usually main
 ---
-
-<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
 
 # Rebase Workflow
 
@@ -24,7 +22,7 @@ Use this skill when updating a feature branch from `main`.
 3. Rebase onto `origin/main` unless the user gives a different target.
 4. Resolve conflicts surgically.
 5. Run focused checks for touched workspaces.
-6. Run `pnpm ai:sync:check` if assistant files are in scope.
+6. Run `pnpm ai:doctor` if AI tooling files are in scope.
 7. Summarize conflicts, resolutions, and verification.
 
 Prefer non-interactive git commands where possible.

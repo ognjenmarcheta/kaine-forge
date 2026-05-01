@@ -1,10 +1,8 @@
 ---
-name: open-pr
+name: kaine-open-pr
 description: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
 argument-hint: branch name or PR summary
 ---
-
-<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
 
 # Open PR Workflow
 
@@ -15,8 +13,8 @@ Use this skill when preparing local work for a pull request.
 1. Confirm the working tree scope with `git status --short`.
 2. Confirm the branch is not `main`.
 3. Review changed files for unrelated edits.
-4. When `.ai/` sources are edited, run `pnpm ai:sync` and then `pnpm ai:sync:check`.
-5. When only generated assistant files are touched, run `pnpm ai:sync:check`.
+4. When `.ai/` sources are edited, run `pnpm ai:install` and then `pnpm ai:doctor`.
+5. Do not commit local installed assistant outputs from `.claude/`, `.agents/`, `.cursor/`, `.mcp.json`, or `opencode.json`.
 6. If source packages or apps changed, decide whether a `.changeset/*.md` file is required or whether the PR should carry `release:skip-changeset`.
 
 ## Validation

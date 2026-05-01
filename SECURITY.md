@@ -45,4 +45,4 @@ Until a dedicated security contact is published, open a private maintainer chann
 
 - Dependency audit and secret scanning: `.github/workflows/security.yml`.
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
-- AI generated-file drift check: `pnpm ai:sync:check`.
+- AI tooling health/drift check: `pnpm ai:doctor`.

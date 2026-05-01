@@ -1,10 +1,8 @@
 ---
-description: "Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix."
-alwaysApply: false
-argumentHint: "PR number, run URL, check name, or failure log"
+name: kaine-fix-ci
+description: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
+argument-hint: PR number, run URL, check name, or failure log
 ---
-
-<!-- GENERATED FROM .ai; DO NOT EDIT DIRECTLY. Run pnpm ai:sync. -->
 
 # Fix CI Workflow
 
@@ -19,7 +17,7 @@ Use this skill when a GitHub Actions check fails or when local validation differ
 
 ## Common Commands
 
-- Assistant drift: `pnpm ai:sync:check`
+- AI tooling doctor: `pnpm ai:doctor`
 - Formatting: `pnpm format:check`
 - Lint: `pnpm lint`
 - Types: `pnpm typecheck`
