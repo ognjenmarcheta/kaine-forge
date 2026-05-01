@@ -9,6 +9,7 @@
 - Test: `pnpm test`
 - Full check: `pnpm check`
 - Build API and web: `pnpm run build:core`
+- Update deployable app release branches: `pnpm release:apps`
 - DB generate: `pnpm db:generate`
 - DB push: `pnpm db:push`
 - DB migrate: `pnpm db:migrate`

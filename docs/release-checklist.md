@@ -43,14 +43,21 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] Build web image: `docker build -f Dockerfile.web -t kaine-forge-web .`
 - [ ] Smoke test web nginx proxying for `/api` and `/graphql` when Docker is available
 
-## 6. Changesets and Release Metadata
+## 6. Selective App Release Branches
+
+- [ ] `pnpm release:apps --dry-run`
+- [ ] After merging deployable app changes to synced `main`, run `pnpm release:apps`
+- [ ] Use `pnpm release:apps --apps all` only when intentionally initializing or republishing every deployable app branch
+- [ ] Confirm only the expected `release/<app>` branches were updated
+
+## 7. Changesets and Release Metadata
 
 - [ ] Source changes in `apps/**`, `packages/**`, or `tooling/**` include `.changeset/*.md`
 - [ ] Non-releasable source changes use `release:skip-changeset`
 - [ ] `pnpm release:status`
 - [ ] Review generated changelog/version output before merging a version PR
 
-## 7. Security Review
+## 8. Security Review
 
 - [ ] No secrets, tokens, `.env` files, local assistant state, or Serena cache files are tracked
 - [ ] `.ai/mcp.json` contains placeholders only
@@ -59,7 +66,7 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] GraphQL changes preserve auth, organization scoping, and validation
 - [ ] Storage changes preserve least-privilege S3-compatible defaults
 
-## 8. Release Automation
+## 9. Release Automation
 
 - [ ] `.github/workflows/ci-pr.yml` passed
 - [ ] `.github/workflows/security.yml` passed or known findings are triaged

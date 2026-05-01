@@ -181,6 +181,7 @@ The template includes production Dockerfiles for API and web:
 - `Dockerfile.api` uses `turbo prune @repo/api --docker`, builds the API graph, fixes emitted ESM extensions, copies package dist outputs, and runs `node apps/api/dist/index.js`.
 - `Dockerfile.web` uses `turbo prune @repo/web --docker`, builds the web graph, and serves the SPA through nginx.
 - `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers.
+- Each top-level `Dockerfile.<app>` defines a deployable app branch contract. After app-affecting changes are merged to synced `main`, run `pnpm release:apps` to create or fast-forward only `release/<app>` for the affected apps.
 - Docker images must stay template-safe. Do not add product-specific services, assets, or secrets.
 
 Build examples:
@@ -188,6 +189,12 @@ Build examples:
 ```bash
 docker build -f Dockerfile.api -t kaine-forge-api .
 docker build -f Dockerfile.web -t kaine-forge-web .
+```
+
+Initialize all deployable app branches intentionally with:
+
+```bash
+pnpm release:apps --apps all
 ```
 
 ## 11. UI and Styling Boundaries
@@ -289,6 +296,7 @@ pnpm --filter @repo/mobile-ui typecheck
 - Pre-push runs `pnpm ai:doctor` and `pnpm typecheck`.
 - PR CI runs AI drift check, format check, lint, typecheck, tests, coverage, core build, and e2e.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
+- After deployable app changes land on `main`, run `pnpm release:apps` so only affected `release/<app>` branches redeploy.
 
 Before finishing a substantial task, run the narrowest useful workspace checks plus the relevant root gates.
 

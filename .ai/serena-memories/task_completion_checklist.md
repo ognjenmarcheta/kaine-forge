@@ -10,4 +10,5 @@ Before considering a task complete:
 - Run `pnpm generate` when GraphQL schema or operation documents changed.
 - Run `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, and `pnpm test` for broad or template-level changes.
 - Run `pnpm run build:core` when API or web runtime/build behavior changed.
+- After deployable app changes are merged to `main`, run `pnpm release:apps` so only affected `release/<app>` branches redeploy.
 - Mention any validation that could not be run.

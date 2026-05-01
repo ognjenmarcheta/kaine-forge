@@ -1,0 +1,138 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  collectAffectedApps,
+  deployableAppsFromEntries,
+  releaseBranchName,
+  resolveSelectedApps,
+  type WorkspacePackage
+} from "./release.util";
+
+const workspaces: WorkspacePackage[] = [
+  {
+    name: "@repo/api",
+    dir: "apps/api",
+    internalDependencies: ["@repo/auth", "@repo/db"]
+  },
+  {
+    name: "@repo/web",
+    dir: "apps/web",
+    internalDependencies: ["@repo/auth", "@repo/ui"]
+  },
+  {
+    name: "@repo/auth",
+    dir: "packages/auth",
+    internalDependencies: ["@repo/db"]
+  },
+  {
+    name: "@repo/db",
+    dir: "packages/db",
+    internalDependencies: []
+  },
+  {
+    name: "@repo/ui",
+    dir: "packages/ui",
+    internalDependencies: []
+  }
+];
+
+const deployableApps = deployableAppsFromEntries(["Dockerfile.api", "Dockerfile.web"], workspaces);
+
+describe("deployableAppsFromEntries", () => {
+  it("derives deployable apps from root dockerfiles", () => {
+    expect(deployableApps).toEqual([
+      {
+        app: "api",
+        dockerfile: "Dockerfile.api",
+        releaseBranch: "release/api",
+        workspaceDir: "apps/api",
+        workspaceName: "@repo/api"
+      },
+      {
+        app: "web",
+        dockerfile: "Dockerfile.web",
+        releaseBranch: "release/web",
+        workspaceDir: "apps/web",
+        workspaceName: "@repo/web"
+      }
+    ]);
+  });
+
+  it("errors when a dockerfile has no matching app workspace", () => {
+    expect(() =>
+      deployableAppsFromEntries(["Dockerfile.api", "Dockerfile.worker"], workspaces)
+    ).toThrow(/apps\/worker/);
+  });
+});
+
+describe("releaseBranchName", () => {
+  it("uses stable release branches per app", () => {
+    expect(releaseBranchName("api")).toBe("release/api");
+    expect(releaseBranchName("web")).toBe("release/web");
+  });
+});
+
+describe("collectAffectedApps", () => {
+  it("marks a deployable app affected when its dockerfile changes", () => {
+    expect(collectAffectedApps(["Dockerfile.web"], deployableApps, workspaces)).toEqual(
+      new Set(["web"])
+    );
+  });
+
+  it("marks a deployable app affected when its own app files change", () => {
+    expect(
+      collectAffectedApps(
+        ["apps/api/src/features/todos/todos.router.ts"],
+        deployableApps,
+        workspaces
+      )
+    ).toEqual(new Set(["api"]));
+  });
+
+  it("fans shared package changes out to dependent deployable apps", () => {
+    expect(collectAffectedApps(["packages/ui/src/index.ts"], deployableApps, workspaces)).toEqual(
+      new Set(["web"])
+    );
+  });
+
+  it("includes transitive dependents for shared package changes", () => {
+    expect(collectAffectedApps(["packages/db/src/index.ts"], deployableApps, workspaces)).toEqual(
+      new Set(["api", "web"])
+    );
+  });
+
+  it("treats root build config changes as affecting all deployable apps", () => {
+    expect(collectAffectedApps(["package.json"], deployableApps, workspaces)).toEqual(
+      new Set(["api", "web"])
+    );
+    expect(collectAffectedApps(["turbo.json"], deployableApps, workspaces)).toEqual(
+      new Set(["api", "web"])
+    );
+  });
+
+  it("ignores docs-only changes outside deployable app inputs", () => {
+    expect(
+      collectAffectedApps(["README.md", "docs/release-checklist.md"], deployableApps, workspaces)
+    ).toEqual(new Set());
+  });
+});
+
+describe("resolveSelectedApps", () => {
+  it("uses auto-detected apps when no explicit selection is provided", () => {
+    expect(resolveSelectedApps([], deployableApps, new Set(["web"]))).toEqual(["web"]);
+  });
+
+  it("supports selecting all deployable apps explicitly", () => {
+    expect(resolveSelectedApps(["all"], deployableApps, new Set(["web"]))).toEqual(["api", "web"]);
+  });
+
+  it("uses an explicit app list as the release target set", () => {
+    expect(resolveSelectedApps(["api", "web"], deployableApps, new Set())).toEqual(["api", "web"]);
+  });
+
+  it("rejects unknown explicit app names", () => {
+    expect(() => resolveSelectedApps(["worker"], deployableApps, new Set())).toThrow(
+      /Unknown deployable app/
+    );
+  });
+});

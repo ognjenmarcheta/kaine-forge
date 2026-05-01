@@ -99,6 +99,8 @@ docker build -f Dockerfile.web -t kaine-forge-web .
 
 The API image runs `node apps/api/dist/index.js`. The web image serves `apps/web/dist` through nginx on port `3000`, proxies `/api` and `/graphql` to `API_BACKEND_URL`, supports GraphQL websocket upgrades, and falls back to `index.html` for SPA routes.
 
+Each top-level `Dockerfile.<app>` also defines a deployable app branch contract. After app-affecting changes are merged to `main`, run `pnpm release:apps` to create or fast-forward only the matching `release/<app>` branches. Use `pnpm release:apps --apps all` once to initialize every deployable app branch intentionally.
+
 Example web runtime:
 
 ```bash
@@ -148,12 +150,16 @@ Changesets are used for release metadata and changelog/version updates.
 
 ```bash
 pnpm changeset
+pnpm release:apps --dry-run
+pnpm release:apps
 pnpm release:status
 pnpm release:version
 pnpm release:publish
 ```
 
 Source changes in `apps/**`, `packages/**`, or `tooling/**` need a `.changeset/*.md` file unless the PR is intentionally non-releasable and labeled `release:skip-changeset`.
+
+Run `pnpm release:apps` from synced `main` after merging changes that affect deployable apps. The command uses the workspace graph so shared package changes update every affected deployable app branch without redeploying unrelated apps.
 
 ## Template Adoption Checklist
 

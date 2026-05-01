@@ -24,6 +24,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
 - Do not commit secrets or local assistant state.
+- Treat every top-level `Dockerfile.<app>` as a deployable app contract. After changes that affect a deployable app reach `main`, run `pnpm release:apps` so only the matching `release/<app>` branches move.
 
 ## Common Commands
 
@@ -36,6 +37,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
 - Build API and web core: `pnpm run build:core`
+- Update deployable app release branches: `pnpm release:apps`
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
 
@@ -61,6 +63,7 @@ Use skills when they match the task:
 - `kaine-sync-docs`: reinstall and verify AI assistant files.
 - `kaine-test`: plan or write tests for a specified system under test.
 - `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.
+- `kaine-release-apps`: update per-app deploy branches after merge to `main`.
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
 - `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
