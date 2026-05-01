@@ -70,6 +70,8 @@ pnpm ai:doctor
 
 Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `.serena/project.yml`, and `.serena/memories/*`. Local gitignored outputs include `.claude/skills/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`.
 
+When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
+
 ## Pull Requests
 
 - Use a conventional-style title when possible: `feat(scope): ...`, `fix(scope): ...`, `docs(scope): ...`, or `chore(scope): ...`.
@@ -119,6 +121,15 @@ pnpm release:publish
 ```
 
 `main` merges run the release workflow. Changesets creates or updates a version PR, and version PR merges create tags and GitHub Releases. This template does not publish npm packages by default.
+
+Deployable apps are defined by top-level `Dockerfile.<app>` files. After a merged change affects one or more deployable apps, run:
+
+```bash
+pnpm release:apps --dry-run
+pnpm release:apps
+```
+
+This updates only the affected `release/<app>` branches, which lets deployment systems such as Dokploy watch per-app branches instead of redeploying every app on each merge. Use `pnpm release:apps --apps all` to initialize missing release branches intentionally.
 
 ## Coding Standards
 
