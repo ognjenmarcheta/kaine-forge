@@ -1,5 +1,13 @@
 # @repo/auth
 
+## 1.1.1
+
+### Patch Changes
+
+- efcb73a: Backport template-safe runtime hardening, Docker support, bearer auth fallback, organization members wiring, mobile UI primitives, and generated AI assistant scaffold.
+- Updated dependencies [efcb73a]
+  - @repo/db@1.1.1
+
 ## 1.1.0
 
 ### Minor Changes
