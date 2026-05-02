@@ -1,5 +1,11 @@
 # @repo/api
 
+## 1.1.2
+
+### Patch Changes
+
+- 17d103e: Deepen API organization-scoped access around an authenticated organization scope.
+
 ## 1.1.1
 
 ### Patch Changes
