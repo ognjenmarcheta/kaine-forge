@@ -15,7 +15,7 @@ import { createFileRecord, getFileById, listFiles, updateFileStatus } from "./st
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 import type { ApiContext } from "../../context";
-import { requireActiveOrganizationId, requireUser } from "../../middleware/auth.middleware";
+import { requireAuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
 let _storageConfig: StorageConfig | null = null;
 let _s3: ReturnType<typeof createStorageClient> | null = null;
@@ -45,20 +45,17 @@ type DeleteFileArgs = { fileId: string };
 export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
-      const organizationId = requireActiveOrganizationId(ctx);
-      requireUser(ctx);
-      return getFileById(organizationId, args.id);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return getFileById(scope, args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
-      const organizationId = requireActiveOrganizationId(ctx);
-      requireUser(ctx);
-      return listFiles(organizationId, args.filter ?? {});
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return listFiles(scope, args.filter ?? {});
     }
   },
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const organizationId = requireActiveOrganizationId(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
       const input = args.input;
 
       const validation = validateFile({ mimeType: input.mimeType, sizeBytes: input.sizeBytes }, {});
@@ -71,21 +68,19 @@ export const storageResolvers = {
       const entityType = input.entityType ?? STORAGE_CONFIG.defaultEntityType;
 
       const key = buildStorageKey({
-        organizationId,
+        organizationId: scope.organizationId,
         entityType,
         fileId,
         originalName: input.originalName
       });
 
-      const file = await createFileRecord({
+      const file = await createFileRecord(scope, {
         id: fileId,
         key,
         bucket: getStorageConfig().bucket,
         originalName: input.originalName,
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
-        uploadedBy: user.id,
-        organizationId,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null
       });
@@ -106,10 +101,9 @@ export const storageResolvers = {
       };
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
-      const organizationId = requireActiveOrganizationId(ctx);
-      requireUser(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
 
-      const file = await getFileById(organizationId, args.fileId);
+      const file = await getFileById(scope, args.fileId);
 
       if (!file) {
         throw new Error("file not found");
@@ -125,13 +119,12 @@ export const storageResolvers = {
         throw new Error("file has not been uploaded to storage");
       }
 
-      return updateFileStatus(organizationId, file.id, "uploaded");
+      return updateFileStatus(scope, file.id, "uploaded");
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
-      const organizationId = requireActiveOrganizationId(ctx);
-      requireUser(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
 
-      const file = await getFileById(organizationId, args.fileId);
+      const file = await getFileById(scope, args.fileId);
 
       if (!file) {
         throw new Error("file not found");
@@ -143,7 +136,7 @@ export const storageResolvers = {
         ctx.logger.warn({ err, fileId: file.id, key: file.key }, "failed to delete object from S3");
       }
 
-      await updateFileStatus(organizationId, file.id, "deleted");
+      await updateFileStatus(scope, file.id, "deleted");
       return true;
     }
   },

@@ -1,29 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { requireActiveOrganizationId, requireUser } from "./auth.middleware";
+import { requireAuthenticatedOrganizationScope } from "./auth.middleware";
 
 describe("auth.middleware", () => {
-  it("throws when user is not present", () => {
-    expect(() => requireUser({ user: null })).toThrowError("authentication required");
+  it("throws when user is not present for authenticated organization scope", () => {
+    expect(() =>
+      requireAuthenticatedOrganizationScope({
+        activeOrganizationId: "org-1",
+        user: null
+      })
+    ).toThrowError("authentication required");
   });
 
-  it("returns user when authenticated", () => {
-    const user = requireUser({ user: { id: "u1" } });
-
-    expect(user.id).toBe("u1");
+  it("throws when active organization is not present for authenticated organization scope", () => {
+    expect(() =>
+      requireAuthenticatedOrganizationScope({
+        activeOrganizationId: null,
+        user: { email: "u1@example.com", id: "u1", name: "User One" }
+      })
+    ).toThrowError("active organization required");
   });
 
-  it("throws when active organization is not present", () => {
-    expect(() => requireActiveOrganizationId({ activeOrganizationId: null })).toThrowError(
-      "active organization required"
-    );
-  });
-
-  it("returns active organization id when present", () => {
-    const activeOrganizationId = requireActiveOrganizationId({
-      activeOrganizationId: "org-1"
+  it("returns authenticated organization scope when user and active organization are present", () => {
+    const scope = requireAuthenticatedOrganizationScope({
+      activeOrganizationId: "org-1",
+      user: { email: "u1@example.com", id: "u1", name: "User One" }
     });
 
-    expect(activeOrganizationId).toBe("org-1");
+    expect(scope).toEqual({
+      organizationId: "org-1",
+      user: { email: "u1@example.com", id: "u1", name: "User One" },
+      userId: "u1"
+    });
   });
 });

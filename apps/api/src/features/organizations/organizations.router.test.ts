@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./organizations.adapter", () => ({
-  getCurrentOrganizationById: vi.fn(),
-  listOrganizationMembersByOrganizationId: vi.fn(),
-  listOrganizationsByUserId: vi.fn()
+  getCurrentOrganizationByScope: vi.fn(),
+  listOrganizationMembersByScope: vi.fn(),
+  listOrganizationsByScope: vi.fn()
 }));
 
 import * as organizationsAdapter from "./organizations.adapter";
 import { organizationsResolvers } from "./organizations.router";
 
 describe("organizations.router", () => {
+  const authenticatedScope = {
+    organizationId: "org-1",
+    user: { id: "user-1" },
+    userId: "user-1"
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -51,38 +57,39 @@ describe("organizations.router", () => {
   });
 
   it("lists organizations for authenticated user", async () => {
-    vi.mocked(organizationsAdapter.listOrganizationsByUserId).mockResolvedValue([]);
+    vi.mocked(organizationsAdapter.listOrganizationsByScope).mockResolvedValue([]);
 
     await organizationsResolvers.Query.organizations({}, {}, {
       activeOrganizationId: "org-1",
       user: { id: "user-1" }
     } as never);
 
-    expect(organizationsAdapter.listOrganizationsByUserId).toHaveBeenCalledWith("user-1");
+    expect(organizationsAdapter.listOrganizationsByScope).toHaveBeenCalledWith(authenticatedScope);
   });
 
   it("gets current organization with correct args", async () => {
-    vi.mocked(organizationsAdapter.getCurrentOrganizationById).mockResolvedValue(null);
+    vi.mocked(organizationsAdapter.getCurrentOrganizationByScope).mockResolvedValue(null);
 
     await organizationsResolvers.Query.currentOrganization({}, {}, {
       activeOrganizationId: "org-1",
       user: { id: "user-1" }
     } as never);
 
-    expect(organizationsAdapter.getCurrentOrganizationById).toHaveBeenCalledWith("user-1", "org-1");
+    expect(organizationsAdapter.getCurrentOrganizationByScope).toHaveBeenCalledWith(
+      authenticatedScope
+    );
   });
 
   it("lists members with correct args", async () => {
-    vi.mocked(organizationsAdapter.listOrganizationMembersByOrganizationId).mockResolvedValue([]);
+    vi.mocked(organizationsAdapter.listOrganizationMembersByScope).mockResolvedValue([]);
 
     await organizationsResolvers.Query.members({}, {}, {
       activeOrganizationId: "org-1",
       user: { id: "user-1" }
     } as never);
 
-    expect(organizationsAdapter.listOrganizationMembersByOrganizationId).toHaveBeenCalledWith(
-      "user-1",
-      "org-1"
+    expect(organizationsAdapter.listOrganizationMembersByScope).toHaveBeenCalledWith(
+      authenticatedScope
     );
   });
 });
