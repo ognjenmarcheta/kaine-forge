@@ -42,22 +42,23 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import {
-  createTodo,
-  deleteTodo,
-  getTodoById,
-  listTodosByUserIdAndOrganizationId
-} from "./todos.adapter";
+import { createTodo, deleteTodo, getTodoById, listTodosByScope } from "./todos.adapter";
 
 describe("todos.adapter", () => {
+  const scope = {
+    organizationId: "org-1",
+    user: { id: "user-1" },
+    userId: "user-1"
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
     chain.returning.mockResolvedValue([]);
   });
 
-  it("listTodosByUserIdAndOrganizationId calls db.select with correct chain", async () => {
-    await listTodosByUserIdAndOrganizationId("user-1", "org-1", { limit: 20, offset: 0 });
+  it("listTodosByScope calls db.select with correct chain", async () => {
+    await listTodosByScope(scope, { limit: 20, offset: 0 });
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.from).toHaveBeenCalled();
     expect(chain.where).toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe("todos.adapter", () => {
   });
 
   it("getTodoById calls db.select with limit 1", async () => {
-    await getTodoById("user-1", "org-1", "todo-1");
+    await getTodoById(scope, "todo-1");
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.limit).toHaveBeenCalledWith(1);
   });
@@ -85,14 +86,14 @@ describe("todos.adapter", () => {
     };
     chain.returning.mockResolvedValueOnce([todo]);
 
-    const result = await createTodo("user-1", "org-1", { title: "Test", description: null });
+    const result = await createTodo(scope, { title: "Test", description: null });
     expect(mockDb.insert).toHaveBeenCalled();
     expect(result).toEqual(todo);
   });
 
   it("deleteTodo calls db.delete and returns boolean", async () => {
     chain.returning.mockResolvedValueOnce([{ id: "todo-1" }]);
-    const result = await deleteTodo("user-1", "org-1", "todo-1");
+    const result = await deleteTodo(scope, "todo-1");
     expect(mockDb.delete).toHaveBeenCalled();
     expect(result).toBe(true);
   });

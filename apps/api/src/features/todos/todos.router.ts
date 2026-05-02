@@ -4,7 +4,7 @@ import {
   createTodo,
   deleteTodo,
   getTodoById,
-  listTodosByUserIdAndOrganizationId,
+  listTodosByScope,
   toggleTodo,
   updateTodo
 } from "./todos.adapter";
@@ -17,7 +17,7 @@ import {
   parseOptionalDescription
 } from "./todos.util";
 import type { ApiContext } from "../../context";
-import { requireActiveOrganizationId, requireUser } from "../../middleware/auth.middleware";
+import { requireAuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 
 type TodosQueryArgs = { limit?: number; offset?: number };
@@ -28,9 +28,15 @@ type ResolverContext = ApiContext;
 
 export const todosResolvers = {
   Todo: {
-    async attachments(parent: { id: string; organizationId: string }) {
+    async attachments(
+      parent: { id: string; organizationId: string },
+      _args: unknown,
+      ctx: ResolverContext
+    ) {
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+
       try {
-        return await listFiles(parent.organizationId, {
+        return await listFiles(scope, {
           entityType: "todo",
           entityId: parent.id,
           status: "uploaded"
@@ -42,25 +48,22 @@ export const todosResolvers = {
   },
   Query: {
     async todos(_parent: unknown, args: TodosQueryArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
       const pagination = coercePagination(args, TODOS_CONFIG.pagination);
 
-      return listTodosByUserIdAndOrganizationId(user.id, activeOrganizationId, pagination);
+      return listTodosByScope(scope, pagination);
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
-      return getTodoById(user.id, activeOrganizationId, args.id);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return getTodoById(scope, args.id);
     }
   },
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
       const input = args.input as CreateTodoInput;
 
-      const result = await createTodo(user.id, activeOrganizationId, {
+      const result = await createTodo(scope, {
         title: ensureTodoTitle(input.title),
         description: parseOptionalDescription(input.description ?? null)
       });
@@ -69,13 +72,11 @@ export const todosResolvers = {
       return result;
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
       const input = args.input as UpdateTodoInput;
 
       const result = await updateTodo(
-        user.id,
-        activeOrganizationId,
+        scope,
         args.id,
         applyTodoPatch(input as UpdateTodoInput & Record<string, unknown>)
       );
@@ -84,30 +85,28 @@ export const todosResolvers = {
       return result;
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
 
       try {
-        await deleteFilesByEntity(activeOrganizationId, "todo", args.id);
+        await deleteFilesByEntity(scope, "todo", args.id);
       } catch (err) {
         ctx.logger.warn({ err, todoId: args.id }, "failed to soft-delete todo attachments");
       }
 
-      const result = await deleteTodo(user.id, activeOrganizationId, args.id);
+      const result = await deleteTodo(scope, args.id);
 
       if (result) {
         ctx.pubsub.publish("todo:deleted", {
           id: args.id,
-          organizationId: activeOrganizationId
+          organizationId: scope.organizationId
         });
       }
 
       return result;
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
-      const result = await toggleTodo(user.id, activeOrganizationId, args.id);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      const result = await toggleTodo(scope, args.id);
 
       ctx.pubsub.publish("todo:toggled", result);
       return result;
@@ -116,7 +115,7 @@ export const todosResolvers = {
   Subscription: {
     todoCreated: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const organizationId = requireActiveOrganizationId(ctx);
+        const { organizationId } = requireAuthenticatedOrganizationScope(ctx);
         return pipe(
           ctx.pubsub.subscribe("todo:created"),
           filter((payload) => payload.organizationId === organizationId)
@@ -128,7 +127,7 @@ export const todosResolvers = {
     },
     todoUpdated: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const organizationId = requireActiveOrganizationId(ctx);
+        const { organizationId } = requireAuthenticatedOrganizationScope(ctx);
         return pipe(
           ctx.pubsub.subscribe("todo:updated"),
           filter((payload) => payload.organizationId === organizationId)
@@ -140,7 +139,7 @@ export const todosResolvers = {
     },
     todoDeleted: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const organizationId = requireActiveOrganizationId(ctx);
+        const { organizationId } = requireAuthenticatedOrganizationScope(ctx);
         return pipe(
           ctx.pubsub.subscribe("todo:deleted"),
           filter((payload) => payload.organizationId === organizationId)
@@ -152,7 +151,7 @@ export const todosResolvers = {
     },
     todoToggled: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const organizationId = requireActiveOrganizationId(ctx);
+        const { organizationId } = requireAuthenticatedOrganizationScope(ctx);
         return pipe(
           ctx.pubsub.subscribe("todo:toggled"),
           filter((payload) => payload.organizationId === organizationId)

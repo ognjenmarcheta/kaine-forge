@@ -2,24 +2,25 @@ import { db, todosTable, type Todo } from "@repo/db";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Pagination, TodoPatch } from "./todos.type";
+import type { AuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
-export async function listTodosByUserIdAndOrganizationId(
-  userId: string,
-  organizationId: string,
+export async function listTodosByScope(
+  scope: AuthenticatedOrganizationScope,
   pagination: Pagination
 ): Promise<Todo[]> {
   return db
     .select()
     .from(todosTable)
-    .where(and(eq(todosTable.userId, userId), eq(todosTable.organizationId, organizationId)))
+    .where(
+      and(eq(todosTable.userId, scope.userId), eq(todosTable.organizationId, scope.organizationId))
+    )
     .orderBy(desc(todosTable.createdAt))
     .limit(pagination.limit)
     .offset(pagination.offset);
 }
 
 export async function getTodoById(
-  userId: string,
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   id: string
 ): Promise<Todo | null> {
   const todos = await db
@@ -28,8 +29,8 @@ export async function getTodoById(
     .where(
       and(
         eq(todosTable.id, id),
-        eq(todosTable.userId, userId),
-        eq(todosTable.organizationId, organizationId)
+        eq(todosTable.userId, scope.userId),
+        eq(todosTable.organizationId, scope.organizationId)
       )
     )
     .limit(1);
@@ -38,15 +39,14 @@ export async function getTodoById(
 }
 
 export async function createTodo(
-  userId: string,
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   input: { title: string; description: string | null }
 ): Promise<Todo> {
   const todos = await db
     .insert(todosTable)
     .values({
-      userId,
-      organizationId,
+      userId: scope.userId,
+      organizationId: scope.organizationId,
       title: input.title,
       description: input.description,
       completed: false
@@ -63,8 +63,7 @@ export async function createTodo(
 }
 
 export async function updateTodo(
-  userId: string,
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   id: string,
   patch: TodoPatch
 ): Promise<Todo> {
@@ -77,8 +76,8 @@ export async function updateTodo(
     .where(
       and(
         eq(todosTable.id, id),
-        eq(todosTable.userId, userId),
-        eq(todosTable.organizationId, organizationId)
+        eq(todosTable.userId, scope.userId),
+        eq(todosTable.organizationId, scope.organizationId)
       )
     )
     .returning();
@@ -93,8 +92,7 @@ export async function updateTodo(
 }
 
 export async function deleteTodo(
-  userId: string,
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   id: string
 ): Promise<boolean> {
   const deleted = await db
@@ -102,8 +100,8 @@ export async function deleteTodo(
     .where(
       and(
         eq(todosTable.id, id),
-        eq(todosTable.userId, userId),
-        eq(todosTable.organizationId, organizationId)
+        eq(todosTable.userId, scope.userId),
+        eq(todosTable.organizationId, scope.organizationId)
       )
     )
     .returning({ id: todosTable.id });
@@ -111,18 +109,14 @@ export async function deleteTodo(
   return deleted.length > 0;
 }
 
-export async function toggleTodo(
-  userId: string,
-  organizationId: string,
-  id: string
-): Promise<Todo> {
-  const current = await getTodoById(userId, organizationId, id);
+export async function toggleTodo(scope: AuthenticatedOrganizationScope, id: string): Promise<Todo> {
+  const current = await getTodoById(scope, id);
 
   if (!current) {
     throw new Error("todo not found");
   }
 
-  return updateTodo(userId, organizationId, id, {
+  return updateTodo(scope, id, {
     completed: !current.completed
   });
 }

@@ -1,28 +1,26 @@
 import {
-  getCurrentOrganizationById,
-  listOrganizationMembersByOrganizationId,
-  listOrganizationsByUserId
+  getCurrentOrganizationByScope,
+  listOrganizationMembersByScope,
+  listOrganizationsByScope
 } from "./organizations.adapter";
 import type { ApiContext } from "../../context";
-import { requireActiveOrganizationId, requireUser } from "../../middleware/auth.middleware";
+import { requireAuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
 type ResolverContext = ApiContext;
 
 export const organizationsResolvers = {
   Query: {
     async organizations(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      return listOrganizationsByUserId(user.id);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return listOrganizationsByScope(scope);
     },
     async currentOrganization(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
-      return getCurrentOrganizationById(user.id, activeOrganizationId);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return getCurrentOrganizationByScope(scope);
     },
     async members(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const user = requireUser(ctx);
-      const activeOrganizationId = requireActiveOrganizationId(ctx);
-      return listOrganizationMembersByOrganizationId(user.id, activeOrganizationId);
+      const scope = requireAuthenticatedOrganizationScope(ctx);
+      return listOrganizationMembersByScope(scope);
     }
   }
 };

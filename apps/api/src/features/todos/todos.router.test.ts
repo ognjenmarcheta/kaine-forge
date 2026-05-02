@@ -5,7 +5,7 @@ vi.mock("./todos.adapter", () => ({
   createTodo: vi.fn(),
   deleteTodo: vi.fn(),
   getTodoById: vi.fn(),
-  listTodosByUserIdAndOrganizationId: vi.fn(),
+  listTodosByScope: vi.fn(),
   toggleTodo: vi.fn(),
   updateTodo: vi.fn()
 }));
@@ -21,6 +21,11 @@ import type { PubSubEventMap } from "../../pubsub";
 
 describe("todos.router", () => {
   const testPubsub = createPubSub<PubSubEventMap>();
+  const authenticatedScope = {
+    organizationId: "org-1",
+    user: { id: "user-1" },
+    userId: "user-1"
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,21 +47,17 @@ describe("todos.router", () => {
   });
 
   it("lists todos with clamped pagination for authenticated user", async () => {
-    vi.mocked(todosAdapter.listTodosByUserIdAndOrganizationId).mockResolvedValue([]);
+    vi.mocked(todosAdapter.listTodosByScope).mockResolvedValue([]);
 
     await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, {
       activeOrganizationId: "org-1",
       user: { id: "user-1" }
     } as never);
 
-    expect(todosAdapter.listTodosByUserIdAndOrganizationId).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      {
-        limit: 100,
-        offset: 0
-      }
-    );
+    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(authenticatedScope, {
+      limit: 100,
+      offset: 0
+    });
   });
 
   it("creates todo using normalized input", async () => {
@@ -82,7 +83,7 @@ describe("todos.router", () => {
       { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
     );
 
-    expect(todosAdapter.createTodo).toHaveBeenCalledWith("user-1", "org-1", {
+    expect(todosAdapter.createTodo).toHaveBeenCalledWith(authenticatedScope, {
       description: "new description",
       title: "New Todo"
     });
@@ -113,7 +114,7 @@ describe("todos.router", () => {
       { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
     );
 
-    expect(todosAdapter.updateTodo).toHaveBeenCalledWith("user-1", "org-1", "todo-1", {
+    expect(todosAdapter.updateTodo).toHaveBeenCalledWith(authenticatedScope, "todo-1", {
       completed: true,
       description: null,
       title: "Edited title"

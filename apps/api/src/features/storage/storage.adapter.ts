@@ -3,19 +3,21 @@ import { and, desc, eq, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
+import type { AuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
-export async function createFileRecord(input: {
-  id: string;
-  key: string;
-  bucket: string;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-  uploadedBy: string;
-  organizationId: string;
-  entityType: string | null;
-  entityId: string | null;
-}): Promise<File> {
+export async function createFileRecord(
+  scope: AuthenticatedOrganizationScope,
+  input: {
+    id: string;
+    key: string;
+    bucket: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    entityType: string | null;
+    entityId: string | null;
+  }
+): Promise<File> {
   const files = await db
     .insert(filesTable)
     .values({
@@ -25,8 +27,8 @@ export async function createFileRecord(input: {
       originalName: input.originalName,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
-      uploadedBy: input.uploadedBy,
-      organizationId: input.organizationId,
+      uploadedBy: scope.userId,
+      organizationId: scope.organizationId,
       entityType: input.entityType,
       entityId: input.entityId
     })
@@ -41,24 +43,30 @@ export async function createFileRecord(input: {
   return file;
 }
 
-export async function getFileById(organizationId: string, id: string): Promise<File | null> {
+export async function getFileById(
+  scope: AuthenticatedOrganizationScope,
+  id: string
+): Promise<File | null> {
   const files = await db
     .select()
     .from(filesTable)
-    .where(and(eq(filesTable.id, id), eq(filesTable.organizationId, organizationId)))
+    .where(and(eq(filesTable.id, id), eq(filesTable.organizationId, scope.organizationId)))
     .limit(1);
 
   return files[0] ?? null;
 }
 
-export async function listFiles(organizationId: string, filter: FilesFilterInput): Promise<File[]> {
+export async function listFiles(
+  scope: AuthenticatedOrganizationScope,
+  filter: FilesFilterInput
+): Promise<File[]> {
   const limit = Math.min(
     filter.limit ?? STORAGE_CONFIG.pagination.defaultLimit,
     STORAGE_CONFIG.pagination.maxLimit
   );
   const offset = filter.offset ?? 0;
 
-  const conditions = [eq(filesTable.organizationId, organizationId)];
+  const conditions = [eq(filesTable.organizationId, scope.organizationId)];
 
   if (filter.entityType) {
     conditions.push(eq(filesTable.entityType, filter.entityType));
@@ -82,14 +90,14 @@ export async function listFiles(organizationId: string, filter: FilesFilterInput
 }
 
 export async function updateFileStatus(
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   id: string,
   status: "pending" | "uploaded" | "deleted"
 ): Promise<File> {
   const files = await db
     .update(filesTable)
     .set({ status, updatedAt: new Date() })
-    .where(and(eq(filesTable.id, id), eq(filesTable.organizationId, organizationId)))
+    .where(and(eq(filesTable.id, id), eq(filesTable.organizationId, scope.organizationId)))
     .returning();
 
   const file = files[0];
@@ -102,7 +110,7 @@ export async function updateFileStatus(
 }
 
 export async function deleteFilesByEntity(
-  organizationId: string,
+  scope: AuthenticatedOrganizationScope,
   entityType: string,
   entityId: string
 ): Promise<File[]> {
@@ -111,7 +119,7 @@ export async function deleteFilesByEntity(
     .set({ status: "deleted", updatedAt: new Date() })
     .where(
       and(
-        eq(filesTable.organizationId, organizationId),
+        eq(filesTable.organizationId, scope.organizationId),
         eq(filesTable.entityType, entityType),
         eq(filesTable.entityId, entityId),
         ne(filesTable.status, "deleted")

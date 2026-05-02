@@ -37,19 +37,25 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 import {
-  getCurrentOrganizationById,
-  listOrganizationMembersByOrganizationId,
-  listOrganizationsByUserId
+  getCurrentOrganizationByScope,
+  listOrganizationMembersByScope,
+  listOrganizationsByScope
 } from "./organizations.adapter";
 
 describe("organizations.adapter", () => {
+  const scope = {
+    organizationId: "org-1",
+    user: { id: "user-1" },
+    userId: "user-1"
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
   });
 
-  it("listOrganizationsByUserId calls db.select with innerJoin and where", async () => {
-    await listOrganizationsByUserId("user-1");
+  it("listOrganizationsByScope calls db.select with innerJoin and where", async () => {
+    await listOrganizationsByScope(scope);
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.from).toHaveBeenCalled();
     expect(chain.innerJoin).toHaveBeenCalled();
@@ -57,23 +63,23 @@ describe("organizations.adapter", () => {
     expect(chain.orderBy).toHaveBeenCalled();
   });
 
-  it("getCurrentOrganizationById calls db.select with limit 1", async () => {
+  it("getCurrentOrganizationByScope calls db.select with limit 1", async () => {
     chain.limit.mockResolvedValueOnce([]);
-    await getCurrentOrganizationById("user-1", "org-1");
+    await getCurrentOrganizationByScope(scope);
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.limit).toHaveBeenCalledWith(1);
   });
 
-  it("listOrganizationMembersByOrganizationId throws when user is not a member", async () => {
+  it("listOrganizationMembersByScope throws when user is not a member", async () => {
     chain.limit.mockResolvedValueOnce([]);
-    await expect(listOrganizationMembersByOrganizationId("user-1", "org-1")).rejects.toThrowError(
+    await expect(listOrganizationMembersByScope(scope)).rejects.toThrowError(
       "organization not accessible"
     );
   });
 
-  it("listOrganizationMembersByOrganizationId returns members when user is a member", async () => {
+  it("listOrganizationMembersByScope returns members when user is a member", async () => {
     chain.limit.mockResolvedValueOnce([{ id: "member-1" }]);
-    await listOrganizationMembersByOrganizationId("user-1", "org-1");
+    await listOrganizationMembersByScope(scope);
     expect(chain.innerJoin).toHaveBeenCalled();
     expect(chain.where).toHaveBeenCalled();
   });
