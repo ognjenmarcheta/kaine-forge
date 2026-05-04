@@ -12,6 +12,10 @@ _Avoid_: account, team
 The organization selected on the current authenticated session for scoped data access.
 _Avoid_: selected team, current account
 
+**Organization Membership**:
+The relationship proving a **User** belongs to an **Organization**, including the user's role in that Organization.
+_Avoid_: team membership, account access
+
 **Authenticated Organization Scope**:
 An API request identity containing an authenticated user and their active organization as resolved from the session.
 _Avoid_: auth context, org context
@@ -19,6 +23,7 @@ _Avoid_: auth context, org context
 ## Relationships
 
 - A **User** belongs to one or more **Organizations** through membership.
+- An **Organization Membership** belongs to exactly one **User** and exactly one **Organization**.
 - A **Session** has zero or one **Active Organization** before authentication checks, and scoped API work requires one.
 - An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Active Organization**.
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.

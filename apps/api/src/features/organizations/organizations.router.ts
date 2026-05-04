@@ -1,26 +1,22 @@
-import {
-  getCurrentOrganizationByScope,
-  listOrganizationMembersByScope,
-  listOrganizationsByScope
-} from "./organizations.adapter";
+import { requireAuthenticatedOrganizationScope } from "@repo/auth/scope";
+
 import type { ApiContext } from "../../context";
-import { requireAuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
 type ResolverContext = ApiContext;
 
 export const organizationsResolvers = {
   Query: {
     async organizations(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx);
-      return listOrganizationsByScope(scope);
+      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      return ctx.auth.listOrganizationsByScope(scope);
     },
     async currentOrganization(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx);
-      return getCurrentOrganizationByScope(scope);
+      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      return ctx.auth.getCurrentOrganizationByScope(scope);
     },
     async members(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx);
-      return listOrganizationMembersByScope(scope);
+      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      return ctx.auth.listOrganizationMembersByScope(scope);
     }
   }
 };

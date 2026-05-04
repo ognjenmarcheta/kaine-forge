@@ -47,7 +47,11 @@ import { createTodo, deleteTodo, getTodoById, listTodosByScope } from "./todos.a
 describe("todos.adapter", () => {
   const scope = {
     organizationId: "org-1",
-    user: { id: "user-1" },
+    user: {
+      email: "u1@example.com",
+      id: "user-1",
+      name: "User One"
+    },
     userId: "user-1"
   };
 

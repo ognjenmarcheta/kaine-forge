@@ -11,6 +11,7 @@ export default defineConfig({
         workspaceRoot,
         "packages/auth/src/auth.definition.ts"
       ),
+      "@repo/auth/scope": path.join(workspaceRoot, "packages/auth/src/auth.scope.ts"),
       "@repo/auth/auth.type": path.join(workspaceRoot, "packages/auth/src/auth.type.ts"),
       "@repo/auth/auth.util": path.join(workspaceRoot, "packages/auth/src/auth.util.ts"),
       "@repo/auth/server": path.join(workspaceRoot, "packages/auth/src/server.ts"),

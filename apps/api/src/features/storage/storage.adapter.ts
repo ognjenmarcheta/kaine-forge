@@ -1,9 +1,9 @@
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { db, filesTable, type File } from "@repo/db";
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
-import type { AuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
 export async function createFileRecord(
   scope: AuthenticatedOrganizationScope,

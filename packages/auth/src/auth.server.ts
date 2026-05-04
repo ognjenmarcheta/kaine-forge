@@ -5,9 +5,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
+import type { AuthenticatedOrganizationScope } from "./auth.scope";
 import type {
   AuthSession,
   AuthSessionResult,
+  AuthOrganization,
+  AuthOrganizationMember,
   LoginInput,
   ServerAuth,
   SignupInput
@@ -151,6 +154,75 @@ async function getOrganizationIdsForUser(userId: string): Promise<string[]> {
     .orderBy(asc(membersTable.createdAt));
 
   return organizations.map((organization) => organization.organizationId);
+}
+
+async function listOrganizationsForUser(userId: string): Promise<AuthOrganization[]> {
+  return db
+    .select({
+      id: organizationsTable.id,
+      name: organizationsTable.name,
+      slug: organizationsTable.slug,
+      role: membersTable.role
+    })
+    .from(membersTable)
+    .innerJoin(organizationsTable, eq(membersTable.organizationId, organizationsTable.id))
+    .where(eq(membersTable.userId, userId))
+    .orderBy(asc(membersTable.createdAt));
+}
+
+async function getCurrentOrganizationForScope(
+  scope: AuthenticatedOrganizationScope
+): Promise<AuthOrganization | null> {
+  const organizations = await db
+    .select({
+      id: organizationsTable.id,
+      name: organizationsTable.name,
+      slug: organizationsTable.slug,
+      role: membersTable.role
+    })
+    .from(membersTable)
+    .innerJoin(organizationsTable, eq(membersTable.organizationId, organizationsTable.id))
+    .where(
+      and(
+        eq(membersTable.userId, scope.userId),
+        eq(membersTable.organizationId, scope.organizationId)
+      )
+    )
+    .limit(1);
+
+  return organizations[0] ?? null;
+}
+
+async function listOrganizationMembersForScope(
+  scope: AuthenticatedOrganizationScope
+): Promise<AuthOrganizationMember[]> {
+  const membership = await db
+    .select({ id: membersTable.id })
+    .from(membersTable)
+    .where(
+      and(
+        eq(membersTable.userId, scope.userId),
+        eq(membersTable.organizationId, scope.organizationId)
+      )
+    )
+    .limit(1);
+
+  if (!membership[0]) {
+    throw new Error("organization not accessible");
+  }
+
+  return db
+    .select({
+      id: membersTable.id,
+      userId: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      role: membersTable.role
+    })
+    .from(membersTable)
+    .innerJoin(usersTable, eq(membersTable.userId, usersTable.id))
+    .where(eq(membersTable.organizationId, scope.organizationId))
+    .orderBy(asc(membersTable.createdAt));
 }
 
 async function resolveActiveOrganizationForUser(params: {
@@ -337,22 +409,16 @@ export function createServerAuth(): ServerAuth {
       await db.delete(sessionsTable).where(eq(sessionsTable.token, sessionToken));
     },
     async listOrganizations(userId: string) {
-      const organizations = await db
-        .select({
-          id: organizationsTable.id,
-          name: organizationsTable.name,
-          slug: organizationsTable.slug,
-          role: membersTable.role
-        })
-        .from(membersTable)
-        .innerJoin(organizationsTable, eq(membersTable.organizationId, organizationsTable.id))
-        .where(eq(membersTable.userId, userId))
-        .orderBy(asc(membersTable.createdAt));
-
-      return organizations;
+      return listOrganizationsForUser(userId);
+    },
+    async listOrganizationsByScope(scope) {
+      return listOrganizationsForUser(scope.userId);
+    },
+    async getCurrentOrganizationByScope(scope) {
+      return getCurrentOrganizationForScope(scope);
     },
     async setActiveOrganization(params) {
-      const organizations = await this.listOrganizations(params.userId);
+      const organizations = await listOrganizationsForUser(params.userId);
       const targetOrganization = organizations.find(
         (organization) => organization.id === params.organizationId
       );
@@ -441,29 +507,18 @@ export function createServerAuth(): ServerAuth {
       });
     },
     async getMembers(params) {
-      const organizations = await this.listOrganizations(params.userId);
-      const isMember = organizations.some(
-        (organization) => organization.id === params.organizationId
-      );
-
-      if (!isMember) {
-        throw new Error("organization not accessible");
-      }
-
-      const members = await db
-        .select({
-          id: membersTable.id,
-          userId: usersTable.id,
-          email: usersTable.email,
-          name: usersTable.name,
-          role: membersTable.role
-        })
-        .from(membersTable)
-        .innerJoin(usersTable, eq(membersTable.userId, usersTable.id))
-        .where(eq(membersTable.organizationId, params.organizationId))
-        .orderBy(asc(membersTable.createdAt));
-
-      return members;
+      return listOrganizationMembersForScope({
+        organizationId: params.organizationId,
+        user: {
+          id: params.userId,
+          email: "",
+          name: ""
+        },
+        userId: params.userId
+      });
+    },
+    async listOrganizationMembersByScope(scope) {
+      return listOrganizationMembersForScope(scope);
     }
   };
 }
