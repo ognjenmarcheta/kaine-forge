@@ -161,14 +161,55 @@ Source changes in `apps/**`, `packages/**`, or `tooling/**` need a `.changeset/*
 
 Run `pnpm release:apps` from synced `main` after merging changes that affect deployable apps. The command uses the workspace graph so shared package changes update every affected deployable app branch without redeploying unrelated apps.
 
-## Template Adoption Checklist
+## Template Adoption
 
-1. Replace Kaine Forge naming, repository links, and deployment URLs with product-specific values.
-2. Remove the `TEMPLATE_POLICY_BLOCK` sections from `MONOREPO_GUIDE.md` and `DESIGN_SYSTEM.md`.
-3. Replace template compatibility policy with your product compatibility/versioning policy.
-4. Rotate all secrets and rewrite `.env.example` defaults for your environments.
-5. Review `.ai/` skills and MCP placeholders; add org-specific integrations only in downstream projects.
-6. Confirm CI required checks and branch protection match your team workflow.
+After creating a new repository from this GitHub template, run adoption once before `pnpm initialize` or normal runtime bootstrap. Adoption replaces active Kaine Forge identity with your downstream product identity while preserving internal `@repo/*` package names and imports.
+
+Interactive adoption:
+
+```bash
+pnpm install
+pnpm template:adopt
+```
+
+Review the dry-run output. When the resolved values are correct, apply the changes and refresh generated assistant files:
+
+```bash
+pnpm template:adopt --write
+pnpm ai:install
+pnpm ai:doctor
+pnpm template:adopt --check
+```
+
+For repeatable non-interactive adoption, create `template-adoption.json`:
+
+```json
+{
+  "productName": "Acme Ops",
+  "desktopIdentifier": "com.acme.ops.desktop",
+  "compatibilityPolicy": "Acme Ops follows semver for public package exports and documents breaking changes in release notes.",
+  "designCompatibilityPolicy": "Acme Ops treats token and component contract changes as product design decisions documented before release."
+}
+```
+
+Then run:
+
+```bash
+pnpm install
+pnpm template:adopt --config template-adoption.json --write
+pnpm ai:install
+pnpm ai:doctor
+pnpm template:adopt --check
+```
+
+The adoption command updates product naming, package and repository slugs, Docker examples, environment defaults, app display names, Tauri metadata, translation app names, canonical `.ai/` guidance, and template policy blocks.
+
+After adoption:
+
+1. Rotate all secrets and rewrite `.env.example` defaults for your environments.
+2. Review remaining `pnpm template:adopt --check` findings and keep only intentional historical references.
+3. Review `.ai/` skills and MCP placeholders; add org-specific integrations only in downstream projects.
+4. Confirm CI required checks and branch protection match your team workflow.
 
 ## Documentation Map
 
