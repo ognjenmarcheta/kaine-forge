@@ -1,5 +1,13 @@
 # @repo/api
 
+## 1.1.3
+
+### Patch Changes
+
+- 29a0d96: Deepen Authenticated Organization Scope and move Organization membership reads into the auth package.
+- Updated dependencies [29a0d96]
+  - @repo/auth@1.1.2
+
 ## 1.1.2
 
 ### Patch Changes
