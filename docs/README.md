@@ -32,5 +32,6 @@ Canonical AI assistant sources live in `../.ai/`.
 - `../.ai/mcp.json`: canonical MCP catalog for local agent installs.
 - `../.ai/serena-project.yml`: generated into `.serena/project.yml`.
 - `../.ai/serena-memories/*.md`: generated into Serena memories.
+- `agents/`: repo-local configuration for Matt Pocock engineering skills, including issue tracker, triage labels, and domain-doc layout.
 
 Run `pnpm ai:install` and `pnpm ai:doctor` after editing canonical AI sources.

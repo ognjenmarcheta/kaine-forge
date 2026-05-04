@@ -72,6 +72,20 @@ Downstream products can add more skills in `.ai/skills/` without changing this g
 
 Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the canonical Matt Pocock skill labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Generated Skills Index
 
 - `kaine-adopt-template`: Replace active Kaine Forge template identity with downstream project identity using the template adoption CLI.
