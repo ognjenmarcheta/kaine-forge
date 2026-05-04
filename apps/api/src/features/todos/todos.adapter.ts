@@ -1,8 +1,8 @@
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { db, todosTable, type Todo } from "@repo/db";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Pagination, TodoPatch } from "./todos.type";
-import type { AuthenticatedOrganizationScope } from "../../middleware/auth.middleware";
 
 export async function listTodosByScope(
   scope: AuthenticatedOrganizationScope,

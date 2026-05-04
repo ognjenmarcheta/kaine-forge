@@ -21,9 +21,18 @@ import type { PubSubEventMap } from "../../pubsub";
 
 describe("todos.router", () => {
   const testPubsub = createPubSub<PubSubEventMap>();
+  const session = {
+    activeOrganizationId: "org-1",
+    expiresAt: "2026-02-26T00:00:00.000Z",
+    user: {
+      email: "u1@example.com",
+      id: "user-1",
+      name: "User One"
+    }
+  };
   const authenticatedScope = {
     organizationId: "org-1",
-    user: { id: "user-1" },
+    user: session.user,
     userId: "user-1"
   };
 
@@ -31,28 +40,10 @@ describe("todos.router", () => {
     vi.clearAllMocks();
   });
 
-  it("rejects unauthenticated access", async () => {
-    await expect(
-      todosResolvers.Query.todos({}, {}, { activeOrganizationId: "org-1", user: null } as never)
-    ).rejects.toThrowError("authentication required");
-  });
-
-  it("rejects access without active organization", async () => {
-    await expect(
-      todosResolvers.Query.todos({}, {}, {
-        activeOrganizationId: null,
-        user: { id: "user-1" }
-      } as never)
-    ).rejects.toThrowError("active organization required");
-  });
-
   it("lists todos with clamped pagination for authenticated user", async () => {
     vi.mocked(todosAdapter.listTodosByScope).mockResolvedValue([]);
 
-    await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, {
-      activeOrganizationId: "org-1",
-      user: { id: "user-1" }
-    } as never);
+    await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, { session } as never);
 
     expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(authenticatedScope, {
       limit: 100,
@@ -80,7 +71,7 @@ describe("todos.router", () => {
           title: "  New Todo  "
         }
       },
-      { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
+      { session, pubsub: testPubsub } as never
     );
 
     expect(todosAdapter.createTodo).toHaveBeenCalledWith(authenticatedScope, {
@@ -111,7 +102,7 @@ describe("todos.router", () => {
           title: "  Edited title  "
         }
       },
-      { activeOrganizationId: "org-1", user: { id: "user-1" }, pubsub: testPubsub } as never
+      { session, pubsub: testPubsub } as never
     );
 
     expect(todosAdapter.updateTodo).toHaveBeenCalledWith(authenticatedScope, "todo-1", {

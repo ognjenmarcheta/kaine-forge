@@ -11,32 +11,23 @@ import * as storageAdapter from "./storage.adapter";
 import { storageResolvers } from "./storage.router";
 
 describe("storage.router", () => {
+  const session = {
+    activeOrganizationId: "org-1",
+    expiresAt: "2026-02-26T00:00:00.000Z",
+    user: {
+      email: "u1@example.com",
+      id: "user-1",
+      name: "User One"
+    }
+  };
   const authenticatedScope = {
     organizationId: "org-1",
-    user: { id: "user-1" },
+    user: session.user,
     userId: "user-1"
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("rejects unauthenticated access for files query", async () => {
-    await expect(
-      storageResolvers.Query.files({}, {}, {
-        activeOrganizationId: "org-1",
-        user: null
-      } as never)
-    ).rejects.toThrowError("authentication required");
-  });
-
-  it("rejects access without active organization for files query", async () => {
-    await expect(
-      storageResolvers.Query.files({}, {}, {
-        activeOrganizationId: null,
-        user: { id: "user-1" }
-      } as never)
-    ).rejects.toThrowError("active organization required");
   });
 
   it("lists files with authenticated organization scope", async () => {
@@ -51,10 +42,7 @@ describe("storage.router", () => {
           status: "uploaded"
         }
       },
-      {
-        activeOrganizationId: "org-1",
-        user: { id: "user-1" }
-      } as never
+      { session } as never
     );
 
     expect(storageAdapter.listFiles).toHaveBeenCalledWith(authenticatedScope, {

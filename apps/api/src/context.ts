@@ -1,3 +1,4 @@
+import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import { resolveFeatureFlags } from "@repo/feature-flags";
@@ -7,17 +8,11 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { pubsub } from "./pubsub";
 
-export interface ApiContextUser {
-  id: string;
-  email: string;
-  name: string;
-}
-
 export interface ApiContext {
+  auth: ServerAuth;
   db: typeof db;
   t: typeof t;
-  user: ApiContextUser | null;
-  activeOrganizationId: string | null;
+  session: AuthSession | null;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
   pubsub: typeof pubsub;
@@ -38,10 +33,10 @@ export async function createContextFromHeaders(
   });
 
   return {
+    auth,
     db,
     t,
-    user: session?.user ?? null,
-    activeOrganizationId: session?.activeOrganizationId ?? null,
+    session,
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub

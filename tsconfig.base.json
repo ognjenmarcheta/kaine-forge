@@ -23,6 +23,7 @@
       "@repo/auth/server": ["packages/auth/src/auth.server.ts"],
       "@repo/auth/client": ["packages/auth/src/auth.client.ts"],
       "@repo/auth/permissions": ["packages/auth/src/auth.permissions.ts"],
+      "@repo/auth/scope": ["packages/auth/src/auth.scope.ts"],
       "@repo/auth/*": ["packages/auth/src/*"],
       "@repo/config/*": ["packages/config/*"],
       "@repo/db": ["packages/db/src/index.ts"],

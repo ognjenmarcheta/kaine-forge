@@ -1,5 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 
+import type { AuthenticatedOrganizationScope } from "./auth.scope";
+
 export interface AuthConfig {
   baseUrl: string;
   secret: string;
@@ -62,6 +64,10 @@ export interface ServerAuth {
   signUpWithPassword(input: SignupInput): Promise<AuthSessionResult>;
   logout(sessionToken: string | null): Promise<void>;
   listOrganizations(userId: string): Promise<AuthOrganization[]>;
+  listOrganizationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthOrganization[]>;
+  getCurrentOrganizationByScope(
+    scope: AuthenticatedOrganizationScope
+  ): Promise<AuthOrganization | null>;
   setActiveOrganization(params: {
     organizationId: string;
     sessionToken: string | null;
@@ -73,6 +79,9 @@ export interface ServerAuth {
     userId: string;
   }): Promise<AuthSession>;
   getMembers(params: { organizationId: string; userId: string }): Promise<AuthOrganizationMember[]>;
+  listOrganizationMembersByScope(
+    scope: AuthenticatedOrganizationScope
+  ): Promise<AuthOrganizationMember[]>;
 }
 
 export interface ClientAuth {

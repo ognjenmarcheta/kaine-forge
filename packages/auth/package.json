@@ -22,6 +22,10 @@
       "types": "./dist/auth.util.d.ts",
       "default": "./dist/auth.util.js"
     },
+    "./scope": {
+      "types": "./dist/auth.scope.d.ts",
+      "default": "./dist/auth.scope.js"
+    },
     "./server": {
       "types": "./dist/auth.server.d.ts",
       "default": "./dist/auth.server.js"
