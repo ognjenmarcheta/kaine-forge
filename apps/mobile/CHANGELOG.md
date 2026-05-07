@@ -1,5 +1,16 @@
 # @repo/mobile
 
+## 1.2.6
+
+### Patch Changes
+
+- 1d159d2: Deepen Authenticated Organization Scope, Active Organization lifecycle, Todo workflow, Attachment lifecycle, Translation runtime, API runtime, and GraphQL feature composition seams.
+- Updated dependencies [1d159d2]
+  - @repo/auth@1.2.2
+  - @repo/query@1.3.2
+  - @repo/todos@1.0.2
+  - @repo/translation@1.1.1
+
 ## 1.2.5
 
 ### Patch Changes

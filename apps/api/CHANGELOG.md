@@ -1,5 +1,14 @@
 # @repo/api
 
+## 1.1.6
+
+### Patch Changes
+
+- 1d159d2: Deepen Authenticated Organization Scope, Active Organization lifecycle, Todo workflow, Attachment lifecycle, Translation runtime, API runtime, and GraphQL feature composition seams.
+- Updated dependencies [1d159d2]
+  - @repo/auth@1.2.2
+  - @repo/translation@1.1.1
+
 ## 1.1.5
 
 ### Patch Changes
