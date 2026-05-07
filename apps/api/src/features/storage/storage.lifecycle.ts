@@ -2,7 +2,7 @@ import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { buildStorageKey, STORAGE_DEFAULTS, validateFile } from "@repo/storage";
 
 import { STORAGE_CONFIG } from "./storage.definition";
-import type { RequestUploadInput } from "./storage.type";
+import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 
 interface StoredFile {
   id: string;
@@ -16,8 +16,12 @@ interface PresignedUpload {
   url: string;
 }
 
+interface PresignedDownload {
+  url: string;
+}
+
 export interface StorageLifecycleAdapter<TFile extends StoredFile> {
-  bucket: string;
+  bucket: string | (() => string);
   createFileId: () => string;
   createFileRecord: (
     scope: AuthenticatedOrganizationScope,
@@ -38,11 +42,13 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
     mimeType: string,
     expiresIn: number
   ) => Promise<PresignedUpload>;
+  createDownloadUrl: (bucket: string, key: string, expiresIn: number) => Promise<PresignedDownload>;
   defaultEntityType: string;
   deleteObject: (bucket: string, key: string) => Promise<void>;
   fileExists: (bucket: string, key: string) => Promise<boolean>;
   getFileById: (scope: AuthenticatedOrganizationScope, fileId: string) => Promise<TFile | null>;
-  presignedUrlExpirySeconds: number;
+  listFiles: (scope: AuthenticatedOrganizationScope, filter: FilesFilterInput) => Promise<TFile[]>;
+  presignedUrlExpirySeconds: number | (() => number);
   updateFileStatus: (
     scope: AuthenticatedOrganizationScope,
     fileId: string,
@@ -53,6 +59,13 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
 export function createStorageLifecycle<TFile extends StoredFile>(
   adapter: StorageLifecycleAdapter<TFile>
 ) {
+  const getBucket = () =>
+    typeof adapter.bucket === "function" ? adapter.bucket() : adapter.bucket;
+  const getPresignedUrlExpirySeconds = () =>
+    typeof adapter.presignedUrlExpirySeconds === "function"
+      ? adapter.presignedUrlExpirySeconds()
+      : adapter.presignedUrlExpirySeconds;
+
   return {
     async requestUploadUrl(scope: AuthenticatedOrganizationScope, input: RequestUploadInput) {
       const validation = validateFile({ mimeType: input.mimeType, sizeBytes: input.sizeBytes }, {});
@@ -73,7 +86,7 @@ export function createStorageLifecycle<TFile extends StoredFile>(
       const file = await adapter.createFileRecord(scope, {
         id: fileId,
         key,
-        bucket: adapter.bucket,
+        bucket: getBucket(),
         originalName: input.originalName,
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
@@ -81,10 +94,10 @@ export function createStorageLifecycle<TFile extends StoredFile>(
         entityId: input.entityId ?? null
       });
       const presigned = await adapter.createUploadUrl(
-        adapter.bucket,
+        getBucket(),
         key,
         input.mimeType,
-        adapter.presignedUrlExpirySeconds
+        getPresignedUrlExpirySeconds()
       );
 
       return {
@@ -105,7 +118,7 @@ export function createStorageLifecycle<TFile extends StoredFile>(
         throw new Error(`file status is ${file.status ?? "unknown"}, expected pending`);
       }
 
-      const exists = await adapter.fileExists(adapter.bucket, file.key);
+      const exists = await adapter.fileExists(getBucket(), file.key);
 
       if (!exists) {
         throw new Error("file has not been uploaded to storage");
@@ -120,9 +133,28 @@ export function createStorageLifecycle<TFile extends StoredFile>(
         throw new Error("file not found");
       }
 
-      await adapter.deleteObject(adapter.bucket, file.key);
+      await adapter.deleteObject(getBucket(), file.key);
       await adapter.updateFileStatus(scope, file.id, "deleted");
       return true;
+    },
+    getFile(scope: AuthenticatedOrganizationScope, fileId: string) {
+      return adapter.getFileById(scope, fileId);
+    },
+    listFiles(scope: AuthenticatedOrganizationScope, filter: FilesFilterInput) {
+      return adapter.listFiles(scope, filter);
+    },
+    async getDownloadUrl(file: TFile) {
+      if (file.status !== "uploaded") {
+        return null;
+      }
+
+      const result = await adapter.createDownloadUrl(
+        getBucket(),
+        file.key,
+        getPresignedUrlExpirySeconds()
+      );
+
+      return result.url;
     }
   };
 }

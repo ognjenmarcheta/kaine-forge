@@ -5,3 +5,4 @@ export * from "./storage.client";
 export * from "./storage.util";
 export * from "./upload.adapter";
 export * from "./upload.lifecycle";
+export * from "./upload.workflow";

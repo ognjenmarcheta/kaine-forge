@@ -1,5 +1,5 @@
 import { Button, Text } from "@repo/mobile-ui";
-import { createActiveOrganizationQueryKey, registerOrgScopedOperationKey } from "@repo/query";
+import { createActiveOrganizationQueryKey } from "@repo/query";
 import { createTodoClientWorkflow } from "@repo/todos";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
@@ -21,8 +21,9 @@ import {
 } from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import { queryRuntime } from "../../lib/query-runtime";
 
-registerOrgScopedOperationKey("todos.mobile.list", useGetMobileTodosQuery.getKey());
+queryRuntime.registerOrgScopedOperation("todos.mobile.list", useGetMobileTodosQuery.getKey());
 
 export function TodosRoute() {
   const { t } = useTranslation();

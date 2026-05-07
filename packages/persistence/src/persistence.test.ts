@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   createAsyncStoragePersistenceAdapter,
+  createAsyncZustandJsonStorage,
   createMemoryPersistenceAdapter,
   createSyncStoragePersistenceAdapter,
+  createSyncZustandJsonStorage,
   getJsonValueSync,
   getJsonValue,
   setJsonValueSync,
@@ -94,5 +96,57 @@ describe("persistence adapters", () => {
     const adapter = createMemoryPersistenceAdapter([["bad", "{"]]);
 
     await expect(getJsonValue(adapter, "bad")).resolves.toBeNull();
+  });
+
+  it("creates Zustand-compatible sync JSON storage without changing the persisted shape", () => {
+    const values = new Map<string, string>();
+    const storage = createSyncZustandJsonStorage<{ themeMode: string }>(() => ({
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => {
+        values.delete(key);
+      },
+      setItem: (key, value) => {
+        values.set(key, value);
+      }
+    }));
+
+    storage.setItem("kaine.theme.mode", {
+      state: {
+        themeMode: "dark"
+      }
+    });
+
+    expect(values.get("kaine.theme.mode")).toBe('{"state":{"themeMode":"dark"}}');
+    expect(storage.getItem("kaine.theme.mode")).toEqual({
+      state: {
+        themeMode: "dark"
+      }
+    });
+  });
+
+  it("creates Zustand-compatible async JSON storage with invalid JSON fallback", async () => {
+    const values = new Map<string, string>([["bad", "{"]]);
+    const storage = createAsyncZustandJsonStorage<{ isDrawerOpen: boolean }>({
+      getItem: async (key) => values.get(key) ?? null,
+      removeItem: async (key) => {
+        values.delete(key);
+      },
+      setItem: async (key, value) => {
+        values.set(key, value);
+      }
+    });
+
+    await storage.setItem("kaine.sidebar.state", {
+      state: {
+        isDrawerOpen: true
+      }
+    });
+
+    await expect(storage.getItem("kaine.sidebar.state")).resolves.toEqual({
+      state: {
+        isDrawerOpen: true
+      }
+    });
+    await expect(storage.getItem("bad")).resolves.toBeNull();
   });
 });

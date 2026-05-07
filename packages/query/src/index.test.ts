@@ -4,6 +4,7 @@ import {
   applyActiveOrganizationSession,
   createActiveOrganizationLifecycle,
   createOrgScopedQueryRegistry,
+  createQueryRuntime,
   createActiveOrganizationQueryKey,
   clearOrgScopedQueryKeys,
   invalidateOrgScopedQueries,
@@ -32,6 +33,39 @@ describe("query keys", () => {
 });
 
 describe("invalidateOrgScopedQueries", () => {
+  it("uses an explicit Query Runtime registry for operation registration and auth resets", async () => {
+    const invalidateQueries = vi.fn(async () => undefined);
+    const removeQueries = vi.fn();
+    const runtime = createQueryRuntime();
+
+    runtime.registerOrgScopedOperation("todos.list", ["GetTodos"]);
+    runtime.registerOrgScopedOperation("todos.list", ["GetTodos", { filter: "open" }]);
+
+    await runtime.invalidateOrgScopedQueries({
+      invalidateQueries
+    });
+    runtime.resetAuthBoundQueries({
+      removeQueries
+    });
+
+    expect(runtime.getOrgScopedQueryKeys()).toEqual([
+      queryKeys.organizationMembersScope(),
+      ["GetTodos", { filter: "open" }]
+    ]);
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizationMembersScope()
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["GetTodos", { filter: "open" }]
+    });
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.session()
+    });
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: ["GetTodos", { filter: "open" }]
+    });
+  });
+
   it("registers org-scoped operations by feature-owned names", async () => {
     const invalidateQueries = vi.fn(async () => undefined);
     const registry = createOrgScopedQueryRegistry();

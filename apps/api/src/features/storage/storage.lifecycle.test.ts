@@ -27,10 +27,12 @@ describe("createStorageLifecycle", () => {
         key: "org-1/todo/file-1/photo.png",
         url: "https://upload.example.test"
       }),
+      createDownloadUrl: async () => ({ url: "https://download.example.test" }),
       defaultEntityType: "general",
       deleteObject: async () => undefined,
       fileExists: async () => true,
       getFileById: async () => null,
+      listFiles: async () => [],
       presignedUrlExpirySeconds: 900,
       updateFileStatus: async () => ({ id: "file-1", key: "org-1/todo/file-1/photo.png" })
     });
@@ -73,6 +75,7 @@ describe("createStorageLifecycle", () => {
       createFileId: () => "file-1",
       createFileRecord: async () => ({ id: "file-1", key: "key" }),
       createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
+      createDownloadUrl: async () => ({ url: "download-url" }),
       defaultEntityType: "general",
       deleteObject: async () => undefined,
       fileExists: async () => true,
@@ -81,6 +84,7 @@ describe("createStorageLifecycle", () => {
         key: "key",
         status: "pending"
       }),
+      listFiles: async () => [],
       presignedUrlExpirySeconds: 900,
       updateFileStatus
     });
@@ -91,5 +95,50 @@ describe("createStorageLifecycle", () => {
       status: "uploaded"
     });
     expect(updateFileStatus).toHaveBeenCalledWith(scope, "file-1", "uploaded");
+  });
+
+  it("keeps lookup, listing, and uploaded-only download URL behavior behind one lifecycle", async () => {
+    const uploadedFile = {
+      id: "file-1",
+      key: "org-1/todo/file-1/photo.png",
+      status: "uploaded"
+    };
+    const pendingFile = {
+      id: "file-2",
+      key: "org-1/todo/file-2/photo.png",
+      status: "pending"
+    };
+    const listFiles = vi.fn(async () => [uploadedFile]);
+    const createDownloadUrl = vi.fn(async () => ({ url: "https://download.example.test" }));
+    const lifecycle = createStorageLifecycle({
+      bucket: "uploads",
+      createFileId: () => "file-1",
+      createFileRecord: async () => uploadedFile,
+      createUploadUrl: async () => ({
+        expiresIn: 900,
+        key: uploadedFile.key,
+        url: "https://upload.example.test"
+      }),
+      createDownloadUrl,
+      defaultEntityType: "general",
+      deleteObject: async () => undefined,
+      fileExists: async () => true,
+      getFileById: async (_scope, fileId) => (fileId === "file-1" ? uploadedFile : pendingFile),
+      listFiles,
+      presignedUrlExpirySeconds: 900,
+      updateFileStatus: async () => uploadedFile
+    });
+
+    await expect(lifecycle.getFile(scope, "file-1")).resolves.toEqual(uploadedFile);
+    await expect(lifecycle.listFiles(scope, { entityType: "todo" })).resolves.toEqual([
+      uploadedFile
+    ]);
+    await expect(lifecycle.getDownloadUrl(uploadedFile)).resolves.toBe(
+      "https://download.example.test"
+    );
+    await expect(lifecycle.getDownloadUrl(pendingFile)).resolves.toBeNull();
+
+    expect(listFiles).toHaveBeenCalledWith(scope, { entityType: "todo" });
+    expect(createDownloadUrl).toHaveBeenCalledWith("uploads", uploadedFile.key, 900);
   });
 });

@@ -1,6 +1,6 @@
 import {
   createBrowserUploadTransfer,
-  createUploadLifecycle,
+  createAttachmentUploadWorkflow,
   toBrowserUploadRequestInput,
   type UploadState
 } from "@repo/storage";
@@ -44,7 +44,7 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
   const lifecycle = useMemo(
     () =>
-      createUploadLifecycle<File>({
+      createAttachmentUploadWorkflow<File>({
         adapter: {
           confirmUpload: async (fileId) => {
             await confirmUpload.mutateAsync({ fileId });
@@ -65,6 +65,10 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
           toRequestInput: toBrowserUploadRequestInput,
           uploadFile: createBrowserUploadTransfer
         },
+        defaultContext: {
+          entityId: options.entityId,
+          entityType: options.entityType
+        },
         onError: options.onError,
         onStateChange: setState,
         onSuccess: options.onSuccess
@@ -78,12 +82,9 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
   const upload = useCallback(
     (file: File) => {
-      void lifecycle.upload(file, {
-        entityId: options.entityId,
-        entityType: options.entityType
-      });
+      void lifecycle.upload(file);
     },
-    [lifecycle, options.entityId, options.entityType]
+    [lifecycle]
   );
 
   return {

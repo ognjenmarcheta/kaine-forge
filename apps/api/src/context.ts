@@ -26,9 +26,9 @@ type RequestHeaders = Headers | IncomingHttpHeaders;
 
 export async function createContextFromHeaders(
   headers: RequestHeaders,
-  logger: Logger
+  logger: Logger,
+  auth: ServerAuth = createServerAuth()
 ): Promise<ApiContext> {
-  const auth = createServerAuth();
   const session = await auth.getSessionFromHeaders(headers);
   const identity = await resolveApiAuthIdentity(session, auth);
 
@@ -50,6 +50,10 @@ export async function createContextFromHeaders(
   };
 }
 
-export async function createContext(request: Request, logger: Logger): Promise<ApiContext> {
-  return createContextFromHeaders(request.headers, logger);
+export async function createContext(
+  request: Request,
+  logger: Logger,
+  auth?: ServerAuth
+): Promise<ApiContext> {
+  return createContextFromHeaders(request.headers, logger, auth);
 }

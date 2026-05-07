@@ -1,3 +1,4 @@
+import { createSyncZustandJsonStorage } from "@repo/persistence";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -16,6 +17,9 @@ export const useThemeStore = create<ThemeStore>()(
     }),
     {
       name: "kaine.theme.mode",
+      storage: createSyncZustandJsonStorage(() =>
+        typeof globalThis.localStorage === "undefined" ? null : globalThis.localStorage
+      ),
       partialize: (state) => ({ themeMode: state.themeMode })
     }
   )
