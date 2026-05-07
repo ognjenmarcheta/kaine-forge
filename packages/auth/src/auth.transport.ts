@@ -94,6 +94,7 @@ async function syncSessionToken(
 
 export function createAuthTransport(input: CreateAuthTransportInput): AuthTransport {
   const adapter = input.adapter;
+  const fetcher = adapter.fetch;
   const routes = {
     ...DEFAULT_AUTH_ROUTES,
     ...input.routes
@@ -101,7 +102,7 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
 
   async function request<T>(path: string, init: Omit<RequestInit, "credentials">): Promise<T> {
     return parseJson<T>(
-      await adapter.fetch(buildUrl(adapter.baseUrl, path), {
+      await fetcher(buildUrl(adapter.baseUrl, path), {
         ...init,
         credentials: adapter.credentials
       })
@@ -111,7 +112,7 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
   return {
     async getSession() {
       const sessionToken = await adapter.getSessionToken();
-      const response = await adapter.fetch(buildUrl(adapter.baseUrl, routes.session), {
+      const response = await fetcher(buildUrl(adapter.baseUrl, routes.session), {
         credentials: adapter.credentials,
         headers: sessionHeaders(sessionToken),
         method: "GET"
@@ -152,7 +153,7 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
     },
     async logout() {
       const sessionToken = await adapter.getSessionToken();
-      const response = await adapter.fetch(buildUrl(adapter.baseUrl, routes.logout), {
+      const response = await fetcher(buildUrl(adapter.baseUrl, routes.logout), {
         credentials: adapter.credentials,
         headers: sessionHeaders(sessionToken),
         method: "POST"

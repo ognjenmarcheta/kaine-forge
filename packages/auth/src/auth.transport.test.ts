@@ -64,6 +64,33 @@ describe("createAuthTransport", () => {
     expect(setSessionToken).toHaveBeenCalledWith("token-1");
   });
 
+  it("calls adapter fetch without binding it to the adapter object", async () => {
+    let wasBoundToAdapter = false;
+    const adapter = {
+      baseUrl: "",
+      credentials: "include" as const,
+      fetch: async function (this: unknown) {
+        wasBoundToAdapter = this === adapter;
+        return jsonResponse({
+          session: session(),
+          sessionToken: "token-1"
+        });
+      },
+      getSessionToken: async () => null,
+      setSessionToken: async () => undefined
+    };
+    const transport = createAuthTransport({
+      adapter
+    });
+
+    await transport.loginWithPassword({
+      email: "user@example.com",
+      password: "secret"
+    });
+
+    expect(wasBoundToAdapter).toBe(false);
+  });
+
   it("sends bearer headers for session reads and clears tokens on 204", async () => {
     const setSessionToken = vi.fn(async () => undefined);
     const fetcher = vi.fn(async () => new Response(null, { status: 204 }));
