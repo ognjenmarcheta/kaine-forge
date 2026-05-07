@@ -1,5 +1,11 @@
 # @repo/query
 
+## 1.3.4
+
+### Patch Changes
+
+- 35d096a: Remove deprecated global org-scoped query helpers in favor of explicit Query Runtime instances.
+
 ## 1.3.3
 
 ### Patch Changes

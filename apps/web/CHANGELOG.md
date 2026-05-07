@@ -1,5 +1,12 @@
 # @repo/web
 
+## 1.2.8
+
+### Patch Changes
+
+- Updated dependencies [35d096a]
+  - @repo/query@1.3.4
+
 ## 1.2.7
 
 ### Patch Changes
