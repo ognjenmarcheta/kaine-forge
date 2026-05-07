@@ -1,5 +1,14 @@
 # @repo/api
 
+## 1.1.5
+
+### Patch Changes
+
+- af949dd: Deepen shared auth, query, Todo, storage upload, persistence, and API scope architecture behind focused Modules and Adapters.
+- Updated dependencies [af949dd]
+  - @repo/auth@1.2.1
+  - @repo/storage@1.1.1
+
 ## 1.1.4
 
 ### Patch Changes

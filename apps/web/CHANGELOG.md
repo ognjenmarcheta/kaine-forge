@@ -1,5 +1,16 @@
 # @repo/web
 
+## 1.2.5
+
+### Patch Changes
+
+- af949dd: Deepen shared auth, query, Todo, storage upload, persistence, and API scope architecture behind focused Modules and Adapters.
+- Updated dependencies [af949dd]
+  - @repo/auth@1.2.1
+  - @repo/query@1.3.1
+  - @repo/storage@1.1.1
+  - @repo/todos@1.0.1
+
 ## 1.2.4
 
 ### Patch Changes
