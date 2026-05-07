@@ -50,6 +50,52 @@ interface SyncActiveOrganizationInput<TSession extends ActiveOrganizationSession
   session: TSession | null;
 }
 
+type QueryStatus = "error" | "idle" | "pending" | "success";
+
+interface OrganizationProviderStateInput<TOrganization> {
+  activeOrganizationId: string | null;
+  createOrganizationStatus: QueryStatus;
+  organizations: TOrganization[];
+  organizationsStatus: QueryStatus;
+  organizationsVisible: boolean;
+  setActiveOrganizationStatus: QueryStatus;
+}
+
+interface OrganizationProviderState<TOrganization> {
+  activeOrganizationId: string | null;
+  hasError: boolean;
+  isLoading: boolean;
+  organizations: TOrganization[];
+  organizationsVisible: boolean;
+}
+
+export interface ActiveOrganizationLifecycle<TSession extends ActiveOrganizationSession> {
+  sync: (syncInput: SyncActiveOrganizationInput<TSession>) => Promise<string | null>;
+}
+
+interface SyncActiveOrganizationProviderInput<
+  TSession extends ActiveOrganizationSession,
+  TOrganization extends ActiveOrganizationOption
+> {
+  lifecycle: ActiveOrganizationLifecycle<TSession>;
+  organizationsPayload:
+    | {
+        activeOrganizationId?: string | null;
+        organizations: TOrganization[];
+      }
+    | null
+    | undefined;
+  persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
+  session: TSession | null;
+  setActiveOrganizationStatus: QueryStatus;
+}
+
+interface ActiveOrganizationMutationHandlersInput {
+  persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
+  queryClient: InvalidateQueriesApi & SetQueryDataApi;
+  queryRuntime: QueryRuntime;
+}
+
 export interface OrgScopedQueryRegistry {
   getOperationKeys: () => readonly (readonly unknown[])[];
   invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
@@ -167,7 +213,7 @@ export async function applyCreatedOrganizationSession<TSession extends ActiveOrg
 
 export function createActiveOrganizationLifecycle<TSession extends ActiveOrganizationSession>(
   input: ActiveOrganizationLifecycleInput<TSession>
-) {
+): ActiveOrganizationLifecycle<TSession> {
   return {
     async sync(syncInput: SyncActiveOrganizationInput<TSession>): Promise<string | null> {
       const session = syncInput.session;
@@ -204,6 +250,65 @@ export function createActiveOrganizationLifecycle<TSession extends ActiveOrganiz
 
       await input.persistActiveOrganizationId(preferredOrganizationId);
       return preferredOrganizationId;
+    }
+  };
+}
+
+export function createActiveOrganizationProviderState<TOrganization>(
+  input: OrganizationProviderStateInput<TOrganization>
+): OrganizationProviderState<TOrganization> {
+  return {
+    activeOrganizationId: input.activeOrganizationId,
+    hasError: input.organizationsStatus === "error",
+    isLoading:
+      input.organizationsStatus === "pending" ||
+      input.setActiveOrganizationStatus === "pending" ||
+      input.createOrganizationStatus === "pending",
+    organizations: input.organizations,
+    organizationsVisible: input.organizationsVisible
+  };
+}
+
+export async function syncActiveOrganizationProvider<
+  TSession extends ActiveOrganizationSession,
+  TOrganization extends ActiveOrganizationOption
+>(input: SyncActiveOrganizationProviderInput<TSession, TOrganization>): Promise<string | null> {
+  if (!input.session) {
+    await input.persistActiveOrganizationId(null);
+    return null;
+  }
+
+  if (!input.organizationsPayload || input.setActiveOrganizationStatus === "pending") {
+    return null;
+  }
+
+  return input.lifecycle.sync({
+    fallbackOrganizationId:
+      input.organizationsPayload.activeOrganizationId ?? input.session.activeOrganizationId,
+    organizations: input.organizationsPayload.organizations,
+    session: input.session
+  });
+}
+
+export function createActiveOrganizationMutationHandlers(
+  input: ActiveOrganizationMutationHandlersInput
+) {
+  return {
+    applyActiveOrganization<TSession extends ActiveOrganizationSession>(session: TSession) {
+      return applyActiveOrganizationSession({
+        queryClient: input.queryClient,
+        queryRuntime: input.queryRuntime,
+        session,
+        persistActiveOrganizationId: input.persistActiveOrganizationId
+      });
+    },
+    applyCreatedOrganization<TSession extends ActiveOrganizationSession>(session: TSession) {
+      return applyCreatedOrganizationSession({
+        queryClient: input.queryClient,
+        queryRuntime: input.queryRuntime,
+        session,
+        persistActiveOrganizationId: input.persistActiveOrganizationId
+      });
     }
   };
 }

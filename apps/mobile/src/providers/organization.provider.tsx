@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
-  applyActiveOrganizationSession,
-  applyCreatedOrganizationSession,
+  createActiveOrganizationMutationHandlers,
   createActiveOrganizationLifecycle,
+  createActiveOrganizationProviderState,
+  syncActiveOrganizationProvider,
   queryKeys
 } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,15 +60,20 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     staleTime: 30 * 1000
   });
 
+  const activeOrganizationMutationHandlers = useMemo(
+    () =>
+      createActiveOrganizationMutationHandlers({
+        queryClient,
+        queryRuntime,
+        persistActiveOrganizationId: writeStoredOrganizationId
+      }),
+    [queryClient]
+  );
+
   const setActiveOrganizationMutation = useMutation({
     mutationFn: setActiveOrganizationRequest,
     onSuccess: async (nextSession) => {
-      await applyActiveOrganizationSession({
-        queryClient,
-        queryRuntime,
-        session: nextSession,
-        persistActiveOrganizationId: writeStoredOrganizationId
-      });
+      await activeOrganizationMutationHandlers.applyActiveOrganization(nextSession);
     }
   });
 
@@ -88,42 +94,24 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganizationRequest,
     onSuccess: async (nextSession) => {
-      await applyCreatedOrganizationSession({
-        queryClient,
-        queryRuntime,
-        session: nextSession,
-        persistActiveOrganizationId: writeStoredOrganizationId
-      });
+      await activeOrganizationMutationHandlers.applyCreatedOrganization(nextSession);
     }
   });
 
   useEffect(() => {
     let isActive = true;
 
-    if (!session) {
-      void writeStoredOrganizationId(null);
-      return () => {
-        isActive = false;
-      };
-    }
-
-    if (!organizationsQuery.data || setActiveOrganizationMutation.status === "pending") {
-      return () => {
-        isActive = false;
-      };
-    }
-
     void (async () => {
-      const payload = organizationsQuery.data;
-
       if (!isActive) {
         return;
       }
 
-      await activeOrganizationLifecycle.sync({
-        fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
-        organizations: payload.organizations,
-        session
+      await syncActiveOrganizationProvider({
+        lifecycle: activeOrganizationLifecycle,
+        organizationsPayload: organizationsQuery.data,
+        persistActiveOrganizationId: writeStoredOrganizationId,
+        session,
+        setActiveOrganizationStatus: setActiveOrganizationMutation.status
       });
     })();
 
@@ -151,26 +139,34 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     [createOrganizationMutation]
   );
 
-  const value = useMemo<OrganizationContextValue>(
-    () => ({
-      activeOrganizationId: session?.activeOrganizationId ?? null,
-      organizations: organizationsQuery.data?.organizations ?? [],
-      isLoading:
-        organizationsQuery.status === "pending" ||
-        setActiveOrganizationMutation.status === "pending" ||
-        createOrganizationMutation.status === "pending",
-      createOrganization,
-      setActiveOrganization
-    }),
+  const providerState = useMemo(
+    () =>
+      createActiveOrganizationProviderState({
+        activeOrganizationId: session?.activeOrganizationId ?? null,
+        createOrganizationStatus: createOrganizationMutation.status,
+        organizations: organizationsQuery.data?.organizations ?? [],
+        organizationsStatus: organizationsQuery.status,
+        organizationsVisible: true,
+        setActiveOrganizationStatus: setActiveOrganizationMutation.status
+      }),
     [
-      createOrganization,
       createOrganizationMutation.status,
       organizationsQuery.data?.organizations,
       organizationsQuery.status,
       session?.activeOrganizationId,
-      setActiveOrganization,
       setActiveOrganizationMutation.status
     ]
+  );
+
+  const value = useMemo<OrganizationContextValue>(
+    () => ({
+      activeOrganizationId: providerState.activeOrganizationId,
+      organizations: providerState.organizations,
+      isLoading: providerState.isLoading,
+      createOrganization,
+      setActiveOrganization
+    }),
+    [createOrganization, providerState, setActiveOrganization]
   );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;

@@ -1,5 +1,4 @@
-import { createActiveOrganizationQueryKey } from "@repo/query";
-import { createTodoClientWorkflow } from "@repo/todos";
+import { createTodoClientWorkflow, createTodoListQueryKey } from "@repo/todos";
 import {
   Button,
   Checkbox,
@@ -70,10 +69,10 @@ export function TodosRoute() {
   );
   const todosQueryKey = useMemo(
     () =>
-      createActiveOrganizationQueryKey(
-        useGetTodosQuery.getKey(listVariables),
+      createTodoListQueryKey({
+        queryKey: useGetTodosQuery.getKey(listVariables),
         activeOrganizationId
-      ),
+      }),
     [activeOrganizationId, listVariables]
   );
 
@@ -162,18 +161,15 @@ export function TodosRoute() {
     }
   }, [advancedExampleForm, isAdvancedExampleOpen]);
 
-  const invalidateTodoQuery = useCallback(
-    async (queryKey: readonly unknown[]) => {
-      if (!activeOrganizationId) {
-        return;
-      }
+  const invalidateTodos = useCallback(async () => {
+    if (!activeOrganizationId) {
+      return;
+    }
 
-      await queryClient.invalidateQueries({
-        queryKey
-      });
-    },
-    [activeOrganizationId, queryClient]
-  );
+    await queryClient.invalidateQueries({
+      queryKey: todosQueryKey
+    });
+  }, [activeOrganizationId, queryClient, todosQueryKey]);
 
   const todoWorkflow = useMemo(
     () =>
@@ -190,9 +186,8 @@ export function TodosRoute() {
           });
           return result.deleteTodo;
         },
-        invalidateTodos: async () => {
-          await invalidateTodoQuery(todosQueryKey);
-        },
+        getActiveOrganizationId: () => activeOrganizationId,
+        invalidateTodos,
         toggleTodo: async (id) => {
           const result = await toggleMutation.mutateAsync({
             id
@@ -208,11 +203,11 @@ export function TodosRoute() {
         }
       }),
     [
+      activeOrganizationId,
       createMutation,
       deleteMutation,
-      invalidateTodoQuery,
+      invalidateTodos,
       toggleMutation,
-      todosQueryKey,
       updateMutation
     ]
   );
@@ -225,13 +220,11 @@ export function TodosRoute() {
     setActionError(null);
 
     const created = await todoWorkflow.create({
-      activeOrganizationId,
       draft
     });
 
     if (markCompleted) {
       await todoWorkflow.toggle({
-        activeOrganizationId,
         id: created.id
       });
     }
@@ -253,7 +246,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.update({
-        activeOrganizationId,
         current: editingTodo,
         draft,
         id: editingTodo.id
@@ -276,7 +268,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.delete({
-        activeOrganizationId,
         id: deletingTodoId
       });
       setDeletingTodoId(null);
@@ -289,7 +280,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.toggle({
-        activeOrganizationId,
         id: item.id
       });
     } catch {
@@ -331,7 +321,7 @@ export function TodosRoute() {
         <TodoList
           items={todos}
           onAttachmentChanged={() => {
-            void invalidateTodoQuery(todosQueryKey);
+            void invalidateTodos();
           }}
           onDelete={handleDelete}
           onEdit={(item) => setEditingTodo(item)}

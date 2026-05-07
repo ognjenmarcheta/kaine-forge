@@ -1,9 +1,10 @@
 import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
 import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
-  applyActiveOrganizationSession,
-  applyCreatedOrganizationSession,
+  createActiveOrganizationMutationHandlers,
   createActiveOrganizationLifecycle,
+  createActiveOrganizationProviderState,
+  syncActiveOrganizationProvider,
   queryKeys
 } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const queryClient = useQueryClient();
 
   const featureFlags = useMemo(() => resolveFeatureFlags(), []);
+  const organizationsVisible = isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),
@@ -65,23 +67,27 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     staleTime: 30 * 1000
   });
 
+  const activeOrganizationMutationHandlers = useMemo(
+    () =>
+      createActiveOrganizationMutationHandlers({
+        queryClient,
+        queryRuntime,
+        persistActiveOrganizationId: writeStoredOrganizationId
+      }),
+    [queryClient]
+  );
+
   const setActiveOrganizationMutation = useMutation({
     mutationFn: setActiveOrganizationRequest,
     onSuccess: async (nextSession) => {
-      await applyActiveOrganizationSession({
-        queryClient,
-        queryRuntime,
-        session: nextSession,
-        persistActiveOrganizationId: writeStoredOrganizationId
-      });
+      await activeOrganizationMutationHandlers.applyActiveOrganization(nextSession);
     }
   });
 
   const activeOrganizationLifecycle = useMemo(
     () =>
       createActiveOrganizationLifecycle({
-        isOrganizationUiVisible: () =>
-          isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags),
+        isOrganizationUiVisible: () => organizationsVisible,
         persistActiveOrganizationId: writeStoredOrganizationId,
         queryClient,
         queryRuntime,
@@ -89,18 +95,13 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         setActiveOrganization: (organizationId) =>
           setActiveOrganizationMutation.mutateAsync(organizationId)
       }),
-    [featureFlags, queryClient, setActiveOrganizationMutation]
+    [organizationsVisible, queryClient, setActiveOrganizationMutation]
   );
 
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganizationRequest,
     onSuccess: async (nextSession) => {
-      await applyCreatedOrganizationSession({
-        queryClient,
-        queryRuntime,
-        session: nextSession,
-        persistActiveOrganizationId: writeStoredOrganizationId
-      });
+      await activeOrganizationMutationHandlers.applyCreatedOrganization(nextSession);
     }
   });
 
@@ -127,30 +128,17 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   useEffect(() => {
     let isActive = true;
 
-    if (!session) {
-      writeStoredOrganizationId(null);
-      return () => {
-        isActive = false;
-      };
-    }
-
-    if (!organizationsQuery.data || setActiveOrganizationMutation.status === "pending") {
-      return () => {
-        isActive = false;
-      };
-    }
-
     void (async () => {
-      const payload = organizationsQuery.data;
-
       if (!isActive) {
         return;
       }
 
-      await activeOrganizationLifecycle.sync({
-        fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
-        organizations: payload.organizations,
-        session
+      await syncActiveOrganizationProvider({
+        lifecycle: activeOrganizationLifecycle,
+        organizationsPayload: organizationsQuery.data,
+        persistActiveOrganizationId: writeStoredOrganizationId,
+        session,
+        setActiveOrganizationStatus: setActiveOrganizationMutation.status
       });
     })();
 
@@ -164,29 +152,37 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     setActiveOrganizationMutation
   ]);
 
+  const providerState = useMemo(
+    () =>
+      createActiveOrganizationProviderState({
+        activeOrganizationId,
+        createOrganizationStatus: createOrganizationMutation.status,
+        organizations,
+        organizationsStatus: organizationsQuery.status,
+        organizationsVisible,
+        setActiveOrganizationStatus: setActiveOrganizationMutation.status
+      }),
+    [
+      activeOrganizationId,
+      createOrganizationMutation.status,
+      organizations,
+      organizationsQuery.status,
+      organizationsVisible,
+      setActiveOrganizationMutation.status
+    ]
+  );
+
   const value = useMemo<OrganizationContextValue>(
     () => ({
-      organizations,
-      activeOrganizationId,
-      organizationsVisible: isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags),
-      hasError: organizationsQuery.status === "error",
-      isLoading:
-        organizationsQuery.status === "pending" ||
-        setActiveOrganizationMutation.status === "pending" ||
-        createOrganizationMutation.status === "pending",
+      organizations: providerState.organizations,
+      activeOrganizationId: providerState.activeOrganizationId,
+      organizationsVisible: providerState.organizationsVisible,
+      hasError: providerState.hasError,
+      isLoading: providerState.isLoading,
       setActiveOrganization,
       createOrganization
     }),
-    [
-      organizations,
-      activeOrganizationId,
-      featureFlags,
-      organizationsQuery.status,
-      setActiveOrganizationMutation.status,
-      createOrganizationMutation.status,
-      setActiveOrganization,
-      createOrganization
-    ]
+    [providerState, setActiveOrganization, createOrganization]
   );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;
