@@ -9,7 +9,6 @@ import {
 import type { StorageConfig } from "@repo/storage";
 import { randomUUID } from "node:crypto";
 
-import { createFileRecord, getFileById, listFiles, updateFileStatus } from "./storage.adapter";
 import { STORAGE_CONFIG } from "./storage.definition";
 import { createStorageLifecycle } from "./storage.lifecycle";
 import type { StorageLifecycleAdapter } from "./storage.lifecycle";
@@ -71,7 +70,10 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
   return createStorageRuntime({
     bucket: () => getStorageConfig().bucket,
     createFileId: randomUUID,
-    createFileRecord,
+    createFileRecord: async (scope, input) => {
+      const adapter = await import("./storage.adapter");
+      return adapter.createFileRecord(scope, input);
+    },
     createDownloadUrl: async (bucket, key, expiresIn) =>
       generatePresignedDownloadUrl(getS3Client(), bucket, key, expiresIn),
     createUploadUrl: async (bucket, key, mimeType, expiresIn) =>
@@ -81,10 +83,19 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
       await deleteObject(getS3Client(), bucket, key);
     },
     fileExists: async (bucket, key) => objectExists(getS3Client(), bucket, key),
-    getFileById,
-    listFiles,
+    getFileById: async (scope, fileId) => {
+      const adapter = await import("./storage.adapter");
+      return adapter.getFileById(scope, fileId);
+    },
+    listFiles: async (scope, filter) => {
+      const adapter = await import("./storage.adapter");
+      return adapter.listFiles(scope, filter);
+    },
     logger,
     presignedUrlExpirySeconds: () => getStorageConfig().presignedUrlExpirySeconds,
-    updateFileStatus
+    updateFileStatus: async (scope, fileId, status) => {
+      const adapter = await import("./storage.adapter");
+      return adapter.updateFileStatus(scope, fileId, status);
+    }
   });
 }
