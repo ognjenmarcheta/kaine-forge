@@ -11,9 +11,7 @@ export async function listTodosByScope(
   return db
     .select()
     .from(todosTable)
-    .where(
-      and(eq(todosTable.userId, scope.userId), eq(todosTable.organizationId, scope.organizationId))
-    )
+    .where(and(eq(todosTable.organizationId, scope.organizationId)))
     .orderBy(desc(todosTable.createdAt))
     .limit(pagination.limit)
     .offset(pagination.offset);
@@ -26,13 +24,7 @@ export async function getTodoById(
   const todos = await db
     .select()
     .from(todosTable)
-    .where(
-      and(
-        eq(todosTable.id, id),
-        eq(todosTable.userId, scope.userId),
-        eq(todosTable.organizationId, scope.organizationId)
-      )
-    )
+    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
     .limit(1);
 
   return todos[0] ?? null;
@@ -73,13 +65,7 @@ export async function updateTodo(
       ...patch,
       updatedAt: new Date()
     })
-    .where(
-      and(
-        eq(todosTable.id, id),
-        eq(todosTable.userId, scope.userId),
-        eq(todosTable.organizationId, scope.organizationId)
-      )
-    )
+    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
     .returning();
 
   const todo = todos[0];
@@ -97,13 +83,7 @@ export async function deleteTodo(
 ): Promise<boolean> {
   const deleted = await db
     .delete(todosTable)
-    .where(
-      and(
-        eq(todosTable.id, id),
-        eq(todosTable.userId, scope.userId),
-        eq(todosTable.organizationId, scope.organizationId)
-      )
-    )
+    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
     .returning({ id: todosTable.id });
 
   return deleted.length > 0;

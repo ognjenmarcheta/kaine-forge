@@ -1,12 +1,14 @@
 import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
-import { invalidateOrgScopedQueries, queryKeys } from "@repo/query";
+import {
+  applyActiveOrganizationSession,
+  applyCreatedOrganizationSession,
+  queryKeys,
+  resolvePreferredActiveOrganizationId
+} from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
-import {
-  resolveOrganizationSelection,
-  type OrganizationOption
-} from "../features/organizations/organizations.util";
+import type { OrganizationOption } from "../features/organizations/organizations.type";
 import { useAuth } from "../hooks/use-auth";
 import {
   createOrganizationRequest,
@@ -69,21 +71,22 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const setActiveOrganizationMutation = useMutation({
     mutationFn: setActiveOrganizationRequest,
     onSuccess: async (nextSession) => {
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      writeStoredOrganizationId(nextSession.activeOrganizationId);
-      await invalidateOrgScopedQueries(queryClient);
+      await applyActiveOrganizationSession({
+        queryClient,
+        session: nextSession,
+        persistActiveOrganizationId: writeStoredOrganizationId
+      });
     }
   });
 
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganizationRequest,
     onSuccess: async (nextSession) => {
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      writeStoredOrganizationId(nextSession.activeOrganizationId);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.organizations()
+      await applyCreatedOrganizationSession({
+        queryClient,
+        session: nextSession,
+        persistActiveOrganizationId: writeStoredOrganizationId
       });
-      await invalidateOrgScopedQueries(queryClient);
     }
   });
 
@@ -124,12 +127,11 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     )
       ? readStoredOrganizationId()
       : null;
-    const selectedOrganization = resolveOrganizationSelection({
+    const preferredOrganizationId = resolvePreferredActiveOrganizationId({
+      fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
       organizations: payload.organizations,
       rememberedOrganizationId
     });
-    const preferredOrganizationId =
-      selectedOrganization?.id ?? payload.activeOrganizationId ?? session.activeOrganizationId;
 
     if (!preferredOrganizationId) {
       writeStoredOrganizationId(null);

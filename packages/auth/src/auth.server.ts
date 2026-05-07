@@ -408,9 +408,6 @@ export function createServerAuth(): ServerAuth {
 
       await db.delete(sessionsTable).where(eq(sessionsTable.token, sessionToken));
     },
-    async listOrganizations(userId: string) {
-      return listOrganizationsForUser(userId);
-    },
     async listOrganizationsByScope(scope) {
       return listOrganizationsForUser(scope.userId);
     },
@@ -504,17 +501,6 @@ export function createServerAuth(): ServerAuth {
         user,
         activeOrganizationId: organization.id,
         expiresAt: sessionData.expiresAt
-      });
-    },
-    async getMembers(params) {
-      return listOrganizationMembersForScope({
-        organizationId: params.organizationId,
-        user: {
-          id: params.userId,
-          email: "",
-          name: ""
-        },
-        userId: params.userId
       });
     },
     async listOrganizationMembersByScope(scope) {

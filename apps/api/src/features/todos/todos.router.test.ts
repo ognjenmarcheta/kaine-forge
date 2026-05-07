@@ -35,6 +35,10 @@ describe("todos.router", () => {
     user: session.user,
     userId: "user-1"
   };
+  const ctx = {
+    pubsub: testPubsub,
+    requireOrganizationScope: () => authenticatedScope
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,7 +47,7 @@ describe("todos.router", () => {
   it("lists todos with clamped pagination for authenticated user", async () => {
     vi.mocked(todosAdapter.listTodosByScope).mockResolvedValue([]);
 
-    await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, { session } as never);
+    await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, ctx as never);
 
     expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(authenticatedScope, {
       limit: 100,
@@ -71,7 +75,7 @@ describe("todos.router", () => {
           title: "  New Todo  "
         }
       },
-      { session, pubsub: testPubsub } as never
+      ctx as never
     );
 
     expect(todosAdapter.createTodo).toHaveBeenCalledWith(authenticatedScope, {
@@ -102,7 +106,7 @@ describe("todos.router", () => {
           title: "  Edited title  "
         }
       },
-      { session, pubsub: testPubsub } as never
+      ctx as never
     );
 
     expect(todosAdapter.updateTodo).toHaveBeenCalledWith(authenticatedScope, "todo-1", {

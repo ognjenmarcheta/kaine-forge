@@ -5,6 +5,7 @@ import {
   type SignupInput
 } from "@repo/auth/auth.type";
 import { getSessionTokenFromHeaders } from "@repo/auth/auth.util";
+import { requireAuthenticatedOrganizationScope } from "@repo/auth/scope";
 
 import { AUTH_ROUTES } from "./auth.definition";
 import type { AuthRouteContext } from "./auth.type";
@@ -234,11 +235,12 @@ export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
         return true;
       }
 
-      const organizations = await ctx.auth.listOrganizations(session.user.id);
+      const scope = requireAuthenticatedOrganizationScope(session);
+      const organizations = await ctx.auth.listOrganizationsByScope(scope);
 
       sendJson(ctx, 200, {
         organizations,
-        activeOrganizationId: session.activeOrganizationId
+        activeOrganizationId: scope.organizationId
       });
 
       return true;
@@ -299,16 +301,8 @@ export async function handleAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
         return true;
       }
 
-      const organizationId = url.searchParams.get("organizationId") ?? session.activeOrganizationId;
-
-      if (!organizationId) {
-        throw new Error("organizationId is required");
-      }
-
-      const members = await ctx.auth.getMembers({
-        userId: session.user.id,
-        organizationId
-      });
+      const scope = requireAuthenticatedOrganizationScope(session);
+      const members = await ctx.auth.listOrganizationMembersByScope(scope);
 
       sendJson(ctx, 200, {
         members

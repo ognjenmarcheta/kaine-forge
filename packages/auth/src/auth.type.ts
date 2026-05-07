@@ -63,7 +63,6 @@ export interface ServerAuth {
   loginWithPassword(input: LoginInput): Promise<AuthSessionResult>;
   signUpWithPassword(input: SignupInput): Promise<AuthSessionResult>;
   logout(sessionToken: string | null): Promise<void>;
-  listOrganizations(userId: string): Promise<AuthOrganization[]>;
   listOrganizationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthOrganization[]>;
   getCurrentOrganizationByScope(
     scope: AuthenticatedOrganizationScope
@@ -78,7 +77,6 @@ export interface ServerAuth {
     sessionToken: string | null;
     userId: string;
   }): Promise<AuthSession>;
-  getMembers(params: { organizationId: string; userId: string }): Promise<AuthOrganizationMember[]>;
   listOrganizationMembersByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganizationMember[]>;

@@ -22,6 +22,10 @@ describe("organizations.router", () => {
     user: session.user,
     userId: "user-1"
   };
+  const ctx = {
+    auth,
+    requireOrganizationScope: () => authenticatedScope
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,7 +34,7 @@ describe("organizations.router", () => {
   it("lists organizations for authenticated user", async () => {
     auth.listOrganizationsByScope.mockResolvedValue([]);
 
-    await organizationsResolvers.Query.organizations({}, {}, { auth, session } as never);
+    await organizationsResolvers.Query.organizations({}, {}, ctx as never);
 
     expect(auth.listOrganizationsByScope).toHaveBeenCalledWith(authenticatedScope);
   });
@@ -38,7 +42,7 @@ describe("organizations.router", () => {
   it("gets current organization with correct args", async () => {
     auth.getCurrentOrganizationByScope.mockResolvedValue(null);
 
-    await organizationsResolvers.Query.currentOrganization({}, {}, { auth, session } as never);
+    await organizationsResolvers.Query.currentOrganization({}, {}, ctx as never);
 
     expect(auth.getCurrentOrganizationByScope).toHaveBeenCalledWith(authenticatedScope);
   });
@@ -46,7 +50,7 @@ describe("organizations.router", () => {
   it("lists members with correct args", async () => {
     auth.listOrganizationMembersByScope.mockResolvedValue([]);
 
-    await organizationsResolvers.Query.members({}, {}, { auth, session } as never);
+    await organizationsResolvers.Query.members({}, {}, ctx as never);
 
     expect(auth.listOrganizationMembersByScope).toHaveBeenCalledWith(authenticatedScope);
   });

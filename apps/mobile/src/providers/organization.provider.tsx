@@ -1,5 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { invalidateOrgScopedQueries, queryKeys } from "@repo/query";
+import {
+  applyActiveOrganizationSession,
+  applyCreatedOrganizationSession,
+  queryKeys,
+  resolvePreferredActiveOrganizationId
+} from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
@@ -34,28 +39,6 @@ async function writeStoredOrganizationId(organizationId: string | null): Promise
   await AsyncStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
-function resolvePreferredOrganizationId(input: {
-  organizations: OrganizationOption[];
-  rememberedOrganizationId: string | null;
-  fallbackOrganizationId: string | null;
-}): string | null {
-  if (input.organizations.length === 0) {
-    return input.fallbackOrganizationId;
-  }
-
-  if (input.rememberedOrganizationId) {
-    const remembered = input.organizations.find(
-      (organization) => organization.id === input.rememberedOrganizationId
-    );
-
-    if (remembered) {
-      return remembered.id;
-    }
-  }
-
-  return input.organizations[0]?.id ?? input.fallbackOrganizationId;
-}
-
 export const OrganizationContext = createContext<OrganizationContextValue | null>(null);
 
 interface OrganizationProviderProps {
@@ -76,21 +59,22 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const setActiveOrganizationMutation = useMutation({
     mutationFn: setActiveOrganizationRequest,
     onSuccess: async (nextSession) => {
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      await writeStoredOrganizationId(nextSession.activeOrganizationId);
-      await invalidateOrgScopedQueries(queryClient);
+      await applyActiveOrganizationSession({
+        queryClient,
+        session: nextSession,
+        persistActiveOrganizationId: writeStoredOrganizationId
+      });
     }
   });
 
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganizationRequest,
     onSuccess: async (nextSession) => {
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      await writeStoredOrganizationId(nextSession.activeOrganizationId);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.organizations()
+      await applyCreatedOrganizationSession({
+        queryClient,
+        session: nextSession,
+        persistActiveOrganizationId: writeStoredOrganizationId
       });
-      await invalidateOrgScopedQueries(queryClient);
     }
   });
 
@@ -118,7 +102,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         return;
       }
 
-      const preferredOrganizationId = resolvePreferredOrganizationId({
+      const preferredOrganizationId = resolvePreferredActiveOrganizationId({
         organizations: payload.organizations,
         rememberedOrganizationId,
         fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId

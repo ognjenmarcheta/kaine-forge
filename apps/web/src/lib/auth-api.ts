@@ -107,11 +107,8 @@ export async function listOrganizationsRequest(): Promise<ListOrganizationsRespo
   return parseJson<ListOrganizationsResponse>(response);
 }
 
-export async function listOrganizationMembersRequest(
-  organizationId: string
-): Promise<ListOrganizationMembersResponse> {
-  const params = new URLSearchParams({ organizationId });
-  const response = await fetch(`${AUTH_CONFIG.routes.organizationMembers}?${params.toString()}`, {
+export async function listOrganizationMembersRequest(): Promise<ListOrganizationMembersResponse> {
+  const response = await fetch(AUTH_CONFIG.routes.organizationMembers, {
     credentials: "include",
     headers: authHeaders(null),
     method: "GET"

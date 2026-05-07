@@ -1,6 +1,7 @@
 import { AUTH_CONFIG } from "../features/auth/auth.config";
+import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthSession } from "../features/auth/auth.type";
-import { authHeaders } from "../features/auth/auth.util";
+import { authHeaders, setStoredSessionToken } from "../features/auth/auth.util";
 
 export interface OrganizationOption {
   id: string;
@@ -22,6 +23,13 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function syncSessionToken(sessionToken: string | null | undefined): void {
+  void setStoredSessionToken(
+    AUTH_DEFINITION.tokenStorageKey,
+    typeof sessionToken === "string" ? sessionToken : null
+  );
+}
+
 export async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
   const response = await fetch(AUTH_CONFIG.routes.session, {
     credentials: "include",
@@ -30,10 +38,12 @@ export async function fetchSession(session: AuthSession | null): Promise<AuthSes
   });
 
   if (response.status === 204) {
+    syncSessionToken(null);
     return null;
   }
 
-  const body = await parseJson<{ session: AuthSession | null }>(response);
+  const body = await parseJson<{ session: AuthSession | null; sessionToken?: string }>(response);
+  syncSessionToken(body.sessionToken);
   return body.session;
 }
 
@@ -50,7 +60,8 @@ export async function loginRequest(input: {
     method: "POST"
   });
 
-  const body = await parseJson<{ session: AuthSession }>(response);
+  const body = await parseJson<{ session: AuthSession; sessionToken?: string }>(response);
+  syncSessionToken(body.sessionToken);
   return body.session;
 }
 
@@ -68,7 +79,8 @@ export async function signupRequest(input: {
     method: "POST"
   });
 
-  const body = await parseJson<{ session: AuthSession }>(response);
+  const body = await parseJson<{ session: AuthSession; sessionToken?: string }>(response);
+  syncSessionToken(body.sessionToken);
   return body.session;
 }
 
@@ -87,6 +99,7 @@ export async function logoutRequest(session: AuthSession | null): Promise<void> 
 export async function listOrganizationsRequest(): Promise<ListOrganizationsResponse> {
   const response = await fetch(AUTH_CONFIG.routes.organizationList, {
     credentials: "include",
+    headers: authHeaders(null),
     method: "GET"
   });
 
@@ -98,6 +111,7 @@ export async function setActiveOrganizationRequest(organizationId: string): Prom
     body: JSON.stringify({ organizationId }),
     credentials: "include",
     headers: {
+      ...authHeaders(null),
       "content-type": "application/json"
     },
     method: "POST"
@@ -112,6 +126,7 @@ export async function createOrganizationRequest(name: string): Promise<AuthSessi
     body: JSON.stringify({ name }),
     credentials: "include",
     headers: {
+      ...authHeaders(null),
       "content-type": "application/json"
     },
     method: "POST"

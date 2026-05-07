@@ -6,6 +6,7 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
+import { getStoredSessionToken, setStoredSessionToken } from "../features/auth/auth.util";
 import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
 import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const sessionQuery = useQuery({
     queryKey: queryKeys.session(),
     queryFn: async () => {
+      await getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey);
       const storedSession = await getStoredSession(AUTH_DEFINITION.storageKey);
 
       try {
@@ -114,6 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     resetAuthBoundQueries(queryClient);
     queryClient.setQueryData(queryKeys.session(), null);
     await setStoredSession(AUTH_DEFINITION.storageKey, null);
+    await setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null);
   }, [logoutMutation, queryClient, session]);
 
   const value = useMemo<AuthContextValue>(

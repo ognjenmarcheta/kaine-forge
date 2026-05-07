@@ -7,9 +7,9 @@ import type { AuthRouteContext } from "./auth.type";
 
 interface AuthMock {
   createOrganization: ReturnType<typeof vi.fn>;
-  getMembers: ReturnType<typeof vi.fn>;
   getSessionFromHeaders: ReturnType<typeof vi.fn>;
-  listOrganizations: ReturnType<typeof vi.fn>;
+  listOrganizationMembersByScope: ReturnType<typeof vi.fn>;
+  listOrganizationsByScope: ReturnType<typeof vi.fn>;
   loginWithPassword: ReturnType<typeof vi.fn>;
   logout: ReturnType<typeof vi.fn>;
   setActiveOrganization: ReturnType<typeof vi.fn>;
@@ -74,9 +74,9 @@ function parseResponseJson(response: MockResponse): Record<string, unknown> {
 function createAuthMock(): AuthMock {
   return {
     createOrganization: vi.fn(),
-    getMembers: vi.fn(),
     getSessionFromHeaders: vi.fn(),
-    listOrganizations: vi.fn(),
+    listOrganizationMembersByScope: vi.fn(),
+    listOrganizationsByScope: vi.fn(),
     loginWithPassword: vi.fn(),
     logout: vi.fn(),
     setActiveOrganization: vi.fn(),
@@ -195,6 +195,62 @@ describe("auth.router", () => {
           name: "Test User"
         }
       }
+    });
+  });
+
+  it("lists members through the Active Organization only", async () => {
+    const auth = createAuthMock();
+    const req = createRequest({
+      method: "GET",
+      url: "/api/auth/organization/get-members?organizationId=org-2"
+    });
+    const res = createResponse();
+
+    vi.mocked(auth.getSessionFromHeaders).mockResolvedValue({
+      activeOrganizationId: "org-1",
+      expiresAt: "2026-02-26T00:00:00.000Z",
+      user: {
+        email: "test@test.test",
+        id: "user-1",
+        name: "Test User"
+      }
+    });
+    vi.mocked(auth.listOrganizationMembersByScope).mockResolvedValue([
+      {
+        email: "member@test.test",
+        id: "member-1",
+        name: "Member One",
+        role: "member",
+        userId: "user-2"
+      }
+    ]);
+
+    const handled = await handleAuthRoute({
+      auth: auth as unknown as ServerAuth,
+      req,
+      res
+    } as AuthRouteContext);
+
+    expect(handled).toBe(true);
+    expect(auth.listOrganizationMembersByScope).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      user: {
+        email: "test@test.test",
+        id: "user-1",
+        name: "Test User"
+      },
+      userId: "user-1"
+    });
+    expect(parseResponseJson(res)).toEqual({
+      members: [
+        {
+          email: "member@test.test",
+          id: "member-1",
+          name: "Member One",
+          role: "member",
+          userId: "user-2"
+        }
+      ]
     });
   });
 });

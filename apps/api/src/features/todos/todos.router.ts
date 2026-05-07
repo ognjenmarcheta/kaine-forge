@@ -1,5 +1,4 @@
-import { requireAuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { filter, pipe } from "graphql-yoga";
+import { pipe } from "graphql-yoga";
 
 import {
   createTodo,
@@ -18,6 +17,7 @@ import {
   parseOptionalDescription
 } from "./todos.util";
 import type { ApiContext } from "../../context";
+import { filterByOrganization } from "../../pubsub";
 import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 
 type TodosQueryArgs = { limit?: number; offset?: number };
@@ -33,7 +33,7 @@ export const todosResolvers = {
       _args: unknown,
       ctx: ResolverContext
     ) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
 
       try {
         return await listFiles(scope, {
@@ -48,19 +48,19 @@ export const todosResolvers = {
   },
   Query: {
     async todos(_parent: unknown, args: TodosQueryArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       const pagination = coercePagination(args, TODOS_CONFIG.pagination);
 
       return listTodosByScope(scope, pagination);
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       return getTodoById(scope, args.id);
     }
   },
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       const input = args.input as CreateTodoInput;
 
       const result = await createTodo(scope, {
@@ -72,7 +72,7 @@ export const todosResolvers = {
       return result;
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       const input = args.input as UpdateTodoInput;
 
       const result = await updateTodo(
@@ -85,7 +85,7 @@ export const todosResolvers = {
       return result;
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
 
       try {
         await deleteFilesByEntity(scope, "todo", args.id);
@@ -105,7 +105,7 @@ export const todosResolvers = {
       return result;
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       const result = await toggleTodo(scope, args.id);
 
       ctx.pubsub.publish("todo:toggled", result);
@@ -115,11 +115,8 @@ export const todosResolvers = {
   Subscription: {
     todoCreated: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = requireAuthenticatedOrganizationScope(ctx.session);
-        return pipe(
-          ctx.pubsub.subscribe("todo:created"),
-          filter((payload) => payload.organizationId === organizationId)
-        );
+        const { organizationId } = ctx.requireOrganizationScope();
+        return pipe(ctx.pubsub.subscribe("todo:created"), filterByOrganization(organizationId));
       },
       resolve(payload: unknown) {
         return payload;
@@ -127,11 +124,8 @@ export const todosResolvers = {
     },
     todoUpdated: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = requireAuthenticatedOrganizationScope(ctx.session);
-        return pipe(
-          ctx.pubsub.subscribe("todo:updated"),
-          filter((payload) => payload.organizationId === organizationId)
-        );
+        const { organizationId } = ctx.requireOrganizationScope();
+        return pipe(ctx.pubsub.subscribe("todo:updated"), filterByOrganization(organizationId));
       },
       resolve(payload: unknown) {
         return payload;
@@ -139,11 +133,8 @@ export const todosResolvers = {
     },
     todoDeleted: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = requireAuthenticatedOrganizationScope(ctx.session);
-        return pipe(
-          ctx.pubsub.subscribe("todo:deleted"),
-          filter((payload) => payload.organizationId === organizationId)
-        );
+        const { organizationId } = ctx.requireOrganizationScope();
+        return pipe(ctx.pubsub.subscribe("todo:deleted"), filterByOrganization(organizationId));
       },
       resolve(payload: unknown) {
         return payload;
@@ -151,11 +142,8 @@ export const todosResolvers = {
     },
     todoToggled: {
       subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = requireAuthenticatedOrganizationScope(ctx.session);
-        return pipe(
-          ctx.pubsub.subscribe("todo:toggled"),
-          filter((payload) => payload.organizationId === organizationId)
-        );
+        const { organizationId } = ctx.requireOrganizationScope();
+        return pipe(ctx.pubsub.subscribe("todo:toggled"), filterByOrganization(organizationId));
       },
       resolve(payload: unknown) {
         return payload;

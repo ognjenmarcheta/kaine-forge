@@ -12,7 +12,7 @@ export function OrganizationsRoute() {
     queryKey: activeOrganizationId
       ? queryKeys.organizationMembers(activeOrganizationId)
       : ["organizations", "members", "inactive"],
-    queryFn: () => listOrganizationMembersRequest(activeOrganizationId ?? ""),
+    queryFn: listOrganizationMembersRequest,
     enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
   });
 
