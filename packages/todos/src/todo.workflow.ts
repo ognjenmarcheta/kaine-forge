@@ -19,26 +19,23 @@ export interface TodoUpdatePayload extends TodoCreatePayload {
 export interface TodoClientWorkflowAdapter<TTodo> {
   createTodo?: (payload: TodoCreatePayload) => Promise<TTodo>;
   deleteTodo?: (id: string) => Promise<boolean>;
-  invalidateTodos: (activeOrganizationId: string) => Promise<void>;
+  getActiveOrganizationId: () => string | null;
+  invalidateTodos: () => Promise<void>;
   toggleTodo?: (id: string) => Promise<TTodo>;
   updateTodo?: (id: string, payload: TodoUpdatePayload) => Promise<TTodo>;
 }
 
-interface ActiveOrganizationInput {
-  activeOrganizationId: string | null;
-}
-
-interface CreateTodoWorkflowInput extends ActiveOrganizationInput {
+interface CreateTodoWorkflowInput {
   draft: TodoDraft;
 }
 
-interface UpdateTodoWorkflowInput extends ActiveOrganizationInput {
+interface UpdateTodoWorkflowInput {
   current: TodoCompletionState;
   draft: TodoDraft;
   id: string;
 }
 
-interface TodoIdWorkflowInput extends ActiveOrganizationInput {
+interface TodoIdWorkflowInput {
   id: string;
 }
 
@@ -79,6 +76,13 @@ export function formatAttachmentSize(bytes: number): string {
   return `${Number(megabytes.toFixed(1)).toString()} MB`;
 }
 
+export function createTodoListQueryKey(input: {
+  activeOrganizationId: string | null;
+  queryKey: readonly unknown[];
+}): readonly unknown[] {
+  return [...input.queryKey, input.activeOrganizationId ?? "inactive"];
+}
+
 function requireActiveOrganizationId(activeOrganizationId: string | null): string {
   if (!activeOrganizationId) {
     throw new Error("active organization required");
@@ -88,42 +92,46 @@ function requireActiveOrganizationId(activeOrganizationId: string | null): strin
 }
 
 export function createTodoClientWorkflow<TTodo>(adapter: TodoClientWorkflowAdapter<TTodo>) {
+  async function invalidateActiveOrganizationTodos(): Promise<void> {
+    await adapter.invalidateTodos();
+  }
+
   return {
     async create(input: CreateTodoWorkflowInput): Promise<TTodo> {
-      const activeOrganizationId = requireActiveOrganizationId(input.activeOrganizationId);
+      requireActiveOrganizationId(adapter.getActiveOrganizationId());
 
       if (!adapter.createTodo) {
         throw new Error("create Todo adapter required");
       }
 
       const result = await adapter.createTodo(toTodoCreatePayload(input.draft));
-      await adapter.invalidateTodos(activeOrganizationId);
+      await invalidateActiveOrganizationTodos();
       return result;
     },
     async delete(input: TodoIdWorkflowInput): Promise<boolean> {
-      const activeOrganizationId = requireActiveOrganizationId(input.activeOrganizationId);
+      requireActiveOrganizationId(adapter.getActiveOrganizationId());
 
       if (!adapter.deleteTodo) {
         throw new Error("delete Todo adapter required");
       }
 
       const result = await adapter.deleteTodo(input.id);
-      await adapter.invalidateTodos(activeOrganizationId);
+      await invalidateActiveOrganizationTodos();
       return result;
     },
     async toggle(input: TodoIdWorkflowInput): Promise<TTodo> {
-      const activeOrganizationId = requireActiveOrganizationId(input.activeOrganizationId);
+      requireActiveOrganizationId(adapter.getActiveOrganizationId());
 
       if (!adapter.toggleTodo) {
         throw new Error("toggle Todo adapter required");
       }
 
       const result = await adapter.toggleTodo(input.id);
-      await adapter.invalidateTodos(activeOrganizationId);
+      await invalidateActiveOrganizationTodos();
       return result;
     },
     async update(input: UpdateTodoWorkflowInput): Promise<TTodo> {
-      const activeOrganizationId = requireActiveOrganizationId(input.activeOrganizationId);
+      requireActiveOrganizationId(adapter.getActiveOrganizationId());
 
       if (!adapter.updateTodo) {
         throw new Error("update Todo adapter required");
@@ -133,7 +141,7 @@ export function createTodoClientWorkflow<TTodo>(adapter: TodoClientWorkflowAdapt
         input.id,
         toTodoUpdatePayload(input.draft, input.current)
       );
-      await adapter.invalidateTodos(activeOrganizationId);
+      await invalidateActiveOrganizationTodos();
       return result;
     }
   };

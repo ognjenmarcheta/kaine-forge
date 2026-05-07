@@ -1,6 +1,5 @@
 import { Button, Text } from "@repo/mobile-ui";
-import { createActiveOrganizationQueryKey } from "@repo/query";
-import { createTodoClientWorkflow } from "@repo/todos";
+import { createTodoClientWorkflow, createTodoListQueryKey } from "@repo/todos";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -44,10 +43,10 @@ export function TodosRoute() {
   );
   const todosQueryKey = useMemo(
     () =>
-      createActiveOrganizationQueryKey(
-        useGetMobileTodosQuery.getKey(listVariables),
+      createTodoListQueryKey({
+        queryKey: useGetMobileTodosQuery.getKey(listVariables),
         activeOrganizationId
-      ),
+      }),
     [activeOrganizationId, listVariables]
   );
 
@@ -64,18 +63,15 @@ export function TodosRoute() {
 
   const toggleMutation = useToggleMobileTodoMutation();
 
-  const invalidateTodoQuery = useCallback(
-    async (queryKey: readonly unknown[]) => {
-      if (!activeOrganizationId) {
-        return;
-      }
+  const invalidateTodos = useCallback(async () => {
+    if (!activeOrganizationId) {
+      return;
+    }
 
-      await queryClient.invalidateQueries({
-        queryKey
-      });
-    },
-    [activeOrganizationId, queryClient]
-  );
+    await queryClient.invalidateQueries({
+      queryKey: todosQueryKey
+    });
+  }, [activeOrganizationId, queryClient, todosQueryKey]);
 
   const todoWorkflow = useMemo(
     () =>
@@ -92,9 +88,8 @@ export function TodosRoute() {
           });
           return result.deleteTodo;
         },
-        invalidateTodos: async () => {
-          await invalidateTodoQuery(todosQueryKey);
-        },
+        getActiveOrganizationId: () => activeOrganizationId,
+        invalidateTodos,
         toggleTodo: async (id) => {
           const result = await toggleMutation.mutateAsync({
             id
@@ -110,11 +105,11 @@ export function TodosRoute() {
         }
       }),
     [
+      activeOrganizationId,
       createMutation,
       deleteMutation,
-      invalidateTodoQuery,
+      invalidateTodos,
       toggleMutation,
-      todosQueryKey,
       updateMutation
     ]
   );
@@ -127,7 +122,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.create({
-        activeOrganizationId,
         draft
       });
     } catch {
@@ -143,7 +137,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.update({
-        activeOrganizationId,
         current: editingTodo,
         draft,
         id: editingTodo.id
@@ -166,7 +159,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.delete({
-        activeOrganizationId,
         id: deletingTodoId
       });
       setDeletingTodoId(null);
@@ -179,7 +171,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.toggle({
-        activeOrganizationId,
         id: item.id
       });
     } catch {
@@ -208,7 +199,7 @@ export function TodosRoute() {
         <TodoList
           items={todos}
           onAttachmentChanged={() => {
-            void invalidateTodoQuery(todosQueryKey);
+            void invalidateTodos();
           }}
           onDelete={handleDelete}
           onEdit={(item) => setEditingTodo(item)}

@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import * as queryModule from "./index";
 import {
   applyActiveOrganizationSession,
+  createActiveOrganizationMutationHandlers,
   createActiveOrganizationLifecycle,
+  createActiveOrganizationProviderState,
+  syncActiveOrganizationProvider,
   createOrgScopedQueryRegistry,
   createQueryRuntime,
   createActiveOrganizationQueryKey,
@@ -218,6 +221,118 @@ describe("createActiveOrganizationLifecycle", () => {
     });
 
     expect(setActiveOrganization).not.toHaveBeenCalled();
+  });
+});
+
+describe("createActiveOrganizationProviderState", () => {
+  it("projects shared Organization provider state from query and mutation statuses", () => {
+    expect(
+      createActiveOrganizationProviderState({
+        activeOrganizationId: "org-1",
+        createOrganizationStatus: "idle",
+        organizations: [{ id: "org-1" }],
+        organizationsStatus: "success",
+        organizationsVisible: true,
+        setActiveOrganizationStatus: "pending"
+      })
+    ).toEqual({
+      activeOrganizationId: "org-1",
+      hasError: false,
+      isLoading: true,
+      organizations: [{ id: "org-1" }],
+      organizationsVisible: true
+    });
+
+    expect(
+      createActiveOrganizationProviderState({
+        activeOrganizationId: null,
+        createOrganizationStatus: "idle",
+        organizations: [],
+        organizationsStatus: "error",
+        organizationsVisible: false,
+        setActiveOrganizationStatus: "idle"
+      })
+    ).toMatchObject({
+      hasError: true,
+      isLoading: false,
+      organizationsVisible: false
+    });
+  });
+});
+
+describe("syncActiveOrganizationProvider", () => {
+  it("clears remembered Active Organization when the Session is absent", async () => {
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const sync = vi.fn(async () => "org-1");
+
+    await expect(
+      syncActiveOrganizationProvider({
+        lifecycle: { sync },
+        organizationsPayload: {
+          activeOrganizationId: "org-1",
+          organizations: [{ id: "org-1" }]
+        },
+        persistActiveOrganizationId,
+        session: null,
+        setActiveOrganizationStatus: "idle"
+      })
+    ).resolves.toBeNull();
+
+    expect(persistActiveOrganizationId).toHaveBeenCalledWith(null);
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it("syncs Active Organization once organization data is available", async () => {
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const sync = vi.fn(async () => "org-2");
+    const session = { activeOrganizationId: "org-1" };
+
+    await expect(
+      syncActiveOrganizationProvider({
+        lifecycle: { sync },
+        organizationsPayload: {
+          activeOrganizationId: "org-2",
+          organizations: [{ id: "org-1" }, { id: "org-2" }]
+        },
+        persistActiveOrganizationId,
+        session,
+        setActiveOrganizationStatus: "idle"
+      })
+    ).resolves.toBe("org-2");
+
+    expect(sync).toHaveBeenCalledWith({
+      fallbackOrganizationId: "org-2",
+      organizations: [{ id: "org-1" }, { id: "org-2" }],
+      session
+    });
+    expect(persistActiveOrganizationId).not.toHaveBeenCalled();
+  });
+});
+
+describe("createActiveOrganizationMutationHandlers", () => {
+  it("applies Active Organization mutation Sessions through one provider Interface", async () => {
+    const setQueryData = vi.fn();
+    const invalidateQueries = vi.fn(async () => undefined);
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const queryRuntime = createQueryRuntime();
+    const handlers = createActiveOrganizationMutationHandlers({
+      persistActiveOrganizationId,
+      queryClient: {
+        invalidateQueries,
+        setQueryData
+      },
+      queryRuntime
+    });
+    const session = { activeOrganizationId: "org-2" };
+
+    await handlers.applyActiveOrganization(session);
+    await handlers.applyCreatedOrganization(session);
+
+    expect(setQueryData).toHaveBeenCalledWith(queryKeys.session(), session);
+    expect(persistActiveOrganizationId).toHaveBeenCalledWith("org-2");
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizations()
+    });
   });
 });
 
