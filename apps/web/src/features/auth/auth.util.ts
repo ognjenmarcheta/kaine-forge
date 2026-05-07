@@ -1,64 +1,41 @@
+import { getJsonValueSync, setJsonValueSync } from "@repo/persistence";
+
 import { AUTH_DEFINITION } from "./auth.definition";
 import type { AuthSession } from "./auth.type";
 
-function readLocalStorage(key: string): string | null {
+function getLocalStorage(): Storage | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  return window.localStorage.getItem(key);
-}
-
-function writeLocalStorage(key: string, value: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(key, value);
-}
-
-function removeLocalStorage(key: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(key);
+  return window.localStorage;
 }
 
 export function getStoredSession(storageKey: string): AuthSession | null {
-  const raw = readLocalStorage(storageKey);
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as AuthSession;
-  } catch {
-    return null;
-  }
+  return getJsonValueSync<AuthSession>(getLocalStorage(), storageKey);
 }
 
 export function setStoredSession(storageKey: string, session: AuthSession | null): void {
-  if (!session) {
-    removeLocalStorage(storageKey);
-    return;
-  }
-
-  writeLocalStorage(storageKey, JSON.stringify(session));
+  setJsonValueSync(getLocalStorage(), storageKey, session);
 }
 
 export function getStoredSessionToken(storageKey: string): string | null {
-  return readLocalStorage(storageKey);
+  return getLocalStorage()?.getItem(storageKey) ?? null;
 }
 
 export function setStoredSessionToken(storageKey: string, sessionToken: string | null): void {
-  if (!sessionToken) {
-    removeLocalStorage(storageKey);
+  const storage = getLocalStorage();
+
+  if (!storage) {
     return;
   }
 
-  writeLocalStorage(storageKey, sessionToken);
+  if (!sessionToken) {
+    storage.removeItem(storageKey);
+    return;
+  }
+
+  storage.setItem(storageKey, sessionToken);
 }
 
 export function authHeaders(session: AuthSession | null): Record<string, string> {

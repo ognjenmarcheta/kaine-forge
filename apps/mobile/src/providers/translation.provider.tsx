@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   DEFAULT_LANGUAGE,
   SUPPORTED_LANGUAGES,
@@ -8,6 +9,7 @@ import {
 import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const TRANSLATION_STORAGE_KEY = "kaine.mobile.language";
+const persistence = createAsyncStoragePersistenceAdapter(AsyncStorage);
 
 interface TranslationContextValue {
   language: string;
@@ -27,7 +29,7 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
     let isActive = true;
 
     void (async () => {
-      const stored = await AsyncStorage.getItem(TRANSLATION_STORAGE_KEY);
+      const stored = await persistence.getString(TRANSLATION_STORAGE_KEY);
 
       if (
         isActive &&
@@ -45,7 +47,7 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
 
   useEffect(() => {
     void changeLanguage(language);
-    void AsyncStorage.setItem(TRANSLATION_STORAGE_KEY, language);
+    void persistence.setString(TRANSLATION_STORAGE_KEY, language);
   }, [language]);
 
   useEffect(() => {

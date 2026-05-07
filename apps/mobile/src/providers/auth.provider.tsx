@@ -1,5 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "@repo/logger";
+import {
+  createAsyncStoragePersistenceAdapter,
+  getJsonValue,
+  setJsonValue
+} from "@repo/persistence";
 import { queryKeys, resetAuthBoundQueries } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
@@ -11,28 +16,14 @@ import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib
 import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
 const logger = createLogger({ name: "mobile-auth" });
+const persistence = createAsyncStoragePersistenceAdapter(AsyncStorage);
 
 async function getStoredSession(storageKey: string): Promise<AuthSession | null> {
-  const raw = await AsyncStorage.getItem(storageKey);
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as AuthSession;
-  } catch {
-    return null;
-  }
+  return getJsonValue<AuthSession>(persistence, storageKey);
 }
 
 async function setStoredSession(storageKey: string, session: AuthSession | null): Promise<void> {
-  if (!session) {
-    await AsyncStorage.removeItem(storageKey);
-    return;
-  }
-
-  await AsyncStorage.setItem(storageKey, JSON.stringify(session));
+  await setJsonValue(persistence, storageKey, session);
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

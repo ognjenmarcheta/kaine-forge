@@ -1,4 +1,4 @@
-import { queryKeys } from "@repo/query";
+import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
 import { useQuery } from "@tanstack/react-query";
 
 import { useOrganization } from "../../hooks/use-organization";
@@ -9,9 +9,10 @@ export function OrganizationsRoute() {
   const { t } = useTranslation();
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
   const membersQuery = useQuery({
-    queryKey: activeOrganizationId
-      ? queryKeys.organizationMembers(activeOrganizationId)
-      : ["organizations", "members", "inactive"],
+    queryKey: createActiveOrganizationQueryKey(
+      queryKeys.organizationMembersScope(),
+      activeOrganizationId
+    ),
     queryFn: listOrganizationMembersRequest,
     enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
   });

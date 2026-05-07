@@ -53,6 +53,11 @@ export interface AuthOrganizationMember {
   role: string;
 }
 
+export interface AuthOrganizationsResult {
+  activeOrganizationId: string | null;
+  organizations: AuthOrganization[];
+}
+
 export interface AuthSessionResult {
   session: AuthSession;
   sessionToken: string;
@@ -87,7 +92,7 @@ export interface ClientAuth {
   loginWithPassword(input: LoginInput): Promise<AuthSession>;
   signupWithPassword(input: SignupInput): Promise<AuthSession>;
   logout(): Promise<void>;
-  listOrganizations(): Promise<AuthOrganization[]>;
+  listOrganizations(): Promise<AuthOrganizationsResult>;
   setActiveOrganization(organizationId: string): Promise<AuthSession>;
   createOrganization(input: CreateOrganizationInput): Promise<AuthSession>;
 }

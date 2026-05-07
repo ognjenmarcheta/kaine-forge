@@ -1,3 +1,4 @@
+import { createActiveOrganizationQueryKey, registerOrgScopedQueryKey } from "@repo/query";
 import {
   Button,
   Checkbox,
@@ -33,6 +34,8 @@ import { useOrganization } from "../../hooks/use-organization";
 import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
 
+registerOrgScopedQueryKey(useGetTodosQuery.getKey());
+
 interface TodoExampleDraft {
   description: string;
   markCompleted: boolean;
@@ -62,9 +65,10 @@ export function TodosRoute() {
   );
   const todosQueryKey = useMemo(
     () =>
-      activeOrganizationId
-        ? [...useGetTodosQuery.getKey(listVariables), activeOrganizationId]
-        : ["GetTodos", "inactive"],
+      createActiveOrganizationQueryKey(
+        useGetTodosQuery.getKey(listVariables),
+        activeOrganizationId
+      ),
     [activeOrganizationId, listVariables]
   );
 

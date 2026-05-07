@@ -1,4 +1,5 @@
 import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
+import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   applyActiveOrganizationSession,
   applyCreatedOrganizationSession,
@@ -27,26 +28,22 @@ export interface OrganizationContextValue {
 }
 
 const ORGANIZATION_STORAGE_KEY = "kaine.organization.active";
+const persistence = createSyncStoragePersistenceAdapter(() =>
+  typeof window === "undefined" ? null : window.localStorage
+);
 
 function readStoredOrganizationId(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(ORGANIZATION_STORAGE_KEY);
+  const storage = typeof window === "undefined" ? null : window.localStorage;
+  return storage?.getItem(ORGANIZATION_STORAGE_KEY) ?? null;
 }
 
 function writeStoredOrganizationId(organizationId: string | null): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   if (!organizationId) {
-    window.localStorage.removeItem(ORGANIZATION_STORAGE_KEY);
+    void persistence.remove(ORGANIZATION_STORAGE_KEY);
     return;
   }
 
-  window.localStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
+  void persistence.setString(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
 export const OrganizationContext = createContext<OrganizationContextValue | null>(null);

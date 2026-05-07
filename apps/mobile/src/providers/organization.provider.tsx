@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   applyActiveOrganizationSession,
   applyCreatedOrganizationSession,
@@ -25,18 +26,19 @@ export interface OrganizationContextValue {
 }
 
 const ORGANIZATION_STORAGE_KEY = "kaine.mobile.organization.active";
+const persistence = createAsyncStoragePersistenceAdapter(AsyncStorage);
 
 async function readStoredOrganizationId(): Promise<string | null> {
-  return AsyncStorage.getItem(ORGANIZATION_STORAGE_KEY);
+  return persistence.getString(ORGANIZATION_STORAGE_KEY);
 }
 
 async function writeStoredOrganizationId(organizationId: string | null): Promise<void> {
   if (!organizationId) {
-    await AsyncStorage.removeItem(ORGANIZATION_STORAGE_KEY);
+    await persistence.remove(ORGANIZATION_STORAGE_KEY);
     return;
   }
 
-  await AsyncStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
+  await persistence.setString(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
 export const OrganizationContext = createContext<OrganizationContextValue | null>(null);

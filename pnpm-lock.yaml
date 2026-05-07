@@ -150,9 +150,15 @@ importers:
       '@repo/mobile-ui':
         specifier: workspace:*
         version: link:../../packages/mobile-ui
+      '@repo/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@repo/query':
         specifier: workspace:*
         version: link:../../packages/query
+      '@repo/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@repo/translation':
         specifier: workspace:*
         version: link:../../packages/translation
@@ -229,9 +235,15 @@ importers:
       '@repo/feature-flags':
         specifier: workspace:*
         version: link:../../packages/feature-flags
+      '@repo/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@repo/query':
         specifier: workspace:*
         version: link:../../packages/query
+      '@repo/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@repo/translation':
         specifier: workspace:*
         version: link:../../packages/translation
@@ -367,6 +379,8 @@ importers:
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
+
+  packages/persistence: {}
 
   packages/query: {}
 

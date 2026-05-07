@@ -34,16 +34,37 @@ interface ApplyCreatedOrganizationSessionInput<
   invalidateOrganizations?: boolean;
 }
 
+const registeredOrgScopedQueryKeys = new Map<string, readonly unknown[]>();
+
+function serializeQueryKey(queryKey: readonly unknown[]): string {
+  return JSON.stringify(queryKey);
+}
+
+export function createActiveOrganizationQueryKey(
+  queryKey: readonly unknown[],
+  activeOrganizationId: string | null
+): readonly unknown[] {
+  return [...queryKey, activeOrganizationId ?? "inactive"];
+}
+
+export function registerOrgScopedQueryKey(queryKey: readonly unknown[]): void {
+  registeredOrgScopedQueryKeys.set(serializeQueryKey(queryKey), queryKey);
+}
+
+export function clearOrgScopedQueryKeys(): void {
+  registeredOrgScopedQueryKeys.clear();
+}
+
+export function getOrgScopedQueryKeys(): readonly (readonly unknown[])[] {
+  return [queryKeys.organizationMembersScope(), ...registeredOrgScopedQueryKeys.values()];
+}
+
 export async function invalidateOrgScopedQueries(queryClient: InvalidateQueriesApi): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: ["GetTodos"]
-  });
-  await queryClient.invalidateQueries({
-    queryKey: ["GetMobileTodos"]
-  });
-  await queryClient.invalidateQueries({
-    queryKey: ["organizations", "members"]
-  });
+  for (const queryKey of getOrgScopedQueryKeys()) {
+    await queryClient.invalidateQueries({
+      queryKey
+    });
+  }
 }
 
 export function resolvePreferredActiveOrganizationId(
@@ -97,10 +118,9 @@ export function resetAuthBoundQueries(queryClient: RemoveQueriesApi): void {
   queryClient.removeQueries({
     queryKey: queryKeys.organizations()
   });
-  queryClient.removeQueries({
-    queryKey: ["GetTodos"]
-  });
-  queryClient.removeQueries({
-    queryKey: ["GetMobileTodos"]
-  });
+  for (const queryKey of getOrgScopedQueryKeys()) {
+    queryClient.removeQueries({
+      queryKey
+    });
+  }
 }

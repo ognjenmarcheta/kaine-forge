@@ -1,7 +1,9 @@
+import { createAuthTransport } from "@repo/auth/transport";
+
 import { AUTH_CONFIG } from "../features/auth/auth.config";
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthSession } from "../features/auth/auth.type";
-import { authHeaders, setStoredSessionToken } from "../features/auth/auth.util";
+import { getStoredSessionToken, setStoredSessionToken } from "../features/auth/auth.util";
 
 export interface OrganizationOption {
   id: string;
@@ -15,54 +17,27 @@ export interface ListOrganizationsResponse {
   organizations: OrganizationOption[];
 }
 
-async function parseJson<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new Error(`auth request failed (${String(response.status)})`);
+const authTransport = createAuthTransport({
+  adapter: {
+    baseUrl: AUTH_CONFIG.baseUrl,
+    credentials: "include",
+    fetch,
+    getSessionToken: () => getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey),
+    setSessionToken: (sessionToken) =>
+      setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, sessionToken)
   }
-
-  return (await response.json()) as T;
-}
-
-function syncSessionToken(sessionToken: string | null | undefined): void {
-  void setStoredSessionToken(
-    AUTH_DEFINITION.tokenStorageKey,
-    typeof sessionToken === "string" ? sessionToken : null
-  );
-}
+});
 
 export async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
-  const response = await fetch(AUTH_CONFIG.routes.session, {
-    credentials: "include",
-    headers: authHeaders(session),
-    method: "GET"
-  });
-
-  if (response.status === 204) {
-    syncSessionToken(null);
-    return null;
-  }
-
-  const body = await parseJson<{ session: AuthSession | null; sessionToken?: string }>(response);
-  syncSessionToken(body.sessionToken);
-  return body.session;
+  void session;
+  return authTransport.getSession();
 }
 
 export async function loginRequest(input: {
   email: string;
   password: string;
 }): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.login, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession; sessionToken?: string }>(response);
-  syncSessionToken(body.sessionToken);
-  return body.session;
+  return authTransport.loginWithPassword(input);
 }
 
 export async function signupRequest(input: {
@@ -70,68 +45,22 @@ export async function signupRequest(input: {
   name: string;
   password: string;
 }): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.signup, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession; sessionToken?: string }>(response);
-  syncSessionToken(body.sessionToken);
-  return body.session;
+  return authTransport.signupWithPassword(input);
 }
 
 export async function logoutRequest(session: AuthSession | null): Promise<void> {
-  const response = await fetch(AUTH_CONFIG.routes.logout, {
-    credentials: "include",
-    headers: authHeaders(session),
-    method: "POST"
-  });
-
-  if (!response.ok && response.status !== 204) {
-    throw new Error(`auth request failed (${String(response.status)})`);
-  }
+  void session;
+  await authTransport.logout();
 }
 
 export async function listOrganizationsRequest(): Promise<ListOrganizationsResponse> {
-  const response = await fetch(AUTH_CONFIG.routes.organizationList, {
-    credentials: "include",
-    headers: authHeaders(null),
-    method: "GET"
-  });
-
-  return parseJson<ListOrganizationsResponse>(response);
+  return authTransport.listOrganizations();
 }
 
 export async function setActiveOrganizationRequest(organizationId: string): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.setActiveOrganization, {
-    body: JSON.stringify({ organizationId }),
-    credentials: "include",
-    headers: {
-      ...authHeaders(null),
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession }>(response);
-  return body.session;
+  return authTransport.setActiveOrganization(organizationId);
 }
 
 export async function createOrganizationRequest(name: string): Promise<AuthSession> {
-  const response = await fetch(AUTH_CONFIG.routes.createOrganization, {
-    body: JSON.stringify({ name }),
-    credentials: "include",
-    headers: {
-      ...authHeaders(null),
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-
-  const body = await parseJson<{ session: AuthSession }>(response);
-  return body.session;
+  return authTransport.createOrganization({ name });
 }

@@ -29,6 +29,10 @@
     "./storage.util": {
       "types": "./dist/storage.util.d.ts",
       "default": "./dist/storage.util.js"
+    },
+    "./upload.lifecycle": {
+      "types": "./dist/upload.lifecycle.d.ts",
+      "default": "./dist/upload.lifecycle.js"
     }
   },
   "scripts": {
