@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./storage.adapter", () => ({
-  createFileRecord: vi.fn(),
-  getFileById: vi.fn(),
+const storageRuntime = vi.hoisted(() => ({
+  confirmUpload: vi.fn(),
+  deleteFile: vi.fn(),
+  getDownloadUrl: vi.fn(),
+  getFile: vi.fn(),
   listFiles: vi.fn(),
-  updateFileStatus: vi.fn()
+  requestUploadUrl: vi.fn()
 }));
 
-import * as storageAdapter from "./storage.adapter";
+vi.mock("./storage.runtime", () => ({
+  createApiStorageRuntime: vi.fn(() => storageRuntime)
+}));
+
 import { storageResolvers } from "./storage.router";
 
 describe("storage.router", () => {
@@ -26,6 +31,9 @@ describe("storage.router", () => {
     userId: "user-1"
   };
   const ctx = {
+    logger: {
+      warn: vi.fn()
+    },
     requireOrganizationScope: () => authenticatedScope
   };
 
@@ -34,7 +42,7 @@ describe("storage.router", () => {
   });
 
   it("lists files with authenticated organization scope", async () => {
-    vi.mocked(storageAdapter.listFiles).mockResolvedValue([]);
+    storageRuntime.listFiles.mockResolvedValue([]);
 
     await storageResolvers.Query.files(
       {},
@@ -48,9 +56,65 @@ describe("storage.router", () => {
       ctx as never
     );
 
-    expect(storageAdapter.listFiles).toHaveBeenCalledWith(authenticatedScope, {
+    expect(storageRuntime.listFiles).toHaveBeenCalledWith(authenticatedScope, {
       entityId: "todo-1",
       entityType: "todo",
+      status: "uploaded"
+    });
+  });
+
+  it("requests upload URLs through the storage runtime", async () => {
+    storageRuntime.requestUploadUrl.mockResolvedValue({
+      expiresIn: 900,
+      fileId: "file-1",
+      key: "org-1/todo/file-1/photo.png",
+      uploadUrl: "https://upload.example.test"
+    });
+
+    await expect(
+      storageResolvers.Mutation.requestUploadUrl(
+        {},
+        {
+          input: {
+            entityId: "todo-1",
+            entityType: "todo",
+            mimeType: "image/png",
+            originalName: "photo.png",
+            sizeBytes: 1024
+          }
+        },
+        ctx as never
+      )
+    ).resolves.toEqual({
+      expiresIn: 900,
+      fileId: "file-1",
+      key: "org-1/todo/file-1/photo.png",
+      uploadUrl: "https://upload.example.test"
+    });
+
+    expect(storageRuntime.requestUploadUrl).toHaveBeenCalledWith(authenticatedScope, {
+      entityId: "todo-1",
+      entityType: "todo",
+      mimeType: "image/png",
+      originalName: "photo.png",
+      sizeBytes: 1024
+    });
+  });
+
+  it("resolves FileInfo download URLs without resolver context", async () => {
+    storageRuntime.getDownloadUrl.mockResolvedValue("https://download.example.test");
+
+    await expect(
+      storageResolvers.FileInfo.downloadUrl({
+        id: "file-1",
+        key: "org-1/todo/file-1/photo.png",
+        status: "uploaded"
+      })
+    ).resolves.toBe("https://download.example.test");
+
+    expect(storageRuntime.getDownloadUrl).toHaveBeenCalledWith({
+      id: "file-1",
+      key: "org-1/todo/file-1/photo.png",
       status: "uploaded"
     });
   });
