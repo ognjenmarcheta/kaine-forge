@@ -24,7 +24,7 @@ interface ActiveOrganizationSession {
 
 interface ApplyActiveOrganizationSessionInput<TSession extends ActiveOrganizationSession> {
   queryClient: InvalidateQueriesApi & SetQueryDataApi;
-  queryRuntime?: QueryRuntime | undefined;
+  queryRuntime: QueryRuntime;
   session: TSession;
   persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
 }
@@ -39,7 +39,7 @@ interface ActiveOrganizationLifecycleInput<TSession extends ActiveOrganizationSe
   isOrganizationUiVisible: () => boolean;
   persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
   queryClient: InvalidateQueriesApi & SetQueryDataApi;
-  queryRuntime?: QueryRuntime | undefined;
+  queryRuntime: QueryRuntime;
   readActiveOrganizationId: () => Promise<string | null> | string | null;
   setActiveOrganization: (organizationId: string) => Promise<TSession>;
 }
@@ -50,18 +50,10 @@ interface SyncActiveOrganizationInput<TSession extends ActiveOrganizationSession
   session: TSession | null;
 }
 
-const registeredOrgScopedQueryKeys = new Map<string, readonly unknown[]>();
-const defaultOrgScopedQueryRegistry = createOrgScopedQueryRegistry();
-
-function serializeQueryKey(queryKey: readonly unknown[]): string {
-  return JSON.stringify(queryKey);
-}
-
 export interface OrgScopedQueryRegistry {
   getOperationKeys: () => readonly (readonly unknown[])[];
   invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
   registerOperation: (operationName: string, queryKey: readonly unknown[]) => void;
-  removeAuthBoundQueries: (queryClient: RemoveQueriesApi) => void;
 }
 
 export interface QueryRuntime {
@@ -89,19 +81,6 @@ export function createOrgScopedQueryRegistry(): OrgScopedQueryRegistry {
     },
     registerOperation(operationName, queryKey) {
       operationKeys.set(operationName, queryKey);
-    },
-    removeAuthBoundQueries(queryClient) {
-      queryClient.removeQueries({
-        queryKey: queryKeys.session()
-      });
-      queryClient.removeQueries({
-        queryKey: queryKeys.organizations()
-      });
-      for (const queryKey of getOperationKeys()) {
-        queryClient.removeQueries({
-          queryKey
-        });
-      }
     }
   };
 }
@@ -146,37 +125,6 @@ export function createActiveOrganizationQueryKey(
   return [...queryKey, activeOrganizationId ?? "inactive"];
 }
 
-export function registerOrgScopedQueryKey(queryKey: readonly unknown[]): void {
-  registeredOrgScopedQueryKeys.set(serializeQueryKey(queryKey), queryKey);
-}
-
-export function registerOrgScopedOperationKey(
-  operationName: string,
-  queryKey: readonly unknown[]
-): void {
-  defaultOrgScopedQueryRegistry.registerOperation(operationName, queryKey);
-}
-
-export function clearOrgScopedQueryKeys(): void {
-  registeredOrgScopedQueryKeys.clear();
-}
-
-export function getOrgScopedQueryKeys(): readonly (readonly unknown[])[] {
-  return [
-    queryKeys.organizationMembersScope(),
-    ...registeredOrgScopedQueryKeys.values(),
-    ...defaultOrgScopedQueryRegistry.getOperationKeys()
-  ];
-}
-
-export async function invalidateOrgScopedQueries(queryClient: InvalidateQueriesApi): Promise<void> {
-  for (const queryKey of getOrgScopedQueryKeys()) {
-    await queryClient.invalidateQueries({
-      queryKey
-    });
-  }
-}
-
 export function resolvePreferredActiveOrganizationId(
   input: ResolvePreferredActiveOrganizationIdInput
 ): string | null {
@@ -202,12 +150,7 @@ export async function applyActiveOrganizationSession<TSession extends ActiveOrga
 ): Promise<void> {
   input.queryClient.setQueryData(queryKeys.session(), input.session);
   await input.persistActiveOrganizationId(input.session.activeOrganizationId);
-  if (input.queryRuntime) {
-    await input.queryRuntime.invalidateOrgScopedQueries(input.queryClient);
-    return;
-  }
-
-  await invalidateOrgScopedQueries(input.queryClient);
+  await input.queryRuntime.invalidateOrgScopedQueries(input.queryClient);
 }
 
 export async function applyCreatedOrganizationSession<TSession extends ActiveOrganizationSession>(
@@ -267,18 +210,4 @@ export function createActiveOrganizationLifecycle<TSession extends ActiveOrganiz
 
 interface RemoveQueriesApi {
   removeQueries: (input: { queryKey: readonly unknown[] }) => void;
-}
-
-export function resetAuthBoundQueries(queryClient: RemoveQueriesApi): void {
-  queryClient.removeQueries({
-    queryKey: queryKeys.session()
-  });
-  queryClient.removeQueries({
-    queryKey: queryKeys.organizations()
-  });
-  for (const queryKey of getOrgScopedQueryKeys()) {
-    queryClient.removeQueries({
-      queryKey
-    });
-  }
 }
