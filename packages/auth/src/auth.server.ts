@@ -6,6 +6,7 @@ import {
   createOwnedOrganizationForUser,
   ensurePersonalOrganizationForUser,
   getCurrentOrganizationForScope,
+  getOrganizationMembershipProof,
   listOrganizationMembersForScope,
   listOrganizationsForUser,
   resolveActiveOrganizationForUser
@@ -132,6 +133,9 @@ export function createServerAuth(): ServerAuth {
     },
     getCurrentOrganizationByScope(scope) {
       return getCurrentOrganizationForScope(scope);
+    },
+    getOrganizationMembershipProof(params) {
+      return getOrganizationMembershipProof(params);
     },
     async setActiveOrganization(params) {
       const organizations = await listOrganizationsForUser(params.userId);

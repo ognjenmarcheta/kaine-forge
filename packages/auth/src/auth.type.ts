@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 
-import type { AuthenticatedOrganizationScope } from "./auth.scope";
+import type { AuthenticatedOrganizationScope, OrganizationMembershipProof } from "./auth.scope";
 
 export interface AuthConfig {
   baseUrl: string;
@@ -72,6 +72,10 @@ export interface ServerAuth {
   getCurrentOrganizationByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganization | null>;
+  getOrganizationMembershipProof(params: {
+    organizationId: string;
+    userId: string;
+  }): Promise<OrganizationMembershipProof | null>;
   setActiveOrganization(params: {
     organizationId: string;
     sessionToken: string | null;

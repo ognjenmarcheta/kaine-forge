@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   applyActiveOrganizationSession,
+  createActiveOrganizationLifecycle,
   createOrgScopedQueryRegistry,
   createActiveOrganizationQueryKey,
   clearOrgScopedQueryKeys,
@@ -127,6 +128,65 @@ describe("applyActiveOrganizationSession", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.organizationMembersScope()
     });
+  });
+});
+
+describe("createActiveOrganizationLifecycle", () => {
+  it("applies remembered Active Organization when visible and available", async () => {
+    const setActiveOrganization = vi.fn(async (organizationId: string) => ({
+      activeOrganizationId: organizationId
+    }));
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const setQueryData = vi.fn();
+    const invalidateQueries = vi.fn(async () => undefined);
+    const lifecycle = createActiveOrganizationLifecycle({
+      isOrganizationUiVisible: () => true,
+      persistActiveOrganizationId,
+      queryClient: {
+        invalidateQueries,
+        setQueryData
+      },
+      readActiveOrganizationId: async () => "org-2",
+      setActiveOrganization
+    });
+
+    await lifecycle.sync({
+      organizations: [{ id: "org-1" }, { id: "org-2" }],
+      session: {
+        activeOrganizationId: "org-1"
+      }
+    });
+
+    expect(setActiveOrganization).toHaveBeenCalledWith("org-2");
+    expect(setQueryData).toHaveBeenCalledWith(queryKeys.session(), {
+      activeOrganizationId: "org-2"
+    });
+    expect(persistActiveOrganizationId).toHaveBeenCalledWith("org-2");
+  });
+
+  it("ignores remembered Active Organization when organization UI is hidden", async () => {
+    const setActiveOrganization = vi.fn(async (organizationId: string) => ({
+      activeOrganizationId: organizationId
+    }));
+    const lifecycle = createActiveOrganizationLifecycle({
+      isOrganizationUiVisible: () => false,
+      persistActiveOrganizationId: async () => undefined,
+      queryClient: {
+        invalidateQueries: async () => undefined,
+        setQueryData: () => undefined
+      },
+      readActiveOrganizationId: async () => "org-2",
+      setActiveOrganization
+    });
+
+    await lifecycle.sync({
+      organizations: [{ id: "org-1" }, { id: "org-2" }],
+      session: {
+        activeOrganizationId: "org-1"
+      }
+    });
+
+    expect(setActiveOrganization).not.toHaveBeenCalled();
   });
 });
 

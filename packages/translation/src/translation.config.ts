@@ -5,29 +5,32 @@ import commonDe from "./locales/de/common.json";
 import dashboardDe from "./locales/de/dashboard.json";
 import navigationDe from "./locales/de/navigation.json";
 import organizationsDe from "./locales/de/organizations.json";
+import storageDe from "./locales/de/storage.json";
 import todosDe from "./locales/de/todos.json";
 import authEn from "./locales/en/auth.json";
 import commonEn from "./locales/en/common.json";
 import dashboardEn from "./locales/en/dashboard.json";
 import navigationEn from "./locales/en/navigation.json";
 import organizationsEn from "./locales/en/organizations.json";
+import storageEn from "./locales/en/storage.json";
 import todosEn from "./locales/en/todos.json";
 import authSr from "./locales/sr/auth.json";
 import commonSr from "./locales/sr/common.json";
 import dashboardSr from "./locales/sr/dashboard.json";
 import navigationSr from "./locales/sr/navigation.json";
 import organizationsSr from "./locales/sr/organizations.json";
+import storageSr from "./locales/sr/storage.json";
 import todosSr from "./locales/sr/todos.json";
-import { DEFAULT_LANGUAGE } from "./translation.definition";
+import { DEFAULT_LANGUAGE, TRANSLATION_NAMESPACES } from "./translation.definition";
 
 export const translationInstance: i18n = i18next.createInstance();
 
 void translationInstance.init({
   fallbackLng: DEFAULT_LANGUAGE,
   lng: DEFAULT_LANGUAGE,
-  ns: ["auth", "common", "dashboard", "navigation", "organizations", "todos"],
+  ns: TRANSLATION_NAMESPACES,
   defaultNS: "common",
-  fallbackNS: ["auth", "dashboard", "navigation", "organizations", "todos"],
+  fallbackNS: TRANSLATION_NAMESPACES.filter((namespace) => namespace !== "common"),
   keySeparator: false,
   returnNull: false,
   resources: {
@@ -37,6 +40,7 @@ void translationInstance.init({
       dashboard: dashboardDe,
       navigation: navigationDe,
       organizations: organizationsDe,
+      storage: storageDe,
       todos: todosDe
     },
     en: {
@@ -45,6 +49,7 @@ void translationInstance.init({
       dashboard: dashboardEn,
       navigation: navigationEn,
       organizations: organizationsEn,
+      storage: storageEn,
       todos: todosEn
     },
     sr: {
@@ -53,6 +58,7 @@ void translationInstance.init({
       dashboard: dashboardSr,
       navigation: navigationSr,
       organizations: organizationsSr,
+      storage: storageSr,
       todos: todosSr
     }
   }

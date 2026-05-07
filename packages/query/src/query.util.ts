@@ -34,6 +34,20 @@ interface ApplyCreatedOrganizationSessionInput<
   invalidateOrganizations?: boolean;
 }
 
+interface ActiveOrganizationLifecycleInput<TSession extends ActiveOrganizationSession> {
+  isOrganizationUiVisible: () => boolean;
+  persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
+  queryClient: InvalidateQueriesApi & SetQueryDataApi;
+  readActiveOrganizationId: () => Promise<string | null> | string | null;
+  setActiveOrganization: (organizationId: string) => Promise<TSession>;
+}
+
+interface SyncActiveOrganizationInput<TSession extends ActiveOrganizationSession> {
+  fallbackOrganizationId?: string | null;
+  organizations: ActiveOrganizationOption[];
+  session: TSession | null;
+}
+
 const registeredOrgScopedQueryKeys = new Map<string, readonly unknown[]>();
 const defaultOrgScopedQueryRegistry = createOrgScopedQueryRegistry();
 
@@ -159,6 +173,48 @@ export async function applyCreatedOrganizationSession<TSession extends ActiveOrg
       queryKey: queryKeys.organizations()
     });
   }
+}
+
+export function createActiveOrganizationLifecycle<TSession extends ActiveOrganizationSession>(
+  input: ActiveOrganizationLifecycleInput<TSession>
+) {
+  return {
+    async sync(syncInput: SyncActiveOrganizationInput<TSession>): Promise<string | null> {
+      const session = syncInput.session;
+
+      if (!session) {
+        await input.persistActiveOrganizationId(null);
+        return null;
+      }
+
+      const rememberedOrganizationId = input.isOrganizationUiVisible()
+        ? await input.readActiveOrganizationId()
+        : null;
+      const preferredOrganizationId = resolvePreferredActiveOrganizationId({
+        fallbackOrganizationId: syncInput.fallbackOrganizationId ?? session.activeOrganizationId,
+        organizations: syncInput.organizations,
+        rememberedOrganizationId
+      });
+
+      if (!preferredOrganizationId) {
+        await input.persistActiveOrganizationId(null);
+        return null;
+      }
+
+      if (preferredOrganizationId !== session.activeOrganizationId) {
+        const nextSession = await input.setActiveOrganization(preferredOrganizationId);
+        await applyActiveOrganizationSession({
+          queryClient: input.queryClient,
+          session: nextSession,
+          persistActiveOrganizationId: input.persistActiveOrganizationId
+        });
+        return nextSession.activeOrganizationId;
+      }
+
+      await input.persistActiveOrganizationId(preferredOrganizationId);
+      return preferredOrganizationId;
+    }
+  };
 }
 
 interface RemoveQueriesApi {

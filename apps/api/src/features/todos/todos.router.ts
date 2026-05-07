@@ -19,6 +19,7 @@ import {
 import { createTodoWorkflow } from "./todos.workflow";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
+import { createAttachmentLifecycle } from "../storage/attachment.lifecycle";
 import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 
 type TodosQueryArgs = { limit?: number; offset?: number };
@@ -28,11 +29,16 @@ type UpdateTodoArgs = { id: string; input: UpdateTodoInput };
 type ResolverContext = ApiContext;
 
 function createTodoWorkflowForContext(ctx: ResolverContext) {
+  const attachmentLifecycle = createAttachmentLifecycle({
+    deleteFilesByEntity,
+    listFiles
+  });
+
   return createTodoWorkflow({
     deleteTodo,
     deleteTodoAttachments: async (scope, id) => {
       try {
-        await deleteFilesByEntity(scope, "todo", id);
+        await attachmentLifecycle.deleteTodoAttachments(scope, id);
       } catch (err) {
         ctx.logger.warn({ err, todoId: id }, "failed to soft-delete todo attachments");
       }
@@ -48,13 +54,13 @@ export const todosResolvers = {
       ctx: ResolverContext
     ) {
       const scope = ctx.requireOrganizationScope();
+      const attachmentLifecycle = createAttachmentLifecycle({
+        deleteFilesByEntity,
+        listFiles
+      });
 
       try {
-        return await listFiles(scope, {
-          entityType: "todo",
-          entityId: parent.id,
-          status: "uploaded"
-        });
+        return await attachmentLifecycle.listTodoAttachments(scope, parent.id);
       } catch {
         return [];
       }

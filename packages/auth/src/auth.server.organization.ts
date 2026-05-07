@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { ORGANIZATION_ROLES } from "./auth.permissions";
 import type { AuthenticatedOrganizationScope } from "./auth.scope";
+import type { OrganizationMembershipProof } from "./auth.scope";
 import type { AuthOrganization, AuthOrganizationMember } from "./auth.type";
 import { resolveActiveOrganizationId, slugifyOrganizationName } from "./auth.util";
 
@@ -164,21 +165,40 @@ export async function getCurrentOrganizationForScope(
   return organizations[0] ?? null;
 }
 
-export async function listOrganizationMembersForScope(
-  scope: AuthenticatedOrganizationScope
-): Promise<AuthOrganizationMember[]> {
-  const membership = await db
-    .select({ id: membersTable.id })
+export async function getOrganizationMembershipProof(params: {
+  organizationId: string;
+  userId: string;
+}): Promise<OrganizationMembershipProof | null> {
+  const memberships = await db
+    .select({
+      id: membersTable.id,
+      organizationId: membersTable.organizationId,
+      role: membersTable.role,
+      userId: membersTable.userId
+    })
     .from(membersTable)
     .where(
       and(
-        eq(membersTable.userId, scope.userId),
-        eq(membersTable.organizationId, scope.organizationId)
+        eq(membersTable.userId, params.userId),
+        eq(membersTable.organizationId, params.organizationId)
       )
     )
     .limit(1);
 
-  if (!membership[0]) {
+  return memberships[0] ?? null;
+}
+
+export async function listOrganizationMembersForScope(
+  scope: AuthenticatedOrganizationScope
+): Promise<AuthOrganizationMember[]> {
+  const membership =
+    scope.membership ??
+    (await getOrganizationMembershipProof({
+      organizationId: scope.organizationId,
+      userId: scope.userId
+    }));
+
+  if (!membership) {
     throw new Error("organization not accessible");
   }
 

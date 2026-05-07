@@ -3,8 +3,8 @@ import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   applyActiveOrganizationSession,
   applyCreatedOrganizationSession,
-  queryKeys,
-  resolvePreferredActiveOrganizationId
+  createActiveOrganizationLifecycle,
+  queryKeys
 } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
@@ -75,6 +75,20 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     }
   });
 
+  const activeOrganizationLifecycle = useMemo(
+    () =>
+      createActiveOrganizationLifecycle({
+        isOrganizationUiVisible: () =>
+          isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags),
+        persistActiveOrganizationId: writeStoredOrganizationId,
+        queryClient,
+        readActiveOrganizationId: readStoredOrganizationId,
+        setActiveOrganization: (organizationId) =>
+          setActiveOrganizationMutation.mutateAsync(organizationId)
+      }),
+    [featureFlags, queryClient, setActiveOrganizationMutation]
+  );
+
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganizationRequest,
     onSuccess: async (nextSession) => {
@@ -124,40 +138,27 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
 
     void (async () => {
       const payload = organizationsQuery.data;
-      const rememberedOrganizationId = isFeatureEnabled(
-        FEATURE_FLAGS.ORGANIZATIONS_VISIBLE,
-        featureFlags
-      )
-        ? await readStoredOrganizationId()
-        : null;
 
       if (!isActive) {
         return;
       }
 
-      const preferredOrganizationId = resolvePreferredActiveOrganizationId({
+      await activeOrganizationLifecycle.sync({
         fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
         organizations: payload.organizations,
-        rememberedOrganizationId
+        session
       });
-
-      if (!preferredOrganizationId) {
-        writeStoredOrganizationId(null);
-        return;
-      }
-
-      if (preferredOrganizationId !== session.activeOrganizationId) {
-        await setActiveOrganizationMutation.mutateAsync(preferredOrganizationId);
-        return;
-      }
-
-      writeStoredOrganizationId(preferredOrganizationId);
     })();
 
     return () => {
       isActive = false;
     };
-  }, [featureFlags, organizationsQuery.data, session, setActiveOrganizationMutation]);
+  }, [
+    activeOrganizationLifecycle,
+    organizationsQuery.data,
+    session,
+    setActiveOrganizationMutation
+  ]);
 
   const value = useMemo<OrganizationContextValue>(
     () => ({

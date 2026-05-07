@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { requireAuthenticatedOrganizationScope } from "./auth.scope";
+import {
+  requireAuthenticatedOrganizationScope,
+  resolveAuthenticatedOrganizationScope
+} from "./auth.scope";
 
 describe("auth.scope", () => {
   it("throws when a Session is not present", () => {
@@ -43,5 +46,48 @@ describe("auth.scope", () => {
       },
       userId: "user-1"
     });
+  });
+
+  it("resolves Authenticated Organization Scope with Organization Membership proof", async () => {
+    const scope = await resolveAuthenticatedOrganizationScope({
+      getMembership: async () => ({
+        id: "membership-1",
+        organizationId: "org-1",
+        role: "owner",
+        userId: "user-1"
+      }),
+      session: {
+        activeOrganizationId: "org-1",
+        expiresAt: "2026-02-26T00:00:00.000Z",
+        user: {
+          email: "u1@example.com",
+          id: "user-1",
+          name: "User One"
+        }
+      }
+    });
+
+    expect(scope.membership).toEqual({
+      id: "membership-1",
+      role: "owner",
+      userId: "user-1"
+    });
+  });
+
+  it("rejects scoped Sessions without matching Organization Membership", async () => {
+    await expect(
+      resolveAuthenticatedOrganizationScope({
+        getMembership: async () => null,
+        session: {
+          activeOrganizationId: "org-1",
+          expiresAt: "2026-02-26T00:00:00.000Z",
+          user: {
+            email: "u1@example.com",
+            id: "user-1",
+            name: "User One"
+          }
+        }
+      })
+    ).rejects.toThrowError("organization not accessible");
   });
 });

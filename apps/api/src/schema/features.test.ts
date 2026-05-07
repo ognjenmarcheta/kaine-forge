@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../features/storage/storage.adapter", () => ({}));
 vi.mock("../features/todos/todos.adapter", () => ({}));
 
-import { apiFeatures, apiResolvers, apiTypeDefs } from "./features";
+import { apiFeatures, apiResolvers, apiTypeDefs, composeApiFeatures } from "./features";
 
 describe("api schema feature registry", () => {
   it("registers all feature type definitions in one place", () => {
@@ -33,5 +33,30 @@ describe("api schema feature registry", () => {
     expect(apiResolvers.Todo).toMatchObject({
       attachments: expect.any(Function)
     });
+  });
+
+  it("fails fast when feature resolver fields collide", () => {
+    expect(() =>
+      composeApiFeatures([
+        {
+          name: "one",
+          typeDefs: "extend type Query { duplicate: String! }",
+          resolvers: {
+            Query: {
+              duplicate: () => "one"
+            }
+          }
+        },
+        {
+          name: "two",
+          typeDefs: "extend type Query { duplicate: String! }",
+          resolvers: {
+            Query: {
+              duplicate: () => "two"
+            }
+          }
+        }
+      ])
+    ).toThrowError("duplicate resolver field Query.duplicate");
   });
 });

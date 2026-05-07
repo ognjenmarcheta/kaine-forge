@@ -14,6 +14,11 @@ interface ApiFeature {
   typeDefs: string;
 }
 
+interface ComposedApiFeatures {
+  resolvers: ResolverMap;
+  typeDefs: string[];
+}
+
 function isResolverObject(value: unknown): value is ResolverMap {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -26,6 +31,14 @@ function mergeResolverMaps(resolverMaps: ResolverMap[]): ResolverMap {
       const current = merged[key];
 
       if (isResolverObject(current) && isResolverObject(value)) {
+        const duplicateField = Object.keys(value).find((fieldName) =>
+          Object.prototype.hasOwnProperty.call(current, fieldName)
+        );
+
+        if (duplicateField) {
+          throw new Error(`duplicate resolver field ${key}.${duplicateField}`);
+        }
+
         merged[key] = {
           ...current,
           ...value
@@ -73,9 +86,15 @@ export const apiFeatures: ApiFeature[] = [
   }
 ];
 
-export const apiTypeDefs = [baseTypeDefs, ...apiFeatures.map((feature) => feature.typeDefs)];
+export function composeApiFeatures(features: ApiFeature[]): ComposedApiFeatures {
+  return {
+    resolvers: mergeResolverMaps([baseResolvers, ...features.map((feature) => feature.resolvers)]),
+    typeDefs: [baseTypeDefs, ...features.map((feature) => feature.typeDefs)]
+  };
+}
 
-export const apiResolvers = mergeResolverMaps([
-  baseResolvers,
-  ...apiFeatures.map((feature) => feature.resolvers)
-]);
+const composedApiFeatures = composeApiFeatures(apiFeatures);
+
+export const apiTypeDefs = composedApiFeatures.typeDefs;
+
+export const apiResolvers = composedApiFeatures.resolvers;
