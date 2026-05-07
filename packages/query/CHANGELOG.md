@@ -1,5 +1,11 @@
 # @repo/query
 
+## 1.3.3
+
+### Patch Changes
+
+- 69f4711: Deepen API auth transport, storage lifecycle, shared upload/auth transitions, explicit query runtime registration, and preference persistence modules.
+
 ## 1.3.2
 
 ### Patch Changes
