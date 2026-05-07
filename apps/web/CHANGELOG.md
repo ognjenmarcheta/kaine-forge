@@ -1,5 +1,15 @@
 # @repo/web
 
+## 1.2.7
+
+### Patch Changes
+
+- 69f4711: Deepen API auth transport, storage lifecycle, shared upload/auth transitions, explicit query runtime registration, and preference persistence modules.
+- Updated dependencies [69f4711]
+  - @repo/query@1.3.3
+  - @repo/storage@1.1.2
+  - @repo/persistence@1.1.1
+
 ## 1.2.6
 
 ### Patch Changes
