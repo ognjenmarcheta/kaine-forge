@@ -1,5 +1,15 @@
 # @repo/api
 
+## 1.1.4
+
+### Patch Changes
+
+- 7af7edb: Deepen organization-scoped auth, data access, client organization selection, and session transport.
+- Updated dependencies [7b286b2]
+- Updated dependencies [7af7edb]
+  - @repo/auth@1.2.0
+  - @repo/storage@1.1.0
+
 ## 1.1.3
 
 ### Patch Changes
