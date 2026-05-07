@@ -1,3 +1,4 @@
+import { formatAttachmentSize } from "@repo/todos";
 import { Button } from "@repo/ui";
 import { useRef, useState } from "react";
 
@@ -18,18 +19,6 @@ interface TodoAttachmentsProps {
   todoId: string;
   attachments: Attachment[];
   onChanged: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes.toString()} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachmentsProps) {
@@ -126,7 +115,7 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
                   {file.originalName}
                 </span>
                 <span className="shrink-0 text-xs text-[color:var(--ds-text-subtlest)]">
-                  {formatFileSize(file.sizeBytes)}
+                  {formatAttachmentSize(file.sizeBytes)}
                 </span>
               </div>
               <div className="flex shrink-0 gap-[var(--ds-space-050)]">

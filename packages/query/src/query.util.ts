@@ -35,9 +35,52 @@ interface ApplyCreatedOrganizationSessionInput<
 }
 
 const registeredOrgScopedQueryKeys = new Map<string, readonly unknown[]>();
+const defaultOrgScopedQueryRegistry = createOrgScopedQueryRegistry();
 
 function serializeQueryKey(queryKey: readonly unknown[]): string {
   return JSON.stringify(queryKey);
+}
+
+export interface OrgScopedQueryRegistry {
+  getOperationKeys: () => readonly (readonly unknown[])[];
+  invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
+  registerOperation: (operationName: string, queryKey: readonly unknown[]) => void;
+  removeAuthBoundQueries: (queryClient: RemoveQueriesApi) => void;
+}
+
+export function createOrgScopedQueryRegistry(): OrgScopedQueryRegistry {
+  const operationKeys = new Map<string, readonly unknown[]>();
+
+  function getOperationKeys(): readonly (readonly unknown[])[] {
+    return [...operationKeys.values()];
+  }
+
+  return {
+    getOperationKeys,
+    async invalidateOrgScopedQueries(queryClient) {
+      for (const queryKey of getOperationKeys()) {
+        await queryClient.invalidateQueries({
+          queryKey
+        });
+      }
+    },
+    registerOperation(operationName, queryKey) {
+      operationKeys.set(operationName, queryKey);
+    },
+    removeAuthBoundQueries(queryClient) {
+      queryClient.removeQueries({
+        queryKey: queryKeys.session()
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.organizations()
+      });
+      for (const queryKey of getOperationKeys()) {
+        queryClient.removeQueries({
+          queryKey
+        });
+      }
+    }
+  };
 }
 
 export function createActiveOrganizationQueryKey(
@@ -51,12 +94,23 @@ export function registerOrgScopedQueryKey(queryKey: readonly unknown[]): void {
   registeredOrgScopedQueryKeys.set(serializeQueryKey(queryKey), queryKey);
 }
 
+export function registerOrgScopedOperationKey(
+  operationName: string,
+  queryKey: readonly unknown[]
+): void {
+  defaultOrgScopedQueryRegistry.registerOperation(operationName, queryKey);
+}
+
 export function clearOrgScopedQueryKeys(): void {
   registeredOrgScopedQueryKeys.clear();
 }
 
 export function getOrgScopedQueryKeys(): readonly (readonly unknown[])[] {
-  return [queryKeys.organizationMembersScope(), ...registeredOrgScopedQueryKeys.values()];
+  return [
+    queryKeys.organizationMembersScope(),
+    ...registeredOrgScopedQueryKeys.values(),
+    ...defaultOrgScopedQueryRegistry.getOperationKeys()
+  ];
 }
 
 export async function invalidateOrgScopedQueries(queryClient: InvalidateQueriesApi): Promise<void> {

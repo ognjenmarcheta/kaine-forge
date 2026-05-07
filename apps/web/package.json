@@ -23,6 +23,7 @@
     "@repo/persistence": "workspace:*",
     "@repo/query": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/todos": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.21",

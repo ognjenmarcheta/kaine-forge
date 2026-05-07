@@ -18,7 +18,7 @@ export interface ListOrganizationMembersResponse {
   members: OrganizationMember[];
 }
 
-const authTransport = createAuthTransport({
+export const authTransport = createAuthTransport({
   adapter: {
     baseUrl: AUTH_CONFIG.basePath === "/api/auth" ? "" : AUTH_CONFIG.basePath,
     credentials: "include",

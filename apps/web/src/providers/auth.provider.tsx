@@ -1,6 +1,7 @@
+import { createClientSessionLifecycle } from "@repo/auth/session";
 import { queryKeys, resetAuthBoundQueries } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useMemo, type ReactNode } from "react";
 
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
@@ -9,10 +10,19 @@ import {
   setStoredSession,
   setStoredSessionToken
 } from "../features/auth/auth.util";
-import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
+import { authTransport } from "../lib/auth-api";
 import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+
+const sessionLifecycle = createClientSessionLifecycle({
+  auth: authTransport,
+  persistence: {
+    getStoredSession: () => getStoredSession(AUTH_DEFINITION.storageKey),
+    setStoredSession: (session) => setStoredSession(AUTH_DEFINITION.storageKey, session),
+    clearSessionToken: () => setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null)
+  }
+});
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -23,35 +33,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const sessionQuery = useQuery({
     queryKey: queryKeys.session(),
-    queryFn: () => fetchSession(getStoredSession(AUTH_DEFINITION.storageKey)),
+    queryFn: () => sessionLifecycle.refreshSession(),
     staleTime: 0
   });
 
   const loginMutation = useMutation({
-    mutationFn: loginRequest
+    mutationFn: sessionLifecycle.loginWithPassword
   });
 
   const signupMutation = useMutation({
-    mutationFn: signupRequest
+    mutationFn: sessionLifecycle.signupWithPassword
   });
 
   const logoutMutation = useMutation({
-    mutationFn: logoutRequest
+    mutationFn: sessionLifecycle.logout
   });
 
   const session = (sessionQuery.data ?? null) as AuthSession | null;
-
-  useEffect(() => {
-    if (sessionQuery.status === "pending") {
-      return;
-    }
-
-    setStoredSession(AUTH_DEFINITION.storageKey, session);
-
-    if (!session) {
-      setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null);
-    }
-  }, [session, sessionQuery.status]);
 
   const login = useCallback(
     async (input: { email: string; password: string }) => {
@@ -76,12 +74,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const logout = useCallback(async () => {
-    await logoutMutation.mutateAsync(session);
+    void session;
+    await logoutMutation.mutateAsync();
     disposeSubscriptionClient();
     resetAuthBoundQueries(queryClient);
     queryClient.setQueryData(queryKeys.session(), null);
-    setStoredSession(AUTH_DEFINITION.storageKey, null);
-    setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null);
   }, [logoutMutation, queryClient, session]);
 
   const value = useMemo<AuthContextValue>(

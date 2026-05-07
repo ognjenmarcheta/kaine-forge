@@ -1,4 +1,5 @@
 import { Button, Separator, Text } from "@repo/mobile-ui";
+import { formatAttachmentSize } from "@repo/todos";
 import * as DocumentPicker from "expo-document-picker";
 import { useState } from "react";
 import { Linking, Pressable, View } from "react-native";
@@ -20,18 +21,6 @@ interface TodoAttachmentsProps {
   todoId: string;
   attachments: Attachment[];
   onChanged: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes.toString()} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachmentsProps) {
@@ -125,7 +114,9 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
             <Text className="shrink text-xs text-ds-text" numberOfLines={1}>
               {file.originalName}
             </Text>
-            <Text className="text-xs text-ds-text-subtlest">{formatFileSize(file.sizeBytes)}</Text>
+            <Text className="text-xs text-ds-text-subtlest">
+              {formatAttachmentSize(file.sizeBytes)}
+            </Text>
           </View>
           <View className="flex-row gap-2">
             {file.downloadUrl ? (

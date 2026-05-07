@@ -32,9 +32,8 @@ const persistence = createSyncStoragePersistenceAdapter(() =>
   typeof window === "undefined" ? null : window.localStorage
 );
 
-function readStoredOrganizationId(): string | null {
-  const storage = typeof window === "undefined" ? null : window.localStorage;
-  return storage?.getItem(ORGANIZATION_STORAGE_KEY) ?? null;
+async function readStoredOrganizationId(): Promise<string | null> {
+  return persistence.getString(ORGANIZATION_STORAGE_KEY);
 }
 
 function writeStoredOrganizationId(organizationId: string | null): void {
@@ -108,39 +107,56 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   );
 
   useEffect(() => {
+    let isActive = true;
+
     if (!session) {
       writeStoredOrganizationId(null);
-      return;
+      return () => {
+        isActive = false;
+      };
     }
 
     if (!organizationsQuery.data || setActiveOrganizationMutation.status === "pending") {
-      return;
+      return () => {
+        isActive = false;
+      };
     }
 
-    const payload = organizationsQuery.data;
-    const rememberedOrganizationId = isFeatureEnabled(
-      FEATURE_FLAGS.ORGANIZATIONS_VISIBLE,
-      featureFlags
-    )
-      ? readStoredOrganizationId()
-      : null;
-    const preferredOrganizationId = resolvePreferredActiveOrganizationId({
-      fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
-      organizations: payload.organizations,
-      rememberedOrganizationId
-    });
+    void (async () => {
+      const payload = organizationsQuery.data;
+      const rememberedOrganizationId = isFeatureEnabled(
+        FEATURE_FLAGS.ORGANIZATIONS_VISIBLE,
+        featureFlags
+      )
+        ? await readStoredOrganizationId()
+        : null;
 
-    if (!preferredOrganizationId) {
-      writeStoredOrganizationId(null);
-      return;
-    }
+      if (!isActive) {
+        return;
+      }
 
-    if (preferredOrganizationId !== session.activeOrganizationId) {
-      void setActiveOrganizationMutation.mutateAsync(preferredOrganizationId);
-      return;
-    }
+      const preferredOrganizationId = resolvePreferredActiveOrganizationId({
+        fallbackOrganizationId: payload.activeOrganizationId ?? session.activeOrganizationId,
+        organizations: payload.organizations,
+        rememberedOrganizationId
+      });
 
-    writeStoredOrganizationId(preferredOrganizationId);
+      if (!preferredOrganizationId) {
+        writeStoredOrganizationId(null);
+        return;
+      }
+
+      if (preferredOrganizationId !== session.activeOrganizationId) {
+        await setActiveOrganizationMutation.mutateAsync(preferredOrganizationId);
+        return;
+      }
+
+      writeStoredOrganizationId(preferredOrganizationId);
+    })();
+
+    return () => {
+      isActive = false;
+    };
   }, [featureFlags, organizationsQuery.data, session, setActiveOrganizationMutation]);
 
   const value = useMemo<OrganizationContextValue>(

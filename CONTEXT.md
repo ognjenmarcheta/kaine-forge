@@ -20,6 +20,14 @@ _Avoid_: team membership, account access
 An API request identity containing an authenticated user and their active organization as resolved from the session.
 _Avoid_: auth context, org context
 
+**Todo**:
+A template example of organization-scoped user-created data.
+_Avoid_: global task
+
+**Attachment**:
+A stored file associated with organization-scoped user-created data, such as a **Todo**.
+_Avoid_: raw upload, blob
+
 ## Relationships
 
 - A **User** belongs to one or more **Organizations** through membership.
@@ -27,6 +35,8 @@ _Avoid_: auth context, org context
 - A **Session** has zero or one **Active Organization** before authentication checks, and scoped API work requires one.
 - An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Active Organization**.
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
+- A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
+- An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
 
 ## Example dialogue
 

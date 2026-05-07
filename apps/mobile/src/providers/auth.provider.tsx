@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createClientSessionLifecycle } from "@repo/auth/session";
 import { createLogger } from "@repo/logger";
 import {
   createAsyncStoragePersistenceAdapter,
@@ -7,12 +8,12 @@ import {
 } from "@repo/persistence";
 import { queryKeys, resetAuthBoundQueries } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useMemo, type ReactNode } from "react";
 
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
 import type { AuthContextValue, AuthSession } from "../features/auth/auth.type";
-import { getStoredSessionToken, setStoredSessionToken } from "../features/auth/auth.util";
-import { fetchSession, loginRequest, logoutRequest, signupRequest } from "../lib/auth-api";
+import { setStoredSessionToken } from "../features/auth/auth.util";
+import { authTransport } from "../lib/auth-api";
 import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
 
 const logger = createLogger({ name: "mobile-auth" });
@@ -26,6 +27,22 @@ async function setStoredSession(storageKey: string, session: AuthSession | null)
   await setJsonValue(persistence, storageKey, session);
 }
 
+const sessionLifecycle = createClientSessionLifecycle({
+  auth: authTransport,
+  fallbackToStoredSession: true,
+  onLogoutError: (error) => {
+    logger.warn({ err: error }, "auth logout request failed");
+  },
+  onRefreshError: (error) => {
+    logger.warn({ err: error }, "auth session refresh failed");
+  },
+  persistence: {
+    getStoredSession: () => getStoredSession(AUTH_DEFINITION.storageKey),
+    setStoredSession: (session) => setStoredSession(AUTH_DEFINITION.storageKey, session),
+    clearSessionToken: () => setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null)
+  }
+});
+
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
@@ -37,42 +54,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const sessionQuery = useQuery({
     queryKey: queryKeys.session(),
-    queryFn: async () => {
-      await getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey);
-      const storedSession = await getStoredSession(AUTH_DEFINITION.storageKey);
-
-      try {
-        return await fetchSession(storedSession);
-      } catch (error) {
-        logger.warn({ err: error }, "auth session refresh failed");
-
-        return storedSession;
-      }
-    },
+    queryFn: () => sessionLifecycle.refreshSession(),
     staleTime: 0
   });
 
   const loginMutation = useMutation({
-    mutationFn: loginRequest
+    mutationFn: sessionLifecycle.loginWithPassword
   });
 
   const signupMutation = useMutation({
-    mutationFn: signupRequest
+    mutationFn: sessionLifecycle.signupWithPassword
   });
 
   const logoutMutation = useMutation({
-    mutationFn: logoutRequest
+    mutationFn: sessionLifecycle.logout
   });
 
   const session = (sessionQuery.data ?? null) as AuthSession | null;
-
-  useEffect(() => {
-    if (sessionQuery.status === "pending") {
-      return;
-    }
-
-    void setStoredSession(AUTH_DEFINITION.storageKey, session);
-  }, [session, sessionQuery.status]);
 
   const login = useCallback(
     async (input: { email: string; password: string }) => {
@@ -97,17 +95,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const logout = useCallback(async () => {
-    try {
-      await logoutMutation.mutateAsync(session);
-    } catch (error) {
-      logger.warn({ err: error }, "auth logout request failed");
-    }
-
+    void session;
+    await logoutMutation.mutateAsync();
     disposeSubscriptionClient();
     resetAuthBoundQueries(queryClient);
     queryClient.setQueryData(queryKeys.session(), null);
-    await setStoredSession(AUTH_DEFINITION.storageKey, null);
-    await setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null);
   }, [logoutMutation, queryClient, session]);
 
   const value = useMemo<AuthContextValue>(

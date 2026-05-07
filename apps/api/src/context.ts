@@ -1,8 +1,5 @@
 import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
-import {
-  requireAuthenticatedOrganizationScope,
-  type AuthenticatedOrganizationScope
-} from "@repo/auth/scope";
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import { resolveFeatureFlags } from "@repo/feature-flags";
@@ -10,6 +7,7 @@ import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
+import { createApiAuthIdentity } from "./context.auth-scope";
 import { pubsub } from "./pubsub";
 
 export interface ApiContext {
@@ -32,23 +30,20 @@ export async function createContextFromHeaders(
 ): Promise<ApiContext> {
   const auth = createServerAuth();
   const session = await auth.getSessionFromHeaders(headers);
-  const organizationScope = session?.activeOrganizationId
-    ? requireAuthenticatedOrganizationScope(session)
-    : null;
+  const identity = createApiAuthIdentity(session);
 
   const contextLogger = createChildLogger(logger, {
     userId: session?.user?.id ?? null,
-    organizationId: organizationScope?.organizationId ?? null
+    organizationId: identity.organizationScope?.organizationId ?? null
   });
 
   return {
     auth,
     db,
     t,
-    session,
-    organizationScope,
-    requireOrganizationScope: () =>
-      organizationScope ?? requireAuthenticatedOrganizationScope(session),
+    session: identity.session,
+    organizationScope: identity.organizationScope,
+    requireOrganizationScope: identity.requireOrganizationScope,
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub
