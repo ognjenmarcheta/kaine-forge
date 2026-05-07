@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
 
 import { useThemeStore, type ThemeMode } from "../stores/theme.store";
 
 const THEME_STORAGE_KEY = "kaine.mobile.theme.mode";
+const persistence = createAsyncStoragePersistenceAdapter(AsyncStorage);
 
 interface ThemeContextValue {
   isHydrating: boolean;
@@ -29,7 +31,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     let isActive = true;
 
     void (async () => {
-      const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      const stored = await persistence.getString(THEME_STORAGE_KEY);
 
       if (stored === "light" || stored === "dark" || stored === "system") {
         setThemeMode(stored);
@@ -50,7 +52,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       return;
     }
 
-    void AsyncStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    void persistence.setString(THEME_STORAGE_KEY, themeMode);
   }, [isHydrating, themeMode]);
 
   const resolvedTheme = themeMode === "system" ? systemTheme : themeMode;

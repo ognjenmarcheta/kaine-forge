@@ -53,6 +53,11 @@ export interface AuthOrganizationMember {
   role: string;
 }
 
+export interface AuthOrganizationsResult {
+  activeOrganizationId: string | null;
+  organizations: AuthOrganization[];
+}
+
 export interface AuthSessionResult {
   session: AuthSession;
   sessionToken: string;
@@ -63,7 +68,6 @@ export interface ServerAuth {
   loginWithPassword(input: LoginInput): Promise<AuthSessionResult>;
   signUpWithPassword(input: SignupInput): Promise<AuthSessionResult>;
   logout(sessionToken: string | null): Promise<void>;
-  listOrganizations(userId: string): Promise<AuthOrganization[]>;
   listOrganizationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthOrganization[]>;
   getCurrentOrganizationByScope(
     scope: AuthenticatedOrganizationScope
@@ -78,7 +82,6 @@ export interface ServerAuth {
     sessionToken: string | null;
     userId: string;
   }): Promise<AuthSession>;
-  getMembers(params: { organizationId: string; userId: string }): Promise<AuthOrganizationMember[]>;
   listOrganizationMembersByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganizationMember[]>;
@@ -89,7 +92,7 @@ export interface ClientAuth {
   loginWithPassword(input: LoginInput): Promise<AuthSession>;
   signupWithPassword(input: SignupInput): Promise<AuthSession>;
   logout(): Promise<void>;
-  listOrganizations(): Promise<AuthOrganization[]>;
+  listOrganizations(): Promise<AuthOrganizationsResult>;
   setActiveOrganization(organizationId: string): Promise<AuthSession>;
   createOrganization(input: CreateOrganizationInput): Promise<AuthSession>;
 }

@@ -1,4 +1,4 @@
-import { createPubSub } from "graphql-yoga";
+import { createPubSub, filter } from "graphql-yoga";
 
 export interface TodoSubscriptionPayload {
   id: string;
@@ -23,3 +23,9 @@ export type PubSubEventMap = {
 };
 
 export const pubsub = createPubSub<PubSubEventMap>();
+
+export function filterByOrganization<TPayload extends { organizationId: string }>(
+  organizationId: string
+) {
+  return filter((payload: TPayload) => payload.organizationId === organizationId);
+}

@@ -34,6 +34,10 @@
       "types": "./dist/auth.client.d.ts",
       "default": "./dist/auth.client.js"
     },
+    "./transport": {
+      "types": "./dist/auth.transport.d.ts",
+      "default": "./dist/auth.transport.js"
+    },
     "./permissions": {
       "types": "./dist/auth.permissions.d.ts",
       "default": "./dist/auth.permissions.js"

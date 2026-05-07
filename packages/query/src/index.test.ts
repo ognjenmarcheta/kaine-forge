@@ -1,32 +1,131 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { invalidateOrgScopedQueries, queryKeys } from "./index";
+import {
+  applyActiveOrganizationSession,
+  createActiveOrganizationQueryKey,
+  clearOrgScopedQueryKeys,
+  invalidateOrgScopedQueries,
+  queryKeys,
+  registerOrgScopedQueryKey,
+  resetAuthBoundQueries,
+  resolvePreferredActiveOrganizationId
+} from "./index";
 
 describe("query keys", () => {
   it("builds stable auth and organization keys", () => {
     expect(queryKeys.session()).toEqual(["auth", "session"]);
     expect(queryKeys.organizations()).toEqual(["organizations"]);
+    expect(queryKeys.organizationMembersScope()).toEqual(["organizations", "members"]);
     expect(queryKeys.organizationMembers("org-1")).toEqual(["organizations", "members", "org-1"]);
+  });
+
+  it("appends Active Organization identity to scoped query keys", () => {
+    expect(createActiveOrganizationQueryKey(["GetTodos", { limit: 50 }], "org-1")).toEqual([
+      "GetTodos",
+      { limit: 50 },
+      "org-1"
+    ]);
+    expect(createActiveOrganizationQueryKey(["GetTodos"], null)).toEqual(["GetTodos", "inactive"]);
   });
 });
 
 describe("invalidateOrgScopedQueries", () => {
-  it("invalidates generated todos and organization members scope", async () => {
+  it("invalidates registered operation keys and organization members scope", async () => {
     const invalidateQueries = vi.fn(async () => undefined);
+    clearOrgScopedQueryKeys();
+    registerOrgScopedQueryKey(["Todos"]);
 
     await invalidateOrgScopedQueries({
       invalidateQueries
     });
 
-    expect(invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(invalidateQueries).toHaveBeenCalledTimes(2);
     expect(invalidateQueries).toHaveBeenNthCalledWith(1, {
-      queryKey: ["GetTodos"]
+      queryKey: queryKeys.organizationMembersScope()
     });
     expect(invalidateQueries).toHaveBeenNthCalledWith(2, {
-      queryKey: ["GetMobileTodos"]
+      queryKey: ["Todos"]
     });
-    expect(invalidateQueries).toHaveBeenNthCalledWith(3, {
-      queryKey: ["organizations", "members"]
+  });
+});
+
+describe("resolvePreferredActiveOrganizationId", () => {
+  it("prefers a remembered Organization when it is available", () => {
+    expect(
+      resolvePreferredActiveOrganizationId({
+        fallbackOrganizationId: "org-1",
+        organizations: [{ id: "org-1" }, { id: "org-2" }],
+        rememberedOrganizationId: "org-2"
+      })
+    ).toBe("org-2");
+  });
+
+  it("falls back to the first Organization, then the Session fallback", () => {
+    expect(
+      resolvePreferredActiveOrganizationId({
+        fallbackOrganizationId: "session-org",
+        organizations: [{ id: "org-1" }],
+        rememberedOrganizationId: "missing"
+      })
+    ).toBe("org-1");
+
+    expect(
+      resolvePreferredActiveOrganizationId({
+        fallbackOrganizationId: "session-org",
+        organizations: [],
+        rememberedOrganizationId: "missing"
+      })
+    ).toBe("session-org");
+  });
+});
+
+describe("applyActiveOrganizationSession", () => {
+  it("updates the Session cache, persists Active Organization, and invalidates scoped queries", async () => {
+    const setQueryData = vi.fn();
+    const invalidateQueries = vi.fn(async () => undefined);
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const session = {
+      activeOrganizationId: "org-1"
+    };
+
+    await applyActiveOrganizationSession({
+      queryClient: {
+        invalidateQueries,
+        setQueryData
+      },
+      session,
+      persistActiveOrganizationId
+    });
+
+    expect(setQueryData).toHaveBeenCalledWith(queryKeys.session(), session);
+    expect(persistActiveOrganizationId).toHaveBeenCalledWith("org-1");
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizationMembersScope()
+    });
+  });
+});
+
+describe("resetAuthBoundQueries", () => {
+  it("removes auth, organization, and registered org-scoped query keys", () => {
+    const removeQueries = vi.fn();
+    clearOrgScopedQueryKeys();
+    registerOrgScopedQueryKey(["Todos"]);
+
+    resetAuthBoundQueries({
+      removeQueries
+    });
+
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.session()
+    });
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizations()
+    });
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizationMembersScope()
+    });
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: ["Todos"]
     });
   });
 });

@@ -1,11 +1,12 @@
-import { useCallback, useRef, useState } from "react";
+import { createUploadLifecycle, type UploadState } from "@repo/storage";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   useConfirmMobileUploadMutation,
   useRequestMobileUploadUrlMutation
 } from "../graphql/generated/react-query";
 
-type UploadStatus = "idle" | "requesting" | "uploading" | "confirming" | "done" | "error";
+type UploadStatus = UploadState["status"];
 
 interface FileInput {
   name: string;
@@ -30,119 +31,112 @@ interface UseFileUploadReturn {
   reset: () => void;
 }
 
+const INITIAL_UPLOAD_STATE: UploadState = {
+  status: "idle",
+  progress: 0,
+  error: null,
+  fileId: null
+};
+
 export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUploadReturn {
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<Error | null>(null);
-  const [fileId, setFileId] = useState<string | null>(null);
-  const abortRef = useRef<XMLHttpRequest | null>(null);
+  const [state, setState] = useState<UploadState>(INITIAL_UPLOAD_STATE);
 
   const requestUpload = useRequestMobileUploadUrlMutation();
   const confirmUpload = useConfirmMobileUploadMutation();
 
-  const reset = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    setStatus("idle");
-    setProgress(0);
-    setError(null);
-    setFileId(null);
-  }, []);
+  const lifecycle = useMemo(
+    () =>
+      createUploadLifecycle<FileInput>({
+        adapter: {
+          confirmUpload: async (fileId) => {
+            await confirmUpload.mutateAsync({ fileId });
+          },
+          requestUploadUrl: async (input) => {
+            const data = await requestUpload.mutateAsync({
+              input: {
+                originalName: input.originalName,
+                mimeType: input.mimeType,
+                sizeBytes: input.sizeBytes,
+                entityType: input.entityType ?? null,
+                entityId: input.entityId ?? null
+              }
+            });
 
-  const upload = useCallback(
-    (file: FileInput) => {
-      setStatus("requesting");
-      setProgress(0);
-      setError(null);
-      setFileId(null);
-
-      requestUpload.mutate(
-        {
-          input: {
+            return data.requestUploadUrl;
+          },
+          toRequestInput: ({ file, entityId, entityType }) => ({
             originalName: file.name,
             mimeType: file.type || "application/octet-stream",
             sizeBytes: file.size,
-            entityType: options.entityType ?? null,
-            entityId: options.entityId ?? null
+            entityId,
+            entityType
+          }),
+          uploadFile: ({ file, mimeType, onProgress, uploadUrl }) => {
+            const xhr = new XMLHttpRequest();
+            const promise = new Promise<void>((resolve, reject) => {
+              xhr.upload.addEventListener("progress", (event) => {
+                if (event.lengthComputable) {
+                  onProgress(Math.round((event.loaded / event.total) * 100));
+                }
+              });
+
+              xhr.addEventListener("load", () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve();
+                  return;
+                }
+
+                reject(new Error(`upload failed with status ${String(xhr.status)}`));
+              });
+
+              xhr.addEventListener("error", () => {
+                reject(new Error("upload failed"));
+              });
+
+              xhr.addEventListener("abort", () => {
+                reject(new Error("upload aborted"));
+              });
+
+              xhr.open("PUT", uploadUrl);
+              xhr.setRequestHeader("Content-Type", mimeType);
+              xhr.send({ uri: file.uri, type: file.type, name: file.name } as unknown as Document);
+            });
+
+            return {
+              abort: () => {
+                xhr.abort();
+              },
+              promise
+            };
           }
         },
-        {
-          onSuccess(data) {
-            const { fileId: id, uploadUrl } = data.requestUploadUrl;
-            setFileId(id);
-            setStatus("uploading");
-
-            const xhr = new XMLHttpRequest();
-            abortRef.current = xhr;
-
-            xhr.upload.addEventListener("progress", (event) => {
-              if (event.lengthComputable) {
-                setProgress(Math.round((event.loaded / event.total) * 100));
-              }
-            });
-
-            xhr.addEventListener("load", () => {
-              abortRef.current = null;
-
-              if (xhr.status >= 200 && xhr.status < 300) {
-                setStatus("confirming");
-
-                confirmUpload.mutate(
-                  { fileId: id },
-                  {
-                    onSuccess() {
-                      setStatus("done");
-                      setProgress(100);
-                      options.onSuccess?.(id);
-                    },
-                    onError(err) {
-                      const confirmError =
-                        err instanceof Error ? err : new Error("failed to confirm upload");
-                      setStatus("error");
-                      setError(confirmError);
-                      options.onError?.(confirmError);
-                    }
-                  }
-                );
-              } else {
-                const uploadError = new Error(`upload failed with status ${String(xhr.status)}`);
-                setStatus("error");
-                setError(uploadError);
-                options.onError?.(uploadError);
-              }
-            });
-
-            xhr.addEventListener("error", () => {
-              abortRef.current = null;
-              const uploadError = new Error("upload failed");
-              setStatus("error");
-              setError(uploadError);
-              options.onError?.(uploadError);
-            });
-
-            xhr.addEventListener("abort", () => {
-              abortRef.current = null;
-              reset();
-            });
-
-            xhr.open("PUT", uploadUrl);
-            xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-            xhr.send({ uri: file.uri, type: file.type, name: file.name } as unknown as Document);
-          },
-          onError(err) {
-            const requestError =
-              err instanceof Error ? err : new Error("failed to request upload url");
-            setStatus("error");
-            setError(requestError);
-            options.onError?.(requestError);
-          }
-        }
-      );
-    },
-    [requestUpload, confirmUpload, options, reset]
+        onError: options.onError,
+        onStateChange: setState,
+        onSuccess: options.onSuccess
+      }),
+    [confirmUpload, options.onError, options.onSuccess, requestUpload]
   );
 
-  return { status, progress, error, fileId, upload, reset };
+  const reset = useCallback(() => {
+    lifecycle.reset();
+  }, [lifecycle]);
+
+  const upload = useCallback(
+    (file: FileInput) => {
+      void lifecycle.upload(file, {
+        entityId: options.entityId,
+        entityType: options.entityType
+      });
+    },
+    [lifecycle, options.entityId, options.entityType]
+  );
+
+  return {
+    status: state.status,
+    progress: state.progress,
+    error: state.error,
+    fileId: state.fileId,
+    upload,
+    reset
+  };
 }

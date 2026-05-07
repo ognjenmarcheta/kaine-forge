@@ -71,6 +71,12 @@ describe("todos.adapter", () => {
     expect(chain.offset).toHaveBeenCalledWith(0);
   });
 
+  it("listTodosByScope filters by Organization only", async () => {
+    await listTodosByScope(scope, { limit: 20, offset: 0 });
+
+    expect(chain.where).toHaveBeenCalledWith([["orgId", "org-1"]]);
+  });
+
   it("getTodoById calls db.select with limit 1", async () => {
     await getTodoById(scope, "todo-1");
     expect(mockDb.select).toHaveBeenCalled();

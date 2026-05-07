@@ -25,6 +25,9 @@ describe("storage.router", () => {
     user: session.user,
     userId: "user-1"
   };
+  const ctx = {
+    requireOrganizationScope: () => authenticatedScope
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,7 +45,7 @@ describe("storage.router", () => {
           status: "uploaded"
         }
       },
-      { session } as never
+      ctx as never
     );
 
     expect(storageAdapter.listFiles).toHaveBeenCalledWith(authenticatedScope, {

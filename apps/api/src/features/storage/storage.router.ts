@@ -1,4 +1,3 @@
-import { requireAuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   buildStorageKey,
   createStorageClient,
@@ -45,17 +44,17 @@ type DeleteFileArgs = { fileId: string };
 export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       return getFileById(scope, args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       return listFiles(scope, args.filter ?? {});
     }
   },
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
       const input = args.input;
 
       const validation = validateFile({ mimeType: input.mimeType, sizeBytes: input.sizeBytes }, {});
@@ -101,7 +100,7 @@ export const storageResolvers = {
       };
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
 
       const file = await getFileById(scope, args.fileId);
 
@@ -122,7 +121,7 @@ export const storageResolvers = {
       return updateFileStatus(scope, file.id, "uploaded");
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
-      const scope = requireAuthenticatedOrganizationScope(ctx.session);
+      const scope = ctx.requireOrganizationScope();
 
       const file = await getFileById(scope, args.fileId);
 

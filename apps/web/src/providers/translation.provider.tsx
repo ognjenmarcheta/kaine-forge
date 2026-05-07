@@ -1,3 +1,4 @@
+import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   changeLanguage,
   DEFAULT_LANGUAGE,
@@ -7,6 +8,9 @@ import {
 import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const TRANSLATION_STORAGE_KEY = "kaine.language";
+const persistence = createSyncStoragePersistenceAdapter(() =>
+  typeof window === "undefined" ? null : window.localStorage
+);
 
 interface TranslationContextValue {
   language: string;
@@ -45,7 +49,7 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
       return;
     }
 
-    window.localStorage.setItem(TRANSLATION_STORAGE_KEY, language);
+    void persistence.setString(TRANSLATION_STORAGE_KEY, language);
   }, [language]);
 
   useEffect(() => {
