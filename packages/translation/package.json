@@ -18,6 +18,10 @@
       "types": "./dist/translation.definition.d.ts",
       "default": "./dist/translation.definition.js"
     },
+    "./translation.runtime": {
+      "types": "./dist/translation.runtime.d.ts",
+      "default": "./dist/translation.runtime.js"
+    },
     "./translation.type": {
       "types": "./dist/translation.type.d.ts",
       "default": "./dist/translation.type.js"

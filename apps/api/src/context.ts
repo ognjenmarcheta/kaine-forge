@@ -7,7 +7,7 @@ import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
-import { createApiAuthIdentity } from "./context.auth-scope";
+import { resolveApiAuthIdentity } from "./context.auth-scope";
 import { pubsub } from "./pubsub";
 
 export interface ApiContext {
@@ -30,7 +30,7 @@ export async function createContextFromHeaders(
 ): Promise<ApiContext> {
   const auth = createServerAuth();
   const session = await auth.getSessionFromHeaders(headers);
-  const identity = createApiAuthIdentity(session);
+  const identity = await resolveApiAuthIdentity(session, auth);
 
   const contextLogger = createChildLogger(logger, {
     userId: session?.user?.id ?? null,

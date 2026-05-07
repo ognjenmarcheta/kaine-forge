@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
+  createTranslationRuntime,
   DEFAULT_LANGUAGE,
   SUPPORTED_LANGUAGES,
   changeLanguage,
@@ -24,53 +25,61 @@ interface TranslationProviderProps {
 
 export function TranslationProvider({ children }: TranslationProviderProps) {
   const [language, setLanguageState] = useState<string>(DEFAULT_LANGUAGE);
+  const translationRuntime = useMemo(
+    () =>
+      createTranslationRuntime({
+        defaultLanguage: DEFAULT_LANGUAGE,
+        i18n: {
+          changeLanguage,
+          getLanguage: () => translationInstance.language,
+          onLanguageChanged: (listener) => {
+            translationInstance.on("languageChanged", listener);
+            return () => {
+              translationInstance.off("languageChanged", listener);
+            };
+          }
+        },
+        persistence,
+        storageKey: TRANSLATION_STORAGE_KEY,
+        supportedLanguages: SUPPORTED_LANGUAGES
+      }),
+    []
+  );
 
   useEffect(() => {
     let isActive = true;
 
     void (async () => {
-      const stored = await persistence.getString(TRANSLATION_STORAGE_KEY);
+      const nextLanguage = await translationRuntime.hydrate();
 
-      if (
-        isActive &&
-        stored &&
-        SUPPORTED_LANGUAGES.includes(stored as (typeof SUPPORTED_LANGUAGES)[number])
-      ) {
-        setLanguageState(stored);
+      if (isActive) {
+        setLanguageState(nextLanguage);
       }
     })();
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [translationRuntime]);
 
   useEffect(() => {
-    void changeLanguage(language);
-    void persistence.setString(TRANSLATION_STORAGE_KEY, language);
-  }, [language]);
-
-  useEffect(() => {
-    const onChange = (nextLanguage: string) => {
+    const unsubscribe = translationRuntime.subscribe((nextLanguage) => {
       setLanguageState(nextLanguage);
-    };
-
-    translationInstance.on("languageChanged", onChange);
+    });
 
     return () => {
-      translationInstance.off("languageChanged", onChange);
+      unsubscribe();
     };
-  }, []);
+  }, [translationRuntime]);
 
   const value = useMemo<TranslationContextValue>(
     () => ({
       language,
       setLanguage: async (value) => {
-        await changeLanguage(value);
-        setLanguageState(value);
+        setLanguageState(await translationRuntime.setLanguage(value));
       }
     }),
-    [language]
+    [language, translationRuntime]
   );
 
   return <TranslationContext.Provider value={value}>{children}</TranslationContext.Provider>;
