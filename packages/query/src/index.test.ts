@@ -1,16 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import * as queryModule from "./index";
 import {
   applyActiveOrganizationSession,
   createActiveOrganizationLifecycle,
   createOrgScopedQueryRegistry,
   createQueryRuntime,
   createActiveOrganizationQueryKey,
-  clearOrgScopedQueryKeys,
-  invalidateOrgScopedQueries,
   queryKeys,
-  registerOrgScopedQueryKey,
-  resetAuthBoundQueries,
   resolvePreferredActiveOrganizationId
 } from "./index";
 
@@ -33,6 +30,14 @@ describe("query keys", () => {
 });
 
 describe("invalidateOrgScopedQueries", () => {
+  it("does not expose hidden global org-scoped query helpers", () => {
+    expect("registerOrgScopedQueryKey" in queryModule).toBe(false);
+    expect("registerOrgScopedOperationKey" in queryModule).toBe(false);
+    expect("clearOrgScopedQueryKeys" in queryModule).toBe(false);
+    expect("invalidateOrgScopedQueries" in queryModule).toBe(false);
+    expect("resetAuthBoundQueries" in queryModule).toBe(false);
+  });
+
   it("uses an explicit Query Runtime registry for operation registration and auth resets", async () => {
     const invalidateQueries = vi.fn(async () => undefined);
     const removeQueries = vi.fn();
@@ -89,24 +94,6 @@ describe("invalidateOrgScopedQueries", () => {
       queryKey: queryKeys.organizationMembersScope()
     });
   });
-
-  it("invalidates registered operation keys and organization members scope", async () => {
-    const invalidateQueries = vi.fn(async () => undefined);
-    clearOrgScopedQueryKeys();
-    registerOrgScopedQueryKey(["Todos"]);
-
-    await invalidateOrgScopedQueries({
-      invalidateQueries
-    });
-
-    expect(invalidateQueries).toHaveBeenCalledTimes(2);
-    expect(invalidateQueries).toHaveBeenNthCalledWith(1, {
-      queryKey: queryKeys.organizationMembersScope()
-    });
-    expect(invalidateQueries).toHaveBeenNthCalledWith(2, {
-      queryKey: ["Todos"]
-    });
-  });
 });
 
 describe("resolvePreferredActiveOrganizationId", () => {
@@ -144,6 +131,8 @@ describe("applyActiveOrganizationSession", () => {
     const setQueryData = vi.fn();
     const invalidateQueries = vi.fn(async () => undefined);
     const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const queryRuntime = createQueryRuntime();
+    queryRuntime.registerOrgScopedOperation("todos.list", ["GetTodos"]);
     const session = {
       activeOrganizationId: "org-1"
     };
@@ -153,6 +142,7 @@ describe("applyActiveOrganizationSession", () => {
         invalidateQueries,
         setQueryData
       },
+      queryRuntime,
       session,
       persistActiveOrganizationId
     });
@@ -161,6 +151,9 @@ describe("applyActiveOrganizationSession", () => {
     expect(persistActiveOrganizationId).toHaveBeenCalledWith("org-1");
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.organizationMembersScope()
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["GetTodos"]
     });
   });
 });
@@ -173,6 +166,7 @@ describe("createActiveOrganizationLifecycle", () => {
     const persistActiveOrganizationId = vi.fn(async () => undefined);
     const setQueryData = vi.fn();
     const invalidateQueries = vi.fn(async () => undefined);
+    const queryRuntime = createQueryRuntime();
     const lifecycle = createActiveOrganizationLifecycle({
       isOrganizationUiVisible: () => true,
       persistActiveOrganizationId,
@@ -180,6 +174,7 @@ describe("createActiveOrganizationLifecycle", () => {
         invalidateQueries,
         setQueryData
       },
+      queryRuntime,
       readActiveOrganizationId: async () => "org-2",
       setActiveOrganization
     });
@@ -202,6 +197,7 @@ describe("createActiveOrganizationLifecycle", () => {
     const setActiveOrganization = vi.fn(async (organizationId: string) => ({
       activeOrganizationId: organizationId
     }));
+    const queryRuntime = createQueryRuntime();
     const lifecycle = createActiveOrganizationLifecycle({
       isOrganizationUiVisible: () => false,
       persistActiveOrganizationId: async () => undefined,
@@ -209,6 +205,7 @@ describe("createActiveOrganizationLifecycle", () => {
         invalidateQueries: async () => undefined,
         setQueryData: () => undefined
       },
+      queryRuntime,
       readActiveOrganizationId: async () => "org-2",
       setActiveOrganization
     });
@@ -224,13 +221,13 @@ describe("createActiveOrganizationLifecycle", () => {
   });
 });
 
-describe("resetAuthBoundQueries", () => {
+describe("QueryRuntime.resetAuthBoundQueries", () => {
   it("removes auth, organization, and registered org-scoped query keys", () => {
     const removeQueries = vi.fn();
-    clearOrgScopedQueryKeys();
-    registerOrgScopedQueryKey(["Todos"]);
+    const queryRuntime = createQueryRuntime();
+    queryRuntime.registerOrgScopedOperation("todos.list", ["Todos"]);
 
-    resetAuthBoundQueries({
+    queryRuntime.resetAuthBoundQueries({
       removeQueries
     });
 
