@@ -1,5 +1,11 @@
 # @repo/query
 
+## 1.3.1
+
+### Patch Changes
+
+- af949dd: Deepen shared auth, query, Todo, storage upload, persistence, and API scope architecture behind focused Modules and Adapters.
+
 ## 1.3.0
 
 ### Minor Changes
