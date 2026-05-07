@@ -1,5 +1,12 @@
 # @repo/mobile
 
+## 1.2.3
+
+### Patch Changes
+
+- Updated dependencies [29a0d96]
+  - @repo/auth@1.1.2
+
 ## 1.2.2
 
 ### Patch Changes
