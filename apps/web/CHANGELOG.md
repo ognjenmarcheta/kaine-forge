@@ -1,5 +1,18 @@
 # @repo/web
 
+## 1.2.4
+
+### Patch Changes
+
+- 7b286b2: Deepen shared auth transport, organization-scoped query cache helpers, upload lifecycle, persistence adapters, and server auth internals.
+- 7af7edb: Deepen organization-scoped auth, data access, client organization selection, and session transport.
+- Updated dependencies [7b286b2]
+- Updated dependencies [7af7edb]
+  - @repo/auth@1.2.0
+  - @repo/query@1.3.0
+  - @repo/storage@1.1.0
+  - @repo/persistence@1.1.0
+
 ## 1.2.3
 
 ### Patch Changes
