@@ -10,12 +10,7 @@ import {
 } from "./todos.adapter";
 import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
-import {
-  applyTodoPatch,
-  coercePagination,
-  ensureTodoTitle,
-  parseOptionalDescription
-} from "./todos.util";
+import { coercePagination } from "./todos.util";
 import { createTodoWorkflow } from "./todos.workflow";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
@@ -35,13 +30,18 @@ function createTodoWorkflowForContext(ctx: ResolverContext) {
   });
 
   return createTodoWorkflow({
+    createTodo,
     deleteTodo,
     deleteTodoAttachments: async (scope, id) => {
-      try {
-        await attachmentLifecycle.deleteTodoAttachments(scope, id);
-      } catch (err) {
-        ctx.logger.warn({ err, todoId: id }, "failed to soft-delete todo attachments");
-      }
+      await attachmentLifecycle.deleteTodoAttachments(scope, id);
+    },
+    publishTodoEvent: (eventName, ...payload) => {
+      ctx.pubsub.publish(eventName, ...payload);
+    },
+    toggleTodo,
+    updateTodo,
+    warnTodoAttachmentCleanupFailed: ({ err, todoId }) => {
+      ctx.logger.warn({ err, todoId }, "failed to soft-delete todo attachments");
     }
   });
 }
@@ -81,48 +81,23 @@ export const todosResolvers = {
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const input = args.input as CreateTodoInput;
-
-      const result = await createTodo(scope, {
-        title: ensureTodoTitle(input.title),
-        description: parseOptionalDescription(input.description ?? null)
-      });
-
-      ctx.pubsub.publish("todo:created", result);
-      return result;
+      return createTodoWorkflowForContext(ctx).createTodo(scope, args.input as CreateTodoInput);
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const input = args.input as UpdateTodoInput;
-
-      const result = await updateTodo(
+      return createTodoWorkflowForContext(ctx).updateTodo(
         scope,
         args.id,
-        applyTodoPatch(input as UpdateTodoInput & Record<string, unknown>)
+        args.input as UpdateTodoInput
       );
-
-      ctx.pubsub.publish("todo:updated", result);
-      return result;
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const result = await createTodoWorkflowForContext(ctx).deleteTodo(scope, args.id);
-
-      if (result) {
-        ctx.pubsub.publish("todo:deleted", {
-          id: args.id,
-          organizationId: scope.organizationId
-        });
-      }
-
-      return result;
+      return createTodoWorkflowForContext(ctx).deleteTodo(scope, args.id);
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const result = await toggleTodo(scope, args.id);
-
-      ctx.pubsub.publish("todo:toggled", result);
-      return result;
+      return createTodoWorkflowForContext(ctx).toggleTodo(scope, args.id);
     }
   },
   Subscription: {
