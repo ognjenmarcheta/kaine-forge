@@ -16,6 +16,7 @@ import {
   setActiveOrganizationRequest,
   type OrganizationOption
 } from "../lib/auth-api";
+import { queryRuntime } from "../lib/query-runtime";
 
 export interface OrganizationContextValue {
   activeOrganizationId: string | null;
@@ -63,6 +64,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     onSuccess: async (nextSession) => {
       await applyActiveOrganizationSession({
         queryClient,
+        queryRuntime,
         session: nextSession,
         persistActiveOrganizationId: writeStoredOrganizationId
       });
@@ -75,6 +77,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         isOrganizationUiVisible: () => true,
         persistActiveOrganizationId: writeStoredOrganizationId,
         queryClient,
+        queryRuntime,
         readActiveOrganizationId: readStoredOrganizationId,
         setActiveOrganization: (organizationId) =>
           setActiveOrganizationMutation.mutateAsync(organizationId)
@@ -87,6 +90,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     onSuccess: async (nextSession) => {
       await applyCreatedOrganizationSession({
         queryClient,
+        queryRuntime,
         session: nextSession,
         persistActiveOrganizationId: writeStoredOrganizationId
       });

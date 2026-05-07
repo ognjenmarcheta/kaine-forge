@@ -1,5 +1,5 @@
 import { createClientSessionLifecycle } from "@repo/auth/session";
-import { queryKeys, resetAuthBoundQueries } from "@repo/query";
+import { createClientAuthTransition, queryKeys } from "@repo/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useMemo, type ReactNode } from "react";
 
@@ -12,6 +12,7 @@ import {
 } from "../features/auth/auth.util";
 import { authTransport } from "../lib/auth-api";
 import { disposeSubscriptionClient } from "../lib/graphql-subscription-client";
+import { queryRuntime } from "../lib/query-runtime";
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -51,35 +52,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const session = (sessionQuery.data ?? null) as AuthSession | null;
 
+  const authTransition = useMemo(
+    () =>
+      createClientAuthTransition({
+        disposeSubscriptions: disposeSubscriptionClient,
+        loginWithPassword: loginMutation.mutateAsync,
+        logout: logoutMutation.mutateAsync,
+        queryClient,
+        queryRuntime,
+        signupWithPassword: signupMutation.mutateAsync
+      }),
+    [loginMutation.mutateAsync, logoutMutation.mutateAsync, queryClient, signupMutation.mutateAsync]
+  );
+
   const login = useCallback(
     async (input: { email: string; password: string }) => {
-      const nextSession = await loginMutation.mutateAsync(input);
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.organizations()
-      });
+      await authTransition.login(input);
     },
-    [loginMutation, queryClient]
+    [authTransition]
   );
 
   const signup = useCallback(
     async (input: { email: string; name: string; password: string }) => {
-      const nextSession = await signupMutation.mutateAsync(input);
-      queryClient.setQueryData(queryKeys.session(), nextSession);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.organizations()
-      });
+      await authTransition.signup(input);
     },
-    [queryClient, signupMutation]
+    [authTransition]
   );
 
   const logout = useCallback(async () => {
     void session;
-    await logoutMutation.mutateAsync();
-    disposeSubscriptionClient();
-    resetAuthBoundQueries(queryClient);
-    queryClient.setQueryData(queryKeys.session(), null);
-  }, [logoutMutation, queryClient, session]);
+    await authTransition.logout();
+  }, [authTransition, session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

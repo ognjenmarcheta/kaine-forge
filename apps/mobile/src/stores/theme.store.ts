@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncZustandJsonStorage } from "@repo/persistence";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 
 export type ThemeMode = "dark" | "light" | "system";
 
@@ -17,7 +18,7 @@ export const useThemeStore = create<ThemeStore>()(
     }),
     {
       name: "kaine.theme.mode",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createAsyncZustandJsonStorage(AsyncStorage),
       partialize: (state) => ({ themeMode: state.themeMode })
     }
   )

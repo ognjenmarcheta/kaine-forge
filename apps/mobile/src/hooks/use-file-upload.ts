@@ -1,6 +1,6 @@
 import {
   createReactNativeUploadTransfer,
-  createUploadLifecycle,
+  createAttachmentUploadWorkflow,
   toReactNativeUploadRequestInput,
   type ReactNativeUploadFile,
   type UploadState
@@ -47,7 +47,7 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
   const lifecycle = useMemo(
     () =>
-      createUploadLifecycle<FileInput>({
+      createAttachmentUploadWorkflow<FileInput>({
         adapter: {
           confirmUpload: async (fileId) => {
             await confirmUpload.mutateAsync({ fileId });
@@ -68,6 +68,10 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
           toRequestInput: toReactNativeUploadRequestInput,
           uploadFile: createReactNativeUploadTransfer
         },
+        defaultContext: {
+          entityId: options.entityId,
+          entityType: options.entityType
+        },
         onError: options.onError,
         onStateChange: setState,
         onSuccess: options.onSuccess
@@ -81,12 +85,9 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
   const upload = useCallback(
     (file: FileInput) => {
-      void lifecycle.upload(file, {
-        entityId: options.entityId,
-        entityType: options.entityType
-      });
+      void lifecycle.upload(file);
     },
-    [lifecycle, options.entityId, options.entityType]
+    [lifecycle]
   );
 
   return {

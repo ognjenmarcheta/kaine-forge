@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncZustandJsonStorage } from "@repo/persistence";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 
 interface SidebarStore {
   isDrawerOpen: boolean;
@@ -15,7 +16,7 @@ export const useSidebarStore = create<SidebarStore>()(
     }),
     {
       name: "kaine.sidebar.state",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createAsyncZustandJsonStorage(AsyncStorage),
       partialize: (state) => ({ isDrawerOpen: state.isDrawerOpen })
     }
   )

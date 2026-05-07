@@ -16,6 +16,23 @@ export interface AsyncKeyValueStorage {
   setItem: (key: string, value: string) => Promise<void>;
 }
 
+export interface ZustandStorageValue<TState> {
+  state: TState;
+  version?: number;
+}
+
+export interface SyncZustandJsonStorage<TState> {
+  getItem: (key: string) => ZustandStorageValue<TState> | null;
+  removeItem: (key: string) => void;
+  setItem: (key: string, value: ZustandStorageValue<TState>) => void;
+}
+
+export interface AsyncZustandJsonStorage<TState> {
+  getItem: (key: string) => Promise<ZustandStorageValue<TState> | null>;
+  removeItem: (key: string) => Promise<void>;
+  setItem: (key: string, value: ZustandStorageValue<TState>) => Promise<void>;
+}
+
 export function createMemoryPersistenceAdapter(
   entries: Iterable<readonly [string, string]> = []
 ): PersistenceAdapter {
@@ -122,4 +139,38 @@ export function setJsonValueSync<T>(
   }
 
   storage.setItem(key, JSON.stringify(value));
+}
+
+export function createSyncZustandJsonStorage<TState>(
+  getStorage: () => SyncKeyValueStorage | null
+): SyncZustandJsonStorage<TState> {
+  return {
+    getItem(key) {
+      return getJsonValueSync<ZustandStorageValue<TState>>(getStorage(), key);
+    },
+    removeItem(key) {
+      getStorage()?.removeItem(key);
+    },
+    setItem(key, value) {
+      setJsonValueSync(getStorage(), key, value);
+    }
+  };
+}
+
+export function createAsyncZustandJsonStorage<TState>(
+  storage: AsyncKeyValueStorage
+): AsyncZustandJsonStorage<TState> {
+  const adapter = createAsyncStoragePersistenceAdapter(storage);
+
+  return {
+    getItem(key) {
+      return getJsonValue<ZustandStorageValue<TState>>(adapter, key);
+    },
+    removeItem(key) {
+      return adapter.remove(key);
+    },
+    setItem(key, value) {
+      return setJsonValue(adapter, key, value);
+    }
+  };
 }

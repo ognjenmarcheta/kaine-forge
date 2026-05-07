@@ -41,26 +41,26 @@ type ConfirmUploadArgs = { fileId: string };
 type DeleteFileArgs = { fileId: string };
 
 function createStorageLifecycleForContext(ctx: ResolverContext) {
-  const config = getStorageConfig();
-  const s3 = getS3Client();
-
-  return createStorageLifecycle({
-    bucket: config.bucket,
+  return createStorageLifecycle<{ id: string; key: string; status?: string }>({
+    bucket: () => getStorageConfig().bucket,
     createFileId: randomUUID,
     createFileRecord,
+    createDownloadUrl: async (bucket, key, expiresIn) =>
+      generatePresignedDownloadUrl(getS3Client(), bucket, key, expiresIn),
     createUploadUrl: async (bucket, key, mimeType, expiresIn) =>
-      generatePresignedUploadUrl(s3, bucket, key, mimeType, expiresIn),
+      generatePresignedUploadUrl(getS3Client(), bucket, key, mimeType, expiresIn),
     defaultEntityType: STORAGE_CONFIG.defaultEntityType,
     deleteObject: async (bucket, key) => {
       try {
-        await deleteObject(s3, bucket, key);
+        await deleteObject(getS3Client(), bucket, key);
       } catch (err) {
         ctx.logger.warn({ err, key }, "failed to delete object from S3");
       }
     },
-    fileExists: async (bucket, key) => objectExists(s3, bucket, key),
+    fileExists: async (bucket, key) => objectExists(getS3Client(), bucket, key),
     getFileById,
-    presignedUrlExpirySeconds: config.presignedUrlExpirySeconds,
+    listFiles,
+    presignedUrlExpirySeconds: () => getStorageConfig().presignedUrlExpirySeconds,
     updateFileStatus
   });
 }
@@ -69,11 +69,11 @@ export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return getFileById(scope, args.id);
+      return createStorageLifecycleForContext(ctx).getFile(scope, args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return listFiles(scope, args.filter ?? {});
+      return createStorageLifecycleForContext(ctx).listFiles(scope, args.filter ?? {});
     }
   },
   Mutation: {
@@ -91,19 +91,12 @@ export const storageResolvers = {
     }
   },
   FileInfo: {
-    async downloadUrl(parent: { status: string; key: string }) {
-      if (parent.status !== "uploaded") {
-        return null;
-      }
-
-      const result = await generatePresignedDownloadUrl(
-        getS3Client(),
-        getStorageConfig().bucket,
-        parent.key,
-        getStorageConfig().presignedUrlExpirySeconds
-      );
-
-      return result.url;
+    async downloadUrl(parent: { id: string; status?: string; key: string }) {
+      return createStorageLifecycleForContext({
+        logger: {
+          warn: () => undefined
+        }
+      } as unknown as ResolverContext).getDownloadUrl(parent);
     }
   }
 };

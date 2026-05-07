@@ -1,4 +1,4 @@
-import { createActiveOrganizationQueryKey, registerOrgScopedOperationKey } from "@repo/query";
+import { createActiveOrganizationQueryKey } from "@repo/query";
 import { createTodoClientWorkflow } from "@repo/todos";
 import {
   Button,
@@ -33,8 +33,9 @@ import {
 import { useOrganization } from "../../hooks/use-organization";
 import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
+import { queryRuntime } from "../../lib/query-runtime";
 
-registerOrgScopedOperationKey("todos.web.list", useGetTodosQuery.getKey());
+queryRuntime.registerOrgScopedOperation("todos.web.list", useGetTodosQuery.getKey());
 
 interface TodoExampleDraft {
   description: string;

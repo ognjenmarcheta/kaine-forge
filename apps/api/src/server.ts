@@ -17,6 +17,25 @@ interface CreateApiServerOptions {
   logger: Logger;
 }
 
+export function mergeWebSocketConnectionHeaders(
+  headers: IncomingHttpHeaders,
+  connectionParams: Record<string, unknown> | undefined
+): IncomingHttpHeaders {
+  const mergedHeaders: IncomingHttpHeaders = { ...headers };
+
+  if (!connectionParams) {
+    return mergedHeaders;
+  }
+
+  for (const [key, value] of Object.entries(connectionParams)) {
+    if (typeof value === "string") {
+      mergedHeaders[key.toLowerCase()] = value;
+    }
+  }
+
+  return mergedHeaders;
+}
+
 export function createApiServer({ logger }: CreateApiServerOptions) {
   const auth = createServerAuth();
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
@@ -39,10 +58,10 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
       const nodeHeaders = (initialContext as { req?: { headers?: IncomingHttpHeaders } }).req
         ?.headers;
       if (nodeHeaders) {
-        return createContextFromHeaders(nodeHeaders, requestLogger);
+        return createContextFromHeaders(nodeHeaders, requestLogger, auth);
       }
 
-      return createContext(initialContext.request, requestLogger);
+      return createContext(initialContext.request, requestLogger, auth);
     },
     maskedErrors: runtimeConfig.maskedErrors,
     cors
@@ -79,36 +98,20 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
       context: async (ctx) => {
         const req = ctx.extra.request as IncomingMessage;
         const headers = req.headers;
-        const connectionParams = ctx.connectionParams as Record<string, string> | undefined;
-
-        if (connectionParams) {
-          const mergedHeaders: IncomingHttpHeaders = { ...headers };
-          for (const [key, value] of Object.entries(connectionParams)) {
-            if (typeof value === "string") {
-              mergedHeaders[key.toLowerCase()] = value;
-            }
-          }
-          return createContextFromHeaders(mergedHeaders, logger);
-        }
-
-        return createContextFromHeaders(headers, logger);
+        const connectionParams = ctx.connectionParams as Record<string, unknown> | undefined;
+        return createContextFromHeaders(
+          mergeWebSocketConnectionHeaders(headers, connectionParams),
+          logger,
+          auth
+        );
       },
       onConnect: async (ctx) => {
         const req = ctx.extra.request as IncomingMessage;
         const headers = req.headers;
-        const connectionParams = ctx.connectionParams as Record<string, string> | undefined;
-
-        const mergedHeaders: IncomingHttpHeaders = { ...headers };
-        if (connectionParams) {
-          for (const [key, value] of Object.entries(connectionParams)) {
-            if (typeof value === "string") {
-              mergedHeaders[key.toLowerCase()] = value;
-            }
-          }
-        }
-
-        const authInstance = createServerAuth();
-        const session = await authInstance.getSessionFromHeaders(mergedHeaders);
+        const connectionParams = ctx.connectionParams as Record<string, unknown> | undefined;
+        const session = await auth.getSessionFromHeaders(
+          mergeWebSocketConnectionHeaders(headers, connectionParams)
+        );
         if (!session) return false;
         return true;
       }

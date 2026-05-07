@@ -24,6 +24,7 @@ interface ActiveOrganizationSession {
 
 interface ApplyActiveOrganizationSessionInput<TSession extends ActiveOrganizationSession> {
   queryClient: InvalidateQueriesApi & SetQueryDataApi;
+  queryRuntime?: QueryRuntime | undefined;
   session: TSession;
   persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
 }
@@ -38,6 +39,7 @@ interface ActiveOrganizationLifecycleInput<TSession extends ActiveOrganizationSe
   isOrganizationUiVisible: () => boolean;
   persistActiveOrganizationId: (organizationId: string | null) => Promise<void> | void;
   queryClient: InvalidateQueriesApi & SetQueryDataApi;
+  queryRuntime?: QueryRuntime | undefined;
   readActiveOrganizationId: () => Promise<string | null> | string | null;
   setActiveOrganization: (organizationId: string) => Promise<TSession>;
 }
@@ -60,6 +62,13 @@ export interface OrgScopedQueryRegistry {
   invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
   registerOperation: (operationName: string, queryKey: readonly unknown[]) => void;
   removeAuthBoundQueries: (queryClient: RemoveQueriesApi) => void;
+}
+
+export interface QueryRuntime {
+  getOrgScopedQueryKeys: () => readonly (readonly unknown[])[];
+  invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
+  registerOrgScopedOperation: (operationName: string, queryKey: readonly unknown[]) => void;
+  resetAuthBoundQueries: (queryClient: RemoveQueriesApi) => void;
 }
 
 export function createOrgScopedQueryRegistry(): OrgScopedQueryRegistry {
@@ -89,6 +98,39 @@ export function createOrgScopedQueryRegistry(): OrgScopedQueryRegistry {
         queryKey: queryKeys.organizations()
       });
       for (const queryKey of getOperationKeys()) {
+        queryClient.removeQueries({
+          queryKey
+        });
+      }
+    }
+  };
+}
+
+export function createQueryRuntime(registry = createOrgScopedQueryRegistry()): QueryRuntime {
+  function getOrgScopedQueryKeys(): readonly (readonly unknown[])[] {
+    return [queryKeys.organizationMembersScope(), ...registry.getOperationKeys()];
+  }
+
+  return {
+    getOrgScopedQueryKeys,
+    async invalidateOrgScopedQueries(queryClient) {
+      for (const queryKey of getOrgScopedQueryKeys()) {
+        await queryClient.invalidateQueries({
+          queryKey
+        });
+      }
+    },
+    registerOrgScopedOperation(operationName, queryKey) {
+      registry.registerOperation(operationName, queryKey);
+    },
+    resetAuthBoundQueries(queryClient) {
+      queryClient.removeQueries({
+        queryKey: queryKeys.session()
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.organizations()
+      });
+      for (const queryKey of getOrgScopedQueryKeys()) {
         queryClient.removeQueries({
           queryKey
         });
@@ -160,6 +202,11 @@ export async function applyActiveOrganizationSession<TSession extends ActiveOrga
 ): Promise<void> {
   input.queryClient.setQueryData(queryKeys.session(), input.session);
   await input.persistActiveOrganizationId(input.session.activeOrganizationId);
+  if (input.queryRuntime) {
+    await input.queryRuntime.invalidateOrgScopedQueries(input.queryClient);
+    return;
+  }
+
   await invalidateOrgScopedQueries(input.queryClient);
 }
 
@@ -205,6 +252,7 @@ export function createActiveOrganizationLifecycle<TSession extends ActiveOrganiz
         const nextSession = await input.setActiveOrganization(preferredOrganizationId);
         await applyActiveOrganizationSession({
           queryClient: input.queryClient,
+          queryRuntime: input.queryRuntime,
           session: nextSession,
           persistActiveOrganizationId: input.persistActiveOrganizationId
         });
