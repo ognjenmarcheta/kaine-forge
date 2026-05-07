@@ -6,4 +6,5 @@ export * from "./auth.client";
 export * from "./auth.permissions";
 export * from "./auth.scope";
 export * from "./auth.server";
+export * from "./auth.session";
 export * from "./auth.transport";

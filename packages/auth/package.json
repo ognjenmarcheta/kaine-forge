@@ -30,6 +30,10 @@
       "types": "./dist/auth.server.d.ts",
       "default": "./dist/auth.server.js"
     },
+    "./session": {
+      "types": "./dist/auth.session.d.ts",
+      "default": "./dist/auth.session.js"
+    },
     "./client": {
       "types": "./dist/auth.client.d.ts",
       "default": "./dist/auth.client.js"

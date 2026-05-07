@@ -33,6 +33,10 @@
     "./upload.lifecycle": {
       "types": "./dist/upload.lifecycle.d.ts",
       "default": "./dist/upload.lifecycle.js"
+    },
+    "./upload.adapter": {
+      "types": "./dist/upload.adapter.d.ts",
+      "default": "./dist/upload.adapter.js"
     }
   },
   "scripts": {

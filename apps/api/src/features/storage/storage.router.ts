@@ -1,18 +1,17 @@
 import {
-  buildStorageKey,
   createStorageClient,
   deleteObject,
   generatePresignedDownloadUrl,
   generatePresignedUploadUrl,
   objectExists,
-  resolveStorageConfig,
-  validateFile
+  resolveStorageConfig
 } from "@repo/storage";
 import type { StorageConfig } from "@repo/storage";
 import { randomUUID } from "node:crypto";
 
 import { createFileRecord, getFileById, listFiles, updateFileStatus } from "./storage.adapter";
 import { STORAGE_CONFIG } from "./storage.definition";
+import { createStorageLifecycle } from "./storage.lifecycle";
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 import type { ApiContext } from "../../context";
 
@@ -41,6 +40,31 @@ type FilesArgs = { filter?: FilesFilterInput };
 type ConfirmUploadArgs = { fileId: string };
 type DeleteFileArgs = { fileId: string };
 
+function createStorageLifecycleForContext(ctx: ResolverContext) {
+  const config = getStorageConfig();
+  const s3 = getS3Client();
+
+  return createStorageLifecycle({
+    bucket: config.bucket,
+    createFileId: randomUUID,
+    createFileRecord,
+    createUploadUrl: async (bucket, key, mimeType, expiresIn) =>
+      generatePresignedUploadUrl(s3, bucket, key, mimeType, expiresIn),
+    defaultEntityType: STORAGE_CONFIG.defaultEntityType,
+    deleteObject: async (bucket, key) => {
+      try {
+        await deleteObject(s3, bucket, key);
+      } catch (err) {
+        ctx.logger.warn({ err, key }, "failed to delete object from S3");
+      }
+    },
+    fileExists: async (bucket, key) => objectExists(s3, bucket, key),
+    getFileById,
+    presignedUrlExpirySeconds: config.presignedUrlExpirySeconds,
+    updateFileStatus
+  });
+}
+
 export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
@@ -55,88 +79,15 @@ export const storageResolvers = {
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const input = args.input;
-
-      const validation = validateFile({ mimeType: input.mimeType, sizeBytes: input.sizeBytes }, {});
-
-      if (!validation.valid) {
-        throw new Error(`file validation failed: ${validation.errors.join(", ")}`);
-      }
-
-      const fileId = randomUUID();
-      const entityType = input.entityType ?? STORAGE_CONFIG.defaultEntityType;
-
-      const key = buildStorageKey({
-        organizationId: scope.organizationId,
-        entityType,
-        fileId,
-        originalName: input.originalName
-      });
-
-      const file = await createFileRecord(scope, {
-        id: fileId,
-        key,
-        bucket: getStorageConfig().bucket,
-        originalName: input.originalName,
-        mimeType: input.mimeType,
-        sizeBytes: input.sizeBytes,
-        entityType: input.entityType ?? null,
-        entityId: input.entityId ?? null
-      });
-
-      const presigned = await generatePresignedUploadUrl(
-        getS3Client(),
-        getStorageConfig().bucket,
-        key,
-        input.mimeType,
-        getStorageConfig().presignedUrlExpirySeconds
-      );
-
-      return {
-        fileId: file.id,
-        uploadUrl: presigned.url,
-        key: presigned.key,
-        expiresIn: presigned.expiresIn
-      };
+      return createStorageLifecycleForContext(ctx).requestUploadUrl(scope, args.input);
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-
-      const file = await getFileById(scope, args.fileId);
-
-      if (!file) {
-        throw new Error("file not found");
-      }
-
-      if (file.status !== "pending") {
-        throw new Error(`file status is ${file.status}, expected pending`);
-      }
-
-      const exists = await objectExists(getS3Client(), getStorageConfig().bucket, file.key);
-
-      if (!exists) {
-        throw new Error("file has not been uploaded to storage");
-      }
-
-      return updateFileStatus(scope, file.id, "uploaded");
+      return createStorageLifecycleForContext(ctx).confirmUpload(scope, args.fileId);
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-
-      const file = await getFileById(scope, args.fileId);
-
-      if (!file) {
-        throw new Error("file not found");
-      }
-
-      try {
-        await deleteObject(getS3Client(), getStorageConfig().bucket, file.key);
-      } catch (err) {
-        ctx.logger.warn({ err, fileId: file.id, key: file.key }, "failed to delete object from S3");
-      }
-
-      await updateFileStatus(scope, file.id, "deleted");
-      return true;
+      return createStorageLifecycleForContext(ctx).deleteFile(scope, args.fileId);
     }
   },
   FileInfo: {

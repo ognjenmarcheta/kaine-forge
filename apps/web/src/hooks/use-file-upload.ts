@@ -1,4 +1,9 @@
-import { createUploadLifecycle, type UploadState } from "@repo/storage";
+import {
+  createBrowserUploadTransfer,
+  createUploadLifecycle,
+  toBrowserUploadRequestInput,
+  type UploadState
+} from "@repo/storage";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -57,51 +62,8 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
             return data.requestUploadUrl;
           },
-          toRequestInput: ({ file, entityId, entityType }) => ({
-            originalName: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-            entityId,
-            entityType
-          }),
-          uploadFile: ({ file, mimeType, onProgress, uploadUrl }) => {
-            const xhr = new XMLHttpRequest();
-            const promise = new Promise<void>((resolve, reject) => {
-              xhr.upload.addEventListener("progress", (event) => {
-                if (event.lengthComputable) {
-                  onProgress(Math.round((event.loaded / event.total) * 100));
-                }
-              });
-
-              xhr.addEventListener("load", () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve();
-                  return;
-                }
-
-                reject(new Error(`upload failed with status ${String(xhr.status)}`));
-              });
-
-              xhr.addEventListener("error", () => {
-                reject(new Error("upload failed"));
-              });
-
-              xhr.addEventListener("abort", () => {
-                reject(new Error("upload aborted"));
-              });
-
-              xhr.open("PUT", uploadUrl);
-              xhr.setRequestHeader("Content-Type", mimeType);
-              xhr.send(file);
-            });
-
-            return {
-              abort: () => {
-                xhr.abort();
-              },
-              promise
-            };
-          }
+          toRequestInput: toBrowserUploadRequestInput,
+          uploadFile: createBrowserUploadTransfer
         },
         onError: options.onError,
         onStateChange: setState,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   applyActiveOrganizationSession,
+  createOrgScopedQueryRegistry,
   createActiveOrganizationQueryKey,
   clearOrgScopedQueryKeys,
   invalidateOrgScopedQueries,
@@ -30,6 +31,30 @@ describe("query keys", () => {
 });
 
 describe("invalidateOrgScopedQueries", () => {
+  it("registers org-scoped operations by feature-owned names", async () => {
+    const invalidateQueries = vi.fn(async () => undefined);
+    const registry = createOrgScopedQueryRegistry();
+
+    registry.registerOperation("todos.list", ["GetTodos"]);
+    registry.registerOperation("todos.list", ["GetTodos", { filter: "open" }]);
+    registry.registerOperation("organizations.members", queryKeys.organizationMembersScope());
+
+    await registry.invalidateOrgScopedQueries({
+      invalidateQueries
+    });
+
+    expect(registry.getOperationKeys()).toEqual([
+      ["GetTodos", { filter: "open" }],
+      queryKeys.organizationMembersScope()
+    ]);
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["GetTodos", { filter: "open" }]
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.organizationMembersScope()
+    });
+  });
+
   it("invalidates registered operation keys and organization members scope", async () => {
     const invalidateQueries = vi.fn(async () => undefined);
     clearOrgScopedQueryKeys();

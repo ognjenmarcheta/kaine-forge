@@ -17,7 +17,7 @@ export interface ListOrganizationsResponse {
   organizations: OrganizationOption[];
 }
 
-const authTransport = createAuthTransport({
+export const authTransport = createAuthTransport({
   adapter: {
     baseUrl: AUTH_CONFIG.baseUrl,
     credentials: "include",

@@ -17,13 +17,7 @@ interface TranslationContextValue {
   setLanguage: (value: string) => Promise<void>;
 }
 
-function getStoredLanguage(): string {
-  if (typeof window === "undefined") {
-    return DEFAULT_LANGUAGE;
-  }
-
-  const stored = window.localStorage.getItem(TRANSLATION_STORAGE_KEY);
-
+function resolveStoredLanguage(stored: string | null): string {
   if (stored && SUPPORTED_LANGUAGES.includes(stored as (typeof SUPPORTED_LANGUAGES)[number])) {
     return stored;
   }
@@ -38,19 +32,37 @@ interface TranslationProviderProps {
 }
 
 export function TranslationProvider({ children }: TranslationProviderProps) {
-  const [language, setLanguageState] = useState(() => getStoredLanguage());
+  const [language, setLanguageState] = useState<string>(DEFAULT_LANGUAGE);
+  const [hasHydratedLanguage, setHasHydratedLanguage] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void (async () => {
+      const stored = await persistence.getString(TRANSLATION_STORAGE_KEY);
+
+      if (isActive) {
+        setLanguageState(resolveStoredLanguage(stored));
+        setHasHydratedLanguage(true);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     void changeLanguage(language);
   }, [language]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!hasHydratedLanguage) {
       return;
     }
 
     void persistence.setString(TRANSLATION_STORAGE_KEY, language);
-  }, [language]);
+  }, [hasHydratedLanguage, language]);
 
   useEffect(() => {
     const onChange = (nextLanguage: string) => {

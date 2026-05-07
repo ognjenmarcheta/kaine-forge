@@ -38,6 +38,7 @@ kaine-forge/
     mobile-ui/     React Native primitives and NativeWind variants
     query/         shared React Query keys and cache helpers
     storage/       S3-compatible storage helpers
+    todos/         shared Todo workflow and attachment helpers
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
   tooling/

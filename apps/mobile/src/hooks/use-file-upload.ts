@@ -1,4 +1,10 @@
-import { createUploadLifecycle, type UploadState } from "@repo/storage";
+import {
+  createReactNativeUploadTransfer,
+  createUploadLifecycle,
+  toReactNativeUploadRequestInput,
+  type ReactNativeUploadFile,
+  type UploadState
+} from "@repo/storage";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -8,12 +14,7 @@ import {
 
 type UploadStatus = UploadState["status"];
 
-interface FileInput {
-  name: string;
-  type: string;
-  size: number;
-  uri: string;
-}
+type FileInput = ReactNativeUploadFile;
 
 interface UseFileUploadOptions {
   entityType?: string;
@@ -64,51 +65,8 @@ export function useFileUpload(options: UseFileUploadOptions = {}): UseFileUpload
 
             return data.requestUploadUrl;
           },
-          toRequestInput: ({ file, entityId, entityType }) => ({
-            originalName: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-            entityId,
-            entityType
-          }),
-          uploadFile: ({ file, mimeType, onProgress, uploadUrl }) => {
-            const xhr = new XMLHttpRequest();
-            const promise = new Promise<void>((resolve, reject) => {
-              xhr.upload.addEventListener("progress", (event) => {
-                if (event.lengthComputable) {
-                  onProgress(Math.round((event.loaded / event.total) * 100));
-                }
-              });
-
-              xhr.addEventListener("load", () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve();
-                  return;
-                }
-
-                reject(new Error(`upload failed with status ${String(xhr.status)}`));
-              });
-
-              xhr.addEventListener("error", () => {
-                reject(new Error("upload failed"));
-              });
-
-              xhr.addEventListener("abort", () => {
-                reject(new Error("upload aborted"));
-              });
-
-              xhr.open("PUT", uploadUrl);
-              xhr.setRequestHeader("Content-Type", mimeType);
-              xhr.send({ uri: file.uri, type: file.type, name: file.name } as unknown as Document);
-            });
-
-            return {
-              abort: () => {
-                xhr.abort();
-              },
-              promise
-            };
-          }
+          toRequestInput: toReactNativeUploadRequestInput,
+          uploadFile: createReactNativeUploadTransfer
         },
         onError: options.onError,
         onStateChange: setState,

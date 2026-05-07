@@ -16,6 +16,7 @@ import {
   ensureTodoTitle,
   parseOptionalDescription
 } from "./todos.util";
+import { createTodoWorkflow } from "./todos.workflow";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
 import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
@@ -25,6 +26,19 @@ type TodoByIdArgs = { id: string };
 type CreateTodoArgs = { input: CreateTodoInput };
 type UpdateTodoArgs = { id: string; input: UpdateTodoInput };
 type ResolverContext = ApiContext;
+
+function createTodoWorkflowForContext(ctx: ResolverContext) {
+  return createTodoWorkflow({
+    deleteTodo,
+    deleteTodoAttachments: async (scope, id) => {
+      try {
+        await deleteFilesByEntity(scope, "todo", id);
+      } catch (err) {
+        ctx.logger.warn({ err, todoId: id }, "failed to soft-delete todo attachments");
+      }
+    }
+  });
+}
 
 export const todosResolvers = {
   Todo: {
@@ -86,14 +100,7 @@ export const todosResolvers = {
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-
-      try {
-        await deleteFilesByEntity(scope, "todo", args.id);
-      } catch (err) {
-        ctx.logger.warn({ err, todoId: args.id }, "failed to soft-delete todo attachments");
-      }
-
-      const result = await deleteTodo(scope, args.id);
+      const result = await createTodoWorkflowForContext(ctx).deleteTodo(scope, args.id);
 
       if (result) {
         ctx.pubsub.publish("todo:deleted", {
