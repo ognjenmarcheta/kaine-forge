@@ -1,5 +1,14 @@
 # @repo/web
 
+## 1.2.9
+
+### Patch Changes
+
+- 9d42572: Deepen Todo client workflows and Active Organization provider orchestration while preserving app behavior.
+- Updated dependencies [9d42572]
+  - @repo/query@1.3.5
+  - @repo/todos@1.0.3
+
 ## 1.2.8
 
 ### Patch Changes

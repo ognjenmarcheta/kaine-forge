@@ -1,5 +1,11 @@
 # @repo/api
 
+## 1.1.8
+
+### Patch Changes
+
+- 845fa00: Move API storage runtime composition behind a dedicated Module while preserving storage lifecycle behavior.
+
 ## 1.1.7
 
 ### Patch Changes

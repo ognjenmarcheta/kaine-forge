@@ -1,5 +1,11 @@
 # @repo/query
 
+## 1.3.5
+
+### Patch Changes
+
+- 9d42572: Deepen Todo client workflows and Active Organization provider orchestration while preserving app behavior.
+
 ## 1.3.4
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @repo/todos
 
+## 1.0.3
+
+### Patch Changes
+
+- 9d42572: Deepen Todo client workflows and Active Organization provider orchestration while preserving app behavior.
+
 ## 1.0.2
 
 ### Patch Changes
