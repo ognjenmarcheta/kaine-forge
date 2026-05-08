@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -25,6 +26,12 @@ function assertPackageHasExports(relativePath: string, expectedSubpaths: string[
   for (const subpath of expectedSubpaths) {
     expect(exportsMap).toHaveProperty(subpath);
   }
+}
+
+function resolveRealModulePath(moduleName: string, relativeRoot: string): string {
+  const scopedRequire = createRequire(resolve(repoRoot, relativeRoot, "package.json"));
+
+  return realpathSync(scopedRequire.resolve(moduleName));
 }
 
 describe("monorepo alignment", () => {
@@ -160,6 +167,24 @@ describe("monorepo alignment", () => {
 
     for (const file of files) {
       expect(readText(file)).not.toContain('"..."');
+    }
+  });
+
+  it("keeps mobile shared UI on the app React Native singleton graph", () => {
+    const singletonModules = [
+      "react",
+      "react-native",
+      "nativewind",
+      "react-native-css-interop",
+      "react-native-reanimated",
+      "react-native-safe-area-context",
+      "react-native-worklets"
+    ];
+
+    for (const moduleName of singletonModules) {
+      expect(resolveRealModulePath(moduleName, "packages/mobile-ui")).toBe(
+        resolveRealModulePath(moduleName, "apps/mobile")
+      );
     }
   });
 });
