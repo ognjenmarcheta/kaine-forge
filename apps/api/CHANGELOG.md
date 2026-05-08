@@ -1,5 +1,11 @@
 # @repo/api
 
+## 1.1.9
+
+### Patch Changes
+
+- 5d3ac31: Deepen API Todo mutation workflow orchestration while preserving GraphQL behavior.
+
 ## 1.1.8
 
 ### Patch Changes
