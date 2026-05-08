@@ -8,6 +8,7 @@ import { resolveApiStartupConfig } from "./startup.config";
 
 const logger = createLogger({ name: "api" });
 const port = Number(process.env.API_PORT ?? 4000);
+const host = process.env.API_HOST;
 const startupConfig = resolveApiStartupConfig(process.env);
 
 await startApiRuntime({
@@ -17,6 +18,7 @@ await startApiRuntime({
   migrations: {
     run: runMigrations
   },
+  host,
   port,
   startupConfig,
   verifyDatabase: async () => {

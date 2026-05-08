@@ -3,7 +3,8 @@ import type { Logger } from "@repo/logger";
 import type { resolveApiStartupConfig } from "./startup.config";
 
 interface ApiRuntimeServer {
-  listen: (port: number, callback: () => void) => void;
+  listen(port: number, callback: () => void): unknown;
+  listen(port: number, hostname: string, callback: () => void): unknown;
 }
 
 export interface ApiRuntimeAdapter {
@@ -13,6 +14,7 @@ export interface ApiRuntimeAdapter {
   migrations: {
     run: () => Promise<void>;
   };
+  host?: string | undefined;
   port: number;
   startupConfig: ReturnType<typeof resolveApiStartupConfig>;
   verifyDatabase: () => Promise<void>;
@@ -40,6 +42,13 @@ export async function startApiRuntime(adapter: ApiRuntimeAdapter): Promise<void>
   }
 
   const { server } = adapter.createServer({ logger: adapter.logger });
+
+  if (adapter.host) {
+    server.listen(adapter.port, adapter.host, () => {
+      adapter.logger.info({ host: adapter.host, port: adapter.port }, "api server started");
+    });
+    return;
+  }
 
   server.listen(adapter.port, () => {
     adapter.logger.info({ port: adapter.port }, "api server started");
