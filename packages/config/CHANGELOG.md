@@ -1,5 +1,11 @@
 # @repo/config
 
+## 1.1.2
+
+### Patch Changes
+
+- deb8ff6: Fix mobile React Native singleton resolution across the app and shared mobile UI package.
+
 ## 1.1.1
 
 ### Patch Changes
