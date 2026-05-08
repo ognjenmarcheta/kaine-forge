@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "turbo run dev --concurrency=20 --continue=always",
+    "dev:mobile:lan": "tsx tooling/dev-mobile-lan.ts",
     "build": "turbo run build",
     "build:core": "turbo run build --filter=@repo/api --filter=@repo/web",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",

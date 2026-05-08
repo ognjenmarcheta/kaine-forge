@@ -159,6 +159,7 @@ Important runtime variables:
 | `DATABASE_URL`            | Postgres connection string                                       |
 | `BETTER_AUTH_SECRET`      | auth secret                                                      |
 | `BETTER_AUTH_URL`         | public auth/API base URL                                         |
+| `API_HOST`                | optional API listen host, for example `0.0.0.0` for LAN testing  |
 | `API_PORT`                | API port, default `4000`                                         |
 | `API_URL`                 | API URL for server/runtime references                            |
 | `API_RUN_MIGRATIONS`      | optional startup migrations; defaults to true only in production |

@@ -58,6 +58,7 @@ Start from `.env.example`. Important variables:
 
 - `DATABASE_URL`: Postgres connection string. `sslmode=verify-ca` and `sslmode=verify-full` enable strict certificate verification; other SSL modes use safer non-strict TLS handling when present.
 - `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: auth runtime settings.
+- `API_HOST`: optional API listen host. Use `0.0.0.0` when the API needs to accept LAN traffic from a physical phone.
 - `API_RUN_MIGRATIONS`: optional boolean. Defaults to `false` outside production and `true` in production.
 - `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins.
 - `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap.
@@ -67,6 +68,20 @@ Start from `.env.example`. Important variables:
 - `S3_*`: S3-compatible storage settings. Local development uses MinIO from `docker-compose.yml`.
 
 Auth is cookie-first. The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable.
+
+## Mobile Device Testing
+
+For a physical phone, `localhost` points at the phone, not your laptop. Use the LAN workflow when testing the Expo app against the API running on your machine:
+
+```bash
+pnpm dev:mobile:lan
+```
+
+The command detects your laptop LAN IPv4 address, starts the API on `0.0.0.0`, starts Expo with `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GRAPHQL_URL` pointed at that LAN address, and clears Metro's cache. Keep the phone and laptop on the same Wi-Fi, allow incoming connections to port `4000` if your firewall asks, and open the printed API URL in the phone browser before testing login. If the detected address is wrong, override it:
+
+```bash
+MOBILE_LAN_IP=192.168.1.42 pnpm dev:mobile:lan
+```
 
 ## GraphQL and Database Flow
 
