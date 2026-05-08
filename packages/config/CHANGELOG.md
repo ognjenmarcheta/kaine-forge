@@ -1,5 +1,11 @@
 # @repo/config
 
+## 1.1.3
+
+### Patch Changes
+
+- 89c319b: Add a LAN mobile dev workflow for physical device testing against a laptop-hosted API.
+
 ## 1.1.2
 
 ### Patch Changes
