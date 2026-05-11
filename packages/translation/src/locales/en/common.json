@@ -6,6 +6,7 @@
   "common.loadingSession": "Loading session...",
   "common.nameLabel": "Full name",
   "common.notAvailable": "-",
+  "common.notifications": "Notifications",
   "common.passwordLabel": "Password",
   "common.confirmPasswordLabel": "Confirm password",
   "button.save": "Save",

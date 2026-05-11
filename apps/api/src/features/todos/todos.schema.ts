@@ -23,6 +23,22 @@ export const todosTypeDefs = /* GraphQL */ `
     completed: Boolean
   }
 
+  input GenerateTodosInput {
+    prompt: String!
+  }
+
+  enum GenerateTodosStatus {
+    CREATED
+    AI_NOT_CONFIGURED
+    FAILED
+  }
+
+  type GenerateTodosPayload {
+    status: GenerateTodosStatus!
+    todos: [Todo!]!
+    message: String
+  }
+
   extend type Query {
     todos(limit: Int, offset: Int): [Todo!]!
     todo(id: ID!): Todo
@@ -30,6 +46,7 @@ export const todosTypeDefs = /* GraphQL */ `
 
   extend type Mutation {
     createTodo(input: CreateTodoInput!): Todo!
+    generateTodos(input: GenerateTodosInput!): GenerateTodosPayload!
     updateTodo(id: ID!, input: UpdateTodoInput!): Todo!
     deleteTodo(id: ID!): Boolean!
     toggleTodo(id: ID!): Todo!

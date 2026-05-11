@@ -8,6 +8,8 @@ import {
   toggleTodo,
   updateTodo
 } from "./todos.adapter";
+import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
+import { createTodoAiRuntime } from "./todos.ai-runtime";
 import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
 import { coercePagination } from "./todos.util";
@@ -20,6 +22,7 @@ import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 type TodosQueryArgs = { limit?: number; offset?: number };
 type TodoByIdArgs = { id: string };
 type CreateTodoArgs = { input: CreateTodoInput };
+type GenerateTodosArgs = { input: GenerateTodosInput };
 type UpdateTodoArgs = { id: string; input: UpdateTodoInput };
 type ResolverContext = ApiContext;
 
@@ -42,6 +45,20 @@ function createTodoWorkflowForContext(ctx: ResolverContext) {
     updateTodo,
     warnTodoAttachmentCleanupFailed: ({ err, todoId }) => {
       ctx.logger.warn({ err, todoId }, "failed to soft-delete todo attachments");
+    }
+  });
+}
+
+function createTodoAiWorkflowForContext(ctx: ResolverContext) {
+  const aiRuntime = createTodoAiRuntime();
+
+  return createTodoAiWorkflow({
+    createTodo,
+    generateTodoDrafts: aiRuntime.generateTodoDrafts,
+    isConfigured: aiRuntime.isConfigured,
+    maxGeneratedTodos: aiRuntime.maxGeneratedTodos,
+    publishTodoEvent: (eventName, ...payload) => {
+      ctx.pubsub.publish(eventName, ...payload);
     }
   });
 }
@@ -82,6 +99,10 @@ export const todosResolvers = {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
       return createTodoWorkflowForContext(ctx).createTodo(scope, args.input as CreateTodoInput);
+    },
+    async generateTodos(_parent: unknown, args: GenerateTodosArgs, ctx: ResolverContext) {
+      const scope = ctx.requireOrganizationScope();
+      return createTodoAiWorkflowForContext(ctx).generateTodos(scope, args.input);
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();

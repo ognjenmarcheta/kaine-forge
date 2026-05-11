@@ -32,6 +32,26 @@ mutation CreateTodo($input: CreateTodoInput!) {
   }
 }
 
+mutation GenerateTodos($input: GenerateTodosInput!) {
+  generateTodos(input: $input) {
+    status
+    message
+    todos {
+      id
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+      }
+    }
+  }
+}
+
 mutation UpdateTodo($id: ID!, $input: UpdateTodoInput!) {
   updateTodo(id: $id, input: $input) {
     id

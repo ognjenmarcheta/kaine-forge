@@ -154,23 +154,27 @@ Server-side environment variables use plain names. Vite client variables use `VI
 
 Important runtime variables:
 
-| Variable                  | Purpose                                                          |
-| ------------------------- | ---------------------------------------------------------------- |
-| `DATABASE_URL`            | Postgres connection string                                       |
-| `BETTER_AUTH_SECRET`      | auth secret                                                      |
-| `BETTER_AUTH_URL`         | public auth/API base URL                                         |
-| `API_HOST`                | optional API listen host, for example `0.0.0.0` for LAN testing  |
-| `API_PORT`                | API port, default `4000`                                         |
-| `API_URL`                 | API URL for server/runtime references                            |
-| `API_RUN_MIGRATIONS`      | optional startup migrations; defaults to true only in production |
-| `API_CORS_ORIGINS`        | comma-separated browser/API origin allowlist                     |
-| `API_GRAPHQL_MAX_DEPTH`   | GraphQL depth limit                                              |
-| `VITE_API_PROXY_TARGET`   | Vite dev proxy target for `/api` and `/graphql`                  |
-| `VITE_API_URL`            | web API base URL                                                 |
-| `VITE_GRAPHQL_URL`        | web GraphQL URL                                                  |
-| `EXPO_PUBLIC_API_URL`     | mobile API base URL                                              |
-| `EXPO_PUBLIC_GRAPHQL_URL` | mobile GraphQL URL                                               |
-| `S3_*`                    | S3-compatible storage settings                                   |
+| Variable                  | Purpose                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`            | Postgres connection string                                              |
+| `BETTER_AUTH_SECRET`      | auth secret                                                             |
+| `BETTER_AUTH_URL`         | public auth/API base URL                                                |
+| `API_HOST`                | optional API listen host, for example `0.0.0.0` for LAN testing         |
+| `API_PORT`                | API port, default `4000`                                                |
+| `API_URL`                 | API URL for server/runtime references                                   |
+| `API_RUN_MIGRATIONS`      | optional startup migrations; defaults to true only in production        |
+| `API_CORS_ORIGINS`        | comma-separated browser/API origin allowlist                            |
+| `API_GRAPHQL_MAX_DEPTH`   | GraphQL depth limit                                                     |
+| `AI_TODO_PROVIDER`        | optional AI todo provider, `openai` or `deepseek`; defaults to `openai` |
+| `AI_TODO_MODEL`           | optional model override for the selected AI todo provider               |
+| `OPENAI_API_KEY`          | required for AI todos when `AI_TODO_PROVIDER` is `openai`               |
+| `DEEPSEEK_API_KEY`        | required for AI todos when `AI_TODO_PROVIDER` is `deepseek`             |
+| `VITE_API_PROXY_TARGET`   | Vite dev proxy target for `/api` and `/graphql`                         |
+| `VITE_API_URL`            | web API base URL                                                        |
+| `VITE_GRAPHQL_URL`        | web GraphQL URL                                                         |
+| `EXPO_PUBLIC_API_URL`     | mobile API base URL                                                     |
+| `EXPO_PUBLIC_GRAPHQL_URL` | mobile GraphQL URL                                                      |
+| `S3_*`                    | S3-compatible storage settings                                          |
 
 Postgres SSL is derived from `DATABASE_URL` query params. `sslmode=verify-ca` and `sslmode=verify-full` require certificate verification. Other enabled SSL modes use TLS without strict certificate verification, which works better for common managed database and local tunnel setups.
 

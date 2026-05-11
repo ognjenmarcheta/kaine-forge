@@ -40,6 +40,7 @@ export * from "./components/primitives/separator";
 export * from "./components/primitives/sheet";
 export * from "./components/primitives/skeleton";
 export * from "./components/primitives/slider";
+export * from "./components/primitives/sonner";
 export * from "./components/primitives/spinner";
 export * from "./components/primitives/tabs";
 export * from "./components/primitives/tag";

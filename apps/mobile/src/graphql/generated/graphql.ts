@@ -56,6 +56,23 @@ export type FilesFilterInput = {
   status?: InputMaybe<FileStatus>;
 };
 
+export type GenerateTodosInput = {
+  prompt: Scalars["String"]["input"];
+};
+
+export type GenerateTodosPayload = {
+  __typename?: "GenerateTodosPayload";
+  message?: Maybe<Scalars["String"]["output"]>;
+  status: GenerateTodosStatus;
+  todos: Array<Todo>;
+};
+
+export enum GenerateTodosStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Created = "CREATED",
+  Failed = "FAILED"
+}
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
@@ -63,6 +80,7 @@ export type Mutation = {
   createTodo: Todo;
   deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
@@ -82,6 +100,10 @@ export type MutationDeleteFileArgs = {
 
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationGenerateTodosArgs = {
+  input: GenerateTodosInput;
 };
 
 export type MutationRequestUploadUrlArgs = {

@@ -14,7 +14,8 @@ import {
   type SimpleFormValues
 } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { TodoCreateDialog } from "./components/todo-create-dialog";
 import { TodoEditDialog } from "./components/todo-edit-dialog";
@@ -25,6 +26,7 @@ import { ConfirmDialog } from "../../components/confirm-dialog";
 import {
   useCreateTodoMutation,
   useDeleteTodoMutation,
+  useGenerateTodosMutation,
   useGetTodosQuery,
   useToggleTodoMutation,
   useUpdateTodoMutation
@@ -59,6 +61,7 @@ export function TodosRoute() {
   const [isSimpleExampleOpen, setIsSimpleExampleOpen] = useState(false);
   const [isSimpleExampleSubmitting, setIsSimpleExampleSubmitting] = useState(false);
   const [isAdvancedExampleOpen, setIsAdvancedExampleOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
 
   const listVariables = useMemo(
     () => ({
@@ -85,6 +88,7 @@ export function TodosRoute() {
   const updateMutation = useUpdateTodoMutation();
   const deleteMutation = useDeleteTodoMutation();
   const toggleMutation = useToggleTodoMutation();
+  const generateTodosMutation = useGenerateTodosMutation();
 
   const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
 
@@ -287,6 +291,43 @@ export function TodosRoute() {
     }
   }
 
+  async function handleGenerateTodos(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const prompt = aiPrompt.trim();
+
+    if (prompt.length === 0) {
+      toast.error(t("todos.ai.promptRequired"));
+      return;
+    }
+
+    try {
+      setActionError(null);
+      const result = await generateTodosMutation.mutateAsync({
+        input: {
+          prompt
+        }
+      });
+
+      if (result.generateTodos.status === "AI_NOT_CONFIGURED") {
+        toast.error(t("todos.ai.notConfigured"));
+        return;
+      }
+
+      if (result.generateTodos.status === "CREATED") {
+        await invalidateTodos();
+        setAiPrompt("");
+        toast.success(t("todos.ai.created"));
+        return;
+      }
+
+      toast.error(t("todos.ai.failed"));
+    } catch {
+      toast.error(t("todos.ai.failed"));
+      setActionError(t("error.generic"));
+    }
+  }
+
   const isLoading = isOrganizationLoading || todosQuery.status === "pending";
   const error = actionError ?? (todosQuery.error ? t("error.generic") : null);
 
@@ -299,6 +340,31 @@ export function TodosRoute() {
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
       </header>
+
+      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
+        <div>
+          <h2>{t("todos.ai.title")}</h2>
+          <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.ai.description")}</p>
+        </div>
+        <form className="flex flex-col gap-[var(--ds-space-150)]" onSubmit={handleGenerateTodos}>
+          <Field>
+            <FieldLabel htmlFor="todos-ai-prompt">{t("todos.ai.promptLabel")}</FieldLabel>
+            <Textarea
+              id="todos-ai-prompt"
+              placeholder={t("todos.ai.promptPlaceholder")}
+              value={aiPrompt}
+              onChange={(event) => setAiPrompt(event.target.value)}
+            />
+          </Field>
+          <div>
+            <Button disabled={generateTodosMutation.status === "pending"} type="submit">
+              {generateTodosMutation.status === "pending"
+                ? t("todos.ai.generating")
+                : t("todos.ai.submit")}
+            </Button>
+          </div>
+        </form>
+      </section>
 
       <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
         <h2>{t("todos.examples.title")}</h2>

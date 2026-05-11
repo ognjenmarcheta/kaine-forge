@@ -19,17 +19,21 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^2.0.34",
+    "@ai-sdk/openai": "^3.0.63",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",
+    "ai": "^6.0.177",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",
     "graphql-ws": "^6.0.7",
     "graphql-yoga": "^5.16.0",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1"
