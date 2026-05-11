@@ -56,6 +56,23 @@ export type FilesFilterInput = {
   status?: InputMaybe<FileStatus>;
 };
 
+export type GenerateTodosInput = {
+  prompt: Scalars["String"]["input"];
+};
+
+export type GenerateTodosPayload = {
+  __typename?: "GenerateTodosPayload";
+  message?: Maybe<Scalars["String"]["output"]>;
+  status: GenerateTodosStatus;
+  todos: Array<Todo>;
+};
+
+export enum GenerateTodosStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Created = "CREATED",
+  Failed = "FAILED"
+}
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
@@ -63,6 +80,7 @@ export type Mutation = {
   createTodo: Todo;
   deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
@@ -82,6 +100,10 @@ export type MutationDeleteFileArgs = {
 
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationGenerateTodosArgs = {
+  input: GenerateTodosInput;
 };
 
 export type MutationRequestUploadUrlArgs = {
@@ -326,6 +348,34 @@ export type CreateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl?: string | null;
+    }>;
+  };
+};
+
+export type GenerateTodosMutationVariables = Exact<{
+  input: GenerateTodosInput;
+}>;
+
+export type GenerateTodosMutation = {
+  __typename?: "Mutation";
+  generateTodos: {
+    __typename?: "GenerateTodosPayload";
+    status: GenerateTodosStatus;
+    message?: string | null;
+    todos: Array<{
+      __typename?: "Todo";
+      id: string;
+      title: string;
+      description?: string | null;
+      completed: boolean;
+      attachments: Array<{
+        __typename?: "FileInfo";
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl?: string | null;
+      }>;
     }>;
   };
 };
@@ -830,6 +880,76 @@ export const CreateTodoDocument = {
     }
   ]
 } as unknown as DocumentNode<CreateTodoMutation, CreateTodoMutationVariables>;
+export const GenerateTodosDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "GenerateTodos" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "GenerateTodosInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "generateTodos" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "todos" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "completed" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "attachments" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                            { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                            { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                            { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GenerateTodosMutation, GenerateTodosMutationVariables>;
 export const UpdateTodoDocument = {
   kind: "Document",
   definitions: [

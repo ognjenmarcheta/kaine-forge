@@ -56,6 +56,23 @@ export type FilesFilterInput = {
   status?: InputMaybe<FileStatus>;
 };
 
+export type GenerateTodosInput = {
+  prompt: Scalars["String"]["input"];
+};
+
+export type GenerateTodosPayload = {
+  __typename?: "GenerateTodosPayload";
+  message?: Maybe<Scalars["String"]["output"]>;
+  status: GenerateTodosStatus;
+  todos: Array<Todo>;
+};
+
+export enum GenerateTodosStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Created = "CREATED",
+  Failed = "FAILED"
+}
+
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
@@ -63,6 +80,7 @@ export type Mutation = {
   createTodo: Todo;
   deleteFile: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
+  generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
   toggleTodo: Todo;
   updateTodo: Todo;
@@ -82,6 +100,10 @@ export type MutationDeleteFileArgs = {
 
 export type MutationDeleteTodoArgs = {
   id: Scalars["ID"]["input"];
+};
+
+export type MutationGenerateTodosArgs = {
+  input: GenerateTodosInput;
 };
 
 export type MutationRequestUploadUrlArgs = {
@@ -326,6 +348,34 @@ export type CreateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl?: string | null;
+    }>;
+  };
+};
+
+export type GenerateTodosMutationVariables = Exact<{
+  input: GenerateTodosInput;
+}>;
+
+export type GenerateTodosMutation = {
+  __typename?: "Mutation";
+  generateTodos: {
+    __typename?: "GenerateTodosPayload";
+    status: GenerateTodosStatus;
+    message?: string | null;
+    todos: Array<{
+      __typename?: "Todo";
+      id: string;
+      title: string;
+      description?: string | null;
+      completed: boolean;
+      attachments: Array<{
+        __typename?: "FileInfo";
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl?: string | null;
+      }>;
     }>;
   };
 };
@@ -712,6 +762,47 @@ export const useCreateTodoMutation = <TError = unknown, TContext = unknown>(
 };
 
 useCreateTodoMutation.getKey = () => ["CreateTodo"];
+
+export const GenerateTodosDocument = `
+    mutation GenerateTodos($input: GenerateTodosInput!) {
+  generateTodos(input: $input) {
+    status
+    message
+    todos {
+      id
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+      }
+    }
+  }
+}
+    `;
+
+export const useGenerateTodosMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    GenerateTodosMutation,
+    TError,
+    GenerateTodosMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<GenerateTodosMutation, TError, GenerateTodosMutationVariables, TContext>({
+    mutationKey: ["GenerateTodos"],
+    mutationFn: useGraphqlFetcher<GenerateTodosMutation, GenerateTodosMutationVariables>(
+      GenerateTodosDocument
+    ),
+    ...options
+  });
+};
+
+useGenerateTodosMutation.getKey = () => ["GenerateTodos"];
 
 export const UpdateTodoDocument = `
     mutation UpdateTodo($id: ID!, $input: UpdateTodoInput!) {

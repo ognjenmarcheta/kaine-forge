@@ -6,6 +6,7 @@
   "common.loadingSession": "Sitzung wird geladen...",
   "common.nameLabel": "Vollstandiger Name",
   "common.notAvailable": "-",
+  "common.notifications": "Benachrichtigungen",
   "common.passwordLabel": "Passwort",
   "common.confirmPasswordLabel": "Passwort bestatigen",
   "button.save": "Speichern",
