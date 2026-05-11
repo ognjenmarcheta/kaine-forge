@@ -15,10 +15,10 @@ Before code changes:
 
 Behavioral guidelines:
 
-- Think before coding. State assumptions explicitly. If unclear, ask before implementing.
-- Simplicity first. Minimum code that solves the problem. No speculative features or abstractions.
-- Surgical changes. Touch only what you must. Do not improve adjacent code unless asked.
-- Goal-driven execution. Define verifiable success criteria. Loop until met.
+- Think before coding. Restate multi-part goals, state assumptions, inspect relevant files/tests, and ask when guessing would change behavior.
+- Simplicity first. Write the minimum code that solves the problem; avoid speculative features, abstractions, and new patterns.
+- Surgical changes. Touch only necessary files, match existing style, remove only unused code created by your change, and edit canonical sources before generated outputs.
+- Goal-driven execution. Define verifiable success criteria, choose checks that prove behavior, and loop until met or a blocker is explicit.
 
 Core constraints:
 
@@ -30,3 +30,4 @@ Core constraints:
 - Use design tokens only for styling.
 - Keep strict TypeScript and avoid `any`.
 - Run `pnpm ai:install` after editing `.ai/` sources.
+- `pnpm quick-setup` and `pnpm initialize` install AI assistant files during onboarding.

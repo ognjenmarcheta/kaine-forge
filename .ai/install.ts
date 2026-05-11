@@ -14,19 +14,18 @@ import {
   KAINE_PREFIX,
   LOCAL_MCP_SRC,
   MCP_JSON_EXAMPLE_SRC,
+  missingEnvVarsForMcpServers,
   mcpEnvValue,
-  type McpServer,
   type McpSource,
   mergeMcpSources,
-  publicMcpServer,
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
   readPersonalMcpSource,
-  referencedEnvVars,
   REPO_ROOT,
   renderAgentDoc,
   renderClaudeImport,
+  renderClaudeSettings,
   renderClaudeSkill,
   renderCodexConfig,
   renderCodexSkill,
@@ -37,6 +36,7 @@ import {
   renderOpencodeSkill,
   renderSerenaMemory,
   renderSerenaProject,
+  resolveInstallMcpSource,
   SERENA_MEMORIES_SRC_DIR,
   SERENA_PROJECT_SRC,
   type Skill,
@@ -49,11 +49,6 @@ interface InstallOptions {
   skills: string[];
   mcps: string[];
   nonInteractive: boolean;
-}
-
-interface ResolvedMcpSource {
-  source: McpSource;
-  skipped: string[];
 }
 
 let localMcpEnv: Record<string, string> = {};
@@ -277,69 +272,6 @@ const parseArgs = (): InstallOptions => {
   };
 };
 
-const envValue = (value: string): string | null => {
-  const fullMatch = value.match(/^\$\{([A-Z0-9_]+)(?::-(.*))?}$/);
-  if (!fullMatch) {
-    return value;
-  }
-
-  const envName = fullMatch[1]!;
-  const fallback = fullMatch[2];
-  return mcpEnvValue(envName, localMcpEnv) ?? fallback ?? null;
-};
-
-const resolveServerEnv = (server: McpServer): McpServer | null => {
-  if (!server.env) {
-    return publicMcpServer(server);
-  }
-
-  const env: Record<string, string> = {};
-  for (const [key, value] of Object.entries(server.env)) {
-    const resolved = envValue(value);
-    if (resolved === null) {
-      return null;
-    }
-    env[key] = resolved;
-  }
-
-  return publicMcpServer({ ...server, env });
-};
-
-const resolveMcpSource = (
-  source: McpSource,
-  options: InstallOptions,
-  agent: Agent,
-  personalNames: Set<string>
-): ResolvedMcpSource => {
-  const selected = new Set(options.mcps);
-  const includeAll = selected.has("all") || selected.size === 0;
-  const mcpServers: Record<string, McpServer> = {};
-  const skipped: string[] = [];
-
-  for (const [name, server] of Object.entries(source.mcpServers)) {
-    const agents = server.agents ?? [...ALL_AGENTS];
-    if (!agents.includes(agent)) {
-      continue;
-    }
-    if (!includeAll && !selected.has(name)) {
-      continue;
-    }
-    if (server.default === false && !personalNames.has(name) && selected.size === 0) {
-      continue;
-    }
-
-    const resolved = resolveServerEnv(server);
-    if (!resolved) {
-      skipped.push(name);
-      continue;
-    }
-
-    mcpServers[name] = resolved;
-  }
-
-  return { source: { mcpServers }, skipped };
-};
-
 const selectSkills = (
   options: InstallOptions,
   allSkills: Skill[]
@@ -476,11 +408,17 @@ const installAgent = (
     }
   }
 
-  const resolved = resolveMcpSource(mergedMcp, options, agent, personalMcpNames);
+  const resolved = resolveInstallMcpSource(mergedMcp, {
+    agent,
+    mcps: options.mcps,
+    personalNames: personalMcpNames,
+    localEnv: localMcpEnv
+  });
   skippedMcps.push(...resolved.skipped);
 
   if (agent === "claude") {
     writeGenerated(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
+    writeGenerated(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
   }
   if (agent === "codex") {
     writeGenerated(
@@ -640,9 +578,7 @@ const main = async (): Promise<void> => {
   }
 
   if (skippedMcps.size > 0) {
-    const missingVars = referencedEnvVars(JSON.stringify(merged.source)).filter(
-      (name) => !mcpEnvValue(name, localMcpEnv)
-    );
+    const missingVars = missingEnvVarsForMcpServers(merged.source, skippedMcps, localMcpEnv);
     console.log();
     console.log(chalk.yellow(`⚠ Skipped MCP server(s): ${[...skippedMcps].sort().join(", ")}`));
     console.log(chalk.gray(`  Missing env vars: ${missingVars.join(", ")}`));

@@ -47,10 +47,10 @@ pnpm --filter @repo/mobile-ui typecheck
 ## One-Command Bootstrap
 
 ```bash
-pnpm initialize
+pnpm quick-setup
 ```
 
-`initialize` reinstalls dependencies, builds the repo, generates/pushes/seeds the database, then starts development tasks.
+`quick-setup` runs the same bootstrap as `initialize`: it reinstalls dependencies, installs local AI assistant files, builds the repo, generates/pushes/seeds the database, then starts development tasks.
 
 ## Environment
 
@@ -140,6 +140,8 @@ Run after changing canonical AI files:
 pnpm ai:install
 pnpm ai:doctor
 ```
+
+Initial setup also runs `pnpm ai:install` through `pnpm quick-setup` and `pnpm initialize`, so generated assistant files are available before normal development starts.
 
 Installed agent outputs are local and gitignored, including `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`. Personal MCP values and overrides live in `.ai.local/`.
 

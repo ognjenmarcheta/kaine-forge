@@ -8,6 +8,16 @@
             "command": "uvx --from git+https://github.com/oraios/serena serena prompts print-cc-system-prompt-override || echo 'warning: serena prompt unavailable, run pnpm ai:doctor'"
           }
         ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs\" --agent claude",
+            "statusMessage": "Loading Kaine Forge AI context"
+          }
+        ]
       }
     ]
   }

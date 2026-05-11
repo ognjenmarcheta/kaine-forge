@@ -22,6 +22,7 @@ import {
   REPO_ROOT,
   renderAgentDoc,
   renderClaudeImport,
+  renderClaudeSettings,
   renderClaudeSkill,
   renderCodexSkill,
   renderCursorSkill,
@@ -155,7 +156,12 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
       path: join(REPO_ROOT, "AGENTS.md"),
       content: renderAgentDoc(readGuideSource(), skills)
     },
-    { label: "CLAUDE.md", path: join(REPO_ROOT, "CLAUDE.md"), content: renderClaudeImport() }
+    { label: "CLAUDE.md", path: join(REPO_ROOT, "CLAUDE.md"), content: renderClaudeImport() },
+    {
+      label: ".claude/settings.json",
+      path: join(REPO_ROOT, ".claude", "settings.json"),
+      content: renderClaudeSettings()
+    }
   ];
 
   for (const file of expectedAgents) {
@@ -191,6 +197,24 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
       } else if (readFileSync(filePath, "utf8") !== content) {
         drift.push({ label: `.serena/memories/${fileName}`, status: "stale" });
       }
+    }
+  }
+
+  return drift;
+};
+
+const computeHookDrift = (): FileDrift[] => {
+  const drift: FileDrift[] = [];
+  const codexConfig = join(REPO_ROOT, ".codex", "config.toml");
+
+  if (existsSync(codexConfig)) {
+    const content = readFileSync(codexConfig, "utf8");
+    if (
+      !content.includes("[[hooks.SessionStart]]") ||
+      !content.includes(".ai/hooks/session-start.mjs") ||
+      !content.includes("codex_hooks = true")
+    ) {
+      drift.push({ label: ".codex/config.toml hooks", status: "stale" });
     }
   }
 
@@ -299,11 +323,12 @@ const main = (): void => {
   } else {
     const fileDrift = computeSharedDrift(skills);
     const skillDrift = computeSkillDrift(skills);
+    const hookDrift = computeHookDrift();
 
-    if (fileDrift.length === 0 && skillDrift.length === 0) {
+    if (fileDrift.length === 0 && skillDrift.length === 0 && hookDrift.length === 0) {
       console.log(`  ${chalk.green("✓")}  no drift detected`);
     } else {
-      for (const entry of fileDrift) {
+      for (const entry of [...fileDrift, ...hookDrift]) {
         console.log(
           `  ${chalk.yellow("⚠")}  ${entry.label.padEnd(28)}  ${entry.status}   ${chalk.gray("(run: pnpm ai:install)")}`
         );

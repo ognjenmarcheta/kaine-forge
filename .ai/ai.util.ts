@@ -60,6 +60,18 @@ export interface MergedMcpSource {
   personalNames: Set<string>;
 }
 
+export interface ResolveInstallMcpSourceOptions {
+  agent: Agent;
+  mcps: string[];
+  personalNames: Set<string>;
+  localEnv: Record<string, string>;
+}
+
+export interface ResolvedInstallMcpSource {
+  source: McpSource;
+  skipped: string[];
+}
+
 export interface LintIssue {
   file: string;
   level: "error" | "warning";
@@ -337,6 +349,40 @@ export const renderAgentDoc = (guide: string, skills: Skill[]): string =>
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
 
+const AI_CONTEXT_HOOK_COMMAND =
+  'node "$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs"';
+
+export const renderClaudeSettings = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command:
+                  "uvx --from git+https://github.com/oraios/serena serena prompts print-cc-system-prompt-override || echo 'warning: serena prompt unavailable, run pnpm ai:doctor'"
+              }
+            ]
+          },
+          {
+            matcher: "startup|resume",
+            hooks: [
+              {
+                type: "command",
+                command: `${AI_CONTEXT_HOOK_COMMAND} --agent claude`,
+                statusMessage: "Loading Kaine Forge AI context"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    null,
+    2
+  )}\n`;
+
 export const renderClaudeSkill = (skill: Skill): string =>
   `---\n${skill.frontmatterRaw}\n---\n${HTML_HEADER}\n\n${skill.body}`;
 
@@ -380,8 +426,116 @@ export const publicMcpServer = (server: McpServer): McpServer => {
   return result;
 };
 
+const mcpEnvPlaceholderValue = (value: string, localEnv: Record<string, string>): string | null => {
+  const fullMatch = value.match(/^\$\{([A-Z0-9_]+)(?::-(.*))?}$/);
+  if (!fullMatch) {
+    return value;
+  }
+
+  const envName = fullMatch[1]!;
+  const fallback = fullMatch[2];
+  return mcpEnvValue(envName, localEnv) ?? fallback ?? null;
+};
+
+const resolveMcpServerEnv = (
+  server: McpServer,
+  localEnv: Record<string, string>
+): McpServer | null => {
+  if (!server.env) {
+    return publicMcpServer(server);
+  }
+
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(server.env)) {
+    const resolved = mcpEnvPlaceholderValue(value, localEnv);
+    if (resolved === null) {
+      return null;
+    }
+    env[key] = resolved;
+  }
+
+  return publicMcpServer({ ...server, env });
+};
+
+export const resolveInstallMcpSource = (
+  source: McpSource,
+  options: ResolveInstallMcpSourceOptions
+): ResolvedInstallMcpSource => {
+  const selected = new Set(options.mcps);
+  const includeAll = selected.has("all") || selected.size === 0;
+  const mcpServers: Record<string, McpServer> = {};
+  const skipped: string[] = [];
+
+  for (const [name, server] of Object.entries(source.mcpServers)) {
+    const agents = server.agents ?? [...ALL_AGENTS];
+    const isPersonal = options.personalNames.has(name);
+    if (!agents.includes(options.agent)) {
+      continue;
+    }
+    if (!includeAll && !selected.has(name) && !isPersonal) {
+      continue;
+    }
+    if (server.default === false && !isPersonal && selected.size === 0) {
+      continue;
+    }
+
+    const resolved = resolveMcpServerEnv(server, options.localEnv);
+    if (!resolved) {
+      skipped.push(name);
+      continue;
+    }
+
+    mcpServers[name] = resolved;
+  }
+
+  return { source: { mcpServers }, skipped };
+};
+
+export const missingEnvVarsForMcpServers = (
+  source: McpSource,
+  serverNames: Iterable<string>,
+  localEnv: Record<string, string>
+): string[] => {
+  const missing = new Set<string>();
+
+  for (const name of serverNames) {
+    const server = source.mcpServers[name];
+    if (!server?.env) {
+      continue;
+    }
+
+    for (const value of Object.values(server.env)) {
+      const match = value.match(/^\$\{([A-Z0-9_]+)(?::-(.*))?}$/);
+      if (!match) {
+        continue;
+      }
+      const envName = match[1]!;
+      const fallback = match[2];
+      if (fallback === undefined && mcpEnvValue(envName, localEnv) === undefined) {
+        missing.add(envName);
+      }
+    }
+  }
+
+  return [...missing].sort((left, right) => left.localeCompare(right));
+};
+
 export const renderCodexConfig = (source: McpSource): string => {
-  const lines: string[] = [TOML_HEADER, ""];
+  const lines: string[] = [
+    TOML_HEADER,
+    "",
+    "[features]",
+    "codex_hooks = true",
+    "",
+    "[[hooks.SessionStart]]",
+    'matcher = "startup|resume"',
+    "",
+    "[[hooks.SessionStart.hooks]]",
+    'type = "command"',
+    `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
+    'statusMessage = "Loading Kaine Forge AI context"',
+    ""
+  ];
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
     lines.push(`[mcp_servers.${name}]`);
