@@ -236,7 +236,8 @@ describe("renderCodexConfig", () => {
       mcpServers: { foo: { command: "foo-bin" } }
     });
     expect(toml).toContain("[features]");
-    expect(toml).toContain("codex_hooks = true");
+    expect(toml).toContain("hooks = true");
+    expect(toml).not.toContain("codex_hooks = true");
     expect(toml).toContain("[[hooks.SessionStart]]");
     expect(toml).toContain('matcher = "startup|resume"');
     expect(toml).toContain("[[hooks.SessionStart.hooks]]");

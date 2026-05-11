@@ -212,7 +212,8 @@ const computeHookDrift = (): FileDrift[] => {
     if (
       !content.includes("[[hooks.SessionStart]]") ||
       !content.includes(".ai/hooks/session-start.mjs") ||
-      !content.includes("codex_hooks = true")
+      !content.includes("hooks = true") ||
+      content.includes("codex_hooks = true")
     ) {
       drift.push({ label: ".codex/config.toml hooks", status: "stale" });
     }

@@ -525,7 +525,7 @@ export const renderCodexConfig = (source: McpSource): string => {
     TOML_HEADER,
     "",
     "[features]",
-    "codex_hooks = true",
+    "hooks = true",
     "",
     "[[hooks.SessionStart]]",
     'matcher = "startup|resume"',
