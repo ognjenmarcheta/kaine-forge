@@ -4,16 +4,17 @@ The committed AI setup is split into shared canonical sources and local install 
 
 ## Shared, committed
 
-| Path                       | Purpose                                                               |
-| -------------------------- | --------------------------------------------------------------------- |
-| `AGENTS.md`                | Generated repository instructions for all agents from `.ai/guide.md`. |
-| `CLAUDE.md`                | One-line `@AGENTS.md` import.                                         |
-| `.ai/guide.md`             | Canonical guide content for AGENTS/Claude.                            |
-| `.ai/skills/kaine-*.md`    | Shared skill sources. Names must start with `kaine-`.                 |
-| `.ai/mcp.json`             | Shared MCP server catalog. Secrets stay in local env vars.            |
-| `.ai/cursor-rules.md`      | Cursor rule source, installed locally only when requested.            |
-| `.ai/serena-project.yml`   | Canonical Serena project source.                                      |
-| `.ai/serena-memories/*.md` | Canonical Serena memory sources.                                      |
+| Path                          | Purpose                                                               |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `AGENTS.md`                   | Generated repository instructions for all agents from `.ai/guide.md`. |
+| `CLAUDE.md`                   | One-line `@AGENTS.md` import.                                         |
+| `.ai/guide.md`                | Canonical guide content for AGENTS/Claude.                            |
+| `.ai/skills/kaine-*.md`       | Shared skill sources. Names must start with `kaine-`.                 |
+| `.ai/mcp.json`                | Shared MCP server catalog. Secrets stay in local env vars.            |
+| `.ai/cursor-rules.md`         | Cursor rule source, installed locally only when requested.            |
+| `.ai/serena-project.yml`      | Canonical Serena project source.                                      |
+| `.ai/serena-memories/*.md`    | Canonical Serena memory sources.                                      |
+| `.ai/hooks/session-start.mjs` | Shared Codex/Claude startup context hook.                             |
 
 ## Local, gitignored
 
@@ -24,7 +25,7 @@ The committed AI setup is split into shared canonical sources and local install 
 | `.cursor/skills/kaine-<name>/SKILL.md`                            | Installed Cursor skills.                                                     |
 | `.opencode/skills/kaine-<name>/SKILL.md`                          | Installed OpenCode skills.                                                   |
 | `.mcp.json`                                                       | Installed Claude MCP config.                                                 |
-| `.codex/config.toml`                                              | Installed Codex MCP config.                                                  |
+| `.codex/config.toml`                                              | Installed Codex MCP and SessionStart hook config.                            |
 | `.cursor/mcp.json`, `.cursor/rules/`                              | Installed Cursor config.                                                     |
 | `opencode.json`                                                   | Installed OpenCode MCP config.                                               |
 | `.ai.local/mcp.env`                                               | Personal env-var values for `${VAR}` substitution.                           |
@@ -55,9 +56,13 @@ pnpm ai:install --agent opencode
 pnpm ai:doctor
 ```
 
-`pnpm ai:install` installs local skills and MCP config for the selected agent. With no flags it prompts interactively. It writes gitignored files; team skills are always overwritten so the team source is the source of truth.
+`pnpm ai:install` installs local skills, MCP config, and supported SessionStart hooks for the selected agent. With no flags it prompts interactively. It writes gitignored files; team skills are always overwritten so the team source is the source of truth.
 
 `pnpm ai:doctor` reports local install status, MCP command availability, missing environment variables, skill lint errors, and drift. It exits non-zero if any skill fails lint.
+
+## Session Hooks
+
+Codex and Claude load `.ai/hooks/session-start.mjs` at session startup or resume. The hook prints compact context for the agent: repo name, branch, worktree status, and AI setup health. It only warns; it does not block commands or edits. If it reports stale or missing setup, run `pnpm ai:install --agent <agent>` and `pnpm ai:doctor`.
 
 ## Serena
 

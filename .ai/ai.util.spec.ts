@@ -8,6 +8,7 @@ import {
   referencedEnvVars,
   renderAgentDoc,
   renderClaudeImport,
+  renderClaudeSettings,
   renderCodexConfig,
   renderCursorRulesFile,
   renderCursorSkill,
@@ -228,6 +229,50 @@ describe("renderCodexConfig", () => {
     });
     expect(toml).toContain("[mcp_servers.mcp-atlassian]");
     expect(toml).toContain("[mcp_servers.mcp-atlassian.env]");
+  });
+
+  it("installs the Codex SessionStart hook", () => {
+    const toml = renderCodexConfig({
+      mcpServers: { foo: { command: "foo-bin" } }
+    });
+    expect(toml).toContain("[features]");
+    expect(toml).toContain("codex_hooks = true");
+    expect(toml).toContain("[[hooks.SessionStart]]");
+    expect(toml).toContain('matcher = "startup|resume"');
+    expect(toml).toContain("[[hooks.SessionStart.hooks]]");
+    expect(toml).toContain('type = "command"');
+    expect(toml).toContain(
+      'command = "node \\"$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs\\" --agent codex"'
+    );
+  });
+});
+
+describe("renderClaudeSettings", () => {
+  it("installs Serena and AI context SessionStart hooks", () => {
+    const settings = JSON.parse(renderClaudeSettings()) as {
+      hooks: {
+        SessionStart: Array<{
+          matcher?: string;
+          hooks: Array<{ type: string; command: string; statusMessage?: string }>;
+        }>;
+      };
+    };
+
+    expect(settings.hooks.SessionStart).toHaveLength(2);
+    expect(settings.hooks.SessionStart[0]?.hooks[0]?.command).toContain(
+      "serena prompts print-cc-system-prompt-override"
+    );
+    expect(settings.hooks.SessionStart[1]).toEqual({
+      matcher: "startup|resume",
+      hooks: [
+        {
+          type: "command",
+          command:
+            'node "$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs" --agent claude',
+          statusMessage: "Loading Kaine Forge AI context"
+        }
+      ]
+    });
   });
 });
 

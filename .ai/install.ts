@@ -25,6 +25,7 @@ import {
   REPO_ROOT,
   renderAgentDoc,
   renderClaudeImport,
+  renderClaudeSettings,
   renderClaudeSkill,
   renderCodexConfig,
   renderCodexSkill,
@@ -417,6 +418,7 @@ const installAgent = (
 
   if (agent === "claude") {
     writeGenerated(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
+    writeGenerated(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
   }
   if (agent === "codex") {
     writeGenerated(

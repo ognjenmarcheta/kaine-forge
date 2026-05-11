@@ -349,6 +349,40 @@ export const renderAgentDoc = (guide: string, skills: Skill[]): string =>
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
 
+const AI_CONTEXT_HOOK_COMMAND =
+  'node "$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs"';
+
+export const renderClaudeSettings = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command:
+                  "uvx --from git+https://github.com/oraios/serena serena prompts print-cc-system-prompt-override || echo 'warning: serena prompt unavailable, run pnpm ai:doctor'"
+              }
+            ]
+          },
+          {
+            matcher: "startup|resume",
+            hooks: [
+              {
+                type: "command",
+                command: `${AI_CONTEXT_HOOK_COMMAND} --agent claude`,
+                statusMessage: "Loading Kaine Forge AI context"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    null,
+    2
+  )}\n`;
+
 export const renderClaudeSkill = (skill: Skill): string =>
   `---\n${skill.frontmatterRaw}\n---\n${HTML_HEADER}\n\n${skill.body}`;
 
@@ -487,7 +521,21 @@ export const missingEnvVarsForMcpServers = (
 };
 
 export const renderCodexConfig = (source: McpSource): string => {
-  const lines: string[] = [TOML_HEADER, ""];
+  const lines: string[] = [
+    TOML_HEADER,
+    "",
+    "[features]",
+    "codex_hooks = true",
+    "",
+    "[[hooks.SessionStart]]",
+    'matcher = "startup|resume"',
+    "",
+    "[[hooks.SessionStart.hooks]]",
+    'type = "command"',
+    `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
+    'statusMessage = "Loading Kaine Forge AI context"',
+    ""
+  ];
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
     lines.push(`[mcp_servers.${name}]`);
