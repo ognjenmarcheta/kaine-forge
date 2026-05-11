@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  missingEnvVarsForMcpServers,
   mergeMcpSources,
   parseSkillFile,
   publicMcpServer,
@@ -14,7 +15,8 @@ import {
   renderOpencodeConfig,
   renderOpencodeSkill,
   renderSerenaMemory,
-  renderSerenaProject
+  renderSerenaProject,
+  resolveInstallMcpSource
 } from "./ai.util";
 
 const baseFrontmatter = (extra: string): string =>
@@ -320,5 +322,75 @@ describe("mergeMcpSources", () => {
     );
     expect(merged.collisions).toEqual(["shared"]);
     expect(merged.source.mcpServers.shared).toEqual({ command: "t" });
+  });
+});
+
+describe("resolveInstallMcpSource", () => {
+  it("keeps compatible personal MCPs when explicit team MCPs are selected", () => {
+    const resolved = resolveInstallMcpSource(
+      {
+        mcpServers: {
+          context7: { command: "context7-bin", agents: ["codex"] },
+          firecrawl: { command: "firecrawl-bin", default: false, agents: ["codex"] },
+          personal: { command: "personal-bin", agents: ["codex"] },
+          "personal-claude": { command: "personal-claude-bin", agents: ["claude"] }
+        }
+      },
+      {
+        agent: "codex",
+        mcps: ["context7"],
+        personalNames: new Set(["personal", "personal-claude"]),
+        localEnv: {}
+      }
+    );
+
+    expect(Object.keys(resolved.source.mcpServers).sort()).toEqual(["context7", "personal"]);
+  });
+
+  it("keeps team opt-in MCPs opt-in by default", () => {
+    const resolved = resolveInstallMcpSource(
+      {
+        mcpServers: {
+          context7: { command: "context7-bin" },
+          firecrawl: { command: "firecrawl-bin", default: false }
+        }
+      },
+      {
+        agent: "codex",
+        mcps: [],
+        personalNames: new Set(),
+        localEnv: {}
+      }
+    );
+
+    expect(Object.keys(resolved.source.mcpServers)).toEqual(["context7"]);
+  });
+});
+
+describe("missingEnvVarsForMcpServers", () => {
+  it("reports missing env vars only for skipped MCP servers", () => {
+    const missing = missingEnvVarsForMcpServers(
+      {
+        mcpServers: {
+          skipped: {
+            command: "skipped-bin",
+            env: {
+              TOKEN: "${SKIPPED_TOKEN}",
+              URL: "${SKIPPED_URL:-https://example.com}"
+            }
+          },
+          unrelated: {
+            command: "unrelated-bin",
+            env: {
+              TOKEN: "${UNRELATED_TOKEN}"
+            }
+          }
+        }
+      },
+      ["skipped"],
+      {}
+    );
+
+    expect(missing).toEqual(["SKIPPED_TOKEN"]);
   });
 });

@@ -29,6 +29,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 ## Common Commands
 
 - Install dependencies: `pnpm install`
+- Run onboarding bootstrap: `pnpm quick-setup`
 - Run all dev tasks: `pnpm dev`
 - Generate GraphQL artifacts: `pnpm generate`
 - Run full check: `pnpm check`
@@ -43,18 +44,48 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 
 ## AI Behavioral Guidelines
 
-Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's observations):
+Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's observations and related agent workflow guidance):
 
-- **Think before coding.** State assumptions explicitly. If multiple interpretations exist, present them instead of picking silently. Push back when a simpler approach exists. If something is unclear, stop and ask.
-- **Simplicity first.** Write the minimum code that solves the problem. No unrequested features, no abstractions for single-use code, no speculative flexibility or error handling for impossible scenarios. If 200 lines could be 50, rewrite it.
-- **Surgical changes.** Touch only what you must. Do not improve adjacent code, comments, or formatting. Match existing style. Remove imports/variables that your changes made unused, but do not remove pre-existing dead code unless asked.
-- **Goal-driven execution.** Transform tasks into verifiable goals. For multi-step work, state a brief plan with verification checks. Loop until success criteria are met.
+### Think Before Coding
+
+- Restate the goal in concrete terms before editing when the request has multiple moving parts.
+- State assumptions explicitly. If two interpretations would produce different code, surface the fork instead of choosing silently.
+- Read the relevant existing files and tests first. Let the current architecture, naming, and package boundaries shape the change.
+- Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
+- If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
+
+### Simplicity First
+
+- Write the minimum code that solves the stated problem.
+- Avoid unrequested features, speculative options, broad abstractions, and error handling for impossible states.
+- Prefer existing helpers and conventions over new frameworks, new patterns, or one-off infrastructure.
+- If a direct implementation is clearer than a generic abstraction, keep it direct.
+- If a solution is growing large, pause and look for the smaller design before continuing.
+
+### Surgical Changes
+
+- Touch only the files needed for the requested outcome.
+- Preserve existing style, naming, file layout, imports, and formatting outside the changed lines.
+- Do not improve adjacent code, comments, tests, or docs unless that work is required for the task.
+- Remove imports, variables, and helper code that your change made unused. Do not remove pre-existing dead code unless asked.
+- Keep generated files in their normal flow. Edit canonical sources, then run the generator.
+
+### Goal-Driven Execution
+
+- Convert the request into verifiable goals and use those goals to choose tests and checks.
+- For multi-step work, state a brief plan with the verification for each meaningful step.
+- Prefer behavioral proof over implementation trivia. A good check proves the user-visible or contract-level result.
+- Examples of verifiable goals:
+  - "When `--mcp context7` is selected, compatible personal MCPs still appear in the generated agent config."
+  - "When one MCP is skipped for missing env, the warning lists only env vars needed by that skipped MCP."
+  - "After editing canonical `.ai/` sources, `pnpm ai:install` updates generated assistant outputs and `pnpm ai:doctor` reports no drift."
+- Loop until the success criteria are met or a blocker is made explicit.
 
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
 ## AI Skills
 
-Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, and Serena seed files. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, and local per-agent installs stay aligned. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
+Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, and Serena seed files. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, and local per-agent installs stay aligned. `pnpm quick-setup` and `pnpm initialize` also run `pnpm ai:install` during onboarding after dependency installation. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
 
 Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and leaves your personal copies alone.
 
