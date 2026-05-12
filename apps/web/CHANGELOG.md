@@ -1,5 +1,13 @@
 # @repo/web
 
+## 1.2.10
+
+### Patch Changes
+
+- d5f6d92: Add AI todo generation with OpenAI and DeepSeek provider support.
+- Updated dependencies [d5f6d92]
+  - @repo/ui@1.1.2
+
 ## 1.2.9
 
 ### Patch Changes

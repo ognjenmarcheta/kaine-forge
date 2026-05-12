@@ -1,5 +1,11 @@
 # @repo/mobile
 
+## 1.2.11
+
+### Patch Changes
+
+- d5f6d92: Add AI todo generation with OpenAI and DeepSeek provider support.
+
 ## 1.2.10
 
 ### Patch Changes
