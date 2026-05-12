@@ -17,6 +17,8 @@ When adopting this template for a product repository, remove this `TEMPLATE_POLI
 - Consistent: shared foundations should make components predictable across apps.
 - Accessible by default: color, focus, keyboard navigation, and content structure must be usable without after-the-fact fixes.
 - Adaptable: the system must work across light/dark themes, browser, Tauri webview, and React Native mobile surfaces.
+- Intentional: before UI work, identify the audience, task, tone, constraints, and one product-specific design choice that prevents the interface from feeling generic.
+- Domain-fit: SaaS, admin, and operational tools should favor dense, scannable, work-focused layouts; more expressive composition belongs only where the product domain calls for it.
 
 ## 2. Platform Split
 
@@ -221,6 +223,7 @@ Rules:
 - New theme values should redefine tokens, not component internals.
 - No secrets or runtime environment values belong in theme files.
 - Use `prefers-reduced-motion` protections for motion-heavy patterns.
+- Use motion to clarify orientation, feedback, or state transitions. Prefer a few deliberate transitions over scattered effects.
 
 ## 9. Web/Desktop Styling
 
@@ -271,6 +274,13 @@ Rules:
 
 Use full-width sections or app-shell regions for page structure. Cards are for individual repeated items, dialogs, or clearly framed controls. Do not put cards inside cards.
 
+Composition rules:
+
+- Start with the workflow shape: navigation, primary task, supporting context, and secondary actions.
+- Avoid generic stacks of floating cards when a tighter app shell, table, split view, toolbar, or full-width section communicates the task better.
+- Use asymmetry, contrast, or distinctive structure only when it improves hierarchy, scanning, or product character.
+- Keep app and tool screens usable first. Landing-page treatment, oversized hero typography, and decorative storytelling do not belong in routine workflow surfaces.
+
 Common patterns:
 
 - App shell: header, sidebar/drawer, main content.
@@ -299,6 +309,8 @@ Baseline:
 - Do not use decorative gradient orbs, bokeh blobs, or one-note palettes.
 - Avoid dominant purple/purple-blue gradients, beige/cream/sand/tan, dark blue/slate, and brown/orange/espresso themes unless a product-specific design decision overrides the template.
 - Use real images only when the experience calls for them; do not add marketing imagery to app/tool screens by default.
+- Avoid generic AI-generated frontend defaults: vague glassmorphism, context-free gradients, dramatic blur, fake stock atmosphere, and ornamental effects that do not explain the product.
+- Visual detail should come from the product domain, data, workflow, or brand direction rather than decoration.
 - Games and simulations need actual visual assets or code-native visuals, but this template is not a game scaffold.
 
 ## 14. Implementation Checklist
@@ -310,5 +322,7 @@ Before shipping UI work:
 - Visual values use `--ds-*` tokens or mapped Tailwind utilities.
 - Focus, keyboard, touch, loading, empty, disabled, error, and success states are covered.
 - Layout remains stable as content and state change.
+- UI composition has a clear audience, task, tone, and product-specific design choice.
+- Motion, imagery, and visual effects have a functional or domain-specific purpose.
 - Tests cover behavior that can regress.
 - `pnpm format:check`, `pnpm lint`, and relevant type/tests pass.

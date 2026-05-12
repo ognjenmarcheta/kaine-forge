@@ -34,5 +34,7 @@ apps/e2e/test-results/
 .opencode/
 opencode.json
 .augment/
+.serena/.gitignore
 .serena/cache/
+.serena/project.local.yml
 *.pkl
