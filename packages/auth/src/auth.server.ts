@@ -1,7 +1,14 @@
 import { db, sessionsTable, usersTable } from "@repo/db";
+import { createEmailSender } from "@repo/email";
 import { eq } from "drizzle-orm";
 
 import { getServerAuthConfig } from "./auth.config";
+import {
+  acceptInvitation,
+  createInvitationForScope,
+  listInvitationsForScope,
+  revokeInvitationForScope
+} from "./auth.server.invitation";
 import {
   createOwnedOrganizationForUser,
   ensurePersonalOrganizationForUser,
@@ -34,6 +41,8 @@ export function createServerAuth(): ServerAuth {
   if (!config.secret) {
     throw new Error("BETTER_AUTH_SECRET is required");
   }
+
+  const emailSender = createEmailSender();
 
   return {
     async getSessionFromHeaders(headers) {
@@ -234,6 +243,18 @@ export function createServerAuth(): ServerAuth {
     },
     listOrganizationMembersByScope(scope) {
       return listOrganizationMembersForScope(scope);
+    },
+    createInvitation(params) {
+      return createInvitationForScope({ ...params, emailSender });
+    },
+    listInvitationsByScope(scope) {
+      return listInvitationsForScope(scope);
+    },
+    acceptInvitation(params) {
+      return acceptInvitation(params);
+    },
+    revokeInvitation(params) {
+      return revokeInvitationForScope(params);
     }
   };
 }

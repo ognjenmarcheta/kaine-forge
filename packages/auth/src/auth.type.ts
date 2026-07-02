@@ -53,6 +53,14 @@ export interface AuthOrganizationMember {
   role: string;
 }
 
+export interface AuthInvitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+}
+
 export interface AuthOrganizationsResult {
   activeOrganizationId: string | null;
   organizations: AuthOrganization[];
@@ -89,6 +97,17 @@ export interface ServerAuth {
   listOrganizationMembersByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganizationMember[]>;
+  createInvitation(params: {
+    email: string;
+    role: string;
+    scope: AuthenticatedOrganizationScope;
+  }): Promise<AuthInvitation>;
+  listInvitationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthInvitation[]>;
+  acceptInvitation(params: { invitationId: string; user: AuthSessionUser }): Promise<void>;
+  revokeInvitation(params: {
+    invitationId: string;
+    scope: AuthenticatedOrganizationScope;
+  }): Promise<void>;
 }
 
 export interface ClientAuth {

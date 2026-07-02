@@ -3,6 +3,7 @@ type Query {
   organizations: [Organization!]!
   currentOrganization: Organization
   members: [OrganizationMember!]!
+  invitations: [OrganizationInvitation!]!
   todos(limit: Int, offset: Int): [Todo!]!
   todo(id: ID!): Todo
   file(id: ID!): FileInfo
@@ -42,6 +43,14 @@ type OrganizationMember {
   email: String!
   name: String!
   role: String!
+}
+
+type OrganizationInvitation {
+  id: ID!
+  email: String!
+  role: String!
+  status: String!
+  expiresAt: String!
 }
 
 scalar DateTime

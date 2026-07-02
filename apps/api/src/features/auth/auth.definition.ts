@@ -6,5 +6,8 @@ export const AUTH_ROUTES = {
   ORGANIZATION_LIST: "/api/auth/organization/list",
   ORGANIZATION_CREATE: "/api/auth/organization/create",
   ORGANIZATION_SET_ACTIVE: "/api/auth/organization/set-active",
-  ORGANIZATION_GET_MEMBERS: "/api/auth/organization/get-members"
+  ORGANIZATION_GET_MEMBERS: "/api/auth/organization/get-members",
+  ORGANIZATION_INVITATION_CREATE: "/api/auth/organization/invitation/create",
+  ORGANIZATION_INVITATION_ACCEPT: "/api/auth/organization/invitation/accept",
+  ORGANIZATION_INVITATION_REVOKE: "/api/auth/organization/invitation/revoke"
 } as const;

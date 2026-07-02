@@ -7,7 +7,8 @@ const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "@repo/db": path.join(workspaceRoot, "packages/db/src/index.ts")
+      "@repo/db": path.join(workspaceRoot, "packages/db/src/index.ts"),
+      "@repo/email": path.join(workspaceRoot, "packages/email/src/index.ts")
     }
   }
 });

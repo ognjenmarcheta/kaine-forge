@@ -313,6 +313,74 @@ async function dispatchAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       });
       return true;
     }
+
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.ORGANIZATION_INVITATION_CREATE) {
+      const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
+
+      if (!session) {
+        sendJson(ctx, 401, { error: "authentication required" });
+        return true;
+      }
+
+      const scope = requireAuthenticatedOrganizationScope(session);
+      const payload = await parseJsonBody(ctx);
+      const email = typeof payload.email === "string" ? payload.email.trim() : "";
+      const role = typeof payload.role === "string" ? payload.role : "";
+
+      if (!email || !role) {
+        throw new Error("email and role are required");
+      }
+
+      const invitation = await ctx.auth.createInvitation({ email, role, scope });
+
+      sendJson(ctx, 200, { invitation });
+      return true;
+    }
+
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.ORGANIZATION_INVITATION_ACCEPT) {
+      const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
+
+      if (!session) {
+        sendJson(ctx, 401, { error: "authentication required" });
+        return true;
+      }
+
+      const payload = await parseJsonBody(ctx);
+      const invitationId = typeof payload.invitationId === "string" ? payload.invitationId : "";
+
+      if (!invitationId) {
+        throw new Error("invitationId is required");
+      }
+
+      await ctx.auth.acceptInvitation({ invitationId, user: session.user });
+
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+      return true;
+    }
+
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.ORGANIZATION_INVITATION_REVOKE) {
+      const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
+
+      if (!session) {
+        sendJson(ctx, 401, { error: "authentication required" });
+        return true;
+      }
+
+      const scope = requireAuthenticatedOrganizationScope(session);
+      const payload = await parseJsonBody(ctx);
+      const invitationId = typeof payload.invitationId === "string" ? payload.invitationId : "";
+
+      if (!invitationId) {
+        throw new Error("invitationId is required");
+      }
+
+      await ctx.auth.revokeInvitation({ invitationId, scope });
+
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+      return true;
+    }
   } catch (error) {
     sendJson(ctx, 400, {
       error: error instanceof Error ? error.message : "auth request failed"
