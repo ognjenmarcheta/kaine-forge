@@ -65,8 +65,8 @@ export async function resetPassword(params: { password: string; token: string })
 
   await db.transaction(async (transaction) => {
     // Claim the token atomically: the delete either consumes the unexpired row
-    // or another reset already did, closing the double-use race. A consumed
-    // row with a foreign identifier prefix is discarded, which is acceptable.
+    // or another reset already did, closing the double-use race. On a foreign
+    // identifier prefix the throw below rolls the claim back, so that row survives.
     const claimed = await transaction
       .delete(verificationsTable)
       .where(
