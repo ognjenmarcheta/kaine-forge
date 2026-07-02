@@ -1,12 +1,49 @@
 import { db, sessionsTable, usersTable } from "@repo/db";
 import { and, eq, gt } from "drizzle-orm";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import type { AuthSession, AuthSessionResult, LoginInput, SignupInput } from "./auth.type";
 
+const SCRYPT_PREFIX = "scrypt";
+const SCRYPT_KEY_LENGTH = 64;
+
 export function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex");
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString("hex");
+  return `${SCRYPT_PREFIX}$${salt}$${hash}`;
+}
+
+function constantTimeEquals(left: Buffer, right: Buffer): boolean {
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+export function verifyPassword(password: string, storedHash: string): boolean {
+  const [prefix, salt, hash] = storedHash.split("$");
+
+  if (prefix === SCRYPT_PREFIX && salt && hash) {
+    return constantTimeEquals(
+      scryptSync(password, salt, SCRYPT_KEY_LENGTH),
+      Buffer.from(hash, "hex")
+    );
+  }
+
+  // legacy unsalted sha256 hashes, rehashed on next successful login
+  return constantTimeEquals(
+    Buffer.from(createHash("sha256").update(password).digest("hex")),
+    Buffer.from(storedHash)
+  );
+}
+
+export function needsPasswordRehash(storedHash: string): boolean {
+  return !storedHash.startsWith(`${SCRYPT_PREFIX}$`);
+}
+
+export async function updateUserPasswordHash(userId: string, passwordHash: string): Promise<void> {
+  await db
+    .update(usersTable)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(usersTable.id, userId));
 }
 
 export async function resolveUserByEmail(email: string) {

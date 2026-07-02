@@ -17,11 +17,14 @@ import {
   createSession,
   deleteSession,
   hashPassword,
+  needsPasswordRehash,
   resolveUserByEmail,
   resolveUserById,
   sessionFromToken,
   toAuthSession,
-  updateSessionActiveOrganization
+  updateSessionActiveOrganization,
+  updateUserPasswordHash,
+  verifyPassword
 } from "./auth.server.session";
 import type { LoginInput, ServerAuth, SignupInput } from "./auth.type";
 import { getSessionTokenFromHeaders } from "./auth.util";
@@ -79,8 +82,12 @@ export function createServerAuth(): ServerAuth {
         throw new Error("invalid credentials");
       }
 
-      if (user.passwordHash !== hashPassword(input.password)) {
+      if (!verifyPassword(input.password, user.passwordHash)) {
         throw new Error("invalid credentials");
+      }
+
+      if (needsPasswordRehash(user.passwordHash)) {
+        await updateUserPasswordHash(user.id, hashPassword(input.password));
       }
 
       const activeOrganizationId = await resolveActiveOrganizationForUser({
