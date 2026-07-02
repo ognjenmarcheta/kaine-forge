@@ -2,7 +2,7 @@ import { createLogger, type Logger } from "@repo/logger";
 
 import type { EmailMessage, EmailSender } from "./email.type";
 
-export function createConsoleEmailSender(logger?: Logger): EmailSender {
+export function createConsoleEmailSender(logger?: Pick<Logger, "info">): EmailSender {
   const emailLogger = logger ?? createLogger({ name: "email" });
 
   return {
