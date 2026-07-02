@@ -1,31 +1,88 @@
 import { db, sessionsTable, usersTable } from "@repo/db";
 import { and, eq, gt } from "drizzle-orm";
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import type { AuthSession, AuthSessionResult, LoginInput, SignupInput } from "./auth.type";
 
 const SCRYPT_PREFIX = "scrypt";
 const SCRYPT_KEY_LENGTH = 64;
+// Cost parameters are embedded in each stored hash (scrypt$N$r$p$salt$hash) so
+// they can be raised later; needsPasswordRehash flags old-cost hashes and login
+// transparently rehashes them. Raising N requires maxmem >= 128 * N * r bytes.
+// Keep the recipe in sync with hashSeedPassword in packages/db/src/seed/users.seed.ts.
+const SCRYPT_COST = 16384;
+const SCRYPT_BLOCK_SIZE = 8;
+const SCRYPT_PARALLELIZATION = 1;
 
-export function hashPassword(password: string): string {
+interface ScryptCost {
+  N: number;
+  r: number;
+  p: number;
+}
+
+function deriveScryptKey(password: string, salt: string, cost: ScryptCost): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(
+      password,
+      salt,
+      SCRYPT_KEY_LENGTH,
+      { N: cost.N, r: cost.r, p: cost.p, maxmem: 256 * cost.N * cost.r },
+      (error, derivedKey) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(derivedKey);
+      }
+    );
+  });
+}
+
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString("hex");
-  return `${SCRYPT_PREFIX}$${salt}$${hash}`;
+  const hash = (
+    await deriveScryptKey(password, salt, {
+      N: SCRYPT_COST,
+      r: SCRYPT_BLOCK_SIZE,
+      p: SCRYPT_PARALLELIZATION
+    })
+  ).toString("hex");
+  return `${SCRYPT_PREFIX}$${String(SCRYPT_COST)}$${String(SCRYPT_BLOCK_SIZE)}$${String(SCRYPT_PARALLELIZATION)}$${salt}$${hash}`;
 }
 
 function constantTimeEquals(left: Buffer, right: Buffer): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-export function verifyPassword(password: string, storedHash: string): boolean {
-  const [prefix, salt, hash] = storedHash.split("$");
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  const parts = storedHash.split("$");
 
-  if (prefix === SCRYPT_PREFIX && salt && hash) {
-    return constantTimeEquals(
-      scryptSync(password, salt, SCRYPT_KEY_LENGTH),
-      Buffer.from(hash, "hex")
-    );
+  if (parts[0] === SCRYPT_PREFIX && parts.length === 6) {
+    const [, rawN, rawR, rawP, salt, hash] = parts;
+    const N = Number(rawN);
+    const r = Number(rawR);
+    const p = Number(rawP);
+
+    if (
+      !Number.isInteger(N) ||
+      N <= 0 ||
+      !Number.isInteger(r) ||
+      r <= 0 ||
+      !Number.isInteger(p) ||
+      p <= 0 ||
+      !salt ||
+      !hash
+    ) {
+      return false;
+    }
+
+    try {
+      const derived = await deriveScryptKey(password, salt, { N, r, p });
+      return constantTimeEquals(derived, Buffer.from(hash, "hex"));
+    } catch {
+      return false;
+    }
   }
 
   // legacy unsalted sha256 hashes, rehashed on next successful login
@@ -36,7 +93,14 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 }
 
 export function needsPasswordRehash(storedHash: string): boolean {
-  return !storedHash.startsWith(`${SCRYPT_PREFIX}$`);
+  const parts = storedHash.split("$");
+  return !(
+    parts[0] === SCRYPT_PREFIX &&
+    parts.length === 6 &&
+    Number(parts[1]) === SCRYPT_COST &&
+    Number(parts[2]) === SCRYPT_BLOCK_SIZE &&
+    Number(parts[3]) === SCRYPT_PARALLELIZATION
+  );
 }
 
 export async function updateUserPasswordHash(userId: string, passwordHash: string): Promise<void> {

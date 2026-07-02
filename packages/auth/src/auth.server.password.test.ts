@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@repo/db", () => ({
@@ -15,27 +15,51 @@ vi.mock("drizzle-orm", () => ({
 const { hashPassword, needsPasswordRehash, verifyPassword } = await import("./auth.server.session");
 
 describe("password hashing", () => {
-  it("produces salted hashes (same password twice yields different hashes)", () => {
-    const first = hashPassword("Secret123!");
-    const second = hashPassword("Secret123!");
+  it("produces salted hashes (same password twice yields different hashes)", async () => {
+    const first = await hashPassword("Secret123!");
+    const second = await hashPassword("Secret123!");
 
     expect(first).not.toBe(second);
-    expect(first.startsWith("scrypt$")).toBe(true);
+    expect(first.startsWith("scrypt$16384$8$1$")).toBe(true);
   });
 
-  it("verifies a scrypt hash and rejects a wrong password", () => {
-    const stored = hashPassword("Secret123!");
+  it("verifies a scrypt hash and rejects a wrong password", async () => {
+    const stored = await hashPassword("Secret123!");
 
-    expect(verifyPassword("Secret123!", stored)).toBe(true);
-    expect(verifyPassword("WrongPass!", stored)).toBe(false);
+    expect(await verifyPassword("Secret123!", stored)).toBe(true);
+    expect(await verifyPassword("WrongPass!", stored)).toBe(false);
   });
 
-  it("verifies a legacy unsalted sha256 hash and flags it for rehash", () => {
+  it("verifies a legacy unsalted sha256 hash and flags it for rehash", async () => {
     const legacy = createHash("sha256").update("Secret123!").digest("hex");
 
-    expect(verifyPassword("Secret123!", legacy)).toBe(true);
-    expect(verifyPassword("WrongPass!", legacy)).toBe(false);
+    expect(await verifyPassword("Secret123!", legacy)).toBe(true);
+    expect(await verifyPassword("WrongPass!", legacy)).toBe(false);
     expect(needsPasswordRehash(legacy)).toBe(true);
-    expect(needsPasswordRehash(hashPassword("Secret123!"))).toBe(false);
+    expect(needsPasswordRehash("scrypt$abc$def")).toBe(true);
+    expect(needsPasswordRehash(await hashPassword("Secret123!"))).toBe(false);
+  });
+
+  it("verifies a hash produced with the seed recipe from packages/db/src/seed/users.seed.ts", async () => {
+    const salt = randomBytes(16).toString("hex");
+    const hash = scryptSync("Secret123!", salt, 64, { N: 16384, r: 8, p: 1 }).toString("hex");
+    const seedHash = `scrypt$16384$8$1$${salt}$${hash}`;
+
+    expect(await verifyPassword("Secret123!", seedHash)).toBe(true);
+    expect(needsPasswordRehash(seedHash)).toBe(false);
+  });
+
+  it.each([
+    "",
+    "$",
+    "scrypt$",
+    "scrypt$$$$$",
+    "a$b$c",
+    "scrypt$x$8$1$aa$bb",
+    "scrypt$16384$8$1$zz$zz",
+    "deadbeef",
+    "scrypt$abc$def"
+  ])("returns false without throwing for malformed stored hash %j", async (stored) => {
+    expect(await verifyPassword("WrongPass!", stored)).toBe(false);
   });
 });

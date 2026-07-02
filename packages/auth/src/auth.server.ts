@@ -82,12 +82,12 @@ export function createServerAuth(): ServerAuth {
         throw new Error("invalid credentials");
       }
 
-      if (!verifyPassword(input.password, user.passwordHash)) {
+      if (!(await verifyPassword(input.password, user.passwordHash))) {
         throw new Error("invalid credentials");
       }
 
       if (needsPasswordRehash(user.passwordHash)) {
-        await updateUserPasswordHash(user.id, hashPassword(input.password));
+        await updateUserPasswordHash(user.id, await hashPassword(input.password));
       }
 
       const activeOrganizationId = await resolveActiveOrganizationForUser({
@@ -109,11 +109,13 @@ export function createServerAuth(): ServerAuth {
         throw new Error("user already exists");
       }
 
+      const passwordHash = await hashPassword(input.password);
+
       const users = await db
         .insert(usersTable)
         .values({
           email: input.email.toLowerCase(),
-          passwordHash: hashPassword(input.password),
+          passwordHash,
           name: input.name.trim(),
           role: "user"
         })

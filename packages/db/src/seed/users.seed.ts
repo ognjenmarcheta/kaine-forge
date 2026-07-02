@@ -14,7 +14,8 @@ const TEST_USER = {
 // The seed cannot import @repo/auth: @repo/auth depends on @repo/db (cycle).
 function hashSeedPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
-  return `scrypt$${salt}$${scryptSync(password, salt, 64).toString("hex")}`;
+  const hash = scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 }).toString("hex");
+  return `scrypt$16384$8$1$${salt}$${hash}`;
 }
 
 export async function seedUsers(): Promise<void> {
