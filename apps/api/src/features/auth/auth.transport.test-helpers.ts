@@ -40,11 +40,11 @@ export function createResponse() {
   };
 }
 
-export const session = {
-  user: { id: "user-1", email: "admin@example.com", name: "Admin" },
+export const session = Object.freeze({
+  user: Object.freeze({ id: "user-1", email: "admin@example.com", name: "Admin" }),
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
   activeOrganizationId: "org-1"
-};
+});
 
 export function createAuthMock(overrides: Partial<ServerAuth> = {}): ServerAuth {
   return {

@@ -202,8 +202,11 @@ export async function deleteSession(sessionToken: string | null): Promise<void> 
   await db.delete(sessionsTable).where(eq(sessionsTable.token, sessionToken));
 }
 
-export async function deleteSessionsForUser(userId: string): Promise<void> {
-  await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+export async function deleteSessionsForUser(
+  userId: string,
+  database: Pick<typeof db, "delete"> = db
+): Promise<void> {
+  await database.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
 }
 
 export async function updateSessionActiveOrganization(params: {

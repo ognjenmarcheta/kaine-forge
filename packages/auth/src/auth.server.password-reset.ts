@@ -1,12 +1,18 @@
 import { db, usersTable, verificationsTable } from "@repo/db";
 import type { EmailSender } from "@repo/email";
 import { and, eq, gt } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { deleteSessionsForUser, hashPassword, resolveUserByEmail } from "./auth.server.session";
 
 const PASSWORD_RESET_IDENTIFIER_PREFIX = "password-reset:";
+
+// Reset tokens are stored as sha256 digests so a leaked verifications row
+// never exposes a usable token; only the emailed raw token can claim a reset.
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export async function requestPasswordReset(params: {
   email: string;
@@ -25,10 +31,17 @@ export async function requestPasswordReset(params: {
   }
 
   const token = randomBytes(24).toString("hex");
+  const identifier = `${PASSWORD_RESET_IDENTIFIER_PREFIX}${user.id}`;
 
+  // Latest email wins: drop earlier reset tokens for this user so repeated
+  // requests do not stack valid tokens.
+  await db.delete(verificationsTable).where(eq(verificationsTable.identifier, identifier));
+
+  // Expired rows are bounded by latest-email-wins above plus the expiry check
+  // at claim time; a background sweep is deliberately omitted.
   await db.insert(verificationsTable).values({
-    identifier: `${PASSWORD_RESET_IDENTIFIER_PREFIX}${user.id}`,
-    token,
+    identifier,
+    token: hashResetToken(token),
     expiresAt: new Date(Date.now() + AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS * 1000)
   });
 
@@ -39,7 +52,9 @@ export async function requestPasswordReset(params: {
       text: `Use this token to reset your password: ${token}. It expires in one hour.`
     });
   } catch {
-    throw new Error("failed to send password reset email");
+    // Logging delivery failures is the EmailSender adapter's responsibility;
+    // this endpoint must respond identically regardless of account existence
+    // or delivery outcome, so send failures must not surface to the caller.
   }
 }
 
@@ -48,27 +63,33 @@ export async function resetPassword(params: { password: string; token: string })
     throw new Error("token and password are required");
   }
 
-  const verifications = await db
-    .select()
-    .from(verificationsTable)
-    .where(
-      and(eq(verificationsTable.token, params.token), gt(verificationsTable.expiresAt, new Date()))
-    )
-    .limit(1);
+  await db.transaction(async (transaction) => {
+    // Claim the token atomically: the delete either consumes the unexpired row
+    // or another reset already did, closing the double-use race. A consumed
+    // row with a foreign identifier prefix is discarded, which is acceptable.
+    const claimed = await transaction
+      .delete(verificationsTable)
+      .where(
+        and(
+          eq(verificationsTable.token, hashResetToken(params.token)),
+          gt(verificationsTable.expiresAt, new Date())
+        )
+      )
+      .returning();
 
-  const verification = verifications[0];
+    const verification = claimed[0];
 
-  if (!verification || !verification.identifier.startsWith(PASSWORD_RESET_IDENTIFIER_PREFIX)) {
-    throw new Error("invalid or expired token");
-  }
+    if (!verification || !verification.identifier.startsWith(PASSWORD_RESET_IDENTIFIER_PREFIX)) {
+      throw new Error("invalid or expired token");
+    }
 
-  const userId = verification.identifier.slice(PASSWORD_RESET_IDENTIFIER_PREFIX.length);
+    const userId = verification.identifier.slice(PASSWORD_RESET_IDENTIFIER_PREFIX.length);
 
-  await db
-    .update(usersTable)
-    .set({ passwordHash: await hashPassword(params.password), updatedAt: new Date() })
-    .where(eq(usersTable.id, userId));
+    await transaction
+      .update(usersTable)
+      .set({ passwordHash: await hashPassword(params.password), updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
 
-  await db.delete(verificationsTable).where(eq(verificationsTable.id, verification.id));
-  await deleteSessionsForUser(userId);
+    await deleteSessionsForUser(userId, transaction);
+  });
 }
