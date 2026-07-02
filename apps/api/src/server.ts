@@ -8,6 +8,7 @@ import { WebSocketServer } from "ws";
 
 import { createContext, createContextFromHeaders } from "./context";
 import { handleAuthRoute } from "./features/auth/auth.router";
+import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
 import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
@@ -69,6 +70,12 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
 
   const server = createServer(async (req, res) => {
     try {
+      const handledHealth = await handleHealthRoute({ req, res });
+
+      if (handledHealth) {
+        return;
+      }
+
       const handledAuth = await handleAuthRoute({
         req,
         res,
