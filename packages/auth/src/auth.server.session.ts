@@ -14,6 +14,11 @@ const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_COST = 16384;
 const SCRYPT_BLOCK_SIZE = 8;
 const SCRYPT_PARALLELIZATION = 1;
+// Upper bounds for cost parameters read from stored hashes, so a corrupted or
+// hostile stored hash cannot make verification attempt an enormous allocation.
+const SCRYPT_MAX_COST = 2 ** 20;
+const SCRYPT_MAX_BLOCK_SIZE = 32;
+const SCRYPT_MAX_PARALLELIZATION = 16;
 
 interface ScryptCost {
   N: number;
@@ -67,10 +72,13 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     if (
       !Number.isInteger(N) ||
       N <= 0 ||
+      N > SCRYPT_MAX_COST ||
       !Number.isInteger(r) ||
       r <= 0 ||
+      r > SCRYPT_MAX_BLOCK_SIZE ||
       !Number.isInteger(p) ||
       p <= 0 ||
+      p > SCRYPT_MAX_PARALLELIZATION ||
       !salt ||
       !hash
     ) {

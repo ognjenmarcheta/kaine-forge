@@ -58,7 +58,8 @@ describe("password hashing", () => {
     "scrypt$x$8$1$aa$bb",
     "scrypt$16384$8$1$zz$zz",
     "deadbeef",
-    "scrypt$abc$def"
+    "scrypt$abc$def",
+    "scrypt$1073741824$8$1$aabb$ccdd"
   ])("returns false without throwing for malformed stored hash %j", async (stored) => {
     expect(await verifyPassword("WrongPass!", stored)).toBe(false);
   });
