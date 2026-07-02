@@ -71,6 +71,23 @@ export async function createInvitationForScope(params: {
     throw new Error("role must be admin or member");
   }
 
+  const pendingInvitations = await db
+    .select()
+    .from(invitationsTable)
+    .where(
+      and(
+        eq(invitationsTable.organizationId, params.scope.organizationId),
+        eq(invitationsTable.email, email),
+        eq(invitationsTable.status, INVITATION_STATUSES.PENDING),
+        gt(invitationsTable.expiresAt, new Date())
+      )
+    )
+    .limit(1);
+
+  if (pendingInvitations[0]) {
+    throw new Error("invitation already pending for this email");
+  }
+
   const expiresAt = new Date(Date.now() + AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS * 1000);
 
   const invitations = await db
@@ -91,11 +108,15 @@ export async function createInvitationForScope(params: {
     throw new Error("failed to create invitation");
   }
 
-  await params.emailSender.send({
-    to: email,
-    subject: "You have been invited to an organization",
-    text: `You were invited to join an organization as ${params.role}. Sign in with this email address and accept invitation ${invitation.id} before ${expiresAt.toISOString()}.`
-  });
+  try {
+    await params.emailSender.send({
+      to: email,
+      subject: "You have been invited to an organization",
+      text: `You were invited to join an organization as ${params.role}. Sign in with this email address and accept invitation ${invitation.id} before ${expiresAt.toISOString()}.`
+    });
+  } catch {
+    throw new Error("invitation created but email delivery failed");
+  }
 
   return toAuthInvitation(invitation);
 }
@@ -136,28 +157,39 @@ export async function acceptInvitation(params: {
     throw new Error("invitation not found");
   }
 
-  if (invitation.expiresAt.getTime() <= Date.now()) {
-    throw new Error("invitation expired");
-  }
-
   if (invitation.email !== params.user.email.toLowerCase()) {
     throw new Error("invitation not found");
   }
 
-  await db
-    .insert(membersTable)
-    .values({
-      userId: params.user.id,
-      organizationId: invitation.organizationId,
-      role: invitation.role
-    })
-    .onConflictDoNothing();
+  if (invitation.expiresAt.getTime() <= Date.now()) {
+    throw new Error("invitation expired");
+  }
 
-  await db
-    .update(invitationsTable)
-    .set({ status: INVITATION_STATUSES.ACCEPTED })
-    .where(eq(invitationsTable.id, invitation.id))
-    .returning();
+  await db.transaction(async (transaction) => {
+    const accepted = await transaction
+      .update(invitationsTable)
+      .set({ status: INVITATION_STATUSES.ACCEPTED })
+      .where(
+        and(
+          eq(invitationsTable.id, invitation.id),
+          eq(invitationsTable.status, INVITATION_STATUSES.PENDING)
+        )
+      )
+      .returning();
+
+    if (!accepted[0]) {
+      throw new Error("invitation not found");
+    }
+
+    await transaction
+      .insert(membersTable)
+      .values({
+        userId: params.user.id,
+        organizationId: invitation.organizationId,
+        role: invitation.role
+      })
+      .onConflictDoNothing();
+  });
 }
 
 export async function revokeInvitationForScope(params: {

@@ -20,6 +20,8 @@ const membersTable = {
 
 const insertedValues: Array<Record<string, unknown>> = [];
 const updatedValues: Array<Record<string, unknown>> = [];
+const selectWhereArgs: unknown[] = [];
+const updateWhereArgs: unknown[] = [];
 let insertReturning: Array<Record<string, unknown>> = [];
 let updateReturning: Array<Record<string, unknown>> = [];
 let selectRows: Array<Record<string, unknown>> = [];
@@ -27,9 +29,12 @@ let selectRows: Array<Record<string, unknown>> = [];
 const dbMock = {
   select: vi.fn(() => ({
     from: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        limit: vi.fn().mockImplementation(async () => selectRows),
-        orderBy: vi.fn().mockImplementation(async () => selectRows)
+      where: vi.fn().mockImplementation((condition: unknown) => {
+        selectWhereArgs.push(condition);
+        return {
+          limit: vi.fn().mockImplementation(async () => selectRows),
+          orderBy: vi.fn().mockImplementation(async () => selectRows)
+        };
       })
     })
   })),
@@ -46,12 +51,16 @@ const dbMock = {
     set: (payload: Record<string, unknown>) => {
       updatedValues.push(payload);
       return {
-        where: () => ({
-          returning: async () => updateReturning
-        })
+        where: (condition: unknown) => {
+          updateWhereArgs.push(condition);
+          return {
+            returning: async () => updateReturning
+          };
+        }
       };
     }
-  }))
+  })),
+  transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(dbMock))
 };
 
 vi.mock("@repo/db", () => ({
@@ -72,8 +81,12 @@ vi.mock("./auth.server.organization", () => ({
 }));
 
 const { getOrganizationMembershipProof } = await import("./auth.server.organization");
-const { acceptInvitation, createInvitationForScope, revokeInvitationForScope } =
-  await import("./auth.server.invitation");
+const {
+  acceptInvitation,
+  createInvitationForScope,
+  listInvitationsForScope,
+  revokeInvitationForScope
+} = await import("./auth.server.invitation");
 
 const adminScope = {
   organizationId: "org-1",
@@ -86,9 +99,12 @@ describe("auth.server.invitation", () => {
   beforeEach(() => {
     insertedValues.length = 0;
     updatedValues.length = 0;
+    selectWhereArgs.length = 0;
+    updateWhereArgs.length = 0;
     insertReturning = [];
     updateReturning = [];
     selectRows = [];
+    dbMock.transaction.mockClear();
     vi.mocked(getOrganizationMembershipProof).mockReset();
   });
 
@@ -111,6 +127,12 @@ describe("auth.server.invitation", () => {
       emailSender: { send }
     });
 
+    expect(selectWhereArgs[0]).toEqual([
+      { left: invitationsTable.organizationId, right: "org-1" },
+      { left: invitationsTable.email, right: "new@example.com" },
+      { left: invitationsTable.status, right: "pending" },
+      { left: invitationsTable.expiresAt, right: expect.any(Date) }
+    ]);
     expect(insertedValues[0]).toMatchObject({
       email: "new@example.com",
       role: "member",
@@ -120,6 +142,53 @@ describe("auth.server.invitation", () => {
     });
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "new@example.com" }));
     expect(invitation.id).toBe("inv-1");
+  });
+
+  it("rejects when a pending invitation already exists for the email", async () => {
+    const send = vi.fn();
+    selectRows = [
+      {
+        id: "inv-1",
+        email: "new@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date(Date.now() + 60_000)
+      }
+    ];
+
+    await expect(
+      createInvitationForScope({
+        scope: adminScope,
+        email: "new@example.com",
+        role: "member",
+        emailSender: { send }
+      })
+    ).rejects.toThrow("invitation already pending for this email");
+
+    expect(insertedValues).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes email delivery failures", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("smtp host secret leaked"));
+    insertReturning = [
+      {
+        id: "inv-1",
+        email: "new@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date("2026-07-09T00:00:00.000Z")
+      }
+    ];
+
+    await expect(
+      createInvitationForScope({
+        scope: adminScope,
+        email: "new@example.com",
+        role: "member",
+        emailSender: { send }
+      })
+    ).rejects.toThrow("invitation created but email delivery failed");
   });
 
   it("rejects non-admin members", async () => {
@@ -149,7 +218,36 @@ describe("auth.server.invitation", () => {
     ).rejects.toThrow("role must be admin or member");
   });
 
-  it("accepts a pending invitation for the matching user and creates membership", async () => {
+  it("lists only pending unexpired invitations for the scope organization", async () => {
+    selectRows = [
+      {
+        id: "inv-1",
+        email: "new@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date("2026-07-09T00:00:00.000Z")
+      }
+    ];
+
+    const invitations = await listInvitationsForScope(adminScope);
+
+    expect(selectWhereArgs[0]).toEqual([
+      { left: invitationsTable.organizationId, right: "org-1" },
+      { left: invitationsTable.status, right: "pending" },
+      { left: invitationsTable.expiresAt, right: expect.any(Date) }
+    ]);
+    expect(invitations).toEqual([
+      {
+        id: "inv-1",
+        email: "new@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: "2026-07-09T00:00:00.000Z"
+      }
+    ]);
+  });
+
+  it("accepts a pending invitation atomically for the matching user", async () => {
     selectRows = [
       {
         id: "inv-1",
@@ -160,18 +258,47 @@ describe("auth.server.invitation", () => {
         expiresAt: new Date(Date.now() + 60_000)
       }
     ];
+    updateReturning = [{ id: "inv-1" }];
 
     await acceptInvitation({
       invitationId: "inv-1",
       user: { id: "user-2", email: "New@Example.com", name: "New" }
     });
 
+    expect(dbMock.transaction).toHaveBeenCalledTimes(1);
+    expect(updatedValues[0]).toMatchObject({ status: "accepted" });
+    expect(updateWhereArgs[0]).toEqual([
+      { left: invitationsTable.id, right: "inv-1" },
+      { left: invitationsTable.status, right: "pending" }
+    ]);
     expect(insertedValues[0]).toMatchObject({
       userId: "user-2",
       organizationId: "org-1",
       role: "member"
     });
-    expect(updatedValues[0]).toMatchObject({ status: "accepted" });
+  });
+
+  it("rejects acceptance when a concurrent accept already flipped the status", async () => {
+    selectRows = [
+      {
+        id: "inv-1",
+        organizationId: "org-1",
+        email: "new@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date(Date.now() + 60_000)
+      }
+    ];
+    updateReturning = [];
+
+    await expect(
+      acceptInvitation({
+        invitationId: "inv-1",
+        user: { id: "user-2", email: "new@example.com", name: "New" }
+      })
+    ).rejects.toThrow("invitation not found");
+
+    expect(insertedValues).toHaveLength(0);
   });
 
   it("rejects an expired invitation", async () => {
@@ -214,11 +341,36 @@ describe("auth.server.invitation", () => {
     ).rejects.toThrow("invitation not found");
   });
 
-  it("revokes a pending invitation in the scope organization", async () => {
+  it("reports not-found before expiry when the email does not match an expired invitation", async () => {
+    selectRows = [
+      {
+        id: "inv-1",
+        organizationId: "org-1",
+        email: "someone-else@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date(Date.now() - 60_000)
+      }
+    ];
+
+    await expect(
+      acceptInvitation({
+        invitationId: "inv-1",
+        user: { id: "user-2", email: "new@example.com", name: "New" }
+      })
+    ).rejects.toThrow("invitation not found");
+  });
+
+  it("revokes a pending invitation only within the scope organization", async () => {
     updateReturning = [{ id: "inv-1" }];
 
     await revokeInvitationForScope({ scope: adminScope, invitationId: "inv-1" });
 
     expect(updatedValues[0]).toMatchObject({ status: "revoked" });
+    expect(updateWhereArgs[0]).toEqual([
+      { left: invitationsTable.id, right: "inv-1" },
+      { left: invitationsTable.organizationId, right: "org-1" },
+      { left: invitationsTable.status, right: "pending" }
+    ]);
   });
 });
