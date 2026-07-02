@@ -4,6 +4,7 @@ import type { AuthenticatedOrganizationScope, OrganizationMembershipProof } from
 
 export interface AuthConfig {
   baseUrl: string;
+  requireEmailVerification: boolean;
   secret: string;
 }
 
@@ -110,6 +111,7 @@ export interface ServerAuth {
   }): Promise<void>;
   requestPasswordReset(input: { email: string }): Promise<void>;
   resetPassword(input: { password: string; token: string }): Promise<void>;
+  verifyEmail(input: { token: string }): Promise<void>;
 }
 
 export interface ClientAuth {

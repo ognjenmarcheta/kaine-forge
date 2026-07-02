@@ -15,6 +15,13 @@
       "when": 1783027829002,
       "tag": "0001_amazing_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783029819760,
+      "tag": "0002_naive_layla_miller",
+      "breakpoints": true
     }
   ]
 }

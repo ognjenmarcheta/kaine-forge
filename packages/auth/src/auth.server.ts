@@ -3,6 +3,7 @@ import { createEmailSender } from "@repo/email";
 import { eq } from "drizzle-orm";
 
 import { getServerAuthConfig } from "./auth.config";
+import { issueEmailVerification, verifyEmail } from "./auth.server.email-verification";
 import {
   acceptInvitation,
   createInvitationForScope,
@@ -139,6 +140,10 @@ export function createServerAuth(): ServerAuth {
 
       const personalOrganization = await ensurePersonalOrganizationForUser(user.id);
 
+      if (config.requireEmailVerification) {
+        await issueEmailVerification({ user, emailSender });
+      }
+
       return createSession({
         user,
         activeOrganizationId: personalOrganization.id
@@ -262,6 +267,9 @@ export function createServerAuth(): ServerAuth {
     },
     resetPassword(input) {
       return resetPassword(input);
+    },
+    verifyEmail(input) {
+      return verifyEmail(input);
     }
   };
 }

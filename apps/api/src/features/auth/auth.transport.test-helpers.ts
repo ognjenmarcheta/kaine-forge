@@ -64,6 +64,7 @@ export function createAuthMock(overrides: Partial<ServerAuth> = {}): ServerAuth 
     revokeInvitation: vi.fn(),
     requestPasswordReset: vi.fn(),
     resetPassword: vi.fn(),
+    verifyEmail: vi.fn(),
     ...overrides
   } as ServerAuth;
 }

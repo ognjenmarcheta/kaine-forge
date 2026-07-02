@@ -262,6 +262,21 @@ async function dispatchAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       return true;
     }
 
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.VERIFY_EMAIL) {
+      const payload = await parseJsonBody(ctx);
+      const token = typeof payload.token === "string" ? payload.token : "";
+
+      if (!token) {
+        throw new Error("token is required");
+      }
+
+      await ctx.auth.verifyEmail({ token });
+
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+      return true;
+    }
+
     if (ctx.req.method === "GET" && url.pathname === AUTH_ROUTES.ORGANIZATION_LIST) {
       const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
 
