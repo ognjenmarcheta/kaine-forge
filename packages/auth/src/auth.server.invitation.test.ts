@@ -90,7 +90,7 @@ const {
 
 const adminScope = {
   organizationId: "org-1",
-  user: { id: "user-1", email: "admin@example.com", name: "Admin" },
+  user: { id: "user-1", email: "admin@example.com", emailVerified: false, name: "Admin" },
   userId: "user-1",
   membership: { id: "m-1", role: "admin", userId: "user-1" }
 };
@@ -262,7 +262,7 @@ describe("auth.server.invitation", () => {
 
     await acceptInvitation({
       invitationId: "inv-1",
-      user: { id: "user-2", email: "New@Example.com", name: "New" }
+      user: { id: "user-2", email: "New@Example.com", emailVerified: false, name: "New" }
     });
 
     expect(dbMock.transaction).toHaveBeenCalledTimes(1);
@@ -294,7 +294,7 @@ describe("auth.server.invitation", () => {
     await expect(
       acceptInvitation({
         invitationId: "inv-1",
-        user: { id: "user-2", email: "new@example.com", name: "New" }
+        user: { id: "user-2", email: "new@example.com", emailVerified: false, name: "New" }
       })
     ).rejects.toThrow("invitation not found");
 
@@ -316,7 +316,7 @@ describe("auth.server.invitation", () => {
     await expect(
       acceptInvitation({
         invitationId: "inv-1",
-        user: { id: "user-2", email: "new@example.com", name: "New" }
+        user: { id: "user-2", email: "new@example.com", emailVerified: false, name: "New" }
       })
     ).rejects.toThrow("invitation expired");
   });
@@ -336,7 +336,7 @@ describe("auth.server.invitation", () => {
     await expect(
       acceptInvitation({
         invitationId: "inv-1",
-        user: { id: "user-2", email: "new@example.com", name: "New" }
+        user: { id: "user-2", email: "new@example.com", emailVerified: false, name: "New" }
       })
     ).rejects.toThrow("invitation not found");
   });
@@ -356,7 +356,7 @@ describe("auth.server.invitation", () => {
     await expect(
       acceptInvitation({
         invitationId: "inv-1",
-        user: { id: "user-2", email: "new@example.com", name: "New" }
+        user: { id: "user-2", email: "new@example.com", emailVerified: false, name: "New" }
       })
     ).rejects.toThrow("invitation not found");
   });

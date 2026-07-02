@@ -270,6 +270,18 @@ export function createServerAuth(): ServerAuth {
     },
     verifyEmail(input) {
       return verifyEmail(input);
+    },
+    async resendEmailVerification(input) {
+      const user = await resolveUserById(input.user.id);
+
+      // Silent on missing or already-verified users: the endpoint is session
+      // authenticated, but responding differently would still leak state and
+      // an already-verified user never needs another email.
+      if (!user || user.emailVerified) {
+        return;
+      }
+
+      await issueEmailVerification({ user, emailSender });
     }
   };
 }

@@ -84,14 +84,20 @@ describe("password reset", () => {
   it("stores a hashed token and emails the raw token when the user exists", async () => {
     selectRows = [{ id: "user-1", email: "user@example.com", name: "User" }];
     const send = vi.fn().mockResolvedValue(undefined);
+    const before = Date.now();
 
     await requestPasswordReset({ email: "User@Example.com", emailSender: { send } });
+
+    const after = Date.now();
 
     expect(insertedValues[0]).toMatchObject({
       identifier: "password-reset:user-1"
     });
     expect(typeof insertedValues[0]?.token).toBe("string");
-    expect(insertedValues[0]?.expiresAt).toBeInstanceOf(Date);
+    const expiresAt = insertedValues[0]?.expiresAt as Date;
+    expect(expiresAt).toBeInstanceOf(Date);
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 60 * 60 * 1000);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(after + 60 * 60 * 1000);
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "user@example.com" }));
 
     const sendPayload = send.mock.calls[0]?.[0] as { text: string };

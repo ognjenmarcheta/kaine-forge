@@ -41,7 +41,12 @@ export function createResponse() {
 }
 
 export const session = Object.freeze({
-  user: Object.freeze({ id: "user-1", email: "admin@example.com", name: "Admin" }),
+  user: Object.freeze({
+    id: "user-1",
+    email: "admin@example.com",
+    emailVerified: false,
+    name: "Admin"
+  }),
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
   activeOrganizationId: "org-1"
 });
@@ -65,6 +70,7 @@ export function createAuthMock(overrides: Partial<ServerAuth> = {}): ServerAuth 
     requestPasswordReset: vi.fn(),
     resetPassword: vi.fn(),
     verifyEmail: vi.fn(),
+    resendEmailVerification: vi.fn(),
     ...overrides
   } as ServerAuth;
 }

@@ -19,6 +19,7 @@ describe("auth.scope", () => {
         expiresAt: "2026-02-26T00:00:00.000Z",
         user: {
           email: "u1@example.com",
+          emailVerified: false,
           id: "user-1",
           name: "User One"
         }
@@ -32,6 +33,7 @@ describe("auth.scope", () => {
       expiresAt: "2026-02-26T00:00:00.000Z",
       user: {
         email: "u1@example.com",
+        emailVerified: false,
         id: "user-1",
         name: "User One"
       }
@@ -41,6 +43,7 @@ describe("auth.scope", () => {
       organizationId: "org-1",
       user: {
         email: "u1@example.com",
+        emailVerified: false,
         id: "user-1",
         name: "User One"
       },
@@ -61,6 +64,7 @@ describe("auth.scope", () => {
         expiresAt: "2026-02-26T00:00:00.000Z",
         user: {
           email: "u1@example.com",
+          emailVerified: false,
           id: "user-1",
           name: "User One"
         }
@@ -83,6 +87,7 @@ describe("auth.scope", () => {
           expiresAt: "2026-02-26T00:00:00.000Z",
           user: {
             email: "u1@example.com",
+            emailVerified: false,
             id: "user-1",
             name: "User One"
           }

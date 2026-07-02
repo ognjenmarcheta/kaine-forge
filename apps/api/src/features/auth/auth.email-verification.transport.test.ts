@@ -4,7 +4,8 @@ import {
   createAuthMock,
   createRequest,
   createResponse,
-  dispatch
+  dispatch,
+  session
 } from "./auth.transport.test-helpers";
 
 describe("email verification routes", () => {
@@ -62,5 +63,41 @@ describe("email verification routes", () => {
 
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body)).toMatchObject({ error: "invalid or expired token" });
+  });
+
+  it("resends the verification email for the session user", async () => {
+    const auth = createAuthMock();
+    const res = createResponse();
+
+    await dispatch(
+      auth,
+      createRequest({
+        method: "POST",
+        url: "/api/auth/resend-email-verification"
+      }),
+      res
+    );
+
+    expect(res.statusCode).toBe(204);
+    expect(auth.resendEmailVerification).toHaveBeenCalledWith({ user: session.user });
+  });
+
+  it("rejects resend-email-verification without a session", async () => {
+    const auth = createAuthMock({
+      getSessionFromHeaders: vi.fn().mockResolvedValue(null)
+    });
+    const res = createResponse();
+
+    await dispatch(
+      auth,
+      createRequest({
+        method: "POST",
+        url: "/api/auth/resend-email-verification"
+      }),
+      res
+    );
+
+    expect(res.statusCode).toBe(401);
+    expect(auth.resendEmailVerification).not.toHaveBeenCalled();
   });
 });

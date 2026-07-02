@@ -60,7 +60,7 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-const user = { id: "user-1", email: "user@example.com", name: "User" };
+const user = { id: "user-1", email: "user@example.com", name: "User", emailVerified: false };
 
 describe("email verification", () => {
   beforeEach(() => {
@@ -78,6 +78,8 @@ describe("email verification", () => {
 
     await issueEmailVerification({ emailSender: { send }, user });
 
+    const after = Date.now();
+
     expect(insertedValues[0]).toMatchObject({
       identifier: "email-verification:user-1"
     });
@@ -85,6 +87,7 @@ describe("email verification", () => {
     const expiresAt = insertedValues[0]?.expiresAt as Date;
     expect(expiresAt).toBeInstanceOf(Date);
     expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(after + 24 * 60 * 60 * 1000);
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "user@example.com" }));
 
     const sendPayload = send.mock.calls[0]?.[0] as { text: string };

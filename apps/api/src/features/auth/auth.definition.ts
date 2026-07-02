@@ -6,6 +6,7 @@ export const AUTH_ROUTES = {
   REQUEST_PASSWORD_RESET: "/api/auth/request-password-reset",
   RESET_PASSWORD: "/api/auth/reset-password",
   VERIFY_EMAIL: "/api/auth/verify-email",
+  RESEND_EMAIL_VERIFICATION: "/api/auth/resend-email-verification",
   ORGANIZATION_LIST: "/api/auth/organization/list",
   ORGANIZATION_CREATE: "/api/auth/organization/create",
   ORGANIZATION_SET_ACTIVE: "/api/auth/organization/set-active",

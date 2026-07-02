@@ -15,6 +15,7 @@ export interface AuthClientConfig {
 export interface AuthSessionUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
 }
 
@@ -112,6 +113,7 @@ export interface ServerAuth {
   requestPasswordReset(input: { email: string }): Promise<void>;
   resetPassword(input: { password: string; token: string }): Promise<void>;
   verifyEmail(input: { token: string }): Promise<void>;
+  resendEmailVerification(input: { user: AuthSessionUser }): Promise<void>;
 }
 
 export interface ClientAuth {

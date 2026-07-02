@@ -112,6 +112,7 @@ describe("createAuthRouteTransport", () => {
         expiresAt: "2026-01-01T00:00:00.000Z",
         user: {
           email: "user@example.com",
+          emailVerified: false,
           id: "user-1",
           name: "User"
         }

@@ -143,12 +143,13 @@ export function assertSignupInput(input: SignupInput): void {
 export function toAuthSession(params: {
   activeOrganizationId: string;
   expiresAt: Date;
-  user: { email: string; id: string; name: string };
+  user: { email: string; emailVerified: boolean; id: string; name: string };
 }): AuthSession {
   return {
     user: {
       id: params.user.id,
       email: params.user.email,
+      emailVerified: params.user.emailVerified,
       name: params.user.name
     },
     expiresAt: params.expiresAt.toISOString(),
@@ -158,7 +159,7 @@ export function toAuthSession(params: {
 
 export async function createSession(params: {
   activeOrganizationId: string;
-  user: { email: string; id: string; name: string };
+  user: { email: string; emailVerified: boolean; id: string; name: string };
 }): Promise<AuthSessionResult> {
   const sessionToken = randomBytes(24).toString("hex");
   const expiresAt = new Date(Date.now() + AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS * 1000);
