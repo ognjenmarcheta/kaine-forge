@@ -18,6 +18,7 @@ import {
   listOrganizationsForUser,
   resolveActiveOrganizationForUser
 } from "./auth.server.organization";
+import { requestPasswordReset, resetPassword } from "./auth.server.password-reset";
 import {
   assertLoginInput,
   assertSignupInput,
@@ -255,6 +256,12 @@ export function createServerAuth(): ServerAuth {
     },
     revokeInvitation(params) {
       return revokeInvitationForScope(params);
+    },
+    requestPasswordReset(input) {
+      return requestPasswordReset({ email: input.email, emailSender });
+    },
+    resetPassword(input) {
+      return resetPassword(input);
     }
   };
 }

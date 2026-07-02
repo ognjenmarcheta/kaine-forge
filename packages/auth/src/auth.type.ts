@@ -108,6 +108,8 @@ export interface ServerAuth {
     invitationId: string;
     scope: AuthenticatedOrganizationScope;
   }): Promise<void>;
+  requestPasswordReset(input: { email: string }): Promise<void>;
+  resetPassword(input: { password: string; token: string }): Promise<void>;
 }
 
 export interface ClientAuth {

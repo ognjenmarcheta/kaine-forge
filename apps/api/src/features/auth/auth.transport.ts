@@ -231,6 +231,37 @@ async function dispatchAuthRoute(ctx: AuthRouteContext): Promise<boolean> {
       return true;
     }
 
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.REQUEST_PASSWORD_RESET) {
+      const payload = await parseJsonBody(ctx);
+      const email = typeof payload.email === "string" ? payload.email.trim() : "";
+
+      if (!email) {
+        throw new Error("email is required");
+      }
+
+      await ctx.auth.requestPasswordReset({ email });
+
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+      return true;
+    }
+
+    if (ctx.req.method === "POST" && url.pathname === AUTH_ROUTES.RESET_PASSWORD) {
+      const payload = await parseJsonBody(ctx);
+      const token = typeof payload.token === "string" ? payload.token : "";
+      const password = typeof payload.password === "string" ? payload.password : "";
+
+      if (!token || !password) {
+        throw new Error("token and password are required");
+      }
+
+      await ctx.auth.resetPassword({ token, password });
+
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+      return true;
+    }
+
     if (ctx.req.method === "GET" && url.pathname === AUTH_ROUTES.ORGANIZATION_LIST) {
       const session = await ctx.auth.getSessionFromHeaders(ctx.req.headers);
 
