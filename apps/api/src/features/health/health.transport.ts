@@ -17,6 +17,45 @@ function sendJson(ctx: HealthRouteContext, status: number, body: unknown): void 
   ctx.res.end(JSON.stringify(body));
 }
 
+const DEFAULT_READINESS_TIMEOUT_MS = 3000;
+
+// Bounds the /ready database probe so a blackholed database yields an honest
+// 503 instead of a hanging readiness check.
+export function createBoundedDatabaseCheck(deps: {
+  connect: () => Promise<{ release: () => void }>;
+  timeoutMs?: number;
+}): () => Promise<void> {
+  const timeoutMs = deps.timeoutMs ?? DEFAULT_READINESS_TIMEOUT_MS;
+
+  return async () => {
+    let timer: NodeJS.Timeout | undefined;
+
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error("database readiness check timed out"));
+      }, timeoutMs);
+    });
+
+    const connecting = deps.connect();
+
+    try {
+      const client = await Promise.race([connecting, timeout]);
+      client.release();
+    } catch (error) {
+      // If the timeout won the race, release the client whenever the
+      // in-flight connect settles so it is not leaked from the pool.
+      connecting
+        .then((client) => {
+          client.release();
+        })
+        .catch(() => undefined);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 export function createHealthRouteTransport(deps: {
   checkDatabase: () => Promise<void>;
 }): HealthRouteTransport {

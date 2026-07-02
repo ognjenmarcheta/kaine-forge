@@ -10,6 +10,11 @@ import { createContext, createContextFromHeaders } from "./context";
 import { handleAuthRoute } from "./features/auth/auth.router";
 import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
+import {
+  createRateLimiter,
+  resolveRateLimitConfig,
+  resolveRateLimitKey
+} from "./middleware/rate-limit.middleware";
 import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
 import { createDepthLimitPlugin, resolveApiRuntimeConfig } from "./server.config";
@@ -40,6 +45,7 @@ export function mergeWebSocketConnectionHeaders(
 export function createApiServer({ logger }: CreateApiServerOptions) {
   const auth = createServerAuth();
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
+  const rateLimiter = createRateLimiter(resolveRateLimitConfig(process.env));
   const cors =
     runtimeConfig.allowedCorsOrigins === undefined
       ? true
@@ -65,7 +71,13 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
       return createContext(initialContext.request, requestLogger, auth);
     },
     maskedErrors: runtimeConfig.maskedErrors,
-    cors
+    cors,
+    // graphql-yoga always mounts its built-in health-check plugin and the
+    // option only accepts a path (there is no `false`). Point it at a
+    // namespaced internal path so it can never answer /health: our handler
+    // owns GET /health, and POST /health now gets Yoga's regular 404 instead
+    // of the built-in plugin's empty 200.
+    healthCheckEndpoint: "/__yoga/health"
   });
 
   const server = createServer(async (req, res) => {
@@ -74,6 +86,22 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
 
       if (handledHealth) {
         return;
+      }
+
+      // Rate limit auth and GraphQL traffic only; health probes dispatched
+      // above stay unthrottled.
+      const pathname = (req.url ?? "").split("?")[0] ?? "";
+
+      if (pathname.startsWith("/api/auth") || pathname === "/graphql") {
+        const decision = rateLimiter.check(resolveRateLimitKey(req));
+
+        if (!decision.allowed) {
+          res.statusCode = 429;
+          res.setHeader("content-type", "application/json");
+          res.setHeader("retry-after", String(decision.retryAfterSeconds));
+          res.end(JSON.stringify({ error: "too many requests" }));
+          return;
+        }
       }
 
       const handledAuth = await handleAuthRoute({

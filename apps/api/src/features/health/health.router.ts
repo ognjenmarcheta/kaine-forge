@@ -1,12 +1,13 @@
 import { pool } from "@repo/db/client";
 
-import { createHealthRouteTransport, type HealthRouteContext } from "./health.transport";
+import {
+  createBoundedDatabaseCheck,
+  createHealthRouteTransport,
+  type HealthRouteContext
+} from "./health.transport";
 
 const healthRouteTransport = createHealthRouteTransport({
-  checkDatabase: async () => {
-    const client = await pool.connect();
-    client.release();
-  }
+  checkDatabase: createBoundedDatabaseCheck({ connect: () => pool.connect() })
 });
 
 export function handleHealthRoute(ctx: HealthRouteContext): Promise<boolean> {
