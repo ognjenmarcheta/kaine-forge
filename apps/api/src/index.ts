@@ -1,6 +1,10 @@
 import { createLogger } from "@repo/logger";
+import { config } from "dotenv";
+import { fileURLToPath } from "node:url";
 
 import { validateApiEnv, type ApiEnv } from "./env.config";
+
+config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 
 const logger = createLogger({ name: "api" });
 

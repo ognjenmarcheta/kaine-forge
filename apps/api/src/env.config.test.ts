@@ -9,8 +9,7 @@ const validEnv = {
 
 describe("validateApiEnv", () => {
   it("names every missing required variable in a single error", () => {
-    expect(() => validateApiEnv({})).toThrow(/DATABASE_URL/);
-    expect(() => validateApiEnv({})).toThrow(/BETTER_AUTH_SECRET/);
+    expect(() => validateApiEnv({})).toThrow(/DATABASE_URL[\s\S]*BETTER_AUTH_SECRET/);
   });
 
   it("rejects empty required values", () => {
@@ -22,6 +21,13 @@ describe("validateApiEnv", () => {
   it("applies defaults and coerces numeric values", () => {
     expect(validateApiEnv(validEnv).API_PORT).toBe(4000);
     expect(validateApiEnv({ ...validEnv, API_PORT: "5001" }).API_PORT).toBe(5001);
+  });
+
+  it("treats blank coerced values as unset", () => {
+    expect(validateApiEnv({ ...validEnv, API_PORT: "" }).API_PORT).toBe(4000);
+    expect(
+      validateApiEnv({ ...validEnv, S3_PRESIGNED_URL_EXPIRY: "" }).S3_PRESIGNED_URL_EXPIRY
+    ).toBeUndefined();
   });
 
   it("rejects a non-numeric port", () => {
