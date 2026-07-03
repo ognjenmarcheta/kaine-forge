@@ -44,7 +44,7 @@ Tokens are the public design API. Components should consume functional tokens in
 
 | Tier              | Purpose                                  | Example                                    |
 | ----------------- | ---------------------------------------- | ------------------------------------------ |
-| Base tokens       | raw palette/scale values, reference only | `--ds-base-blue-500`                       |
+| Base tokens       | raw palette/scale values, reference only | `--ds-base-light-surface-default`          |
 | Functional tokens | semantic UI values, primary consumer API | `--ds-text`, `--ds-background-danger-bold` |
 | Component tokens  | component or pattern-specific values     | `--ds-button-brand-bg-hovered`             |
 
