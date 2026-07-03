@@ -83,8 +83,14 @@ describe("auth.server loginWithPassword", () => {
     expect(sessionMocks.verifyPassword).toHaveBeenCalledWith("Secret123!", DUMMY_PASSWORD_HASH);
   });
 
-  it("uses a dummy hash with the current scrypt recipe", () => {
-    expect(DUMMY_PASSWORD_HASH.startsWith("scrypt$16384$8$1$")).toBe(true);
+  it("keeps the dummy hash aligned with the live scrypt parameters", async () => {
+    // Uses the REAL auth.server.session module (bypassing the mock above):
+    // this fails the moment SCRYPT_COST/r/p drift from the parameters
+    // DUMMY_PASSWORD_HASH was generated with, forcing a regeneration.
+    const actualSession =
+      await vi.importActual<typeof import("./auth.server.session")>("./auth.server.session");
+
+    expect(actualSession.needsPasswordRehash(DUMMY_PASSWORD_HASH)).toBe(false);
   });
 
   it("still resolves the login when the opportunistic rehash fails", async () => {

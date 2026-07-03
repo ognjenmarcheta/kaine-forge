@@ -13,7 +13,8 @@ import { formatApiError } from "./middleware/error.middleware";
 import {
   createRateLimiter,
   resolveRateLimitConfig,
-  resolveRateLimitKey
+  resolveRateLimitKey,
+  type RateLimitConfig
 } from "./middleware/rate-limit.middleware";
 import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
@@ -21,6 +22,7 @@ import { createDepthLimitPlugin, resolveApiRuntimeConfig } from "./server.config
 
 interface CreateApiServerOptions {
   logger: Logger;
+  rateLimitConfig?: RateLimitConfig;
 }
 
 export function mergeWebSocketConnectionHeaders(
@@ -42,10 +44,13 @@ export function mergeWebSocketConnectionHeaders(
   return mergedHeaders;
 }
 
-export function createApiServer({ logger }: CreateApiServerOptions) {
+export function createApiServer({
+  logger,
+  rateLimitConfig = resolveRateLimitConfig(process.env)
+}: CreateApiServerOptions) {
   const auth = createServerAuth();
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
-  const rateLimiter = createRateLimiter(resolveRateLimitConfig(process.env));
+  const rateLimiter = createRateLimiter(rateLimitConfig);
   const cors =
     runtimeConfig.allowedCorsOrigins === undefined
       ? true
@@ -89,16 +94,39 @@ export function createApiServer({ logger }: CreateApiServerOptions) {
       }
 
       // Rate limit auth and GraphQL traffic only; health probes dispatched
-      // above stay unthrottled.
+      // above stay unthrottled and CORS preflights never consume the limit.
+      // Note: websocket upgrades (/graphql subscriptions) bypass this limiter;
+      // it covers plain HTTP requests only.
       const pathname = (req.url ?? "").split("?")[0] ?? "";
+      const isRateLimitedPath =
+        pathname === "/api/auth" || pathname.startsWith("/api/auth/") || pathname === "/graphql";
 
-      if (pathname.startsWith("/api/auth") || pathname === "/graphql") {
-        const decision = rateLimiter.check(resolveRateLimitKey(req));
+      if (req.method !== "OPTIONS" && isRateLimitedPath) {
+        const key = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+        const decision = rateLimiter.check(key);
 
         if (!decision.allowed) {
+          if (decision.firstRejection) {
+            logger.warn({ key }, "rate limit exceeded");
+          }
+
+          // Mirror the yoga CORS behavior (reflect the origin when CORS is
+          // open or the origin is allowlisted) so browsers can read the 429.
+          const origin = req.headers.origin;
+
+          if (
+            origin &&
+            (runtimeConfig.allowedCorsOrigins === undefined ||
+              runtimeConfig.allowedCorsOrigins.includes(origin))
+          ) {
+            res.setHeader("access-control-allow-origin", origin);
+            res.setHeader("access-control-allow-credentials", "true");
+          }
+
           res.statusCode = 429;
           res.setHeader("content-type", "application/json");
           res.setHeader("retry-after", String(decision.retryAfterSeconds));
+          res.setHeader("access-control-expose-headers", "retry-after");
           res.end(JSON.stringify({ error: "too many requests" }));
           return;
         }

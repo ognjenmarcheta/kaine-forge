@@ -18,6 +18,7 @@ const apiEnvSchema = z.object({
     blankAsUnset,
     z.coerce.number().int().positive().optional()
   ),
+  API_TRUST_PROXY: z.string().optional(),
   AUTH_REQUIRE_EMAIL_VERIFICATION: z.string().optional(),
   EMAIL_PROVIDER: z.string().optional(),
   LOG_LEVEL: z.string().optional(),

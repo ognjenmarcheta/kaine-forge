@@ -11,6 +11,8 @@ const SCRYPT_KEY_LENGTH = 64;
 // they can be raised later; needsPasswordRehash flags old-cost hashes and login
 // transparently rehashes them. Raising N requires maxmem >= 128 * N * r bytes.
 // Keep the recipe in sync with hashSeedPassword in packages/db/src/seed/users.seed.ts.
+// Bumping these parameters also requires regenerating DUMMY_PASSWORD_HASH in
+// auth.server.ts so unknown-email logins keep costing the same as real ones.
 const SCRYPT_COST = 16384;
 const SCRYPT_BLOCK_SIZE = 8;
 const SCRYPT_PARALLELIZATION = 1;
