@@ -25,6 +25,7 @@ apps/e2e/test-results/
 .claude/hooks/
 .claude/plans/
 .claude/skills/*/
+.claude/agents/
 .codex/config.toml
 .cursor/mcp.json
 .cursor/rules/

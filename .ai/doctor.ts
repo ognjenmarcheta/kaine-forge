@@ -6,8 +6,11 @@ import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
 import {
   type Agent,
+  computeAgentDefinitionDrift,
+  discoverAgentDefinitions,
   discoverSkills,
   KAINE_PREFIX,
+  lintAgentDefinitionsDir,
   lintGuideSkillList,
   type LintIssue,
   lintSkillsDir,
@@ -229,9 +232,10 @@ const printLintIssue = (issue: LintIssue): void => {
 };
 
 const main = (): void => {
-  const lintIssues = lintSkillsDir();
+  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
+  const agentDefinitions = lintErrors.length === 0 ? discoverAgentDefinitions() : [];
 
   if (lintErrors.length === 0) {
     lintIssues.push(
@@ -336,14 +340,45 @@ const main = (): void => {
     const fileDrift = computeSharedDrift(skills);
     const skillDrift = computeSkillDrift(skills);
     const hookDrift = computeHookDrift();
+    const agentDrift = computeAgentDefinitionDrift(
+      agentDefinitions,
+      join(REPO_ROOT, ".claude", "agents")
+    );
+    const hasAgentDrift =
+      agentDrift.missing.length > 0 || agentDrift.stale.length > 0 || agentDrift.orphan.length > 0;
 
-    if (fileDrift.length === 0 && skillDrift.length === 0 && hookDrift.length === 0) {
+    if (
+      fileDrift.length === 0 &&
+      skillDrift.length === 0 &&
+      hookDrift.length === 0 &&
+      !hasAgentDrift
+    ) {
       console.log(`  ${chalk.green("✓")}  no drift detected`);
     } else {
       for (const entry of [...fileDrift, ...hookDrift]) {
         console.log(
           `  ${chalk.yellow("⚠")}  ${entry.label.padEnd(28)}  ${entry.status}   ${chalk.gray("(run: pnpm ai:install)")}`
         );
+      }
+
+      if (hasAgentDrift) {
+        const label = "claude agents".padEnd(28);
+        if (agentDrift.stale.length > 0) {
+          console.log(
+            `  ${chalk.yellow("⚠")}  ${label}  stale: ${agentDrift.stale.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
+          );
+        }
+        if (agentDrift.missing.length > 0) {
+          console.log(
+            `  ${chalk.yellow("⚠")}  ${label}  missing: ${agentDrift.missing.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
+          );
+        }
+        if (agentDrift.orphan.length > 0) {
+          console.log(
+            `  ${chalk.yellow("⚠")}  ${label}  orphan: ${agentDrift.orphan.join(", ")}   ${chalk.gray("(delete .claude/agents/<name>.md)")}`
+          );
+        }
+        process.exitCode = 1;
       }
 
       for (const entry of skillDrift) {

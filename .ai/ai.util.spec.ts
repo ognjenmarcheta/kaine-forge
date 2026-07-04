@@ -1,13 +1,21 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  computeAgentDefinitionDrift,
+  discoverAgentDefinitions,
+  lintAgentDefinitionsDir,
   lintGuideSkillList,
   missingEnvVarsForMcpServers,
   mergeMcpSources,
+  parseAgentDefinitionFile,
   parseSkillFile,
   publicMcpServer,
   referencedEnvVars,
   renderAgentDoc,
+  renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
   renderCodexConfig,
@@ -20,6 +28,22 @@ import {
   renderSerenaProject,
   resolveInstallMcpSource
 } from "./ai.util";
+
+const agentDef = (
+  name: string,
+  description = "Does agent things.",
+  body = "System prompt."
+): string =>
+  [
+    "---",
+    `name: ${name}`,
+    `description: ${description}`,
+    "model: inherit",
+    "---",
+    "",
+    body,
+    ""
+  ].join("\n");
 
 const baseFrontmatter = (extra: string): string =>
   ["---", "name: kaine-foo", "description: Does foo.", extra, "---", "", "Body."].join("\n");
@@ -451,6 +475,206 @@ describe("resolveInstallMcpSource", () => {
     );
 
     expect(Object.keys(resolved.source.mcpServers)).toEqual(["context7"]);
+  });
+});
+
+describe("parseAgentDefinitionFile", () => {
+  it("parses name, description, frontmatter, and body", () => {
+    const def = parseAgentDefinitionFile("kaine-implementer", agentDef("kaine-implementer"));
+    expect(def.name).toBe("kaine-implementer");
+    expect(def.description).toBe("Does agent things.");
+    expect(def.frontmatterRaw).toContain("name: kaine-implementer");
+    expect(def.frontmatterRaw).toContain("model: inherit");
+    expect(def.body).toBe("System prompt.\n");
+  });
+
+  it("errors when the name does not match the file name", () => {
+    expect(() => parseAgentDefinitionFile("kaine-implementer", agentDef("kaine-explorer"))).toThrow(
+      /does not match file name/
+    );
+  });
+
+  it("errors when required fields are missing", () => {
+    expect(() =>
+      parseAgentDefinitionFile("kaine-foo", "---\ndescription: x\n---\n\nBody.")
+    ).toThrow(/missing 'name'/);
+    expect(() =>
+      parseAgentDefinitionFile("kaine-foo", "---\nname: kaine-foo\n---\n\nBody.")
+    ).toThrow(/missing 'description'/);
+  });
+
+  it("errors when the body is empty", () => {
+    expect(() =>
+      parseAgentDefinitionFile("kaine-foo", "---\nname: kaine-foo\ndescription: x\n---\n\n")
+    ).toThrow(/body is empty/);
+  });
+
+  it("errors when frontmatter is missing", () => {
+    expect(() => parseAgentDefinitionFile("kaine-foo", "no frontmatter here")).toThrow(
+      /missing YAML frontmatter/
+    );
+  });
+});
+
+describe("renderClaudeAgentDefinition", () => {
+  it("round-trips frontmatter and body with a trailing newline", () => {
+    const def = parseAgentDefinitionFile("kaine-implementer", agentDef("kaine-implementer"));
+    const output = renderClaudeAgentDefinition(def);
+    expect(output).toBe(
+      "---\nname: kaine-implementer\ndescription: Does agent things.\nmodel: inherit\n---\nSystem prompt.\n"
+    );
+    expect(output.endsWith("\n")).toBe(true);
+  });
+});
+
+describe("discoverAgentDefinitions", () => {
+  const withAgentsDir = (fn: (dir: string) => void): void => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-agents-"));
+    const dir = join(root, "agents");
+    mkdirSync(dir, { recursive: true });
+    try {
+      fn(dir);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("returns definitions sorted by name", () => {
+    withAgentsDir((dir) => {
+      writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
+      writeFileSync(join(dir, "kaine-explorer.md"), agentDef("kaine-explorer"));
+      const defs = discoverAgentDefinitions(dir);
+      expect(defs.map((def) => def.name)).toEqual(["kaine-explorer", "kaine-implementer"]);
+    });
+  });
+
+  it("rejects a non-kaine name", () => {
+    withAgentsDir((dir) => {
+      writeFileSync(join(dir, "helper.md"), agentDef("helper"));
+      expect(() => discoverAgentDefinitions(dir)).toThrow(/must start with 'kaine-'/);
+    });
+  });
+
+  it("returns an empty list when the directory is missing", () => {
+    expect(discoverAgentDefinitions(join(tmpdir(), "kaine-agents-missing-xyz"))).toEqual([]);
+  });
+});
+
+describe("lintAgentDefinitionsDir", () => {
+  const withAgentsDir = (fn: (dir: string) => void): void => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-agents-lint-"));
+    const dir = join(root, "agents");
+    mkdirSync(dir, { recursive: true });
+    try {
+      fn(dir);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("passes for a valid definition", () => {
+    withAgentsDir((dir) => {
+      writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
+      expect(lintAgentDefinitionsDir(dir)).toEqual([]);
+    });
+  });
+
+  it("flags a non-kaine name", () => {
+    withAgentsDir((dir) => {
+      writeFileSync(join(dir, "helper.md"), agentDef("helper"));
+      const issues = lintAgentDefinitionsDir(dir);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]?.level).toBe("error");
+      expect(issues[0]?.message).toContain("kaine-");
+    });
+  });
+
+  it("flags an empty body", () => {
+    withAgentsDir((dir) => {
+      writeFileSync(
+        join(dir, "kaine-implementer.md"),
+        "---\nname: kaine-implementer\ndescription: x\n---\n\n"
+      );
+      const issues = lintAgentDefinitionsDir(dir);
+      expect(
+        issues.some((issue) => issue.level === "error" && /body is empty/.test(issue.message))
+      ).toBe(true);
+    });
+  });
+});
+
+describe("computeAgentDefinitionDrift", () => {
+  const withInstall = (
+    fn: (dir: string, defs: ReturnType<typeof parseAgentDefinitionFile>[]) => void
+  ): void => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-agents-drift-"));
+    const dir = join(root, "agents");
+    mkdirSync(dir, { recursive: true });
+    const defs = [
+      parseAgentDefinitionFile("kaine-implementer", agentDef("kaine-implementer")),
+      parseAgentDefinitionFile("kaine-explorer", agentDef("kaine-explorer"))
+    ];
+    try {
+      fn(dir, defs);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("reports no drift when installed files match canonical", () => {
+    withInstall((dir, defs) => {
+      for (const def of defs) {
+        writeFileSync(join(dir, `${def.name}.md`), renderClaudeAgentDefinition(def));
+      }
+      const drift = computeAgentDefinitionDrift(defs, dir);
+      expect(drift.missing).toEqual([]);
+      expect(drift.stale).toEqual([]);
+      expect(drift.orphan).toEqual([]);
+    });
+  });
+
+  it("reports a mutated installed file as stale", () => {
+    withInstall((dir, defs) => {
+      for (const def of defs) {
+        writeFileSync(join(dir, `${def.name}.md`), renderClaudeAgentDefinition(def));
+      }
+      writeFileSync(join(dir, "kaine-implementer.md"), "mutated\n");
+      const drift = computeAgentDefinitionDrift(defs, dir);
+      expect(drift.stale).toEqual(["kaine-implementer"]);
+    });
+  });
+
+  it("reports a missing installed file", () => {
+    withInstall((dir, defs) => {
+      writeFileSync(
+        join(dir, "kaine-explorer.md"),
+        renderClaudeAgentDefinition(defs.find((def) => def.name === "kaine-explorer")!)
+      );
+      const drift = computeAgentDefinitionDrift(defs, dir);
+      expect(drift.missing).toEqual(["kaine-implementer"]);
+    });
+  });
+
+  it("reports a stray kaine- installed file as orphan", () => {
+    withInstall((dir, defs) => {
+      for (const def of defs) {
+        writeFileSync(join(dir, `${def.name}.md`), renderClaudeAgentDefinition(def));
+      }
+      writeFileSync(join(dir, "kaine-stray.md"), "stray\n");
+      const drift = computeAgentDefinitionDrift(defs, dir);
+      expect(drift.orphan).toEqual(["kaine-stray"]);
+    });
+  });
+
+  it("ignores non-kaine installed files", () => {
+    withInstall((dir, defs) => {
+      for (const def of defs) {
+        writeFileSync(join(dir, `${def.name}.md`), renderClaudeAgentDefinition(def));
+      }
+      writeFileSync(join(dir, "my-personal-agent.md"), "personal\n");
+      const drift = computeAgentDefinitionDrift(defs, dir);
+      expect(drift.orphan).toEqual([]);
+    });
   });
 });
 
