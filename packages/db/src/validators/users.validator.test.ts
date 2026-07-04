@@ -14,13 +14,13 @@ describe("users.validator", () => {
     expect(parsed.name).toBe("Person");
   });
 
-  it("rejects insert payload without password hash", () => {
-    expect(() =>
-      insertUserSchema.parse({
-        email: "person@example.com",
-        name: "Person"
-      })
-    ).toThrowError();
+  it("accepts insert payloads without a password hash (better-auth signups)", () => {
+    const parsed = insertUserSchema.parse({
+      email: "person@example.com",
+      name: "Person"
+    });
+
+    expect(parsed.passwordHash).toBeUndefined();
   });
 
   it("accepts valid selected rows", () => {

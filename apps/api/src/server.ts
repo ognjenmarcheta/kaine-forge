@@ -1,13 +1,14 @@
+import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
 import type { Logger } from "@repo/logger";
+import { toNodeHandler } from "better-auth/node";
 import { useServer } from "graphql-ws/use/ws";
 import { createYoga } from "graphql-yoga";
-import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
 import { createContext, createContextFromHeaders } from "./context";
-import { handleAuthRoute } from "./features/auth/auth.router";
 import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
 import {
@@ -23,6 +24,27 @@ import { createDepthLimitPlugin, resolveApiRuntimeConfig } from "./server.config
 interface CreateApiServerOptions {
   logger: Logger;
   rateLimitConfig?: RateLimitConfig;
+}
+
+// better-auth (1.6.23) does not emit CORS response headers itself
+// (trustedOrigins only feeds its CSRF origin check), so /api/auth/* keeps the
+// same allowlist-based CORS handling the custom transport applied.
+function applyAuthCorsHeaders(
+  req: IncomingMessage,
+  res: ServerResponse<IncomingMessage>,
+  allowedCorsOrigins: string[] | undefined
+): void {
+  const origin = req.headers.origin;
+
+  if (!origin || !allowedCorsOrigins?.includes(origin)) {
+    return;
+  }
+
+  res.setHeader("access-control-allow-credentials", "true");
+  res.setHeader("access-control-allow-headers", "content-type, authorization");
+  res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("vary", "Origin");
 }
 
 export function mergeWebSocketConnectionHeaders(
@@ -49,6 +71,7 @@ export function createApiServer({
   rateLimitConfig = resolveRateLimitConfig(process.env)
 }: CreateApiServerOptions) {
   const auth = createServerAuth();
+  const authHandler = toNodeHandler(authInstance.handler);
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
   const rateLimiter = createRateLimiter(rateLimitConfig);
   const cors =
@@ -132,13 +155,16 @@ export function createApiServer({
         }
       }
 
-      const handledAuth = await handleAuthRoute({
-        req,
-        res,
-        auth
-      });
+      if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
+        applyAuthCorsHeaders(req, res, runtimeConfig.allowedCorsOrigins);
 
-      if (handledAuth) {
+        if (req.method === "OPTIONS") {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        await authHandler(req, res);
         return;
       }
 

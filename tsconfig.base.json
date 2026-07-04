@@ -22,6 +22,7 @@
       "@repo/auth": ["packages/auth/src/index.ts"],
       "@repo/auth/server": ["packages/auth/src/auth.server.ts"],
       "@repo/auth/client": ["packages/auth/src/auth.client.ts"],
+      "@repo/auth/instance": ["packages/auth/src/auth.instance.ts"],
       "@repo/auth/permissions": ["packages/auth/src/auth.permissions.ts"],
       "@repo/auth/scope": ["packages/auth/src/auth.scope.ts"],
       "@repo/auth/session": ["packages/auth/src/auth.session.ts"],

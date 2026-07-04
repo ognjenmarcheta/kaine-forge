@@ -10,6 +10,8 @@ export const organizationsTable = pgTable("organizations", {
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull().unique(),
   logo: text("logo"),
+  // The better-auth organization plugin JSON.stringifys metadata before
+  // writing, so jsonb values it stores arrive double-encoded (a JSON string).
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });

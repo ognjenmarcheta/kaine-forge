@@ -1,3 +1,6 @@
+// better-auth serves /api/auth/*; these constants name the subset of its
+// routes our clients use (core email/password + organization plugin paths,
+// read from the installed better-auth 1.6.23 route tables).
 export const AUTH_ROUTES = {
   GET_SESSION: "/api/auth/get-session",
   SIGN_IN_EMAIL: "/api/auth/sign-in/email",
@@ -6,12 +9,13 @@ export const AUTH_ROUTES = {
   REQUEST_PASSWORD_RESET: "/api/auth/request-password-reset",
   RESET_PASSWORD: "/api/auth/reset-password",
   VERIFY_EMAIL: "/api/auth/verify-email",
-  RESEND_EMAIL_VERIFICATION: "/api/auth/resend-email-verification",
+  SEND_VERIFICATION_EMAIL: "/api/auth/send-verification-email",
   ORGANIZATION_LIST: "/api/auth/organization/list",
   ORGANIZATION_CREATE: "/api/auth/organization/create",
   ORGANIZATION_SET_ACTIVE: "/api/auth/organization/set-active",
-  ORGANIZATION_GET_MEMBERS: "/api/auth/organization/get-members",
-  ORGANIZATION_INVITATION_CREATE: "/api/auth/organization/invitation/create",
-  ORGANIZATION_INVITATION_ACCEPT: "/api/auth/organization/invitation/accept",
-  ORGANIZATION_INVITATION_REVOKE: "/api/auth/organization/invitation/revoke"
+  ORGANIZATION_LIST_MEMBERS: "/api/auth/organization/list-members",
+  ORGANIZATION_INVITE_MEMBER: "/api/auth/organization/invite-member",
+  ORGANIZATION_ACCEPT_INVITATION: "/api/auth/organization/accept-invitation",
+  ORGANIZATION_CANCEL_INVITATION: "/api/auth/organization/cancel-invitation",
+  ORGANIZATION_LIST_INVITATIONS: "/api/auth/organization/list-invitations"
 } as const;

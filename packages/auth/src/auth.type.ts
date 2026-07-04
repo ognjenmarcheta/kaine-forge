@@ -73,11 +73,12 @@ export interface AuthSessionResult {
   sessionToken: string;
 }
 
+// Auth writes (sign-in/up/out, organization and invitation mutations, password
+// reset, email verification) go through better-auth's /api/auth handler; the
+// server facade only covers session resolution and organization-scoped reads
+// consumed by the GraphQL context and resolvers.
 export interface ServerAuth {
   getSessionFromHeaders(headers: Headers | IncomingHttpHeaders): Promise<AuthSession | null>;
-  loginWithPassword(input: LoginInput): Promise<AuthSessionResult>;
-  signUpWithPassword(input: SignupInput): Promise<AuthSessionResult>;
-  logout(sessionToken: string | null): Promise<void>;
   listOrganizationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthOrganization[]>;
   getCurrentOrganizationByScope(
     scope: AuthenticatedOrganizationScope
@@ -86,34 +87,10 @@ export interface ServerAuth {
     organizationId: string;
     userId: string;
   }): Promise<OrganizationMembershipProof | null>;
-  setActiveOrganization(params: {
-    organizationId: string;
-    sessionToken: string | null;
-    userId: string;
-  }): Promise<AuthSession>;
-  createOrganization(params: {
-    name: string;
-    sessionToken: string | null;
-    userId: string;
-  }): Promise<AuthSession>;
   listOrganizationMembersByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganizationMember[]>;
-  createInvitation(params: {
-    email: string;
-    role: string;
-    scope: AuthenticatedOrganizationScope;
-  }): Promise<AuthInvitation>;
   listInvitationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthInvitation[]>;
-  acceptInvitation(params: { invitationId: string; user: AuthSessionUser }): Promise<void>;
-  revokeInvitation(params: {
-    invitationId: string;
-    scope: AuthenticatedOrganizationScope;
-  }): Promise<void>;
-  requestPasswordReset(input: { email: string }): Promise<void>;
-  resetPassword(input: { password: string; token: string }): Promise<void>;
-  verifyEmail(input: { token: string }): Promise<void>;
-  resendEmailVerification(input: { user: AuthSessionUser }): Promise<void>;
 }
 
 export interface ClientAuth {
