@@ -378,7 +378,9 @@ const main = (): void => {
             `  ${chalk.yellow("⚠")}  ${label}  orphan: ${agentDrift.orphan.join(", ")}   ${chalk.gray("(delete .claude/agents/<name>.md)")}`
           );
         }
-        process.exitCode = 1;
+        // Drift is advisory (a stale local install, fixable with pnpm ai:install),
+        // consistent with skill/file/hook drift; only lint errors on canonical
+        // sources gate the exit code below.
       }
 
       for (const entry of skillDrift) {
