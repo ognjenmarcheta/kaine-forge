@@ -1,21 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The instance module imports @repo/db, whose client requires DATABASE_URL at
-// import time (the pg Pool never connects during these tests). Set dummy env
-// before the dynamic import so construction is exercised with explicit config.
-process.env.DATABASE_URL ??= "postgresql://dummy:dummy@localhost:5432/dummy";
-process.env.BETTER_AUTH_SECRET ??= "test-secret-test-secret-test-secret-1234";
-process.env.BETTER_AUTH_URL ??= "http://localhost:4000";
+// import time (the pg Pool never connects during these tests). Stub dummy env
+// before the dynamic imports so construction is exercised with explicit config.
+vi.stubEnv("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/dummy");
+vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
+vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 
 const { AUTH_DEFINITIONS } = await import("./auth.definition");
 const { hashPassword } = await import("./auth.password");
 const { auth, createAuthInstance } = await import("./auth.instance");
 
 describe("auth.instance", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("constructs a better-auth instance without throwing", () => {
     expect(() => createAuthInstance()).not.toThrow();
     expect(auth.handler).toBeTypeOf("function");
     expect(auth.api).toBeDefined();
+  });
+
+  it("refuses to fall back to the development secret in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("BETTER_AUTH_SECRET", undefined);
+
+    expect(() => createAuthInstance()).toThrow("BETTER_AUTH_SECRET must be set in production");
+
+    vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
+
+    expect(() => createAuthInstance()).not.toThrow();
   });
 
   it("enables email/password auth with our custom scrypt hooks wired in", async () => {
@@ -32,6 +48,14 @@ describe("auth.instance", () => {
     expect(verify).toBeTypeOf("function");
     await expect(verify?.({ hash: stored, password: "Secret123!" })).resolves.toBe(true);
     await expect(verify?.({ hash: stored, password: "WrongPass!" })).resolves.toBe(false);
+  });
+
+  it("verifies legacy unsalted sha256 hashes through the configured hook", async () => {
+    const legacy = createHash("sha256").update("Secret123!").digest("hex");
+    const verify = auth.options.emailAndPassword?.password?.verify;
+
+    await expect(verify?.({ hash: legacy, password: "Secret123!" })).resolves.toBe(true);
+    await expect(verify?.({ hash: legacy, password: "WrongPass!" })).resolves.toBe(false);
   });
 
   it("registers the organization and bearer plugins", () => {

@@ -29,6 +29,12 @@ const AUTH_SCHEMA = {
 } as const;
 
 export function createAuthInstance() {
+  // getServerAuthConfig falls back to "development-secret"; that fallback
+  // must never sign production tokens.
+  if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET) {
+    throw new Error("BETTER_AUTH_SECRET must be set in production");
+  }
+
   const config = getServerAuthConfig();
 
   return betterAuth({

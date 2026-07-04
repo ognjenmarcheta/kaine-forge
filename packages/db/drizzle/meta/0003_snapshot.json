@@ -1,5 +1,5 @@
 {
-  "id": "56b5945d-559a-4ff0-9837-17b0dbcf8919",
+  "id": "e26f548b-ab54-4e4f-9525-a38bffd75812",
   "prevId": "cefd46e0-2240-41a4-8a03-56532e772c20",
   "version": "7",
   "dialect": "postgresql",
@@ -90,7 +90,44 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "accounts_user_id_idx": {
+          "name": "accounts_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "accounts_provider_id_account_id_idx": {
+          "name": "accounts_provider_id_account_id_idx",
+          "columns": [
+            {
+              "expression": "provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "accounts_user_id_users_id_fk": {
           "name": "accounts_user_id_users_id_fk",
@@ -776,13 +813,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "verifications_value_unique": {
-          "name": "verifications_value_unique",
-          "nullsNotDistinct": false,
-          "columns": ["value"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
