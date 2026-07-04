@@ -1,5 +1,11 @@
 # @repo/ui
 
+## 1.1.3
+
+### Patch Changes
+
+- 480a52d: Add design-token contract test (DESIGN_SYSTEM.md ↔ globals.css ↔ Tailwind preset) and fix the stale base-token example in the docs
+
 ## 1.1.2
 
 ### Patch Changes

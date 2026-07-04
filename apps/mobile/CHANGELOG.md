@@ -1,5 +1,17 @@
 # @repo/mobile
 
+## 1.2.12
+
+### Patch Changes
+
+- c9b20e0: Extend the local AuthUser session mirrors with the new emailVerified field exposed by @repo/auth sessions
+- Updated dependencies [f884c6b]
+- Updated dependencies [d03004e]
+- Updated dependencies [c72eb56]
+- Updated dependencies [5d8d4a1]
+- Updated dependencies [3733f8d]
+  - @repo/auth@1.3.0
+
 ## 1.2.11
 
 ### Patch Changes
