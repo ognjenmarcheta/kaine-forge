@@ -48,6 +48,35 @@ async function sendAuthEmail(message: EmailMessage): Promise<void> {
   }
 }
 
+interface SocialProviderCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+// Social login is opt-in per provider: a provider activates only when BOTH of
+// its env vars are set, so the template works with none, one, or both.
+export function resolveSocialProviders(
+  env: Record<string, string | undefined>
+): Partial<Record<"github" | "google", SocialProviderCredentials>> {
+  const providers: Partial<Record<"github" | "google", SocialProviderCredentials>> = {};
+
+  if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
+    providers.github = {
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET
+    };
+  }
+
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+    providers.google = {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET
+    };
+  }
+
+  return providers;
+}
+
 function parseTrustedOrigins(value: string | undefined): string[] {
   if (!value) {
     return [];
@@ -75,6 +104,7 @@ export function createAuthInstance() {
     // web app); better-auth's origin check rejects state-changing requests
     // from origins outside this list.
     trustedOrigins: parseTrustedOrigins(process.env.API_CORS_ORIGINS),
+    socialProviders: resolveSocialProviders(process.env),
     database: drizzleAdapter(db, {
       provider: "pg",
       usePlural: true,

@@ -39,4 +39,17 @@ describe("validateApiEnv", () => {
     expect(env.API_HOST).toBe("0.0.0.0");
     expect(env.LOG_LEVEL).toBe("debug");
   });
+
+  it("accepts optional social provider credentials", () => {
+    const env = validateApiEnv({
+      ...validEnv,
+      GITHUB_CLIENT_ID: "gh-id",
+      GITHUB_CLIENT_SECRET: "gh-secret",
+      GOOGLE_CLIENT_ID: "go-id",
+      GOOGLE_CLIENT_SECRET: "go-secret"
+    });
+    expect(env.GITHUB_CLIENT_ID).toBe("gh-id");
+    expect(env.GOOGLE_CLIENT_SECRET).toBe("go-secret");
+    expect(validateApiEnv(validEnv).GITHUB_CLIENT_ID).toBeUndefined();
+  });
 });
