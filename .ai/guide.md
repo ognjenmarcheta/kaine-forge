@@ -1,6 +1,6 @@
 # Kaine Forge AI Guide
 
-This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, better-auth organizations, and shared `@repo/*` packages.
+This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, custom session auth with organizations, and shared `@repo/*` packages.
 
 ## Required Reading
 
@@ -93,6 +93,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 
 Use skills when they match the task:
 
+- `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
 - `kaine-sync-docs`: reinstall and verify AI assistant files.
 - `kaine-test`: plan or write tests for a specified system under test.
 - `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.

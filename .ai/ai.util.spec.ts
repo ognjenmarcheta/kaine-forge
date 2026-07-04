@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  lintGuideSkillList,
   missingEnvVarsForMcpServers,
   mergeMcpSources,
   parseSkillFile,
@@ -22,6 +23,46 @@ import {
 
 const baseFrontmatter = (extra: string): string =>
   ["---", "name: kaine-foo", "description: Does foo.", extra, "---", "", "Body."].join("\n");
+
+describe("lintGuideSkillList", () => {
+  const guide = [
+    "# Guide",
+    "",
+    "Use skills when they match the task:",
+    "",
+    "- `kaine-alpha`: does alpha things.",
+    "- `kaine-beta`: does beta things.",
+    "",
+    "Downstream products can add more skills."
+  ].join("\n");
+
+  it("passes when the guide list matches the skills on disk", () => {
+    expect(lintGuideSkillList(guide, ["kaine-alpha", "kaine-beta"])).toEqual([]);
+  });
+
+  it("reports skills on disk that are missing from the guide list", () => {
+    const issues = lintGuideSkillList(guide, ["kaine-alpha", "kaine-beta", "kaine-gamma"]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.level).toBe("error");
+    expect(issues[0]?.message).toContain("kaine-gamma");
+  });
+
+  it("reports guide entries with no matching skill file", () => {
+    const issues = lintGuideSkillList(guide, ["kaine-alpha"]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.level).toBe("error");
+    expect(issues[0]?.message).toContain("kaine-beta");
+  });
+
+  it("errors when the guide skill list section is missing entirely", () => {
+    const issues = lintGuideSkillList("# Guide with no skill list", ["kaine-alpha"]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.level).toBe("error");
+  });
+});
 
 describe("parseSkillFile", () => {
   it("parses minimal valid frontmatter", () => {

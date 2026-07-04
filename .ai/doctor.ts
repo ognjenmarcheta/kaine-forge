@@ -8,6 +8,7 @@ import {
   type Agent,
   discoverSkills,
   KAINE_PREFIX,
+  lintGuideSkillList,
   type LintIssue,
   lintSkillsDir,
   LOCAL_MCP_ENV_SRC,
@@ -229,8 +230,18 @@ const printLintIssue = (issue: LintIssue): void => {
 
 const main = (): void => {
   const lintIssues = lintSkillsDir();
-  const lintErrors = lintIssues.filter((issue) => issue.level === "error");
+  let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
+
+  if (lintErrors.length === 0) {
+    lintIssues.push(
+      ...lintGuideSkillList(
+        readGuideSource(),
+        skills.map((skill) => skill.name)
+      )
+    );
+    lintErrors = lintIssues.filter((issue) => issue.level === "error");
+  }
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
