@@ -68,11 +68,6 @@ export interface AuthOrganizationsResult {
   organizations: AuthOrganization[];
 }
 
-export interface AuthSessionResult {
-  session: AuthSession;
-  sessionToken: string;
-}
-
 // Auth writes (sign-in/up/out, organization and invitation mutations, password
 // reset, email verification) go through better-auth's /api/auth handler; the
 // server facade only covers session resolution and organization-scoped reads

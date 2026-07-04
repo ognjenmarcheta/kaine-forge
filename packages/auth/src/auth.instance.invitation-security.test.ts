@@ -88,6 +88,7 @@ describe("organization accept-invitation email enforcement", () => {
         headers: attackerHeaders
       })
     ).rejects.toMatchObject({
+      status: "FORBIDDEN",
       body: { message: expect.stringMatching(/not the recipient/i) }
     });
   });
