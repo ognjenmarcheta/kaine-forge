@@ -36,6 +36,13 @@
       "when": 1783172941687,
       "tag": "0004_blue_shiva",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783195288051,
+      "tag": "0005_loud_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

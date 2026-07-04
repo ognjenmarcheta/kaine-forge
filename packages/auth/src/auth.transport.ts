@@ -233,7 +233,8 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       };
     },
     async listOrganizationMembers() {
-      const { data, error } = await client.organization.listMembers();
+      // Explicit page size; pagination is deliberately not surfaced at template scale.
+      const { data, error } = await client.organization.listMembers({ query: { limit: 100 } });
 
       if (error) {
         throw toAuthError(error);
@@ -260,7 +261,6 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       // better-auth requires a globally unique slug the old protocol derived
       // server-side, so the wrapper retries suffixed candidates on conflict.
       const baseSlug = slugifyOrganizationName(createInput.name);
-      let lastError: TransportRequestError = { status: 0 };
 
       for (let attempt = 0; attempt < CREATE_ORGANIZATION_SLUG_ATTEMPTS; attempt += 1) {
         const slug = attempt === 0 ? baseSlug : `${baseSlug}-${String(attempt + 1)}`;
@@ -276,11 +276,9 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         if (!isSlugConflict(error)) {
           throw toAuthError(error);
         }
-
-        lastError = error;
       }
 
-      throw toAuthError(lastError);
+      throw new Error("failed to create organization: slug conflicts exhausted");
     }
   };
 }

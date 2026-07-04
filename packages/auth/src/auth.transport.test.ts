@@ -355,6 +355,7 @@ describe("createAuthTransport", () => {
         role: "owner"
       }
     ]);
+    expect(client.organization.listMembers).toHaveBeenCalledWith({ query: { limit: 100 } });
   });
 
   it("sets the active organization and returns the refreshed session", async () => {
@@ -393,6 +394,22 @@ describe("createAuthTransport", () => {
       name: "Acme Inc",
       slug: "acme-inc-2"
     });
+  });
+
+  it("fails organization creation with a clear error once slug candidates are exhausted", async () => {
+    const client = createClientStub();
+    client.organization.create.mockResolvedValue({
+      data: null,
+      error: { status: 400, code: "ORGANIZATION_ALREADY_EXISTS" }
+    });
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.createOrganization({ name: "Acme" })).rejects.toThrow(
+      "failed to create organization: slug conflicts exhausted"
+    );
+    expect(client.organization.create).toHaveBeenCalledTimes(10);
   });
 
   it("fails organization creation immediately on non-conflict errors", async () => {

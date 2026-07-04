@@ -23,21 +23,16 @@ export async function seedUsers(): Promise<void> {
   const { db } = await import("../client");
   const passwordHash = hashSeedPassword(TEST_USER.password);
 
-  // Dual-write during the better-auth migration: users.password_hash stays
-  // authoritative for the legacy auth until M6, while better-auth reads the
-  // credential accounts row.
   const users = await db
     .insert(usersTable)
     .values({
       email: TEST_USER.email,
-      passwordHash,
       name: TEST_USER.name,
       role: TEST_USER.role
     })
     .onConflictDoUpdate({
       target: usersTable.email,
       set: {
-        passwordHash,
         name: TEST_USER.name,
         role: TEST_USER.role,
         updatedAt: new Date()

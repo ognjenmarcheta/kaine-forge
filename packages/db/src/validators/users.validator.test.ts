@@ -6,21 +6,11 @@ describe("users.validator", () => {
   it("accepts valid insert payloads", () => {
     const parsed = insertUserSchema.parse({
       email: "person@example.com",
-      name: "Person",
-      passwordHash: "hashed-secret"
+      name: "Person"
     });
 
     expect(parsed.email).toBe("person@example.com");
     expect(parsed.name).toBe("Person");
-  });
-
-  it("accepts insert payloads without a password hash (better-auth signups)", () => {
-    const parsed = insertUserSchema.parse({
-      email: "person@example.com",
-      name: "Person"
-    });
-
-    expect(parsed.passwordHash).toBeUndefined();
   });
 
   it("accepts valid selected rows", () => {
@@ -32,7 +22,6 @@ describe("users.validator", () => {
       image: null,
       isActive: true,
       name: "Person",
-      passwordHash: "hashed-secret",
       role: "user",
       updatedAt: new Date("2026-01-01T00:00:00.000Z")
     });
