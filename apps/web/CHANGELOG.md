@@ -1,5 +1,20 @@
 # @repo/web
 
+## 1.2.11
+
+### Patch Changes
+
+- 881822c: Add HEALTHCHECK directives to Dockerfile.api (Node fetch against /health) and Dockerfile.web (wget against nginx)
+- c9b20e0: Extend the local AuthUser session mirrors with the new emailVerified field exposed by @repo/auth sessions
+- Updated dependencies [480a52d]
+- Updated dependencies [f884c6b]
+- Updated dependencies [d03004e]
+- Updated dependencies [c72eb56]
+- Updated dependencies [5d8d4a1]
+- Updated dependencies [3733f8d]
+  - @repo/ui@1.1.3
+  - @repo/auth@1.3.0
+
 ## 1.2.10
 
 ### Patch Changes
