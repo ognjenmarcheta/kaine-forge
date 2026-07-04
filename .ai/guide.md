@@ -83,6 +83,35 @@ Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's 
 
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+### Response Framing
+
+Open each substantive work response with a one-line focus banner so drift is visible at a glance:
+
+🧭 **Kaine Forge** — {active task} · {workspace or branch} · {one rule that applies right now}
+
+Example: 🧭 **Kaine Forge** — wiring password-reset emails · packages/auth · organization-scoped data, strict TS
+
+- Use it for real work (edits, multi-step tasks, code or architecture answers), not for trivial acknowledgements or a single clarifying question — a banner on every throwaway line is noise.
+- The last slot is a live reminder of a currently-relevant repo rule (token-only styling, the `@repo/*` boundary, organization-scoped data, strict TypeScript with no `any`).
+- If you are unsure what the active task or branch is, put `⚠️ context unclear` in place of the banner and say what you need to re-ground. A missing or stale banner (wrong task, wrong branch) is the human's cue that focus may have been lost.
+- The banner flags _intent_; it is a visibility aid, not a quality gate. `pnpm check` and code review remain the ground truth for whether the work is in-bounds.
+
+### Dispatching Subagents
+
+A spawned subagent inherits none of this guide automatically — it sees only its task prompt. When you dispatch one for substantive work, carry the relevant parts in:
+
+- Include the **Working Rules** that bear on its task (package boundaries, no `any`, token-only styling, organization-scoped data, i18n, generated GraphQL) — the subset that applies, not the whole guide.
+- Require the same focus banner and verification close in its response, so drift is visible in subagent output too.
+- Keep it proportional: a narrow read-only search agent needs the boundary rules and little else; an implementation agent needs the full relevant slice. Never dump the entire guide into a focused agent — it dilutes the task.
+
+### Verification Before Completion
+
+End substantive work by stating what you actually verified, not by asserting success:
+
+- Name the checks you ran and their result — e.g. "ran `pnpm check` — green", "`pnpm --filter @repo/auth test` — 93 passing", or the exact command and output you relied on.
+- If a check was skipped or could not run, say so and why. Never claim done, fixed, or passing without evidence.
+- This pairs with the focus banner: the banner grounds intent at the start, the verification close confirms the result at the end. Between them, a response that opens on-task but drifts mid-way is caught by the closing evidence.
+
 ## AI Skills
 
 Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, Serena seed files, and lightweight Codex/Claude session hooks. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, local per-agent installs, and AI setup hooks stay aligned. `pnpm quick-setup` and `pnpm initialize` also run `pnpm ai:install` during onboarding after dependency installation. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
