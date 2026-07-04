@@ -4,6 +4,7 @@ import type { AuthenticatedOrganizationScope, OrganizationMembershipProof } from
 
 export interface AuthConfig {
   baseUrl: string;
+  requireEmailVerification: boolean;
   secret: string;
 }
 
@@ -14,6 +15,7 @@ export interface AuthClientConfig {
 export interface AuthSessionUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
 }
 
@@ -53,6 +55,14 @@ export interface AuthOrganizationMember {
   role: string;
 }
 
+export interface AuthInvitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+}
+
 export interface AuthOrganizationsResult {
   activeOrganizationId: string | null;
   organizations: AuthOrganization[];
@@ -89,6 +99,21 @@ export interface ServerAuth {
   listOrganizationMembersByScope(
     scope: AuthenticatedOrganizationScope
   ): Promise<AuthOrganizationMember[]>;
+  createInvitation(params: {
+    email: string;
+    role: string;
+    scope: AuthenticatedOrganizationScope;
+  }): Promise<AuthInvitation>;
+  listInvitationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthInvitation[]>;
+  acceptInvitation(params: { invitationId: string; user: AuthSessionUser }): Promise<void>;
+  revokeInvitation(params: {
+    invitationId: string;
+    scope: AuthenticatedOrganizationScope;
+  }): Promise<void>;
+  requestPasswordReset(input: { email: string }): Promise<void>;
+  resetPassword(input: { password: string; token: string }): Promise<void>;
+  verifyEmail(input: { token: string }): Promise<void>;
+  resendEmailVerification(input: { user: AuthSessionUser }): Promise<void>;
 }
 
 export interface ClientAuth {

@@ -9,6 +9,7 @@ export default defineWorkspace([
   "packages/config",
   "packages/logger",
   "packages/db",
+  "packages/email",
   "packages/query",
   "packages/translation",
   "packages/ui",

@@ -62,6 +62,10 @@ Start from `.env.example`. Important variables:
 - `API_RUN_MIGRATIONS`: optional boolean. Defaults to `false` outside production and `true` in production.
 - `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins.
 - `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap.
+- `API_RATE_LIMIT_ENABLED`, `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`: in-memory rate limiting for `/api/auth/*` and `/graphql` (enabled by default outside tests; 100 requests per 60s window).
+- `API_TRUST_PROXY`: set `true` only when the API sits behind a trusted reverse proxy; enables client identification via the rightmost `x-forwarded-for` entry for rate limiting.
+- `EMAIL_PROVIDER`: email delivery adapter (`console` logs messages in development; add real providers in `@repo/email`).
+- `AUTH_REQUIRE_EMAIL_VERIFICATION`: optional boolean (default `false`). When `true`, signup issues a verification email (soft mode: the session is still created and `emailVerified` is exposed on the session user for downstream gating).
 - `ORGANIZATIONS_VISIBLE`, `VITE_ORGANIZATIONS_VISIBLE`, `EXPO_PUBLIC_ORGANIZATIONS_VISIBLE`: members/organization UI visibility flags.
 - `VITE_API_PROXY_TARGET`: optional Vite dev proxy target for `/api` and `/graphql`; defaults to `http://localhost:4000`.
 - `VITE_API_URL`, `VITE_GRAPHQL_URL`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GRAPHQL_URL`: client runtime URLs.
@@ -105,7 +109,7 @@ pnpm db:seed
 
 ## Docker
 
-The API and web images use Turborepo prune so image builds only install the needed workspace graph.
+The API and web images use Turborepo prune so image builds only install the needed workspace graph. Both images define `HEALTHCHECK` directives: the API image probes `GET /health` (liveness; `GET /ready` additionally verifies database connectivity for orchestrator readiness probes) and the web image probes nginx.
 
 ```bash
 docker build -f Dockerfile.api -t kaine-forge-api .

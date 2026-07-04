@@ -1,15 +1,26 @@
-import { pool } from "@repo/db/client";
-import { runMigrations } from "@repo/db/migrate";
 import { createLogger } from "@repo/logger";
+import { config } from "dotenv";
+import { fileURLToPath } from "node:url";
 
-import { startApiRuntime } from "./api.runtime";
-import { createApiServer } from "./server";
-import { resolveApiStartupConfig } from "./startup.config";
+import { validateApiEnv, type ApiEnv } from "./env.config";
+
+config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 
 const logger = createLogger({ name: "api" });
-const port = Number(process.env.API_PORT ?? 4000);
-const host = process.env.API_HOST;
-const startupConfig = resolveApiStartupConfig(process.env);
+
+let env: ApiEnv;
+try {
+  env = validateApiEnv(process.env);
+} catch (error) {
+  logger.error({ err: error }, "environment validation failed");
+  process.exit(1);
+}
+
+const { pool } = await import("@repo/db/client");
+const { runMigrations } = await import("@repo/db/migrate");
+const { startApiRuntime } = await import("./api.runtime");
+const { createApiServer } = await import("./server");
+const { resolveApiStartupConfig } = await import("./startup.config");
 
 await startApiRuntime({
   createServer: createApiServer,
@@ -18,9 +29,9 @@ await startApiRuntime({
   migrations: {
     run: runMigrations
   },
-  host,
-  port,
-  startupConfig,
+  host: env.API_HOST,
+  port: env.API_PORT,
+  startupConfig: resolveApiStartupConfig(process.env),
   verifyDatabase: async () => {
     const client = await pool.connect();
     client.release();

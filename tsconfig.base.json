@@ -30,6 +30,8 @@
       "@repo/config/*": ["packages/config/*"],
       "@repo/db": ["packages/db/src/index.ts"],
       "@repo/db/*": ["packages/db/src/*"],
+      "@repo/email": ["packages/email/src/index.ts"],
+      "@repo/email/*": ["packages/email/src/*"],
       "@repo/feature-flags": ["packages/feature-flags/src/index.ts"],
       "@repo/feature-flags/*": ["packages/feature-flags/src/*"],
       "@repo/logger": ["packages/logger/src/index.ts"],

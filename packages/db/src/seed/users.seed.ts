@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { createHash } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 
 import { usersTable } from "../schema/users.schema";
 
@@ -10,9 +10,17 @@ const TEST_USER = {
   role: "admin"
 } as const;
 
+// Format must stay compatible with hashPassword in packages/auth/src/auth.server.session.ts.
+// The seed cannot import @repo/auth: @repo/auth depends on @repo/db (cycle).
+function hashSeedPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 }).toString("hex");
+  return `scrypt$16384$8$1$${salt}$${hash}`;
+}
+
 export async function seedUsers(): Promise<void> {
   const { db } = await import("../client");
-  const passwordHash = createHash("sha256").update(TEST_USER.password).digest("hex");
+  const passwordHash = hashSeedPassword(TEST_USER.password);
 
   await db
     .insert(usersTable)

@@ -68,6 +68,7 @@ describe("auth.server organization membership reads", () => {
     organizationId: "org-1",
     user: {
       email: "u1@example.com",
+      emailVerified: false,
       id: "user-1",
       name: "User One"
     },

@@ -10,6 +10,7 @@ function session(activeOrganizationId = "org-1"): AuthSession {
     user: {
       id: "user-1",
       email: "user@example.com",
+      emailVerified: false,
       name: "User"
     }
   };

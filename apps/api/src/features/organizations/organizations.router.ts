@@ -15,6 +15,10 @@ export const organizationsResolvers = {
     async members(_parent: unknown, _args: unknown, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
       return ctx.auth.listOrganizationMembersByScope(scope);
+    },
+    async invitations(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+      const scope = ctx.requireOrganizationScope();
+      return ctx.auth.listInvitationsByScope(scope);
     }
   }
 };

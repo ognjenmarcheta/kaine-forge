@@ -29,6 +29,7 @@ RUN pnpm turbo run build --filter=@repo/api... \
     apps/api/dist \
     packages/auth/dist \
     packages/db/dist \
+    packages/email/dist \
     packages/feature-flags/dist \
     packages/logger/dist \
     packages/storage/dist \
@@ -48,6 +49,7 @@ COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
 COPY --from=builder /app/packages/auth/dist/ ./packages/auth/dist/
 COPY --from=builder /app/packages/db/dist/ ./packages/db/dist/
 COPY --from=builder /app/packages/db/drizzle/ ./packages/db/drizzle/
+COPY --from=builder /app/packages/email/dist/ ./packages/email/dist/
 COPY --from=builder /app/packages/feature-flags/dist/ ./packages/feature-flags/dist/
 COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
@@ -55,4 +57,6 @@ COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
 
 USER node
 EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "apps/api/dist/index.js"]

@@ -127,6 +127,15 @@ export type Organization = {
   slug: Scalars["String"]["output"];
 };
 
+export type OrganizationInvitation = {
+  __typename?: "OrganizationInvitation";
+  email: Scalars["String"]["output"];
+  expiresAt: Scalars["String"]["output"];
+  id: Scalars["ID"]["output"];
+  role: Scalars["String"]["output"];
+  status: Scalars["String"]["output"];
+};
+
 export type OrganizationMember = {
   __typename?: "OrganizationMember";
   email: Scalars["String"]["output"];
@@ -150,6 +159,7 @@ export type Query = {
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
   health: Scalars["String"]["output"];
+  invitations: Array<OrganizationInvitation>;
   members: Array<OrganizationMember>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;

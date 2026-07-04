@@ -6,6 +6,7 @@ const scope = {
   organizationId: "org-1",
   user: {
     email: "user@example.com",
+    emailVerified: false,
     id: "user-1",
     name: "User"
   },

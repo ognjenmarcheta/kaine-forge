@@ -14,9 +14,18 @@ export const organizationsTypeDefs = /* GraphQL */ `
     role: String!
   }
 
+  type OrganizationInvitation {
+    id: ID!
+    email: String!
+    role: String!
+    status: String!
+    expiresAt: String!
+  }
+
   extend type Query {
     organizations: [Organization!]!
     currentOrganization: Organization
     members: [OrganizationMember!]!
+    invitations: [OrganizationInvitation!]!
   }
 `;

@@ -1,7 +1,15 @@
 import { db, sessionsTable, usersTable } from "@repo/db";
+import { createEmailSender } from "@repo/email";
 import { eq } from "drizzle-orm";
 
 import { getServerAuthConfig } from "./auth.config";
+import { issueEmailVerification, verifyEmail } from "./auth.server.email-verification";
+import {
+  acceptInvitation,
+  createInvitationForScope,
+  listInvitationsForScope,
+  revokeInvitationForScope
+} from "./auth.server.invitation";
 import {
   createOwnedOrganizationForUser,
   ensurePersonalOrganizationForUser,
@@ -11,26 +19,41 @@ import {
   listOrganizationsForUser,
   resolveActiveOrganizationForUser
 } from "./auth.server.organization";
+import { requestPasswordReset, resetPassword } from "./auth.server.password-reset";
 import {
   assertLoginInput,
   assertSignupInput,
   createSession,
   deleteSession,
   hashPassword,
+  needsPasswordRehash,
   resolveUserByEmail,
   resolveUserById,
   sessionFromToken,
   toAuthSession,
-  updateSessionActiveOrganization
+  updateSessionActiveOrganization,
+  updateUserPasswordHash,
+  verifyPassword
 } from "./auth.server.session";
 import type { LoginInput, ServerAuth, SignupInput } from "./auth.type";
 import { getSessionTokenFromHeaders } from "./auth.util";
+
+// Real scrypt hash of a throwaway password, generated offline with the current
+// recipe (scrypt$N$r$p$salt$hash, matching hashPassword). Login verifies the
+// submitted password against this hash when the email is unknown so the
+// unknown-email path costs the same scrypt work as the known-email path and
+// response timing does not reveal whether an account exists. A static constant
+// (not computed at import time) keeps startup cheap and deterministic.
+export const DUMMY_PASSWORD_HASH =
+  "scrypt$16384$8$1$0215aa0f0ed4305abf7ccc34d7945f64$586bdfb09cd3afc6aaf63b6696fef76b97466baa67323164eeb3b3ed33f0ad9e5aa0c816d8f5c880d2f6517cd1cb1bdc9e6546aaa336e2ed813e8acd96298b89";
 
 export function createServerAuth(): ServerAuth {
   const config = getServerAuthConfig();
   if (!config.secret) {
     throw new Error("BETTER_AUTH_SECRET is required");
   }
+
+  const emailSender = createEmailSender();
 
   return {
     async getSessionFromHeaders(headers) {
@@ -76,11 +99,24 @@ export function createServerAuth(): ServerAuth {
       const user = await resolveUserByEmail(input.email.toLowerCase());
 
       if (!user) {
+        // Constant-shaped work: burn the same scrypt cost as a real
+        // verification so timing does not reveal whether the email exists.
+        await verifyPassword(input.password, DUMMY_PASSWORD_HASH);
         throw new Error("invalid credentials");
       }
 
-      if (user.passwordHash !== hashPassword(input.password)) {
+      if (!(await verifyPassword(input.password, user.passwordHash))) {
         throw new Error("invalid credentials");
+      }
+
+      if (needsPasswordRehash(user.passwordHash)) {
+        // Rehash is best-effort: a failed opportunistic rehash must not fail
+        // an otherwise valid login.
+        try {
+          await updateUserPasswordHash(user.id, await hashPassword(input.password));
+        } catch {
+          // ignore; the next successful login retries the rehash
+        }
       }
 
       const activeOrganizationId = await resolveActiveOrganizationForUser({
@@ -102,11 +138,13 @@ export function createServerAuth(): ServerAuth {
         throw new Error("user already exists");
       }
 
+      const passwordHash = await hashPassword(input.password);
+
       const users = await db
         .insert(usersTable)
         .values({
           email: input.email.toLowerCase(),
-          passwordHash: hashPassword(input.password),
+          passwordHash,
           name: input.name.trim(),
           role: "user"
         })
@@ -119,6 +157,10 @@ export function createServerAuth(): ServerAuth {
       }
 
       const personalOrganization = await ensurePersonalOrganizationForUser(user.id);
+
+      if (config.requireEmailVerification) {
+        await issueEmailVerification({ user, emailSender });
+      }
 
       return createSession({
         user,
@@ -225,6 +267,39 @@ export function createServerAuth(): ServerAuth {
     },
     listOrganizationMembersByScope(scope) {
       return listOrganizationMembersForScope(scope);
+    },
+    createInvitation(params) {
+      return createInvitationForScope({ ...params, emailSender });
+    },
+    listInvitationsByScope(scope) {
+      return listInvitationsForScope(scope);
+    },
+    acceptInvitation(params) {
+      return acceptInvitation(params);
+    },
+    revokeInvitation(params) {
+      return revokeInvitationForScope(params);
+    },
+    requestPasswordReset(input) {
+      return requestPasswordReset({ email: input.email, emailSender });
+    },
+    resetPassword(input) {
+      return resetPassword(input);
+    },
+    verifyEmail(input) {
+      return verifyEmail(input);
+    },
+    async resendEmailVerification(input) {
+      const user = await resolveUserById(input.user.id);
+
+      // Silent on missing or already-verified users: the endpoint is session
+      // authenticated, but responding differently would still leak state and
+      // an already-verified user never needs another email.
+      if (!user || user.emailVerified) {
+        return;
+      }
+
+      await issueEmailVerification({ user, emailSender });
     }
   };
 }
