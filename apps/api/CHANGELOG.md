@@ -1,5 +1,23 @@
 # @repo/api
 
+## 1.3.0
+
+### Minor Changes
+
+- 68ebc61: Serve /api/auth/\* through better-auth's node handler; ServerAuth slims to the session/read facade; signup invariants move to better-auth database hooks. users.password_hash becomes nullable so better-auth-created users need no legacy hash.
+
+### Patch Changes
+
+- 4057465: Env-gated GitHub and Google social login: each provider activates only when both its client id and secret are set
+- Updated dependencies [c046f32]
+- Updated dependencies [68ebc61]
+- Updated dependencies [b2b0a3e]
+- Updated dependencies [4057465]
+- Updated dependencies [c1d66c1]
+- Updated dependencies [9cc4adf]
+  - @repo/auth@1.4.0
+  - @repo/db@1.3.0
+
 ## 1.2.0
 
 ### Minor Changes

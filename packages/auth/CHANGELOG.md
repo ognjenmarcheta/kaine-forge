@@ -1,5 +1,23 @@
 # @repo/auth
 
+## 1.4.0
+
+### Minor Changes
+
+- c046f32: Introduce the better-auth instance (drizzle adapter, custom scrypt hooks, organization + bearer plugins) and align the database schema; passwords migrate to credential accounts
+- 68ebc61: Serve /api/auth/\* through better-auth's node handler; ServerAuth slims to the session/read facade; signup invariants move to better-auth database hooks. users.password_hash becomes nullable so better-auth-created users need no legacy hash.
+- b2b0a3e: Route password reset, email verification, and invitation emails through @repo/email via better-auth hooks; remove the superseded custom auth flow modules
+- 4057465: Env-gated GitHub and Google social login: each provider activates only when both its client id and secret are set
+- c1d66c1: Clients authenticate through better-auth's client (organization + bearer flows) with env-gated GitHub/Google social login buttons
+
+### Patch Changes
+
+- 9cc4adf: Drop the superseded users.password_hash column (credential accounts are authoritative) and polish client member-list/slug-retry edges
+- Updated dependencies [c046f32]
+- Updated dependencies [68ebc61]
+- Updated dependencies [9cc4adf]
+  - @repo/db@1.3.0
+
 ## 1.3.0
 
 ### Minor Changes
