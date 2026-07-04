@@ -34,6 +34,10 @@ function applyAuthCorsHeaders(
   res: ServerResponse<IncomingMessage>,
   allowedCorsOrigins: string[] | undefined
 ): void {
+  // Responses differ by Origin even when the grant is withheld, so caches
+  // must never store an origin-blind response.
+  res.setHeader("vary", "Origin");
+
   const origin = req.headers.origin;
 
   if (!origin || !allowedCorsOrigins?.includes(origin)) {
@@ -44,7 +48,6 @@ function applyAuthCorsHeaders(
   res.setHeader("access-control-allow-headers", "content-type, authorization");
   res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   res.setHeader("access-control-allow-origin", origin);
-  res.setHeader("vary", "Origin");
 }
 
 export function mergeWebSocketConnectionHeaders(

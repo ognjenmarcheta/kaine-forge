@@ -83,7 +83,12 @@ describe("auth.instance database hooks", () => {
       requestedActiveOrganizationId: "org-2",
       userId: "user-1"
     });
-    expect(result && typeof result === "object" && "data" in result).toBe(true);
+
+    if (!result || typeof result !== "object" || !("data" in result)) {
+      throw new Error("expected the hook to return session data");
+    }
+
+    expect(result.data.activeOrganizationId).toBe("org-2");
   });
 
   it("stamps the creating user as organization owner through the plugin hook", async () => {

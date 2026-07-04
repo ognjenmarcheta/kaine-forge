@@ -112,6 +112,9 @@ describe("createApiServer better-auth mount", () => {
         }
       });
       expect(denied.headers.get("access-control-allow-origin")).toBeNull();
+      // Denied responses still vary by Origin so caches never store an
+      // origin-blind response.
+      expect(denied.headers.get("vary")).toBe("Origin");
     } finally {
       delete process.env.API_CORS_ORIGINS;
       wsServer.close();

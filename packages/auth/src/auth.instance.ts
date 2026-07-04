@@ -62,7 +62,11 @@ export function createAuthInstance() {
     database: drizzleAdapter(db, {
       provider: "pg",
       usePlural: true,
-      schema: AUTH_SCHEMA
+      schema: AUTH_SCHEMA,
+      // Pinned off: the database hooks below write through the app's own db
+      // pool and FK-reference rows the adapter just wrote; inside an adapter
+      // transaction on another connection every signup would FK-violate.
+      transaction: false
     }),
     emailAndPassword: {
       enabled: true,

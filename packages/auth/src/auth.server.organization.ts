@@ -16,7 +16,7 @@ function personalOrganizationSlug(userId: string): string {
   return `personal-${userId.slice(0, 8)}`;
 }
 
-export async function ensurePersonalOrganizationForUser(userId: string) {
+async function findOldestOrganizationForUser(userId: string) {
   const existing = await db
     .select()
     .from(organizationsTable)
@@ -24,7 +24,11 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
     .orderBy(asc(organizationsTable.createdAt))
     .limit(1);
 
-  const currentOrganization = existing[0];
+  return existing[0];
+}
+
+export async function ensurePersonalOrganizationForUser(userId: string) {
+  const currentOrganization = await findOldestOrganizationForUser(userId);
 
   if (currentOrganization) {
     const existingMembership = await db
@@ -56,9 +60,13 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
       name: "Personal",
       slug: personalOrganizationSlug(userId)
     })
+    // Two concurrent first sign-ins can both pass the existence check; the
+    // loser's slug conflict yields an empty returning array instead of a 500,
+    // and the re-select below picks up the winner's row.
+    .onConflictDoNothing()
     .returning();
 
-  const organization = createdOrganizations[0];
+  const organization = createdOrganizations[0] ?? (await findOldestOrganizationForUser(userId));
 
   if (!organization) {
     throw new Error("failed to create personal organization");
