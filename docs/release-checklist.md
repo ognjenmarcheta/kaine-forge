@@ -33,7 +33,7 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] Confirm migration state and whether `pnpm db:generate` is needed
 - [ ] Validate `pnpm db:migrate` for migration-based deployments
 - [ ] Confirm `API_RUN_MIGRATIONS` default is appropriate for the target environment
-- [ ] Confirm `API_CORS_ORIGINS` matches deployment origins
+- [ ] Confirm `API_CORS_ORIGINS` matches deployment origins. It also feeds better-auth's `trustedOrigins`: any browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error.
 - [ ] Confirm Postgres SSL settings in `DATABASE_URL`
 - [ ] Smoke test API startup and database connectivity
 

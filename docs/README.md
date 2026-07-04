@@ -26,6 +26,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - `adr/0005-scrypt-password-hashing.md`: salted scrypt with embedded cost parameters.
 - `adr/0006-in-memory-rate-limiting.md`: in-memory fixed-window API rate limiting.
 - `adr/0007-soft-email-verification.md`: soft, opt-in email verification.
+- `adr/0008-adopt-better-auth.md`: adopt better-auth as the authentication provider.
 
 ## AI Assistant Docs
 
