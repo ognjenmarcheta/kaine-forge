@@ -8,7 +8,9 @@ import { join, relative } from "node:path";
 
 import {
   type Agent,
+  type AgentDefinition,
   CURSOR_RULES_SRC,
+  discoverAgentDefinitions,
   discoverSkills,
   ensureLocalMcpEnv,
   KAINE_PREFIX,
@@ -24,6 +26,7 @@ import {
   readPersonalMcpSource,
   REPO_ROOT,
   renderAgentDoc,
+  renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
   renderClaudeSkill,
@@ -362,6 +365,7 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
 const installAgent = (
   agent: Agent,
   skills: Skill[],
+  agentDefinitions: AgentDefinition[],
   options: InstallOptions,
   mergedMcp: McpSource,
   personalMcpNames: Set<string>,
@@ -419,6 +423,32 @@ const installAgent = (
   if (agent === "claude") {
     writeGenerated(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
     writeGenerated(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
+
+    const agentsDirAbs = join(REPO_ROOT, ".claude", "agents");
+    const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
+    for (const definition of agentDefinitions) {
+      writeGenerated(
+        join(agentsDirAbs, `${definition.name}.md`),
+        renderClaudeAgentDefinition(definition),
+        results
+      );
+    }
+
+    if (existsSync(agentsDirAbs)) {
+      for (const entry of readdirSync(agentsDirAbs, { withFileTypes: true })) {
+        if (
+          !entry.isFile() ||
+          !entry.name.endsWith(".md") ||
+          !entry.name.startsWith(KAINE_PREFIX) ||
+          expectedAgentDefs.has(entry.name.replace(/\.md$/, ""))
+        ) {
+          continue;
+        }
+
+        rmSync(join(agentsDirAbs, entry.name), { force: true });
+        removedSkills.push(`${agent}: ${entry.name}`);
+      }
+    }
   }
   if (agent === "codex") {
     writeGenerated(
@@ -474,6 +504,7 @@ const main = async (): Promise<void> => {
   localMcpEnv = readLocalMcpEnv();
 
   const allSkills = discoverSkills();
+  const agentDefinitions = discoverAgentDefinitions();
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
@@ -498,6 +529,7 @@ const main = async (): Promise<void> => {
     for (const skipped of installAgent(
       agent,
       skills,
+      agentDefinitions,
       options,
       merged.source,
       merged.personalNames,

@@ -98,6 +98,8 @@ Example: 🧭 **Kaine Forge** — wiring password-reset emails · packages/auth 
 
 ### Dispatching Subagents
 
+Prefer the `kaine-*` subagent types — `kaine-implementer` for changes, `kaine-explorer` for read-only research — they carry these rules in their own system prompt. When you must use a built-in `general-purpose` agent, paste the relevant Working Rules into its prompt.
+
 A spawned subagent inherits none of this guide automatically — it sees only its task prompt. When you dispatch one for substantive work, carry the relevant parts in:
 
 - Include the **Working Rules** that bear on its task (package boundaries, no `any`, token-only styling, organization-scoped data, i18n, generated GraphQL) — the subset that applies, not the whole guide.

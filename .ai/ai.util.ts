@@ -7,6 +7,7 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const AI_DIR = join(REPO_ROOT, ".ai");
 export const GUIDE_SRC = join(AI_DIR, "guide.md");
 export const SKILLS_SRC_DIR = join(AI_DIR, "skills");
+export const AGENTS_SRC_DIR = join(AI_DIR, "agents");
 export const MCP_SRC = join(AI_DIR, "mcp.json");
 export const MCP_ENV_EXAMPLE_SRC = join(AI_DIR, "mcp.env.example");
 export const MCP_JSON_EXAMPLE_SRC = join(AI_DIR, "mcp.json.example");
@@ -40,6 +41,19 @@ export interface Skill {
   disableModelInvocation?: boolean;
   frontmatterRaw: string;
   body: string;
+}
+
+export interface AgentDefinition {
+  name: string;
+  description: string;
+  frontmatterRaw: string;
+  body: string;
+}
+
+export interface AgentDefinitionDrift {
+  missing: string[];
+  stale: string[];
+  orphan: string[];
 }
 
 export interface McpServer {
@@ -144,7 +158,10 @@ const parseStringList = (skillName: string, field: string, value: unknown): stri
   return items;
 };
 
-export const parseSkillFile = (name: string, content: string): Skill => {
+const splitFrontmatter = (
+  name: string,
+  content: string
+): { frontmatterRaw: string; body: string; frontmatter: Record<string, unknown> } => {
   const normalized = content.replace(/\r\n/g, "\n");
   const match = normalized.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
 
@@ -162,6 +179,12 @@ export const parseSkillFile = (name: string, content: string): Skill => {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`${name}: invalid YAML frontmatter: ${reason}`, { cause: error });
   }
+
+  return { frontmatterRaw, body, frontmatter };
+};
+
+export const parseSkillFile = (name: string, content: string): Skill => {
+  const { frontmatterRaw, body, frontmatter } = splitFrontmatter(name, content);
 
   if (typeof frontmatter.name !== "string") {
     throw new Error(`${name}: frontmatter missing 'name'`);
@@ -265,6 +288,126 @@ export const lintSkillsDir = (): LintIssue[] => {
   }
 
   return issues;
+};
+
+export const parseAgentDefinitionFile = (name: string, content: string): AgentDefinition => {
+  const { frontmatterRaw, body, frontmatter } = splitFrontmatter(name, content);
+
+  if (typeof frontmatter.name !== "string") {
+    throw new Error(`${name}: frontmatter missing 'name'`);
+  }
+  if (typeof frontmatter.description !== "string") {
+    throw new Error(`${name}: frontmatter missing 'description'`);
+  }
+  if (frontmatter.name !== name) {
+    throw new Error(`${name}: frontmatter 'name: ${frontmatter.name}' does not match file name`);
+  }
+  if (body.trim().length === 0) {
+    throw new Error(`${name}: body is empty`);
+  }
+
+  return {
+    name: frontmatter.name,
+    description: frontmatter.description,
+    frontmatterRaw,
+    body
+  };
+};
+
+export const discoverAgentDefinitions = (dir: string = AGENTS_SRC_DIR): AgentDefinition[] => {
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  const definitions: AgentDefinition[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+      continue;
+    }
+
+    const name = entry.name.replace(/\.md$/, "");
+    const definition = parseAgentDefinitionFile(name, readFileSync(join(dir, entry.name), "utf8"));
+
+    if (!definition.name.startsWith(KAINE_PREFIX)) {
+      throw new Error(
+        `${name}: canonical agent definition names must start with '${KAINE_PREFIX}'`
+      );
+    }
+
+    definitions.push(definition);
+  }
+
+  return [...definitions].sort((left, right) => left.name.localeCompare(right.name));
+};
+
+export const lintAgentDefinitionsDir = (dir: string = AGENTS_SRC_DIR): LintIssue[] => {
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  const issues: LintIssue[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+      continue;
+    }
+
+    const name = entry.name.replace(/\.md$/, "");
+    const file = join(dir, entry.name);
+
+    try {
+      const definition = parseAgentDefinitionFile(name, readFileSync(file, "utf8"));
+      if (!definition.name.startsWith(KAINE_PREFIX)) {
+        issues.push({
+          file,
+          level: "error",
+          message: `name '${definition.name}' must start with '${KAINE_PREFIX}'`
+        });
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      issues.push({ file, level: "error", message: reason });
+    }
+  }
+
+  return issues;
+};
+
+export const computeAgentDefinitionDrift = (
+  definitions: AgentDefinition[],
+  dir: string
+): AgentDefinitionDrift => {
+  const expectedNames = new Set(definitions.map((definition) => definition.name));
+  const missing: string[] = [];
+  const stale: string[] = [];
+  const orphan: string[] = [];
+
+  if (!existsSync(dir)) {
+    return { missing, stale, orphan };
+  }
+
+  for (const definition of definitions) {
+    const filePath = join(dir, `${definition.name}.md`);
+    if (!existsSync(filePath)) {
+      missing.push(definition.name);
+      continue;
+    }
+    if (readFileSync(filePath, "utf8") !== renderClaudeAgentDefinition(definition)) {
+      stale.push(definition.name);
+    }
+  }
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+      continue;
+    }
+    const entryName = entry.name.replace(/\.md$/, "");
+    if (!entryName.startsWith(KAINE_PREFIX) || expectedNames.has(entryName)) {
+      continue;
+    }
+    orphan.push(entryName);
+  }
+
+  return { missing, stale, orphan };
 };
 
 const GUIDE_SKILL_LIST_HEADER = "Use skills when they match the task:";
@@ -427,6 +570,11 @@ export const renderClaudeSettings = (): string =>
 
 export const renderClaudeSkill = (skill: Skill): string =>
   `---\n${skill.frontmatterRaw}\n---\n${HTML_HEADER}\n\n${skill.body}`;
+
+export const renderClaudeAgentDefinition = (definition: AgentDefinition): string => {
+  const body = definition.body.endsWith("\n") ? definition.body : `${definition.body}\n`;
+  return `---\n${definition.frontmatterRaw}\n---\n${body}`;
+};
 
 export const renderCodexSkill = renderClaudeSkill;
 export const renderCursorSkill = renderClaudeSkill;
