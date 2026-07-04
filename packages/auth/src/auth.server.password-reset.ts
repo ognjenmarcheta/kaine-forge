@@ -4,7 +4,8 @@ import { and, eq, gt } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 
 import { AUTH_DEFINITIONS } from "./auth.definition";
-import { deleteSessionsForUser, hashPassword, resolveUserByEmail } from "./auth.server.session";
+import { hashPassword } from "./auth.password";
+import { deleteSessionsForUser, resolveUserByEmail } from "./auth.server.session";
 
 const PASSWORD_RESET_IDENTIFIER_PREFIX = "password-reset:";
 
@@ -41,7 +42,7 @@ export async function requestPasswordReset(params: {
   // at claim time; a background sweep is deliberately omitted.
   await db.insert(verificationsTable).values({
     identifier,
-    token: hashResetToken(token),
+    value: hashResetToken(token),
     expiresAt: new Date(Date.now() + AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS * 1000)
   });
 
@@ -71,7 +72,7 @@ export async function resetPassword(params: { password: string; token: string })
       .delete(verificationsTable)
       .where(
         and(
-          eq(verificationsTable.token, hashResetToken(params.token)),
+          eq(verificationsTable.value, hashResetToken(params.token)),
           gt(verificationsTable.expiresAt, new Date())
         )
       )

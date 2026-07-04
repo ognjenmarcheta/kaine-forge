@@ -35,20 +35,24 @@ vi.mock("./auth.config", () => ({
   })
 }));
 
+vi.mock("./auth.password", () => ({
+  DUMMY_PASSWORD_HASH: "scrypt$dummy",
+  hashPassword: vi.fn().mockResolvedValue("scrypt$hash"),
+  needsPasswordRehash: vi.fn(),
+  verifyPassword: vi.fn()
+}));
+
 vi.mock("./auth.server.session", () => ({
   assertLoginInput: vi.fn(),
   assertSignupInput: vi.fn(),
   createSession: vi.fn().mockResolvedValue({ session: {}, sessionToken: "session-token" }),
   deleteSession: vi.fn(),
-  hashPassword: vi.fn().mockResolvedValue("scrypt$hash"),
-  needsPasswordRehash: vi.fn(),
   resolveUserByEmail: vi.fn().mockResolvedValue(null),
   resolveUserById: resolveUserByIdMock,
   sessionFromToken: vi.fn(),
   toAuthSession: vi.fn(),
   updateSessionActiveOrganization: vi.fn(),
-  updateUserPasswordHash: vi.fn(),
-  verifyPassword: vi.fn()
+  updateUserPasswordHash: vi.fn()
 }));
 
 vi.mock("./auth.server.organization", () => ({

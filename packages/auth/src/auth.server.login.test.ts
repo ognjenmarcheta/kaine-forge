@@ -5,14 +5,17 @@ const sessionMocks = vi.hoisted(() => ({
   assertSignupInput: vi.fn(),
   createSession: vi.fn(),
   deleteSession: vi.fn(),
-  hashPassword: vi.fn(),
-  needsPasswordRehash: vi.fn(),
   resolveUserByEmail: vi.fn(),
   resolveUserById: vi.fn(),
   sessionFromToken: vi.fn(),
   toAuthSession: vi.fn(),
   updateSessionActiveOrganization: vi.fn(),
-  updateUserPasswordHash: vi.fn(),
+  updateUserPasswordHash: vi.fn()
+}));
+
+const passwordMocks = vi.hoisted(() => ({
+  hashPassword: vi.fn(),
+  needsPasswordRehash: vi.fn(),
   verifyPassword: vi.fn()
 }));
 
@@ -52,8 +55,14 @@ vi.mock("./auth.server.password-reset", () => ({
   resetPassword: vi.fn()
 }));
 vi.mock("./auth.server.session", () => sessionMocks);
+vi.mock("./auth.password", async (importActual) => ({
+  ...(await importActual<typeof import("./auth.password")>()),
+  ...passwordMocks
+}));
 
-const { createServerAuth, DUMMY_PASSWORD_HASH } = await import("./auth.server");
+const { createServerAuth } = await import("./auth.server");
+const { DUMMY_PASSWORD_HASH } =
+  await vi.importActual<typeof import("./auth.password")>("./auth.password");
 
 const user = {
   id: "user-1",
@@ -70,7 +79,7 @@ describe("auth.server loginWithPassword", () => {
 
   it("burns a dummy password verification before rejecting unknown emails", async () => {
     sessionMocks.resolveUserByEmail.mockResolvedValue(null);
-    sessionMocks.verifyPassword.mockResolvedValue(false);
+    passwordMocks.verifyPassword.mockResolvedValue(false);
 
     const auth = createServerAuth();
 
@@ -80,24 +89,24 @@ describe("auth.server loginWithPassword", () => {
 
     // The unknown-email path must do the same scrypt-shaped work as the
     // known-email path so response timing does not reveal account existence.
-    expect(sessionMocks.verifyPassword).toHaveBeenCalledWith("Secret123!", DUMMY_PASSWORD_HASH);
+    expect(passwordMocks.verifyPassword).toHaveBeenCalledWith("Secret123!", DUMMY_PASSWORD_HASH);
   });
 
   it("keeps the dummy hash aligned with the live scrypt parameters", async () => {
-    // Uses the REAL auth.server.session module (bypassing the mock above):
+    // Uses the REAL auth.password module (bypassing the mock above):
     // this fails the moment SCRYPT_COST/r/p drift from the parameters
     // DUMMY_PASSWORD_HASH was generated with, forcing a regeneration.
-    const actualSession =
-      await vi.importActual<typeof import("./auth.server.session")>("./auth.server.session");
+    const actualPassword =
+      await vi.importActual<typeof import("./auth.password")>("./auth.password");
 
-    expect(actualSession.needsPasswordRehash(DUMMY_PASSWORD_HASH)).toBe(false);
+    expect(actualPassword.needsPasswordRehash(DUMMY_PASSWORD_HASH)).toBe(false);
   });
 
   it("still resolves the login when the opportunistic rehash fails", async () => {
     sessionMocks.resolveUserByEmail.mockResolvedValue(user);
-    sessionMocks.verifyPassword.mockResolvedValue(true);
-    sessionMocks.needsPasswordRehash.mockReturnValue(true);
-    sessionMocks.hashPassword.mockResolvedValue("new-hash");
+    passwordMocks.verifyPassword.mockResolvedValue(true);
+    passwordMocks.needsPasswordRehash.mockReturnValue(true);
+    passwordMocks.hashPassword.mockResolvedValue("new-hash");
     sessionMocks.updateUserPasswordHash.mockRejectedValue(new Error("db write failed"));
     organizationMocks.resolveActiveOrganizationForUser.mockResolvedValue("org-1");
     sessionMocks.createSession.mockResolvedValue({

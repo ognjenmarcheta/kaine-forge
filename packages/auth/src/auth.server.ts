@@ -3,6 +3,12 @@ import { createEmailSender } from "@repo/email";
 import { eq } from "drizzle-orm";
 
 import { getServerAuthConfig } from "./auth.config";
+import {
+  DUMMY_PASSWORD_HASH,
+  hashPassword,
+  needsPasswordRehash,
+  verifyPassword
+} from "./auth.password";
 import { issueEmailVerification, verifyEmail } from "./auth.server.email-verification";
 import {
   acceptInvitation,
@@ -25,27 +31,15 @@ import {
   assertSignupInput,
   createSession,
   deleteSession,
-  hashPassword,
-  needsPasswordRehash,
   resolveUserByEmail,
   resolveUserById,
   sessionFromToken,
   toAuthSession,
   updateSessionActiveOrganization,
-  updateUserPasswordHash,
-  verifyPassword
+  updateUserPasswordHash
 } from "./auth.server.session";
 import type { LoginInput, ServerAuth, SignupInput } from "./auth.type";
 import { getSessionTokenFromHeaders } from "./auth.util";
-
-// Real scrypt hash of a throwaway password, generated offline with the current
-// recipe (scrypt$N$r$p$salt$hash, matching hashPassword). Login verifies the
-// submitted password against this hash when the email is unknown so the
-// unknown-email path costs the same scrypt work as the known-email path and
-// response timing does not reveal whether an account exists. A static constant
-// (not computed at import time) keeps startup cheap and deterministic.
-export const DUMMY_PASSWORD_HASH =
-  "scrypt$16384$8$1$0215aa0f0ed4305abf7ccc34d7945f64$586bdfb09cd3afc6aaf63b6696fef76b97466baa67323164eeb3b3ed33f0ad9e5aa0c816d8f5c880d2f6517cd1cb1bdc9e6546aaa336e2ed813e8acd96298b89";
 
 export function createServerAuth(): ServerAuth {
   const config = getServerAuthConfig();

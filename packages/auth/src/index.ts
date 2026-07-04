@@ -1,5 +1,6 @@
 export * from "./auth.config";
 export * from "./auth.definition";
+export * from "./auth.password";
 export * from "./auth.type";
 export * from "./auth.util";
 export * from "./auth.client";

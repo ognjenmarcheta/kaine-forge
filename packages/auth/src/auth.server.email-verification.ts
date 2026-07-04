@@ -27,7 +27,7 @@ export async function issueEmailVerification(params: {
 
   await db.insert(verificationsTable).values({
     identifier,
-    token: hashVerificationToken(token),
+    value: hashVerificationToken(token),
     expiresAt: new Date(Date.now() + AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS * 1000)
   });
 
@@ -57,7 +57,7 @@ export async function verifyEmail(params: { token: string }): Promise<void> {
       .delete(verificationsTable)
       .where(
         and(
-          eq(verificationsTable.token, hashVerificationToken(params.token)),
+          eq(verificationsTable.value, hashVerificationToken(params.token)),
           gt(verificationsTable.expiresAt, new Date())
         )
       )

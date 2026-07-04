@@ -6,7 +6,7 @@ const verificationsTable = {
   expiresAt: "verifications.expires_at",
   id: "verifications.id",
   identifier: "verifications.identifier",
-  token: "verifications.token"
+  value: "verifications.value"
 };
 
 const insertedValues: Array<Record<string, unknown>> = [];
@@ -83,7 +83,7 @@ describe("email verification", () => {
     expect(insertedValues[0]).toMatchObject({
       identifier: "email-verification:user-1"
     });
-    expect(typeof insertedValues[0]?.token).toBe("string");
+    expect(typeof insertedValues[0]?.value).toBe("string");
     const expiresAt = insertedValues[0]?.expiresAt as Date;
     expect(expiresAt).toBeInstanceOf(Date);
     expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
@@ -93,8 +93,8 @@ describe("email verification", () => {
     const sendPayload = send.mock.calls[0]?.[0] as { text: string };
     const rawToken = /verify your email address: ([0-9a-f]+)\./.exec(sendPayload.text)?.[1] ?? "";
     expect(rawToken).not.toBe("");
-    expect(insertedValues[0]?.token).not.toBe(rawToken);
-    expect(insertedValues[0]?.token).toBe(sha256(rawToken));
+    expect(insertedValues[0]?.value).not.toBe(rawToken);
+    expect(insertedValues[0]?.value).toBe(sha256(rawToken));
   });
 
   it("replaces earlier verification tokens so only the latest email wins", async () => {
@@ -122,7 +122,7 @@ describe("email verification", () => {
       {
         id: "ver-1",
         identifier: "email-verification:user-1",
-        token: sha256("tok"),
+        value: sha256("tok"),
         expiresAt: new Date(Date.now() + 60_000)
       }
     ];
@@ -133,7 +133,7 @@ describe("email verification", () => {
     expect(deletedWhereArgs[0]).toEqual({
       table: verificationsTable,
       condition: [
-        { left: verificationsTable.token, right: sha256("tok") },
+        { left: verificationsTable.value, right: sha256("tok") },
         { left: verificationsTable.expiresAt, right: expect.any(Date) }
       ]
     });
@@ -157,7 +157,7 @@ describe("email verification", () => {
       {
         id: "ver-1",
         identifier: "password-reset:user-1",
-        token: sha256("tok"),
+        value: sha256("tok"),
         expiresAt: new Date(Date.now() + 60_000)
       }
     ];
