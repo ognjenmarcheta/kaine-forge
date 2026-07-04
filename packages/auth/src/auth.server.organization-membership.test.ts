@@ -19,6 +19,7 @@ const { chain, mockDb } = vi.hoisted(() => {
 
 vi.mock("@repo/db", () => ({
   db: mockDb,
+  invitationsTable: {},
   membersTable: {
     createdAt: "members.created_at",
     id: "members.id",
@@ -53,11 +54,10 @@ vi.mock("drizzle-orm", () => ({
   gt: vi.fn((left: unknown, right: unknown) => [left, right])
 }));
 
-vi.mock("./auth.config", () => ({
-  getServerAuthConfig: () => ({
-    baseUrl: "http://localhost:4000",
-    secret: "test-secret"
-  })
+// The facade imports the better-auth instance for getSessionFromHeaders; the
+// read paths under test never touch it.
+vi.mock("./auth.instance", () => ({
+  auth: { api: { getSession: vi.fn() } }
 }));
 
 import type { AuthenticatedOrganizationScope } from "./auth.scope";

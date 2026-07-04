@@ -1,12 +1,20 @@
+import type { AuthSocialProvider } from "@repo/auth/transport";
 import { Button, Field, FieldError, FieldLabel, Input, useUiForm } from "@repo/ui";
 import { useState } from "react";
 
 import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
+import { signInWithSocialRequest } from "../../../lib/auth-api";
+import { AUTH_CONFIG } from "../auth.config";
 
 interface LoginFormProps {
   onDone: () => void;
 }
+
+const SOCIAL_PROVIDER_LABEL_KEYS = {
+  github: "auth.social.github",
+  google: "auth.social.google"
+} as const satisfies Record<AuthSocialProvider, string>;
 
 interface LoginFormValues {
   email: string;
@@ -100,6 +108,22 @@ export function LoginForm({ onDone }: LoginFormProps) {
       <Button disabled={isSubmitting} type="submit">
         {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
       </Button>
+
+      {AUTH_CONFIG.socialProviders.map((provider) => (
+        <Button
+          key={provider}
+          appearance="secondary"
+          type="button"
+          onClick={() => {
+            setError(null);
+            signInWithSocialRequest(provider).catch(() => {
+              setError(t("error.generic"));
+            });
+          }}
+        >
+          {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
+        </Button>
+      ))}
     </form>
   );
 }

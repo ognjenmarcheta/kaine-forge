@@ -28,6 +28,7 @@
     "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",
     "ai": "^6.0.177",
+    "better-auth": "^1.6.23",
     "dotenv": "^17.2.2",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",

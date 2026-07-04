@@ -1,18 +1,7 @@
 import { createHash, randomBytes, scryptSync } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("@repo/db", () => ({
-  db: {},
-  sessionsTable: {},
-  usersTable: {}
-}));
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn(),
-  eq: vi.fn(),
-  gt: vi.fn()
-}));
-
-const { hashPassword, needsPasswordRehash, verifyPassword } = await import("./auth.server.session");
+import { hashPassword, needsPasswordRehash, verifyPassword } from "./auth.password";
 
 describe("password hashing", () => {
   it("produces salted hashes (same password twice yields different hashes)", async () => {

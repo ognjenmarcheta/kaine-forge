@@ -22,6 +22,27 @@
       "when": 1783029819760,
       "tag": "0002_naive_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783171950713,
+      "tag": "0003_jittery_juggernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783172941687,
+      "tag": "0004_blue_shiva",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783195288051,
+      "tag": "0005_loud_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

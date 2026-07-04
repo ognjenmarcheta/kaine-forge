@@ -16,7 +16,7 @@ When adopting this template for a product repository, remove this `TEMPLATE_POLI
 - Architecture: Feature-Driven Development (FDD).
 - Language: strict TypeScript everywhere. Do not use `any` except in generated code.
 - Platforms: React/Vite web, Tauri desktop, Expo/React Native mobile, GraphQL Yoga API.
-- Data model: organization-scoped by default through custom session auth with organization membership.
+- Data model: organization-scoped by default through better-auth with organization membership.
 - Styling: token-only design system. See `DESIGN_SYSTEM.md`.
 
 ## 2. Workspace Topology
@@ -30,7 +30,7 @@ kaine-forge/
     mobile/    Expo / React Native app
     e2e/       Playwright end-to-end tests
   packages/
-    auth/          custom session auth: login/signup, organizations, invitations, password reset, email verification
+    auth/          better-auth instance (organization + bearer plugins), custom scrypt password hooks, and the session/read facade
     config/        ESLint, TypeScript, Prettier, and Tailwind configuration
     db/            Drizzle schema, validators, migrations, seed, migrate export
     email/         provider-agnostic email sending (console adapter, EMAIL_PROVIDER factory)
@@ -72,7 +72,7 @@ import { MobileButton } from "@repo/mobile-ui";
 | API             | Node.js, GraphQL Yoga                                                           |
 | GraphQL client  | GraphQL Code Generator, graphql-request, React Query                            |
 | Database        | PostgreSQL 17, Drizzle ORM                                                      |
-| Auth            | custom session auth (scrypt passwords, organizations, invitations)              |
+| Auth            | better-auth 1.6 (organization + bearer plugins, scrypt password hooks)          |
 | Styling         | Tailwind CSS v4 for web/UI, NativeWind with Tailwind CSS v3 pipeline for mobile |
 | Testing         | Vitest and Playwright                                                           |
 | Releases        | Changesets and GitHub Actions                                                   |
@@ -118,11 +118,11 @@ Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-sp
 - User-created data is organization-scoped by default. New data tables need an `organizationId` foreign key unless there is a clear system-level reason not to.
 - API queries resolve the active organization from auth/session context. Do not trust client-provided organization IDs for scoped user data.
 - Every resolver that accesses scoped data must authenticate the user, verify organization membership, and filter by `organizationId`.
-- Auth is a custom session implementation in `@repo/auth`. Sessions are database-backed; passwords are salted scrypt hashes with embedded cost parameters (see `docs/adr/0005-scrypt-password-hashing.md`).
-- Cookies are primary for browser auth. The API also supports `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookies are unreliable.
-- Auth API routes live under `/api/auth/*`.
+- Auth is better-auth (organization + bearer plugins) in `@repo/auth`; see `docs/adr/0008-adopt-better-auth.md`. better-auth owns `/api/auth/*` (mounted via `toNodeHandler`); `ServerAuth` is a thin session/read facade. Sessions are database-backed; passwords are salted scrypt hashes with embedded cost parameters, preserved as better-auth's custom password hooks (see `docs/adr/0005-scrypt-password-hashing.md`).
+- Cookies are primary for browser auth (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookies are unreliable.
 - The signup flow auto-creates a default personal organization so every user belongs to at least one organization.
-- The auth surface also covers: organization invitations (`/api/auth/organization/invitation/*`, admin-gated, accepted by the authenticated user whose email matches), password reset (`/api/auth/request-password-reset`, `/api/auth/reset-password`; hashed single-use tokens, resets invalidate all sessions), and optional email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION` soft mode with `emailVerified` on session users and a resend endpoint).
+- The auth surface also covers: organization invitations (admin-gated, accepted by the authenticated user whose email matches), password reset (`/api/auth/request-password-reset`, `/api/auth/reset-password`; resets invalidate sessions), optional soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, never gates login, `emailVerified` on session users), and env-gated GitHub/Google OAuth on web.
+- `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Environment variable details live in the README `## Environment` section.
 - The API rate-limits `/api/auth/*` and `/graphql` (`API_RATE_LIMIT_*`, `API_TRUST_PROXY`) and exposes `/health` and `/ready` probes. Environment variable details live in the README `## Environment` section.
 
 ## 7. Feature Flags

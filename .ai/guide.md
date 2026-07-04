@@ -1,6 +1,6 @@
 # Kaine Forge AI Guide
 
-This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, custom session auth with organizations, and shared `@repo/*` packages.
+This repository is a Turborepo and pnpm monorepo template for React/Vite web, GraphQL Yoga API, Tauri desktop, Expo mobile, Drizzle/Postgres data, better-auth (organization + bearer plugins) with custom scrypt password hooks, and shared `@repo/*` packages.
 
 ## Required Reading
 

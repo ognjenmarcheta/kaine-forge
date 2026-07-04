@@ -57,10 +57,12 @@ pnpm quick-setup
 Start from `.env.example`. Important variables:
 
 - `DATABASE_URL`: Postgres connection string. `sslmode=verify-ca` and `sslmode=verify-full` enable strict certificate verification; other SSL modes use safer non-strict TLS handling when present.
-- `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: auth runtime settings.
+- `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: better-auth's native secret and public base URL. better-auth owns `/api/auth/*`.
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: optional OAuth credentials. Each provider activates only when both its id and secret are set; leave blank to disable that provider.
+- `VITE_AUTH_SOCIAL_PROVIDERS`: optional comma-separated list (for example `github,google`) controlling which social sign-in buttons the web login shows. `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` is reserved; mobile social login is deferred pending `@better-auth/expo` deep-link support.
 - `API_HOST`: optional API listen host. Use `0.0.0.0` when the API needs to accept LAN traffic from a physical phone.
 - `API_RUN_MIGRATIONS`: optional boolean. Defaults to `false` outside production and `true` in production.
-- `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins.
+- `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins. **Dual-purpose:** it feeds both CORS and better-auth's `trustedOrigins`. A browser-facing web origin missing from this list makes sign-in/sign-up fail with `403 INVALID_ORIGIN` (which looks like an auth failure, not a CORS error), so every web origin must be listed. Note the wildcard asymmetry: better-auth pattern-matches `trustedOrigins`, but our CORS reflection is exact-match — do not rely on wildcards.
 - `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap.
 - `API_RATE_LIMIT_ENABLED`, `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`: in-memory rate limiting for `/api/auth/*` and `/graphql` (enabled by default outside tests; 100 requests per 60s window).
 - `API_TRUST_PROXY`: set `true` only when the API sits behind a trusted reverse proxy; enables client identification via the rightmost `x-forwarded-for` entry for rate limiting.
@@ -71,7 +73,7 @@ Start from `.env.example`. Important variables:
 - `VITE_API_URL`, `VITE_GRAPHQL_URL`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GRAPHQL_URL`: client runtime URLs.
 - `S3_*`: S3-compatible storage settings. Local development uses MinIO from `docker-compose.yml`.
 
-Auth is cookie-first. The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable.
+Auth is cookie-first (cookie `kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable. Password reset is requested at `/api/auth/request-password-reset` (better-auth 1.6).
 
 ## Mobile Device Testing
 

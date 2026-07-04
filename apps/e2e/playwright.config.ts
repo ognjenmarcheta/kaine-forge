@@ -28,7 +28,9 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "API_PORT=4010 BETTER_AUTH_URL=http://127.0.0.1:4010 pnpm --filter @repo/api exec node --import tsx src/index.ts",
+        // API_CORS_ORIGINS feeds better-auth's trustedOrigins; the browser hits
+        // the API through the Vite proxy, so its Origin header is the web origin.
+        "API_PORT=4010 BETTER_AUTH_URL=http://127.0.0.1:4010 API_CORS_ORIGINS=http://127.0.0.1:3010 pnpm --filter @repo/api exec node --import tsx src/index.ts",
       cwd: repoRoot,
       url: "http://127.0.0.1:4010/api/auth/get-session",
       reuseExistingServer: true,
