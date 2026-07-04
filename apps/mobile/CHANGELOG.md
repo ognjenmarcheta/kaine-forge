@@ -1,5 +1,21 @@
 # @repo/mobile
 
+## 1.3.0
+
+### Minor Changes
+
+- c1d66c1: Clients authenticate through better-auth's client (organization + bearer flows) with env-gated GitHub/Google social login buttons
+
+### Patch Changes
+
+- Updated dependencies [c046f32]
+- Updated dependencies [68ebc61]
+- Updated dependencies [b2b0a3e]
+- Updated dependencies [4057465]
+- Updated dependencies [c1d66c1]
+- Updated dependencies [9cc4adf]
+  - @repo/auth@1.4.0
+
 ## 1.2.12
 
 ### Patch Changes
