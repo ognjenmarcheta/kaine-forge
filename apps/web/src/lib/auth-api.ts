@@ -1,4 +1,5 @@
 import { createAuthTransport } from "@repo/auth/transport";
+import type { AuthSocialProvider } from "@repo/auth/transport";
 
 import { AUTH_CONFIG } from "../features/auth/auth.config";
 import { AUTH_DEFINITION } from "../features/auth/auth.definition";
@@ -20,12 +21,13 @@ export interface ListOrganizationMembersResponse {
 
 export const authTransport = createAuthTransport({
   adapter: {
-    baseUrl: AUTH_CONFIG.basePath === "/api/auth" ? "" : AUTH_CONFIG.basePath,
+    baseUrl: AUTH_CONFIG.baseUrl,
     credentials: "include",
     fetch,
     getSessionToken: () => getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey),
     setSessionToken: (sessionToken) =>
-      setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, sessionToken)
+      setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, sessionToken),
+    socialCallbackUrl: typeof window === "undefined" ? undefined : window.location.origin
   }
 });
 
@@ -70,4 +72,8 @@ export async function setActiveOrganizationRequest(organizationId: string): Prom
 
 export async function createOrganizationRequest(name: string): Promise<AuthSession> {
   return authTransport.createOrganization({ name });
+}
+
+export async function signInWithSocialRequest(provider: AuthSocialProvider): Promise<void> {
+  await authTransport.signInWithSocial(provider);
 }

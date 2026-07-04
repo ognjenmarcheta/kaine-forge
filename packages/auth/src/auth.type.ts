@@ -63,10 +63,17 @@ export interface AuthInvitation {
   expiresAt: string;
 }
 
+// better-auth's client-side organization list has no per-membership role, so
+// the client result carries the role-less organization shape while the server
+// facade keeps returning AuthOrganization (with role) for GraphQL resolvers.
+export type AuthClientOrganization = Omit<AuthOrganization, "role">;
+
 export interface AuthOrganizationsResult {
   activeOrganizationId: string | null;
-  organizations: AuthOrganization[];
+  organizations: AuthClientOrganization[];
 }
+
+export type AuthSocialProvider = "github" | "google";
 
 // Auth writes (sign-in/up/out, organization and invitation mutations, password
 // reset, email verification) go through better-auth's /api/auth handler; the
@@ -92,6 +99,7 @@ export interface ClientAuth {
   getSession(): Promise<AuthSession | null>;
   loginWithPassword(input: LoginInput): Promise<AuthSession>;
   signupWithPassword(input: SignupInput): Promise<AuthSession>;
+  signInWithSocial(provider: AuthSocialProvider): Promise<void>;
   logout(): Promise<void>;
   listOrganizations(): Promise<AuthOrganizationsResult>;
   setActiveOrganization(organizationId: string): Promise<AuthSession>;

@@ -1,13 +1,10 @@
+import { parseSocialProviders } from "@repo/auth/transport";
+
 export const AUTH_CONFIG = {
-  basePath: "/api/auth",
-  routes: {
-    login: "/api/auth/sign-in/email",
-    logout: "/api/auth/sign-out",
-    session: "/api/auth/get-session",
-    signup: "/api/auth/sign-up/email",
-    organizationList: "/api/auth/organization/list",
-    organizationMembers: "/api/auth/organization/get-members",
-    setActiveOrganization: "/api/auth/organization/set-active",
-    createOrganization: "/api/auth/organization/create"
-  }
+  // Empty base url keeps auth requests same-origin so the Vite dev proxy and
+  // production reverse proxy forward /api/auth/* to the API.
+  baseUrl: "",
+  // UI-only gate for social login buttons; the API's provider env vars stay
+  // authoritative for which providers actually work.
+  socialProviders: parseSocialProviders(import.meta.env.VITE_AUTH_SOCIAL_PROVIDERS)
 } as const;

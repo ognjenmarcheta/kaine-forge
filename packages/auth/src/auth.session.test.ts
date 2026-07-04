@@ -39,6 +39,9 @@ function clientAuth(overrides: Partial<ClientAuth> = {}): ClientAuth {
     async setActiveOrganization() {
       return session();
     },
+    async signInWithSocial() {
+      return undefined;
+    },
     async signupWithPassword() {
       return session();
     },
