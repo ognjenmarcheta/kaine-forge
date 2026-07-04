@@ -13,8 +13,9 @@ Use this index to find the right source of truth quickly.
 ## Operational Docs
 
 - `release-checklist.md`: release validation checklist.
-- `design-system-alignment-audit.md`: historical audit of design-system implementation gaps.
 - `turborepo-2-8-audit.md`: Turborepo 2.8 adoption notes.
+
+Design-token conformance is enforced continuously by `packages/ui/src/styles/design-system.contract.test.ts` (the historical alignment audit was removed once the contract test landed).
 
 ## Architecture Decisions
 
@@ -22,6 +23,9 @@ Use this index to find the right source of truth quickly.
 - `adr/0002-mobile-runtime-alignment.md`: Expo SDK alignment policy.
 - `adr/0003-fast-pr-gate.md`: fast PR gate plus scheduled deep checks.
 - `adr/0004-release-automation-changesets.md`: Changesets and GitHub Releases.
+- `adr/0005-scrypt-password-hashing.md`: salted scrypt with embedded cost parameters.
+- `adr/0006-in-memory-rate-limiting.md`: in-memory fixed-window API rate limiting.
+- `adr/0007-soft-email-verification.md`: soft, opt-in email verification.
 
 ## AI Assistant Docs
 

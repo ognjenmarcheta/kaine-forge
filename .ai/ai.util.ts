@@ -267,6 +267,48 @@ export const lintSkillsDir = (): LintIssue[] => {
   return issues;
 };
 
+const GUIDE_SKILL_LIST_HEADER = "Use skills when they match the task:";
+
+export const lintGuideSkillList = (guideContent: string, skillNames: string[]): LintIssue[] => {
+  if (!guideContent.includes(GUIDE_SKILL_LIST_HEADER)) {
+    return [
+      {
+        file: GUIDE_SRC,
+        level: "error",
+        message: `guide is missing the '${GUIDE_SKILL_LIST_HEADER}' skill list`
+      }
+    ];
+  }
+
+  const issues: LintIssue[] = [];
+  const listedNames = new Set(
+    Array.from(guideContent.matchAll(/^- `(kaine-[a-z0-9-]+)`:/gm), (match) => match[1] as string)
+  );
+
+  for (const name of skillNames) {
+    if (!listedNames.has(name)) {
+      issues.push({
+        file: GUIDE_SRC,
+        level: "error",
+        message: `skill '${name}' exists in .ai/skills but is missing from the guide skill list`
+      });
+    }
+  }
+
+  const knownNames = new Set(skillNames);
+  for (const name of listedNames) {
+    if (!knownNames.has(name)) {
+      issues.push({
+        file: GUIDE_SRC,
+        level: "error",
+        message: `guide skill list mentions '${name}' but .ai/skills/${name}.md does not exist`
+      });
+    }
+  }
+
+  return issues;
+};
+
 export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 
 export const readMcpSource = (): McpSource =>

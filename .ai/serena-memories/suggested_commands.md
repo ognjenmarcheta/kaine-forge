@@ -1,12 +1,15 @@
 # Suggested Commands
 
 - Install: `pnpm install`
+- Onboarding bootstrap: `pnpm quick-setup`
 - Dev: `pnpm dev`
 - Generate GraphQL: `pnpm generate`
 - Format check: `pnpm format:check`
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
+- Coverage: `pnpm coverage`
+- E2E: `pnpm test:e2e`
 - Full check: `pnpm check`
 - Build API and web: `pnpm run build:core`
 - Update deployable app release branches: `pnpm release:apps`
@@ -16,6 +19,7 @@
 - DB seed: `pnpm db:seed`
 - Install AI files: `pnpm ai:install`
 - Check AI setup and drift: `pnpm ai:doctor`
+- Adopt template identity: `pnpm template:adopt`
 - Docker API build: `docker build -f Dockerfile.api -t kaine-forge-api .`
 - Docker web build: `docker build -f Dockerfile.web -t kaine-forge-web .`
 

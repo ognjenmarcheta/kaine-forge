@@ -28,6 +28,14 @@ _Avoid_: global task
 A stored file associated with organization-scoped user-created data, such as a **Todo**.
 _Avoid_: raw upload, blob
 
+**Invitation**:
+A pending offer for an email address to join an **Organization** with a role (admin or member). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked by admins.
+_Avoid_: invite link, access request
+
+**Email Verification**:
+Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
+_Avoid_: account activation
+
 ## Relationships
 
 - A **User** belongs to one or more **Organizations** through membership.
@@ -37,6 +45,7 @@ _Avoid_: raw upload, blob
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
 - A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
+- An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
 
 ## Example dialogue
 
