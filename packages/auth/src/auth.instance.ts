@@ -8,6 +8,7 @@ import {
   usersTable,
   verificationsTable
 } from "@repo/db";
+import { createEmailSender, type EmailMessage } from "@repo/email";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, organization } from "better-auth/plugins";
@@ -31,6 +32,21 @@ const AUTH_SCHEMA = {
   members: membersTable,
   invitations: invitationsTable
 } as const;
+
+// One sender shared by every auth email hook below; adapters own delivery
+// logging and provider configuration.
+const emailSender = createEmailSender();
+
+// Auth endpoint responses must not vary on delivery outcome
+// (anti-enumeration), so hooks swallow send failures; the adapter behind
+// emailSender owns delivery logging and never leaks provider details.
+async function sendAuthEmail(message: EmailMessage): Promise<void> {
+  try {
+    await emailSender.send(message);
+  } catch {
+    // Swallowed on purpose; see above.
+  }
+}
 
 function parseTrustedOrigins(value: string | undefined): string[] {
   if (!value) {
@@ -76,7 +92,33 @@ export function createAuthInstance() {
       password: {
         hash: hashPassword,
         verify: ({ hash, password }) => verifyPassword(password, hash)
-      }
+      },
+      sendResetPassword: async ({ user, url, token }) => {
+        // The raw token rides along for dev visibility with the console
+        // adapter; real adapters simply deliver the message as-is.
+        await sendAuthEmail({
+          to: user.email,
+          subject: "Reset your password",
+          text: `Reset your password: ${url}\n\nReset token: ${token}`
+        });
+      },
+      resetPasswordTokenExpiresIn: AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS
+      // Soft verification (ADR 0007): requireEmailVerification stays unset so
+      // login is never gated on a verified email.
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url, token }) => {
+        await sendAuthEmail({
+          to: user.email,
+          subject: "Verify your email address",
+          text: `Verify your email address: ${url}\n\nVerification token: ${token}`
+        });
+      },
+      // Soft verification (ADR 0007): verification emails go out on signup
+      // only when AUTH_REQUIRE_EMAIL_VERIFICATION=true; the flag never blocks
+      // login either way.
+      sendOnSignUp: config.requireEmailVerification,
+      expiresIn: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS
     },
     session: {
       expiresIn: AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS,
@@ -123,6 +165,22 @@ export function createAuthInstance() {
     },
     plugins: [
       organization({
+        invitationExpiresIn: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS,
+        // Our advanced.database.generateId is a custom function, which
+        // better-auth's heuristic treats as potentially predictable and would
+        // therefore demand a verified email before accept/reject/get by
+        // invitation id. Our ids are opaque crypto.randomUUID values and soft
+        // verification (ADR 0007) never guarantees a verified email, so the
+        // gate stays off. The accept route still enforces that the accepting
+        // user's email matches the invitation email unconditionally.
+        requireEmailVerificationOnInvitation: false,
+        sendInvitationEmail: async (data) => {
+          await sendAuthEmail({
+            to: data.email,
+            subject: `You have been invited to ${data.organization.name}`,
+            text: `You were invited to join ${data.organization.name} as ${data.role}. Sign in with this email address and accept invitation ${data.id}.`
+          });
+        },
         schema: {
           organization: {
             // organizations.user_id is NOT NULL (owner column predating the
