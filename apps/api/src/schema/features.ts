@@ -1,6 +1,8 @@
 import { baseTypeDefs } from "./base";
 import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
+import { notesResolvers } from "../features/notes/notes.router";
+import { notesTypeDefs } from "../features/notes/notes.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
 import { storageResolvers } from "../features/storage/storage.router";
@@ -80,6 +82,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "todos",
     typeDefs: todosTypeDefs,
     resolvers: todosResolvers
+  },
+  {
+    name: "notes",
+    typeDefs: notesTypeDefs,
+    resolvers: notesResolvers
   },
   {
     name: "storage",
