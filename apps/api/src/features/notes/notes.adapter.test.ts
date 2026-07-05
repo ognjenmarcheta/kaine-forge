@@ -27,13 +27,11 @@ const { chain, mockDb } = vi.hoisted(() => {
 
 vi.mock("@repo/db", () => ({
   db: mockDb,
-  todosTable: {
+  notesTable: {
     id: "id",
     userId: "userId",
     organizationId: "orgId",
-    createdAt: "createdAt",
-    completed: "completed",
-    noteId: "noteId"
+    createdAt: "createdAt"
   }
 }));
 
@@ -43,15 +41,9 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import {
-  createTodo,
-  deleteTodo,
-  getTodoById,
-  listTodosByNote,
-  listTodosByScope
-} from "./todos.adapter";
+import { createNote, deleteNote, getNoteById, listNotesByScope } from "./notes.adapter";
 
-describe("todos.adapter", () => {
+describe("notes.adapter", () => {
   const scope = {
     organizationId: "org-1",
     user: {
@@ -69,8 +61,8 @@ describe("todos.adapter", () => {
     chain.returning.mockResolvedValue([]);
   });
 
-  it("listTodosByScope calls db.select with correct chain", async () => {
-    await listTodosByScope(scope, { limit: 20, offset: 0 });
+  it("listNotesByScope calls db.select with correct chain", async () => {
+    await listNotesByScope(scope, { limit: 20, offset: 0 });
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.from).toHaveBeenCalled();
     expect(chain.where).toHaveBeenCalled();
@@ -79,64 +71,45 @@ describe("todos.adapter", () => {
     expect(chain.offset).toHaveBeenCalledWith(0);
   });
 
-  it("listTodosByScope filters by Organization only", async () => {
-    await listTodosByScope(scope, { limit: 20, offset: 0 });
+  it("listNotesByScope filters by Organization only", async () => {
+    await listNotesByScope(scope, { limit: 20, offset: 0 });
 
     expect(chain.where).toHaveBeenCalledWith([["orgId", "org-1"]]);
   });
 
-  it("getTodoById calls db.select with limit 1", async () => {
-    await getTodoById(scope, "todo-1");
+  it("getNoteById calls db.select with limit 1", async () => {
+    await getNoteById(scope, "note-1");
     expect(mockDb.select).toHaveBeenCalled();
     expect(chain.limit).toHaveBeenCalledWith(1);
   });
 
-  it("createTodo calls db.insert and returns created todo", async () => {
-    const todo = {
-      id: "todo-1",
+  it("createNote calls db.insert and returns created note", async () => {
+    const note = {
+      id: "note-1",
       title: "Test",
-      description: null,
-      completed: false,
+      body: null,
       userId: "user-1",
       organizationId: "org-1",
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    chain.returning.mockResolvedValueOnce([todo]);
+    chain.returning.mockResolvedValueOnce([note]);
 
-    const result = await createTodo(scope, { title: "Test", description: null });
+    const result = await createNote(scope, { title: "Test", body: null });
     expect(mockDb.insert).toHaveBeenCalled();
-    expect(result).toEqual(todo);
+    expect(result).toEqual(note);
   });
 
-  it("deleteTodo calls db.delete and returns boolean", async () => {
-    chain.returning.mockResolvedValueOnce([{ id: "todo-1" }]);
-    const result = await deleteTodo(scope, "todo-1");
+  it("deleteNote calls db.delete and returns true when a row is returned", async () => {
+    chain.returning.mockResolvedValueOnce([{ id: "note-1" }]);
+    const result = await deleteNote(scope, "note-1");
     expect(mockDb.delete).toHaveBeenCalled();
     expect(result).toBe(true);
   });
 
-  it("listTodosByNote calls db.select and filters by noteId", async () => {
-    await listTodosByNote(scope, "note-1");
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalled();
-  });
-
-  it("createTodo with a noteId still returns the created todo", async () => {
-    const todo = {
-      id: "todo-1",
-      title: "Test",
-      description: null,
-      completed: false,
-      userId: "user-1",
-      organizationId: "org-1",
-      noteId: "note-1",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    chain.returning.mockResolvedValueOnce([todo]);
-
-    const result = await createTodo(scope, { title: "Test", description: null, noteId: "note-1" });
-    expect(result).toEqual(todo);
+  it("deleteNote returns false when no row is returned", async () => {
+    chain.returning.mockResolvedValueOnce([]);
+    const result = await deleteNote(scope, "note-1");
+    expect(result).toBe(false);
   });
 });

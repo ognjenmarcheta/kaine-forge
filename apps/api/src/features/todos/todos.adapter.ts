@@ -32,7 +32,7 @@ export async function getTodoById(
 
 export async function createTodo(
   scope: AuthenticatedOrganizationScope,
-  input: { title: string; description: string | null }
+  input: { title: string; description: string | null; noteId?: string | null }
 ): Promise<Todo> {
   const todos = await db
     .insert(todosTable)
@@ -41,7 +41,8 @@ export async function createTodo(
       organizationId: scope.organizationId,
       title: input.title,
       description: input.description,
-      completed: false
+      completed: false,
+      noteId: input.noteId ?? null
     })
     .returning();
 
@@ -87,6 +88,17 @@ export async function deleteTodo(
     .returning({ id: todosTable.id });
 
   return deleted.length > 0;
+}
+
+export async function listTodosByNote(
+  scope: AuthenticatedOrganizationScope,
+  noteId: string
+): Promise<Todo[]> {
+  return db
+    .select()
+    .from(todosTable)
+    .where(and(eq(todosTable.noteId, noteId), eq(todosTable.organizationId, scope.organizationId)))
+    .orderBy(desc(todosTable.createdAt));
 }
 
 export async function toggleTodo(scope: AuthenticatedOrganizationScope, id: string): Promise<Todo> {

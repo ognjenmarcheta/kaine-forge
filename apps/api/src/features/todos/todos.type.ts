@@ -11,6 +11,7 @@ export interface Pagination {
 export interface CreateTodoInput {
   title: string;
   description?: string | null;
+  noteId?: string | null;
 }
 
 export interface UpdateTodoInput {
@@ -23,4 +24,5 @@ export interface TodoPatch {
   title?: string;
   description?: string | null;
   completed?: boolean;
+  noteId?: string | null;
 }
