@@ -1,0 +1,16 @@
+{
+  "assistant.title": "KI-Assistent",
+  "assistant.description": "Chatte mit einem Agenten, der deine Aufgaben erstellen, abschließen, aktualisieren und löschen kann.",
+  "assistant.inputLabel": "Nachricht",
+  "assistant.placeholder": "z. B. Erstelle eine Aufgabe „Milch kaufen“ und markiere sie als erledigt",
+  "assistant.send": "Senden",
+  "assistant.sending": "Denkt nach…",
+  "assistant.emptyState": "Bitte den Assistenten, deine Aufgaben zu verwalten.",
+  "assistant.todosTitle": "Deine Aufgaben (live)",
+  "assistant.todosEmpty": "Noch keine Aufgaben.",
+  "assistant.roleUser": "Du",
+  "assistant.roleAssistant": "Assistent",
+  "assistant.toolActions": "Ausgeführte Aktionen",
+  "assistant.ai.notConfigured": "Der KI-Assistent ist nicht konfiguriert.",
+  "assistant.ai.failed": "Der Assistent konnte deine Anfrage nicht abschließen."
+}

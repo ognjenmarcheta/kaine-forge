@@ -15,6 +15,7 @@ import {
 import { useState } from "react";
 import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "react-router-dom";
 
+import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
@@ -32,6 +33,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
+  "/assistant": "navigation.assistant",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
   "/todos": "navigation.todos"
@@ -71,6 +73,7 @@ function ShellLayout() {
     const isDashboardActive = location.pathname === "/dashboard";
     const isMembersActive = location.pathname === "/members";
     const isTodosActive = location.pathname === "/todos";
+    const isAssistantActive = location.pathname === "/assistant";
     const currentRouteKey =
       ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
       "navigation.dashboard";
@@ -140,6 +143,11 @@ function ShellLayout() {
                     href: "/todos",
                     isActive: isTodosActive,
                     title: t("navigation.todos")
+                  },
+                  {
+                    href: "/assistant",
+                    isActive: isAssistantActive,
+                    title: t("navigation.assistant")
                   },
                   ...(organizationsVisible
                     ? [
@@ -251,6 +259,10 @@ export const appRouter = createBrowserRouter([
       {
         element: <TodosRoute />,
         path: "todos"
+      },
+      {
+        element: <AssistantRoute />,
+        path: "assistant"
       },
       {
         element: <OrganizationsRoute />,

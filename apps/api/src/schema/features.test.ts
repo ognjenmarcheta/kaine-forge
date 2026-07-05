@@ -10,7 +10,8 @@ describe("api schema feature registry", () => {
     expect(apiFeatures.map((feature) => feature.name)).toEqual([
       "organizations",
       "todos",
-      "storage"
+      "storage",
+      "assistant"
     ]);
     expect(apiTypeDefs.join("\n")).toContain("type Query");
     expect(apiTypeDefs.join("\n")).toContain("extend type Query");

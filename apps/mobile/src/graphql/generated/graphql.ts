@@ -21,6 +21,28 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantMessage = {
+  __typename?: "AssistantMessage";
+  content: Scalars["String"]["output"];
+  conversationId: Scalars["ID"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  role: Scalars["String"]["output"];
+};
+
+export type AssistantMessageDelta = {
+  __typename?: "AssistantMessageDelta";
+  conversationId: Scalars["ID"]["output"];
+  delta: Scalars["String"]["output"];
+};
+
+export type AssistantToolAction = {
+  __typename?: "AssistantToolAction";
+  input?: Maybe<Scalars["String"]["output"]>;
+  output?: Maybe<Scalars["String"]["output"]>;
+  tool: Scalars["String"]["output"];
+};
+
 export type CreateTodoInput = {
   description?: InputMaybe<Scalars["String"]["input"]>;
   title: Scalars["String"]["input"];
@@ -82,6 +104,7 @@ export type Mutation = {
   deleteTodo: Scalars["Boolean"]["output"];
   generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
+  sendMessage: SendMessagePayload;
   toggleTodo: Todo;
   updateTodo: Todo;
 };
@@ -108,6 +131,10 @@ export type MutationGenerateTodosArgs = {
 
 export type MutationRequestUploadUrlArgs = {
   input: RequestUploadInput;
+};
+
+export type MutationSendMessageArgs = {
+  input: SendMessageInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -155,6 +182,7 @@ export type PresignedUploadResponse = {
 
 export type Query = {
   __typename?: "Query";
+  assistantMessages: Array<AssistantMessage>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -164,6 +192,12 @@ export type Query = {
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryAssistantMessagesArgs = {
+  conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryFileArgs = {
@@ -191,9 +225,30 @@ export type RequestUploadInput = {
   sizeBytes: Scalars["Int"]["input"];
 };
 
+export type SendMessageInput = {
+  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
+  message: Scalars["String"]["input"];
+};
+
+export type SendMessagePayload = {
+  __typename?: "SendMessagePayload";
+  conversationId: Scalars["ID"]["output"];
+  message?: Maybe<Scalars["String"]["output"]>;
+  reply?: Maybe<Scalars["String"]["output"]>;
+  status: SendMessageStatus;
+  toolActions: Array<AssistantToolAction>;
+};
+
+export enum SendMessageStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Failed = "FAILED",
+  Replied = "REPLIED"
+}
+
 export type Subscription = {
   __typename?: "Subscription";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  assistantMessageDelta: AssistantMessageDelta;
   todoCreated: Todo;
   todoDeleted: TodoDeletedPayload;
   todoToggled: Todo;

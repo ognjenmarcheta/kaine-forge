@@ -1,0 +1,16 @@
+{
+  "assistant.title": "AI Assistant",
+  "assistant.description": "Chat with an agent that can create, complete, update, and delete your todos.",
+  "assistant.inputLabel": "Message",
+  "assistant.placeholder": "e.g. Create a todo to buy milk, then mark it done",
+  "assistant.send": "Send",
+  "assistant.sending": "Thinking…",
+  "assistant.emptyState": "Ask the assistant to manage your todos.",
+  "assistant.todosTitle": "Your todos (live)",
+  "assistant.todosEmpty": "No todos yet.",
+  "assistant.roleUser": "You",
+  "assistant.roleAssistant": "Assistant",
+  "assistant.toolActions": "Actions taken",
+  "assistant.ai.notConfigured": "The AI assistant is not configured.",
+  "assistant.ai.failed": "The assistant could not complete your request."
+}

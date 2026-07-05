@@ -8,6 +8,7 @@ type Query {
   todo(id: ID!): Todo
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput): [FileInfo!]!
+  assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
 }
 
 type Mutation {
@@ -20,6 +21,7 @@ type Mutation {
   requestUploadUrl(input: RequestUploadInput!): PresignedUploadResponse!
   confirmUpload(fileId: ID!): FileInfo!
   deleteFile(fileId: ID!): Boolean!
+  sendMessage(input: SendMessageInput!): SendMessagePayload!
 }
 
 type Subscription {
@@ -28,6 +30,7 @@ type Subscription {
   todoUpdated: Todo!
   todoDeleted: TodoDeletedPayload!
   todoToggled: Todo!
+  assistantMessageDelta: AssistantMessageDelta!
 }
 
 type Organization {
@@ -140,4 +143,42 @@ input FilesFilterInput {
   status: FileStatus
   limit: Int
   offset: Int
+}
+
+type AssistantMessage {
+  id: ID!
+  conversationId: ID!
+  role: String!
+  content: String!
+  createdAt: DateTime!
+}
+
+type AssistantToolAction {
+  tool: String!
+  input: String
+  output: String
+}
+
+enum SendMessageStatus {
+  REPLIED
+  AI_NOT_CONFIGURED
+  FAILED
+}
+
+type SendMessagePayload {
+  status: SendMessageStatus!
+  conversationId: ID!
+  reply: String
+  toolActions: [AssistantToolAction!]!
+  message: String
+}
+
+input SendMessageInput {
+  conversationId: ID
+  message: String!
+}
+
+type AssistantMessageDelta {
+  conversationId: ID!
+  delta: String!
 }

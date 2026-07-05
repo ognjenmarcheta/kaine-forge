@@ -43,6 +43,13 @@
       "when": 1783195288051,
       "tag": "0005_loud_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783200140924,
+      "tag": "0006_whole_klaw",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 export * from "./accounts.schema";
+export * from "./assistant.schema";
 export * from "./files.schema";
 export * from "./invitations.schema";
 export * from "./members.schema";

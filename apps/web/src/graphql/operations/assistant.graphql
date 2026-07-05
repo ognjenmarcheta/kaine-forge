@@ -1,0 +1,30 @@
+query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
+  assistantMessages(conversationId: $conversationId, limit: $limit, offset: $offset) {
+    id
+    conversationId
+    role
+    content
+    createdAt
+  }
+}
+
+mutation SendMessage($input: SendMessageInput!) {
+  sendMessage(input: $input) {
+    status
+    conversationId
+    reply
+    message
+    toolActions {
+      tool
+      input
+      output
+    }
+  }
+}
+
+subscription OnAssistantMessageDelta {
+  assistantMessageDelta {
+    conversationId
+    delta
+  }
+}
