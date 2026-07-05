@@ -21,6 +21,28 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantMessage = {
+  __typename?: "AssistantMessage";
+  content: Scalars["String"]["output"];
+  conversationId: Scalars["ID"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  role: Scalars["String"]["output"];
+};
+
+export type AssistantMessageDelta = {
+  __typename?: "AssistantMessageDelta";
+  conversationId: Scalars["ID"]["output"];
+  delta: Scalars["String"]["output"];
+};
+
+export type AssistantToolAction = {
+  __typename?: "AssistantToolAction";
+  input?: Maybe<Scalars["String"]["output"]>;
+  output?: Maybe<Scalars["String"]["output"]>;
+  tool: Scalars["String"]["output"];
+};
+
 export type CreateTodoInput = {
   description?: InputMaybe<Scalars["String"]["input"]>;
   title: Scalars["String"]["input"];
@@ -82,6 +104,7 @@ export type Mutation = {
   deleteTodo: Scalars["Boolean"]["output"];
   generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
+  sendMessage: SendMessagePayload;
   toggleTodo: Todo;
   updateTodo: Todo;
 };
@@ -108,6 +131,10 @@ export type MutationGenerateTodosArgs = {
 
 export type MutationRequestUploadUrlArgs = {
   input: RequestUploadInput;
+};
+
+export type MutationSendMessageArgs = {
+  input: SendMessageInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -155,6 +182,7 @@ export type PresignedUploadResponse = {
 
 export type Query = {
   __typename?: "Query";
+  assistantMessages: Array<AssistantMessage>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -164,6 +192,12 @@ export type Query = {
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryAssistantMessagesArgs = {
+  conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryFileArgs = {
@@ -191,9 +225,30 @@ export type RequestUploadInput = {
   sizeBytes: Scalars["Int"]["input"];
 };
 
+export type SendMessageInput = {
+  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
+  message: Scalars["String"]["input"];
+};
+
+export type SendMessagePayload = {
+  __typename?: "SendMessagePayload";
+  conversationId: Scalars["ID"]["output"];
+  message?: Maybe<Scalars["String"]["output"]>;
+  reply?: Maybe<Scalars["String"]["output"]>;
+  status: SendMessageStatus;
+  toolActions: Array<AssistantToolAction>;
+};
+
+export enum SendMessageStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Failed = "FAILED",
+  Replied = "REPLIED"
+}
+
 export type Subscription = {
   __typename?: "Subscription";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  assistantMessageDelta: AssistantMessageDelta;
   todoCreated: Todo;
   todoDeleted: TodoDeletedPayload;
   todoToggled: Todo;
@@ -222,6 +277,56 @@ export type UpdateTodoInput = {
   completed?: InputMaybe<Scalars["Boolean"]["input"]>;
   description?: InputMaybe<Scalars["String"]["input"]>;
   title?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type GetConversationQueryVariables = Exact<{
+  conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetConversationQuery = {
+  __typename?: "Query";
+  assistantMessages: Array<{
+    __typename?: "AssistantMessage";
+    id: string;
+    conversationId: string;
+    role: string;
+    content: string;
+    createdAt: any;
+  }>;
+};
+
+export type SendMessageMutationVariables = Exact<{
+  input: SendMessageInput;
+}>;
+
+export type SendMessageMutation = {
+  __typename?: "Mutation";
+  sendMessage: {
+    __typename?: "SendMessagePayload";
+    status: SendMessageStatus;
+    conversationId: string;
+    reply?: string | null;
+    message?: string | null;
+    toolActions: Array<{
+      __typename?: "AssistantToolAction";
+      tool: string;
+      input?: string | null;
+      output?: string | null;
+    }>;
+  };
+};
+
+export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnAssistantMessageDeltaSubscription = {
+  __typename?: "Subscription";
+  assistantMessageDelta: {
+    __typename?: "AssistantMessageDelta";
+    conversationId: string;
+    delta: string;
+  };
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -517,6 +622,158 @@ export type OnTodoToggledSubscription = {
   };
 };
 
+export const GetConversationDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetConversation" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "conversationId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "assistantMessages" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "conversationId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "conversationId" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "offset" },
+                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "conversationId" } },
+                { kind: "Field", name: { kind: "Name", value: "role" } },
+                { kind: "Field", name: { kind: "Name", value: "content" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetConversationQuery, GetConversationQueryVariables>;
+export const SendMessageDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "SendMessage" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "SendMessageInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "sendMessage" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "status" } },
+                { kind: "Field", name: { kind: "Name", value: "conversationId" } },
+                { kind: "Field", name: { kind: "Name", value: "reply" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "toolActions" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "tool" } },
+                      { kind: "Field", name: { kind: "Name", value: "input" } },
+                      { kind: "Field", name: { kind: "Name", value: "output" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SendMessageMutation, SendMessageMutationVariables>;
+export const OnAssistantMessageDeltaDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnAssistantMessageDelta" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "assistantMessageDelta" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "conversationId" } },
+                { kind: "Field", name: { kind: "Name", value: "delta" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnAssistantMessageDeltaSubscription,
+  OnAssistantMessageDeltaSubscriptionVariables
+>;
 export const HealthDocument = {
   kind: "Document",
   definitions: [

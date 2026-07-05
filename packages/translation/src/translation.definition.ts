@@ -11,5 +11,6 @@ export const TRANSLATION_NAMESPACES = [
   "dashboard",
   "todos",
   "organizations",
-  "storage"
+  "storage",
+  "assistant"
 ] as const;

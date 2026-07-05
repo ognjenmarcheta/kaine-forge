@@ -16,5 +16,6 @@
   "navigation.themeLight": "Light",
   "navigation.themeSystem": "System",
   "navigation.toggleSidebar": "Toggle sidebar",
-  "navigation.todos": "Todos"
+  "navigation.todos": "Todos",
+  "navigation.assistant": "Assistant"
 }

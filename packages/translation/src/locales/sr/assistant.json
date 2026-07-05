@@ -1,0 +1,16 @@
+{
+  "assistant.title": "AI asistent",
+  "assistant.description": "Ćaskaj sa agentom koji može da kreira, završava, ažurira i briše tvoje zadatke.",
+  "assistant.inputLabel": "Poruka",
+  "assistant.placeholder": "npr. Kreiraj zadatak da kupim mleko, pa ga označi kao završen",
+  "assistant.send": "Pošalji",
+  "assistant.sending": "Razmišlja…",
+  "assistant.emptyState": "Zamoli asistenta da upravlja tvojim zadacima.",
+  "assistant.todosTitle": "Tvoji zadaci (uživo)",
+  "assistant.todosEmpty": "Još nema zadataka.",
+  "assistant.roleUser": "Ti",
+  "assistant.roleAssistant": "Asistent",
+  "assistant.toolActions": "Preduzete radnje",
+  "assistant.ai.notConfigured": "AI asistent nije konfigurisan.",
+  "assistant.ai.failed": "Asistent nije mogao da izvrši tvoj zahtev."
+}

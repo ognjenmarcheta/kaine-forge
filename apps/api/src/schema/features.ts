@@ -1,4 +1,6 @@
 import { baseTypeDefs } from "./base";
+import { assistantResolvers } from "../features/assistant/assistant.router";
+import { assistantTypeDefs } from "../features/assistant/assistant.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
 import { storageResolvers } from "../features/storage/storage.router";
@@ -83,6 +85,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "storage",
     typeDefs: storageTypeDefs,
     resolvers: storageResolvers
+  },
+  {
+    name: "assistant",
+    typeDefs: assistantTypeDefs,
+    resolvers: assistantResolvers
   }
 ];
 

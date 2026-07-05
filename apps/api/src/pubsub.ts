@@ -15,11 +15,19 @@ export interface TodoDeletedPayload {
   organizationId: string;
 }
 
+export interface AssistantMessageDeltaPayload {
+  conversationId: string;
+  delta: string;
+  organizationId: string;
+  userId: string;
+}
+
 export type PubSubEventMap = {
   "todo:created": [TodoSubscriptionPayload];
   "todo:updated": [TodoSubscriptionPayload];
   "todo:deleted": [TodoDeletedPayload];
   "todo:toggled": [TodoSubscriptionPayload];
+  "assistant:delta": [AssistantMessageDeltaPayload];
 };
 
 export const pubsub = createPubSub<PubSubEventMap>();

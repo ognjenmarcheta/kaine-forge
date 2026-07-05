@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../features/assistant/assistant.adapter", () => ({}));
 vi.mock("../features/storage/storage.adapter", () => ({}));
 vi.mock("../features/todos/todos.adapter", () => ({}));
 
@@ -10,7 +11,8 @@ describe("api schema feature registry", () => {
     expect(apiFeatures.map((feature) => feature.name)).toEqual([
       "organizations",
       "todos",
-      "storage"
+      "storage",
+      "assistant"
     ]);
     expect(apiTypeDefs.join("\n")).toContain("type Query");
     expect(apiTypeDefs.join("\n")).toContain("extend type Query");

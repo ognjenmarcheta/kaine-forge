@@ -21,6 +21,28 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantMessage = {
+  __typename?: "AssistantMessage";
+  content: Scalars["String"]["output"];
+  conversationId: Scalars["ID"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  role: Scalars["String"]["output"];
+};
+
+export type AssistantMessageDelta = {
+  __typename?: "AssistantMessageDelta";
+  conversationId: Scalars["ID"]["output"];
+  delta: Scalars["String"]["output"];
+};
+
+export type AssistantToolAction = {
+  __typename?: "AssistantToolAction";
+  input?: Maybe<Scalars["String"]["output"]>;
+  output?: Maybe<Scalars["String"]["output"]>;
+  tool: Scalars["String"]["output"];
+};
+
 export type CreateTodoInput = {
   description?: InputMaybe<Scalars["String"]["input"]>;
   title: Scalars["String"]["input"];
@@ -82,6 +104,7 @@ export type Mutation = {
   deleteTodo: Scalars["Boolean"]["output"];
   generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
+  sendMessage: SendMessagePayload;
   toggleTodo: Todo;
   updateTodo: Todo;
 };
@@ -108,6 +131,10 @@ export type MutationGenerateTodosArgs = {
 
 export type MutationRequestUploadUrlArgs = {
   input: RequestUploadInput;
+};
+
+export type MutationSendMessageArgs = {
+  input: SendMessageInput;
 };
 
 export type MutationToggleTodoArgs = {
@@ -155,6 +182,7 @@ export type PresignedUploadResponse = {
 
 export type Query = {
   __typename?: "Query";
+  assistantMessages: Array<AssistantMessage>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -164,6 +192,12 @@ export type Query = {
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
+};
+
+export type QueryAssistantMessagesArgs = {
+  conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryFileArgs = {
@@ -191,9 +225,30 @@ export type RequestUploadInput = {
   sizeBytes: Scalars["Int"]["input"];
 };
 
+export type SendMessageInput = {
+  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
+  message: Scalars["String"]["input"];
+};
+
+export type SendMessagePayload = {
+  __typename?: "SendMessagePayload";
+  conversationId: Scalars["ID"]["output"];
+  message?: Maybe<Scalars["String"]["output"]>;
+  reply?: Maybe<Scalars["String"]["output"]>;
+  status: SendMessageStatus;
+  toolActions: Array<AssistantToolAction>;
+};
+
+export enum SendMessageStatus {
+  AiNotConfigured = "AI_NOT_CONFIGURED",
+  Failed = "FAILED",
+  Replied = "REPLIED"
+}
+
 export type Subscription = {
   __typename?: "Subscription";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  assistantMessageDelta: AssistantMessageDelta;
   todoCreated: Todo;
   todoDeleted: TodoDeletedPayload;
   todoToggled: Todo;
@@ -222,6 +277,56 @@ export type UpdateTodoInput = {
   completed?: InputMaybe<Scalars["Boolean"]["input"]>;
   description?: InputMaybe<Scalars["String"]["input"]>;
   title?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type GetConversationQueryVariables = Exact<{
+  conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetConversationQuery = {
+  __typename?: "Query";
+  assistantMessages: Array<{
+    __typename?: "AssistantMessage";
+    id: string;
+    conversationId: string;
+    role: string;
+    content: string;
+    createdAt: any;
+  }>;
+};
+
+export type SendMessageMutationVariables = Exact<{
+  input: SendMessageInput;
+}>;
+
+export type SendMessageMutation = {
+  __typename?: "Mutation";
+  sendMessage: {
+    __typename?: "SendMessagePayload";
+    status: SendMessageStatus;
+    conversationId: string;
+    reply?: string | null;
+    message?: string | null;
+    toolActions: Array<{
+      __typename?: "AssistantToolAction";
+      tool: string;
+      input?: string | null;
+      output?: string | null;
+    }>;
+  };
+};
+
+export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnAssistantMessageDeltaSubscription = {
+  __typename?: "Subscription";
+  assistantMessageDelta: {
+    __typename?: "AssistantMessageDelta";
+    conversationId: string;
+    delta: string;
+  };
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -517,6 +622,80 @@ export type OnTodoToggledSubscription = {
   };
 };
 
+export const GetConversationDocument = `
+    query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
+  assistantMessages(
+    conversationId: $conversationId
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    conversationId
+    role
+    content
+    createdAt
+  }
+}
+    `;
+
+export const useGetConversationQuery = <TData = GetConversationQuery, TError = unknown>(
+  variables: GetConversationQueryVariables,
+  options?: Omit<UseQueryOptions<GetConversationQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetConversationQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetConversationQuery, TError, TData>({
+    queryKey: ["GetConversation", variables],
+    queryFn: useGraphqlFetcher<GetConversationQuery, GetConversationQueryVariables>(
+      GetConversationDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useGetConversationQuery.getKey = (variables: GetConversationQueryVariables) => [
+  "GetConversation",
+  variables
+];
+
+export const SendMessageDocument = `
+    mutation SendMessage($input: SendMessageInput!) {
+  sendMessage(input: $input) {
+    status
+    conversationId
+    reply
+    message
+    toolActions {
+      tool
+      input
+      output
+    }
+  }
+}
+    `;
+
+export const useSendMessageMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<SendMessageMutation, TError, SendMessageMutationVariables, TContext>
+) => {
+  return useMutation<SendMessageMutation, TError, SendMessageMutationVariables, TContext>({
+    mutationKey: ["SendMessage"],
+    mutationFn: useGraphqlFetcher<SendMessageMutation, SendMessageMutationVariables>(
+      SendMessageDocument
+    ),
+    ...options
+  });
+};
+
+useSendMessageMutation.getKey = () => ["SendMessage"];
+
+export const OnAssistantMessageDeltaDocument = `
+    subscription OnAssistantMessageDelta {
+  assistantMessageDelta {
+    conversationId
+    delta
+  }
+}
+    `;
 export const HealthDocument = `
     query Health {
   health
