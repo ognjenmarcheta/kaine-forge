@@ -1,0 +1,16 @@
+{
+  "notes.title": "Notes",
+  "notes.create": "New note",
+  "notes.empty": "No notes yet.",
+  "notes.titleLabel": "Title",
+  "notes.bodyLabel": "Body",
+  "notes.save": "Save",
+  "notes.delete": "Delete",
+  "notes.deleteConfirmTitle": "Delete note",
+  "notes.deleteConfirmMessage": "This note will be permanently deleted. Its todos will be detached, not deleted.",
+  "notes.checklist": "Checklist",
+  "notes.addTodo": "Add",
+  "notes.addTodoPlaceholder": "Add a checklist item",
+  "notes.notFound": "Note not found.",
+  "notes.loading": "Loading…"
+}

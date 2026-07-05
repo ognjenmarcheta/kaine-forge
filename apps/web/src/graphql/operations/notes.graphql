@@ -1,0 +1,72 @@
+query GetNotes($limit: Int, $offset: Int) {
+  notes(limit: $limit, offset: $offset) {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+}
+
+query GetNote($id: ID!) {
+  note(id: $id) {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+    todos {
+      id
+      title
+      description
+      completed
+    }
+  }
+}
+
+mutation CreateNote($input: CreateNoteInput!) {
+  createNote(input: $input) {
+    id
+    title
+    body
+  }
+}
+
+mutation UpdateNote($id: ID!, $input: UpdateNoteInput!) {
+  updateNote(id: $id, input: $input) {
+    id
+    title
+    body
+  }
+}
+
+mutation DeleteNote($id: ID!) {
+  deleteNote(id: $id)
+}
+
+mutation AddTodoToNote($noteId: ID!, $input: CreateTodoInput!) {
+  addTodoToNote(noteId: $noteId, input: $input) {
+    id
+    title
+    description
+    completed
+  }
+}
+
+subscription OnNoteCreated {
+  noteCreated {
+    id
+  }
+}
+
+subscription OnNoteUpdated {
+  noteUpdated {
+    id
+  }
+}
+
+subscription OnNoteDeleted {
+  noteDeleted {
+    id
+  }
+}

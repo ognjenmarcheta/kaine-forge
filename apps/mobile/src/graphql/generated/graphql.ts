@@ -43,6 +43,11 @@ export type AssistantToolAction = {
   tool: Scalars["String"]["output"];
 };
 
+export type CreateNoteInput = {
+  body?: InputMaybe<Scalars["String"]["input"]>;
+  title: Scalars["String"]["input"];
+};
+
 export type CreateTodoInput = {
   description?: InputMaybe<Scalars["String"]["input"]>;
   title: Scalars["String"]["input"];
@@ -98,19 +103,32 @@ export enum GenerateTodosStatus {
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  addTodoToNote: Todo;
   confirmUpload: FileInfo;
+  createNote: Note;
   createTodo: Todo;
   deleteFile: Scalars["Boolean"]["output"];
+  deleteNote: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
   generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
   sendMessage: SendMessagePayload;
   toggleTodo: Todo;
+  updateNote: Note;
   updateTodo: Todo;
+};
+
+export type MutationAddTodoToNoteArgs = {
+  input: CreateTodoInput;
+  noteId: Scalars["ID"]["input"];
 };
 
 export type MutationConfirmUploadArgs = {
   fileId: Scalars["ID"]["input"];
+};
+
+export type MutationCreateNoteArgs = {
+  input: CreateNoteInput;
 };
 
 export type MutationCreateTodoArgs = {
@@ -119,6 +137,10 @@ export type MutationCreateTodoArgs = {
 
 export type MutationDeleteFileArgs = {
   fileId: Scalars["ID"]["input"];
+};
+
+export type MutationDeleteNoteArgs = {
+  id: Scalars["ID"]["input"];
 };
 
 export type MutationDeleteTodoArgs = {
@@ -141,9 +163,31 @@ export type MutationToggleTodoArgs = {
   id: Scalars["ID"]["input"];
 };
 
+export type MutationUpdateNoteArgs = {
+  id: Scalars["ID"]["input"];
+  input: UpdateNoteInput;
+};
+
 export type MutationUpdateTodoArgs = {
   id: Scalars["ID"]["input"];
   input: UpdateTodoInput;
+};
+
+export type Note = {
+  __typename?: "Note";
+  body?: Maybe<Scalars["String"]["output"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
+  title: Scalars["String"]["output"];
+  todos: Array<Todo>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
+export type NoteDeletedPayload = {
+  __typename?: "NoteDeletedPayload";
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
 };
 
 export type Organization = {
@@ -189,6 +233,8 @@ export type Query = {
   health: Scalars["String"]["output"];
   invitations: Array<OrganizationInvitation>;
   members: Array<OrganizationMember>;
+  note?: Maybe<Note>;
+  notes: Array<Note>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
@@ -206,6 +252,15 @@ export type QueryFileArgs = {
 
 export type QueryFilesArgs = {
   filter?: InputMaybe<FilesFilterInput>;
+};
+
+export type QueryNoteArgs = {
+  id: Scalars["ID"]["input"];
+};
+
+export type QueryNotesArgs = {
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryTodoArgs = {
@@ -249,6 +304,9 @@ export type Subscription = {
   __typename?: "Subscription";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
   assistantMessageDelta: AssistantMessageDelta;
+  noteCreated: Note;
+  noteDeleted: NoteDeletedPayload;
+  noteUpdated: Note;
   todoCreated: Todo;
   todoDeleted: TodoDeletedPayload;
   todoToggled: Todo;
@@ -271,6 +329,11 @@ export type TodoDeletedPayload = {
   __typename?: "TodoDeletedPayload";
   id: Scalars["ID"]["output"];
   organizationId: Scalars["ID"]["output"];
+};
+
+export type UpdateNoteInput = {
+  body?: InputMaybe<Scalars["String"]["input"]>;
+  title?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type UpdateTodoInput = {

@@ -10,6 +10,7 @@ export const TRANSLATION_NAMESPACES = [
   "navigation",
   "dashboard",
   "todos",
+  "notes",
   "organizations",
   "storage",
   "assistant"
