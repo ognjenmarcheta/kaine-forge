@@ -38,6 +38,7 @@ describe("todos.validator", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       description: null,
       id: "550e8400-e29b-41d4-a716-446655440000",
+      noteId: null,
       organizationId: "550e8400-e29b-41d4-a716-446655440010",
       title: "todo",
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
