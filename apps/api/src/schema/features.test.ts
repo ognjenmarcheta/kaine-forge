@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../features/assistant/assistant.adapter", () => ({}));
 vi.mock("../features/storage/storage.adapter", () => ({}));
 vi.mock("../features/todos/todos.adapter", () => ({}));
 
