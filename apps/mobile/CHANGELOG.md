@@ -1,5 +1,13 @@
 # @repo/mobile
 
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [f136b60]
+  - @repo/translation@1.2.0
+  - @repo/auth@1.4.1
+
 ## 1.3.0
 
 ### Minor Changes
