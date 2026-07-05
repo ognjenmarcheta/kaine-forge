@@ -1,5 +1,12 @@
 # @repo/auth
 
+## 1.4.2
+
+### Patch Changes
+
+- Updated dependencies [87e6d0b]
+  - @repo/db@1.5.0
+
 ## 1.4.1
 
 ### Patch Changes
