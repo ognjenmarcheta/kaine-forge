@@ -6,9 +6,12 @@ type Query {
   invitations: [OrganizationInvitation!]!
   todos(limit: Int, offset: Int): [Todo!]!
   todo(id: ID!): Todo
+  notes(limit: Int, offset: Int): [Note!]!
+  note(id: ID!): Note
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput): [FileInfo!]!
   assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
+  conversations(limit: Int, offset: Int): [AssistantConversation!]!
 }
 
 type Mutation {
@@ -18,10 +21,15 @@ type Mutation {
   updateTodo(id: ID!, input: UpdateTodoInput!): Todo!
   deleteTodo(id: ID!): Boolean!
   toggleTodo(id: ID!): Todo!
+  createNote(input: CreateNoteInput!): Note!
+  updateNote(id: ID!, input: UpdateNoteInput!): Note!
+  deleteNote(id: ID!): Boolean!
+  addTodoToNote(noteId: ID!, input: CreateTodoInput!): Todo!
   requestUploadUrl(input: RequestUploadInput!): PresignedUploadResponse!
   confirmUpload(fileId: ID!): FileInfo!
   deleteFile(fileId: ID!): Boolean!
   sendMessage(input: SendMessageInput!): SendMessagePayload!
+  deleteConversation(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -30,6 +38,9 @@ type Subscription {
   todoUpdated: Todo!
   todoDeleted: TodoDeletedPayload!
   todoToggled: Todo!
+  noteCreated: Note!
+  noteUpdated: Note!
+  noteDeleted: NoteDeletedPayload!
   assistantMessageDelta: AssistantMessageDelta!
 }
 
@@ -101,6 +112,31 @@ type TodoDeletedPayload {
   organizationId: ID!
 }
 
+type Note {
+  id: ID!
+  title: String!
+  body: String
+  organizationId: ID!
+  todos: [Todo!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CreateNoteInput {
+  title: String!
+  body: String
+}
+
+input UpdateNoteInput {
+  title: String
+  body: String
+}
+
+type NoteDeletedPayload {
+  id: ID!
+  organizationId: ID!
+}
+
 enum FileStatus {
   pending
   uploaded
@@ -151,12 +187,20 @@ type AssistantMessage {
   role: String!
   content: String!
   createdAt: DateTime!
+  toolActions: [AssistantToolAction!]!
 }
 
 type AssistantToolAction {
   tool: String!
   input: String
   output: String
+}
+
+type AssistantConversation {
+  id: ID!
+  title: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 enum SendMessageStatus {

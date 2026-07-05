@@ -4,6 +4,7 @@ export interface ChatMessage {
   role: "assistant" | "user";
   streaming?: boolean;
   toolCount?: number;
+  toolActions?: { output: string | null; tool: string }[];
 }
 
 export interface AssistantMessageDeltaData {

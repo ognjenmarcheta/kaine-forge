@@ -1,0 +1,16 @@
+{
+  "notes.title": "Beleške",
+  "notes.create": "Nova beleška",
+  "notes.empty": "Još nema beleški.",
+  "notes.titleLabel": "Naslov",
+  "notes.bodyLabel": "Sadržaj",
+  "notes.save": "Sačuvaj",
+  "notes.delete": "Obriši",
+  "notes.deleteConfirmTitle": "Obriši belešku",
+  "notes.deleteConfirmMessage": "Ova beleška će biti trajno obrisana. Njeni zadaci će biti odvojeni, ne obrisani.",
+  "notes.checklist": "Lista",
+  "notes.addTodo": "Dodaj",
+  "notes.addTodoPlaceholder": "Dodaj stavku liste",
+  "notes.notFound": "Beleška nije pronađena.",
+  "notes.loading": "Učitavanje…"
+}

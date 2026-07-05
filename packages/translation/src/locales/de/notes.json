@@ -1,0 +1,16 @@
+{
+  "notes.title": "Notizen",
+  "notes.create": "Neue Notiz",
+  "notes.empty": "Noch keine Notizen.",
+  "notes.titleLabel": "Titel",
+  "notes.bodyLabel": "Inhalt",
+  "notes.save": "Speichern",
+  "notes.delete": "Löschen",
+  "notes.deleteConfirmTitle": "Notiz löschen",
+  "notes.deleteConfirmMessage": "Diese Notiz wird dauerhaft gelöscht. Ihre Aufgaben werden gelöst, nicht gelöscht.",
+  "notes.checklist": "Checkliste",
+  "notes.addTodo": "Hinzufügen",
+  "notes.addTodoPlaceholder": "Checklistenpunkt hinzufügen",
+  "notes.notFound": "Notiz nicht gefunden.",
+  "notes.loading": "Wird geladen…"
+}

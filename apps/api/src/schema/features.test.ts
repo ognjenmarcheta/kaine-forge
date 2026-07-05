@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../features/assistant/assistant.adapter", () => ({}));
+vi.mock("../features/notes/notes.adapter", () => ({}));
 vi.mock("../features/storage/storage.adapter", () => ({}));
 vi.mock("../features/todos/todos.adapter", () => ({}));
 
@@ -11,6 +12,7 @@ describe("api schema feature registry", () => {
     expect(apiFeatures.map((feature) => feature.name)).toEqual([
       "organizations",
       "todos",
+      "notes",
       "storage",
       "assistant"
     ]);

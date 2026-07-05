@@ -5,12 +5,20 @@ export const assistantTypeDefs = /* GraphQL */ `
     role: String!
     content: String!
     createdAt: DateTime!
+    toolActions: [AssistantToolAction!]!
   }
 
   type AssistantToolAction {
     tool: String!
     input: String
     output: String
+  }
+
+  type AssistantConversation {
+    id: ID!
+    title: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
   }
 
   enum SendMessageStatus {
@@ -39,10 +47,12 @@ export const assistantTypeDefs = /* GraphQL */ `
 
   extend type Query {
     assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
+    conversations(limit: Int, offset: Int): [AssistantConversation!]!
   }
 
   extend type Mutation {
     sendMessage(input: SendMessageInput!): SendMessagePayload!
+    deleteConversation(id: ID!): Boolean!
   }
 
   extend type Subscription {

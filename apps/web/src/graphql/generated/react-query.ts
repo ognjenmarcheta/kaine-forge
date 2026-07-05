@@ -21,6 +21,14 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantConversation = {
+  __typename?: "AssistantConversation";
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  title?: Maybe<Scalars["String"]["output"]>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
 export type AssistantMessage = {
   __typename?: "AssistantMessage";
   content: Scalars["String"]["output"];
@@ -28,6 +36,7 @@ export type AssistantMessage = {
   createdAt: Scalars["DateTime"]["output"];
   id: Scalars["ID"]["output"];
   role: Scalars["String"]["output"];
+  toolActions: Array<AssistantToolAction>;
 };
 
 export type AssistantMessageDelta = {
@@ -41,6 +50,11 @@ export type AssistantToolAction = {
   input?: Maybe<Scalars["String"]["output"]>;
   output?: Maybe<Scalars["String"]["output"]>;
   tool: Scalars["String"]["output"];
+};
+
+export type CreateNoteInput = {
+  body?: InputMaybe<Scalars["String"]["input"]>;
+  title: Scalars["String"]["input"];
 };
 
 export type CreateTodoInput = {
@@ -98,27 +112,49 @@ export enum GenerateTodosStatus {
 export type Mutation = {
   __typename?: "Mutation";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
+  addTodoToNote: Todo;
   confirmUpload: FileInfo;
+  createNote: Note;
   createTodo: Todo;
+  deleteConversation: Scalars["Boolean"]["output"];
   deleteFile: Scalars["Boolean"]["output"];
+  deleteNote: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
   generateTodos: GenerateTodosPayload;
   requestUploadUrl: PresignedUploadResponse;
   sendMessage: SendMessagePayload;
   toggleTodo: Todo;
+  updateNote: Note;
   updateTodo: Todo;
+};
+
+export type MutationAddTodoToNoteArgs = {
+  input: CreateTodoInput;
+  noteId: Scalars["ID"]["input"];
 };
 
 export type MutationConfirmUploadArgs = {
   fileId: Scalars["ID"]["input"];
 };
 
+export type MutationCreateNoteArgs = {
+  input: CreateNoteInput;
+};
+
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
 };
 
+export type MutationDeleteConversationArgs = {
+  id: Scalars["ID"]["input"];
+};
+
 export type MutationDeleteFileArgs = {
   fileId: Scalars["ID"]["input"];
+};
+
+export type MutationDeleteNoteArgs = {
+  id: Scalars["ID"]["input"];
 };
 
 export type MutationDeleteTodoArgs = {
@@ -141,9 +177,31 @@ export type MutationToggleTodoArgs = {
   id: Scalars["ID"]["input"];
 };
 
+export type MutationUpdateNoteArgs = {
+  id: Scalars["ID"]["input"];
+  input: UpdateNoteInput;
+};
+
 export type MutationUpdateTodoArgs = {
   id: Scalars["ID"]["input"];
   input: UpdateTodoInput;
+};
+
+export type Note = {
+  __typename?: "Note";
+  body?: Maybe<Scalars["String"]["output"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
+  title: Scalars["String"]["output"];
+  todos: Array<Todo>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
+export type NoteDeletedPayload = {
+  __typename?: "NoteDeletedPayload";
+  id: Scalars["ID"]["output"];
+  organizationId: Scalars["ID"]["output"];
 };
 
 export type Organization = {
@@ -183,12 +241,15 @@ export type PresignedUploadResponse = {
 export type Query = {
   __typename?: "Query";
   assistantMessages: Array<AssistantMessage>;
+  conversations: Array<AssistantConversation>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
   health: Scalars["String"]["output"];
   invitations: Array<OrganizationInvitation>;
   members: Array<OrganizationMember>;
+  note?: Maybe<Note>;
+  notes: Array<Note>;
   organizations: Array<Organization>;
   todo?: Maybe<Todo>;
   todos: Array<Todo>;
@@ -200,12 +261,26 @@ export type QueryAssistantMessagesArgs = {
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
+export type QueryConversationsArgs = {
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
 export type QueryFileArgs = {
   id: Scalars["ID"]["input"];
 };
 
 export type QueryFilesArgs = {
   filter?: InputMaybe<FilesFilterInput>;
+};
+
+export type QueryNoteArgs = {
+  id: Scalars["ID"]["input"];
+};
+
+export type QueryNotesArgs = {
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryTodoArgs = {
@@ -249,6 +324,9 @@ export type Subscription = {
   __typename?: "Subscription";
   _empty?: Maybe<Scalars["Boolean"]["output"]>;
   assistantMessageDelta: AssistantMessageDelta;
+  noteCreated: Note;
+  noteDeleted: NoteDeletedPayload;
+  noteUpdated: Note;
   todoCreated: Todo;
   todoDeleted: TodoDeletedPayload;
   todoToggled: Todo;
@@ -273,10 +351,30 @@ export type TodoDeletedPayload = {
   organizationId: Scalars["ID"]["output"];
 };
 
+export type UpdateNoteInput = {
+  body?: InputMaybe<Scalars["String"]["input"]>;
+  title?: InputMaybe<Scalars["String"]["input"]>;
+};
+
 export type UpdateTodoInput = {
   completed?: InputMaybe<Scalars["Boolean"]["input"]>;
   description?: InputMaybe<Scalars["String"]["input"]>;
   title?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type GetConversationsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetConversationsQuery = {
+  __typename?: "Query";
+  conversations: Array<{
+    __typename?: "AssistantConversation";
+    id: string;
+    title?: string | null;
+    updatedAt: any;
+  }>;
 };
 
 export type GetConversationQueryVariables = Exact<{
@@ -294,8 +392,20 @@ export type GetConversationQuery = {
     role: string;
     content: string;
     createdAt: any;
+    toolActions: Array<{
+      __typename?: "AssistantToolAction";
+      tool: string;
+      input?: string | null;
+      output?: string | null;
+    }>;
   }>;
 };
+
+export type DeleteConversationMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type DeleteConversationMutation = { __typename?: "Mutation"; deleteConversation: boolean };
 
 export type SendMessageMutationVariables = Exact<{
   input: SendMessageInput;
@@ -332,6 +442,108 @@ export type OnAssistantMessageDeltaSubscription = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { __typename?: "Query"; health: string };
+
+export type GetNotesQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetNotesQuery = {
+  __typename?: "Query";
+  notes: Array<{
+    __typename?: "Note";
+    id: string;
+    title: string;
+    body?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type GetNoteQueryVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type GetNoteQuery = {
+  __typename?: "Query";
+  note?: {
+    __typename?: "Note";
+    id: string;
+    title: string;
+    body?: string | null;
+    createdAt: any;
+    updatedAt: any;
+    todos: Array<{
+      __typename?: "Todo";
+      id: string;
+      title: string;
+      description?: string | null;
+      completed: boolean;
+    }>;
+  } | null;
+};
+
+export type CreateNoteMutationVariables = Exact<{
+  input: CreateNoteInput;
+}>;
+
+export type CreateNoteMutation = {
+  __typename?: "Mutation";
+  createNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
+};
+
+export type UpdateNoteMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+  input: UpdateNoteInput;
+}>;
+
+export type UpdateNoteMutation = {
+  __typename?: "Mutation";
+  updateNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
+};
+
+export type DeleteNoteMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type DeleteNoteMutation = { __typename?: "Mutation"; deleteNote: boolean };
+
+export type AddTodoToNoteMutationVariables = Exact<{
+  noteId: Scalars["ID"]["input"];
+  input: CreateTodoInput;
+}>;
+
+export type AddTodoToNoteMutation = {
+  __typename?: "Mutation";
+  addTodoToNote: {
+    __typename?: "Todo";
+    id: string;
+    title: string;
+    description?: string | null;
+    completed: boolean;
+  };
+};
+
+export type OnNoteCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnNoteCreatedSubscription = {
+  __typename?: "Subscription";
+  noteCreated: { __typename?: "Note"; id: string };
+};
+
+export type OnNoteUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnNoteUpdatedSubscription = {
+  __typename?: "Subscription";
+  noteUpdated: { __typename?: "Note"; id: string };
+};
+
+export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnNoteDeletedSubscription = {
+  __typename?: "Subscription";
+  noteDeleted: { __typename?: "NoteDeletedPayload"; id: string };
+};
 
 export type GetFileQueryVariables = Exact<{
   id: Scalars["ID"]["input"];
@@ -622,6 +834,34 @@ export type OnTodoToggledSubscription = {
   };
 };
 
+export const GetConversationsDocument = `
+    query GetConversations($limit: Int, $offset: Int) {
+  conversations(limit: $limit, offset: $offset) {
+    id
+    title
+    updatedAt
+  }
+}
+    `;
+
+export const useGetConversationsQuery = <TData = GetConversationsQuery, TError = unknown>(
+  variables?: GetConversationsQueryVariables,
+  options?: Omit<UseQueryOptions<GetConversationsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetConversationsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetConversationsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetConversations"] : ["GetConversations", variables],
+    queryFn: useGraphqlFetcher<GetConversationsQuery, GetConversationsQueryVariables>(
+      GetConversationsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useGetConversationsQuery.getKey = (variables?: GetConversationsQueryVariables) =>
+  variables === undefined ? ["GetConversations"] : ["GetConversations", variables];
+
 export const GetConversationDocument = `
     query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
   assistantMessages(
@@ -634,6 +874,11 @@ export const GetConversationDocument = `
     role
     content
     createdAt
+    toolActions {
+      tool
+      input
+      output
+    }
   }
 }
     `;
@@ -657,6 +902,36 @@ useGetConversationQuery.getKey = (variables: GetConversationQueryVariables) => [
   "GetConversation",
   variables
 ];
+
+export const DeleteConversationDocument = `
+    mutation DeleteConversation($id: ID!) {
+  deleteConversation(id: $id)
+}
+    `;
+
+export const useDeleteConversationMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    DeleteConversationMutation,
+    TError,
+    DeleteConversationMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    DeleteConversationMutation,
+    TError,
+    DeleteConversationMutationVariables,
+    TContext
+  >({
+    mutationKey: ["DeleteConversation"],
+    mutationFn: useGraphqlFetcher<DeleteConversationMutation, DeleteConversationMutationVariables>(
+      DeleteConversationDocument
+    ),
+    ...options
+  });
+};
+
+useDeleteConversationMutation.getKey = () => ["DeleteConversation"];
 
 export const SendMessageDocument = `
     mutation SendMessage($input: SendMessageInput!) {
@@ -721,6 +996,192 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
 
+export const GetNotesDocument = `
+    query GetNotes($limit: Int, $offset: Int) {
+  notes(limit: $limit, offset: $offset) {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+export const useGetNotesQuery = <TData = GetNotesQuery, TError = unknown>(
+  variables?: GetNotesQueryVariables,
+  options?: Omit<UseQueryOptions<GetNotesQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetNotesQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetNotesQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetNotes"] : ["GetNotes", variables],
+    queryFn: useGraphqlFetcher<GetNotesQuery, GetNotesQueryVariables>(GetNotesDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useGetNotesQuery.getKey = (variables?: GetNotesQueryVariables) =>
+  variables === undefined ? ["GetNotes"] : ["GetNotes", variables];
+
+export const GetNoteDocument = `
+    query GetNote($id: ID!) {
+  note(id: $id) {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+    todos {
+      id
+      title
+      description
+      completed
+    }
+  }
+}
+    `;
+
+export const useGetNoteQuery = <TData = GetNoteQuery, TError = unknown>(
+  variables: GetNoteQueryVariables,
+  options?: Omit<UseQueryOptions<GetNoteQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetNoteQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetNoteQuery, TError, TData>({
+    queryKey: ["GetNote", variables],
+    queryFn: useGraphqlFetcher<GetNoteQuery, GetNoteQueryVariables>(GetNoteDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useGetNoteQuery.getKey = (variables: GetNoteQueryVariables) => ["GetNote", variables];
+
+export const CreateNoteDocument = `
+    mutation CreateNote($input: CreateNoteInput!) {
+  createNote(input: $input) {
+    id
+    title
+    body
+  }
+}
+    `;
+
+export const useCreateNoteMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<CreateNoteMutation, TError, CreateNoteMutationVariables, TContext>
+) => {
+  return useMutation<CreateNoteMutation, TError, CreateNoteMutationVariables, TContext>({
+    mutationKey: ["CreateNote"],
+    mutationFn: useGraphqlFetcher<CreateNoteMutation, CreateNoteMutationVariables>(
+      CreateNoteDocument
+    ),
+    ...options
+  });
+};
+
+useCreateNoteMutation.getKey = () => ["CreateNote"];
+
+export const UpdateNoteDocument = `
+    mutation UpdateNote($id: ID!, $input: UpdateNoteInput!) {
+  updateNote(id: $id, input: $input) {
+    id
+    title
+    body
+  }
+}
+    `;
+
+export const useUpdateNoteMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<UpdateNoteMutation, TError, UpdateNoteMutationVariables, TContext>
+) => {
+  return useMutation<UpdateNoteMutation, TError, UpdateNoteMutationVariables, TContext>({
+    mutationKey: ["UpdateNote"],
+    mutationFn: useGraphqlFetcher<UpdateNoteMutation, UpdateNoteMutationVariables>(
+      UpdateNoteDocument
+    ),
+    ...options
+  });
+};
+
+useUpdateNoteMutation.getKey = () => ["UpdateNote"];
+
+export const DeleteNoteDocument = `
+    mutation DeleteNote($id: ID!) {
+  deleteNote(id: $id)
+}
+    `;
+
+export const useDeleteNoteMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<DeleteNoteMutation, TError, DeleteNoteMutationVariables, TContext>
+) => {
+  return useMutation<DeleteNoteMutation, TError, DeleteNoteMutationVariables, TContext>({
+    mutationKey: ["DeleteNote"],
+    mutationFn: useGraphqlFetcher<DeleteNoteMutation, DeleteNoteMutationVariables>(
+      DeleteNoteDocument
+    ),
+    ...options
+  });
+};
+
+useDeleteNoteMutation.getKey = () => ["DeleteNote"];
+
+export const AddTodoToNoteDocument = `
+    mutation AddTodoToNote($noteId: ID!, $input: CreateTodoInput!) {
+  addTodoToNote(noteId: $noteId, input: $input) {
+    id
+    title
+    description
+    completed
+  }
+}
+    `;
+
+export const useAddTodoToNoteMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    AddTodoToNoteMutation,
+    TError,
+    AddTodoToNoteMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<AddTodoToNoteMutation, TError, AddTodoToNoteMutationVariables, TContext>({
+    mutationKey: ["AddTodoToNote"],
+    mutationFn: useGraphqlFetcher<AddTodoToNoteMutation, AddTodoToNoteMutationVariables>(
+      AddTodoToNoteDocument
+    ),
+    ...options
+  });
+};
+
+useAddTodoToNoteMutation.getKey = () => ["AddTodoToNote"];
+
+export const OnNoteCreatedDocument = `
+    subscription OnNoteCreated {
+  noteCreated {
+    id
+  }
+}
+    `;
+export const OnNoteUpdatedDocument = `
+    subscription OnNoteUpdated {
+  noteUpdated {
+    id
+  }
+}
+    `;
+export const OnNoteDeletedDocument = `
+    subscription OnNoteDeleted {
+  noteDeleted {
+    id
+  }
+}
+    `;
 export const GetFileDocument = `
     query GetFile($id: ID!) {
   file(id: $id) {

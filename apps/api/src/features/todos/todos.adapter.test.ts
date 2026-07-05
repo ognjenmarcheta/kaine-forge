@@ -32,7 +32,8 @@ vi.mock("@repo/db", () => ({
     userId: "userId",
     organizationId: "orgId",
     createdAt: "createdAt",
-    completed: "completed"
+    completed: "completed",
+    noteId: "noteId"
   }
 }));
 
@@ -42,7 +43,13 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import { createTodo, deleteTodo, getTodoById, listTodosByScope } from "./todos.adapter";
+import {
+  createTodo,
+  deleteTodo,
+  getTodoById,
+  listTodosByNote,
+  listTodosByScope
+} from "./todos.adapter";
 
 describe("todos.adapter", () => {
   const scope = {
@@ -107,5 +114,29 @@ describe("todos.adapter", () => {
     const result = await deleteTodo(scope, "todo-1");
     expect(mockDb.delete).toHaveBeenCalled();
     expect(result).toBe(true);
+  });
+
+  it("listTodosByNote calls db.select and filters by noteId", async () => {
+    await listTodosByNote(scope, "note-1");
+    expect(mockDb.select).toHaveBeenCalled();
+    expect(chain.where).toHaveBeenCalled();
+  });
+
+  it("createTodo with a noteId still returns the created todo", async () => {
+    const todo = {
+      id: "todo-1",
+      title: "Test",
+      description: null,
+      completed: false,
+      userId: "user-1",
+      organizationId: "org-1",
+      noteId: "note-1",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    chain.returning.mockResolvedValueOnce([todo]);
+
+    const result = await createTodo(scope, { title: "Test", description: null, noteId: "note-1" });
+    expect(result).toEqual(todo);
   });
 });

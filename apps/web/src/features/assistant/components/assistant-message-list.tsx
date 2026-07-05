@@ -1,3 +1,4 @@
+import { AssistantToolActions } from "./assistant-tool-actions";
 import type { ChatMessage } from "../assistant.type";
 
 interface AssistantMessageListProps {
@@ -36,6 +37,9 @@ export function AssistantMessageList({
               {roleLabel}
             </span>
             <p className="m-0 whitespace-pre-wrap">{message.content}</p>
+            {message.role === "assistant" && message.toolActions ? (
+              <AssistantToolActions actions={message.toolActions} />
+            ) : null}
             {toolSummary ? (
               <span className="text-[color:var(--ds-text-subtle)] text-[length:var(--ds-font-size-100)]">
                 {toolSummary}

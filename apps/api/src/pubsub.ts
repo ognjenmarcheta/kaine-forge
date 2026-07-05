@@ -22,12 +22,29 @@ export interface AssistantMessageDeltaPayload {
   userId: string;
 }
 
+export interface NoteSubscriptionPayload {
+  id: string;
+  title: string;
+  body: string | null;
+  organizationId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NoteDeletedPayload {
+  id: string;
+  organizationId: string;
+}
+
 export type PubSubEventMap = {
   "todo:created": [TodoSubscriptionPayload];
   "todo:updated": [TodoSubscriptionPayload];
   "todo:deleted": [TodoDeletedPayload];
   "todo:toggled": [TodoSubscriptionPayload];
   "assistant:delta": [AssistantMessageDeltaPayload];
+  "note:created": [NoteSubscriptionPayload];
+  "note:updated": [NoteSubscriptionPayload];
+  "note:deleted": [NoteDeletedPayload];
 };
 
 export const pubsub = createPubSub<PubSubEventMap>();

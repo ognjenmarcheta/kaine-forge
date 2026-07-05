@@ -18,6 +18,8 @@ import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "rea
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
+import { NoteDetailRoute } from "./features/notes/note-detail.route";
+import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
 import { TodosRoute } from "./features/todos/todos.route";
@@ -36,6 +38,7 @@ const ROUTE_TO_BREADCRUMB = {
   "/assistant": "navigation.assistant",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
+  "/notes": "navigation.notes",
   "/todos": "navigation.todos"
 } as const;
 
@@ -73,6 +76,7 @@ function ShellLayout() {
     const isDashboardActive = location.pathname === "/dashboard";
     const isMembersActive = location.pathname === "/members";
     const isTodosActive = location.pathname === "/todos";
+    const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
     const isAssistantActive = location.pathname === "/assistant";
     const currentRouteKey =
       ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
@@ -143,6 +147,11 @@ function ShellLayout() {
                     href: "/todos",
                     isActive: isTodosActive,
                     title: t("navigation.todos")
+                  },
+                  {
+                    href: "/notes",
+                    isActive: isNotesActive,
+                    title: t("navigation.notes")
                   },
                   {
                     href: "/assistant",
@@ -259,6 +268,14 @@ export const appRouter = createBrowserRouter([
       {
         element: <TodosRoute />,
         path: "todos"
+      },
+      {
+        element: <NotesRoute />,
+        path: "notes"
+      },
+      {
+        element: <NoteDetailRoute />,
+        path: "notes/:id"
       },
       {
         element: <AssistantRoute />,

@@ -4,6 +4,12 @@ import { z } from "zod";
 
 import type { PubSubEventMap } from "../../pubsub";
 import {
+  createNote as createNoteRow,
+  listNotesByScope,
+  updateNote as updateNoteRow
+} from "../notes/notes.adapter";
+import type { NotePatch } from "../notes/notes.type";
+import {
   createTodo,
   deleteTodo,
   listTodosByScope,
@@ -13,6 +19,10 @@ import {
 import type { TodoPatch } from "../todos/todos.type";
 
 export interface AssistantToolDeps {
+  publishNoteEvent: <TEventName extends keyof PubSubEventMap>(
+    eventName: TEventName,
+    ...payload: PubSubEventMap[TEventName]
+  ) => void;
   publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
@@ -20,7 +30,11 @@ export interface AssistantToolDeps {
   scope: AuthenticatedOrganizationScope;
 }
 
-export function createAssistantTools({ publishTodoEvent, scope }: AssistantToolDeps): ToolSet {
+export function createAssistantTools({
+  publishNoteEvent,
+  publishTodoEvent,
+  scope
+}: AssistantToolDeps): ToolSet {
   return {
     createTodo: tool({
       description: "Create a new todo for the user.",
@@ -91,6 +105,62 @@ export function createAssistantTools({ publishTodoEvent, scope }: AssistantToolD
         }
 
         return { id, deleted };
+      }
+    }),
+    createNote: tool({
+      description: "Create a note with an optional body and an optional checklist of todos.",
+      inputSchema: z.object({
+        title: z.string().min(1).max(255),
+        body: z.string().nullable().optional(),
+        todoTitles: z.array(z.string().min(1).max(255)).optional()
+      }),
+      execute: async ({ title, body, todoTitles }) => {
+        const note = await createNoteRow(scope, { title, body: body ?? null });
+        publishNoteEvent("note:created", note);
+        const created: { id: string; title: string }[] = [];
+        for (const todoTitle of todoTitles ?? []) {
+          const todo = await createTodo(scope, {
+            title: todoTitle,
+            description: null,
+            noteId: note.id
+          });
+          publishTodoEvent("todo:created", todo);
+          created.push({ id: todo.id, title: todo.title });
+        }
+        return { id: note.id, title: note.title, todos: created };
+      }
+    }),
+    listNotes: tool({
+      description: "List the user's notes to find a note id.",
+      inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+      execute: async ({ limit }) => {
+        const notes = await listNotesByScope(scope, { limit, offset: 0 });
+        return notes.map((note) => ({ id: note.id, title: note.title }));
+      }
+    }),
+    updateNote: tool({
+      description: "Update a note's title and/or body by id.",
+      inputSchema: z.object({
+        id: z.string().uuid(),
+        title: z.string().min(1).max(255).optional(),
+        body: z.string().nullable().optional()
+      }),
+      execute: async ({ id, title, body }) => {
+        const patch: NotePatch = {};
+        if (title !== undefined) patch.title = title;
+        if (body !== undefined) patch.body = body;
+        const note = await updateNoteRow(scope, id, patch);
+        publishNoteEvent("note:updated", note);
+        return { id: note.id, title: note.title };
+      }
+    }),
+    addTodoToNote: tool({
+      description: "Add a todo to an existing note by note id.",
+      inputSchema: z.object({ noteId: z.string().uuid(), title: z.string().min(1).max(255) }),
+      execute: async ({ noteId, title }) => {
+        const todo = await createTodo(scope, { title, description: null, noteId });
+        publishTodoEvent("todo:created", todo);
+        return { id: todo.id, title: todo.title, noteId };
       }
     })
   };
