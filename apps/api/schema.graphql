@@ -11,6 +11,7 @@ type Query {
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput): [FileInfo!]!
   assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
+  conversations(limit: Int, offset: Int): [AssistantConversation!]!
 }
 
 type Mutation {
@@ -28,6 +29,7 @@ type Mutation {
   confirmUpload(fileId: ID!): FileInfo!
   deleteFile(fileId: ID!): Boolean!
   sendMessage(input: SendMessageInput!): SendMessagePayload!
+  deleteConversation(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -185,12 +187,20 @@ type AssistantMessage {
   role: String!
   content: String!
   createdAt: DateTime!
+  toolActions: [AssistantToolAction!]!
 }
 
 type AssistantToolAction {
   tool: String!
   input: String
   output: String
+}
+
+type AssistantConversation {
+  id: ID!
+  title: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 enum SendMessageStatus {

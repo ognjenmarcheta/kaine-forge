@@ -6,7 +6,7 @@ import {
   type AssistantConversation,
   type AssistantMessage
 } from "@repo/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { AssistantToolAction, MessagesPagination } from "./assistant.type";
 
@@ -111,4 +111,39 @@ export async function touchConversation(
         eq(assistantConversationsTable.organizationId, scope.organizationId)
       )
     );
+}
+
+export async function listConversations(
+  scope: AuthenticatedOrganizationScope,
+  pagination: MessagesPagination
+): Promise<AssistantConversation[]> {
+  return db
+    .select()
+    .from(assistantConversationsTable)
+    .where(
+      and(
+        eq(assistantConversationsTable.organizationId, scope.organizationId),
+        eq(assistantConversationsTable.userId, scope.userId)
+      )
+    )
+    .orderBy(desc(assistantConversationsTable.updatedAt))
+    .limit(pagination.limit)
+    .offset(pagination.offset);
+}
+
+export async function deleteConversation(
+  scope: AuthenticatedOrganizationScope,
+  id: string
+): Promise<boolean> {
+  const rows = await db
+    .delete(assistantConversationsTable)
+    .where(
+      and(
+        eq(assistantConversationsTable.id, id),
+        eq(assistantConversationsTable.organizationId, scope.organizationId),
+        eq(assistantConversationsTable.userId, scope.userId)
+      )
+    )
+    .returning({ id: assistantConversationsTable.id });
+  return rows.length > 0;
 }
