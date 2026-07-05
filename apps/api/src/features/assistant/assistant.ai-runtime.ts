@@ -17,7 +17,8 @@ const ASSISTANT_SYSTEM_PROMPT =
   "You are a helpful assistant that manages the user's todo list. " +
   "Use the provided tools to create, list, complete, update, and delete todos. " +
   "When a todo needs to be updated, completed, or deleted, first call listTodos to find its id. " +
-  "After acting, reply concisely in plain text describing what you did. Do not use markdown.";
+  "After acting, reply concisely in plain text describing what you did. Do not use markdown. " +
+  "You can also create and update notes, and a note can hold a checklist of todos. Use listNotes to find a note's id before updating it or adding todos to it.";
 
 type AiAssistantProvider = keyof typeof DEFAULT_AI_ASSISTANT_MODELS;
 
@@ -42,6 +43,10 @@ export interface RunAgentResult {
 
 export interface AssistantAiRuntimeDeps {
   publishAssistantDelta: (payload: AssistantMessageDeltaPayload) => void;
+  publishNoteEvent: <TEventName extends keyof PubSubEventMap>(
+    eventName: TEventName,
+    ...payload: PubSubEventMap[TEventName]
+  ) => void;
   publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
@@ -124,6 +129,7 @@ function flattenSteps<TTools extends ToolSet>(
 
 export function createAssistantAiRuntime({
   publishAssistantDelta,
+  publishNoteEvent,
   publishTodoEvent
 }: AssistantAiRuntimeDeps) {
   return {
@@ -144,7 +150,7 @@ export function createAssistantAiRuntime({
         model,
         system: ASSISTANT_SYSTEM_PROMPT,
         messages: toModelMessages(messages),
-        tools: createAssistantTools({ publishTodoEvent, scope }),
+        tools: createAssistantTools({ publishNoteEvent, publishTodoEvent, scope }),
         stopWhen: stepCountIs(MAX_ASSISTANT_STEPS)
       });
 

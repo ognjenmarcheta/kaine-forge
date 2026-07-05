@@ -25,6 +25,9 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     },
     publishTodoEvent: (eventName, ...payload) => {
       ctx.pubsub.publish(eventName, ...payload);
+    },
+    publishNoteEvent: (eventName, ...payload) => {
+      ctx.pubsub.publish(eventName, ...payload);
     }
   });
 
