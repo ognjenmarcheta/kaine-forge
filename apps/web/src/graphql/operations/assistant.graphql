@@ -1,3 +1,11 @@
+query GetConversations($limit: Int, $offset: Int) {
+  conversations(limit: $limit, offset: $offset) {
+    id
+    title
+    updatedAt
+  }
+}
+
 query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
   assistantMessages(conversationId: $conversationId, limit: $limit, offset: $offset) {
     id
@@ -5,7 +13,16 @@ query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
     role
     content
     createdAt
+    toolActions {
+      tool
+      input
+      output
+    }
   }
+}
+
+mutation DeleteConversation($id: ID!) {
+  deleteConversation(id: $id)
 }
 
 mutation SendMessage($input: SendMessageInput!) {

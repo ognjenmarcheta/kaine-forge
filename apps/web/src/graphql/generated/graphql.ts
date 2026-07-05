@@ -21,6 +21,14 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantConversation = {
+  __typename?: "AssistantConversation";
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  title?: Maybe<Scalars["String"]["output"]>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
 export type AssistantMessage = {
   __typename?: "AssistantMessage";
   content: Scalars["String"]["output"];
@@ -28,6 +36,7 @@ export type AssistantMessage = {
   createdAt: Scalars["DateTime"]["output"];
   id: Scalars["ID"]["output"];
   role: Scalars["String"]["output"];
+  toolActions: Array<AssistantToolAction>;
 };
 
 export type AssistantMessageDelta = {
@@ -107,6 +116,7 @@ export type Mutation = {
   confirmUpload: FileInfo;
   createNote: Note;
   createTodo: Todo;
+  deleteConversation: Scalars["Boolean"]["output"];
   deleteFile: Scalars["Boolean"]["output"];
   deleteNote: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
@@ -133,6 +143,10 @@ export type MutationCreateNoteArgs = {
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
+};
+
+export type MutationDeleteConversationArgs = {
+  id: Scalars["ID"]["input"];
 };
 
 export type MutationDeleteFileArgs = {
@@ -227,6 +241,7 @@ export type PresignedUploadResponse = {
 export type Query = {
   __typename?: "Query";
   assistantMessages: Array<AssistantMessage>;
+  conversations: Array<AssistantConversation>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -242,6 +257,11 @@ export type Query = {
 
 export type QueryAssistantMessagesArgs = {
   conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type QueryConversationsArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
@@ -342,6 +362,21 @@ export type UpdateTodoInput = {
   title?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type GetConversationsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetConversationsQuery = {
+  __typename?: "Query";
+  conversations: Array<{
+    __typename?: "AssistantConversation";
+    id: string;
+    title?: string | null;
+    updatedAt: any;
+  }>;
+};
+
 export type GetConversationQueryVariables = Exact<{
   conversationId: Scalars["ID"]["input"];
   limit?: InputMaybe<Scalars["Int"]["input"]>;
@@ -357,8 +392,20 @@ export type GetConversationQuery = {
     role: string;
     content: string;
     createdAt: any;
+    toolActions: Array<{
+      __typename?: "AssistantToolAction";
+      tool: string;
+      input?: string | null;
+      output?: string | null;
+    }>;
   }>;
 };
+
+export type DeleteConversationMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type DeleteConversationMutation = { __typename?: "Mutation"; deleteConversation: boolean };
 
 export type SendMessageMutationVariables = Exact<{
   input: SendMessageInput;
@@ -787,6 +834,57 @@ export type OnTodoToggledSubscription = {
   };
 };
 
+export const GetConversationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetConversations" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "conversations" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "offset" },
+                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetConversationsQuery, GetConversationsQueryVariables>;
 export const GetConversationDocument = {
   kind: "Document",
   definitions: [
@@ -844,7 +942,19 @@ export const GetConversationDocument = {
                 { kind: "Field", name: { kind: "Name", value: "conversationId" } },
                 { kind: "Field", name: { kind: "Name", value: "role" } },
                 { kind: "Field", name: { kind: "Name", value: "content" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } }
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "toolActions" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "tool" } },
+                      { kind: "Field", name: { kind: "Name", value: "input" } },
+                      { kind: "Field", name: { kind: "Name", value: "output" } }
+                    ]
+                  }
+                }
               ]
             }
           }
@@ -853,6 +963,42 @@ export const GetConversationDocument = {
     }
   ]
 } as unknown as DocumentNode<GetConversationQuery, GetConversationQueryVariables>;
+export const DeleteConversationDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DeleteConversation" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteConversation" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DeleteConversationMutation, DeleteConversationMutationVariables>;
 export const SendMessageDocument = {
   kind: "Document",
   definitions: [

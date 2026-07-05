@@ -21,6 +21,14 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantConversation = {
+  __typename?: "AssistantConversation";
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  title?: Maybe<Scalars["String"]["output"]>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
 export type AssistantMessage = {
   __typename?: "AssistantMessage";
   content: Scalars["String"]["output"];
@@ -28,6 +36,7 @@ export type AssistantMessage = {
   createdAt: Scalars["DateTime"]["output"];
   id: Scalars["ID"]["output"];
   role: Scalars["String"]["output"];
+  toolActions: Array<AssistantToolAction>;
 };
 
 export type AssistantMessageDelta = {
@@ -107,6 +116,7 @@ export type Mutation = {
   confirmUpload: FileInfo;
   createNote: Note;
   createTodo: Todo;
+  deleteConversation: Scalars["Boolean"]["output"];
   deleteFile: Scalars["Boolean"]["output"];
   deleteNote: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
@@ -133,6 +143,10 @@ export type MutationCreateNoteArgs = {
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
+};
+
+export type MutationDeleteConversationArgs = {
+  id: Scalars["ID"]["input"];
 };
 
 export type MutationDeleteFileArgs = {
@@ -227,6 +241,7 @@ export type PresignedUploadResponse = {
 export type Query = {
   __typename?: "Query";
   assistantMessages: Array<AssistantMessage>;
+  conversations: Array<AssistantConversation>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -242,6 +257,11 @@ export type Query = {
 
 export type QueryAssistantMessagesArgs = {
   conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type QueryConversationsArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };

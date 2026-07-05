@@ -21,6 +21,14 @@ export type Scalars = {
   DateTime: { input: any; output: any };
 };
 
+export type AssistantConversation = {
+  __typename?: "AssistantConversation";
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["ID"]["output"];
+  title?: Maybe<Scalars["String"]["output"]>;
+  updatedAt: Scalars["DateTime"]["output"];
+};
+
 export type AssistantMessage = {
   __typename?: "AssistantMessage";
   content: Scalars["String"]["output"];
@@ -28,6 +36,7 @@ export type AssistantMessage = {
   createdAt: Scalars["DateTime"]["output"];
   id: Scalars["ID"]["output"];
   role: Scalars["String"]["output"];
+  toolActions: Array<AssistantToolAction>;
 };
 
 export type AssistantMessageDelta = {
@@ -107,6 +116,7 @@ export type Mutation = {
   confirmUpload: FileInfo;
   createNote: Note;
   createTodo: Todo;
+  deleteConversation: Scalars["Boolean"]["output"];
   deleteFile: Scalars["Boolean"]["output"];
   deleteNote: Scalars["Boolean"]["output"];
   deleteTodo: Scalars["Boolean"]["output"];
@@ -133,6 +143,10 @@ export type MutationCreateNoteArgs = {
 
 export type MutationCreateTodoArgs = {
   input: CreateTodoInput;
+};
+
+export type MutationDeleteConversationArgs = {
+  id: Scalars["ID"]["input"];
 };
 
 export type MutationDeleteFileArgs = {
@@ -227,6 +241,7 @@ export type PresignedUploadResponse = {
 export type Query = {
   __typename?: "Query";
   assistantMessages: Array<AssistantMessage>;
+  conversations: Array<AssistantConversation>;
   currentOrganization?: Maybe<Organization>;
   file?: Maybe<FileInfo>;
   files: Array<FileInfo>;
@@ -242,6 +257,11 @@ export type Query = {
 
 export type QueryAssistantMessagesArgs = {
   conversationId: Scalars["ID"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type QueryConversationsArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   offset?: InputMaybe<Scalars["Int"]["input"]>;
 };
@@ -342,6 +362,21 @@ export type UpdateTodoInput = {
   title?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type GetConversationsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type GetConversationsQuery = {
+  __typename?: "Query";
+  conversations: Array<{
+    __typename?: "AssistantConversation";
+    id: string;
+    title?: string | null;
+    updatedAt: any;
+  }>;
+};
+
 export type GetConversationQueryVariables = Exact<{
   conversationId: Scalars["ID"]["input"];
   limit?: InputMaybe<Scalars["Int"]["input"]>;
@@ -357,8 +392,20 @@ export type GetConversationQuery = {
     role: string;
     content: string;
     createdAt: any;
+    toolActions: Array<{
+      __typename?: "AssistantToolAction";
+      tool: string;
+      input?: string | null;
+      output?: string | null;
+    }>;
   }>;
 };
+
+export type DeleteConversationMutationVariables = Exact<{
+  id: Scalars["ID"]["input"];
+}>;
+
+export type DeleteConversationMutation = { __typename?: "Mutation"; deleteConversation: boolean };
 
 export type SendMessageMutationVariables = Exact<{
   input: SendMessageInput;
@@ -787,6 +834,34 @@ export type OnTodoToggledSubscription = {
   };
 };
 
+export const GetConversationsDocument = `
+    query GetConversations($limit: Int, $offset: Int) {
+  conversations(limit: $limit, offset: $offset) {
+    id
+    title
+    updatedAt
+  }
+}
+    `;
+
+export const useGetConversationsQuery = <TData = GetConversationsQuery, TError = unknown>(
+  variables?: GetConversationsQueryVariables,
+  options?: Omit<UseQueryOptions<GetConversationsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetConversationsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetConversationsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetConversations"] : ["GetConversations", variables],
+    queryFn: useGraphqlFetcher<GetConversationsQuery, GetConversationsQueryVariables>(
+      GetConversationsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useGetConversationsQuery.getKey = (variables?: GetConversationsQueryVariables) =>
+  variables === undefined ? ["GetConversations"] : ["GetConversations", variables];
+
 export const GetConversationDocument = `
     query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
   assistantMessages(
@@ -799,6 +874,11 @@ export const GetConversationDocument = `
     role
     content
     createdAt
+    toolActions {
+      tool
+      input
+      output
+    }
   }
 }
     `;
@@ -822,6 +902,36 @@ useGetConversationQuery.getKey = (variables: GetConversationQueryVariables) => [
   "GetConversation",
   variables
 ];
+
+export const DeleteConversationDocument = `
+    mutation DeleteConversation($id: ID!) {
+  deleteConversation(id: $id)
+}
+    `;
+
+export const useDeleteConversationMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    DeleteConversationMutation,
+    TError,
+    DeleteConversationMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    DeleteConversationMutation,
+    TError,
+    DeleteConversationMutationVariables,
+    TContext
+  >({
+    mutationKey: ["DeleteConversation"],
+    mutationFn: useGraphqlFetcher<DeleteConversationMutation, DeleteConversationMutationVariables>(
+      DeleteConversationDocument
+    ),
+    ...options
+  });
+};
+
+useDeleteConversationMutation.getKey = () => ["DeleteConversation"];
 
 export const SendMessageDocument = `
     mutation SendMessage($input: SendMessageInput!) {

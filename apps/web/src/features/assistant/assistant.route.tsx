@@ -1,70 +1,100 @@
 import { createTodoListQueryKey } from "@repo/todos";
-import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import type { AssistantMessageDeltaData, ChatMessage } from "./assistant.type";
 import { AssistantComposer } from "./components/assistant-composer";
 import { AssistantMessageList } from "./components/assistant-message-list";
-import { useGetTodosQuery, useSendMessageMutation } from "../../graphql/generated/react-query";
+import { ConversationList } from "./components/conversation-list";
+import {
+  useDeleteConversationMutation,
+  useGetConversationQuery,
+  useGetConversationsQuery,
+  useSendMessageMutation
+} from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
 import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
-import { TODOS_CONFIG } from "../todos/todos.config";
+import { queryRuntime } from "../../lib/query-runtime";
+
+queryRuntime.registerOrgScopedOperation(
+  "assistant.web.conversations",
+  useGetConversationsQuery.getKey()
+);
 
 export function AssistantRoute() {
   const { t } = useTranslation();
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
+  const queryClient = useQueryClient();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const streamingIdRef = useRef<string | null>(null);
+  const populatedRef = useRef<string | null>(null);
 
   const sendMessageMutation = useSendMessageMutation();
-
-  const listVariables = useMemo(
-    () => ({
-      limit: TODOS_CONFIG.pageSize,
-      offset: 0
-    }),
-    []
-  );
-  const todosQueryKey = useMemo(
-    () =>
-      createTodoListQueryKey({
-        activeOrganizationId,
-        queryKey: useGetTodosQuery.getKey(listVariables)
-      }),
-    [activeOrganizationId, listVariables]
-  );
+  const deleteConversationMutation = useDeleteConversationMutation();
 
   const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
 
-  const todosQuery = useGetTodosQuery(listVariables, {
+  const conversationsVariables = useMemo(() => ({ limit: 50, offset: 0 }), []);
+  const conversationsQueryKey = useMemo(
+    () =>
+      createTodoListQueryKey({
+        activeOrganizationId,
+        queryKey: useGetConversationsQuery.getKey(conversationsVariables)
+      }),
+    [activeOrganizationId, conversationsVariables]
+  );
+  const conversationsQuery = useGetConversationsQuery(conversationsVariables, {
     enabled: subscriptionEnabled,
-    queryKey: todosQueryKey
+    queryKey: conversationsQueryKey
+  });
+  const conversations = conversationsQuery.data?.conversations ?? [];
+
+  const historyVariables = useMemo(
+    () => ({ conversationId: activeConversationId ?? "", limit: 100 }),
+    [activeConversationId]
+  );
+  const historyQueryKey = useMemo(
+    () =>
+      createTodoListQueryKey({
+        activeOrganizationId,
+        queryKey: useGetConversationQuery.getKey(historyVariables)
+      }),
+    [activeOrganizationId, historyVariables]
+  );
+  const historyQuery = useGetConversationQuery(historyVariables, {
+    enabled: Boolean(activeConversationId) && subscriptionEnabled,
+    queryKey: historyQueryKey
   });
 
-  useSubscription({
-    enabled: subscriptionEnabled,
-    invalidateKeys: [todosQueryKey],
-    query: "subscription { todoCreated { id } }"
-  });
-  useSubscription({
-    enabled: subscriptionEnabled,
-    invalidateKeys: [todosQueryKey],
-    query: "subscription { todoUpdated { id } }"
-  });
-  useSubscription({
-    enabled: subscriptionEnabled,
-    invalidateKeys: [todosQueryKey],
-    query: "subscription { todoDeleted { id } }"
-  });
-  useSubscription({
-    enabled: subscriptionEnabled,
-    invalidateKeys: [todosQueryKey],
-    query: "subscription { todoToggled { id } }"
-  });
+  useEffect(() => {
+    if (!activeConversationId) return;
+    if (populatedRef.current === activeConversationId) return;
+    const rows = historyQuery.data?.assistantMessages;
+    if (!rows) return;
+    populatedRef.current = activeConversationId;
+    setMessages(
+      rows.map((row): ChatMessage => {
+        const role = row.role === "assistant" ? "assistant" : "user";
+        if (role === "assistant") {
+          return {
+            content: row.content,
+            id: row.id,
+            role,
+            toolActions: row.toolActions.map((action) => ({
+              output: action.output ?? null,
+              tool: action.tool
+            }))
+          };
+        }
+        return { content: row.content, id: row.id, role };
+      })
+    );
+  }, [activeConversationId, historyQuery.data]);
 
   const handleDelta = useCallback((data: AssistantMessageDeltaData) => {
     const pid = streamingIdRef.current;
@@ -87,16 +117,36 @@ export function AssistantRoute() {
     query: "subscription { assistantMessageDelta { conversationId delta } }"
   });
 
-  const todos = useMemo(() => todosQuery.data?.todos ?? [], [todosQuery.data]);
-  const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
-  const todoSummary = `${completedCount.toString()}/${todos.length.toString()}`;
-
   function dropStreamingMessage() {
     const pid = streamingIdRef.current;
     streamingIdRef.current = null;
 
     if (pid) {
       setMessages((current) => current.filter((message) => message.id !== pid));
+    }
+  }
+
+  function startNewChat() {
+    populatedRef.current = "new";
+    setActiveConversationId(null);
+    setMessages([]);
+  }
+
+  function openConversation(id: string) {
+    if (id === activeConversationId) return;
+    populatedRef.current = null;
+    setActiveConversationId(id);
+  }
+
+  async function handleDeleteConversation(id: string) {
+    try {
+      await deleteConversationMutation.mutateAsync({ id });
+      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
+      if (id === activeConversationId) {
+        startNewChat();
+      }
+    } catch {
+      toast.error(t("error.generic"));
     }
   }
 
@@ -122,7 +172,7 @@ export function AssistantRoute() {
       const result = await sendMessageMutation.mutateAsync({
         input: {
           message,
-          ...(conversationId ? { conversationId } : {})
+          ...(activeConversationId ? { conversationId: activeConversationId } : {})
         }
       });
 
@@ -130,7 +180,10 @@ export function AssistantRoute() {
 
       if (payload.status === "REPLIED" && payload.reply) {
         streamingIdRef.current = null;
-        setConversationId(payload.conversationId);
+        const toolActions = payload.toolActions.map((action) => ({
+          output: action.output ?? null,
+          tool: action.tool
+        }));
         setMessages((current) =>
           current.map((current_message) =>
             current_message.id === placeholderId
@@ -138,11 +191,18 @@ export function AssistantRoute() {
                   ...current_message,
                   content: payload.reply ?? current_message.content,
                   streaming: false,
+                  toolActions,
                   toolCount: payload.toolActions.length
                 }
               : current_message
           )
         );
+
+        if (!activeConversationId) {
+          populatedRef.current = payload.conversationId;
+          setActiveConversationId(payload.conversationId);
+        }
+        await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
         return;
       }
 
@@ -158,6 +218,9 @@ export function AssistantRoute() {
     }
   }
 
+  const isHistoryLoading =
+    Boolean(activeConversationId) && historyQuery.status === "pending" && messages.length === 0;
+
   return (
     <section className="grid gap-[var(--ds-space-200)]">
       <header>
@@ -165,50 +228,43 @@ export function AssistantRoute() {
         <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("assistant.description")}</p>
       </header>
 
-      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
-        <div className="flex items-center justify-between gap-[var(--ds-space-150)]">
-          <h2 className="m-0">{t("assistant.todosTitle")}</h2>
-          <span className="text-[color:var(--ds-text-subtle)] text-[length:var(--ds-font-size-100)]">
-            {todoSummary}
-          </span>
-        </div>
-        {todos.length === 0 ? (
-          <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("assistant.todosEmpty")}</p>
-        ) : (
-          <ul className="flex flex-col gap-[var(--ds-space-050)]">
-            {todos.map((todo) => (
-              <li
-                key={todo.id}
-                className={
-                  todo.completed ? "text-[color:var(--ds-text-subtle)] line-through" : undefined
-                }
-              >
-                {todo.title}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="flex gap-[var(--ds-space-200)]">
+        <aside className="w-[240px] shrink-0 rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
+          <ConversationList
+            activeId={activeConversationId}
+            conversations={conversations}
+            onDelete={(id) => {
+              void handleDeleteConversation(id);
+            }}
+            onNew={startNewChat}
+            onSelect={openConversation}
+          />
+        </aside>
 
-      <section className="flex flex-col gap-[var(--ds-space-200)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
-        <AssistantMessageList
-          assistantLabel={t("assistant.roleAssistant")}
-          emptyState={t("assistant.emptyState")}
-          messages={messages}
-          toolActionsLabel={t("assistant.toolActions")}
-          userLabel={t("assistant.roleUser")}
-        />
-        <AssistantComposer
-          inputLabel={t("assistant.inputLabel")}
-          isPending={sendMessageMutation.status === "pending"}
-          placeholder={t("assistant.placeholder")}
-          sendLabel={t("assistant.send")}
-          sendingLabel={t("assistant.sending")}
-          value={input}
-          onChange={setInput}
-          onSubmit={handleSend}
-        />
-      </section>
+        <section className="flex flex-1 flex-col gap-[var(--ds-space-200)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
+          {isHistoryLoading ? (
+            <p className="text-[color:var(--ds-text-subtle)]">{t("assistant.historyLoading")}</p>
+          ) : (
+            <AssistantMessageList
+              assistantLabel={t("assistant.roleAssistant")}
+              emptyState={t("assistant.emptyState")}
+              messages={messages}
+              toolActionsLabel={t("assistant.toolActions")}
+              userLabel={t("assistant.roleUser")}
+            />
+          )}
+          <AssistantComposer
+            inputLabel={t("assistant.inputLabel")}
+            isPending={sendMessageMutation.status === "pending"}
+            placeholder={t("assistant.placeholder")}
+            sendLabel={t("assistant.send")}
+            sendingLabel={t("assistant.sending")}
+            value={input}
+            onChange={setInput}
+            onSubmit={handleSend}
+          />
+        </section>
+      </div>
     </section>
   );
 }
