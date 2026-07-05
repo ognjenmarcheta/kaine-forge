@@ -32,6 +32,7 @@ export function AssistantRoute() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const streamingIdRef = useRef<string | null>(null);
+  const streamingConversationIdRef = useRef<string | null>(null);
   const populatedRef = useRef<string | null>(null);
 
   const sendMessageMutation = useSendMessageMutation();
@@ -104,6 +105,17 @@ export function AssistantRoute() {
       return;
     }
 
+    // Ignore deltas from a different conversation (e.g. a still-streaming send
+    // the user navigated away from). A null ref means a brand-new chat whose
+    // conversation id isn't known until the reply returns — accept those.
+    const streamConversationId = streamingConversationIdRef.current;
+    if (
+      streamConversationId !== null &&
+      data.assistantMessageDelta.conversationId !== streamConversationId
+    ) {
+      return;
+    }
+
     setMessages((current) =>
       current.map((message) =>
         message.id === pid ? { ...message, content: message.content + delta } : message
@@ -161,6 +173,7 @@ export function AssistantRoute() {
 
     const placeholderId = crypto.randomUUID();
     streamingIdRef.current = placeholderId;
+    streamingConversationIdRef.current = activeConversationId;
     setMessages((current) => [
       ...current,
       { content: message, id: crypto.randomUUID(), role: "user" },
