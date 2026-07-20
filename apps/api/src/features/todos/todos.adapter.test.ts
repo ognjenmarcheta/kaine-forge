@@ -34,20 +34,25 @@ vi.mock("@repo/db", () => ({
     createdAt: "createdAt",
     completed: "completed",
     noteId: "noteId"
+  },
+  notesTable: {
+    id: "note.id",
+    organizationId: "note.orgId"
   }
 }));
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...args: unknown[]) => args),
   desc: vi.fn((col: unknown) => col),
-  eq: vi.fn((a: unknown, b: unknown) => [a, b])
+  eq: vi.fn((a: unknown, b: unknown) => [a, b]),
+  inArray: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
 import {
   createTodo,
   deleteTodo,
   getTodoById,
-  listTodosByNote,
+  listTodosByNoteIds,
   listTodosByScope
 } from "./todos.adapter";
 
@@ -116,13 +121,19 @@ describe("todos.adapter", () => {
     expect(result).toBe(true);
   });
 
-  it("listTodosByNote calls db.select and filters by noteId", async () => {
-    await listTodosByNote(scope, "note-1");
-    expect(mockDb.select).toHaveBeenCalled();
+  it("listTodosByNoteIds batches all notes into one db.select", async () => {
+    await listTodosByNoteIds(scope, ["note-1", "note-2"]);
+    expect(mockDb.select).toHaveBeenCalledTimes(1);
     expect(chain.where).toHaveBeenCalled();
   });
 
-  it("createTodo with a noteId still returns the created todo", async () => {
+  it("listTodosByNoteIds returns [] without querying for empty input", async () => {
+    const result = await listTodosByNoteIds(scope, []);
+    expect(result).toEqual([]);
+    expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
+  it("createTodo with a noteId owned by the organization returns the created todo", async () => {
     const todo = {
       id: "todo-1",
       title: "Test",
@@ -134,9 +145,19 @@ describe("todos.adapter", () => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    chain.limit.mockReturnValueOnce([{ id: "note-1" }]);
     chain.returning.mockResolvedValueOnce([todo]);
 
     const result = await createTodo(scope, { title: "Test", description: null, noteId: "note-1" });
     expect(result).toEqual(todo);
+  });
+
+  it("createTodo rejects a noteId that is not in the organization", async () => {
+    chain.limit.mockReturnValueOnce([]);
+
+    await expect(
+      createTodo(scope, { title: "Test", description: null, noteId: "other-org-note" })
+    ).rejects.toThrow("note not found");
+    expect(mockDb.insert).not.toHaveBeenCalled();
   });
 });

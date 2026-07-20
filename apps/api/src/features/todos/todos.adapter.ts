@@ -1,6 +1,6 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { db, todosTable, type Todo } from "@repo/db";
-import { and, desc, eq } from "drizzle-orm";
+import { db, notesTable, todosTable, type Todo } from "@repo/db";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { Pagination, TodoPatch } from "./todos.type";
 
@@ -34,6 +34,20 @@ export async function createTodo(
   scope: AuthenticatedOrganizationScope,
   input: { title: string; description: string | null; noteId?: string | null }
 ): Promise<Todo> {
+  if (input.noteId) {
+    const notes = await db
+      .select({ id: notesTable.id })
+      .from(notesTable)
+      .where(
+        and(eq(notesTable.id, input.noteId), eq(notesTable.organizationId, scope.organizationId))
+      )
+      .limit(1);
+
+    if (!notes[0]) {
+      throw new Error("note not found");
+    }
+  }
+
   const todos = await db
     .insert(todosTable)
     .values({
@@ -90,14 +104,20 @@ export async function deleteTodo(
   return deleted.length > 0;
 }
 
-export async function listTodosByNote(
+export async function listTodosByNoteIds(
   scope: AuthenticatedOrganizationScope,
-  noteId: string
+  noteIds: string[]
 ): Promise<Todo[]> {
+  if (noteIds.length === 0) {
+    return [];
+  }
+
   return db
     .select()
     .from(todosTable)
-    .where(and(eq(todosTable.noteId, noteId), eq(todosTable.organizationId, scope.organizationId)))
+    .where(
+      and(inArray(todosTable.noteId, noteIds), eq(todosTable.organizationId, scope.organizationId))
+    )
     .orderBy(desc(todosTable.createdAt));
 }
 

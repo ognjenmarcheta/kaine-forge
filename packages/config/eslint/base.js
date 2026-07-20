@@ -39,7 +39,7 @@ export default [
           alphabetize: { order: "asc", caseInsensitive: true }
         }
       ],
-      "@typescript-eslint/no-explicit-any": "warn"
+      "@typescript-eslint/no-explicit-any": "error"
     }
   },
   {

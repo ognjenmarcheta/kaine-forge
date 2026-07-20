@@ -1,53 +1,49 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import authDe from "./de/auth.json";
-import commonDe from "./de/common.json";
-import dashboardDe from "./de/dashboard.json";
-import navigationDe from "./de/navigation.json";
-import organizationsDe from "./de/organizations.json";
-import todosDe from "./de/todos.json";
-import authEn from "./en/auth.json";
-import commonEn from "./en/common.json";
-import dashboardEn from "./en/dashboard.json";
-import navigationEn from "./en/navigation.json";
-import organizationsEn from "./en/organizations.json";
-import todosEn from "./en/todos.json";
-import authSr from "./sr/auth.json";
-import commonSr from "./sr/common.json";
-import dashboardSr from "./sr/dashboard.json";
-import navigationSr from "./sr/navigation.json";
-import organizationsSr from "./sr/organizations.json";
-import todosSr from "./sr/todos.json";
+// Namespaces are discovered from the English baseline on disk so a newly added
+// namespace can never silently escape this consistency guard.
+const localesDir = dirname(fileURLToPath(import.meta.url));
 
-function sortedKeys(record: Record<string, unknown>): string[] {
+const locales = readdirSync(localesDir, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort((left, right) => left.localeCompare(right));
+
+const namespaceFiles = readdirSync(join(localesDir, "en"))
+  .filter((file) => file.endsWith(".json"))
+  .sort((left, right) => left.localeCompare(right));
+
+function sortedKeys(locale: string, namespaceFile: string): string[] {
+  const raw = readFileSync(join(localesDir, locale, namespaceFile), "utf8");
+  const record = JSON.parse(raw) as Record<string, unknown>;
   return Object.keys(record).sort((left, right) => left.localeCompare(right));
 }
 
-const baseline = {
-  auth: sortedKeys(authEn),
-  common: sortedKeys(commonEn),
-  dashboard: sortedKeys(dashboardEn),
-  navigation: sortedKeys(navigationEn),
-  organizations: sortedKeys(organizationsEn),
-  todos: sortedKeys(todosEn)
-};
-
 describe("translation locale consistency", () => {
-  it("matches Serbian keys with English baseline", () => {
-    expect(sortedKeys(authSr)).toEqual(baseline.auth);
-    expect(sortedKeys(commonSr)).toEqual(baseline.common);
-    expect(sortedKeys(dashboardSr)).toEqual(baseline.dashboard);
-    expect(sortedKeys(navigationSr)).toEqual(baseline.navigation);
-    expect(sortedKeys(organizationsSr)).toEqual(baseline.organizations);
-    expect(sortedKeys(todosSr)).toEqual(baseline.todos);
+  it("discovers locales and namespaces from the filesystem", () => {
+    expect(locales).toContain("en");
+    expect(locales.length).toBeGreaterThan(1);
+    expect(namespaceFiles.length).toBeGreaterThan(0);
   });
 
-  it("matches German keys with English baseline", () => {
-    expect(sortedKeys(authDe)).toEqual(baseline.auth);
-    expect(sortedKeys(commonDe)).toEqual(baseline.common);
-    expect(sortedKeys(dashboardDe)).toEqual(baseline.dashboard);
-    expect(sortedKeys(navigationDe)).toEqual(baseline.navigation);
-    expect(sortedKeys(organizationsDe)).toEqual(baseline.organizations);
-    expect(sortedKeys(todosDe)).toEqual(baseline.todos);
-  });
+  for (const locale of locales.filter((name) => name !== "en")) {
+    it(`ships the same namespace files for ${locale} as for en`, () => {
+      const files = readdirSync(join(localesDir, locale))
+        .filter((file) => file.endsWith(".json"))
+        .sort((left, right) => left.localeCompare(right));
+
+      expect(files).toEqual(namespaceFiles);
+    });
+
+    it(`matches ${locale} keys with the English baseline in every namespace`, () => {
+      for (const namespaceFile of namespaceFiles) {
+        expect({ [namespaceFile]: sortedKeys(locale, namespaceFile) }).toEqual({
+          [namespaceFile]: sortedKeys("en", namespaceFile)
+        });
+      }
+    });
+  }
 });

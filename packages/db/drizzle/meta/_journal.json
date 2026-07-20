@@ -57,6 +57,13 @@
       "when": 1783269847195,
       "tag": "0007_unique_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784565533020,
+      "tag": "0008_illegal_blob",
+      "breakpoints": true
     }
   ]
 }

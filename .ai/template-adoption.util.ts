@@ -61,10 +61,26 @@ export const adoptionTargets = [
   ".env.example",
   "docs/README.md",
   "docs/release-checklist.md",
+  "docs/adr/0008-adopt-better-auth.md",
   "apps/web/index.html",
   "apps/mobile/app.json",
   "apps/desktop/src-tauri/tauri.conf.json",
   "apps/desktop/src-tauri/Cargo.toml",
+  "apps/web/src/features/auth/auth.definition.ts",
+  "apps/web/src/providers/organization.provider.tsx",
+  "apps/web/src/providers/translation.provider.tsx",
+  "apps/web/src/stores/theme.store.ts",
+  "apps/web/src/stores/theme.store.test.ts",
+  "apps/mobile/src/features/auth/auth.definition.ts",
+  "apps/mobile/src/providers/organization.provider.tsx",
+  "apps/mobile/src/providers/theme.provider.tsx",
+  "apps/mobile/src/providers/translation.provider.tsx",
+  "apps/mobile/src/stores/sidebar.store.ts",
+  "apps/mobile/src/stores/theme.store.ts",
+  "packages/auth/src/auth.instance.ts",
+  "packages/auth/src/auth.instance.test.ts",
+  "packages/auth/src/auth.server.test.ts",
+  "packages/persistence/src/persistence.test.ts",
   "packages/translation/src/locales/en/common.json",
   "packages/translation/src/locales/de/common.json",
   "packages/translation/src/locales/sr/common.json",
@@ -81,7 +97,9 @@ export const adoptionTargets = [
 const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bKaine Forge\b/g, "Kaine Forge"],
   [/\bkaine-forge\b/g, "kaine-forge"],
-  [/\bcom\.kaine\.forge\b/g, "com.kaine.forge"]
+  [/\bcom\.kaine\.forge\b/g, "com.kaine.forge"],
+  [/"kaine\./g, '"kaine.'],
+  [/"kaine"/g, '"kaine"']
 ];
 
 const normalizePath = (path: string): string => path.replace(/\\/g, "/").replace(/^\.\//, "");
@@ -247,6 +265,8 @@ const replacementsForConfig = (
   ["kaine-forge-api", `${config.dockerImagePrefix}-api`],
   ["kaine-forge-web", `${config.dockerImagePrefix}-web`],
   ["kaine-forge-dev", config.s3Bucket],
+  ['"kaine.', `"${config.repoSlug}.`],
+  ['"kaine"', `"${config.repoSlug}"`],
   ["Kaine Forge", config.productName],
   ["kaine-forge", config.repoSlug]
 ];

@@ -70,17 +70,8 @@ export const todosResolvers = {
       _args: unknown,
       ctx: ResolverContext
     ) {
-      const scope = ctx.requireOrganizationScope();
-      const attachmentLifecycle = createAttachmentLifecycle({
-        deleteFilesByEntity,
-        listFiles
-      });
-
-      try {
-        return await attachmentLifecycle.listTodoAttachments(scope, parent.id);
-      } catch {
-        return [];
-      }
+      ctx.requireOrganizationScope();
+      return ctx.loaders.todoAttachments.load(parent.id);
     }
   },
   Query: {
