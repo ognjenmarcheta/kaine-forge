@@ -110,6 +110,8 @@ describe("applyTemplateAdoption", () => {
         ].join("\n")
       ],
       ["apps/web/index.html", "<title>kaine-forge</title>\n"],
+      ["apps/web/src/stores/theme.store.ts", '      name: "kaine.theme.mode",\n'],
+      ["packages/auth/src/auth.instance.ts", '      cookiePrefix: "kaine",\n'],
       [
         "packages/translation/src/locales/en/common.json",
         JSON.stringify({ "common.appName": "Kaine Forge" }, null, 2)
@@ -124,8 +126,16 @@ describe("applyTemplateAdoption", () => {
       "README.md",
       "MONOREPO_GUIDE.md",
       "apps/web/index.html",
+      "apps/web/src/stores/theme.store.ts",
+      "packages/auth/src/auth.instance.ts",
       "packages/translation/src/locales/en/common.json"
     ]);
+    expect(result.files.get("apps/web/src/stores/theme.store.ts")).toContain(
+      'name: "acme-ops.theme.mode"'
+    );
+    expect(result.files.get("packages/auth/src/auth.instance.ts")).toContain(
+      'cookiePrefix: "acme-ops"'
+    );
     expect(result.files.get("package.json")).toContain('"name": "acme-ops"');
     expect(result.files.get("package.json")).toContain('"@repo/ui": "workspace:*"');
     expect(result.files.get("README.md")).toContain("# Acme Ops");
@@ -146,6 +156,8 @@ describe("applyTemplateAdoption", () => {
       new Map<string, string>([
         ["README.md", "# Kaine Forge\n"],
         ["apps/web/index.html", "<title>kaine-forge</title>\n"],
+        ["apps/web/src/stores/theme.store.ts", 'name: "kaine.theme.mode",\n'],
+        ["packages/auth/src/auth.instance.ts", 'cookiePrefix: "kaine",\n'],
         ["apps/desktop/src-tauri/tauri.conf.json", '"identifier": "com.kaine.forge.desktop"\n']
       ])
     );
@@ -153,6 +165,8 @@ describe("applyTemplateAdoption", () => {
     expect(references).toEqual([
       { path: "apps/desktop/src-tauri/tauri.conf.json", line: 1, match: "com.kaine.forge" },
       { path: "apps/web/index.html", line: 1, match: "kaine-forge" },
+      { path: "apps/web/src/stores/theme.store.ts", line: 1, match: '"kaine.' },
+      { path: "packages/auth/src/auth.instance.ts", line: 1, match: '"kaine"' },
       { path: "README.md", line: 1, match: "Kaine Forge" }
     ]);
   });
@@ -180,6 +194,9 @@ describe("applyTemplateAdoption", () => {
     expect(adoptionTargets).toContain(".ai/guide.md");
     expect(adoptionTargets).toContain(".ai/skills/kaine-open-pr.md");
     expect(adoptionTargets).toContain(".ai/skills/kaine-test.md");
+    expect(adoptionTargets).toContain("packages/auth/src/auth.instance.ts");
+    expect(adoptionTargets).toContain("apps/web/src/stores/theme.store.ts");
+    expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.definition.ts");
     expect(adoptionTargets).not.toContain("pnpm-lock.yaml");
     expect(adoptionTargets).not.toContain("packages/ui/src/example.ts");
   });

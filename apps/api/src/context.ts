@@ -8,6 +8,7 @@ import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
 import { resolveApiAuthIdentity } from "./context.auth-scope";
+import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { pubsub } from "./pubsub";
 
 export interface ApiContext {
@@ -17,6 +18,7 @@ export interface ApiContext {
   session: AuthSession | null;
   organizationScope: AuthenticatedOrganizationScope | null;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
+  loaders: ApiLoaders;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
   pubsub: typeof pubsub;
@@ -44,6 +46,7 @@ export async function createContextFromHeaders(
     session: identity.session,
     organizationScope: identity.organizationScope,
     requireOrganizationScope: identity.requireOrganizationScope,
+    loaders: createApiLoaders(identity.requireOrganizationScope),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub

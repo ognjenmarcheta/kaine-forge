@@ -1,6 +1,6 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { db, filesTable, type File } from "@repo/db";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
@@ -87,6 +87,30 @@ export async function listFiles(
     .orderBy(desc(filesTable.createdAt))
     .limit(limit)
     .offset(offset);
+}
+
+export async function listFilesByEntityIds(
+  scope: AuthenticatedOrganizationScope,
+  entityType: string,
+  entityIds: string[],
+  status: "pending" | "uploaded" | "deleted"
+): Promise<File[]> {
+  if (entityIds.length === 0) {
+    return [];
+  }
+
+  return db
+    .select()
+    .from(filesTable)
+    .where(
+      and(
+        eq(filesTable.organizationId, scope.organizationId),
+        eq(filesTable.entityType, entityType),
+        inArray(filesTable.entityId, entityIds),
+        eq(filesTable.status, status)
+      )
+    )
+    .orderBy(desc(filesTable.createdAt));
 }
 
 export async function updateFileStatus(

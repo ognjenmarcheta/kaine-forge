@@ -47,10 +47,11 @@ pnpm --filter @repo/mobile-ui typecheck
 ## One-Command Bootstrap
 
 ```bash
+docker compose up -d
 pnpm quick-setup
 ```
 
-`quick-setup` runs the same bootstrap as `initialize`: it reinstalls dependencies, installs local AI assistant files, builds the repo, generates/pushes/seeds the database, then starts development tasks.
+`quick-setup` runs the same bootstrap as `initialize`: it creates `.env` from `.env.example` when missing, reinstalls dependencies, installs local AI assistant files, builds the repo, generates/ensures/pushes/seeds the database, then starts development tasks. Postgres must already be running, so start Docker services first.
 
 ## Environment
 

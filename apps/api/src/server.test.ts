@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 // The db client asserts DATABASE_URL at import time; no connection is made in
 // this test (the requests below never touch a resolver or a session lookup).
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/server-test";
+// The CORS allowlist is read from the environment at import time; pin it so a
+// local .env override cannot change what this test asserts.
+process.env.API_CORS_ORIGINS = "http://localhost:5173";
 
 const { createApiServer } = await import("./server");
 

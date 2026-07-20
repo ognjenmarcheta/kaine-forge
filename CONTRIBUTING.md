@@ -24,9 +24,10 @@ pnpm db:seed
 pnpm dev
 ```
 
-For a full bootstrap:
+For a full bootstrap (requires running Docker services):
 
 ```bash
+docker compose up -d
 pnpm initialize
 ```
 

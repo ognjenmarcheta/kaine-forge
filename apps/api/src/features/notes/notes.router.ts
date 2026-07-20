@@ -6,7 +6,7 @@ import { coercePagination } from "./notes.util";
 import { createNoteWorkflow } from "./notes.workflow";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
-import { createTodo, listTodosByNote } from "../todos/todos.adapter";
+import { createTodo } from "../todos/todos.adapter";
 import type { CreateTodoInput } from "../todos/todos.type";
 
 type ResolverContext = ApiContext;
@@ -30,8 +30,8 @@ function createNoteWorkflowForContext(ctx: ResolverContext) {
 export const notesResolvers = {
   Note: {
     async todos(parent: { id: string }, _args: unknown, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return listTodosByNote(scope, parent.id);
+      ctx.requireOrganizationScope();
+      return ctx.loaders.noteTodos.load(parent.id);
     }
   },
   Query: {
