@@ -42,7 +42,8 @@ export async function getConversationById(
     .where(
       and(
         eq(assistantConversationsTable.id, id),
-        eq(assistantConversationsTable.organizationId, scope.organizationId)
+        eq(assistantConversationsTable.organizationId, scope.organizationId),
+        eq(assistantConversationsTable.userId, scope.userId)
       )
     )
     .limit(1);
@@ -67,6 +68,26 @@ export async function listMessages(
     .orderBy(asc(assistantMessagesTable.createdAt))
     .limit(pagination.limit)
     .offset(pagination.offset);
+}
+
+export async function listRecentMessages(
+  scope: AuthenticatedOrganizationScope,
+  conversationId: string,
+  limit: number
+): Promise<AssistantMessage[]> {
+  const messages = await db
+    .select()
+    .from(assistantMessagesTable)
+    .where(
+      and(
+        eq(assistantMessagesTable.conversationId, conversationId),
+        eq(assistantMessagesTable.organizationId, scope.organizationId)
+      )
+    )
+    .orderBy(desc(assistantMessagesTable.createdAt))
+    .limit(limit);
+
+  return messages.reverse();
 }
 
 export async function appendMessage(

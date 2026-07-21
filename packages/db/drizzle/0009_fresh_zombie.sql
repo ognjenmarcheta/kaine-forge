@@ -1,0 +1,2 @@
+CREATE INDEX "assistant_conversations_organization_id_user_id_updated_at_idx" ON "assistant_conversations" USING btree ("organization_id","user_id","updated_at");--> statement-breakpoint
+CREATE INDEX "assistant_messages_conversation_id_created_at_idx" ON "assistant_messages" USING btree ("conversation_id","created_at");

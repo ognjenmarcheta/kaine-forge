@@ -20,6 +20,7 @@ describe("server.config", () => {
 
     expect(config).toMatchObject({
       exposeErrorDetails: false,
+      isProduction: true,
       maskedErrors: true,
       maxQueryDepth: 4
     });
@@ -31,6 +32,7 @@ describe("server.config", () => {
 
     expect(config).toMatchObject({
       exposeErrorDetails: true,
+      isProduction: false,
       maskedErrors: false,
       maxQueryDepth: 8
     });

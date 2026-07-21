@@ -64,6 +64,13 @@
       "when": 1784565533020,
       "tag": "0008_illegal_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784653811454,
+      "tag": "0009_fresh_zombie",
+      "breakpoints": true
     }
   ]
 }

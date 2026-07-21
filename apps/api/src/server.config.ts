@@ -15,6 +15,7 @@ const DEFAULT_MAX_QUERY_DEPTH = 8;
 export interface ApiRuntimeConfig {
   allowedCorsOrigins: string[] | undefined;
   exposeErrorDetails: boolean;
+  isProduction: boolean;
   maskedErrors: boolean;
   maxQueryDepth: number;
 }
@@ -43,12 +44,13 @@ function parsePositiveInteger(value: string | undefined, fallback: number): numb
 }
 
 export function resolveApiRuntimeConfig(env: RuntimeEnv): ApiRuntimeConfig {
-  const exposeErrorDetails = env.NODE_ENV !== "production";
+  const isProduction = env.NODE_ENV === "production";
 
   return {
     allowedCorsOrigins: parseCorsOrigins(env.API_CORS_ORIGINS),
-    exposeErrorDetails,
-    maskedErrors: !exposeErrorDetails,
+    exposeErrorDetails: !isProduction,
+    isProduction,
+    maskedErrors: isProduction,
     maxQueryDepth: parsePositiveInteger(env.API_GRAPHQL_MAX_DEPTH, DEFAULT_MAX_QUERY_DEPTH)
   };
 }

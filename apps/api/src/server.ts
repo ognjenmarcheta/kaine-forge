@@ -85,6 +85,12 @@ export function createApiServer({
           origin: runtimeConfig.allowedCorsOrigins
         };
 
+  if (cors === true && runtimeConfig.isProduction) {
+    logger.warn(
+      "API_CORS_ORIGINS is not set; CORS reflects any origin with credentials. Set an explicit allowlist in production."
+    );
+  }
+
   const yoga = createYoga({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
