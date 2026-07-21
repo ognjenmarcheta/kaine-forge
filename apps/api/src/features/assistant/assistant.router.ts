@@ -7,6 +7,7 @@ import {
   getConversationById,
   listConversations,
   listMessages,
+  listRecentMessages,
   touchConversation
 } from "./assistant.adapter";
 import { createAssistantAiWorkflow } from "./assistant.ai";
@@ -39,10 +40,11 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     getConversationById,
     isConfigured: aiRuntime.isConfigured,
     listMessages: async (scope, conversationId) => {
-      const messages = await listMessages(scope, conversationId, {
-        limit: coerceMessagesPagination({}).limit,
-        offset: 0
-      });
+      const messages = await listRecentMessages(
+        scope,
+        conversationId,
+        coerceMessagesPagination({}).limit
+      );
 
       return messages.map((message) => ({
         content: message.content,
@@ -79,9 +81,13 @@ export const assistantResolvers = {
   Query: {
     async assistantMessages(_parent: unknown, args: AssistantMessagesArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      const pagination = coerceMessagesPagination(args);
+      const conversation = await getConversationById(scope, args.conversationId);
 
-      return listMessages(scope, args.conversationId, pagination);
+      if (!conversation) {
+        return [];
+      }
+
+      return listMessages(scope, args.conversationId, coerceMessagesPagination(args));
     },
     async conversations(
       _parent: unknown,

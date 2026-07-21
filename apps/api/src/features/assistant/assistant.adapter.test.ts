@@ -48,7 +48,12 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => [a, b])
 }));
 
-import { deleteConversation, listConversations } from "./assistant.adapter";
+import {
+  deleteConversation,
+  getConversationById,
+  listConversations,
+  listRecentMessages
+} from "./assistant.adapter";
 
 describe("assistant.adapter", () => {
   const scope = {
@@ -90,5 +95,32 @@ describe("assistant.adapter", () => {
     const result = await deleteConversation(scope, "conversation-1");
     expect(mockDb.delete).toHaveBeenCalled();
     expect(result).toBe(false);
+  });
+
+  it("getConversationById scopes the lookup to the requesting user", async () => {
+    chain.limit.mockResolvedValueOnce([]);
+
+    const result = await getConversationById(scope, "conversation-1");
+
+    expect(result).toBeNull();
+    expect(chain.where).toHaveBeenCalledWith([
+      ["id", "conversation-1"],
+      ["orgId", "org-1"],
+      ["userId", "user-1"]
+    ]);
+  });
+
+  it("listRecentMessages returns the newest messages in chronological order", async () => {
+    chain.limit.mockResolvedValueOnce([
+      { content: "third", id: "m3" },
+      { content: "second", id: "m2" },
+      { content: "first", id: "m1" }
+    ]);
+
+    const result = await listRecentMessages(scope, "conversation-1", 3);
+
+    expect(chain.orderBy).toHaveBeenCalledWith("createdAt");
+    expect(chain.limit).toHaveBeenCalledWith(3);
+    expect(result.map((message) => message.id)).toEqual(["m1", "m2", "m3"]);
   });
 });
