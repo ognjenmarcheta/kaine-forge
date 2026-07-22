@@ -11,7 +11,7 @@ describe("app-sidebar", () => {
         <AppSidebar
           navMain={<div>Main</div>}
           navPreferences={<div>Preferences</div>}
-          teamSwitcher={<div>Team</div>}
+          organizationSwitcher={<div>Organization</div>}
           user={<div>User</div>}
         />
       </SidebarProvider>

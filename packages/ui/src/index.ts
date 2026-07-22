@@ -9,7 +9,7 @@ export * from "./components/composed/pagination";
 export * from "./components/composed/shell-select-control";
 export * from "./components/composed/shell-user-menu";
 export * from "./components/composed/sidebar";
-export * from "./components/composed/team-switcher";
+export * from "./components/composed/organization-switcher";
 export * from "./components/composed/user-menu";
 export * from "./components/layouts/app-layout";
 export * from "./components/layouts/auth-layout";

@@ -7,7 +7,7 @@ import {
   NavPreferences,
   NavUser,
   Separator,
-  TeamSwitcher,
+  OrganizationSwitcher,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger
@@ -81,7 +81,7 @@ function ShellLayout() {
     const currentRouteKey =
       ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
       "navigation.dashboard";
-    const teamOptions =
+    const organizationOptions =
       organizations.length > 0
         ? organizations.map((organization) => ({
             name: organization.name,
@@ -99,7 +99,8 @@ function ShellLayout() {
               value: "organization-placeholder"
             }
           ];
-    const activeTeamValue = activeOrganizationId ?? organizations[0]?.id ?? teamOptions[0]?.value;
+    const activeOrganizationValue =
+      activeOrganizationId ?? organizations[0]?.id ?? organizationOptions[0]?.value;
     const breadcrumbItems = [
       {
         href: "/dashboard",
@@ -202,9 +203,9 @@ function ShellLayout() {
               />
             }
             railLabel={t("navigation.toggleSidebar")}
-            teamSwitcher={
+            organizationSwitcher={
               organizationsVisible ? (
-                <TeamSwitcher
+                <OrganizationSwitcher
                   actionItem={{
                     label: t("navigation.organizationCreate"),
                     onSelect: () => setIsCreateOrganizationOpen(true)
@@ -216,8 +217,8 @@ function ShellLayout() {
                       void setActiveOrganization(value);
                     }
                   }}
-                  teams={teamOptions}
-                  {...(activeTeamValue ? { value: activeTeamValue } : {})}
+                  organizations={organizationOptions}
+                  {...(activeOrganizationValue ? { value: activeOrganizationValue } : {})}
                 />
               ) : null
             }

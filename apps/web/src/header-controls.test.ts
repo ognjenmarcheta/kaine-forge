@@ -9,7 +9,7 @@ const source = readFileSync(sourcePath, "utf8");
 describe("app shell header controls contract", () => {
   it("uses app-sidebar composition with shadcn-style sections", () => {
     expect(source).toContain("AppSidebar");
-    expect(source).toContain("TeamSwitcher");
+    expect(source).toContain("OrganizationSwitcher");
     expect(source).toContain("NavMain");
     expect(source).toContain("NavPreferences");
     expect(source).toContain("NavUser");
