@@ -1,15 +1,16 @@
 # Dependencies
-node_modules/
+**/node_modules/
 
 # Build output and caches
-dist/
+**/dist/
 build/
-.turbo/
+**/.turbo/
 .next/
 *.tsbuildinfo
 
 # Version control
 .git/
+.worktrees/
 
 # Environment and secrets
 .env

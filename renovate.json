@@ -54,6 +54,14 @@
       "matchStrings": ["PNPM_VERSION:\\s*\"(?<currentValue>[0-9.]+)\""],
       "depNameTemplate": "pnpm",
       "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Keep corepack-prepared pnpm in Docker images in sync with the root packageManager pnpm version",
+      "managerFilePatterns": ["/^Dockerfile\\..+$/"],
+      "matchStrings": ["corepack prepare pnpm@(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "pnpm",
+      "datasourceTemplate": "npm"
     }
   ]
 }
