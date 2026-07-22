@@ -16,7 +16,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 
 ## Prerequisites
 
-- Node.js `>=20` (CI uses Node 22)
+- Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
 - pnpm `10.29.3`
 - Docker Desktop or compatible Docker runtime for Postgres, MinIO, and image builds
 - Rust toolchain for desktop/Tauri work
@@ -119,7 +119,7 @@ docker build -f Dockerfile.api -t kaine-forge-api .
 docker build -f Dockerfile.web -t kaine-forge-web .
 ```
 
-The API image runs `node apps/api/dist/index.js`. The web image serves `apps/web/dist` through nginx on port `3000`, proxies `/api` and `/graphql` to `API_BACKEND_URL`, supports GraphQL websocket upgrades, and falls back to `index.html` for SPA routes.
+The API image runs `node apps/api/dist/index.js`. The web image serves `apps/web/dist` through unprivileged nginx (`nginxinc/nginx-unprivileged`, runs as the non-root `nginx` user) on port `3000`, proxies `/api` and `/graphql` to `API_BACKEND_URL`, supports GraphQL websocket upgrades, and falls back to `index.html` for SPA routes.
 
 Each top-level `Dockerfile.<app>` also defines a deployable app branch contract. After app-affecting changes are merged to `main`, run `pnpm release:apps` to create or fast-forward only the matching `release/<app>` branches. Use `pnpm release:apps --apps all` once to initialize every deployable app branch intentionally.
 

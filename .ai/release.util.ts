@@ -12,6 +12,11 @@ const ROOT_BUILD_CONFIGS = new Set([
   "tsconfig.base.json",
   "tsconfig.json"
 ]);
+// Workspaces that are not in any app's declared dependency graph but are
+// hand-copied into every deployable image (see the packages/config COPY in
+// Dockerfile.api and Dockerfile.web) and consumed via relative tsconfig
+// extends. Changes here alter every image, so they affect all deployable apps.
+const SHARED_BUILD_WORKSPACE_DIRS = new Set(["packages/config"]);
 
 export interface WorkspacePackage {
   name: string;
@@ -210,6 +215,13 @@ export const collectAffectedApps = (
 
     const owner = workspaceOwner(file, workspaces);
     if (!owner) {
+      continue;
+    }
+
+    if (SHARED_BUILD_WORKSPACE_DIRS.has(owner.dir)) {
+      for (const app of deployableApps) {
+        affected.add(app.app);
+      }
       continue;
     }
 

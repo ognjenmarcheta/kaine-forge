@@ -25,6 +25,11 @@ const workspaces: WorkspacePackage[] = [
     internalDependencies: ["@repo/db"]
   },
   {
+    name: "@repo/config",
+    dir: "packages/config",
+    internalDependencies: []
+  },
+  {
     name: "@repo/db",
     dir: "packages/db",
     internalDependencies: []
@@ -108,6 +113,20 @@ describe("collectAffectedApps", () => {
     expect(collectAffectedApps(["turbo.json"], deployableApps, workspaces)).toEqual(
       new Set(["api", "web"])
     );
+  });
+
+  it("treats shared build workspace changes as affecting all deployable apps", () => {
+    expect(
+      collectAffectedApps(
+        ["packages/config/typescript/tsconfig.node.json"],
+        deployableApps,
+        workspaces
+      )
+    ).toEqual(new Set(["api", "web"]));
+
+    expect(
+      collectAffectedApps(["packages/config/eslint/base.js"], deployableApps, workspaces)
+    ).toEqual(new Set(["api", "web"]));
   });
 
   it("ignores docs-only changes outside deployable app inputs", () => {

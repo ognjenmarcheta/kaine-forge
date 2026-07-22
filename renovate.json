@@ -1,0 +1,67 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Belgrade",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies", "release:skip-changeset"],
+  "rangeStrategy": "replace",
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "One weekly PR for all minor and patch updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies"
+    },
+    {
+      "description": "Majors stay separate and require dashboard approval",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "React Native singleton graph is pinned and moves only with manual Expo SDK upgrades; enforced by packages/config/monorepo-alignment.test.ts",
+      "matchFileNames": ["apps/mobile/**", "packages/mobile-ui/**"],
+      "matchPackageNames": [
+        "expo",
+        "expo-*",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+        "react-native",
+        "react-native-*",
+        "nativewind",
+        "tailwindcss"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Node majors are a deliberate migration across .nvmrc, engines, Dockerfiles, and CI",
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keep workflow PNPM_VERSION in sync with the root packageManager pnpm version",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": ["PNPM_VERSION:\\s*\"(?<currentValue>[0-9.]+)\""],
+      "depNameTemplate": "pnpm",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Keep corepack-prepared pnpm in Docker images in sync with the root packageManager pnpm version",
+      "managerFilePatterns": ["/^Dockerfile\\..+$/"],
+      "matchStrings": ["corepack prepare pnpm@(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "pnpm",
+      "datasourceTemplate": "npm"
+    }
+  ]
+}

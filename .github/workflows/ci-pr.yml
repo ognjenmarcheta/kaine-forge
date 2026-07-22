@@ -14,7 +14,6 @@ permissions:
   pull-requests: read
 
 env:
-  NODE_VERSION: "22"
   PNPM_VERSION: "10.29.3"
 
 jobs:
@@ -64,7 +63,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
@@ -104,11 +103,19 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-core-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
@@ -143,11 +150,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Restore-only: build-core (needs:) already saved the exact-sha key.
+      # This step and the build must stay BEFORE "Prepare environment" —
+      # turbo hashes .env* as build inputs, so creating .env first would
+      # change task hashes and defeat the cache hit.
+      - name: Restore Turbo cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .turbo/cache
+          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-core-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core

@@ -29,9 +29,14 @@
     "react-native": ">=0.81.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "~19.1.10",
+    "@types/react-dom": "~19.1.11",
+    "jsdom": "^26.1.0",
     "nativewind": "4.2.1",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-css-interop": "0.2.1",
     "react-native-reanimated": "4.1.1",
