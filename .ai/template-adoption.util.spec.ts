@@ -219,6 +219,7 @@ describe("applyTemplateAdoption", () => {
     expect(
       excludedFromTemplateAdoption("docs/superpowers/plans/2026-07-22-domain-knowledge.md")
     ).toBe(true);
+    expect(excludedFromTemplateAdoption(".changeset/adoption-e2e-findings.md")).toBe(true);
     expect(excludedFromTemplateAdoption("README.md")).toBe(false);
   });
 

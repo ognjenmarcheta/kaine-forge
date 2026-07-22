@@ -333,6 +333,8 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     normalized.startsWith(".ai/template-adoption") ||
     // Historical planning records document the template's own development.
     normalized.startsWith("docs/superpowers/") ||
+    // Changesets are release-note records, like the excluded CHANGELOGs they feed.
+    normalized.startsWith(".changeset/") ||
     normalized === ".ai/skills/kaine-adopt-template.md" ||
     normalized.includes("/skills/kaine-adopt-template/SKILL.md") ||
     segments.includes("node_modules") ||
