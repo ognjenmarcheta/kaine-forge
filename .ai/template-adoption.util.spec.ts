@@ -22,9 +22,10 @@ describe("deriveTemplateAdoptionConfig", () => {
       repoSlug: "acme-ops",
       dockerImagePrefix: "acme-ops",
       s3Bucket: "acme-ops-dev",
-      webTitle: "acme-ops",
+      webTitle: "Acme Ops",
       mobileName: "Acme Ops Mobile",
       mobileSlug: "acme-ops-mobile",
+      mobileScheme: "acmeops",
       desktopProductName: "Acme Ops",
       desktopWindowTitle: "Acme Ops Desktop",
       desktopIdentifier: "com.acme.ops.desktop"
@@ -111,7 +112,14 @@ describe("applyTemplateAdoption", () => {
       ],
       ["apps/web/index.html", "<title>kaine-forge</title>\n"],
       ["apps/web/src/stores/theme.store.ts", '      name: "kaine.theme.mode",\n'],
-      ["packages/auth/src/auth.instance.ts", '      cookiePrefix: "kaine",\n'],
+      [
+        "packages/auth/src/auth.instance.ts",
+        '      cookiePrefix: "kaine",\nexport const EXPO_AUTH_SCHEME = "kaineforge";\n'
+      ],
+      ["apps/mobile/src/lib/auth-api.ts", '        storagePrefix: "kaine",\n'],
+      ["apps/mobile/src/features/auth/auth.config.ts", '  scheme: "kaineforge",\n'],
+      ["apps/desktop/src-tauri/Cargo.toml", 'name = "kaine_forge_desktop_lib"\n'],
+      ["docs/troubleshooting.md", "Cookie is **`kaine.session_token`**\n"],
       [
         "packages/translation/src/locales/en/common.json",
         JSON.stringify({ "common.appName": "Kaine Forge" }, null, 2)
@@ -121,21 +129,40 @@ describe("applyTemplateAdoption", () => {
 
     const result = applyTemplateAdoption(files, config);
 
-    expect(result.changedFiles.map((file) => file.path)).toEqual([
-      "package.json",
-      "README.md",
-      "MONOREPO_GUIDE.md",
-      "apps/web/index.html",
-      "apps/web/src/stores/theme.store.ts",
-      "packages/auth/src/auth.instance.ts",
-      "packages/translation/src/locales/en/common.json"
-    ]);
+    expect(result.changedFiles.map((file) => file.path).sort()).toEqual(
+      [
+        "package.json",
+        "README.md",
+        "MONOREPO_GUIDE.md",
+        "apps/web/index.html",
+        "apps/web/src/stores/theme.store.ts",
+        "apps/mobile/src/lib/auth-api.ts",
+        "apps/mobile/src/features/auth/auth.config.ts",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "docs/troubleshooting.md",
+        "packages/auth/src/auth.instance.ts",
+        "packages/translation/src/locales/en/common.json"
+      ].sort()
+    );
     expect(result.files.get("apps/web/src/stores/theme.store.ts")).toContain(
       'name: "acme-ops.theme.mode"'
     );
     expect(result.files.get("packages/auth/src/auth.instance.ts")).toContain(
       'cookiePrefix: "acme-ops"'
     );
+    expect(result.files.get("packages/auth/src/auth.instance.ts")).toContain(
+      'EXPO_AUTH_SCHEME = "acmeops"'
+    );
+    expect(result.files.get("apps/mobile/src/lib/auth-api.ts")).toContain(
+      'storagePrefix: "acme-ops"'
+    );
+    expect(result.files.get("apps/mobile/src/features/auth/auth.config.ts")).toContain(
+      'scheme: "acmeops"'
+    );
+    expect(result.files.get("apps/desktop/src-tauri/Cargo.toml")).toContain(
+      'name = "acme_ops_desktop_lib"'
+    );
+    expect(result.files.get("docs/troubleshooting.md")).toContain("`acme-ops.session_token`");
     expect(result.files.get("package.json")).toContain('"name": "acme-ops"');
     expect(result.files.get("package.json")).toContain('"@repo/ui": "workspace:*"');
     expect(result.files.get("README.md")).toContain("# Acme Ops");
@@ -158,14 +185,20 @@ describe("applyTemplateAdoption", () => {
         ["apps/web/index.html", "<title>kaine-forge</title>\n"],
         ["apps/web/src/stores/theme.store.ts", 'name: "kaine.theme.mode",\n'],
         ["packages/auth/src/auth.instance.ts", 'cookiePrefix: "kaine",\n'],
-        ["apps/desktop/src-tauri/tauri.conf.json", '"identifier": "com.kaine.forge.desktop"\n']
+        ["apps/desktop/src-tauri/tauri.conf.json", '"identifier": "com.kaine.forge.desktop"\n'],
+        ["apps/mobile/app.json", '"scheme": "kaineforge"\n'],
+        ["apps/desktop/src-tauri/src/main.rs", "  kaine_forge_desktop_lib::run()\n"],
+        ["docs/troubleshooting.md", "Cookie is **`kaine.session_token`**\n"]
       ])
     );
 
     expect(references).toEqual([
+      { path: "apps/desktop/src-tauri/src/main.rs", line: 1, match: "kaine_forge" },
       { path: "apps/desktop/src-tauri/tauri.conf.json", line: 1, match: "com.kaine.forge" },
+      { path: "apps/mobile/app.json", line: 1, match: "kaineforge" },
       { path: "apps/web/index.html", line: 1, match: "kaine-forge" },
       { path: "apps/web/src/stores/theme.store.ts", line: 1, match: '"kaine.' },
+      { path: "docs/troubleshooting.md", line: 1, match: "`kaine." },
       { path: "packages/auth/src/auth.instance.ts", line: 1, match: '"kaine"' },
       { path: "README.md", line: 1, match: "Kaine Forge" }
     ]);
@@ -183,6 +216,9 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption(".agents/skills/kaine-adopt-template/SKILL.md")).toBe(true);
     expect(excludedFromTemplateAdoption("node_modules/example/package.json")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai.local/mcp.json")).toBe(true);
+    expect(
+      excludedFromTemplateAdoption("docs/superpowers/plans/2026-07-22-domain-knowledge.md")
+    ).toBe(true);
     expect(excludedFromTemplateAdoption("README.md")).toBe(false);
   });
 
@@ -200,6 +236,13 @@ describe("applyTemplateAdoption", () => {
     expect(adoptionTargets).toContain("packages/auth/src/auth.instance.ts");
     expect(adoptionTargets).toContain("apps/web/src/stores/theme.store.ts");
     expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.definition.ts");
+    expect(adoptionTargets).toContain("apps/mobile/src/lib/auth-api.ts");
+    expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.config.ts");
+    expect(adoptionTargets).toContain("apps/desktop/src-tauri/src/main.rs");
+    expect(adoptionTargets).toContain("docs/troubleshooting.md");
+    expect(adoptionTargets).toContain("docs/agents/issue-tracker.md");
+    expect(adoptionTargets).toContain(".ai/hooks/session-start.mjs");
+    expect(adoptionTargets).toContain(".ai/agents/kaine-explorer.md");
     expect(adoptionTargets).not.toContain("REVIEW.md");
     expect(adoptionTargets).not.toContain("pnpm-lock.yaml");
     expect(adoptionTargets).not.toContain("packages/ui/src/example.ts");

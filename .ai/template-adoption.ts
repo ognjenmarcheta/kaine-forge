@@ -222,6 +222,7 @@ const printConfig = (config: TemplateAdoptionConfig): void => {
     webTitle: config.webTitle,
     mobileName: config.mobileName,
     mobileSlug: config.mobileSlug,
+    mobileScheme: config.mobileScheme,
     desktopProductName: config.desktopProductName,
     desktopWindowTitle: config.desktopWindowTitle,
     desktopIdentifier: config.desktopIdentifier,
