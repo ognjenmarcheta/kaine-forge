@@ -27,4 +27,4 @@ Verification is soft and opt-in:
   - the mechanism ships hardened while product policy stays with the adopter
   - flipping to hard gating downstream is a small, local change (check `emailVerified` at login or in app routing)
 - Cons:
-  - out of the box, nothing is actually gated — teams must remember the flag exists (documented in README `## Environment` and `CONTEXT.md`)
+  - out of the box, nothing is actually gated — teams must remember the flag exists (documented in `MONOREPO_GUIDE.md` section 9, `.env.example`, and `CONTEXT.md`)

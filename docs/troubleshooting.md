@@ -53,7 +53,7 @@ pnpm db:seed
 API_CORS_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
 ```
 
-For Playwright e2e, the web origin used in the browser (e.g. `http://127.0.0.1:3010`) must be trusted. See ADR 0008 and README `## Environment`.
+For Playwright e2e, the web origin used in the browser (e.g. `http://127.0.0.1:3010`) must be trusted. See ADR 0008 and `MONOREPO_GUIDE.md` section 9 (Runtime and Environment Rules).
 
 ### Session cookie name
 

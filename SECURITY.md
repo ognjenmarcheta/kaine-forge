@@ -44,6 +44,18 @@ Until a dedicated security contact is published, open a private maintainer chann
 - Web SPA must not store a durable session bearer in `localStorage` (cookie credentials only); mobile/desktop may use SecureStore or equivalent bearer transport.
 - Production `BETTER_AUTH_SECRET` must be ≥32 characters and not a known placeholder; hard-gate on `emailVerified` when soft verification (ADR 0007) is not enough.
 
+## Production auth hardening
+
+Template defaults prioritize local DX. Before production multi-tenant traffic:
+
+1. Generate a long random `BETTER_AUTH_SECRET` (≥32 characters); never reuse `.env.example` placeholders.
+2. Set `API_CORS_ORIGINS` to the exact browser origins you serve (required in production; dual-purpose CORS + better-auth `trustedOrigins`).
+3. Replace `EMAIL_PROVIDER=console` with a real adapter in `@repo/email` so password-reset and verification emails leave the process (console logs can include tokens).
+4. Soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, ADR 0007) does not block login. To hard-gate, check `session.user.emailVerified` in app routing or API policy for the surfaces you care about.
+5. Prefer private S3 buckets; never copy the local MinIO anonymous-download pattern to production.
+
+Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.env.example`.
+
 ## Automation
 
 - Dependency audit and secret scanning: `.github/workflows/security.yml`.

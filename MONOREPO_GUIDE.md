@@ -122,8 +122,8 @@ Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-sp
 - Cookies are primary for browser auth (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookies are unreliable.
 - The signup flow auto-creates a default personal organization so every user belongs to at least one organization.
 - The auth surface also covers: organization invitations (admin-gated, accepted by the authenticated user whose email matches), password reset (`/api/auth/request-password-reset`, `/api/auth/reset-password`; resets invalidate sessions), optional soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, never gates login, `emailVerified` on session users), and env-gated GitHub/Google OAuth on web.
-- `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. It is **required in production** (boot fails if unset/empty). A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Environment variable details live in the README `## Environment` section.
-- The API rate-limits `/api/auth/*` and `/graphql` (`API_RATE_LIMIT_*`, `API_TRUST_PROXY`) and exposes `/health` and `/ready` probes. Environment variable details live in the README `## Environment` section.
+- `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. It is **required in production** (boot fails if unset/empty). A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Full variable list: `.env.example` and section 9 below.
+- The API rate-limits `/api/auth/*` and `/graphql` (`API_RATE_LIMIT_*`, `API_TRUST_PROXY`) and exposes `/health` and `/ready` probes. Full variable list: `.env.example` and section 9 below.
 
 ## 7. Feature Flags
 
@@ -156,21 +156,30 @@ CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` 
 
 ## 9. Runtime and Environment Rules
 
-Server-side environment variables use plain names. Vite client variables use `VITE_`. Expo client variables use `EXPO_PUBLIC_`.
+Server-side environment variables use plain names. Vite client variables use `VITE_`. Expo client variables use `EXPO_PUBLIC_`. Start from `.env.example` for the full commented list; this section is the engineering authority for behavior.
 
 Important runtime variables:
 
 | Variable                  | Purpose                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- |
 | `DATABASE_URL`            | Postgres connection string                                              |
-| `BETTER_AUTH_SECRET`      | auth secret                                                             |
+| `BETTER_AUTH_SECRET`      | auth secret (≥32 chars in production; reject placeholders)              |
 | `BETTER_AUTH_URL`         | public auth/API base URL                                                |
+| `EMAIL_PROVIDER`          | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)       |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | soft verification flag (does not gate login; see ADR 0007)       |
+| `GITHUB_*` / `GOOGLE_*`   | optional OAuth; each provider needs both id and secret                  |
+| `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated) |
 | `API_HOST`                | optional API listen host, for example `0.0.0.0` for LAN testing         |
 | `API_PORT`                | API port, default `4000`                                                |
 | `API_URL`                 | API URL for server/runtime references                                   |
 | `API_RUN_MIGRATIONS`      | optional startup migrations; defaults to true only in production        |
-| `API_CORS_ORIGINS`        | comma-separated browser/API origin allowlist                            |
-| `API_GRAPHQL_MAX_DEPTH`   | GraphQL depth limit                                                     |
+| `API_CORS_ORIGINS`        | browser/API origin allowlist; **required in production**                |
+| `API_GRAPHQL_MAX_DEPTH`   | GraphQL depth limit (default 8)                                         |
+| `API_GRAPHQL_MAX_COMPLEXITY` | GraphQL field-selection complexity cap (default 200)                 |
+| `API_GRAPHQL_INTROSPECTION` | force introspection; default off in production                      |
+| `API_RATE_LIMIT_*`        | in-memory rate limit for `/api/auth/*` and `/graphql`                   |
+| `API_TRUST_PROXY`         | set `true` only behind a trusted reverse proxy                          |
+| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*` | org UI visibility flags                          |
 | `AI_TODO_PROVIDER`        | optional AI todo provider, `openai` or `deepseek`; defaults to `openai` |
 | `AI_TODO_MODEL`           | optional model override for the selected AI todo provider               |
 | `OPENAI_API_KEY`          | required for AI todos when `AI_TODO_PROVIDER` is `openai`               |
@@ -181,18 +190,34 @@ Important runtime variables:
 | `EXPO_PUBLIC_API_URL`     | mobile API base URL                                                     |
 | `EXPO_PUBLIC_GRAPHQL_URL` | mobile GraphQL URL                                                      |
 | `S3_*`                    | S3-compatible storage settings                                          |
+| `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*` | optional error-reporting seam (no traffic when disabled) |
+
+**`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
+
+Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases. Password reset uses better-auth routes (`/api/auth/request-password-reset`, `/api/auth/reset-password`). Production hardening checklist: `SECURITY.md`.
 
 Postgres SSL is derived from `DATABASE_URL` query params. `sslmode=verify-ca` and `sslmode=verify-full` require certificate verification. Other enabled SSL modes use TLS without strict certificate verification, which works better for common managed database and local tunnel setups.
 
 The API verifies database connectivity on startup. Production startup can run `runMigrations()` from `@repo/db/migrate` when `API_RUN_MIGRATIONS` resolves true.
+
+### Mobile device testing (LAN)
+
+On a physical phone, `localhost` is the phone, not your laptop. Use:
+
+```bash
+pnpm dev:mobile:lan
+```
+
+The command detects the laptop LAN IPv4, starts the API on `0.0.0.0`, points Expo at that host, and clears Metro's cache. Same Wi-Fi required; allow inbound port `4000` if the firewall prompts. Override with `MOBILE_LAN_IP=192.168.1.42 pnpm dev:mobile:lan` when detection is wrong. Mobile OAuth uses the `kaineforge://` deep-link scheme (`apps/mobile/app.json`); the API trusts that scheme automatically.
 
 ## 10. Docker Rules
 
 The template includes production Dockerfiles for API and web:
 
 - `Dockerfile.api` uses `turbo prune @repo/api --docker`, builds the API graph, fixes emitted ESM extensions, copies package dist outputs, and runs `node apps/api/dist/index.js`.
-- `Dockerfile.web` uses `turbo prune @repo/web --docker`, builds the web graph, and serves the SPA through nginx.
-- `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers.
+- `Dockerfile.web` uses `turbo prune @repo/web --docker`, builds the web graph, and serves the SPA through unprivileged nginx (`nginxinc/nginx-unprivileged` on port `3000`).
+- `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers. Runtime proxy target: `API_BACKEND_URL`.
+- Both images define `HEALTHCHECK` directives: API probes `GET /health` (liveness; `GET /ready` checks database for readiness); web probes nginx.
 - Each top-level `Dockerfile.<app>` defines a deployable app branch contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI remains for dry-runs and repairs.
 - Docker images must stay template-safe. Do not add product-specific services, assets, or secrets.
 
@@ -201,6 +226,7 @@ Build examples:
 ```bash
 docker build -f Dockerfile.api -t kaine-forge-api .
 docker build -f Dockerfile.web -t kaine-forge-web .
+docker run --rm -p 3000:3000 -e API_BACKEND_URL=http://host.docker.internal:4000 kaine-forge-web
 ```
 
 Initialize all deployable app branches intentionally with:
@@ -393,7 +419,7 @@ Organization-scoped client query keys come from `createActiveOrganizationQueryKe
 ## 21. Reference Docs
 
 - `DESIGN_SYSTEM.md`: visual language and tokens.
-- `README.md`: quickstart and template adoption.
+- `README.md`: short landing page (pitch, compare, quickstart, doc map).
 - `CONTRIBUTING.md`: contribution workflow.
 - `SECURITY.md`: security reporting and hardening.
 - `docs/README.md`: documentation index.

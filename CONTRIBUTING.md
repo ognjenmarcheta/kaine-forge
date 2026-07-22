@@ -60,6 +60,29 @@ Turbo docs quick lookup:
 pnpm exec turbo docs "<query>"
 ```
 
+## Template Adoption
+
+After creating a repository from this GitHub template, run adoption once **before** `pnpm initialize` or normal bootstrap. Adoption replaces active Kaine Forge identity with your product identity while preserving internal `@repo/*` package names and imports.
+
+```bash
+pnpm install
+pnpm template:adopt
+# review dry-run, then:
+pnpm template:adopt --write
+pnpm ai:install
+pnpm ai:doctor
+pnpm template:adopt --check
+```
+
+Non-interactive: create `template-adoption.json` with at least `productName`, `desktopIdentifier`, `compatibilityPolicy`, and `designCompatibilityPolicy`, then:
+
+```bash
+pnpm template:adopt --config template-adoption.json --write
+pnpm ai:install && pnpm ai:doctor && pnpm template:adopt --check
+```
+
+After adoption: rotate secrets, rewrite `.env.example` defaults, review remaining `--check` findings, and keep org-specific MCP/skills only in the downstream project.
+
 ## AI Assistant Files
 
 `.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
