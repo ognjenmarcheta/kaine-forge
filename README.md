@@ -93,5 +93,3 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 | Full documentation index | [`docs/README.md`](docs/README.md) |
 
 **Everyday commands:** `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
-
-> **Later:** multi-page navigation is planned as a real docs site (e.g. VitePress), not a growing pile of hand-linked markdown pages. Until then, the map above is the hub.
