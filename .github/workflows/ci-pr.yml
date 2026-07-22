@@ -15,8 +15,59 @@ permissions:
 
 env:
   PNPM_VERSION: "10.29.3"
+  # Optional remote Turbo cache — no-ops when secrets/vars are unset.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
+  detect-paths:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docker: ${{ steps.filter.outputs.docker }}
+      graphql: ${{ steps.filter.outputs.graphql }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Path filters
+        id: filter
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        with:
+          filters: |
+            code:
+              - "apps/**"
+              - "packages/**"
+              - "tooling/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "turbo.json"
+              - "tsconfig.base.json"
+              - "vitest*.ts"
+              - "eslint.config.mjs"
+              - "scripts/**"
+            docker:
+              - "Dockerfile.api"
+              - "Dockerfile.web"
+              - "apps/api/**"
+              - "apps/web/**"
+              - "packages/**"
+              - "scripts/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "turbo.json"
+              - "tsconfig.base.json"
+            graphql:
+              - "apps/api/src/features/**"
+              - "apps/api/src/schema/**"
+              - "apps/api/schema.graphql"
+              - "apps/web/src/graphql/**"
+              - "apps/mobile/src/graphql/**"
+              - "tooling/graphql-codegen/**"
+
   changeset-required:
     name: Changeset Required
     if: github.event_name == 'pull_request'
@@ -94,7 +145,10 @@ jobs:
 
   graphql-schema:
     name: GraphQL Schema Compatibility
-    if: github.event_name == 'pull_request'
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.detect-paths.outputs.graphql == 'true'
+    needs: detect-paths
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -150,8 +204,13 @@ jobs:
 
   build-core:
     name: Build Core Apps
+    # Skip pure docs/AI PRs; always run outside pull_request (merge queue / dispatch).
+    if: |
+      always() &&
+      needs.check-fast.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
     runs-on: ubuntu-latest
-    needs: check-fast
+    needs: [check-fast, detect-paths]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -183,43 +242,27 @@ jobs:
 
   docker-images:
     name: Docker Image Builds
+    if: |
+      always() &&
+      needs.check-fast.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.detect-paths.outputs.docker == 'true')
     runs-on: ubuntu-latest
-    needs: check-fast
+    needs: [check-fast, detect-paths]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Detect Docker-related paths
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            docker:
-              - "Dockerfile.api"
-              - "Dockerfile.web"
-              - "apps/api/**"
-              - "apps/web/**"
-              - "packages/**"
-              - "scripts/**"
-              - "package.json"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "turbo.json"
-              - "tsconfig.base.json"
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Build API image
-        if: steps.filter.outputs.docker == 'true' || github.event_name != 'pull_request'
         run: docker build -f Dockerfile.api -t kaine-forge-api:ci .
 
       - name: Build web image
-        if: steps.filter.outputs.docker == 'true' || github.event_name != 'pull_request'
         run: docker build -f Dockerfile.web -t kaine-forge-web:ci .
 
-      - name: Skip note
-        if: steps.filter.outputs.docker != 'true' && github.event_name == 'pull_request'
-        run: echo "No Docker-related paths changed; skipping image builds."
   e2e-web-api:
     name: E2E Web/API
+    if: |
+      always() &&
+      needs.build-core.result == 'success'
     runs-on: ubuntu-latest
     needs: build-core
     services:

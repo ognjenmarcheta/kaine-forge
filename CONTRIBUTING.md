@@ -153,3 +153,9 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 - Use `@repo/ui` for web/desktop UI and `@repo/mobile-ui` for mobile UI.
 - Use design tokens for visual values.
 - Preserve FDD naming and `@repo/*` package boundaries.
+
+## CI speed (maintainers)
+
+Optional remote Turborepo cache: set repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible). When unset, CI still uses local `.turbo/cache` actions.
+
+Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs that do not touch `apps/**`, `packages/**`, or related tooling.
