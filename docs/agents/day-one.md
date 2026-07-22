@@ -22,12 +22,14 @@ Fix lint errors on canonical `.ai/` sources before coding. Drift warnings: re-ru
 
 ## 3. Read order (minimum)
 
-1. `CONTEXT.md` — domain vocabulary
+1. `CONTEXT.md` — domain vocabulary **and** which features are mobile-supported vs web-first (Template platform surfaces)
 2. `REVIEW.md` — what reviews will enforce
-3. `MONOREPO_GUIDE.md` — architecture and package rules
+3. `MONOREPO_GUIDE.md` — architecture and package rules (including §19 feature ladder: API + web by default)
 4. `DESIGN_SYSTEM.md` — only if the change touches UI
 
 Optional: `docs/adr/` for decisions in the area you touch; `docs/agents/domain.md` for how agents consume domain docs.
+
+Do not invent mobile parity for notes/assistant unless the task explicitly requires it.
 
 ## 4. Prefer skills over freeform
 

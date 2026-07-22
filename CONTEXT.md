@@ -52,6 +52,26 @@ _Avoid_: account activation
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
 > **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Active Organization** resolved from the session."
 
+## Template platform surfaces
+
+This repository is a multi-platform **template**. Reference features are not required to ship on every client surface. Use this matrix when adding or reviewing product work so agents do not invent mobile parity that the template does not claim.
+
+| Surface                      | Role in the template                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| **API** (`apps/api`)         | Canonical GraphQL + auth for all clients.                                                       |
+| **Web** (`apps/web`)         | Primary product UI and Playwright e2e surface. Desktop reuses the web build via Tauri.          |
+| **Mobile** (`apps/mobile`)   | Subset client: auth, dashboard, todos (+ attachments), shared org session. Not full web parity. |
+| **Desktop** (`apps/desktop`) | Tauri shell around web — no separate feature tree.                                              |
+
+**Mobile-supported reference features (today):** auth, dashboard, todos (CRUD and attachments), organization session/switch when `ORGANIZATIONS_VISIBLE` is enabled (members route is thin).
+
+**Web-first / web-only reference features (API + web; not mobile UI or mobile GraphQL ops):** notes, assistant (and any new feature that does not explicitly opt into mobile).
+
+**When a new feature must include mobile:** only when the task or product policy says so, or when the feature is meant to replace/extend the mobile-supported set above. Default for “add a feature” is API + web; add mobile operations and screens as an explicit follow-up, not an implied requirement.
+
+**Do not** treat missing mobile notes/assistant as a bug unless the product scope requires mobile parity.
+
 ## Flagged Ambiguities
 
 - "context" can mean GraphQL runtime context or domain request identity. Use **Authenticated Organization Scope** for the domain request identity used by organization-scoped API work.
+- "full-stack feature" can mean API + web only, or API + web + mobile. Prefer the **Template platform surfaces** matrix over assuming mobile is required.
