@@ -85,7 +85,12 @@ jobs:
         run: pnpm run test
 
       - name: Coverage threshold
-        run: pnpm run coverage
+        env:
+          # Some API modules import the DB client at load time.
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
+        run: |
+          pnpm run coverage
+          pnpm run coverage:core
 
   graphql-schema:
     name: GraphQL Schema Compatibility
