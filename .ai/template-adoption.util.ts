@@ -294,6 +294,8 @@ const replacePolicyBlock = (source: string, replacement: string): [string, numbe
 const replacementsForConfig = (
   config: TemplateAdoptionConfig
 ): ReadonlyArray<readonly [string, string]> => [
+  // Before the generic kaine-forge pair, which would slug-case the web title.
+  ["<title>kaine-forge</title>", `<title>${config.webTitle}</title>`],
   ["com.kaine.forge.desktop", config.desktopIdentifier],
   ["Kaine Forge Mobile", config.mobileName],
   ["Kaine Forge Desktop", config.desktopWindowTitle],

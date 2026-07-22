@@ -163,6 +163,7 @@ describe("applyTemplateAdoption", () => {
       'name = "acme_ops_desktop_lib"'
     );
     expect(result.files.get("docs/troubleshooting.md")).toContain("`acme-ops.session_token`");
+    expect(result.files.get("apps/web/index.html")).toBe("<title>Acme Ops</title>\n");
     expect(result.files.get("package.json")).toContain('"name": "acme-ops"');
     expect(result.files.get("package.json")).toContain('"@repo/ui": "workspace:*"');
     expect(result.files.get("README.md")).toContain("# Acme Ops");
