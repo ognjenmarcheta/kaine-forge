@@ -6,9 +6,13 @@ argument-hint: optional app list, dry-run request, or base ref
 
 # Release Deployable Apps
 
-Use this skill after a change has been merged to `main` and you need to update only the deployable app branches affected by that change.
+Use this skill when deployable app release branches need attention after a change lands on `main`.
 
-## Workflow
+## Automated path
+
+The GitHub **Release** workflow (`.github/workflows/release.yml`) runs `pnpm release:apps` on every successful `main` push after quality gates and before the changesets version step. Prefer relying on that automation. Manual CLI is for dry-runs, repairs, or when automation was skipped.
+
+## Manual workflow
 
 1. Confirm the repo is on `main`, the working tree is clean, and local `main` is synchronized with `origin/main`.
 2. Identify whether the change affects a deployable app. Deployable apps are defined by top-level `Dockerfile.<app>` files and shared package changes fan out through the workspace graph.

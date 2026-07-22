@@ -143,7 +143,7 @@ pnpm release:apps --dry-run
 pnpm release:apps
 ```
 
-This updates only the affected `release/<app>` branches, which lets deployment systems such as Dokploy watch per-app branches instead of redeploying every app on each merge. Use `pnpm release:apps --apps all` to initialize missing release branches intentionally.
+On `main`, the Release workflow runs `pnpm release:apps` after quality gates so most merges need no manual step. Manual CLI is for dry-runs, repairs, or skipped automation. The command updates only the affected `release/<app>` branches, which lets deployment systems such as Dokploy watch per-app branches instead of redeploying every app on each merge. Use `pnpm release:apps --apps all` to initialize missing release branches intentionally.
 
 ## Coding Standards
 

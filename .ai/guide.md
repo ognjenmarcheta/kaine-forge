@@ -27,7 +27,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
 - Do not commit secrets or local assistant state.
-- Treat every top-level `Dockerfile.<app>` as a deployable app contract. After changes that affect a deployable app reach `main`, run `pnpm release:apps` so only the matching `release/<app>` branches move.
+- Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; use the CLI for dry-runs or repairs so only matching `release/<app>` branches move.
 
 ## Common Commands
 

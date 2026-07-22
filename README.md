@@ -125,7 +125,7 @@ docker build -f Dockerfile.web -t kaine-forge-web .
 
 The API image runs `node apps/api/dist/index.js`. The web image serves `apps/web/dist` through unprivileged nginx (`nginxinc/nginx-unprivileged`, runs as the non-root `nginx` user) on port `3000`, proxies `/api` and `/graphql` to `API_BACKEND_URL`, supports GraphQL websocket upgrades, and falls back to `index.html` for SPA routes.
 
-Each top-level `Dockerfile.<app>` also defines a deployable app branch contract. After app-affecting changes are merged to `main`, run `pnpm release:apps` to create or fast-forward only the matching `release/<app>` branches. Use `pnpm release:apps --apps all` once to initialize every deployable app branch intentionally.
+Each top-level `Dockerfile.<app>` also defines a deployable app branch contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates so affected `release/<app>` branches update automatically. Manual `pnpm release:apps` (or `--dry-run`) remains available for repairs; use `pnpm release:apps --apps all` once to initialize every deployable app branch intentionally.
 
 Example web runtime:
 
