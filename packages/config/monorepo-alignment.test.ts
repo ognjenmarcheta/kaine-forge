@@ -49,6 +49,32 @@ describe("monorepo alignment", () => {
     });
   });
 
+  it("emits flat dist for Docker-backed tsc packages (no nested monorepo paths)", () => {
+    // Root paths map @repo/* to source, which widens tsc rootDir and nests dist
+    // (e.g. apps/api/dist/apps/api/src). Production builds clear paths and pin rootDir.
+    const dockerBackedPackages = ["packages/email", "packages/auth", "apps/api"] as const;
+
+    for (const packageDir of dockerBackedPackages) {
+      const buildConfig = readJson(`${packageDir}/tsconfig.build.json`) as {
+        compilerOptions?: Record<string, unknown>;
+        exclude?: string[];
+      };
+      const packageJson = readJson(`${packageDir}/package.json`) as {
+        scripts?: Record<string, string>;
+      };
+
+      expect(buildConfig.compilerOptions).toMatchObject({
+        rootDir: "src",
+        outDir: "dist",
+        paths: {}
+      });
+      expect(buildConfig.exclude?.some((pattern) => pattern.includes("*.test.ts"))).toBe(true);
+      expect(packageJson.scripts?.build).toContain("tsconfig.build.json");
+    }
+
+    expect(readText("Dockerfile.api")).toContain("test -f apps/api/dist/index.js");
+  });
+
   it("publishes documented subpath exports for core packages", () => {
     assertPackageHasExports("packages/db/package.json", [
       ".",
