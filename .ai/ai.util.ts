@@ -14,6 +14,8 @@ export const MCP_JSON_EXAMPLE_SRC = join(AI_DIR, "mcp.json.example");
 export const CURSOR_RULES_SRC = join(AI_DIR, "cursor-rules.md");
 export const SERENA_PROJECT_SRC = join(AI_DIR, "serena-project.yml");
 export const SERENA_MEMORIES_SRC_DIR = join(AI_DIR, "serena-memories");
+export const REVIEW_SRC = join(AI_DIR, "review.md");
+export const REVIEW_OUT = join(REPO_ROOT, "REVIEW.md");
 export const LOCAL_MCP_ENV_SRC = join(REPO_ROOT, ".ai.local", "mcp.env");
 export const LOCAL_MCP_SRC = join(REPO_ROOT, ".ai.local", "mcp.json");
 
@@ -21,6 +23,17 @@ export const KAINE_PREFIX = "kaine-";
 export const GEN_NOTICE = "GENERATED FILE. Do not edit directly. Run: pnpm ai:install";
 export const HTML_HEADER = `<!-- ${GEN_NOTICE} -->`;
 export const TOML_HEADER = `# ${GEN_NOTICE}`;
+
+export const REVIEW_REQUIRED_HEADINGS = [
+  "Correctness",
+  "Security, Auth & Tenancy",
+  "Architecture & Boundaries",
+  "Data & GraphQL",
+  "UI & i18n",
+  "Quality Gates",
+  "Domain Language",
+  "Template & AI Hygiene"
+] as const;
 
 const ALL_AGENTS = ["claude", "codex", "cursor", "opencode"] as const;
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
@@ -598,6 +611,8 @@ export const renderSerenaProject = (source: string): string =>
 
 export const renderSerenaMemory = (source: string): string =>
   `${HTML_HEADER}\n\n${source.trim()}\n`;
+
+export const renderReviewDoc = (source: string): string => `${HTML_HEADER}\n\n${source.trim()}\n`;
 
 export const renderMcpJson = (source: McpSource): string =>
   `${JSON.stringify({ _generated: GEN_NOTICE, ...source }, null, 2)}\n`;

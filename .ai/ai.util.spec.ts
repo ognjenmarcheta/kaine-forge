@@ -24,9 +24,11 @@ import {
   renderMcpJson,
   renderOpencodeConfig,
   renderOpencodeSkill,
+  renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
-  resolveInstallMcpSource
+  resolveInstallMcpSource,
+  REVIEW_REQUIRED_HEADINGS
 } from "./ai.util";
 
 const agentDef = (
@@ -250,6 +252,34 @@ describe("serena renderers", () => {
     expect(renderSerenaMemory("# Memory\n")).toBe(
       "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n# Memory\n"
     );
+  });
+});
+
+describe("renderReviewDoc", () => {
+  it("wraps the source with the HTML generated-file notice", () => {
+    expect(renderReviewDoc("# Review\n\nBody.")).toBe(
+      "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n# Review\n\nBody.\n"
+    );
+  });
+
+  it("trims surrounding whitespace on the source body", () => {
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n")).toContain("## Correctness\n\n- x\n");
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n").startsWith("<!--")).toBe(true);
+  });
+});
+
+describe("REVIEW_REQUIRED_HEADINGS", () => {
+  it("lists the eight compact-hybrid headings in order", () => {
+    expect([...REVIEW_REQUIRED_HEADINGS]).toEqual([
+      "Correctness",
+      "Security, Auth & Tenancy",
+      "Architecture & Boundaries",
+      "Data & GraphQL",
+      "UI & i18n",
+      "Quality Gates",
+      "Domain Language",
+      "Template & AI Hygiene"
+    ]);
   });
 });
 
