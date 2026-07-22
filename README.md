@@ -26,7 +26,11 @@ Capability-focused snapshot against common TypeScript monorepo starters (not a p
 | Nx integrated      |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
 | Turbo kitchen-sink |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
 
-Use Kaine Forge when you want web + mobile + desktop, organization-scoped data, and agent-aligned engineering defaults from one template. Prefer next-forge or create-t3-turbo for a Next.js-first SaaS lane with more community mindshare; prefer Nx when you need an enterprise monorepo platform rather than a product starter.
+### Verdict
+
+**Kaine Forge** is for teams shipping a multi-platform product monorepo: web + API + Expo mobile + Tauri desktop, organization-scoped multi-tenant defaults, token design systems, Docker release contracts, and a first-class AI assistant scaffold so agents stay aligned with repo rules.
+
+It is not a Next.js App Router / RSC marketing starter, not an enterprise monorepo platform with generators, and not a blank Turbo kitchen-sink. The matrix above is for capability fit—not a suggestion to use another template when those other lanes matter more to you.
 
 ## Prerequisites
 
