@@ -16,4 +16,17 @@ describe("createEmailSender", () => {
   it("throws on an unknown provider, naming the value", () => {
     expect(() => createEmailSender({ EMAIL_PROVIDER: "sendgrid" })).toThrow(/sendgrid/);
   });
+
+  it("creates a resend sender when RESEND_API_KEY is set", () => {
+    const sender = createEmailSender({
+      EMAIL_PROVIDER: "resend",
+      RESEND_API_KEY: "re_test",
+      EMAIL_FROM: "app@example.com"
+    });
+    expect(typeof sender.send).toBe("function");
+  });
+
+  it("requires RESEND_API_KEY when provider is resend", () => {
+    expect(() => createEmailSender({ EMAIL_PROVIDER: "resend" })).toThrow(/RESEND_API_KEY/);
+  });
 });
