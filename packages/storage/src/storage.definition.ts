@@ -22,7 +22,8 @@ export const FILE_STATUS = {
 } as const;
 
 export const COMMON_MIME_TYPES = {
-  images: ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"],
+  // SVG omitted by default: can execute scripts when served as image/document.
+  images: ["image/jpeg", "image/png", "image/gif", "image/webp"],
   documents: [
     "application/pdf",
     "application/msword",
@@ -35,3 +36,10 @@ export const COMMON_MIME_TYPES = {
     "text/csv"
   ]
 } as const;
+
+/** Default allowlist used when callers omit `allowedMimeTypes`. */
+export const DEFAULT_ALLOWED_MIME_TYPES: readonly string[] = [
+  ...COMMON_MIME_TYPES.images,
+  ...COMMON_MIME_TYPES.documents,
+  ...COMMON_MIME_TYPES.spreadsheets
+];

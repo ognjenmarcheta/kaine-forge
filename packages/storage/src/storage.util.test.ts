@@ -141,6 +141,14 @@ describe("validateFile", () => {
 
     expect(result.valid).toBe(true);
   });
+
+  it("applies the default MIME allowlist when options omit allowedMimeTypes", () => {
+    expect(validateFile({ mimeType: "image/png", sizeBytes: 1024 }).valid).toBe(true);
+    expect(validateFile({ mimeType: "image/svg+xml", sizeBytes: 1024 }).valid).toBe(false);
+    expect(validateFile({ mimeType: "application/x-msdownload", sizeBytes: 1024 }).valid).toBe(
+      false
+    );
+  });
 });
 
 describe("getFileExtension", () => {

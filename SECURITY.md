@@ -38,6 +38,7 @@ Until a dedicated security contact is published, open a private maintainer chann
 - Prefer least-privilege defaults for external integrations.
 - Rotate secrets immediately if exposure is suspected.
 - Validate inputs at API boundaries.
+- Template uploads use a default MIME allowlist (images/docs/spreadsheets; no SVG) and re-check object size/type on confirm when HEAD metadata is available.
 - Use Drizzle parameterized queries instead of handwritten SQL interpolation.
 - Keep cookies primary for browser auth and bearer-token fallback limited to session-token transport.
 

@@ -7,7 +7,14 @@ import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 interface StoredFile {
   id: string;
   key: string;
+  mimeType?: string;
+  sizeBytes?: number;
   status?: string;
+}
+
+interface ObjectMetadata {
+  contentType?: string | undefined;
+  sizeBytes?: number | undefined;
 }
 
 interface PresignedUpload {
@@ -46,6 +53,8 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
   defaultEntityType: string;
   deleteObject: (bucket: string, key: string) => Promise<void>;
   fileExists: (bucket: string, key: string) => Promise<boolean>;
+  /** Optional HEAD of the object to re-check size/content-type on confirm. */
+  getObjectMetadata?: (bucket: string, key: string) => Promise<ObjectMetadata | null>;
   getFileById: (scope: AuthenticatedOrganizationScope, fileId: string) => Promise<TFile | null>;
   listFiles: (scope: AuthenticatedOrganizationScope, filter: FilesFilterInput) => Promise<TFile[]>;
   presignedUrlExpirySeconds: number | (() => number);
@@ -118,10 +127,59 @@ export function createStorageLifecycle<TFile extends StoredFile>(
         throw new Error(`file status is ${file.status ?? "unknown"}, expected pending`);
       }
 
+      // Re-apply default policy to claimed metadata (size + MIME allowlist).
+      if (typeof file.sizeBytes === "number" && typeof file.mimeType === "string") {
+        const validation = validateFile({
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes
+        });
+
+        if (!validation.valid) {
+          throw new Error(`file validation failed: ${validation.errors.join(", ")}`);
+        }
+      }
+
       const exists = await adapter.fileExists(getBucket(), file.key);
 
       if (!exists) {
         throw new Error("file has not been uploaded to storage");
+      }
+
+      if (adapter.getObjectMetadata) {
+        const metadata = await adapter.getObjectMetadata(getBucket(), file.key);
+
+        if (!metadata) {
+          throw new Error("file has not been uploaded to storage");
+        }
+
+        if (
+          typeof metadata.sizeBytes === "number" &&
+          metadata.sizeBytes > STORAGE_DEFAULTS.maxFileSizeBytes
+        ) {
+          throw new Error(
+            `uploaded object size ${metadata.sizeBytes} exceeds maximum ${STORAGE_DEFAULTS.maxFileSizeBytes} bytes`
+          );
+        }
+
+        if (
+          typeof metadata.sizeBytes === "number" &&
+          typeof file.sizeBytes === "number" &&
+          metadata.sizeBytes > file.sizeBytes
+        ) {
+          throw new Error(
+            `uploaded object size ${metadata.sizeBytes} exceeds claimed size ${file.sizeBytes} bytes`
+          );
+        }
+
+        if (
+          metadata.contentType &&
+          file.mimeType &&
+          metadata.contentType.split(";")[0]?.trim().toLowerCase() !== file.mimeType.toLowerCase()
+        ) {
+          throw new Error(
+            `uploaded content type ${metadata.contentType} does not match claimed type ${file.mimeType}`
+          );
+        }
       }
 
       return adapter.updateFileStatus(scope, file.id, "uploaded");

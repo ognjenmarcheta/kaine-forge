@@ -3,6 +3,7 @@ import {
   deleteObject,
   generatePresignedDownloadUrl,
   generatePresignedUploadUrl,
+  headObjectMetadata,
   objectExists,
   resolveStorageConfig
 } from "@repo/storage";
@@ -16,6 +17,8 @@ import type { StorageLifecycleAdapter } from "./storage.lifecycle";
 export interface StorageRuntimeFile {
   id: string;
   key: string;
+  mimeType?: string;
+  sizeBytes?: number;
   status?: string;
 }
 
@@ -83,6 +86,7 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
       await deleteObject(getS3Client(), bucket, key);
     },
     fileExists: async (bucket, key) => objectExists(getS3Client(), bucket, key),
+    getObjectMetadata: async (bucket, key) => headObjectMetadata(getS3Client(), bucket, key),
     getFileById: async (scope, fileId) => {
       const adapter = await import("./storage.adapter");
       return adapter.getFileById(scope, fileId);

@@ -1,4 +1,4 @@
-import { STORAGE_DEFAULTS } from "./storage.definition";
+import { DEFAULT_ALLOWED_MIME_TYPES, STORAGE_DEFAULTS } from "./storage.definition";
 import type {
   FileValidationInput,
   FileValidationOptions,
@@ -43,14 +43,16 @@ export function validateFile(
   options: Partial<FileValidationOptions> = {}
 ): FileValidationResult {
   const maxSize = options.maxSizeBytes ?? STORAGE_DEFAULTS.maxFileSizeBytes;
-  const allowedTypes = options.allowedMimeTypes;
+  // Empty array opts out of MIME checks for advanced callers; omit/undefined uses defaults.
+  const allowedTypes =
+    options.allowedMimeTypes === undefined ? DEFAULT_ALLOWED_MIME_TYPES : options.allowedMimeTypes;
   const errors: string[] = [];
 
   if (input.sizeBytes > maxSize) {
     errors.push(`file size ${input.sizeBytes} exceeds maximum ${maxSize} bytes`);
   }
 
-  if (allowedTypes && allowedTypes.length > 0 && !allowedTypes.includes(input.mimeType)) {
+  if (allowedTypes.length > 0 && !allowedTypes.includes(input.mimeType)) {
     errors.push(`mime type ${input.mimeType} is not allowed`);
   }
 
