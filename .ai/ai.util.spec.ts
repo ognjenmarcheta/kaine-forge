@@ -7,7 +7,10 @@ import {
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   lintAgentDefinitionsDir,
+  lintContextSource,
+  lintDomainKnowledgeArtifacts,
   lintGuideSkillList,
+  lintReviewSource,
   missingEnvVarsForMcpServers,
   mergeMcpSources,
   parseAgentDefinitionFile,
@@ -280,6 +283,137 @@ describe("REVIEW_REQUIRED_HEADINGS", () => {
       "Domain Language",
       "Template & AI Hygiene"
     ]);
+  });
+});
+
+const fullReview = [
+  "# Review Checklist",
+  "",
+  ...REVIEW_REQUIRED_HEADINGS.flatMap((h) => [`## ${h}`, "", "- rule", ""]),
+  ""
+].join("\n");
+
+describe("lintReviewSource", () => {
+  it("errors when the source is missing", () => {
+    const issues = lintReviewSource(null);
+    expect(issues.some((i) => i.level === "error" && i.message.includes("missing"))).toBe(true);
+  });
+
+  it("errors when a required heading is absent", () => {
+    const issues = lintReviewSource("# Review\n\n## Correctness\n\n- x\n");
+    expect(issues.some((i) => i.message.includes("Security, Auth & Tenancy"))).toBe(true);
+  });
+
+  it("passes a complete checklist", () => {
+    expect(lintReviewSource(fullReview)).toEqual([]);
+  });
+});
+
+describe("lintContextSource", () => {
+  it("errors when CONTEXT is missing", () => {
+    expect(lintContextSource(null).length).toBeGreaterThan(0);
+  });
+
+  it("errors when Language, Relationships, or Example dialogue is missing", () => {
+    const issues = lintContextSource("# Context\n\n## Language\n\n");
+    expect(issues.some((i) => i.message.includes("Relationships"))).toBe(true);
+  });
+
+  it("passes a minimal valid CONTEXT shape", () => {
+    const content = [
+      "# Context",
+      "",
+      "## Language",
+      "",
+      "**Org**:",
+      "",
+      "## Relationships",
+      "",
+      "- A relates to B.",
+      "",
+      "## Example dialogue",
+      "",
+      "> example",
+      ""
+    ].join("\n");
+    expect(lintContextSource(content)).toEqual([]);
+  });
+});
+
+describe("lintDomainKnowledgeArtifacts", () => {
+  const base = {
+    reviewContent: fullReview,
+    contextContent: [
+      "# C",
+      "",
+      "## Language",
+      "",
+      "x",
+      "",
+      "## Relationships",
+      "",
+      "y",
+      "",
+      "## Example dialogue",
+      "",
+      "z"
+    ].join("\n"),
+    skillNames: ["kaine-encode-knowledge", "kaine-review", "kaine-sync-docs"],
+    kaineReviewBody: "Apply the checklist in `REVIEW.md` (installed from `.ai/review.md`).",
+    contributingContent: "## Day-one agent ramp\n\nSee `docs/agents/day-one.md`.\n",
+    dayOneExists: true,
+    serenaMemoryNames: [
+      "architecture_patterns.md",
+      "coding_standards.md",
+      "domain_overview.md",
+      "environment_setup.md",
+      "project_overview.md",
+      "quality_expectations.md",
+      "suggested_commands.md",
+      "task_completion_checklist.md"
+    ]
+  };
+
+  it("errors when kaine-encode-knowledge is missing from skills", () => {
+    const issues = lintDomainKnowledgeArtifacts({
+      ...base,
+      skillNames: ["kaine-review"]
+    });
+    expect(issues.some((i) => i.message.includes("kaine-encode-knowledge"))).toBe(true);
+  });
+
+  it("errors when kaine-review does not reference REVIEW", () => {
+    const issues = lintDomainKnowledgeArtifacts({
+      ...base,
+      kaineReviewBody: "Review the diff only."
+    });
+    expect(issues.some((i) => i.message.toLowerCase().includes("review"))).toBe(true);
+  });
+
+  it("errors when day-one doc is missing or CONTRIBUTING lacks the ramp section", () => {
+    expect(
+      lintDomainKnowledgeArtifacts({ ...base, dayOneExists: false }).some((i) =>
+        i.message.includes("day-one")
+      )
+    ).toBe(true);
+    expect(
+      lintDomainKnowledgeArtifacts({
+        ...base,
+        contributingContent: "# Contributing\n\nNo ramp.\n"
+      }).some((i) => i.message.includes("Day-one") || i.message.includes("day-one"))
+    ).toBe(true);
+  });
+
+  it("errors when a required Serena memory is missing", () => {
+    const issues = lintDomainKnowledgeArtifacts({
+      ...base,
+      serenaMemoryNames: ["project_overview.md"]
+    });
+    expect(issues.some((i) => i.message.includes("architecture_patterns"))).toBe(true);
+  });
+
+  it("passes a complete artifact set", () => {
+    expect(lintDomainKnowledgeArtifacts(base)).toEqual([]);
   });
 });
 

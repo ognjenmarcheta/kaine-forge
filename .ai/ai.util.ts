@@ -16,6 +16,9 @@ export const SERENA_PROJECT_SRC = join(AI_DIR, "serena-project.yml");
 export const SERENA_MEMORIES_SRC_DIR = join(AI_DIR, "serena-memories");
 export const REVIEW_SRC = join(AI_DIR, "review.md");
 export const REVIEW_OUT = join(REPO_ROOT, "REVIEW.md");
+export const CONTEXT_OUT = join(REPO_ROOT, "CONTEXT.md");
+export const DAY_ONE_DOC = join(REPO_ROOT, "docs", "agents", "day-one.md");
+export const CONTRIBUTING_OUT = join(REPO_ROOT, "CONTRIBUTING.md");
 export const LOCAL_MCP_ENV_SRC = join(REPO_ROOT, ".ai.local", "mcp.env");
 export const LOCAL_MCP_SRC = join(REPO_ROOT, ".ai.local", "mcp.json");
 
@@ -34,6 +37,21 @@ export const REVIEW_REQUIRED_HEADINGS = [
   "Domain Language",
   "Template & AI Hygiene"
 ] as const;
+
+export const CONTEXT_REQUIRED_HEADINGS = ["Language", "Relationships", "Example dialogue"] as const;
+
+export const REQUIRED_SERENA_MEMORIES = [
+  "architecture_patterns.md",
+  "coding_standards.md",
+  "domain_overview.md",
+  "environment_setup.md",
+  "project_overview.md",
+  "quality_expectations.md",
+  "suggested_commands.md",
+  "task_completion_checklist.md"
+] as const;
+
+export const DAY_ONE_CONTRIBUTING_MARKER = "Day-one agent ramp";
 
 const ALL_AGENTS = ["claude", "codex", "cursor", "opencode"] as const;
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
@@ -103,6 +121,22 @@ export interface LintIssue {
   file: string;
   level: "error" | "warning";
   message: string;
+}
+
+export interface DomainKnowledgeLintInput {
+  reviewContent: string | null;
+  contextContent: string | null;
+  skillNames: string[];
+  kaineReviewBody: string | null;
+  contributingContent: string | null;
+  dayOneExists: boolean;
+  serenaMemoryNames: string[];
+  reviewFile?: string;
+  contextFile?: string;
+  contributingFile?: string;
+  skillsDir?: string;
+  dayOneFile?: string;
+  serenaDir?: string;
 }
 
 export interface WriteResult {
@@ -424,6 +458,164 @@ export const computeAgentDefinitionDrift = (
 };
 
 const GUIDE_SKILL_LIST_HEADER = "Use skills when they match the task:";
+
+export const lintReviewSource = (
+  content: string | null,
+  file: string = REVIEW_SRC
+): LintIssue[] => {
+  if (content === null) {
+    return [{ file, level: "error", message: "missing .ai/review.md (canonical REVIEW source)" }];
+  }
+  const issues: LintIssue[] = [];
+  for (const heading of REVIEW_REQUIRED_HEADINGS) {
+    const needle = `## ${heading}`;
+    if (!content.includes(needle)) {
+      issues.push({
+        file,
+        level: "error",
+        message: `review source missing required heading '${needle}'`
+      });
+    }
+  }
+  return issues;
+};
+
+export const lintContextSource = (
+  content: string | null,
+  file: string = CONTEXT_OUT
+): LintIssue[] => {
+  if (content === null) {
+    return [{ file, level: "error", message: "missing CONTEXT.md" }];
+  }
+  const issues: LintIssue[] = [];
+  for (const heading of CONTEXT_REQUIRED_HEADINGS) {
+    const needle = `## ${heading}`;
+    if (!content.includes(needle)) {
+      issues.push({
+        file,
+        level: "error",
+        message: `CONTEXT.md missing required heading '${needle}'`
+      });
+    }
+  }
+  return issues;
+};
+
+export const lintDomainKnowledgeArtifacts = (input: DomainKnowledgeLintInput): LintIssue[] => {
+  const reviewFile = input.reviewFile ?? REVIEW_SRC;
+  const contextFile = input.contextFile ?? CONTEXT_OUT;
+  const contributingFile = input.contributingFile ?? CONTRIBUTING_OUT;
+  const skillsDir = input.skillsDir ?? SKILLS_SRC_DIR;
+  const dayOneFile = input.dayOneFile ?? DAY_ONE_DOC;
+  const serenaDir = input.serenaDir ?? SERENA_MEMORIES_SRC_DIR;
+
+  const issues: LintIssue[] = [
+    ...lintReviewSource(input.reviewContent, reviewFile),
+    ...lintContextSource(input.contextContent, contextFile)
+  ];
+
+  if (!input.skillNames.includes("kaine-encode-knowledge")) {
+    issues.push({
+      file: skillsDir,
+      level: "error",
+      message: "skill 'kaine-encode-knowledge' is missing from .ai/skills"
+    });
+  }
+
+  if (input.kaineReviewBody === null) {
+    issues.push({
+      file: join(skillsDir, "kaine-review.md"),
+      level: "error",
+      message: "skill 'kaine-review' is missing"
+    });
+  } else if (
+    !/REVIEW\.md/i.test(input.kaineReviewBody) &&
+    !/\.ai\/review\.md/i.test(input.kaineReviewBody)
+  ) {
+    issues.push({
+      file: join(skillsDir, "kaine-review.md"),
+      level: "error",
+      message: "kaine-review must reference REVIEW.md or .ai/review.md checklist"
+    });
+  }
+
+  if (!input.dayOneExists) {
+    issues.push({
+      file: dayOneFile,
+      level: "error",
+      message: "missing docs/agents/day-one.md"
+    });
+  }
+
+  if (input.contributingContent === null) {
+    issues.push({
+      file: contributingFile,
+      level: "error",
+      message: "missing CONTRIBUTING.md"
+    });
+  } else if (!input.contributingContent.includes(DAY_ONE_CONTRIBUTING_MARKER)) {
+    issues.push({
+      file: contributingFile,
+      level: "error",
+      message: `CONTRIBUTING.md missing '${DAY_ONE_CONTRIBUTING_MARKER}' section`
+    });
+  }
+
+  const presentMemories = new Set(input.serenaMemoryNames);
+  for (const name of REQUIRED_SERENA_MEMORIES) {
+    if (!presentMemories.has(name)) {
+      issues.push({
+        file: serenaDir,
+        level: "error",
+        message: `required Serena memory missing: ${name}`
+      });
+    }
+  }
+
+  return issues;
+};
+
+/** Disk-backed entry point used by ai:doctor */
+export const lintDomainKnowledgeInfra = (): LintIssue[] => {
+  const reviewContent = existsSync(REVIEW_SRC) ? readFileSync(REVIEW_SRC, "utf8") : null;
+  const contextContent = existsSync(CONTEXT_OUT) ? readFileSync(CONTEXT_OUT, "utf8") : null;
+  const contributingContent = existsSync(CONTRIBUTING_OUT)
+    ? readFileSync(CONTRIBUTING_OUT, "utf8")
+    : null;
+
+  let skillNames: string[] = [];
+  let kaineReviewBody: string | null = null;
+  try {
+    const skills = discoverSkills();
+    skillNames = skills.map((s) => s.name);
+    const reviewSkill = skills.find((s) => s.name === "kaine-review");
+    kaineReviewBody = reviewSkill?.body ?? null;
+  } catch {
+    // discoverSkills throws on parse errors; skill dir lint already reports those
+    skillNames = [];
+    kaineReviewBody = null;
+  }
+
+  // If kaine-review failed parse, still try raw file for reference check
+  const reviewSkillPath = join(SKILLS_SRC_DIR, "kaine-review.md");
+  if (kaineReviewBody === null && existsSync(reviewSkillPath)) {
+    kaineReviewBody = readFileSync(reviewSkillPath, "utf8");
+  }
+
+  const serenaMemoryNames = existsSync(SERENA_MEMORIES_SRC_DIR)
+    ? readdirSync(SERENA_MEMORIES_SRC_DIR).filter((f) => f.endsWith(".md"))
+    : [];
+
+  return lintDomainKnowledgeArtifacts({
+    reviewContent,
+    contextContent,
+    skillNames,
+    kaineReviewBody,
+    contributingContent,
+    dayOneExists: existsSync(DAY_ONE_DOC),
+    serenaMemoryNames
+  });
+};
 
 export const lintGuideSkillList = (guideContent: string, skillNames: string[]): LintIssue[] => {
   if (!guideContent.includes(GUIDE_SKILL_LIST_HEADER)) {
