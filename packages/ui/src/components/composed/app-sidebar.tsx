@@ -16,7 +16,7 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   navPreferences?: React.ReactNode;
   railLabel?: string;
   triggerLabel?: string;
-  teamSwitcher?: React.ReactNode;
+  organizationSwitcher?: React.ReactNode;
   user?: React.ReactNode;
 }
 
@@ -28,7 +28,7 @@ export function AppSidebar({
   navMain,
   navPreferences,
   railLabel,
-  teamSwitcher,
+  organizationSwitcher,
   triggerLabel,
   user,
   ...props
@@ -43,7 +43,7 @@ export function AppSidebar({
       {...(mobileSheetTitle ? { mobileSheetTitle } : {})}
       {...props}
     >
-      <SidebarHeader>{teamSwitcher}</SidebarHeader>
+      <SidebarHeader>{organizationSwitcher}</SidebarHeader>
       <SidebarContent>{navMain}</SidebarContent>
       <SidebarFooter>
         {navPreferences}

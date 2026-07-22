@@ -11,7 +11,7 @@ import {
 } from "../primitives/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "../primitives/sidebar";
 
-export interface TeamSwitcherItem {
+export interface OrganizationSwitcherItem {
   disabled?: boolean;
   icon?: React.ElementType;
   name: string;
@@ -19,38 +19,39 @@ export interface TeamSwitcherItem {
   value: string;
 }
 
-export interface TeamSwitcherActionItem {
+export interface OrganizationSwitcherActionItem {
   label: string;
   onSelect: () => void;
 }
 
-export interface TeamSwitcherProps {
-  actionItem?: TeamSwitcherActionItem;
+export interface OrganizationSwitcherProps {
+  actionItem?: OrganizationSwitcherActionItem;
   ariaLabel?: string;
   className?: string;
   label: string;
   onValueChange: (value: string) => void;
-  teams: TeamSwitcherItem[];
+  organizations: OrganizationSwitcherItem[];
   value?: string;
 }
 
-export function TeamSwitcher({
+export function OrganizationSwitcher({
   actionItem,
   ariaLabel,
   className,
   label,
   onValueChange,
-  teams,
+  organizations,
   value
-}: TeamSwitcherProps) {
+}: OrganizationSwitcherProps) {
   const { isMobile } = useSidebar();
-  const activeTeam = teams.find((team) => team.value === value) ?? teams[0];
+  const activeOrganization =
+    organizations.find((organization) => organization.value === value) ?? organizations[0];
 
-  if (!activeTeam) {
+  if (!activeOrganization) {
     return null;
   }
 
-  const ActiveIcon = activeTeam.icon ?? Building2;
+  const ActiveIcon = activeOrganization.icon ?? Building2;
 
   return (
     <SidebarMenu className="w-full">
@@ -62,9 +63,9 @@ export function TeamSwitcher({
                 <ActiveIcon className="size-4" />
               </div>
               <div className="grid flex-1 min-w-0 text-left leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
+                <span className="truncate font-medium">{activeOrganization.name}</span>
                 <span className="truncate text-xs text-[color:var(--ds-text-subtle)]">
-                  {activeTeam.subtitle ?? label}
+                  {activeOrganization.subtitle ?? label}
                 </span>
               </div>
               <ChevronsUpDown aria-hidden className="ml-auto size-4" />
@@ -79,24 +80,26 @@ export function TeamSwitcher({
             <DropdownMenuLabel className="text-body-xs text-[color:var(--ds-text-subtle)]">
               {label}
             </DropdownMenuLabel>
-            {teams.map((team) => {
-              const TeamIcon = team.icon ?? Building2;
-              const isActive = team.value === activeTeam.value;
+            {organizations.map((organization) => {
+              const OrganizationIcon = organization.icon ?? Building2;
+              const isActive = organization.value === activeOrganization.value;
 
               return (
                 <DropdownMenuItem
-                  key={team.value}
-                  {...(team.disabled !== undefined ? { disabled: team.disabled } : {})}
+                  key={organization.value}
+                  {...(organization.disabled !== undefined
+                    ? { disabled: organization.disabled }
+                    : {})}
                   onSelect={() => {
-                    if (!team.disabled) {
-                      onValueChange(team.value);
+                    if (!organization.disabled) {
+                      onValueChange(organization.value);
                     }
                   }}
                 >
                   <div className="flex size-6 items-center justify-center rounded-md border border-[var(--ds-border)]">
-                    <TeamIcon className="size-3.5" />
+                    <OrganizationIcon className="size-3.5" />
                   </div>
-                  {team.name}
+                  {organization.name}
                   {isActive ? <Check aria-hidden className="ml-auto size-4" /> : null}
                 </DropdownMenuItem>
               );

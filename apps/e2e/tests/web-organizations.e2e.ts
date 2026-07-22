@@ -11,7 +11,7 @@ test("creates a second organization and can switch between organizations", async
 
   await signIn(page);
 
-  // TeamSwitcher trigger uses aria-label from navigation.organization.
+  // OrganizationSwitcher trigger uses aria-label from navigation.organization.
   const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
   await expect(switcher).toBeVisible();
   await switcher.click();
