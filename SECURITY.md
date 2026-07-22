@@ -40,6 +40,7 @@ Until a dedicated security contact is published, open a private maintainer chann
 - Validate inputs at API boundaries.
 - Use Drizzle parameterized queries instead of handwritten SQL interpolation.
 - Keep cookies primary for browser auth and bearer-token fallback limited to session-token transport.
+- Production `BETTER_AUTH_SECRET` must be ≥32 characters and not a known placeholder; hard-gate on `emailVerified` when soft verification (ADR 0007) is not enough.
 
 ## Automation
 

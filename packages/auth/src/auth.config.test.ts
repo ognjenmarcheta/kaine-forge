@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getClientAuthConfig, getServerAuthConfig } from "./auth.config";
+import {
+  assertProductionAuthSecret,
+  getClientAuthConfig,
+  getServerAuthConfig
+} from "./auth.config";
 
 const originalEnv = {
   AUTH_REQUIRE_EMAIL_VERIFICATION: process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
@@ -36,16 +40,42 @@ describe("auth.config", () => {
 
   it("uses environment variables when present", () => {
     process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = "true";
-    process.env.BETTER_AUTH_SECRET = "production-secret";
+    process.env.BETTER_AUTH_SECRET = "production-secret-value-with-enough-length";
     process.env.BETTER_AUTH_URL = "https://auth.example.com";
 
     expect(getServerAuthConfig()).toEqual({
       baseUrl: "https://auth.example.com",
       requireEmailVerification: true,
-      secret: "production-secret"
+      secret: "production-secret-value-with-enough-length"
     });
     expect(getClientAuthConfig()).toEqual({
       baseUrl: "https://auth.example.com"
     });
+  });
+
+  it("accepts strong secrets and rejects weak ones only in production", () => {
+    expect(() => assertProductionAuthSecret("short", { NODE_ENV: "development" })).not.toThrow();
+
+    expect(() => assertProductionAuthSecret(undefined, { NODE_ENV: "production" })).toThrow(
+      /BETTER_AUTH_SECRET must be set/
+    );
+    expect(() => assertProductionAuthSecret("too-short", { NODE_ENV: "production" })).toThrow(
+      /at least 32/
+    );
+    expect(() =>
+      assertProductionAuthSecret("development-secret".padEnd(32, "x"), {
+        NODE_ENV: "production"
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertProductionAuthSecret("your-secret-key-change-in-production", {
+        NODE_ENV: "production"
+      })
+    ).toThrow(/placeholder/);
+    expect(() =>
+      assertProductionAuthSecret("a-sufficiently-long-random-secret-value-here", {
+        NODE_ENV: "production"
+      })
+    ).not.toThrow();
   });
 });
