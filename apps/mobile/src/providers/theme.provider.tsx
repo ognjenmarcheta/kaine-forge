@@ -1,12 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
+import { useColorScheme as useNativeWindColorScheme } from "nativewind";
 import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme as useSystemColorScheme } from "react-native";
 
 import { useThemeStore, type ThemeMode } from "../stores/theme.store";
-
-const THEME_STORAGE_KEY = "kaine.mobile.theme.mode";
-const persistence = createAsyncStoragePersistenceAdapter(AsyncStorage);
 
 interface ThemeContextValue {
   isHydrating: boolean;
@@ -22,40 +18,32 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [isHydrating, setIsHydrating] = useState(true);
+  const [isHydrating, setIsHydrating] = useState(() => !useThemeStore.persist.hasHydrated());
   const themeMode = useThemeStore((state) => state.themeMode);
   const setThemeMode = useThemeStore((state) => state.setThemeMode);
-  const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
+  const systemTheme = useSystemColorScheme() === "dark" ? "dark" : "light";
+  const { setColorScheme } = useNativeWindColorScheme();
 
   useEffect(() => {
-    let isActive = true;
+    if (useThemeStore.persist.hasHydrated()) {
+      setIsHydrating(false);
+    }
 
-    void (async () => {
-      const stored = await persistence.getString(THEME_STORAGE_KEY);
+    return useThemeStore.persist.onFinishHydration(() => {
+      setIsHydrating(false);
+    });
+  }, []);
 
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        setThemeMode(stored);
-      }
+  const resolvedTheme = themeMode === "system" ? systemTheme : themeMode;
 
-      if (isActive) {
-        setIsHydrating(false);
-      }
-    })();
-
-    return () => {
-      isActive = false;
-    };
-  }, [setThemeMode]);
-
+  // NativeWind darkMode: "class" — drive utility + CSS variable remapping from resolved theme.
   useEffect(() => {
     if (isHydrating) {
       return;
     }
 
-    void persistence.setString(THEME_STORAGE_KEY, themeMode);
-  }, [isHydrating, themeMode]);
-
-  const resolvedTheme = themeMode === "system" ? systemTheme : themeMode;
+    setColorScheme(resolvedTheme);
+  }, [isHydrating, resolvedTheme, setColorScheme]);
 
   const value = useMemo(
     () => ({

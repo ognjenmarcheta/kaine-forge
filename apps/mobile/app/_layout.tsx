@@ -3,6 +3,7 @@ import "../src/styles/global.css";
 
 import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -11,12 +12,13 @@ import { AppProviders } from "../src/providers";
 
 function RootContent() {
   const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   return (
-    <>
-      <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} />
+    <View className={isDark ? "dark flex-1" : "flex-1"} style={{ flex: 1 }}>
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Slot />
-    </>
+    </View>
   );
 }
 

@@ -5,6 +5,9 @@ import { persist } from "zustand/middleware";
 
 export type ThemeMode = "dark" | "light" | "system";
 
+/** Single persistence key for mobile theme mode (not shared with web). */
+export const MOBILE_THEME_STORAGE_KEY = "kaine.mobile.theme.mode";
+
 interface ThemeStore {
   setThemeMode: (mode: ThemeMode) => void;
   themeMode: ThemeMode;
@@ -17,7 +20,7 @@ export const useThemeStore = create<ThemeStore>()(
       setThemeMode: (mode) => set({ themeMode: mode })
     }),
     {
-      name: "kaine.theme.mode",
+      name: MOBILE_THEME_STORAGE_KEY,
       storage: createAsyncZustandJsonStorage(AsyncStorage),
       partialize: (state) => ({ themeMode: state.themeMode })
     }
