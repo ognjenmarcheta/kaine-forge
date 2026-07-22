@@ -47,12 +47,14 @@ export default defineConfig({
         "apps/desktop/src-tauri/**"
       ],
       provider: "v8",
-      reporter: ["text", "lcov"],
+      reporter: ["text", "lcov", "json-summary"],
+      // Floors sit below measured main (~51% lines / ~61% funcs / ~78% branches)
+      // with headroom for agent-generated code. Raise gradually, not in big jumps.
       thresholds: {
-        branches: 60,
-        functions: 42,
-        lines: 38,
-        statements: 38
+        branches: 70,
+        functions: 55,
+        lines: 50,
+        statements: 50
       }
     }
   }

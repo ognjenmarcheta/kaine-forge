@@ -281,20 +281,21 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command             | Purpose                                           |
-| ------------------- | ------------------------------------------------- |
-| `pnpm dev`          | run dev tasks                                     |
-| `pnpm build`        | build all workspaces                              |
-| `pnpm build:core`   | build API and web dependency graph                |
-| `pnpm check`        | format check, lint, typecheck, test               |
-| `pnpm coverage`     | Vitest coverage thresholds                        |
-| `pnpm test:e2e`     | Playwright web/API suite                          |
-| `pnpm generate`     | GraphQL codegen                                   |
-| `pnpm db:*`         | database lifecycle commands                       |
-| `pnpm ai:install`   | install shared assistant files locally            |
-| `pnpm ai:doctor`    | lint canonical AI files and report drift          |
-| `pnpm graph`        | build the Graphify knowledge graph (optional CLI) |
-| `pnpm graph:update` | refresh the knowledge graph incrementally         |
+| Command              | Purpose                                               |
+| -------------------- | ----------------------------------------------------- |
+| `pnpm dev`           | run dev tasks                                         |
+| `pnpm build`         | build all workspaces                                  |
+| `pnpm build:core`    | build API and web dependency graph                    |
+| `pnpm check`         | format check, lint, typecheck, test                   |
+| `pnpm coverage`      | Global Vitest coverage floors (lines/statements ≥50%) |
+| `pnpm coverage:core` | Stricter floors for `@repo/auth` and `@repo/api`      |
+| `pnpm test:e2e`      | Playwright web/API suite                              |
+| `pnpm generate`      | GraphQL codegen                                       |
+| `pnpm db:*`          | database lifecycle commands                           |
+| `pnpm ai:install`    | install shared assistant files locally                |
+| `pnpm ai:doctor`     | lint canonical AI files and report drift              |
+| `pnpm graph`         | build the Graphify knowledge graph (optional CLI)     |
+| `pnpm graph:update`  | refresh the knowledge graph incrementally             |
 
 Use scoped commands from the repo root:
 
