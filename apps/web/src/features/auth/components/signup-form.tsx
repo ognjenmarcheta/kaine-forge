@@ -1,3 +1,9 @@
+import {
+  validateAuthConfirmPassword,
+  validateAuthEmail,
+  validateAuthName,
+  validateAuthPasswordForSignup
+} from "@repo/auth/form";
 import { Button, Field, FieldError, FieldLabel, Input, useUiForm } from "@repo/ui";
 import { useState } from "react";
 
@@ -52,8 +58,10 @@ export function SignupForm({ onDone }: SignupFormProps) {
       <form.Field
         name="name"
         validators={{
-          onChange: ({ value }) =>
-            value.trim().length === 0 ? t("auth.form.error.nameRequired") : undefined
+          onChange: ({ value }) => {
+            const key = validateAuthName(value);
+            return key ? t(key) : undefined;
+          }
         }}
       >
         {(fieldApi) => (
@@ -75,8 +83,10 @@ export function SignupForm({ onDone }: SignupFormProps) {
       <form.Field
         name="email"
         validators={{
-          onChange: ({ value }) =>
-            value.trim().length === 0 ? t("auth.form.error.emailRequired") : undefined
+          onChange: ({ value }) => {
+            const key = validateAuthEmail(value);
+            return key ? t(key) : undefined;
+          }
         }}
       >
         {(fieldApi) => (
@@ -101,15 +111,8 @@ export function SignupForm({ onDone }: SignupFormProps) {
         name="password"
         validators={{
           onChange: ({ value }) => {
-            if (value.length === 0) {
-              return t("auth.form.error.passwordRequired");
-            }
-
-            if (value.length < 8) {
-              return t("auth.form.error.passwordMinLength");
-            }
-
-            return undefined;
+            const key = validateAuthPasswordForSignup(value);
+            return key ? t(key) : undefined;
           }
         }}
       >
@@ -136,17 +139,9 @@ export function SignupForm({ onDone }: SignupFormProps) {
         validators={{
           onChangeListenTo: ["password"],
           onChange: ({ value, fieldApi }) => {
-            if (value.length === 0) {
-              return t("auth.form.error.confirmPasswordRequired");
-            }
-
             const password = fieldApi.form.getFieldValue("password");
-
-            if (value !== password) {
-              return t("auth.form.error.passwordMismatch");
-            }
-
-            return undefined;
+            const key = validateAuthConfirmPassword(password, value);
+            return key ? t(key) : undefined;
           }
         }}
       >

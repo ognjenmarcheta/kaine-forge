@@ -1,3 +1,4 @@
+import { validateAuthEmail, validateAuthPasswordRequired } from "@repo/auth/form";
 import type { AuthSocialProvider } from "@repo/auth/transport";
 import { Button, Field, FieldError, FieldLabel, Input, useUiForm } from "@repo/ui";
 import { useState } from "react";
@@ -56,8 +57,10 @@ export function LoginForm({ onDone }: LoginFormProps) {
       <form.Field
         name="email"
         validators={{
-          onChange: ({ value }) =>
-            value.trim().length === 0 ? t("auth.form.error.emailRequired") : undefined
+          onChange: ({ value }) => {
+            const key = validateAuthEmail(value);
+            return key ? t(key) : undefined;
+          }
         }}
       >
         {(fieldApi) => (
@@ -81,8 +84,10 @@ export function LoginForm({ onDone }: LoginFormProps) {
       <form.Field
         name="password"
         validators={{
-          onChange: ({ value }) =>
-            value.length === 0 ? t("auth.form.error.passwordRequired") : undefined
+          onChange: ({ value }) => {
+            const key = validateAuthPasswordRequired(value);
+            return key ? t(key) : undefined;
+          }
         }}
       >
         {(fieldApi) => (

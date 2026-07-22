@@ -1,3 +1,4 @@
+import { validateAuthLoginForm } from "@repo/auth/form";
 import {
   Button,
   Card,
@@ -27,6 +28,12 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit() {
+    const validationError = validateAuthLoginForm({ email, password });
+    if (validationError) {
+      setError(t(validationError));
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
