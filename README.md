@@ -73,7 +73,7 @@ Start from `.env.example`. Important variables:
 - `API_GRAPHQL_INTROSPECTION`: set `true`/`false` to force introspection; default is enabled outside production and **disabled in production**.
 - `API_RATE_LIMIT_ENABLED`, `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`: in-memory rate limiting for `/api/auth/*` and `/graphql` (enabled by default outside tests; 100 requests per 60s window).
 - `API_TRUST_PROXY`: set `true` only when the API sits behind a trusted reverse proxy; enables client identification via the rightmost `x-forwarded-for` entry for rate limiting.
-- `EMAIL_PROVIDER`: email delivery adapter (`console` logs messages in development; add real providers in `@repo/email`).
+- `EMAIL_PROVIDER`: email delivery adapter (`console` logs in development; `resend` uses `RESEND_API_KEY` and optional `EMAIL_FROM`).
 - `AUTH_REQUIRE_EMAIL_VERIFICATION`: optional boolean (default `false`). When `true`, signup issues a verification email (soft mode: the session is still created and `emailVerified` is exposed on the session user for downstream gating).
 - `ORGANIZATIONS_VISIBLE`, `VITE_ORGANIZATIONS_VISIBLE`, `EXPO_PUBLIC_ORGANIZATIONS_VISIBLE`: members/organization UI visibility flags.
 - `VITE_API_PROXY_TARGET`: optional Vite dev proxy target for `/api` and `/graphql`; defaults to `http://localhost:4000`.
