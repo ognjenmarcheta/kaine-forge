@@ -279,18 +279,20 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command           | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| `pnpm dev`        | run dev tasks                            |
-| `pnpm build`      | build all workspaces                     |
-| `pnpm build:core` | build API and web dependency graph       |
-| `pnpm check`      | format check, lint, typecheck, test      |
-| `pnpm coverage`   | Vitest coverage thresholds               |
-| `pnpm test:e2e`   | Playwright web/API suite                 |
-| `pnpm generate`   | GraphQL codegen                          |
-| `pnpm db:*`       | database lifecycle commands              |
-| `pnpm ai:install` | install shared assistant files locally   |
-| `pnpm ai:doctor`  | lint canonical AI files and report drift |
+| Command             | Purpose                                           |
+| ------------------- | ------------------------------------------------- |
+| `pnpm dev`          | run dev tasks                                     |
+| `pnpm build`        | build all workspaces                              |
+| `pnpm build:core`   | build API and web dependency graph                |
+| `pnpm check`        | format check, lint, typecheck, test               |
+| `pnpm coverage`     | Vitest coverage thresholds                        |
+| `pnpm test:e2e`     | Playwright web/API suite                          |
+| `pnpm generate`     | GraphQL codegen                                   |
+| `pnpm db:*`         | database lifecycle commands                       |
+| `pnpm ai:install`   | install shared assistant files locally            |
+| `pnpm ai:doctor`    | lint canonical AI files and report drift          |
+| `pnpm graph`        | build the Graphify knowledge graph (optional CLI) |
+| `pnpm graph:update` | refresh the knowledge graph incrementally         |
 
 Use scoped commands from the repo root:
 
@@ -342,6 +344,8 @@ Local gitignored outputs:
 - `opencode.json`
 
 MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
+
+Graphify is optional per-developer tooling: `pnpm graph` writes a queryable codebase knowledge graph to `graphify-out/`, which is local, gitignored, and dockerignored. The `kaine-graph` skill documents install, build, and query workflows, and the shared MCP catalog carries an opt-in `graphify` server. Keep Graphify out of `pnpm initialize`, husky hooks, and CI, and never run Graphify's per-project installers, which write into generated files such as `AGENTS.md` and `CLAUDE.md`.
 
 ## 19. Adding a Feature
 

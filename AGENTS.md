@@ -41,6 +41,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Update deployable app release branches: `pnpm release:apps`
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
+- Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
 
 ## AI Behavioral Guidelines
 
@@ -132,6 +133,9 @@ Use skills when they match the task:
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
 - `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
+
+The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
 Downstream products can add more skills in `.ai/skills/` without changing this generator.
 
@@ -155,6 +159,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 
 - `kaine-adopt-template`: Replace active Kaine Forge template identity with downstream project identity using the template adoption CLI.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
+- `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
 - `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.

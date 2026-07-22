@@ -21,6 +21,8 @@
 - DB seed: `pnpm db:seed`
 - Install AI files: `pnpm ai:install`
 - Check AI setup and drift: `pnpm ai:doctor`
+- Build knowledge graph (optional Graphify CLI): `pnpm graph`
+- Refresh knowledge graph incrementally: `pnpm graph:update`
 - Adopt template identity: `pnpm template:adopt`
 - Docker API build: `docker build -f Dockerfile.api -t kaine-forge-api .`
 - Docker web build: `docker build -f Dockerfile.web -t kaine-forge-web .`
