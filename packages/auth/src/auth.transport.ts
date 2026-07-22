@@ -42,6 +42,11 @@ export interface AuthTransportAdapter {
   // Absolute URL the OAuth flow should land on after a social sign-in; when
   // omitted, better-auth falls back to the auth server's own origin.
   socialCallbackUrl?: string | undefined;
+  /**
+   * Extra better-auth client plugins (e.g. Expo `expoClient`).
+   * Kept opaque so web never imports React Native / Expo modules.
+   */
+  clientPlugins?: readonly unknown[] | undefined;
 }
 
 export interface AuthTransport extends ClientAuth {
@@ -118,7 +123,7 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
 
   const client = createAuthClient({
     baseURL: adapter.baseUrl || undefined,
-    plugins: [organizationClient()],
+    plugins: [organizationClient(), ...((adapter.clientPlugins ?? []) as never[])],
     fetchOptions: {
       credentials: adapter.credentials,
       customFetchImpl: bearerFetch

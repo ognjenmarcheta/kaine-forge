@@ -1,3 +1,4 @@
+import { expo } from "@better-auth/expo";
 import {
   accountsTable,
   db,
@@ -88,6 +89,20 @@ function parseTrustedOrigins(value: string | undefined): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+/** Deep-link scheme for Expo OAuth return (must match apps/mobile app.json scheme). */
+export const EXPO_AUTH_SCHEME = "kaineforge";
+
+export function resolveTrustedOrigins(env: Record<string, string | undefined>): string[] {
+  const origins = parseTrustedOrigins(env.API_CORS_ORIGINS);
+  const schemeOrigin = `${EXPO_AUTH_SCHEME}://`;
+
+  if (!origins.includes(schemeOrigin)) {
+    origins.push(schemeOrigin);
+  }
+
+  return origins;
+}
+
 export function createAuthInstance() {
   // getServerAuthConfig falls back to "development-secret"; that fallback
   // must never sign production tokens.
@@ -101,9 +116,9 @@ export function createAuthInstance() {
     baseURL: config.baseUrl,
     secret: config.secret,
     // Browser clients live on separate origins (Vite dev server, deployed
-    // web app); better-auth's origin check rejects state-changing requests
-    // from origins outside this list.
-    trustedOrigins: parseTrustedOrigins(process.env.API_CORS_ORIGINS),
+    // web app); Expo OAuth returns via kaineforge://. better-auth rejects
+    // state-changing requests from origins outside this list.
+    trustedOrigins: resolveTrustedOrigins(process.env),
     socialProviders: resolveSocialProviders(process.env),
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -194,6 +209,8 @@ export function createAuthInstance() {
       }
     },
     plugins: [
+      // Enables Expo deep-link OAuth return and mobile cookie/origin handling.
+      expo(),
       organization({
         invitationExpiresIn: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS,
         // Our advanced.database.generateId is a custom function, which

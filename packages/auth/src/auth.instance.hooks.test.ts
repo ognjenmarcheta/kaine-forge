@@ -125,7 +125,8 @@ describe("auth.instance database hooks", () => {
   it("trusts the origins configured through API_CORS_ORIGINS", () => {
     expect(auth.options.trustedOrigins).toEqual([
       "http://localhost:5173",
-      "https://app.example.com"
+      "https://app.example.com",
+      "kaineforge://"
     ]);
   });
 });

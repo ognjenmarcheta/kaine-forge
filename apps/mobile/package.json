@@ -21,6 +21,7 @@
     "clean": "rm -rf dist .turbo .expo"
   },
   "dependencies": {
+    "@better-auth/expo": "1.6.23",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/drawer": "^7.5.0",
@@ -34,9 +35,14 @@
     "@repo/translation": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
     "expo": "~54.0.34",
+    "expo-constants": "^18.0.13",
     "expo-document-picker": "~14.0.8",
+    "expo-linking": "^8.0.12",
+    "expo-network": "^8.0.8",
     "expo-router": "^6.0.23",
+    "expo-secure-store": "^15.0.8",
     "expo-status-bar": "^3.0.9",
+    "expo-web-browser": "^15.0.11",
     "graphql": "^16.11.0",
     "graphql-request": "^7.4.0",
     "graphql-ws": "^6.0.7",

@@ -58,11 +58,23 @@ describe("auth.instance", () => {
     await expect(verify?.({ hash: legacy, password: "WrongPass!" })).resolves.toBe(false);
   });
 
-  it("registers the organization and bearer plugins", () => {
+  it("registers the expo, organization, and bearer plugins", () => {
     const pluginIds = (auth.options.plugins ?? []).map((plugin) => plugin.id);
 
+    expect(pluginIds).toContain("expo");
     expect(pluginIds).toContain("organization");
     expect(pluginIds).toContain("bearer");
+  });
+
+  it("trusts the Expo deep-link scheme for OAuth return", async () => {
+    const { resolveTrustedOrigins, EXPO_AUTH_SCHEME } = await import("./auth.instance");
+
+    expect(EXPO_AUTH_SCHEME).toBe("kaineforge");
+    expect(
+      resolveTrustedOrigins({
+        API_CORS_ORIGINS: "http://localhost:3000"
+      })
+    ).toEqual(["http://localhost:3000", "kaineforge://"]);
   });
 
   it("mirrors the legacy session lifetimes and keeps rate limiting off", () => {
