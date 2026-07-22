@@ -25,9 +25,13 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 - `.agents/skills/<skill>/SKILL.md`
 - `.cursor/skills/<skill>/SKILL.md`
 - `.opencode/skills/<skill>/SKILL.md`
+- `.grok/skills/<skill>/SKILL.md`
 - `.mcp.json`
 - `.cursor/mcp.json`
 - `.codex/config.toml`
+- `.grok/config.toml`
+- `.grok/hooks/kaine-session-start.json`
+- `.grok/agents/<name>.md`
 - `.cursor/rules/kaine-rules.mdc`
 - `opencode.json`
 - `.serena/project.yml`

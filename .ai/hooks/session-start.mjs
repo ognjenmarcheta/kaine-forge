@@ -132,6 +132,13 @@ const aiHealth = (repoRoot, hookAgent) => {
     if (!existsSync(join(repoRoot, ".claude", "skills"))) {
       issues.push("Missing Claude skills");
     }
+  } else if (hookAgent === "grok") {
+    if (!existsSync(join(repoRoot, ".grok", "config.toml"))) {
+      issues.push("Missing Grok config");
+    }
+    if (!existsSync(join(repoRoot, ".grok", "skills"))) {
+      issues.push("Missing Grok skills");
+    }
   } else {
     if (!existsSync(join(repoRoot, ".codex", "config.toml"))) {
       issues.push("Missing Codex config");

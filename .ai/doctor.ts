@@ -31,6 +31,8 @@ import {
   renderClaudeSkill,
   renderCodexSkill,
   renderCursorSkill,
+  renderGrokSessionStartHook,
+  renderGrokSkill,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
@@ -104,7 +106,8 @@ const SKILL_DIRS: ReadonlyArray<{
   { agent: "claude", dir: ".claude/skills", render: renderClaudeSkill },
   { agent: "codex", dir: ".agents/skills", render: renderCodexSkill },
   { agent: "cursor", dir: ".cursor/skills", render: renderCursorSkill },
-  { agent: "opencode", dir: ".opencode/skills", render: renderOpencodeSkill }
+  { agent: "opencode", dir: ".opencode/skills", render: renderOpencodeSkill },
+  { agent: "grok", dir: ".grok/skills", render: renderGrokSkill }
 ];
 
 const computeSkillDrift = (skills: Skill[]): AgentDrift[] => {
@@ -236,6 +239,19 @@ const computeHookDrift = (): FileDrift[] => {
     }
   }
 
+  const grokInstalled =
+    existsSync(join(REPO_ROOT, ".grok", "skills")) ||
+    existsSync(join(REPO_ROOT, ".grok", "config.toml"));
+  if (grokInstalled) {
+    const hookPath = join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json");
+    const expected = renderGrokSessionStartHook();
+    if (!existsSync(hookPath)) {
+      drift.push({ label: ".grok/hooks/kaine-session-start.json", status: "missing" });
+    } else if (readFileSync(hookPath, "utf8") !== expected) {
+      drift.push({ label: ".grok/hooks/kaine-session-start.json", status: "stale" });
+    }
+  }
+
   return drift;
 };
 
@@ -303,7 +319,11 @@ const main = (): void => {
     ["Cursor skills", ".cursor/skills"],
     ["Cursor rules", ".cursor/rules"],
     ["OpenCode skills", ".opencode/skills"],
-    ["OpenCode config", "opencode.json"]
+    ["OpenCode config", "opencode.json"],
+    ["Grok skills", ".grok/skills"],
+    ["Grok MCP config", ".grok/config.toml"],
+    ["Grok session hook", ".grok/hooks/kaine-session-start.json"],
+    ["Grok agents", ".grok/agents"]
   ];
   for (const [label, path] of installs) {
     console.log(`  ${passIcon(installed(path))}  ${label}`);
@@ -355,12 +375,52 @@ const main = (): void => {
     const fileDrift = computeSharedDrift(skills);
     const skillDrift = computeSkillDrift(skills);
     const hookDrift = computeHookDrift();
-    const agentDrift = computeAgentDefinitionDrift(
+    const claudeAgentDrift = computeAgentDefinitionDrift(
       agentDefinitions,
       join(REPO_ROOT, ".claude", "agents")
     );
+    const grokAgentDrift = computeAgentDefinitionDrift(
+      agentDefinitions,
+      join(REPO_ROOT, ".grok", "agents")
+    );
+    const reportAgentDrift = (
+      label: string,
+      agentDrift: ReturnType<typeof computeAgentDefinitionDrift>,
+      orphanHint: string
+    ): boolean => {
+      const hasDrift =
+        agentDrift.missing.length > 0 ||
+        agentDrift.stale.length > 0 ||
+        agentDrift.orphan.length > 0;
+      if (!hasDrift) {
+        return false;
+      }
+      const padded = label.padEnd(28);
+      if (agentDrift.stale.length > 0) {
+        console.log(
+          `  ${chalk.yellow("⚠")}  ${padded}  stale: ${agentDrift.stale.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
+        );
+      }
+      if (agentDrift.missing.length > 0) {
+        console.log(
+          `  ${chalk.yellow("⚠")}  ${padded}  missing: ${agentDrift.missing.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
+        );
+      }
+      if (agentDrift.orphan.length > 0) {
+        console.log(
+          `  ${chalk.yellow("⚠")}  ${padded}  orphan: ${agentDrift.orphan.join(", ")}   ${chalk.gray(`(delete ${orphanHint})`)}`
+        );
+      }
+      return true;
+    };
+
     const hasAgentDrift =
-      agentDrift.missing.length > 0 || agentDrift.stale.length > 0 || agentDrift.orphan.length > 0;
+      claudeAgentDrift.missing.length > 0 ||
+      claudeAgentDrift.stale.length > 0 ||
+      claudeAgentDrift.orphan.length > 0 ||
+      grokAgentDrift.missing.length > 0 ||
+      grokAgentDrift.stale.length > 0 ||
+      grokAgentDrift.orphan.length > 0;
 
     if (
       fileDrift.length === 0 &&
@@ -376,27 +436,18 @@ const main = (): void => {
         );
       }
 
-      if (hasAgentDrift) {
-        const label = "claude agents".padEnd(28);
-        if (agentDrift.stale.length > 0) {
-          console.log(
-            `  ${chalk.yellow("⚠")}  ${label}  stale: ${agentDrift.stale.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
-          );
-        }
-        if (agentDrift.missing.length > 0) {
-          console.log(
-            `  ${chalk.yellow("⚠")}  ${label}  missing: ${agentDrift.missing.join(", ")}   ${chalk.gray("(run: pnpm ai:install)")}`
-          );
-        }
-        if (agentDrift.orphan.length > 0) {
-          console.log(
-            `  ${chalk.yellow("⚠")}  ${label}  orphan: ${agentDrift.orphan.join(", ")}   ${chalk.gray("(delete .claude/agents/<name>.md)")}`
-          );
-        }
-        // Drift is advisory (a stale local install, fixable with pnpm ai:install),
-        // consistent with skill/file/hook drift; only lint errors on canonical
-        // sources gate the exit code below.
+      reportAgentDrift("claude agents", claudeAgentDrift, ".claude/agents/<name>.md");
+      // Only surface Grok agent drift when a Grok install tree is present.
+      if (
+        existsSync(join(REPO_ROOT, ".grok", "agents")) ||
+        existsSync(join(REPO_ROOT, ".grok", "skills")) ||
+        existsSync(join(REPO_ROOT, ".grok", "config.toml"))
+      ) {
+        reportAgentDrift("grok agents", grokAgentDrift, ".grok/agents/<name>.md");
       }
+      // Drift is advisory (a stale local install, fixable with pnpm ai:install),
+      // consistent with skill/file/hook drift; only lint errors on canonical
+      // sources gate the exit code below.
 
       for (const entry of skillDrift) {
         const agentLabel = entry.agent.padEnd(8);
@@ -426,6 +477,7 @@ const main = (): void => {
   console.log(chalk.gray("  pnpm ai:install --agent codex"));
   console.log(chalk.gray("  pnpm ai:install --agent cursor"));
   console.log(chalk.gray("  pnpm ai:install --agent opencode"));
+  console.log(chalk.gray("  pnpm ai:install --agent grok"));
   console.log();
 
   console.log(

@@ -342,9 +342,13 @@ Local gitignored outputs:
 - `.agents/skills/<skill>/SKILL.md`
 - `.cursor/skills/<skill>/SKILL.md`
 - `.cursor/rules/kaine-rules.mdc`
+- `.grok/skills/<skill>/SKILL.md`
+- `.grok/hooks/kaine-session-start.json`
+- `.grok/agents/<name>.md`
 - `.mcp.json`
 - `.cursor/mcp.json`
 - `.codex/config.toml`
+- `.grok/config.toml`
 - `opencode.json`
 
 MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
