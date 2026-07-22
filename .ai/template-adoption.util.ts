@@ -86,12 +86,15 @@ export const adoptionTargets = [
   "packages/translation/src/locales/sr/common.json",
   "packages/translation/src/translation.config.test.ts",
   ".ai/guide.md",
+  ".ai/review.md",
   ".ai/cursor-rules.md",
   ".ai/serena-project.yml",
   ".ai/serena-memories/project_overview.md",
   ".ai/serena-memories/suggested_commands.md",
   ".ai/skills/kaine-open-pr.md",
-  ".ai/skills/kaine-test.md"
+  ".ai/skills/kaine-test.md",
+  "docs/agents/day-one.md",
+  "docs/adr/0009-domain-knowledge-as-agent-infra.md"
 ] as const;
 
 const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [

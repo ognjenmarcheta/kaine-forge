@@ -192,11 +192,15 @@ describe("applyTemplateAdoption", () => {
     expect(adoptionTargets).toContain("CONTRIBUTING.md");
     expect(adoptionTargets).toContain("docker-compose.yml");
     expect(adoptionTargets).toContain(".ai/guide.md");
+    expect(adoptionTargets).toContain(".ai/review.md");
+    expect(adoptionTargets).toContain("docs/agents/day-one.md");
+    expect(adoptionTargets).toContain("docs/adr/0009-domain-knowledge-as-agent-infra.md");
     expect(adoptionTargets).toContain(".ai/skills/kaine-open-pr.md");
     expect(adoptionTargets).toContain(".ai/skills/kaine-test.md");
     expect(adoptionTargets).toContain("packages/auth/src/auth.instance.ts");
     expect(adoptionTargets).toContain("apps/web/src/stores/theme.store.ts");
     expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.definition.ts");
+    expect(adoptionTargets).not.toContain("REVIEW.md");
     expect(adoptionTargets).not.toContain("pnpm-lock.yaml");
     expect(adoptionTargets).not.toContain("packages/ui/src/example.ts");
   });
