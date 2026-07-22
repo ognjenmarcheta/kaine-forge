@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
 import { createAsyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   createActiveOrganizationMutationHandlers,
@@ -53,6 +54,9 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const queryClient = useQueryClient();
   const { session } = useAuth();
 
+  const featureFlags = useMemo(() => resolveFeatureFlags(), []);
+  const organizationsVisible = isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
+
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),
     queryFn: listOrganizationsRequest,
@@ -80,7 +84,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const activeOrganizationLifecycle = useMemo(
     () =>
       createActiveOrganizationLifecycle({
-        isOrganizationUiVisible: () => true,
+        isOrganizationUiVisible: () => organizationsVisible,
         persistActiveOrganizationId: writeStoredOrganizationId,
         queryClient,
         queryRuntime,
@@ -88,7 +92,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         setActiveOrganization: (organizationId) =>
           setActiveOrganizationMutation.mutateAsync(organizationId)
       }),
-    [queryClient, setActiveOrganizationMutation]
+    [organizationsVisible, queryClient, setActiveOrganizationMutation]
   );
 
   const createOrganizationMutation = useMutation({
@@ -146,13 +150,14 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         createOrganizationStatus: createOrganizationMutation.status,
         organizations: organizationsQuery.data?.organizations ?? [],
         organizationsStatus: organizationsQuery.status,
-        organizationsVisible: true,
+        organizationsVisible,
         setActiveOrganizationStatus: setActiveOrganizationMutation.status
       }),
     [
       createOrganizationMutation.status,
       organizationsQuery.data?.organizations,
       organizationsQuery.status,
+      organizationsVisible,
       session?.activeOrganizationId,
       setActiveOrganizationMutation.status
     ]
