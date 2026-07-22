@@ -14,6 +14,20 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `packages/*`: shared auth, db, logger, config, feature flags, query helpers, storage, translation, web UI, and mobile UI packages.
 - `.ai/`: canonical AI assistant guide, skills, MCP catalog, Cursor rules, and Serena seed files.
 
+## How it compares
+
+Capability-focused snapshot against common TypeScript monorepo starters (not a popularity ranking):
+
+|                    | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
+| ------------------ | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
+| **Kaine Forge**    |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
+| next-forge         |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
+| create-t3-turbo    |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
+| Nx integrated      |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
+| Turbo kitchen-sink |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
+
+Use Kaine Forge when you want web + mobile + desktop, organization-scoped data, and agent-aligned engineering defaults from one template. Prefer next-forge or create-t3-turbo for a Next.js-first SaaS lane with more community mindshare; prefer Nx when you need an enterprise monorepo platform rather than a product starter.
+
 ## Prerequisites
 
 - Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
