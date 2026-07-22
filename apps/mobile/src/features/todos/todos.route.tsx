@@ -1,5 +1,6 @@
 import { Button, Text } from "@repo/mobile-ui";
-import { createTodoClientWorkflow, createTodoListQueryKey } from "@repo/todos";
+import { createActiveOrganizationQueryKey } from "@repo/query";
+import { createTodoClientWorkflow } from "@repo/todos";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -43,10 +44,10 @@ export function TodosRoute() {
   );
   const todosQueryKey = useMemo(
     () =>
-      createTodoListQueryKey({
-        queryKey: useGetMobileTodosQuery.getKey(listVariables),
+      createActiveOrganizationQueryKey(
+        useGetMobileTodosQuery.getKey(listVariables),
         activeOrganizationId
-      }),
+      ),
     [activeOrganizationId, listVariables]
   );
 

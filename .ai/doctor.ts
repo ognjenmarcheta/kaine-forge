@@ -306,7 +306,11 @@ const main = (): void => {
     ["OpenCode config", "opencode.json"]
   ];
   for (const [label, path] of installs) {
-    console.log(`  ${passIcon(installed(path))}  ${label}`);
+    if (installed(path) === "yes") {
+      console.log(`  ${chalk.green("✓")}  ${label}`);
+    } else {
+      console.log(`  ${chalk.gray("–")}  ${label} ${chalk.gray("(not installed — optional)")}`);
+    }
   }
   console.log();
 

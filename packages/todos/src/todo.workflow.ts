@@ -76,6 +76,7 @@ export function formatAttachmentSize(bytes: number): string {
   return `${Number(megabytes.toFixed(1)).toString()} MB`;
 }
 
+/** @deprecated Use createActiveOrganizationQueryKey from @repo/query instead. */
 export function createTodoListQueryKey(input: {
   activeOrganizationId: string | null;
   queryKey: readonly unknown[];

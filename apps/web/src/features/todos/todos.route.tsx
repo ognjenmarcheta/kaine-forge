@@ -1,4 +1,5 @@
-import { createTodoClientWorkflow, createTodoListQueryKey } from "@repo/todos";
+import { createActiveOrganizationQueryKey } from "@repo/query";
+import { createTodoClientWorkflow } from "@repo/todos";
 import {
   Button,
   Checkbox,
@@ -72,10 +73,10 @@ export function TodosRoute() {
   );
   const todosQueryKey = useMemo(
     () =>
-      createTodoListQueryKey({
-        queryKey: useGetTodosQuery.getKey(listVariables),
+      createActiveOrganizationQueryKey(
+        useGetTodosQuery.getKey(listVariables),
         activeOrganizationId
-      }),
+      ),
     [activeOrganizationId, listVariables]
   );
 
