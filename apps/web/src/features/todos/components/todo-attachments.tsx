@@ -77,7 +77,7 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
   return (
     <div className="mt-[var(--ds-space-100)] border-t border-[var(--ds-border)] pt-[var(--ds-space-100)]">
       <div className="flex items-center justify-between gap-[var(--ds-space-100)]">
-        <span className="text-xs text-[color:var(--ds-text-subtlest)]">
+        <span className="text-xs text-[color:var(--ds-text-subtle)]">
           {t("todos.attachments.title")}
         </span>
         <div className="flex items-center gap-[var(--ds-space-050)]">
@@ -114,7 +114,7 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
                 <span className="truncate text-xs text-[color:var(--ds-text)]">
                   {file.originalName}
                 </span>
-                <span className="shrink-0 text-xs text-[color:var(--ds-text-subtlest)]">
+                <span className="shrink-0 text-xs text-[color:var(--ds-text-subtle)]">
                   {formatAttachmentSize(file.sizeBytes)}
                 </span>
               </div>
