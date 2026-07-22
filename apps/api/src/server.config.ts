@@ -45,9 +45,17 @@ function parsePositiveInteger(value: string | undefined, fallback: number): numb
 
 export function resolveApiRuntimeConfig(env: RuntimeEnv): ApiRuntimeConfig {
   const isProduction = env.NODE_ENV === "production";
+  const allowedCorsOrigins = parseCorsOrigins(env.API_CORS_ORIGINS);
+
+  // Fail closed: open credentialed CORS (cors: true) is never safe in production.
+  if (isProduction && allowedCorsOrigins === undefined) {
+    throw new Error(
+      "API_CORS_ORIGINS is required in production: set a comma-separated browser origin allowlist (also feeds better-auth trustedOrigins)"
+    );
+  }
 
   return {
-    allowedCorsOrigins: parseCorsOrigins(env.API_CORS_ORIGINS),
+    allowedCorsOrigins,
     exposeErrorDetails: !isProduction,
     isProduction,
     maskedErrors: isProduction,

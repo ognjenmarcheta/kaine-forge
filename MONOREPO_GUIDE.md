@@ -122,7 +122,7 @@ Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-sp
 - Cookies are primary for browser auth (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookies are unreliable.
 - The signup flow auto-creates a default personal organization so every user belongs to at least one organization.
 - The auth surface also covers: organization invitations (admin-gated, accepted by the authenticated user whose email matches), password reset (`/api/auth/request-password-reset`, `/api/auth/reset-password`; resets invalidate sessions), optional soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, never gates login, `emailVerified` on session users), and env-gated GitHub/Google OAuth on web.
-- `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Environment variable details live in the README `## Environment` section.
+- `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. It is **required in production** (boot fails if unset/empty). A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Environment variable details live in the README `## Environment` section.
 - The API rate-limits `/api/auth/*` and `/graphql` (`API_RATE_LIMIT_*`, `API_TRUST_PROXY`) and exposes `/health` and `/ready` probes. Environment variable details live in the README `## Environment` section.
 
 ## 7. Feature Flags
