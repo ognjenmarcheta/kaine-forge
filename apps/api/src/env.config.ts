@@ -11,6 +11,11 @@ const apiEnvSchema = z.object({
   API_URL: z.string().optional(),
   API_CORS_ORIGINS: z.string().optional(),
   API_GRAPHQL_MAX_DEPTH: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
+  API_GRAPHQL_MAX_COMPLEXITY: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  API_GRAPHQL_INTROSPECTION: z.string().optional(),
   API_RUN_MIGRATIONS: z.string().optional(),
   API_RATE_LIMIT_ENABLED: z.string().optional(),
   API_RATE_LIMIT_MAX: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
