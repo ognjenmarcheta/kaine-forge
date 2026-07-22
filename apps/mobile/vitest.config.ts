@@ -7,6 +7,7 @@ const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      "@repo/auth/form": path.join(workspaceRoot, "packages/auth/src/auth.form.ts"),
       "@repo/auth/session": path.join(workspaceRoot, "packages/auth/src/auth.session.ts"),
       "@repo/auth/transport": path.join(workspaceRoot, "packages/auth/src/auth.transport.ts"),
       "@repo/auth": path.join(workspaceRoot, "packages/auth/src/index.ts"),

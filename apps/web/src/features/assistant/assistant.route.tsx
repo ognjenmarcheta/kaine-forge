@@ -1,4 +1,4 @@
-import { createTodoListQueryKey } from "@repo/todos";
+import { createActiveOrganizationQueryKey } from "@repo/query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -43,10 +43,10 @@ export function AssistantRoute() {
   const conversationsVariables = useMemo(() => ({ limit: 50, offset: 0 }), []);
   const conversationsQueryKey = useMemo(
     () =>
-      createTodoListQueryKey({
-        activeOrganizationId,
-        queryKey: useGetConversationsQuery.getKey(conversationsVariables)
-      }),
+      createActiveOrganizationQueryKey(
+        useGetConversationsQuery.getKey(conversationsVariables),
+        activeOrganizationId
+      ),
     [activeOrganizationId, conversationsVariables]
   );
   const conversationsQuery = useGetConversationsQuery(conversationsVariables, {
@@ -61,10 +61,10 @@ export function AssistantRoute() {
   );
   const historyQueryKey = useMemo(
     () =>
-      createTodoListQueryKey({
-        activeOrganizationId,
-        queryKey: useGetConversationQuery.getKey(historyVariables)
-      }),
+      createActiveOrganizationQueryKey(
+        useGetConversationQuery.getKey(historyVariables),
+        activeOrganizationId
+      ),
     [activeOrganizationId, historyVariables]
   );
   const historyQuery = useGetConversationQuery(historyVariables, {

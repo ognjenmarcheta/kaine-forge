@@ -1,4 +1,4 @@
-import { createTodoListQueryKey } from "@repo/todos";
+import { createActiveOrganizationQueryKey } from "@repo/query";
 import { Button, Field, FieldLabel, Input, Textarea } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -21,10 +21,10 @@ export function NoteDetailRoute() {
 
   const noteQueryKey = useMemo(
     () =>
-      createTodoListQueryKey({
-        activeOrganizationId,
-        queryKey: useGetNoteQuery.getKey({ id: id ?? "" })
-      }),
+      createActiveOrganizationQueryKey(
+        useGetNoteQuery.getKey({ id: id ?? "" }),
+        activeOrganizationId
+      ),
     [activeOrganizationId, id]
   );
 

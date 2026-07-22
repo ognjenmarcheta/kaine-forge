@@ -7,6 +7,7 @@ export interface TemplateAdoptionInput {
   webTitle?: string;
   mobileName?: string;
   mobileSlug?: string;
+  mobileScheme?: string;
   desktopProductName?: string;
   desktopWindowTitle?: string;
   desktopIdentifier?: string;
@@ -23,6 +24,7 @@ export interface TemplateAdoptionConfig {
   webTitle: string;
   mobileName: string;
   mobileSlug: string;
+  mobileScheme: string;
   desktopProductName: string;
   desktopWindowTitle: string;
   desktopIdentifier: string;
@@ -77,8 +79,13 @@ export const adoptionTargets = [
   "apps/mobile/src/providers/translation.provider.tsx",
   "apps/mobile/src/stores/sidebar.store.ts",
   "apps/mobile/src/stores/theme.store.ts",
+  "apps/mobile/src/features/auth/auth.config.ts",
+  "apps/mobile/src/lib/auth-api.ts",
+  "apps/desktop/src-tauri/src/main.rs",
+  "apps/desktop/src-tauri/Cargo.lock",
   "packages/auth/src/auth.instance.ts",
   "packages/auth/src/auth.instance.test.ts",
+  "packages/auth/src/auth.instance.hooks.test.ts",
   "packages/auth/src/auth.server.test.ts",
   "packages/persistence/src/persistence.test.ts",
   "packages/translation/src/locales/en/common.json",
@@ -93,15 +100,28 @@ export const adoptionTargets = [
   ".ai/serena-memories/suggested_commands.md",
   ".ai/skills/kaine-open-pr.md",
   ".ai/skills/kaine-test.md",
+  ".ai/agents/kaine-explorer.md",
+  ".ai/agents/kaine-implementer.md",
+  ".ai/ai.util.ts",
+  ".ai/ai.util.spec.ts",
+  ".ai/session-start-hook.spec.ts",
+  ".ai/hooks/session-start.mjs",
   "docs/agents/day-one.md",
+  "docs/agents/domain.md",
+  "docs/agents/issue-tracker.md",
+  "docs/troubleshooting.md",
   "docs/adr/0009-domain-knowledge-as-agent-infra.md"
 ] as const;
 
 const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bKaine Forge\b/g, "Kaine Forge"],
   [/\bkaine-forge\b/g, "kaine-forge"],
+  // No trailing \b: must also match inside kaineforge:// and kaine_forge_desktop.
+  [/kaineforge/g, "kaineforge"],
+  [/kaine_forge/g, "kaine_forge"],
   [/\bcom\.kaine\.forge\b/g, "com.kaine.forge"],
   [/"kaine\./g, '"kaine.'],
+  [/`kaine\./g, "`kaine."],
   [/"kaine"/g, '"kaine"']
 ];
 
@@ -141,6 +161,17 @@ const validatePackageName = (value: string): string => {
   return value;
 };
 
+const MOBILE_SCHEME_PATTERN = /^[a-z][a-z0-9]*$/;
+
+const validateMobileScheme = (value: string): string => {
+  if (!MOBILE_SCHEME_PATTERN.test(value)) {
+    throw new Error(
+      "template adoption config field 'mobileScheme' must be lowercase letters and digits"
+    );
+  }
+  return value;
+};
+
 const validateDesktopIdentifier = (value: string): string => {
   if (!DESKTOP_IDENTIFIER_PATTERN.test(value)) {
     throw new Error(
@@ -170,9 +201,10 @@ export const deriveTemplateAdoptionConfig = (
     repoSlug,
     dockerImagePrefix: requireText("dockerImagePrefix", input.dockerImagePrefix ?? repoSlug),
     s3Bucket: requireText("s3Bucket", input.s3Bucket ?? `${repoSlug}-dev`),
-    webTitle: requireText("webTitle", input.webTitle ?? repoSlug),
+    webTitle: requireText("webTitle", input.webTitle ?? productName),
     mobileName: requireText("mobileName", input.mobileName ?? `${productName} Mobile`),
     mobileSlug,
+    mobileScheme: validateMobileScheme(input.mobileScheme ?? repoSlug.replace(/-/g, "")),
     desktopProductName: requireText("desktopProductName", input.desktopProductName ?? productName),
     desktopWindowTitle: requireText(
       "desktopWindowTitle",
@@ -222,6 +254,7 @@ export const parseTemplateAdoptionConfig = (raw: unknown): TemplateAdoptionConfi
     "webTitle",
     "mobileName",
     "mobileSlug",
+    "mobileScheme",
     "desktopProductName",
     "desktopWindowTitle",
     "desktopIdentifier",
@@ -261,6 +294,8 @@ const replacePolicyBlock = (source: string, replacement: string): [string, numbe
 const replacementsForConfig = (
   config: TemplateAdoptionConfig
 ): ReadonlyArray<readonly [string, string]> => [
+  // Before the generic kaine-forge pair, which would slug-case the web title.
+  ["<title>kaine-forge</title>", `<title>${config.webTitle}</title>`],
   ["com.kaine.forge.desktop", config.desktopIdentifier],
   ["Kaine Forge Mobile", config.mobileName],
   ["Kaine Forge Desktop", config.desktopWindowTitle],
@@ -268,7 +303,12 @@ const replacementsForConfig = (
   ["kaine-forge-api", `${config.dockerImagePrefix}-api`],
   ["kaine-forge-web", `${config.dockerImagePrefix}-web`],
   ["kaine-forge-dev", config.s3Bucket],
+  // Concatenated and snake_case identity forms carry no dash, so the generic
+  // kaine-forge pair below never reaches them.
+  ["kaineforge", config.mobileScheme],
+  ["kaine_forge", config.repoSlug.replace(/-/g, "_")],
   ['"kaine.', `"${config.repoSlug}.`],
+  ["`kaine.", `\`${config.repoSlug}.`],
   ['"kaine"', `"${config.repoSlug}"`],
   ["Kaine Forge", config.productName],
   ["kaine-forge", config.repoSlug]
@@ -293,6 +333,10 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     normalized.startsWith(".worktrees/") ||
     normalized.startsWith(".ai.local/") ||
     normalized.startsWith(".ai/template-adoption") ||
+    // Historical planning records document the template's own development.
+    normalized.startsWith("docs/superpowers/") ||
+    // Changesets are release-note records, like the excluded CHANGELOGs they feed.
+    normalized.startsWith(".changeset/") ||
     normalized === ".ai/skills/kaine-adopt-template.md" ||
     normalized.includes("/skills/kaine-adopt-template/SKILL.md") ||
     segments.includes("node_modules") ||

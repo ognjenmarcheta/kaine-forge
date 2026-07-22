@@ -1,6 +1,6 @@
 ---
 name: kaine-adopt-template
-description: Replace active Kaine Forge template identity with downstream project identity using the template adoption CLI.
+description: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
 argument-hint: optional template-adoption.json path
 ---
 
@@ -31,11 +31,12 @@ Use this skill when turning this template repository into a downstream product r
 7. Use targeted searches for remaining active template identity and review each leftover:
 
    ```bash
-   rg -n "Kaine Forge|kaine-forge|com\\.kaine\\.forge" \
+   rg -n "Kaine Forge|kaine-forge|kaineforge|kaine_forge|com\\.kaine\\.forge" \
      --glob '!**/CHANGELOG.md' \
      --glob '!**/graphql/generated/**' \
      --glob '!apps/desktop/src-tauri/target/**' \
-     --glob '!pnpm-lock.yaml'
+     --glob '!pnpm-lock.yaml' \
+     --glob '!docs/superpowers/**'
    ```
 
 ## Config Shape
@@ -60,6 +61,7 @@ Optional fields can override derived defaults:
 - `webTitle`
 - `mobileName`
 - `mobileSlug`
+- `mobileScheme` (OAuth deep-link scheme; defaults to the repo slug without dashes)
 - `desktopProductName`
 - `desktopWindowTitle`
 

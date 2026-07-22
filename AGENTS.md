@@ -170,7 +170,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 
 ## Generated Skills Index
 
-- `kaine-adopt-template`: Replace active Kaine Forge template identity with downstream project identity using the template adoption CLI.
+- `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
 - `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
