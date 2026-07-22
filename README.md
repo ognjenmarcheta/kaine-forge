@@ -30,8 +30,6 @@ Capability-focused snapshot against common TypeScript monorepo starters (not a p
 
 **Kaine Forge** is for teams shipping a multi-platform product monorepo: web + API + Expo mobile + Tauri desktop, organization-scoped multi-tenant defaults, token design systems, Docker release contracts, and a first-class AI assistant scaffold so agents stay aligned with repo rules.
 
-It is not a Next.js App Router / RSC marketing starter, not an enterprise monorepo platform with generators, and not a blank Turbo kitchen-sink. The matrix above is for capability fit—not a suggestion to use another template when those other lanes matter more to you.
-
 ## Prerequisites
 
 - Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
