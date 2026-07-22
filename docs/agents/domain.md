@@ -5,6 +5,7 @@ How the engineering skills should consume this repo's domain documentation when 
 ## Before exploring, read these
 
 - **`CONTEXT.md`** at the repo root for project domain vocabulary.
+- **`REVIEW.md`** for the shared review checklist (canonical `.ai/review.md`).
 - **`docs/adr/`** for architectural decisions that touch the area being worked on.
 
 If `CONTEXT.md` is missing in a downstream copy of this template, proceed silently. Producer skills such as `/grill-with-docs` create it lazily when terms or decisions get resolved.
