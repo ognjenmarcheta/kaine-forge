@@ -139,6 +139,21 @@ describe("createAuthTransport", () => {
     expect(options.fetchOptions.credentials).toBe("include");
   });
 
+  it("forwards optional client plugins (e.g. Expo) after organizationClient", () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+    const expoPlugin = { id: "expo-client" };
+
+    createAuthTransport({
+      adapter: createAdapter({ clientPlugins: [expoPlugin] })
+    });
+
+    const options = createAuthClientMock.mock.calls[0]?.[0] as {
+      plugins: unknown[];
+    };
+    expect(options.plugins).toEqual([{ id: "organization" }, expoPlugin]);
+  });
+
   it("maps the better-auth session payload to AuthSession", async () => {
     const client = createClientStub();
     client.getSession.mockResolvedValue({

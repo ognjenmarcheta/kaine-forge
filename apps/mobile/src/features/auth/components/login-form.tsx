@@ -1,4 +1,5 @@
 import { validateAuthLoginForm } from "@repo/auth/form";
+import type { AuthSocialProvider } from "@repo/auth/transport";
 import {
   Button,
   Card,
@@ -16,6 +17,13 @@ import { Pressable, View } from "react-native";
 import { ScreenContainer } from "../../../components/screen-container";
 import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
+import { signInWithSocialRequest } from "../../../lib/auth-api";
+import { AUTH_CONFIG } from "../auth.config";
+
+const SOCIAL_PROVIDER_LABEL_KEYS = {
+  github: "auth.social.github",
+  google: "auth.social.google"
+} as const satisfies Record<AuthSocialProvider, string>;
 
 export function LoginForm() {
   const router = useRouter();
@@ -44,6 +52,21 @@ export function LoginForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function onSocialPress(provider: AuthSocialProvider) {
+    setError(null);
+    setIsSubmitting(true);
+    signInWithSocialRequest(provider)
+      .then(() => {
+        router.replace("/dashboard");
+      })
+      .catch(() => {
+        setError(t("error.generic"));
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   }
 
   return (
@@ -79,6 +102,18 @@ export function LoginForm() {
           >
             {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
           </Button>
+          {AUTH_CONFIG.socialProviders.map((provider) => (
+            <Button
+              key={provider}
+              appearance="secondary"
+              disabled={isSubmitting}
+              onPress={() => {
+                onSocialPress(provider);
+              }}
+            >
+              {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
+            </Button>
+          ))}
         </CardContent>
 
         <View className="mt-4 flex-row items-center justify-center gap-1">

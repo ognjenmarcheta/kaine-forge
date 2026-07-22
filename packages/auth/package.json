@@ -73,9 +73,11 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@better-auth/expo": "1.6.23",
     "@repo/db": "workspace:*",
     "@repo/email": "workspace:*",
     "better-auth": "^1.6.23",
-    "drizzle-orm": "^0.44.5"
+    "drizzle-orm": "^0.44.5",
+    "zod": "^4.3.6"
   }
 }
