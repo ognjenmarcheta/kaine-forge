@@ -19,10 +19,18 @@ export function setStoredSession(storageKey: string, session: AuthSession | null
   setJsonValueSync(getLocalStorage(), storageKey, session);
 }
 
+/**
+ * Web is cookie-first: do not read a durable bearer token from storage.
+ * Mobile/desktop may still use bearer transport; web adapters should no-op writes.
+ */
 export function getStoredSessionToken(storageKey: string): string | null {
-  return getLocalStorage()?.getItem(storageKey) ?? null;
+  void storageKey;
+  return null;
 }
 
+/**
+ * Clear any legacy token key if present; never persist a new bearer token on web.
+ */
 export function setStoredSessionToken(storageKey: string, sessionToken: string | null): void {
   const storage = getLocalStorage();
 
@@ -30,23 +38,17 @@ export function setStoredSessionToken(storageKey: string, sessionToken: string |
     return;
   }
 
-  if (!sessionToken) {
-    storage.removeItem(storageKey);
-    return;
+  // Always remove; ignore sessionToken so web never keeps a durable bearer.
+  void sessionToken;
+  storage.removeItem(storageKey);
+  // Migrate away from the historical key if callers pass a different one.
+  if (storageKey !== AUTH_DEFINITION.tokenStorageKey) {
+    storage.removeItem(AUTH_DEFINITION.tokenStorageKey);
   }
-
-  storage.setItem(storageKey, sessionToken);
 }
 
+/** Cookie credentials carry the session; GraphQL/auth clients must not attach Bearer. */
 export function authHeaders(session: AuthSession | null): Record<string, string> {
   void session;
-  const sessionToken = getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey);
-
-  if (!sessionToken) {
-    return {};
-  }
-
-  return {
-    authorization: `Bearer ${sessionToken}`
-  };
+  return {};
 }

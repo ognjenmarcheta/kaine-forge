@@ -62,16 +62,16 @@ describe("auth.util session storage", () => {
     expect(getStoredSession(AUTH_DEFINITION.storageKey)).toBeNull();
   });
 
-  it("builds bearer auth headers from the stored session token", async () => {
+  it("never persists or returns a durable bearer token on web", async () => {
     const { AUTH_DEFINITION } = await import("./auth.definition");
-    const { authHeaders, setStoredSessionToken } = await import("./auth.util");
+    const { authHeaders, getStoredSessionToken, setStoredSessionToken } =
+      await import("./auth.util");
 
-    expect(authHeaders(null)).toEqual({});
-
+    localStorageMap.set(AUTH_DEFINITION.tokenStorageKey, "legacy-token");
     setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, "token-abc");
-    expect(authHeaders(null)).toEqual({ authorization: "Bearer token-abc" });
 
-    setStoredSessionToken(AUTH_DEFINITION.tokenStorageKey, null);
+    expect(getStoredSessionToken(AUTH_DEFINITION.tokenStorageKey)).toBeNull();
+    expect(localStorageMap.has(AUTH_DEFINITION.tokenStorageKey)).toBe(false);
     expect(authHeaders(null)).toEqual({});
   });
 });
