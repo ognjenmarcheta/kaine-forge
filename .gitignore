@@ -35,6 +35,7 @@ apps/e2e/test-results/
 .opencode/
 opencode.json
 .augment/
+graphify-out/
 .serena/.gitignore
 .serena/cache/
 .serena/project.local.yml
