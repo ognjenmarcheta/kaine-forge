@@ -39,8 +39,9 @@ Use this checklist before merging a release PR or cutting a manual release from 
 
 ## 5. Docker
 
-- [ ] Build API image: `docker build -f Dockerfile.api -t kaine-forge-api .`
-- [ ] Build web image: `docker build -f Dockerfile.web -t kaine-forge-web .`
+- [ ] Prefer CI: PR/main `docker-images` job builds `Dockerfile.api` / `Dockerfile.web` when relevant paths change
+- [ ] Local optional: `docker build -f Dockerfile.api -t kaine-forge-api .`
+- [ ] Local optional: `docker build -f Dockerfile.web -t kaine-forge-web .`
 - [ ] Smoke test web nginx proxying for `/api` and `/graphql` when Docker is available
 
 ## 6. Selective App Release Branches

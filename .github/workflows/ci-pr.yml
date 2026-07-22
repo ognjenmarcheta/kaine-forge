@@ -176,6 +176,43 @@ jobs:
       - name: Build API and Web with dependencies
         run: pnpm run build:core
 
+  docker-images:
+    name: Docker Image Builds
+    runs-on: ubuntu-latest
+    needs: check-fast
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Docker-related paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docker:
+              - "Dockerfile.api"
+              - "Dockerfile.web"
+              - "apps/api/**"
+              - "apps/web/**"
+              - "packages/**"
+              - "scripts/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "turbo.json"
+              - "tsconfig.base.json"
+
+      - name: Build API image
+        if: steps.filter.outputs.docker == 'true' || github.event_name != 'pull_request'
+        run: docker build -f Dockerfile.api -t kaine-forge-api:ci .
+
+      - name: Build web image
+        if: steps.filter.outputs.docker == 'true' || github.event_name != 'pull_request'
+        run: docker build -f Dockerfile.web -t kaine-forge-web:ci .
+
+      - name: Skip note
+        if: steps.filter.outputs.docker != 'true' && github.event_name == 'pull_request'
+        run: echo "No Docker-related paths changed; skipping image builds."
   e2e-web-api:
     name: E2E Web/API
     runs-on: ubuntu-latest
