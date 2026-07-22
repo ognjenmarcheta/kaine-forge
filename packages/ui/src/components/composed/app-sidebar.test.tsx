@@ -17,7 +17,7 @@ describe("app-sidebar", () => {
       </SidebarProvider>
     );
 
-    expect(markup).toContain("Team");
+    expect(markup).toContain("Organization");
     expect(markup).toContain("Main");
     expect(markup).toContain("Preferences");
     expect(markup).toContain("User");
