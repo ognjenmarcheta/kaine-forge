@@ -10,7 +10,7 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 
 ## Workflow
 
-1. Read `.ai/guide.md`, `.ai/skills/`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/` as needed.
+1. Read `.ai/guide.md`, `.ai/skills/`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/review.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/` as needed.
 2. Run `pnpm ai:install`.
 3. Run `pnpm ai:doctor`.
 4. If doctor reports drift, inspect the named canonical sources and rerun `pnpm ai:install`.
@@ -20,6 +20,7 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 
 - `AGENTS.md`
 - `CLAUDE.md`
+- `REVIEW.md`
 - `.claude/skills/<skill>/SKILL.md`
 - `.agents/skills/<skill>/SKILL.md`
 - `.cursor/skills/<skill>/SKILL.md`
