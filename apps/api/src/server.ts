@@ -1,6 +1,6 @@
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
-import type { Logger } from "@repo/logger";
+import { createErrorReporter, type Logger } from "@repo/logger";
 import { toNodeHandler } from "better-auth/node";
 import { useServer } from "graphql-ws/use/ws";
 import { createYoga } from "graphql-yoga";
@@ -77,6 +77,8 @@ export function createApiServer({
   const authHandler = toNodeHandler(authInstance.handler);
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
   const rateLimiter = createRateLimiter(rateLimitConfig);
+  // No-op unless OBSERVABILITY_ENABLED / SENTRY_DSN / OTEL endpoint is configured.
+  const errorReporter = createErrorReporter();
   // Dev/test may omit the allowlist (Yoga reflects any origin). Production
   // fails earlier in resolveApiRuntimeConfig when API_CORS_ORIGINS is empty.
   const cors =
@@ -182,6 +184,11 @@ export function createApiServer({
 
       yoga(req, res);
     } catch (error) {
+      errorReporter.captureException(error, {
+        path: req.url ?? "",
+        method: req.method ?? ""
+      });
+      logger.error({ err: error }, "unhandled request error");
       const normalized = formatApiError(error, {
         exposeDetails: runtimeConfig.exposeErrorDetails
       });

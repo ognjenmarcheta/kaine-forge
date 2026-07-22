@@ -79,6 +79,7 @@ Start from `.env.example`. Important variables:
 - `VITE_API_PROXY_TARGET`: optional Vite dev proxy target for `/api` and `/graphql`; defaults to `http://localhost:4000`.
 - `VITE_API_URL`, `VITE_GRAPHQL_URL`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GRAPHQL_URL`: client runtime URLs.
 - `S3_*`: S3-compatible storage settings. Local development uses MinIO from `docker-compose.yml`.
+- `OBSERVABILITY_ENABLED`, `SENTRY_DSN` / `OTEL_EXPORTER_OTLP_ENDPOINT`, `OBSERVABILITY_INGEST_URL`: optional error-reporting seam (no traffic when disabled).
 
 Auth is cookie-first (cookie `kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable. Password reset is requested at `/api/auth/request-password-reset` (better-auth 1.6).
 
