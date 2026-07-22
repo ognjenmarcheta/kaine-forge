@@ -2,3 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "tooling/*"
+
+overrides:
+  minimatch: 10.2.1
