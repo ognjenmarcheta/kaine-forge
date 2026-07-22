@@ -44,5 +44,7 @@ Until a dedicated security contact is published, open a private maintainer chann
 ## Automation
 
 - Dependency audit and secret scanning: `.github/workflows/security.yml`.
+  - On `main` push, weekly schedule, and manual dispatch, `pnpm audit --audit-level high` **fails the job** on high or critical advisories (it no longer warns and continues).
+  - To suppress a known false positive, use pnpm audit config (for example `package.json` → `pnpm.auditConfig.ignoreCves`) and document the reason in the PR that adds the ignore entry.
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
 - AI tooling health/drift check: `pnpm ai:doctor`.
