@@ -24,5 +24,8 @@
     "@graphql-codegen/typescript-operations": "^4.6.1",
     "@graphql-codegen/typescript-react-query": "^6.1.1",
     "graphql": "^16.11.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
   }
 }

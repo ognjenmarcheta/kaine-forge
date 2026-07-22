@@ -24,6 +24,8 @@ pnpm db:seed
 pnpm dev
 ```
 
+If setup fails (port conflicts, `INVALID_ORIGIN` on sign-in, codegen format noise, Docker not running), see [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
 For a full bootstrap (requires running Docker services):
 
 ```bash
