@@ -38,16 +38,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run audit (high and critical)
-        shell: bash
-        run: |
-          set +e
-          pnpm audit --audit-level high
-          status=$?
-          set -e
-
-          if [ "${status}" -ne 0 ]; then
-            echo "::warning::pnpm audit failed (exit ${status}). Skipping as requested."
-          fi
+        # Fails the job on high/critical advisories (pnpm audit exit non-zero).
+        # To suppress a known false positive, use pnpm's audit config
+        # (e.g. package.json "pnpm"."auditConfig"."ignoreCves") and document the
+        # reason in the PR that adds the ignore entry.
+        run: pnpm audit --audit-level high
 
   secret-scan:
     name: Secret Scan
