@@ -27,16 +27,21 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - `adr/0006-in-memory-rate-limiting.md`: in-memory fixed-window API rate limiting.
 - `adr/0007-soft-email-verification.md`: soft, opt-in email verification.
 - `adr/0008-adopt-better-auth.md`: adopt better-auth as the authentication provider.
+- `adr/0009-domain-knowledge-as-agent-infra.md`: encode domain knowledge as agent/review infrastructure.
 
 ## AI Assistant Docs
 
 Canonical AI assistant sources live in `../.ai/`.
 
 - `../.ai/guide.md`: generated into `AGENTS.md` and `CLAUDE.md`.
+- `../.ai/review.md`: generated into root `REVIEW.md` review checklist.
 - `../.ai/skills/*.md`: canonical skill sources for local agent installs.
 - `../.ai/mcp.json`: canonical MCP catalog for local agent installs.
 - `../.ai/serena-project.yml`: generated into `.serena/project.yml`.
 - `../.ai/serena-memories/*.md`: generated into Serena memories.
 - `agents/`: repo-local configuration for Matt Pocock engineering skills, including issue tracker, triage labels, and domain-doc layout.
+- `agents/day-one.md`: day-one agent-assisted contribution ramp.
+- `agents/skill-authoring.md`: how to add product-specific skills.
+- `agents/automation-gap-audit.md`: residual automation opportunities.
 
 Run `pnpm ai:install` and `pnpm ai:doctor` after editing canonical AI sources.
