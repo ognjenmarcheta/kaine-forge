@@ -975,9 +975,10 @@ export const renderGrokSessionStartHook = (): string =>
   `${JSON.stringify(
     {
       hooks: {
+        // Grok loads native SessionStart hooks without Claude-style matchers.
+        // A matcher like "startup|resume" is silently skipped by Grok Build.
         SessionStart: [
           {
-            matcher: "startup|resume",
             hooks: [
               {
                 type: "command",
