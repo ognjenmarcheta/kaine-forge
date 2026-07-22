@@ -531,7 +531,6 @@ describe("renderGrokSessionStartHook", () => {
 
     expect(parsed.hooks.SessionStart).toHaveLength(1);
     expect(parsed.hooks.SessionStart[0]).toEqual({
-      matcher: "startup|resume",
       hooks: [
         {
           type: "command",
@@ -541,6 +540,7 @@ describe("renderGrokSessionStartHook", () => {
         }
       ]
     });
+    expect(parsed.hooks.SessionStart[0]).not.toHaveProperty("matcher");
   });
 });
 
