@@ -73,6 +73,33 @@ export async function objectExists(
   }
 }
 
+export interface ObjectMetadata {
+  contentType: string | undefined;
+  sizeBytes: number | undefined;
+}
+
+export async function headObjectMetadata(
+  client: S3Client,
+  bucket: string,
+  key: string
+): Promise<ObjectMetadata | null> {
+  try {
+    const result = await client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+    );
+
+    return {
+      contentType: result.ContentType,
+      sizeBytes: typeof result.ContentLength === "number" ? result.ContentLength : undefined
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteObject(client: S3Client, bucket: string, key: string): Promise<void> {
   await client.send(
     new DeleteObjectCommand({

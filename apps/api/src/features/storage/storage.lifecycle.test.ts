@@ -80,9 +80,12 @@ describe("createStorageLifecycle", () => {
       defaultEntityType: "general",
       deleteObject: async () => undefined,
       fileExists: async () => true,
+      getObjectMetadata: async () => ({ contentType: "image/png", sizeBytes: 1024 }),
       getFileById: async () => ({
         id: "file-1",
         key: "key",
+        mimeType: "image/png",
+        sizeBytes: 1024,
         status: "pending"
       }),
       listFiles: async () => [],
@@ -96,6 +99,32 @@ describe("createStorageLifecycle", () => {
       status: "uploaded"
     });
     expect(updateFileStatus).toHaveBeenCalledWith(scope, "file-1", "uploaded");
+  });
+
+  it("rejects confirm when uploaded size exceeds claimed size", async () => {
+    const lifecycle = createStorageLifecycle({
+      bucket: "uploads",
+      createFileId: () => "file-1",
+      createFileRecord: async () => ({ id: "file-1", key: "key" }),
+      createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
+      createDownloadUrl: async () => ({ url: "download-url" }),
+      defaultEntityType: "general",
+      deleteObject: async () => undefined,
+      fileExists: async () => true,
+      getObjectMetadata: async () => ({ contentType: "image/png", sizeBytes: 5000 }),
+      getFileById: async () => ({
+        id: "file-1",
+        key: "key",
+        mimeType: "image/png",
+        sizeBytes: 1024,
+        status: "pending"
+      }),
+      listFiles: async () => [],
+      presignedUrlExpirySeconds: 900,
+      updateFileStatus: async () => ({ id: "file-1", key: "key", status: "uploaded" })
+    });
+
+    await expect(lifecycle.confirmUpload(scope, "file-1")).rejects.toThrow(/exceeds claimed size/);
   });
 
   it("keeps lookup, listing, and uploaded-only download URL behavior behind one lifecycle", async () => {
