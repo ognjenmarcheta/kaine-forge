@@ -19,7 +19,7 @@ import {
 } from "./middleware/rate-limit.middleware";
 import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
-import { createDepthLimitPlugin, resolveApiRuntimeConfig } from "./server.config";
+import { createGraphQlLimitsPlugin, resolveApiRuntimeConfig } from "./server.config";
 
 interface CreateApiServerOptions {
   logger: Logger;
@@ -90,7 +90,14 @@ export function createApiServer({
   const yoga = createYoga({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
-    plugins: [createLoggerPlugin({ logger }), createDepthLimitPlugin(runtimeConfig.maxQueryDepth)],
+    plugins: [
+      createLoggerPlugin({ logger }),
+      createGraphQlLimitsPlugin({
+        allowIntrospection: runtimeConfig.allowIntrospection,
+        maxComplexity: runtimeConfig.maxQueryComplexity,
+        maxDepth: runtimeConfig.maxQueryDepth
+      })
+    ],
     context: async (initialContext) => {
       const serverContext = initialContext as unknown as Record<string, unknown>;
       const requestLogger = (serverContext["requestLogger"] as Logger | undefined) ?? logger;

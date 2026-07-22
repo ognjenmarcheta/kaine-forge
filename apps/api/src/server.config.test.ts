@@ -1,7 +1,12 @@
 import { parse } from "graphql";
 import { describe, expect, it } from "vitest";
 
-import { measureQueryDepth, parseCorsOrigins, resolveApiRuntimeConfig } from "./server.config";
+import {
+  measureQueryComplexity,
+  measureQueryDepth,
+  parseCorsOrigins,
+  resolveApiRuntimeConfig
+} from "./server.config";
 
 describe("server.config", () => {
   it("parses comma-separated cors origins", () => {
@@ -19,12 +24,24 @@ describe("server.config", () => {
     });
 
     expect(config).toMatchObject({
+      allowIntrospection: false,
       exposeErrorDetails: false,
       isProduction: true,
       maskedErrors: true,
+      maxQueryComplexity: 200,
       maxQueryDepth: 4
     });
     expect(config.allowedCorsOrigins).toEqual(["https://app.example.com"]);
+  });
+
+  it("allows forcing introspection on in production via env", () => {
+    const config = resolveApiRuntimeConfig({
+      API_CORS_ORIGINS: "https://app.example.com",
+      API_GRAPHQL_INTROSPECTION: "true",
+      NODE_ENV: "production"
+    });
+
+    expect(config.allowIntrospection).toBe(true);
   });
 
   it("fails closed when production has no API_CORS_ORIGINS", () => {
@@ -40,9 +57,11 @@ describe("server.config", () => {
     const config = resolveApiRuntimeConfig({});
 
     expect(config).toMatchObject({
+      allowIntrospection: true,
       exposeErrorDetails: true,
       isProduction: false,
       maskedErrors: false,
+      maxQueryComplexity: 200,
       maxQueryDepth: 8
     });
     expect(config.allowedCorsOrigins).toBeUndefined();
@@ -52,6 +71,11 @@ describe("server.config", () => {
     const depth = measureQueryDepth(parse("query { todos { id } }"));
 
     expect(depth).toBe(2);
+  });
+
+  it("measures query complexity as field selection count", () => {
+    // todos + id + title = 3
+    expect(measureQueryComplexity(parse("query { todos { id title } }"))).toBe(3);
   });
 
   it("resolves fragment spreads when measuring depth", () => {

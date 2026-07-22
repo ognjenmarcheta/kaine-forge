@@ -68,7 +68,9 @@ Start from `.env.example`. Important variables:
 - `API_HOST`: optional API listen host. Use `0.0.0.0` when the API needs to accept LAN traffic from a physical phone.
 - `API_RUN_MIGRATIONS`: optional boolean. Defaults to `false` outside production and `true` in production.
 - `API_CORS_ORIGINS`: comma-separated allowlist for browser/API origins. **Required in production** (API boot fails if missing or empty when `NODE_ENV=production`). **Dual-purpose:** it feeds both CORS and better-auth's `trustedOrigins`. A browser-facing web origin missing from this list makes sign-in/sign-up fail with `403 INVALID_ORIGIN` (which looks like an auth failure, not a CORS error), so every web origin must be listed. Note the wildcard asymmetry: better-auth pattern-matches `trustedOrigins`, but our CORS reflection is exact-match — do not rely on wildcards. Development may omit it (open CORS for local DX); production never does.
-- `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap.
+- `API_GRAPHQL_MAX_DEPTH`: GraphQL query depth cap (default 8).
+- `API_GRAPHQL_MAX_COMPLEXITY`: GraphQL field-selection complexity cap (default 200).
+- `API_GRAPHQL_INTROSPECTION`: set `true`/`false` to force introspection; default is enabled outside production and **disabled in production**.
 - `API_RATE_LIMIT_ENABLED`, `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`: in-memory rate limiting for `/api/auth/*` and `/graphql` (enabled by default outside tests; 100 requests per 60s window).
 - `API_TRUST_PROXY`: set `true` only when the API sits behind a trusted reverse proxy; enables client identification via the rightmost `x-forwarded-for` entry for rate limiting.
 - `EMAIL_PROVIDER`: email delivery adapter (`console` logs messages in development; add real providers in `@repo/email`).
