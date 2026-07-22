@@ -53,7 +53,7 @@ export const REQUIRED_SERENA_MEMORIES = [
 
 export const DAY_ONE_CONTRIBUTING_MARKER = "Day-one agent ramp";
 
-const ALL_AGENTS = ["claude", "codex", "cursor", "opencode"] as const;
+const ALL_AGENTS = ["claude", "codex", "cursor", "opencode", "grok"] as const;
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
 const DESCRIPTION_SOFT_LIMIT = 1500;
 
@@ -783,6 +783,8 @@ export const renderClaudeAgentDefinition = (definition: AgentDefinition): string
 
 export const renderCodexSkill = renderClaudeSkill;
 export const renderCursorSkill = renderClaudeSkill;
+export const renderGrokSkill = renderClaudeSkill;
+export const renderGrokAgentDefinition = renderClaudeAgentDefinition;
 
 export const renderOpencodeSkill = (skill: Skill): string =>
   `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n${HTML_HEADER}\n\n${skill.body}`;
@@ -917,22 +919,8 @@ export const missingEnvVarsForMcpServers = (
   return [...missing].sort((left, right) => left.localeCompare(right));
 };
 
-export const renderCodexConfig = (source: McpSource): string => {
-  const lines: string[] = [
-    TOML_HEADER,
-    "",
-    "[features]",
-    "hooks = true",
-    "",
-    "[[hooks.SessionStart]]",
-    'matcher = "startup|resume"',
-    "",
-    "[[hooks.SessionStart.hooks]]",
-    'type = "command"',
-    `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
-    'statusMessage = "Loading Kaine Forge AI context"',
-    ""
-  ];
+const renderMcpServersToml = (source: McpSource): string[] => {
+  const lines: string[] = [];
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
     lines.push(`[mcp_servers.${name}]`);
@@ -952,8 +940,58 @@ export const renderCodexConfig = (source: McpSource): string => {
     lines.push("");
   }
 
+  return lines;
+};
+
+export const renderCodexConfig = (source: McpSource): string => {
+  const lines: string[] = [
+    TOML_HEADER,
+    "",
+    "[features]",
+    "hooks = true",
+    "",
+    "[[hooks.SessionStart]]",
+    'matcher = "startup|resume"',
+    "",
+    "[[hooks.SessionStart.hooks]]",
+    'type = "command"',
+    `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
+    'statusMessage = "Loading Kaine Forge AI context"',
+    "",
+    ...renderMcpServersToml(source)
+  ];
+
   return lines.join("\n").replace(/\n+$/, "\n");
 };
+
+/** Project-scoped Grok Build MCP config (`.grok/config.toml`). Hooks live under `.grok/hooks/`. */
+export const renderGrokConfig = (source: McpSource): string => {
+  const lines: string[] = [TOML_HEADER, "", ...renderMcpServersToml(source)];
+  return lines.join("\n").replace(/\n+$/, "\n");
+};
+
+/** Project-scoped Grok SessionStart hook (`.grok/hooks/kaine-session-start.json`). */
+export const renderGrokSessionStartHook = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: {
+        SessionStart: [
+          {
+            matcher: "startup|resume",
+            hooks: [
+              {
+                type: "command",
+                command: `${AI_CONTEXT_HOOK_COMMAND} --agent grok`,
+                statusMessage: "Loading Kaine Forge AI context"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    null,
+    2
+  )}\n`;
 
 export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};

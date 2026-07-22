@@ -34,6 +34,10 @@ import {
   renderCodexSkill,
   renderCursorRulesFile,
   renderCursorSkill,
+  renderGrokAgentDefinition,
+  renderGrokConfig,
+  renderGrokSessionStartHook,
+  renderGrokSkill,
   renderMcpJson,
   renderOpencodeConfig,
   renderOpencodeSkill,
@@ -60,26 +64,28 @@ interface InstallOptions {
 let localMcpEnv: Record<string, string> = {};
 
 const usage = `Usage:
-  pnpm ai:install [--agent claude|codex|cursor|opencode] [--skill <name|all>] [--mcp <name|all>] [--non-interactive]
+  pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive]
 
 Without selection flags and on a TTY, prompts interactively.
 Otherwise defaults to: --agent claude --agent codex, all default skills, all default-eligible MCPs.
 `;
 
-const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode"];
+const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode", "grok"];
 
 const SKILL_DIRS: Record<Agent, string> = {
   claude: ".claude/skills",
   codex: ".agents/skills",
   cursor: ".cursor/skills",
-  opencode: ".opencode/skills"
+  opencode: ".opencode/skills",
+  grok: ".grok/skills"
 };
 
 const AGENT_LABELS: Record<Agent, string> = {
   claude: "Claude Code",
   codex: "Codex",
   cursor: "Cursor",
-  opencode: "OpenCode"
+  opencode: "OpenCode",
+  grok: "Grok Build"
 };
 
 const parseListArg = (value: string): string[] =>
@@ -103,6 +109,9 @@ const detectAgents = (): Set<Agent> => {
   }
   if (existsSync(join(home, ".opencode")) || existsSync(join(xdgConfig, "opencode"))) {
     detected.add("opencode");
+  }
+  if (existsSync(join(home, ".grok"))) {
+    detected.add("grok");
   }
   return detected;
 };
@@ -137,7 +146,9 @@ const installedMcpsForAgent = (agent: Agent): Set<string> => {
         ? join(REPO_ROOT, ".codex", "config.toml")
         : agent === "cursor"
           ? join(REPO_ROOT, ".cursor", "mcp.json")
-          : join(REPO_ROOT, "opencode.json");
+          : agent === "grok"
+            ? join(REPO_ROOT, ".grok", "config.toml")
+            : join(REPO_ROOT, "opencode.json");
 
   if (!existsSync(configFile)) {
     return result;
@@ -398,7 +409,9 @@ const installAgent = (
           ? renderCodexSkill
           : agent === "cursor"
             ? renderCursorSkill
-            : renderOpencodeSkill;
+            : agent === "grok"
+              ? renderGrokSkill
+              : renderOpencodeSkill;
 
     writeGenerated(file, render(skill), results);
   }
@@ -480,6 +493,44 @@ const installAgent = (
       renderOpencodeConfig(resolved.source),
       results
     );
+  }
+  if (agent === "grok") {
+    writeGenerated(
+      join(REPO_ROOT, ".grok", "config.toml"),
+      renderGrokConfig(resolved.source),
+      results
+    );
+    writeGenerated(
+      join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json"),
+      renderGrokSessionStartHook(),
+      results
+    );
+
+    const agentsDirAbs = join(REPO_ROOT, ".grok", "agents");
+    const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
+    for (const definition of agentDefinitions) {
+      writeGenerated(
+        join(agentsDirAbs, `${definition.name}.md`),
+        renderGrokAgentDefinition(definition),
+        results
+      );
+    }
+
+    if (existsSync(agentsDirAbs)) {
+      for (const entry of readdirSync(agentsDirAbs, { withFileTypes: true })) {
+        if (
+          !entry.isFile() ||
+          !entry.name.endsWith(".md") ||
+          !entry.name.startsWith(KAINE_PREFIX) ||
+          expectedAgentDefs.has(entry.name.replace(/\.md$/, ""))
+        ) {
+          continue;
+        }
+
+        rmSync(join(agentsDirAbs, entry.name), { force: true });
+        removedSkills.push(`${agent}: ${entry.name}`);
+      }
+    }
   }
 
   return skippedMcps;

@@ -27,9 +27,11 @@ const makeHealthyAiInstall = (repo: string): void => {
   writeFile(repo, ".agents/skills/kaine-test/SKILL.md");
   writeFile(repo, ".mcp.json");
   writeFile(repo, ".claude/skills/kaine-test/SKILL.md");
+  writeFile(repo, ".grok/config.toml");
+  writeFile(repo, ".grok/skills/kaine-test/SKILL.md");
 };
 
-const runHook = (cwd: string, agent: "codex" | "claude") =>
+const runHook = (cwd: string, agent: "codex" | "claude" | "grok") =>
   spawnSync("node", [hookScript, "--agent", agent], {
     cwd,
     input: JSON.stringify({ cwd, hook_event_name: "SessionStart", source: "startup" }),
@@ -84,6 +86,38 @@ describe("session-start hook", () => {
       expect(result.stdout).toContain("Missing Claude MCP config");
       expect(result.stdout).toContain("Missing Claude skills");
       expect(result.stdout).toContain("pnpm ai:install --agent claude");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("warns when the Grok AI install is missing", () => {
+    const repo = makeRepo();
+    try {
+      writeFile(repo, ".ai/guide.md");
+      writeFile(repo, "AGENTS.md");
+      writeFile(repo, "CLAUDE.md");
+      const result = runHook(repo, "grok");
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("AI setup: needs attention");
+      expect(result.stdout).toContain("Missing Grok config");
+      expect(result.stdout).toContain("Missing Grok skills");
+      expect(result.stdout).toContain("pnpm ai:install --agent grok");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("prints healthy context for a complete Grok install", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      const result = runHook(repo, "grok");
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("AI setup: healthy");
+      expect(result.stdout).not.toContain("pnpm ai:install");
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

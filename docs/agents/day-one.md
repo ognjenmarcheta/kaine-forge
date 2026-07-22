@@ -6,6 +6,9 @@ This ramp is for engineers and non-engineers contributing with a coding agent wh
 
 ```bash
 pnpm ai:install
+# optional: target a harness explicitly
+# pnpm ai:install --agent claude
+# pnpm ai:install --agent grok
 # or full bootstrap: pnpm quick-setup (needs Docker services)
 ```
 

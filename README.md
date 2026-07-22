@@ -154,7 +154,7 @@ pnpm ai:doctor
 
 Initial setup also runs `pnpm ai:install` through `pnpm quick-setup` and `pnpm initialize`, so generated assistant files are available before normal development starts.
 
-Installed agent outputs are local and gitignored, including `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`. Personal MCP values and overrides live in `.ai.local/`.
+Installed agent outputs are local and gitignored, including `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.grok/skills/`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, `.grok/config.toml`, `.grok/hooks/`, `.grok/agents/`, and `opencode.json`. Personal MCP values and overrides live in `.ai.local/`.
 
 Optionally, `pnpm graph` builds a queryable Graphify knowledge graph of code, SQL, docs, and config into `graphify-out/` (local, gitignored). The `kaine-graph` skill covers install, build, refresh, and query workflows, and an opt-in `graphify` MCP server is available in the shared catalog. The Graphify CLI is per-developer tooling and is not part of `pnpm initialize`, git hooks, or CI.
 

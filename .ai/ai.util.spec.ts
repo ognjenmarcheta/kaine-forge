@@ -21,9 +21,13 @@ import {
   renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
+  renderClaudeSkill,
   renderCodexConfig,
   renderCursorRulesFile,
   renderCursorSkill,
+  renderGrokConfig,
+  renderGrokSessionStartHook,
+  renderGrokSkill,
   renderMcpJson,
   renderOpencodeConfig,
   renderOpencodeSkill,
@@ -101,7 +105,7 @@ describe("parseSkillFile", () => {
     );
     expect(skill.name).toBe("kaine-foo");
     expect(skill.description).toBe("Does foo.");
-    expect(skill.agents).toEqual(["claude", "codex", "cursor", "opencode"]);
+    expect(skill.agents).toEqual(["claude", "codex", "cursor", "opencode", "grok"]);
     expect(skill.isDefault).toBe(true);
     expect(skill.requiresEnv).toEqual([]);
     expect(skill.argumentHint).toBe("");
@@ -474,6 +478,79 @@ describe("renderCodexConfig", () => {
     expect(toml).toContain(
       'command = "node \\"$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs\\" --agent codex"'
     );
+  });
+});
+
+describe("renderGrokConfig", () => {
+  it("emits TOML MCP sections without Codex hooks", () => {
+    const toml = renderGrokConfig({
+      mcpServers: {
+        foo: {
+          command: "foo-bin",
+          args: ["--flag"],
+          env: { TOKEN: "abc" }
+        }
+      }
+    });
+    expect(toml).toContain("GENERATED FILE");
+    expect(toml).toContain("[mcp_servers.foo]");
+    expect(toml).toContain('command = "foo-bin"');
+    expect(toml).toContain('args = ["--flag"]');
+    expect(toml).toContain("[mcp_servers.foo.env]");
+    expect(toml).toContain('TOKEN = "abc"');
+    expect(toml).not.toContain("[features]");
+    expect(toml).not.toContain("hooks = true");
+    expect(toml).not.toContain("[[hooks.SessionStart]]");
+  });
+
+  it("emits valid TOML for server names with hyphens", () => {
+    const toml = renderGrokConfig({
+      mcpServers: {
+        "mcp-atlassian": {
+          command: "uvx",
+          args: ["mcp-atlassian"],
+          env: { TOKEN: "abc" }
+        }
+      }
+    });
+    expect(toml).toContain("[mcp_servers.mcp-atlassian]");
+    expect(toml).toContain("[mcp_servers.mcp-atlassian.env]");
+  });
+});
+
+describe("renderGrokSessionStartHook", () => {
+  it("installs the Grok SessionStart AI context hook", () => {
+    const parsed = JSON.parse(renderGrokSessionStartHook()) as {
+      hooks: {
+        SessionStart: Array<{
+          matcher?: string;
+          hooks: Array<{ type: string; command: string; statusMessage?: string }>;
+        }>;
+      };
+    };
+
+    expect(parsed.hooks.SessionStart).toHaveLength(1);
+    expect(parsed.hooks.SessionStart[0]).toEqual({
+      matcher: "startup|resume",
+      hooks: [
+        {
+          type: "command",
+          command:
+            'node "$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs" --agent grok',
+          statusMessage: "Loading Kaine Forge AI context"
+        }
+      ]
+    });
+  });
+});
+
+describe("renderGrokSkill", () => {
+  it("matches the Claude skill shape", () => {
+    const skill = parseSkillFile(
+      "kaine-foo",
+      "---\nname: kaine-foo\ndescription: Does foo.\n---\n\nBody.\n"
+    );
+    expect(renderGrokSkill(skill)).toBe(renderClaudeSkill(skill));
   });
 });
 

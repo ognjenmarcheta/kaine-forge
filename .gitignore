@@ -34,6 +34,10 @@ apps/e2e/test-results/
 .mcp.json
 .opencode/
 opencode.json
+.grok/config.toml
+.grok/skills/
+.grok/hooks/
+.grok/agents/
 .augment/
 graphify-out/
 .serena/.gitignore
