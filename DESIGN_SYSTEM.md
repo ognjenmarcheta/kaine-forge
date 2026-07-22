@@ -264,9 +264,21 @@ Composed component rules:
 
 `@repo/mobile-ui` owns React Native primitives and mobile variants.
 
-Mobile token utilities are defined for NativeWind in:
+### Token pipeline (single source of truth)
 
-- `apps/mobile/src/styles/global.css`
+Canonical functional and structural tokens live in `packages/ui/src/styles/globals.css` (with web contract tests). Mobile does **not** hand-maintain a second hex palette.
+
+Pipeline:
+
+1. Edit tokens only in `packages/ui/src/styles/globals.css`.
+2. Run `pnpm tokens:mobile` (or `node scripts/sync-mobile-design-tokens.mjs`) to regenerate the marked region in `apps/mobile/src/styles/global.css`.
+3. `pnpm tokens:mobile:check` (and the `@repo/ui` contract test) fail if mobile CSS drifts from the web source.
+
+The generated block is bounded by `/* DESIGN_TOKENS_START */` / `/* DESIGN_TOKENS_END */`. Functional color tokens are resolved to concrete values because NativeWind does not chase nested `var()` chains the way web CSS does. Theme-independent structural tokens (`--ds-space-*`, `--ds-radius-*`, font weights, line heights, control sizes) are included on `:root`. Dark theme overrides land under `.dark` (paired with the mobile dark-theme class wiring).
+
+Mobile runtime wiring:
+
+- `apps/mobile/src/styles/global.css` — generated token CSS + NativeWind entry
 - `apps/mobile/tailwind.config.ts`
 - `packages/mobile-ui/src/lib/variants.ts`
 
@@ -278,6 +290,7 @@ Rules:
 - Do not copy DOM-specific Radix/shadcn APIs into mobile components.
 - Keep mobile component text passed by props or translations from app feature code.
 - Avoid raw color and spacing values in mobile feature components.
+- After changing web tokens, re-run `pnpm tokens:mobile` before committing.
 
 ## 11. Layout Patterns
 

@@ -268,7 +268,7 @@ Provider order:
 - Expo Router file routes live in `apps/mobile/app`.
 - Feature code lives under `apps/mobile/src/features/{feature}` using the same FDD naming style as web/API.
 - `@repo/mobile-ui` owns reusable React Native primitives and variants.
-- `apps/mobile/src/styles/global.css` defines NativeWind-compatible token utilities for the mobile runtime.
+- `apps/mobile/src/styles/global.css` holds NativeWind-compatible token CSS generated from `packages/ui/src/styles/globals.css` via `pnpm tokens:mobile` (see DESIGN*SYSTEM.md §10). Do not hand-edit the `DESIGN_TOKENS*\*` region.
 - Mobile can share auth, db types/validators, feature flags, query helpers, translations, and GraphQL operations, but not React DOM components.
 
 ## 16. Script Standards
