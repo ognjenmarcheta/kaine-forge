@@ -35,6 +35,6 @@ This decision **supersedes the "custom session implementation" characterization*
   - a maintained library owns the routes, cookie handling, and token signing instead of the template
 - Cons:
   - better-auth owns the routes and cookie (`kaine.session_token` via `cookiePrefix: "kaine"`); route and cookie naming are now the library's contract, not ours
-  - `API_CORS_ORIGINS` is now dual-purpose: it also feeds better-auth's `trustedOrigins`. A browser-facing web origin missing from it produces a `403 INVALID_ORIGIN` on sign-in/sign-up (reads like an auth failure, not a CORS error). Every web origin must be listed. This is a deployment contract, documented in README `## Environment`.
+  - `API_CORS_ORIGINS` is now dual-purpose: it also feeds better-auth's `trustedOrigins`. A browser-facing web origin missing from it produces a `403 INVALID_ORIGIN` on sign-in/sign-up (reads like an auth failure, not a CORS error). Every web origin must be listed. This is a deployment contract, documented in `MONOREPO_GUIDE.md` section 9 and `.env.example`.
   - migration ordering is load-bearing: `0003` backfills `password_hash` into credential `accounts.password` rows before `0005` drops the `users.password_hash` column. Forks with existing data must apply `0003` before `0005` or lose credentials.
   - mobile social login uses `@better-auth/expo` (server `expo()` plugin + client `expoClient`) with the `kaineforge://` deep-link scheme; UI buttons remain env-gated via `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS`.
