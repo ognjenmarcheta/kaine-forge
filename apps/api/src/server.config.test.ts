@@ -27,6 +27,15 @@ describe("server.config", () => {
     expect(config.allowedCorsOrigins).toEqual(["https://app.example.com"]);
   });
 
+  it("fails closed when production has no API_CORS_ORIGINS", () => {
+    expect(() => resolveApiRuntimeConfig({ NODE_ENV: "production" })).toThrow(
+      /API_CORS_ORIGINS is required in production/
+    );
+    expect(() =>
+      resolveApiRuntimeConfig({ NODE_ENV: "production", API_CORS_ORIGINS: "  ,  " })
+    ).toThrow(/API_CORS_ORIGINS is required in production/);
+  });
+
   it("falls back to development-safe defaults", () => {
     const config = resolveApiRuntimeConfig({});
 

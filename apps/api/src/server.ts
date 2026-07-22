@@ -77,6 +77,8 @@ export function createApiServer({
   const authHandler = toNodeHandler(authInstance.handler);
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
   const rateLimiter = createRateLimiter(rateLimitConfig);
+  // Dev/test may omit the allowlist (Yoga reflects any origin). Production
+  // fails earlier in resolveApiRuntimeConfig when API_CORS_ORIGINS is empty.
   const cors =
     runtimeConfig.allowedCorsOrigins === undefined
       ? true
@@ -84,12 +86,6 @@ export function createApiServer({
           credentials: true,
           origin: runtimeConfig.allowedCorsOrigins
         };
-
-  if (cors === true && runtimeConfig.isProduction) {
-    logger.warn(
-      "API_CORS_ORIGINS is not set; CORS reflects any origin with credentials. Set an explicit allowlist in production."
-    );
-  }
 
   const yoga = createYoga({
     schema: apiSchema,
