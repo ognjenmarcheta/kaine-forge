@@ -359,16 +359,18 @@ Graphify is optional per-developer tooling: `pnpm graph` writes a queryable code
 
 ## 19. Adding a Feature
 
-Pick the reference feature that matches your scope: clone `notes` for a plain organization-scoped CRUD slice, and `todos` only when you need its full stack (AI generation, attachments, subscriptions).
+Pick the reference feature that matches your scope: clone `notes` for a plain organization-scoped CRUD slice (API + web), and `todos` only when you need its full stack (AI generation, attachments, subscriptions) including mobile.
+
+**Platform default:** API + web. Mobile is a **subset** of the template product surface — see `CONTEXT.md` **Template platform surfaces**. Do not add mobile GraphQL operations or screens unless the task requires mobile or you are extending the mobile-supported set (auth, dashboard, todos).
 
 1. Add Drizzle schema, validators, and inferred types in `packages/db`.
 2. Add translation namespace entries for each supported language.
 3. Add API schema, resolver, adapter, constants, and tests under `apps/api/src/features/{feature}`.
 4. Register the API feature in the central GraphQL feature registry. `apps/api/src/schema/features.test.ts` asserts the registered feature names — add the new feature there or the API test suite fails by design.
-5. Add web and mobile GraphQL operations, then run `pnpm generate`.
+5. Add web GraphQL operations, then run `pnpm generate`. Add mobile operations only when mobile is in scope for this feature.
 6. Add web route/component code under `apps/web/src/features/{feature}`.
-7. Add mobile route/screen code under `apps/mobile/src/features/{feature}`.
-8. Add tests at the nearest useful layer and e2e coverage for user-visible flows.
+7. When mobile is in scope: add mobile route/screen code under `apps/mobile/src/features/{feature}` and matching operations.
+8. Add tests at the nearest useful layer and e2e coverage for user-visible web/API flows (mobile e2e is not required by the template default).
 9. Add a changeset for releasable source changes.
 
 Organization-scoped client query keys come from `createActiveOrganizationQueryKey` in `@repo/query`.

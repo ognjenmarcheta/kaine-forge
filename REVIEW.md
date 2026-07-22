@@ -53,6 +53,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Public names (types, APIs, UI copy keys, issue text) use `CONTEXT.md` terms (**Organization**, **Active Organization**, **Invitation**, etc.) and avoid listed synonyms.
 - [ ] New durable concepts are added to `CONTEXT.md` (and ADRs when architectural) rather than left only in chat or PR comments.
 - [ ] No contradiction of accepted ADRs under `docs/adr/` without calling it out explicitly.
+- [ ] Client scope matches `CONTEXT.md` **Template platform surfaces**: mobile is a subset; web-first features (e.g. notes, assistant) do not require mobile UI unless the task says so.
 
 ## Template & AI Hygiene
 
