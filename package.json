@@ -38,7 +38,7 @@
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
-    "generate": "pnpm --filter @repo/graphql-codegen run generate",
+    "generate": "pnpm --filter @repo/api run schema:generate && pnpm --filter @repo/graphql-codegen run generate",
     "db:generate": "pnpm --filter @repo/db run db:generate",
     "db:ensure": "pnpm --filter @repo/db run db:ensure",
     "db:push": "pnpm --filter @repo/db run db:push",

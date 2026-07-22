@@ -111,6 +111,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Regenerate GraphQL artifacts and fail on drift
+        env:
+          # schema:generate imports feature modules that load the DB client at
+          # module scope; a placeholder URL is enough (no live Postgres required).
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
+        run: |
+          set -euo pipefail
+          # Root generate: API schema.graphql + web/mobile client codegen.
+          pnpm run generate
+          git add --intent-to-add \
+            apps/api/schema.graphql \
+            apps/web/src/graphql/generated \
+            apps/mobile/src/graphql/generated
+          if ! git diff --exit-code -- \
+            apps/api/schema.graphql \
+            apps/web/src/graphql/generated \
+            apps/mobile/src/graphql/generated; then
+            echo "GraphQL artifacts are out of date or hand-edited."
+            echo "Run 'pnpm generate' and commit the result."
+            exit 1
+          fi
+
       - name: Diff schema against pull request base
         env:
           BASE_REF: ${{ github.base_ref }}

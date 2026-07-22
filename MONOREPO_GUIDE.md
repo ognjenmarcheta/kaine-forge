@@ -146,11 +146,13 @@ Feature flags are config-driven in `@repo/feature-flags`. There is no remote fla
 - Do not hand-edit generated GraphQL artifacts.
 - Use generated React Query hooks for GraphQL data fetching.
 
-Regenerate after GraphQL schema or operation changes:
+Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs API `schema:generate` (writes `apps/api/schema.graphql`) then client codegen for web and mobile:
 
 ```bash
 pnpm generate
 ```
+
+CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit.
 
 ## 9. Runtime and Environment Rules
 

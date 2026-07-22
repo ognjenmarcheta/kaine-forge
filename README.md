@@ -101,6 +101,7 @@ MOBILE_LAN_IP=192.168.1.42 pnpm dev:mobile:lan
 - The committed API schema is `apps/api/schema.graphql`.
 - Web and mobile GraphQL operations live under `apps/{web,mobile}/src/graphql/operations`.
 - Generated client artifacts live under `apps/{web,mobile}/src/graphql/generated`.
+- `pnpm generate` writes the API schema and both client graphs in one command; PR CI fails if those files drift.
 
 Common commands:
 
