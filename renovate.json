@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", ":pinGitHubActionDigests"],
   "timezone": "Europe/Belgrade",
   "schedule": ["before 6am on monday"],
   "labels": ["dependencies", "release:skip-changeset"],
@@ -44,6 +44,11 @@
       "matchPackageNames": ["node"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
     }
   ],
   "customManagers": [
