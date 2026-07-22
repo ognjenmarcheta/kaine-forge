@@ -18,13 +18,13 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 
 Capability-focused snapshot against common TypeScript monorepo starters (not a popularity ranking):
 
-|                    | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
-| ------------------ | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
-| **Kaine Forge**    |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
-| next-forge         |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
-| create-t3-turbo    |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
-| Nx integrated      |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
-| Turbo kitchen-sink |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
+|                                                              | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
+| ------------------------------------------------------------ | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
+| **[Kaine Forge](https://github.com/ognjenmarcheta/kaine-forge)** |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
+| [next-forge](https://github.com/vercel/next-forge)           |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
+| [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo) |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
+| [Nx integrated](https://nx.dev/docs/concepts/integrated-vs-package-based) |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
+| [Turbo kitchen-sink](https://github.com/vercel/turborepo/tree/main/examples/kitchen-sink) |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
 
 ### Verdict
 
