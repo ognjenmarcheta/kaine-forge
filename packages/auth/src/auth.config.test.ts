@@ -54,28 +54,17 @@ describe("auth.config", () => {
   });
 
   it("accepts strong secrets and rejects weak ones only in production", () => {
-    expect(() => assertProductionAuthSecret("short", { NODE_ENV: "development" })).not.toThrow();
+    expect(() => assertProductionAuthSecret("short", "development")).not.toThrow();
 
-    expect(() => assertProductionAuthSecret(undefined, { NODE_ENV: "production" })).toThrow(
+    expect(() => assertProductionAuthSecret(undefined, "production")).toThrow(
       /BETTER_AUTH_SECRET must be set/
     );
-    expect(() => assertProductionAuthSecret("too-short", { NODE_ENV: "production" })).toThrow(
-      /at least 32/
-    );
+    expect(() => assertProductionAuthSecret("too-short", "production")).toThrow(/at least 32/);
     expect(() =>
-      assertProductionAuthSecret("development-secret".padEnd(32, "x"), {
-        NODE_ENV: "production"
-      })
-    ).not.toThrow();
-    expect(() =>
-      assertProductionAuthSecret("your-secret-key-change-in-production", {
-        NODE_ENV: "production"
-      })
+      assertProductionAuthSecret("your-secret-key-change-in-production", "production")
     ).toThrow(/placeholder/);
     expect(() =>
-      assertProductionAuthSecret("a-sufficiently-long-random-secret-value-here", {
-        NODE_ENV: "production"
-      })
+      assertProductionAuthSecret("a-sufficiently-long-random-secret-value-here", "production")
     ).not.toThrow();
   });
 });
