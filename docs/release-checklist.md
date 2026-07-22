@@ -45,8 +45,8 @@ Use this checklist before merging a release PR or cutting a manual release from 
 
 ## 6. Selective App Release Branches
 
-- [ ] `pnpm release:apps --dry-run`
-- [ ] After merging deployable app changes to synced `main`, run `pnpm release:apps`
+- [ ] Prefer the automated path: the Release workflow on `main` runs `pnpm release:apps` after quality gates (no-op when no deployable apps are affected).
+- [ ] Manual override still works: `pnpm release:apps --dry-run` then `pnpm release:apps` from synced `main` if automation was skipped or a branch needs repair.
 - [ ] Use `pnpm release:apps --apps all` only when intentionally initializing or republishing every deployable app branch
 - [ ] Confirm only the expected `release/<app>` branches were updated
 

@@ -75,6 +75,16 @@ jobs:
           pnpm run build:core
           pnpm run test:e2e
 
+      # Graph-aware update of release/<app> branches for affected Docker apps.
+      # Runs while the worktree is still clean and HEAD matches origin/main
+      # (before changesets may open a version PR or commit publishes).
+      # No-op when no deployable app is affected; fails the job on script errors.
+      - name: Update deployable app release branches
+        run: pnpm release:apps
+        env:
+          # checkout authenticates origin; push uses the job token (contents: write).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Version packages or publish tags
         id: changesets
         uses: changesets/action@v1

@@ -193,7 +193,7 @@ The template includes production Dockerfiles for API and web:
 - `Dockerfile.api` uses `turbo prune @repo/api --docker`, builds the API graph, fixes emitted ESM extensions, copies package dist outputs, and runs `node apps/api/dist/index.js`.
 - `Dockerfile.web` uses `turbo prune @repo/web --docker`, builds the web graph, and serves the SPA through nginx.
 - `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers.
-- Each top-level `Dockerfile.<app>` defines a deployable app branch contract. After app-affecting changes are merged to synced `main`, run `pnpm release:apps` to create or fast-forward only `release/<app>` for the affected apps.
+- Each top-level `Dockerfile.<app>` defines a deployable app branch contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI remains for dry-runs and repairs.
 - Docker images must stay template-safe. Do not add product-specific services, assets, or secrets.
 
 Build examples:
