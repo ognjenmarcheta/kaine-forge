@@ -6,6 +6,10 @@ const mobileDocuments = ["../../apps/mobile/src/**/*.graphql"];
 const config: CodegenConfig = {
   schema: "../../apps/api/schema.graphql",
   ignoreNoDocuments: true,
+  // Keep generated client files format:check-clean without a manual prettier pass.
+  hooks: {
+    afterAllFileWrite: ["prettier --write"]
+  },
   generates: {
     "../../apps/web/src/graphql/generated/": {
       documents: webDocuments,

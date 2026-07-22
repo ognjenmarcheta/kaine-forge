@@ -54,6 +54,8 @@ pnpm quick-setup
 
 `quick-setup` runs the same bootstrap as `initialize`: it creates `.env` from `.env.example` when missing, reinstalls dependencies, installs local AI assistant files, builds the repo, generates/ensures/pushes/seeds the database, then starts development tasks. Postgres must already be running, so start Docker services first.
 
+Common failures (port conflicts, `403 INVALID_ORIGIN`, codegen format, AI scaffold drift): see [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
 ## Environment
 
 Start from `.env.example`. Important variables:

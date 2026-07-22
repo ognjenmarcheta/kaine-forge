@@ -13,6 +13,7 @@ Use this index to find the right source of truth quickly.
 ## Operational Docs
 
 - `release-checklist.md`: release validation checklist.
+- `troubleshooting.md`: common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - `turborepo-2-8-audit.md`: Turborepo 2.8 adoption notes.
 
 Design-token conformance is enforced continuously by `packages/ui/src/styles/design-system.contract.test.ts` (the historical alignment audit was removed once the contract test landed).
