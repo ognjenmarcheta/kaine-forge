@@ -8,6 +8,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work.
 - Treat `MONOREPO_GUIDE.md` as authoritative for architecture, package boundaries, naming, data rules, GraphQL flow, and engineering conventions.
 - Treat `DESIGN_SYSTEM.md` as authoritative for visual language, tokens, theming, and component behavior.
+- Read `CONTEXT.md` before naming domain concepts or shaping organization-scoped APIs.
+- Read `REVIEW.md` before reviewing code or when acting as a reviewer (canonical source `.ai/review.md`).
+- Read `docs/agents/day-one.md` when contributing with an agent for the first time or with little repo context.
 
 ## Working Rules
 
@@ -115,6 +118,15 @@ End substantive work by stating what you actually verified, not by asserting suc
 - If a check was skipped or could not run, say so and why. Never claim done, fixed, or passing without evidence.
 - This pairs with the focus banner: the banner grounds intent at the start, the verification close confirms the result at the end. Between them, a response that opens on-task but drifts mid-way is caught by the closing evidence.
 
+## Domain Knowledge as Infrastructure
+
+- Prefer encoding a class of mistake once (lint, test, REVIEW checklist, skill, CONTEXT) over re-fixing the same failure in every PR or agent session.
+- After a domain or template review rejection that will recur, use `kaine-encode-knowledge` to promote the lesson into durable infrastructure.
+- Shared review contract lives in `REVIEW.md`, generated from `.ai/review.md` — edit the canonical source, then reinstall.
+- Put product workflows in skills; use `kaine-*` for template-wide workflows. See `docs/agents/skill-authoring.md` for when and how to add skills.
+- Prefer hard automation (lint, CI, tests) when a rule is proven; checklists and tests remain valid until automation is justified.
+- See ADR 0009 for the full rationale and the knowledge-encoding loop.
+
 ## AI Skills
 
 Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, Serena seed files, and lightweight Codex/Claude session hooks. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, local per-agent installs, and AI setup hooks stay aligned. `pnpm quick-setup` and `pnpm initialize` also run `pnpm ai:install` during onboarding after dependency installation. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
@@ -126,6 +138,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 Use skills when they match the task:
 
 - `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
+- `kaine-encode-knowledge`: promote repeated review/agent failures into durable infra (lint, test, REVIEW, skill, CONTEXT).
 - `kaine-sync-docs`: reinstall and verify AI assistant files.
 - `kaine-test`: plan or write tests for a specified system under test.
 - `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.
@@ -139,7 +152,7 @@ The `kaine-graph` skill layers an optional generated knowledge graph over the ha
 
 Downstream products can add more skills in `.ai/skills/` without changing this generator.
 
-Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
+Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/review.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
 
 ## Agent skills
 

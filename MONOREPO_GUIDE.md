@@ -322,6 +322,7 @@ Canonical sources:
 - `.ai/skills/*.md`
 - `.ai/mcp.json`
 - `.ai/cursor-rules.md`
+- `.ai/review.md`
 - `.ai/serena-project.yml`
 - `.ai/serena-memories/*.md`
 
@@ -329,8 +330,11 @@ Tracked shared outputs:
 
 - `AGENTS.md`
 - `CLAUDE.md`
+- `REVIEW.md`
 - `.serena/project.yml`
 - `.serena/memories/*.md`
+
+Shared review contract `REVIEW.md` (from `.ai/review.md`); promote recurring failures with `kaine-encode-knowledge` (ADR 0009).
 
 Local gitignored outputs:
 

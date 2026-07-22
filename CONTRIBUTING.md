@@ -62,16 +62,27 @@ pnpm exec turbo docs "<query>"
 
 `.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
 
-After changing `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, or `.ai/serena-memories/*.md`, run:
+After changing `.ai/guide.md`, `.ai/review.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, or `.ai/serena-memories/*.md`, run:
 
 ```bash
 pnpm ai:install
 pnpm ai:doctor
 ```
 
-Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `.serena/project.yml`, and `.serena/memories/*`. Local gitignored outputs include `.claude/skills/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`.
+Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.serena/project.yml`, and `.serena/memories/*`. Canonical review guidance lives in `.ai/review.md` and is installed to tracked `REVIEW.md`. Local gitignored outputs include `.claude/skills/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, and `opencode.json`.
 
 When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
+
+## Day-one agent ramp
+
+If you (or an agent) are new to this repo:
+
+1. `pnpm ai:install` then `pnpm ai:doctor`
+2. Read `CONTEXT.md` → `REVIEW.md` → `MONOREPO_GUIDE.md` (and `DESIGN_SYSTEM.md` for UI)
+3. Prefer skills (`kaine-test`, `kaine-review`, `kaine-open-pr`, `kaine-encode-knowledge`) over freeform prompts for known workflows
+4. Full walkthrough: `docs/agents/day-one.md`
+
+When review rejects a change for domain or template reasons, use `kaine-encode-knowledge` so the rule is encoded for the next contributor.
 
 ## Pull Requests
 
