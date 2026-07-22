@@ -11,6 +11,7 @@ import {
   discoverSkills,
   KAINE_PREFIX,
   lintAgentDefinitionsDir,
+  lintDomainKnowledgeInfra,
   lintGuideSkillList,
   type LintIssue,
   lintSkillsDir,
@@ -31,8 +32,11 @@ import {
   renderCodexSkill,
   renderCursorSkill,
   renderOpencodeSkill,
+  renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
+  REVIEW_OUT,
+  REVIEW_SRC,
   SERENA_MEMORIES_SRC_DIR,
   SERENA_PROJECT_SRC,
   type Skill
@@ -178,6 +182,15 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
     }
   }
 
+  if (existsSync(REVIEW_SRC)) {
+    const content = renderReviewDoc(readFileSync(REVIEW_SRC, "utf8"));
+    if (!existsSync(REVIEW_OUT)) {
+      drift.push({ label: "REVIEW.md", status: "missing" });
+    } else if (readFileSync(REVIEW_OUT, "utf8") !== content) {
+      drift.push({ label: "REVIEW.md", status: "stale" });
+    }
+  }
+
   if (existsSync(SERENA_PROJECT_SRC)) {
     const filePath = join(REPO_ROOT, ".serena", "project.yml");
     const content = renderSerenaProject(readFileSync(SERENA_PROJECT_SRC, "utf8"));
@@ -242,7 +255,8 @@ const main = (): void => {
       ...lintGuideSkillList(
         readGuideSource(),
         skills.map((skill) => skill.name)
-      )
+      ),
+      ...lintDomainKnowledgeInfra()
     );
     lintErrors = lintIssues.filter((issue) => issue.level === "error");
   }
@@ -260,6 +274,7 @@ const main = (): void => {
   console.log(chalk.bold("Shared docs"));
   console.log(`  ${passIcon(installed("AGENTS.md"))}  AGENTS.md`);
   console.log(`  ${passIcon(installed("CLAUDE.md"))}  CLAUDE.md`);
+  console.log(`  ${passIcon(installed("REVIEW.md"))}  REVIEW.md`);
   console.log();
 
   console.log(chalk.bold("Canonical resources"));

@@ -37,9 +37,12 @@ import {
   renderMcpJson,
   renderOpencodeConfig,
   renderOpencodeSkill,
+  renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
+  REVIEW_OUT,
+  REVIEW_SRC,
   SERENA_MEMORIES_SRC_DIR,
   SERENA_PROJECT_SRC,
   type Skill,
@@ -324,6 +327,10 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
   const guide = readGuideSource();
   writeGenerated(join(REPO_ROOT, "AGENTS.md"), renderAgentDoc(guide, allSkills), results);
   writeGenerated(join(REPO_ROOT, "CLAUDE.md"), renderClaudeImport(), results);
+
+  if (existsSync(REVIEW_SRC)) {
+    writeGenerated(REVIEW_OUT, renderReviewDoc(readFileSync(REVIEW_SRC, "utf8")), results);
+  }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
     writeGenerated(
