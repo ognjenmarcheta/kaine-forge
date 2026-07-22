@@ -14,7 +14,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, organization } from "better-auth/plugins";
 
-import { getServerAuthConfig } from "./auth.config";
+import { assertProductionAuthSecret, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { hashPassword, verifyPassword } from "./auth.password";
 import {
@@ -105,10 +105,9 @@ export function resolveTrustedOrigins(env: Record<string, string | undefined>): 
 
 export function createAuthInstance() {
   // getServerAuthConfig falls back to "development-secret"; that fallback
-  // must never sign production tokens.
-  if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET) {
-    throw new Error("BETTER_AUTH_SECRET must be set in production");
-  }
+  // must never sign production tokens. Production also requires length and
+  // rejects known placeholders (see assertProductionAuthSecret).
+  assertProductionAuthSecret(process.env.BETTER_AUTH_SECRET);
 
   const config = getServerAuthConfig();
 

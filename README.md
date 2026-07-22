@@ -61,7 +61,7 @@ Common failures (port conflicts, `403 INVALID_ORIGIN`, codegen format, AI scaffo
 Start from `.env.example`. Important variables:
 
 - `DATABASE_URL`: Postgres connection string. `sslmode=verify-ca` and `sslmode=verify-full` enable strict certificate verification; other SSL modes use safer non-strict TLS handling when present.
-- `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: better-auth's native secret and public base URL. better-auth owns `/api/auth/*`.
+- `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`: better-auth's native secret and public base URL. better-auth owns `/api/auth/*`. **In production**, `BETTER_AUTH_SECRET` must be set, at least 32 characters, and must not be a known placeholder (API boot fails otherwise).
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: optional OAuth credentials. Each provider activates only when both its id and secret are set; leave blank to disable that provider.
 - `VITE_AUTH_SOCIAL_PROVIDERS`: optional comma-separated list (for example `github,google`) controlling which social sign-in buttons the web login shows.
 - `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS`: same UI gate for mobile. Mobile OAuth uses `@better-auth/expo` with the `kaineforge://` deep-link scheme (see `apps/mobile/app.json`). API `trustedOrigins` includes that scheme automatically.
@@ -79,6 +79,16 @@ Start from `.env.example`. Important variables:
 - `S3_*`: S3-compatible storage settings. Local development uses MinIO from `docker-compose.yml`.
 
 Auth is cookie-first (cookie `kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookie transport is unreliable. Password reset is requested at `/api/auth/request-password-reset` (better-auth 1.6).
+
+## Production auth hardening
+
+Template defaults prioritize local DX. Before production multi-tenant traffic:
+
+1. Generate a long random `BETTER_AUTH_SECRET` (≥32 characters); never reuse `.env.example` placeholders.
+2. Set `API_CORS_ORIGINS` to the exact browser origins you serve (required in production).
+3. Replace `EMAIL_PROVIDER=console` with a real adapter in `@repo/email` so password-reset and verification emails leave the process (console logs can include tokens).
+4. Soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, ADR 0007) does not block login. To hard-gate, check `session.user.emailVerified` in app routing or API policy for the surfaces you care about.
+5. Prefer private S3 buckets; never copy the local MinIO anonymous-download pattern to production.
 
 ## Mobile Device Testing
 

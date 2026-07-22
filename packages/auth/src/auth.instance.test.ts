@@ -29,9 +29,20 @@ describe("auth.instance", () => {
 
     expect(() => createAuthInstance()).toThrow("BETTER_AUTH_SECRET must be set in production");
 
-    vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
+    vi.stubEnv("BETTER_AUTH_SECRET", "a-sufficiently-long-random-secret-value-here");
 
     expect(() => createAuthInstance()).not.toThrow();
+  });
+
+  it("rejects short or placeholder secrets in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("BETTER_AUTH_SECRET", "short-secret");
+
+    expect(() => createAuthInstance()).toThrow(/at least 32/);
+
+    vi.stubEnv("BETTER_AUTH_SECRET", "your-secret-key-change-in-production");
+
+    expect(() => createAuthInstance()).toThrow(/placeholder/);
   });
 
   it("enables email/password auth with our custom scrypt hooks wired in", async () => {
