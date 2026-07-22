@@ -18,3 +18,4 @@
 - Prefer accessible primitives and token-based states over opacity hacks.
 - Avoid alternative libraries for responsibilities already covered by the stack.
 - Add tests when behavior, authorization, data access, GraphQL, or generated flows change.
+- Treat repeated template or domain mistakes as encode candidates (`kaine-encode-knowledge`).
