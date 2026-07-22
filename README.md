@@ -16,7 +16,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 
 ## Prerequisites
 
-- Node.js `>=20` (CI uses Node 22)
+- Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
 - pnpm `10.29.3`
 - Docker Desktop or compatible Docker runtime for Postgres, MinIO, and image builds
 - Rust toolchain for desktop/Tauri work

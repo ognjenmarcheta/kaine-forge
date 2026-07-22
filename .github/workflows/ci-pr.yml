@@ -14,7 +14,6 @@ permissions:
   pull-requests: read
 
 env:
-  NODE_VERSION: "22"
   PNPM_VERSION: "10.29.3"
 
 jobs:
@@ -64,7 +63,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
@@ -104,7 +103,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
@@ -151,7 +150,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
