@@ -95,7 +95,7 @@ pnpm generate
 pnpm typecheck
 ```
 
-Ensure `apps/api/schema.graphql` is updated (API `schema:generate` flow) before client codegen.
+Root `pnpm generate` runs API `schema:generate` then client codegen in one step. CI fails if generated files drift from the commit.
 
 ## AI assistant scaffold
 
