@@ -23,4 +23,10 @@ describe("LoginForm social login contract", () => {
     expect(source).toContain('"auth.social.github"');
     expect(source).toContain('"auth.social.google"');
   });
+
+  it("uses shared auth form validators from @repo/auth/form", () => {
+    expect(source).toContain('from "@repo/auth/form"');
+    expect(source).toContain("validateAuthEmail");
+    expect(source).toContain("validateAuthPasswordRequired");
+  });
 });

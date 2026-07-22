@@ -1,3 +1,4 @@
+import { validateAuthSignupForm } from "@repo/auth/form";
 import {
   Button,
   Card,
@@ -28,6 +29,18 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit() {
+    // Mobile signup UI has no confirm field; reuse password for shared confirm rule.
+    const validationError = validateAuthSignupForm({
+      name,
+      email,
+      password,
+      confirmPassword: password
+    });
+    if (validationError) {
+      setError(t(validationError));
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);

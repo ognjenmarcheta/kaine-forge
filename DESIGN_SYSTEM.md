@@ -36,6 +36,15 @@ Rules:
 - Keep component APIs similar where useful, but do not force DOM-specific primitives into mobile.
 - Shared visual decisions come from the same `--ds-*` token vocabulary.
 
+### 2.1 Intentional mobile-ui subset
+
+`@repo/mobile-ui` is a **platform-appropriate subset**, not a 1:1 port of `@repo/ui`.
+
+- **In scope for mobile-ui:** layout/content primitives used by Expo screens (text, button, input, card, dialog, checkbox, badge, avatar, skeleton, separator) plus NativeWind helpers.
+- **Out of scope for mobile-ui by default:** web/desktop-only patterns (sidebar shell, complex data tables, Radix-heavy overlays, shadcn portfolio components).
+- **Shared behavior that is not UI chrome** (auth field rules, org scope helpers, API clients) belongs in domain packages such as `@repo/auth`, not in either UI kit.
+- Grow mobile-ui when a real mobile screen needs a primitive; do not bulk-copy web components “for parity.”
+
 ## 3. Token Architecture
 
 Tokens are the public design API. Components should consume functional tokens instead of raw values.
