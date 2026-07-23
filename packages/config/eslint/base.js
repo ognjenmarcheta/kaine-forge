@@ -107,5 +107,35 @@ export default [
         ...globals.node
       }
     }
+  },
+  {
+    // Type-aware bug-catching rules powered by the TypeScript project service.
+    // ESLint runs from the repo root, so tsconfigRootDir is intentionally
+    // omitted and defaults to cwd (the repo root); hardcoding import.meta.dirname
+    // would wrongly point at packages/config/eslint.
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    ignores: [
+      "**/*.config.*",
+      "**/*.cjs",
+      "scripts/**",
+      ".ai/**",
+      "tooling/**",
+      "**/*.d.ts",
+      // Not covered by any tsconfig project, so type info is unavailable:
+      // the repo root has no tsconfig, and @repo/config ships only JS config
+      // plus TS test files with no tsconfig of its own.
+      "vitest.workspace.ts",
+      "packages/config/**/*.ts"
+    ],
+    languageOptions: {
+      parserOptions: {
+        projectService: true
+      }
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error"
+    }
   }
 ];

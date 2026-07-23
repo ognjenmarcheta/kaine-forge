@@ -204,7 +204,7 @@ export function TodosRoute() {
           }}
           onDelete={handleDelete}
           onEdit={(item) => setEditingTodo(item)}
-          onToggle={handleToggle}
+          onToggle={(item) => void handleToggle(item)}
         />
       ) : null}
 

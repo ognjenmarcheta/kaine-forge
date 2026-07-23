@@ -78,7 +78,7 @@ export function NotesRoute() {
 
     const result = await createMutation.mutateAsync({ input: { title } });
     setNewTitle("");
-    navigate(`/notes/${result.createNote.id}`);
+    void navigate(`/notes/${result.createNote.id}`);
   }
 
   async function confirmDelete() {
@@ -100,7 +100,10 @@ export function NotesRoute() {
         <h1>{t("notes.title")}</h1>
       </header>
 
-      <form className="flex items-center gap-[var(--ds-space-100)]" onSubmit={handleCreate}>
+      <form
+        className="flex items-center gap-[var(--ds-space-100)]"
+        onSubmit={(event) => void handleCreate(event)}
+      >
         <Input
           placeholder={t("notes.titleLabel")}
           value={newTitle}

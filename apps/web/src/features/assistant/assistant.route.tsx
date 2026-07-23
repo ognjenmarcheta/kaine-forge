@@ -274,7 +274,7 @@ export function AssistantRoute() {
             sendingLabel={t("assistant.sending")}
             value={input}
             onChange={setInput}
-            onSubmit={handleSend}
+            onSubmit={(event) => void handleSend(event)}
           />
         </section>
       </div>

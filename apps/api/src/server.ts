@@ -122,7 +122,10 @@ export function createApiServer({
     healthCheckEndpoint: "/__yoga/health"
   });
 
-  const server = createServer(async (req, res) => {
+  const handleRequest = async (
+    req: IncomingMessage,
+    res: ServerResponse<IncomingMessage>
+  ): Promise<void> => {
     try {
       const handledHealth = await handleHealthRoute({ req, res });
 
@@ -182,7 +185,7 @@ export function createApiServer({
         return;
       }
 
-      yoga(req, res);
+      void yoga(req, res);
     } catch (error) {
       errorReporter.captureException(error, {
         path: req.url ?? "",
@@ -196,6 +199,10 @@ export function createApiServer({
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(normalized));
     }
+  };
+
+  const server = createServer((req, res) => {
+    void handleRequest(req, res);
   });
 
   const wsServer = new WebSocketServer({ server, path: "/graphql" });
