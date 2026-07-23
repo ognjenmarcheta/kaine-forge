@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -252,5 +253,39 @@ describe("monorepo alignment", () => {
     expect(eslintBase).toContain("@repo/mobile-ui");
     expect(eslintBase).toContain("@repo/ui");
     expect(eslintBase).toContain("no-restricted-imports");
+  });
+
+  it("requires each source workspace to ship at least one vitest test", () => {
+    // Every workspace uses `vitest run --passWithNoTests`, so a package with no
+    // tests still passes green. This gate keeps that flag safe by asserting the
+    // testable workspaces actually ship tests. apps/e2e is excluded: it ships
+    // Playwright specs, not vitest unit tests.
+    const workspaces = [
+      "apps/api",
+      "apps/web",
+      "apps/mobile",
+      "apps/desktop",
+      "packages/auth",
+      "packages/config",
+      "packages/db",
+      "packages/email",
+      "packages/feature-flags",
+      "packages/logger",
+      "packages/mobile-ui",
+      "packages/persistence",
+      "packages/query",
+      "packages/storage",
+      "packages/todos",
+      "packages/translation",
+      "packages/ui"
+    ];
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+
+    for (const workspace of workspaces) {
+      const hasTest = tracked.some(
+        (file) => file.startsWith(`${workspace}/`) && /\.(test|spec)\.(ts|tsx)$/.test(file)
+      );
+      expect(hasTest, `${workspace} must ship at least one *.test.ts(x) file`).toBe(true);
+    }
   });
 });
