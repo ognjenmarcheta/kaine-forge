@@ -52,7 +52,11 @@ const note = {
   userId: "user-1"
 };
 
-const toolOptions: ToolExecutionOptions = { messages: [], toolCallId: "call-1" };
+const toolOptions: ToolExecutionOptions<unknown> = {
+  context: undefined,
+  messages: [],
+  toolCallId: "call-1"
+};
 
 async function runTool(tools: ToolSet, name: string, input: unknown): Promise<unknown> {
   const tool = tools[name];
