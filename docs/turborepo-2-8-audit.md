@@ -1,20 +1,35 @@
-# Turborepo 2.8 Adoption Audit
+# Turborepo Cache & CI Performance Budget
 
-- Date: 2026-02-19
-- Source: https://turborepo.dev/blog/2-8
+- Last updated: 2026-07-23
+- Turbo: `^2.8.10` (see root `package.json`)
+- Source notes: https://turborepo.dev/blog/2-8
 
-## Status Matrix
+## Feature adoption
 
-| 2.8 Advantage                     | Status                 | Evidence in this Repo                                                                                       | Notes / Next Step                                |
-| --------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Task descriptions in `turbo.json` | Adopted                | `turbo.json` has `description` on all major tasks (`build`, `dev`, `lint`, `typecheck`, `db:*`, `generate`) | Keep descriptions updated when adding new tasks. |
-| Improved TUI defaults             | Adopted                | Root `turbo.json` sets `"ui": "tui"` and root `package.json` uses `turbo@^2.8.10`                           | No change required.                              |
-| Better worktree cache support     | Adopted by version     | Repo uses Turbo 2.8.10 and has active worktrees (`git worktree list`)                                       | No extra configuration required.                 |
-| `turbo docs` command              | Available              | `pnpm exec turbo --help` includes `docs` command                                                            | Team convention documented in `CONTRIBUTING.md`. |
-| Agent skills for Turborepo        | Not adopted (optional) | No Turborepo-specific agent integration files in repo                                                       | Evaluate later only if AI workflow needs it.     |
+| Capability                            | Status             | Evidence                                                                              |
+| ------------------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| Task descriptions                     | Adopted            | All tasks in `turbo.json` have `description`                                          |
+| TUI defaults                          | Adopted            | `"ui": "tui"`                                                                         |
+| Worktree cache                        | Adopted by version | Turbo 2.8.x                                                                           |
+| `globalDependencies` / `globalEnv`    | Adopted            | Root config hashes `tsconfig.base.json`, ESLint, workspace, lockfile; `NODE_ENV`/`CI` |
+| Task `outputs: []` for lint/typecheck | Adopted            | Cacheable no-artifact tasks                                                           |
+| Build `env` hashing                   | Adopted            | Vite/Expo public build vars listed on `build`                                         |
+| typecheck without `^build`            | Adopted            | Source `paths` resolution; faster local/CI typecheck                                  |
+| Remote cache                          | Optional           | `TURBO_TOKEN` + `TURBO_TEAM` in CI; documented in README/CONTRIBUTING                 |
+| Affected PR gate                      | Adopted            | `turbo run … --filter=...[origin/<base>]` on pull_request                             |
+| `turbo docs`                          | Available          | Documented in CONTRIBUTING                                                            |
 
-## Gaps and Decisions
+## Performance budget (targets)
 
-1. No blocking adoption gaps were found for Turbo 2.8.
-2. Keep Turbo version on `2.8.x` or newer in root `package.json`.
-3. Document `turbo docs` usage for contributors to speed up troubleshooting and discovery.
+| Metric                                 | Target                           | Notes                                                   |
+| -------------------------------------- | -------------------------------- | ------------------------------------------------------- |
+| PR `check-fast` when 1 package changes | Prefer affected-only Turbo tasks | Full coverage still runs as quality floor               |
+| Cache hit rate on main rebuilds        | ≥50% with remote cache enabled   | Measure via Turbo summary / Vercel dashboard            |
+| Package count before re-evaluating CI  | ~25–30 workspaces                | Then consider splitting coverage and install strategies |
+| Local pre-push                         | Affected typecheck vs upstream   | Falls back to full `pnpm typecheck`                     |
+
+## Gaps still optional
+
+1. Agent-specific Turborepo skills — only if AI workflows need them.
+2. Package emit simplification (`tsc` + `fix-esm-extensions` vs tsup) — see monorepo platform backlog; not a Turbo config item.
+3. Strict peer dependencies — trial on a branch when peer noise is low.

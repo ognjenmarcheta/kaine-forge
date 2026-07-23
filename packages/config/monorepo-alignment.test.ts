@@ -213,4 +213,44 @@ describe("monorepo alignment", () => {
       );
     }
   });
+
+  it("centralizes shared third-party versions via pnpm catalogs", () => {
+    const workspace = readText("pnpm-workspace.yaml");
+
+    expect(workspace).toContain("catalog:");
+    expect(workspace).toMatch(/catalogs:\s*\n(?:[^\n]*\n)*?\s*mobile:/);
+    expect(workspace).toContain("zod:");
+
+    const catalogedPackages = [
+      ["packages/db/package.json", "dependencies", "zod", "catalog:"],
+      ["packages/auth/package.json", "dependencies", "zod", "catalog:"],
+      ["apps/api/package.json", "dependencies", "zod", "catalog:"],
+      ["apps/web/package.json", "dependencies", "react", "catalog:"],
+      ["packages/ui/package.json", "dependencies", "react", "catalog:"],
+      ["apps/mobile/package.json", "dependencies", "react", "catalog:mobile"],
+      ["packages/mobile-ui/package.json", "devDependencies", "react", "catalog:mobile"]
+    ] as const;
+
+    for (const [pkgPath, section, dep, expected] of catalogedPackages) {
+      const pkg = readJson(pkgPath) as Record<string, Record<string, string>>;
+      expect(pkg[section]?.[dep]).toBe(expected);
+    }
+  });
+
+  it("documents web vs mobile React version policy", () => {
+    const monorepoGuide = readText("MONOREPO_GUIDE.md");
+
+    expect(monorepoGuide).toContain("catalog:mobile");
+    expect(monorepoGuide).toContain("Dependency catalogs (pnpm)");
+    expect(monorepoGuide).toContain("web React");
+  });
+
+  it("restricts deep package source imports and cross-platform UI packages", () => {
+    const eslintBase = readText("packages/config/eslint/base.js");
+
+    expect(eslintBase).toContain("@repo/*/src");
+    expect(eslintBase).toContain("@repo/mobile-ui");
+    expect(eslintBase).toContain("@repo/ui");
+    expect(eslintBase).toContain("no-restricted-imports");
+  });
 });

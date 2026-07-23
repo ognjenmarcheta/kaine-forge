@@ -21,8 +21,8 @@
     "clean": "rm -rf dist .turbo .expo"
   },
   "dependencies": {
-    "@better-auth/expo": "1.6.23",
-    "@graphql-typed-document-node/core": "^3.2.0",
+    "@better-auth/expo": "catalog:",
+    "@graphql-typed-document-node/core": "catalog:",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/drawer": "^7.5.0",
     "@repo/auth": "workspace:*",
@@ -34,7 +34,7 @@
     "@repo/storage": "workspace:*",
     "@repo/todos": "workspace:*",
     "@repo/translation": "workspace:*",
-    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query": "catalog:",
     "expo": "~54.0.34",
     "expo-constants": "^18.0.13",
     "expo-document-picker": "~14.0.8",
@@ -44,24 +44,24 @@
     "expo-secure-store": "^15.0.8",
     "expo-status-bar": "^3.0.9",
     "expo-web-browser": "^15.0.11",
-    "graphql": "^16.11.0",
-    "graphql-request": "^7.4.0",
-    "graphql-ws": "^6.0.7",
-    "nativewind": "4.2.1",
-    "react": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-css-interop": "0.2.1",
+    "graphql": "catalog:",
+    "graphql-request": "catalog:",
+    "graphql-ws": "catalog:",
+    "nativewind": "catalog:mobile",
+    "react": "catalog:mobile",
+    "react-native": "catalog:mobile",
+    "react-native-css-interop": "catalog:mobile",
     "react-native-gesture-handler": "^2.28.0",
-    "react-native-reanimated": "4.1.1",
-    "react-native-safe-area-context": "5.6.2",
+    "react-native-reanimated": "catalog:mobile",
+    "react-native-safe-area-context": "catalog:mobile",
     "react-native-screens": "^4.16.0",
-    "react-native-worklets": "0.5.1",
-    "zustand": "^5.0.11"
+    "react-native-worklets": "catalog:mobile",
+    "zustand": "catalog:"
   },
   "devDependencies": {
-    "@types/react": "~19.1.10",
-    "@types/react-dom": "~19.1.11",
-    "react-dom": "19.1.0",
-    "tailwindcss": "3.4.17"
+    "@types/react": "catalog:mobile",
+    "@types/react-dom": "catalog:mobile",
+    "react-dom": "catalog:mobile",
+    "tailwindcss": "catalog:mobile"
   }
 }

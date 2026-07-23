@@ -18,12 +18,12 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 
 Capability-focused snapshot against common TypeScript monorepo starters (not a popularity ranking):
 
-|                                                              | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
-| ------------------------------------------------------------ | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
-| **[Kaine Forge](https://github.com/ognjenmarcheta/kaine-forge)** |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
-| [next-forge](https://github.com/vercel/next-forge)           |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
-| [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo) |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
-| [Nx integrated](https://nx.dev/docs/concepts/integrated-vs-package-based) |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
+|                                                                                           | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
+| ----------------------------------------------------------------------------------------- | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
+| **[Kaine Forge](https://github.com/ognjenmarcheta/kaine-forge)**                          |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
+| [next-forge](https://github.com/vercel/next-forge)                                        |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
+| [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo)                              |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
+| [Nx integrated](https://nx.dev/docs/concepts/integrated-vs-package-based)                 |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
 | [Turbo kitchen-sink](https://github.com/vercel/turborepo/tree/main/examples/kitchen-sink) |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
 
 ### Verdict
@@ -62,7 +62,13 @@ docker compose up -d
 pnpm quick-setup
 ```
 
-`quick-setup` / `initialize` ensures `.env`, reinstalls deps, installs AI assistant files, builds, prepares and seeds the database, then starts dev. Postgres must already be running.
+`quick-setup` / `initialize` runs `bootstrap` (env, install, AI files, build, db seed) then starts `dev`. Use `pnpm bootstrap` alone when you want the environment prepared without starting processes. Postgres must already be running.
+
+Scaffold a new shared package: `pnpm create:package <kebab-name>`.
+
+### Optional: remote Turbo cache
+
+For faster CI and local rebuilds, set repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible). See [CONTRIBUTING.md](CONTRIBUTING.md#ci-speed-maintainers).
 
 Common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
@@ -80,16 +86,16 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 
 ## Where to go next
 
-| Need | Doc |
-| ---- | --- |
-| Architecture, FDD, GraphQL/data, env vars, Docker, mobile LAN | [`MONOREPO_GUIDE.md`](MONOREPO_GUIDE.md) |
-| Design tokens, theming, web/mobile UI rules | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) |
-| Domain language (Organization, scope, invitations) | [`CONTEXT.md`](CONTEXT.md) |
-| PR workflow, checks, release, AI install | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| Production auth hardening, reporting | [`SECURITY.md`](SECURITY.md) |
-| Review checklist | [`REVIEW.md`](REVIEW.md) |
-| Agent day-one ramp | [`docs/agents/day-one.md`](docs/agents/day-one.md) |
-| Release validation | [`docs/release-checklist.md`](docs/release-checklist.md) |
-| Full documentation index | [`docs/README.md`](docs/README.md) |
+| Need                                                          | Doc                                                      |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| Architecture, FDD, GraphQL/data, env vars, Docker, mobile LAN | [`MONOREPO_GUIDE.md`](MONOREPO_GUIDE.md)                 |
+| Design tokens, theming, web/mobile UI rules                   | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)                   |
+| Domain language (Organization, scope, invitations)            | [`CONTEXT.md`](CONTEXT.md)                               |
+| PR workflow, checks, release, AI install                      | [`CONTRIBUTING.md`](CONTRIBUTING.md)                     |
+| Production auth hardening, reporting                          | [`SECURITY.md`](SECURITY.md)                             |
+| Review checklist                                              | [`REVIEW.md`](REVIEW.md)                                 |
+| Agent day-one ramp                                            | [`docs/agents/day-one.md`](docs/agents/day-one.md)       |
+| Release validation                                            | [`docs/release-checklist.md`](docs/release-checklist.md) |
+| Full documentation index                                      | [`docs/README.md`](docs/README.md)                       |
 
 **Everyday commands:** `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`

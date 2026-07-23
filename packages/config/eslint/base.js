@@ -39,7 +39,64 @@ export default [
           alphabetize: { order: "asc", caseInsensitive: true }
         }
       ],
-      "@typescript-eslint/no-explicit-any": "error"
+      "@typescript-eslint/no-explicit-any": "error",
+      // Package public API is the exports map; never deep-import package source trees.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@repo/*/src", "@repo/*/src/*", "@repo/*/src/**"],
+              message:
+                "Import through package exports (@repo/<pkg> or documented subpaths), not @repo/*/src/**."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    // Web/desktop must not pull React Native UI primitives.
+    files: ["apps/web/**/*.{ts,tsx}", "apps/desktop/**/*.{ts,tsx}", "packages/ui/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@repo/*/src", "@repo/*/src/*", "@repo/*/src/**"],
+              message:
+                "Import through package exports (@repo/<pkg> or documented subpaths), not @repo/*/src/**."
+            },
+            {
+              group: ["@repo/mobile-ui", "@repo/mobile-ui/*"],
+              message: "Use @repo/ui for web/desktop. @repo/mobile-ui is React Native only."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    // Mobile must not pull React DOM UI primitives.
+    files: ["apps/mobile/**/*.{ts,tsx}", "packages/mobile-ui/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@repo/*/src", "@repo/*/src/*", "@repo/*/src/**"],
+              message:
+                "Import through package exports (@repo/<pkg> or documented subpaths), not @repo/*/src/**."
+            },
+            {
+              group: ["@repo/ui", "@repo/ui/*"],
+              message: "Use @repo/mobile-ui for React Native. @repo/ui is web/desktop only."
+            }
+          ]
+        }
+      ]
     }
   },
   {

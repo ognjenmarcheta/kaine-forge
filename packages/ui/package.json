@@ -45,18 +45,18 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-form": "^1.28.3",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
     "lucide-react": "^0.575.0",
     "radix-ui": "^1.4.3",
-    "react": "^19.1.1",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.3.1"
+    "react": "catalog:",
+    "sonner": "catalog:",
+    "tailwind-merge": "catalog:"
   },
   "devDependencies": {
-    "@types/react": "^19.1.10",
-    "@types/react-dom": "^19.1.7",
-    "react-dom": "^19.1.1",
-    "tailwindcss": "^4.2.0"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "catalog:"
   }
 }
