@@ -316,23 +316,23 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command               | Purpose                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `pnpm dev`            | run dev tasks                                                                                    |
-| `pnpm bootstrap`      | env, install, AI files, build, db seed (no dev server)                                           |
-| `pnpm initialize`     | `bootstrap` then `dev`                                                                           |
-| `pnpm build`          | build all workspaces                                                                             |
-| `pnpm build:core`     | build API and web dependency graph                                                               |
-| `pnpm check`          | format check, lint, typecheck, test                                                              |
-| `pnpm coverage`       | Vitest coverage: global floors plus stricter per-package floors for `@repo/auth` and `@repo/api` |
-| `pnpm test:e2e`       | Playwright web/API suite                                                                         |
-| `pnpm generate`       | GraphQL codegen                                                                                  |
-| `pnpm create:package` | scaffold a new `@repo/*` package                                                                 |
-| `pnpm db:*`           | database lifecycle commands                                                                      |
-| `pnpm ai:install`     | install shared assistant files locally                                                           |
-| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                         |
-| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                |
-| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                        |
+| Command               | Purpose                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes |
+| `pnpm bootstrap`      | env, install, AI files, build, db seed (no dev server)                                                 |
+| `pnpm initialize`     | `bootstrap` then `dev`                                                                                 |
+| `pnpm build`          | build all workspaces                                                                                   |
+| `pnpm build:core`     | build API and web dependency graph                                                                     |
+| `pnpm check`          | format check, lint, typecheck, test                                                                    |
+| `pnpm coverage`       | Vitest coverage: global floors plus stricter per-package floors for `@repo/auth` and `@repo/api`       |
+| `pnpm test:e2e`       | Playwright web/API suite                                                                               |
+| `pnpm generate`       | GraphQL codegen                                                                                        |
+| `pnpm create:package` | scaffold a new `@repo/*` package                                                                       |
+| `pnpm db:*`           | database lifecycle commands                                                                            |
+| `pnpm ai:install`     | install shared assistant files locally                                                                 |
+| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                               |
+| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                      |
+| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                              |
 
 Use scoped commands from the repo root:
 
