@@ -15,7 +15,7 @@ Thanks for improving Kaine Forge. This repository is a template, so changes shou
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d --wait
 pnpm install
 pnpm db:generate
 pnpm db:ensure
@@ -29,7 +29,7 @@ If setup fails (port conflicts, `INVALID_ORIGIN` on sign-in, codegen format nois
 For a full bootstrap (requires running Docker services):
 
 ```bash
-docker compose up -d
+docker compose up -d --wait
 pnpm bootstrap   # env, install, AI files, build, db — no dev servers
 pnpm dev         # or: pnpm initialize  (= bootstrap + dev)
 ```
