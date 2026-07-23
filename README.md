@@ -44,7 +44,7 @@ It is not a Next.js App Router / RSC marketing starter, not an enterprise monore
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d --wait
 pnpm install
 pnpm db:generate
 pnpm db:ensure
@@ -58,7 +58,7 @@ Scope commands from the repo root with `pnpm --filter <workspace> <script>` (for
 ### One-command bootstrap
 
 ```bash
-docker compose up -d
+docker compose up -d --wait
 pnpm quick-setup
 ```
 
