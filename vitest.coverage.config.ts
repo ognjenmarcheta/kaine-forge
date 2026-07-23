@@ -54,7 +54,23 @@ export default defineConfig({
         branches: 70,
         functions: 55,
         lines: 50,
-        statements: 50
+        statements: 50,
+        // High-risk packages held to a stricter, per-package bar. Folds in the
+        // former `coverage:core` run so tests are not executed a third time, and
+        // fixes its inverted functions floor (was 50, below the global 55).
+        // Floors sit safely below measured coverage (auth ~85/91, api ~70/61).
+        "packages/auth/src/**": {
+          branches: 80,
+          functions: 75,
+          lines: 80,
+          statements: 80
+        },
+        "apps/api/src/**": {
+          branches: 70,
+          functions: 55,
+          lines: 60,
+          statements: 60
+        }
       }
     }
   }
