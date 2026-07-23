@@ -53,9 +53,9 @@ export function AuthRoute() {
       </div>
 
       {mode === "login" ? (
-        <LoginForm onDone={() => navigate("/dashboard")} />
+        <LoginForm onDone={() => void navigate("/dashboard")} />
       ) : (
-        <SignupForm onDone={() => navigate("/dashboard")} />
+        <SignupForm onDone={() => void navigate("/dashboard")} />
       )}
     </AuthLayout>
   );

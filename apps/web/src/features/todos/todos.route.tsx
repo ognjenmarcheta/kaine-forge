@@ -347,7 +347,10 @@ export function TodosRoute() {
           <h2>{t("todos.ai.title")}</h2>
           <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.ai.description")}</p>
         </div>
-        <form className="flex flex-col gap-[var(--ds-space-150)]" onSubmit={handleGenerateTodos}>
+        <form
+          className="flex flex-col gap-[var(--ds-space-150)]"
+          onSubmit={(event) => void handleGenerateTodos(event)}
+        >
           <Field>
             <FieldLabel htmlFor="todos-ai-prompt">{t("todos.ai.promptLabel")}</FieldLabel>
             <Textarea
@@ -392,7 +395,7 @@ export function TodosRoute() {
           }}
           onDelete={handleDelete}
           onEdit={(item) => setEditingTodo(item)}
-          onToggle={handleToggle}
+          onToggle={(item) => void handleToggle(item)}
         />
       ) : null}
 

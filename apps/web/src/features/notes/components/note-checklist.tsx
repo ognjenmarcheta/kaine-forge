@@ -77,7 +77,10 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
           );
         })}
       </ul>
-      <form className="flex items-center gap-[var(--ds-space-100)]" onSubmit={handleAdd}>
+      <form
+        className="flex items-center gap-[var(--ds-space-100)]"
+        onSubmit={(event) => void handleAdd(event)}
+      >
         <Input
           placeholder={t("notes.addTodoPlaceholder")}
           value={newTodoTitle}

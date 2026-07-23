@@ -13,7 +13,7 @@ let currentSession: AuthSession | null = null;
 
 export function getSubscriptionClient(session: AuthSession | null): Client {
   if (subscriptionClient && session !== currentSession) {
-    subscriptionClient.dispose();
+    void subscriptionClient.dispose();
     subscriptionClient = null;
   }
 
@@ -36,7 +36,7 @@ export function getSubscriptionClient(session: AuthSession | null): Client {
 
 export function disposeSubscriptionClient(): void {
   if (subscriptionClient) {
-    subscriptionClient.dispose();
+    void subscriptionClient.dispose();
     subscriptionClient = null;
     currentSession = null;
   }

@@ -33,7 +33,7 @@ export function getSubscriptionClient(): Client {
 
 export function disposeSubscriptionClient(): void {
   if (subscriptionClient) {
-    subscriptionClient.dispose();
+    void subscriptionClient.dispose();
     subscriptionClient = null;
   }
 }
