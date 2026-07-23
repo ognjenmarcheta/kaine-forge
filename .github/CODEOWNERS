@@ -1,0 +1,22 @@
+# Code owners for Kaine Forge.
+# GitHub requests a review from the owner(s) of every changed path.
+# Template note: replace @ognjenmarcheta with your team handles on adoption
+# (owners must have write access, or the entry is ignored).
+# Docs: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything not matched below
+*                       @ognjenmarcheta
+
+# Shared config, orchestration, and CI — highest blast radius
+/.github/               @ognjenmarcheta
+/turbo.json             @ognjenmarcheta
+/pnpm-workspace.yaml    @ognjenmarcheta
+/tsconfig.base.json     @ognjenmarcheta
+/packages/config/       @ognjenmarcheta
+
+# Security-sensitive: auth and data model
+/packages/auth/         @ognjenmarcheta
+/packages/db/           @ognjenmarcheta
+
+# Canonical AI assistant sources (installed outputs are generated)
+/.ai/                   @ognjenmarcheta
