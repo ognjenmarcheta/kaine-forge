@@ -15,7 +15,7 @@
       "description": "Build all workspaces in dependency order",
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**"],
+      "outputs": ["dist/**", "build/**"],
       "env": [
         "VITE_API_URL",
         "VITE_GRAPHQL_URL",

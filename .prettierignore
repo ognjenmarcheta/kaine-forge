@@ -5,3 +5,10 @@ dist
 **/.turbo
 coverage
 pnpm-lock.yaml
+
+# Generated / build artifacts (ESLint already ignores these; keep Prettier aligned)
+**/generated/
+**/src-tauri/gen/
+**/src-tauri/target/
+**/playwright-report/
+**/test-results/
