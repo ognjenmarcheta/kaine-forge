@@ -3,6 +3,27 @@ import reactPlugin from "eslint-plugin-react";
 
 import baseConfig from "./base.js";
 
+// Token-only styling: color must come from --ds-* design tokens (Tailwind token
+// classes), never from hardcoded values. Spread into each UI surface's
+// no-restricted-syntax rule so it composes with the i18n / native-button bans
+// instead of replacing them (flat config replaces rule values per file).
+const colorTokenBans = [
+  {
+    selector: "Literal[value=/-\\[(#|rgb|hsl)/i]",
+    message:
+      "Use a --ds-* design token via a Tailwind token class, not a hardcoded arbitrary color value (e.g. bg-[#fff])."
+  },
+  {
+    selector: "TemplateElement[value.raw=/-\\[(#|rgb|hsl)/i]",
+    message:
+      "Use a --ds-* design token via a Tailwind token class, not a hardcoded arbitrary color value (e.g. bg-[#fff])."
+  },
+  {
+    selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
+    message: "Reference a --ds-* design token, not a hardcoded hex color."
+  }
+];
+
 export default [
   ...baseConfig,
   {
@@ -90,7 +111,8 @@ export default [
         {
           selector: "JSXElement > JSXOpeningElement[name.name='button']",
           message: "Use @repo/ui Button component instead of native <button>."
-        }
+        },
+        ...colorTokenBans
       ]
     }
   },
@@ -102,8 +124,17 @@ export default [
         {
           selector: "JSXOpeningElement[name.name='button']",
           message: "Use @repo/ui Button component instead of native <button>."
-        }
+        },
+        ...colorTokenBans
       ]
+    }
+  },
+  {
+    // Desktop (React DOM) and React Native UI carry no native-button rule, but
+    // must still be color-token-only.
+    files: ["apps/desktop/src/**/*.{tsx,jsx}", "packages/mobile-ui/src/**/*.{tsx,jsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...colorTokenBans]
     }
   },
   {
