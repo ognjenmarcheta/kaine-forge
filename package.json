@@ -6,7 +6,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "turbo run dev --concurrency=20 --continue=always",
+    "dev": "turbo run dev --filter=@repo/web --filter=@repo/api --continue=always",
+    "dev:web": "turbo run dev --filter=@repo/web",
+    "dev:api": "turbo run dev --filter=@repo/api",
+    "dev:mobile": "turbo run dev --filter=@repo/mobile --filter=@repo/api --continue=always",
+    "dev:all": "turbo run dev --concurrency=20 --continue=always",
     "dev:mobile:lan": "tsx tooling/dev-mobile-lan.ts",
     "build": "turbo run build",
     "build:core": "turbo run build --filter=@repo/api --filter=@repo/web",
