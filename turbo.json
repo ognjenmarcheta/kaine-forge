@@ -1,12 +1,32 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalDependencies": [
+    "tsconfig.base.json",
+    "eslint.config.mjs",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    ".prettierrc*",
+    "packages/config/**"
+  ],
+  "globalEnv": ["NODE_ENV", "CI"],
   "tasks": {
     "build": {
       "description": "Build all workspaces in dependency order",
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "VITE_API_URL",
+        "VITE_GRAPHQL_URL",
+        "VITE_ORGANIZATIONS_VISIBLE",
+        "VITE_API_PROXY_TARGET",
+        "VITE_AUTH_SOCIAL_PROVIDERS",
+        "EXPO_PUBLIC_API_URL",
+        "EXPO_PUBLIC_GRAPHQL_URL",
+        "EXPO_PUBLIC_ORGANIZATIONS_VISIBLE",
+        "EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS"
+      ]
     },
     "dev": {
       "description": "Run development tasks in watch mode",
@@ -15,27 +35,33 @@
     },
     "check": {
       "description": "Run local workspace check command",
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "format": {
-      "description": "Format workspace files"
+      "description": "Format workspace files",
+      "cache": false
     },
     "format:check": {
-      "description": "Check formatting"
+      "description": "Check formatting",
+      "outputs": []
     },
     "lint": {
-      "description": "Lint workspace source"
+      "description": "Lint workspace source",
+      "outputs": []
     },
     "lint:fix": {
-      "description": "Autofix lint issues"
+      "description": "Autofix lint issues",
+      "cache": false
     },
     "typecheck": {
-      "description": "Type-check workspace source",
-      "dependsOn": ["^build"]
+      "description": "Type-check workspace source (source paths; no prior build required)",
+      "outputs": []
     },
     "test": {
       "description": "Run workspace tests",
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "clean": {
       "description": "Remove workspace build outputs",

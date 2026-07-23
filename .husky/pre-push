@@ -1,4 +1,12 @@
 #!/usr/bin/env sh
 set -e
 pnpm ai:doctor
+# Typecheck only packages changed since the remote tip (falls back to full typecheck).
+if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+  BASE="$(git merge-base HEAD @{u} 2>/dev/null || true)"
+  if [ -n "$BASE" ] && [ "$BASE" != "$(git rev-parse HEAD)" ]; then
+    pnpm exec turbo run typecheck --filter="...[${BASE}]" --continue
+    exit 0
+  fi
+fi
 pnpm typecheck

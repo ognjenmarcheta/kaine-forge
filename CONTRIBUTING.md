@@ -30,7 +30,14 @@ For a full bootstrap (requires running Docker services):
 
 ```bash
 docker compose up -d
-pnpm initialize
+pnpm bootstrap   # env, install, AI files, build, db — no dev servers
+pnpm dev         # or: pnpm initialize  (= bootstrap + dev)
+```
+
+New shared package scaffold:
+
+```bash
+pnpm create:package my-lib
 ```
 
 ## Common Commands
@@ -179,6 +186,19 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 ## CI speed (maintainers)
 
-Optional remote Turborepo cache: set repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible). When unset, CI still uses local `.turbo/cache` actions.
+### Remote Turbo cache (recommended for forks and high PR volume)
 
-Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs that do not touch `apps/**`, `packages/**`, or related tooling.
+1. Create a [Vercel Remote Cache](https://turborepo.dev/docs/core-concepts/remote-caching) token (or compatible provider).
+2. Set repository **secret** `TURBO_TOKEN` and **variable** `TURBO_TEAM`.
+3. CI jobs already export these env vars; when unset, builds still use local `.turbo/cache` between jobs.
+
+### Affected and path filters
+
+- PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck/test.
+- Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs.
+- Mobile typecheck is required when `apps/mobile/**` or `packages/mobile-ui/**` change.
+- Shared setup lives in `.github/actions/setup-node-pnpm`.
+
+### Dependency catalogs
+
+Shared versions are defined in `pnpm-workspace.yaml` (`catalog:` and `catalogs.mobile`). Prefer catalog references in package.json; do not reintroduce duplicate version ranges for cataloged packages.

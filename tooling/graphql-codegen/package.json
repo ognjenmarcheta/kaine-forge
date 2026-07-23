@@ -23,9 +23,9 @@
     "@graphql-codegen/typescript": "^4.1.6",
     "@graphql-codegen/typescript-operations": "^4.6.1",
     "@graphql-codegen/typescript-react-query": "^6.1.1",
-    "graphql": "^16.11.0"
+    "graphql": "catalog:"
   },
   "devDependencies": {
-    "prettier": "^3.8.1"
+    "prettier": "catalog:"
   }
 }

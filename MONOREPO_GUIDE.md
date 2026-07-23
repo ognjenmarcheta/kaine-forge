@@ -47,7 +47,16 @@ kaine-forge/
     graphql-codegen/ GraphQL Code Generator config
 ```
 
-All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths.
+All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths. ESLint forbids `@repo/*/src/**` deep imports, `@repo/ui` inside mobile, and `@repo/mobile-ui` inside web/desktop.
+
+### Dependency catalogs (pnpm)
+
+Shared third-party versions live in `pnpm-workspace.yaml`:
+
+- Default `catalog:` — web/API/shared libs (`zod`, `graphql`, `drizzle-orm`, `better-auth`, web React `^19.1.x`, tooling, etc.).
+- Named `catalog:mobile` — Expo/React Native **exact pins** (`react@19.1.0`, `react-native`, NativeWind, mobile Tailwind v3). Renovate freezes these paths; move them only with a deliberate Expo SDK upgrade.
+
+Prefer `"zod": "catalog:"` (or `"react": "catalog:mobile"`) in package.json over duplicated ranges. Scaffold a package with `pnpm create:package <name>`.
 
 ```ts
 import { auth } from "@repo/auth/client";
@@ -160,37 +169,37 @@ Server-side environment variables use plain names. Vite client variables use `VI
 
 Important runtime variables:
 
-| Variable                  | Purpose                                                                 |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `DATABASE_URL`            | Postgres connection string                                              |
-| `BETTER_AUTH_SECRET`      | auth secret (≥32 chars in production; reject placeholders)              |
-| `BETTER_AUTH_URL`         | public auth/API base URL                                                |
-| `EMAIL_PROVIDER`          | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)       |
-| `AUTH_REQUIRE_EMAIL_VERIFICATION` | soft verification flag (does not gate login; see ADR 0007)       |
-| `GITHUB_*` / `GOOGLE_*`   | optional OAuth; each provider needs both id and secret                  |
-| `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated) |
-| `API_HOST`                | optional API listen host, for example `0.0.0.0` for LAN testing         |
-| `API_PORT`                | API port, default `4000`                                                |
-| `API_URL`                 | API URL for server/runtime references                                   |
-| `API_RUN_MIGRATIONS`      | optional startup migrations; defaults to true only in production        |
-| `API_CORS_ORIGINS`        | browser/API origin allowlist; **required in production**                |
-| `API_GRAPHQL_MAX_DEPTH`   | GraphQL depth limit (default 8)                                         |
-| `API_GRAPHQL_MAX_COMPLEXITY` | GraphQL field-selection complexity cap (default 200)                 |
-| `API_GRAPHQL_INTROSPECTION` | force introspection; default off in production                      |
-| `API_RATE_LIMIT_*`        | in-memory rate limit for `/api/auth/*` and `/graphql`                   |
-| `API_TRUST_PROXY`         | set `true` only behind a trusted reverse proxy                          |
-| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*` | org UI visibility flags                          |
-| `AI_TODO_PROVIDER`        | optional AI todo provider, `openai` or `deepseek`; defaults to `openai` |
-| `AI_TODO_MODEL`           | optional model override for the selected AI todo provider               |
-| `OPENAI_API_KEY`          | required for AI todos when `AI_TODO_PROVIDER` is `openai`               |
-| `DEEPSEEK_API_KEY`        | required for AI todos when `AI_TODO_PROVIDER` is `deepseek`             |
-| `VITE_API_PROXY_TARGET`   | Vite dev proxy target for `/api` and `/graphql`                         |
-| `VITE_API_URL`            | web API base URL                                                        |
-| `VITE_GRAPHQL_URL`        | web GraphQL URL                                                         |
-| `EXPO_PUBLIC_API_URL`     | mobile API base URL                                                     |
-| `EXPO_PUBLIC_GRAPHQL_URL` | mobile GraphQL URL                                                      |
-| `S3_*`                    | S3-compatible storage settings                                          |
-| `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*` | optional error-reporting seam (no traffic when disabled) |
+| Variable                                                           | Purpose                                                                 |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `DATABASE_URL`                                                     | Postgres connection string                                              |
+| `BETTER_AUTH_SECRET`                                               | auth secret (≥32 chars in production; reject placeholders)              |
+| `BETTER_AUTH_URL`                                                  | public auth/API base URL                                                |
+| `EMAIL_PROVIDER`                                                   | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)       |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION`                                  | soft verification flag (does not gate login; see ADR 0007)              |
+| `GITHUB_*` / `GOOGLE_*`                                            | optional OAuth; each provider needs both id and secret                  |
+| `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated)                                       |
+| `API_HOST`                                                         | optional API listen host, for example `0.0.0.0` for LAN testing         |
+| `API_PORT`                                                         | API port, default `4000`                                                |
+| `API_URL`                                                          | API URL for server/runtime references                                   |
+| `API_RUN_MIGRATIONS`                                               | optional startup migrations; defaults to true only in production        |
+| `API_CORS_ORIGINS`                                                 | browser/API origin allowlist; **required in production**                |
+| `API_GRAPHQL_MAX_DEPTH`                                            | GraphQL depth limit (default 8)                                         |
+| `API_GRAPHQL_MAX_COMPLEXITY`                                       | GraphQL field-selection complexity cap (default 200)                    |
+| `API_GRAPHQL_INTROSPECTION`                                        | force introspection; default off in production                          |
+| `API_RATE_LIMIT_*`                                                 | in-memory rate limit for `/api/auth/*` and `/graphql`                   |
+| `API_TRUST_PROXY`                                                  | set `true` only behind a trusted reverse proxy                          |
+| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*`               | org UI visibility flags                                                 |
+| `AI_TODO_PROVIDER`                                                 | optional AI todo provider, `openai` or `deepseek`; defaults to `openai` |
+| `AI_TODO_MODEL`                                                    | optional model override for the selected AI todo provider               |
+| `OPENAI_API_KEY`                                                   | required for AI todos when `AI_TODO_PROVIDER` is `openai`               |
+| `DEEPSEEK_API_KEY`                                                 | required for AI todos when `AI_TODO_PROVIDER` is `deepseek`             |
+| `VITE_API_PROXY_TARGET`                                            | Vite dev proxy target for `/api` and `/graphql`                         |
+| `VITE_API_URL`                                                     | web API base URL                                                        |
+| `VITE_GRAPHQL_URL`                                                 | web GraphQL URL                                                         |
+| `EXPO_PUBLIC_API_URL`                                              | mobile API base URL                                                     |
+| `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                      |
+| `S3_*`                                                             | S3-compatible storage settings                                          |
+| `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                |
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
 
@@ -307,21 +316,24 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command              | Purpose                                               |
-| -------------------- | ----------------------------------------------------- |
-| `pnpm dev`           | run dev tasks                                         |
-| `pnpm build`         | build all workspaces                                  |
-| `pnpm build:core`    | build API and web dependency graph                    |
-| `pnpm check`         | format check, lint, typecheck, test                   |
-| `pnpm coverage`      | Global Vitest coverage floors (lines/statements ≥50%) |
-| `pnpm coverage:core` | Stricter floors for `@repo/auth` and `@repo/api`      |
-| `pnpm test:e2e`      | Playwright web/API suite                              |
-| `pnpm generate`      | GraphQL codegen                                       |
-| `pnpm db:*`          | database lifecycle commands                           |
-| `pnpm ai:install`    | install shared assistant files locally                |
-| `pnpm ai:doctor`     | lint canonical AI files and report drift              |
-| `pnpm graph`         | build the Graphify knowledge graph (optional CLI)     |
-| `pnpm graph:update`  | refresh the knowledge graph incrementally             |
+| Command               | Purpose                                                |
+| --------------------- | ------------------------------------------------------ |
+| `pnpm dev`            | run dev tasks                                          |
+| `pnpm bootstrap`      | env, install, AI files, build, db seed (no dev server) |
+| `pnpm initialize`     | `bootstrap` then `dev`                                 |
+| `pnpm build`          | build all workspaces                                   |
+| `pnpm build:core`     | build API and web dependency graph                     |
+| `pnpm check`          | format check, lint, typecheck, test                    |
+| `pnpm coverage`       | Global Vitest coverage floors (lines/statements ≥50%)  |
+| `pnpm coverage:core`  | Stricter floors for `@repo/auth` and `@repo/api`       |
+| `pnpm test:e2e`       | Playwright web/API suite                               |
+| `pnpm generate`       | GraphQL codegen                                        |
+| `pnpm create:package` | scaffold a new `@repo/*` package                       |
+| `pnpm db:*`           | database lifecycle commands                            |
+| `pnpm ai:install`     | install shared assistant files locally                 |
+| `pnpm ai:doctor`      | lint canonical AI files and report drift               |
+| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)      |
+| `pnpm graph:update`   | refresh the knowledge graph incrementally              |
 
 Use scoped commands from the repo root:
 
@@ -334,8 +346,9 @@ pnpm --filter @repo/mobile-ui typecheck
 ## 17. Quality Gates
 
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
-- Pre-push runs `pnpm ai:doctor` and `pnpm typecheck`.
-- PR CI runs AI drift check, format check, lint, typecheck, tests, coverage, core build, and e2e.
+- Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck is required when mobile paths change. Deep mobile export / desktop checks stay on the scheduled workflow (ADR 0003).
+- Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, run `pnpm release:apps` so only affected `release/<app>` branches redeploy.
 

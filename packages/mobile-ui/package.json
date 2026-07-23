@@ -19,9 +19,9 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^3.3.1"
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "tailwind-merge": "catalog:"
   },
   "peerDependencies": {
     "nativewind": "^4.0.0",
@@ -31,17 +31,17 @@
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",
-    "@types/react": "~19.1.10",
-    "@types/react-dom": "~19.1.11",
+    "@types/react": "catalog:mobile",
+    "@types/react-dom": "catalog:mobile",
     "jsdom": "^26.1.0",
-    "nativewind": "4.2.1",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-css-interop": "0.2.1",
-    "react-native-reanimated": "4.1.1",
-    "react-native-safe-area-context": "5.6.2",
-    "react-native-worklets": "0.5.1",
-    "tailwindcss": "3.4.17"
+    "nativewind": "catalog:mobile",
+    "react": "catalog:mobile",
+    "react-dom": "catalog:mobile",
+    "react-native": "catalog:mobile",
+    "react-native-css-interop": "catalog:mobile",
+    "react-native-reanimated": "catalog:mobile",
+    "react-native-safe-area-context": "catalog:mobile",
+    "react-native-worklets": "catalog:mobile",
+    "tailwindcss": "catalog:mobile"
   }
 }
