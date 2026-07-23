@@ -1,7 +1,7 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { stepCountIs, streamText, type ModelMessage, type StepResult, type ToolSet } from "ai";
+import { isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from "ai";
 
 import { createAssistantTools } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
@@ -148,10 +148,10 @@ export function createAssistantAiRuntime({
 
       const result = streamText({
         model,
-        system: ASSISTANT_SYSTEM_PROMPT,
+        instructions: ASSISTANT_SYSTEM_PROMPT,
         messages: toModelMessages(messages),
         tools: createAssistantTools({ publishNoteEvent, publishTodoEvent, scope }),
-        stopWhen: stepCountIs(MAX_ASSISTANT_STEPS)
+        stopWhen: isStepCount(MAX_ASSISTANT_STEPS)
       });
 
       for await (const delta of result.textStream) {

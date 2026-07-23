@@ -19,15 +19,15 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^2.0.34",
-    "@ai-sdk/openai": "^3.0.63",
+    "@ai-sdk/deepseek": "^3.0.13",
+    "@ai-sdk/openai": "^4.0.18",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",
-    "ai": "^6.0.177",
+    "ai": "^7.0.35",
     "better-auth": "^1.6.23",
     "dataloader": "^2.2.3",
     "dotenv": "^17.2.2",

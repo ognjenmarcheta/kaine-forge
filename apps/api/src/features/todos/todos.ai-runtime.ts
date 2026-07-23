@@ -73,7 +73,7 @@ export function createTodoAiRuntime() {
         output: Output.object({
           schema: generatedTodosSchema
         }),
-        system:
+        instructions:
           "You generate concise todo lists. Return one to five actionable todos. Keep titles short and descriptions useful. Do not include markdown.",
         prompt: input.prompt
       });
