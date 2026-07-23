@@ -39,6 +39,9 @@ export default [
           alphabetize: { order: "asc", caseInsensitive: true }
         }
       ],
+      // Circular imports break tree-shaking and cause hard-to-debug init-order
+      // bugs; bounded depth keeps the check fast on a large graph.
+      "import/no-cycle": ["error", { maxDepth: 10, ignoreExternal: true }],
       "@typescript-eslint/no-explicit-any": "error",
       // Package public API is the exports map; never deep-import package source trees.
       "no-restricted-imports": [
