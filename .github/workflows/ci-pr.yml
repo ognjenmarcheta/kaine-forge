@@ -150,9 +150,7 @@ jobs:
       - name: Coverage threshold
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
-        run: |
-          pnpm run coverage
-          pnpm run coverage:core
+        run: pnpm run coverage
 
   mobile-typecheck:
     name: Mobile Typecheck

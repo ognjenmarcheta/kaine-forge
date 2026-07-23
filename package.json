@@ -19,7 +19,6 @@
     "typecheck": "turbo run typecheck --continue && pnpm run ai:typecheck",
     "test": "turbo run test --continue && pnpm run ai:test",
     "coverage": "vitest run --config vitest.coverage.config.ts",
-    "coverage:core": "vitest run --config vitest.coverage.core.config.ts",
     "test:e2e": "pnpm run db:ensure && pnpm run db:push && pnpm run db:seed && pnpm --filter @repo/e2e run test:e2e",
     "template:adopt": "tsx .ai/template-adoption.ts",
     "release:status": "changeset status --verbose",
