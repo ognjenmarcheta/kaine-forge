@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "editorconfig.editorconfig",
+    "ms-playwright.playwright",
+    "graphql.vscode-graphql",
+    "graphql.vscode-graphql-syntax",
+    "vitest.explorer",
+    "expo.vscode-expo-tools",
+    "tauri-apps.tauri-vscode"
+  ]
+}
