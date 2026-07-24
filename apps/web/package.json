@@ -35,6 +35,7 @@
     "react-dom": "catalog:",
     "react-router-dom": "^7.13.0",
     "sonner": "catalog:",
+    "zod": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {

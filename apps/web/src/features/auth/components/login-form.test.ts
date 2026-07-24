@@ -10,9 +10,7 @@ const configSource = readFileSync(resolve(componentDirectory, "../auth.config.ts
 describe("LoginForm social login contract", () => {
   it("renders social buttons only for env-enabled providers", () => {
     expect(source).toContain("AUTH_CONFIG.socialProviders.map");
-    expect(configSource).toContain(
-      "parseSocialProviders(import.meta.env.VITE_AUTH_SOCIAL_PROVIDERS)"
-    );
+    expect(configSource).toContain("parseSocialProviders(getWebEnv().VITE_AUTH_SOCIAL_PROVIDERS)");
   });
 
   it("delegates social sign-in through the shared auth transport", () => {
