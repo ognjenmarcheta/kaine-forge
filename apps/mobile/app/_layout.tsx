@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
 import "../src/styles/global.css";
+import "../src/lib/validate-env";
 
 import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
