@@ -16,6 +16,9 @@ permissions:
 
 env:
   PNPM_VERSION: "10.29.3"
+  # Optional remote Turbo cache — no-ops when secrets/vars are unset.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   release:
