@@ -58,11 +58,10 @@ Scope commands from the repo root with `pnpm --filter <workspace> <script>` (for
 ### One-command bootstrap
 
 ```bash
-docker compose up -d --wait
 pnpm quick-setup
 ```
 
-`quick-setup` / `initialize` runs `bootstrap` (env, install, AI files, build, db seed) then starts `dev`. Use `pnpm bootstrap` alone when you want the environment prepared without starting processes. Postgres must already be running.
+`quick-setup` starts the Docker services (Postgres, MinIO), then runs `initialize` → `bootstrap` (env, install, AI files, build, db seed) and finally `dev`. AI assistant files install non-interactively during bootstrap. Use `pnpm bootstrap` alone when the services are already running and you want the environment prepared without starting `dev` (it assumes Postgres is reachable).
 
 Scaffold a new shared package: `pnpm create:package <kebab-name>`.
 
