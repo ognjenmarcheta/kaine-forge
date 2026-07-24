@@ -1,12 +1,10 @@
 import { createClient, type Client } from "graphql-ws";
 
+import { getMobileEnv } from "../env.config";
 import type { AuthSession } from "../features/auth/auth.type";
 import { authHeaders } from "../features/auth/auth.util";
 
-const WS_URL = (process.env.EXPO_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql").replace(
-  /^http/,
-  "ws"
-);
+const WS_URL = getMobileEnv().EXPO_PUBLIC_GRAPHQL_URL.replace(/^http/, "ws");
 
 let subscriptionClient: Client | null = null;
 let currentSession: AuthSession | null = null;
