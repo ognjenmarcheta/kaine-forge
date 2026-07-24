@@ -1,5 +1,6 @@
 import { createClient, type Client } from "graphql-ws";
 
+import { getWebEnv } from "../env.config";
 import { authHeaders } from "../features/auth/auth.util";
 
 let subscriptionClient: Client | null = null;
@@ -9,7 +10,7 @@ function resolveWsUrl(): string {
     return "ws://localhost:3000/graphql";
   }
 
-  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL ?? "/graphql";
+  const graphqlUrl = getWebEnv().VITE_GRAPHQL_URL;
   const httpUrl = new URL(graphqlUrl, window.location.origin);
   httpUrl.protocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
   return httpUrl.toString();
