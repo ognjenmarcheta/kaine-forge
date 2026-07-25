@@ -33,6 +33,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "devDependencies": {
-    "@repo/config": "workspace:*"
+    "@repo/config": "workspace:*",
+    "vitest": "catalog:"
   }
 }

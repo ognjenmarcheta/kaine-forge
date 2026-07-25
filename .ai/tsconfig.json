@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "../packages/config/typescript/tsconfig.node.json",
   "compilerOptions": {
     "noEmit": true,
     "types": ["node", "vitest/globals"]

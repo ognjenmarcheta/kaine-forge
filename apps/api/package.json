@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "vitest": "catalog:"
   }
 }

@@ -288,4 +288,122 @@ describe("monorepo alignment", () => {
       expect(hasTest, `${workspace} must ship at least one *.test.ts(x) file`).toBe(true);
     }
   });
+
+  it("requires every workspace to declare @repo/config so turbo can see the preset edge", () => {
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const manifests = tracked.filter((file) =>
+      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+    );
+
+    expect(manifests.length).toBeGreaterThan(1);
+
+    for (const manifest of manifests) {
+      if (manifest === "packages/config/package.json") {
+        continue;
+      }
+
+      const packageJson = readJson(manifest) as {
+        name?: string;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const declared = {
+        ...(packageJson.dependencies ?? {}),
+        ...(packageJson.devDependencies ?? {})
+      };
+
+      expect(
+        declared["@repo/config"],
+        `${packageJson.name ?? manifest} must declare @repo/config. Every workspace consumes its ` +
+          `eslint, prettier, tsconfig, or tailwind presets, and the declared edge is what lets ` +
+          `turbo prune include it in Docker builds and lets release-apps derive affected apps ` +
+          `from the graph instead of a hardcoded path.`
+      ).toBe("workspace:*");
+    }
+  });
+
+  it("keeps broad invalidation triggers out of turbo globalDependencies", () => {
+    const turboConfig = readJson("turbo.json") as { globalDependencies?: string[] };
+    const globalDependencies = turboConfig.globalDependencies ?? [];
+
+    // Turborepo already hashes each package's resolved external dependencies, so listing the
+    // whole lockfile here invalidates every task in every package on any dependency bump.
+    expect(globalDependencies).not.toContain("pnpm-lock.yaml");
+
+    // packages/config reaches the graph through declared dependencies now. Globbing it here also
+    // pulled gitignored .turbo/*.log files and CHANGELOG.md into the global hash.
+    for (const entry of globalDependencies) {
+      expect(entry.startsWith("packages/"), `globalDependencies must not glob ${entry}`).toBe(
+        false
+      );
+    }
+  });
+
+  it("builds deployable images from turbo prune output only", () => {
+    for (const dockerfile of ["Dockerfile.api", "Dockerfile.web"]) {
+      expect(
+        readText(dockerfile),
+        `${dockerfile} must not hand-copy packages/config. It is part of the pruned graph now, ` +
+          `and an out-of-band COPY silently diverges from the declared dependencies.`
+      ).not.toContain("/app/packages/config/");
+    }
+  });
+
+  it("requires workspaces that import vitest to declare it", () => {
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const importers = new Set<string>();
+
+    for (const file of tracked) {
+      if (!/^(apps|packages|tooling)\/[^/]+\/.*\.tsx?$/.test(file)) {
+        continue;
+      }
+      if (/from "vitest"|from "vitest\//.test(readText(file))) {
+        importers.add(file.split("/").slice(0, 2).join("/"));
+      }
+    }
+
+    expect(importers.size).toBeGreaterThan(0);
+
+    for (const workspace of importers) {
+      const packageJson = readJson(`${workspace}/package.json`) as {
+        name?: string;
+        devDependencies?: Record<string, string>;
+      };
+
+      expect(
+        packageJson.devDependencies?.vitest,
+        `${packageJson.name ?? workspace} imports vitest but does not declare it. Relying on ` +
+          `pnpm root hoisting hides the dependency from \`turbo boundaries\` and breaks a ` +
+          `standalone \`pnpm --filter <workspace> test\`.`
+      ).toBe("catalog:");
+    }
+  });
+
+  it("keeps eslint plugins declared by the package that imports them", () => {
+    const configPackage = readJson("packages/config/package.json") as {
+      devDependencies?: Record<string, string>;
+    };
+    const rootPackage = readJson("package.json") as {
+      devDependencies?: Record<string, string>;
+    };
+
+    for (const plugin of [
+      "@eslint/js",
+      "eslint-plugin-import",
+      "eslint-plugin-react",
+      "eslint-plugin-react-hooks",
+      "globals",
+      "typescript-eslint"
+    ]) {
+      expect(
+        configPackage.devDependencies?.[plugin],
+        `packages/config/eslint/*.js imports ${plugin}, so @repo/config must declare it.`
+      ).toBeDefined();
+      expect(
+        rootPackage.devDependencies?.[plugin],
+        `${plugin} belongs to @repo/config, not the root. The root eslint.config.mjs only ` +
+          `re-exports the shared config and never imports plugins directly.`
+      ).toBeUndefined();
+    }
+  });
 });

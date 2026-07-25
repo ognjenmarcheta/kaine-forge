@@ -45,10 +45,10 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "i18next": "^25.5.2",
-    "react-i18next": "^15.7.3"
+    "i18next": "^25.5.2"
   },
   "devDependencies": {
-    "@repo/config": "workspace:*"
+    "@repo/config": "workspace:*",
+    "vitest": "catalog:"
   }
 }

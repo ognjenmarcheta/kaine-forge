@@ -1,0 +1,82 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        ".ai/doctor.ts",
+        ".ai/install.ts",
+        ".ai/release-apps.ts",
+        ".ai/template-adoption.ts",
+        ".ai/hooks/session-start.mjs",
+        ".ai/**/*.spec.ts",
+        "scripts/*.mjs",
+        "tooling/dev-mobile-lan.ts",
+        "vitest.coverage.config.ts"
+      ],
+      "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"]
+    },
+    "apps/api": {
+      "entry": ["src/index.ts", "src/schema/generate-schema.ts", "**/*.test.ts"]
+    },
+    "apps/web": {
+      "entry": ["src/main.tsx", "vite.config.ts", "**/*.test.{ts,tsx}"]
+    },
+    "apps/mobile": {
+      "entry": ["app/**/*.{ts,tsx}", "src/env.config.ts", "vitest.config.ts", "**/*.test.{ts,tsx}"],
+      "ignore": [
+        "babel.config.cjs",
+        "metro.config.js",
+        "tailwind.config.ts",
+        "src/index.ts",
+        "src/stores/sidebar.store.ts"
+      ]
+    },
+    "apps/desktop": {
+      "entry": ["**/*.test.ts"],
+      "ignore": ["src/index.ts"]
+    },
+    "apps/e2e": {
+      "entry": ["playwright.config.ts", "tests/**/*.e2e.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts", "**/*.{test,spec}.{ts,tsx}", "vitest.config.ts"]
+    },
+    "packages/config": {
+      "entry": ["eslint/*.js", "prettier/index.cjs", "tailwind/preset.js", "**/*.test.ts"],
+      "project": ["**/*.{js,cjs,ts}"]
+    },
+    "packages/mobile-ui": {
+      "entry": ["src/index.ts", "**/*.test.{ts,tsx}", "vitest.config.ts"],
+      "ignore": ["src/test/react-native.stub.tsx"]
+    },
+    "packages/ui": {
+      "entry": ["src/index.ts", "src/primitives/*.tsx", "**/*.test.{ts,tsx}"]
+    },
+    "tooling/graphql-codegen": {
+      "entry": ["codegen.ts"]
+    }
+  },
+  "ignore": ["**/generated/**", "**/dist/**", "**/src-tauri/**", "graphify-out/**"],
+  "ignoreDependencies": [
+    "@repo/config",
+    "pino-pretty",
+    "tailwindcss",
+    "react-native-css-interop",
+    "react-native-reanimated",
+    "react-native-safe-area-context",
+    "react-native-worklets",
+    "expo-updates",
+    "expo-system-ui",
+    "zod"
+  ],
+  "ignoreBinaries": ["graphify"],
+  "metro": false,
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "duplicates": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off"
+  }
+}

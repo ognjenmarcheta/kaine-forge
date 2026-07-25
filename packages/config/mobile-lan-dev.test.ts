@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+// @boundaries-ignore tooling/dev-mobile-lan.ts is a loose root script, not a workspace, so it
+// has nowhere else to be tested from. Give it a home workspace to remove this exception.
 import { buildMobileLanDevConfig, selectLanIpv4Address } from "../../tooling/dev-mobile-lan";
 
 describe("mobile LAN dev helper", () => {

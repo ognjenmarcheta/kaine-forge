@@ -43,6 +43,7 @@
     "react-native-reanimated": "catalog:mobile",
     "react-native-safe-area-context": "catalog:mobile",
     "react-native-worklets": "catalog:mobile",
-    "tailwindcss": "catalog:mobile"
+    "tailwindcss": "catalog:mobile",
+    "vitest": "catalog:"
   }
 }
