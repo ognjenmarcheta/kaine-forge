@@ -59,6 +59,11 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "test:watch": {
+      "description": "Watch workspace tests",
+      "cache": false,
+      "persistent": true
+    },
     "clean": {
       "description": "Remove workspace build outputs",
       "cache": false

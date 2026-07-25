@@ -183,6 +183,10 @@ jobs:
             pnpm run typecheck
             pnpm run test
           fi
+          # Whole-graph contract checks: not affected-scopable; previously only
+          # ran on Release after merge (see issue #142).
+          pnpm run boundaries
+          pnpm run knip
 
   coverage:
     name: Coverage Threshold
@@ -213,11 +217,11 @@ jobs:
 
   mobile-typecheck:
     name: Mobile Typecheck
+    # Independent of check-fast: no shared artifact/cache; parallelize (issue #144).
     if: |
       always() &&
-      needs.check-fast.result == 'success' &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
-    needs: [check-fast, detect-paths]
+    needs: [detect-paths]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -317,13 +321,13 @@ jobs:
 
   docker-images:
     name: Docker Image (${{ matrix.app }})
+    # Independent of check-fast: Buildx-only, own layer cache (issue #144).
     if: |
       always() &&
-      needs.check-fast.result == 'success' &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.docker == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [check-fast, detect-paths]
+    needs: [detect-paths]
     permissions:
       contents: read
       # Trivy uploads SARIF to the Security tab.
@@ -372,12 +376,10 @@ jobs:
           sarif_file: trivy-${{ matrix.app }}.sarif
           category: trivy-${{ matrix.app }}
 
-      # Advisory for now: the release contract is the release/<app> branch, and a
-      # newly published CVE in an unchanged base image should not block an
-      # unrelated PR. Flip to exit-code 1 once base images are pinned by digest.
+      # Base images are pinned by digest (Dockerfile.*); a CRITICAL finding here
+      # is actionable on this PR rather than ambient base-image churn (issue #155).
       - name: Fail on fixable CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        continue-on-error: true
         with:
           image-ref: kaine-forge-${{ matrix.app }}:ci
           format: table
@@ -448,6 +450,12 @@ jobs:
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browser
         run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium

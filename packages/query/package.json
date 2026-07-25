@@ -20,7 +20,7 @@
     }
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "echo \"@repo/query has no dev runtime\"",
     "build": "tsc -p tsconfig.json",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "prettier --write .",

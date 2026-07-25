@@ -7,8 +7,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Queue, never cancel: release:apps pushes release/<app> branches sequentially.
+  # Cancelling mid-loop leaves a split deploy pair (see issue #139).
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -49,6 +51,16 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
+
+      # Restore before any .env write: turbo hashes .env* as build inputs.
+      # Shared turbo-${{ runner.os }}- prefix reuses entries saved by PR jobs.
+      - name: Restore Turbo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-release-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
 
       - name: Prepare environment
         run: |
