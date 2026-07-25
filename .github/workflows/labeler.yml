@@ -14,7 +14,9 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: labeler-${{ github.workflow }}-${{ github.ref }}
+  # pull_request_target resolves github.ref to the base branch (main), so a
+  # ref-keyed group cancels labeling across every open PR. Key on PR number.
+  group: labeler-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:

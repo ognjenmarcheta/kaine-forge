@@ -49,6 +49,11 @@
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true
+    },
+    {
+      "description": "Dockerfile base images stay digest-pinned; Renovate bumps digests on a schedule",
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true
     }
   ],
   "customManagers": [

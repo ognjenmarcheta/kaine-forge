@@ -222,20 +222,76 @@ describe("monorepo alignment", () => {
     expect(workspace).toMatch(/catalogs:\s*\n(?:[^\n]*\n)*?\s*mobile:/);
     expect(workspace).toContain("zod:");
 
-    const catalogedPackages = [
-      ["packages/db/package.json", "dependencies", "zod", "catalog:"],
-      ["packages/auth/package.json", "dependencies", "zod", "catalog:"],
-      ["apps/api/package.json", "dependencies", "zod", "catalog:"],
-      ["apps/web/package.json", "dependencies", "react", "catalog:"],
-      ["packages/ui/package.json", "dependencies", "react", "catalog:"],
-      ["apps/mobile/package.json", "dependencies", "react", "catalog:mobile"],
-      ["packages/mobile-ui/package.json", "devDependencies", "react", "catalog:mobile"]
-    ] as const;
+    // Dual-lane / intentional exceptions: web catalog: vs catalog:mobile, and
+    // packages/mobile-ui peer ranges that stay wider than the pinned mobile graph.
+    const dualLanePackages = new Set([
+      "react",
+      "react-dom",
+      "@types/react",
+      "@types/react-dom",
+      "tailwindcss",
+      "nativewind",
+      "react-native",
+      "react-native-css-interop",
+      "react-native-reanimated",
+      "react-native-safe-area-context",
+      "react-native-worklets"
+    ]);
 
-    for (const [pkgPath, section, dep, expected] of catalogedPackages) {
-      const pkg = readJson(pkgPath) as Record<string, Record<string, string>>;
-      expect(pkg[section]?.[dep]).toBe(expected);
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const manifests = tracked.filter((file) =>
+      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+    );
+
+    const declarations = new Map<string, Array<{ manifest: string; value: string }>>();
+
+    for (const manifest of manifests) {
+      const packageJson = readJson(manifest) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+        peerDependencies?: Record<string, string>;
+      };
+      for (const section of ["dependencies", "devDependencies"] as const) {
+        for (const [dep, value] of Object.entries(packageJson[section] ?? {})) {
+          if (dep.startsWith("@repo/") || value.startsWith("workspace:")) {
+            continue;
+          }
+          const list = declarations.get(dep) ?? [];
+          list.push({ manifest, value });
+          declarations.set(dep, list);
+        }
+      }
     }
+
+    for (const [dep, entries] of declarations) {
+      if (entries.length < 2) {
+        continue;
+      }
+      if (dualLanePackages.has(dep)) {
+        for (const { manifest, value } of entries) {
+          expect(
+            value === "catalog:" || value === "catalog:mobile",
+            `${manifest} declares ${dep} as "${value}"; multi-workspace deps must use catalog: or catalog:mobile`
+          ).toBe(true);
+        }
+        continue;
+      }
+
+      for (const { manifest, value } of entries) {
+        expect(
+          value,
+          `${manifest} declares ${dep} as "${value}"; any dependency used by two or more workspaces must be "catalog:"`
+        ).toBe("catalog:");
+      }
+    }
+
+    // Keep coverage tooling lockstep with cataloged vitest.
+    const rootPackage = readJson("package.json") as {
+      devDependencies?: Record<string, string>;
+    };
+    expect(rootPackage.devDependencies?.["@vitest/coverage-v8"]).toBe("catalog:");
+    expect(workspace).toMatch(/"@vitest\/coverage-v8":\s*"\^?3\./);
+    expect(workspace).toMatch(/vitest:\s*"\^?3\./);
   });
 
   it("documents web vs mobile React version policy", () => {
