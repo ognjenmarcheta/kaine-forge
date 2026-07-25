@@ -142,16 +142,20 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Persist Turbo's local cache across runs so unchanged workspaces skip
-      # lint/typecheck/test/format on subsequent PRs. Separate key namespace from
-      # build-core; restore-keys lets a run reuse the newest prior check cache.
+      # Turbo cache entries are content-addressed by task hash (<hash>.tar.zst), so
+      # every job can safely share one restore pool. The save key stays unique per
+      # job and commit — GitHub cache entries are immutable, so a shared save key
+      # would make every job after the first fail to save. The shared
+      # `turbo-${{ runner.os }}-` restore prefix is the point: check-fast now reuses
+      # artifacts built by build-core and vice versa. Two namespaces stored the same
+      # artifacts twice and halved the hit rate against the repo's 10 GB cache cap.
       - name: Restore Turbo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-check-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-check-${{ github.sha }}
           restore-keys: |
-            turbo-check-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: AI tooling doctor
         run: pnpm run ai:doctor
@@ -304,9 +308,9 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
           restore-keys: |
-            turbo-build-core-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
@@ -388,17 +392,17 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Restore-only: build-core (needs:) already saved the exact-sha key.
-      # This step and the build must stay BEFORE "Prepare environment" —
-      # turbo hashes .env* as build inputs, so creating .env first would
-      # change task hashes and defeat the cache hit.
+      # Restore-only: build-core (needs:) already saved this exact key, and both
+      # shards read it. This step and the build must stay BEFORE "Prepare
+      # environment" — turbo hashes .env* as build inputs, so creating .env first
+      # would change task hashes and defeat the cache hit.
       - name: Restore Turbo cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
           restore-keys: |
-            turbo-build-core-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
