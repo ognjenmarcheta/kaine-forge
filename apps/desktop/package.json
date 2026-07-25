@@ -18,6 +18,8 @@
     "clean": "rm -rf dist .turbo src-tauri/target"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "@repo/config": "workspace:*",
+    "@tauri-apps/cli": "^2.0.0",
+    "vitest": "catalog:"
   }
 }

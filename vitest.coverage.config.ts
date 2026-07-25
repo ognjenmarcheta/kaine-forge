@@ -24,7 +24,6 @@ export default defineConfig({
       enabled: true,
       exclude: [
         ".prettierrc.cjs",
-        "vitest.workspace.ts",
         "**/*.test.*",
         "**/*.spec.*",
         "**/*.d.ts",

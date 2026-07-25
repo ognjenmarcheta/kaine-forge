@@ -8,6 +8,12 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 export default defineConfig({
   testDir: "./tests",
   testMatch: ["**/*.@(spec|test).?(c|m)[jt]s?(x)", "**/*.e2e.ts"],
+  // Do not raise these without first isolating test data. Four of the five specs
+  // sign in as the same seeded user (test@test.test), and web-organizations.e2e.ts
+  // switches that user's active organization while web-auth-todos and
+  // web-notes-flows operate on organization-scoped rows. Concurrent workers would
+  // race on activeOrganizationId and read another spec's org. CI scales this by
+  // sharding across jobs instead — each shard gets its own Postgres service.
   fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

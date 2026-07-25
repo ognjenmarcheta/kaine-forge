@@ -14,7 +14,7 @@
     "dev:mobile:lan": "tsx tooling/dev-mobile-lan.ts",
     "build": "turbo run build",
     "build:core": "turbo run build --filter=@repo/api --filter=@repo/web",
-    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run boundaries && pnpm run typecheck && pnpm run test && pnpm run knip",
     "check:ci": "pnpm run check",
     "format": "turbo run format --continue",
     "format:check": "turbo run format:check --continue",
@@ -56,7 +56,9 @@
     "ui:shadcn:add": "pnpm dlx shadcn@latest add -c packages/ui",
     "ui:shadcn:view": "pnpm dlx shadcn@latest view",
     "preinstall": "npx only-allow pnpm",
-    "prepare": "husky"
+    "prepare": "husky",
+    "knip": "knip --no-config-hints",
+    "boundaries": "turbo boundaries"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,tsx,json,md,css,yml,yaml}": [
@@ -71,23 +73,18 @@
     "@clack/prompts": "^0.11.0",
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
-    "@eslint/js": "^9.35.0",
     "@graphql-inspector/cli": "6.0.8",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "^3.2.4",
     "chalk": "^5.6.2",
     "eslint": "^9.35.0",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "globals": "^16.4.0",
     "husky": "^9.1.7",
+    "knip": "^6.29.0",
     "lint-staged": "^16.1.6",
     "prettier": "catalog:",
     "tsx": "^4.20.5",
     "turbo": "^2.8.10",
     "typescript": "catalog:",
-    "typescript-eslint": "^8.43.0",
     "vitest": "catalog:",
     "yaml": "^2.8.1"
   }

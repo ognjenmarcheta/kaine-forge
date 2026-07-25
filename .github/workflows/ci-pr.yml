@@ -23,6 +23,7 @@ jobs:
   detect-paths:
     name: Detect Changed Paths
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
       docker: ${{ steps.filter.outputs.docker }}
@@ -78,6 +79,7 @@ jobs:
     name: Changeset Required
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -109,6 +111,7 @@ jobs:
     name: Dependency Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -126,6 +129,7 @@ jobs:
   check-fast:
     name: Check Fast
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -138,16 +142,20 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Persist Turbo's local cache across runs so unchanged workspaces skip
-      # lint/typecheck/test/format on subsequent PRs. Separate key namespace from
-      # build-core; restore-keys lets a run reuse the newest prior check cache.
+      # Turbo cache entries are content-addressed by task hash (<hash>.tar.zst), so
+      # every job can safely share one restore pool. The save key stays unique per
+      # job and commit — GitHub cache entries are immutable, so a shared save key
+      # would make every job after the first fail to save. The shared
+      # `turbo-${{ runner.os }}-` restore prefix is the point: check-fast now reuses
+      # artifacts built by build-core and vice versa. Two namespaces stored the same
+      # artifacts twice and halved the hit rate against the repo's 10 GB cache cap.
       - name: Restore Turbo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-check-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-check-${{ github.sha }}
           restore-keys: |
-            turbo-check-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: AI tooling doctor
         run: pnpm run ai:doctor
@@ -176,8 +184,30 @@ jobs:
             pnpm run test
           fi
 
+  coverage:
+    name: Coverage Threshold
+    # Full-repo vitest run with global + per-path floors. It is deliberately a
+    # separate job rather than a step in check-fast: it cannot be affected-scoped
+    # (thresholds are computed across all projects), so serializing it behind the
+    # affected gate made the fast gate as slow as the whole test suite.
+    if: |
+      always() &&
+      (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
+    needs: detect-paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
       - name: Coverage threshold
         env:
+          # Some API modules import the DB client at load time during tests/coverage.
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
         run: pnpm run coverage
 
@@ -189,6 +219,7 @@ jobs:
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
     needs: [check-fast, detect-paths]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -210,6 +241,7 @@ jobs:
       needs.detect-paths.outputs.graphql == 'true'
     needs: detect-paths
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -261,6 +293,7 @@ jobs:
       needs.check-fast.result == 'success' &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [check-fast, detect-paths]
     steps:
       - name: Checkout
@@ -275,21 +308,34 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
           restore-keys: |
-            turbo-build-core-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
 
   docker-images:
-    name: Docker Image Builds
+    name: Docker Image (${{ matrix.app }})
     if: |
       always() &&
       needs.check-fast.result == 'success' &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.docker == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [check-fast, detect-paths]
+    permissions:
+      contents: read
+      # Trivy uploads SARIF to the Security tab.
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: Dockerfile.api
+          - app: web
+            dockerfile: Dockerfile.web
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -297,33 +343,74 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - name: Build API image
+      - name: Build ${{ matrix.app }} image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
-          file: Dockerfile.api
-          tags: kaine-forge-api:ci
+          file: ${{ matrix.dockerfile }}
+          tags: kaine-forge-${{ matrix.app }}:ci
           load: true
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
-      - name: Build web image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      # Scans the image that was just built, not a registry copy, so a
+      # vulnerability introduced by this PR's base image or apt layers is caught
+      # before the release branch moves.
+      - name: Scan ${{ matrix.app }} image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          context: .
-          file: Dockerfile.web
-          tags: kaine-forge-web:ci
-          load: true
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+          image-ref: kaine-forge-${{ matrix.app }}:ci
+          format: sarif
+          output: trivy-${{ matrix.app }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        with:
+          sarif_file: trivy-${{ matrix.app }}.sarif
+          category: trivy-${{ matrix.app }}
+
+      # Advisory for now: the release contract is the release/<app> branch, and a
+      # newly published CVE in an unchanged base image should not block an
+      # unrelated PR. Flip to exit-code 1 once base images are pinned by digest.
+      - name: Fail on fixable CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        continue-on-error: true
+        with:
+          image-ref: kaine-forge-${{ matrix.app }}:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Generate SBOM for ${{ matrix.app }}
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: kaine-forge-${{ matrix.app }}:ci
+          format: spdx-json
+          artifact-name: sbom-${{ matrix.app }}.spdx.json
+          output-file: sbom-${{ matrix.app }}.spdx.json
 
   e2e-web-api:
-    name: E2E Web/API
+    name: E2E Web/API (shard ${{ matrix.shard }}/2)
     if: |
       always() &&
       needs.build-core.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build-core
+    strategy:
+      # Sharded across jobs, not workers: the specs share one seeded user, so
+      # intra-job parallelism races on active-organization state (see
+      # apps/e2e/playwright.config.ts). Each shard gets its own Postgres service,
+      # so shards are isolated. Sized at 2 because there are only 5 spec files and
+      # every shard re-pays install + build:core + browser install + db seed;
+      # raise it here and in --shard= together when the suite grows.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     services:
       postgres:
         image: postgres:17
@@ -347,17 +434,17 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Restore-only: build-core (needs:) already saved the exact-sha key.
-      # This step and the build must stay BEFORE "Prepare environment" —
-      # turbo hashes .env* as build inputs, so creating .env first would
-      # change task hashes and defeat the cache hit.
+      # Restore-only: build-core (needs:) already saved this exact key, and both
+      # shards read it. This step and the build must stay BEFORE "Prepare
+      # environment" — turbo hashes .env* as build inputs, so creating .env first
+      # would change task hashes and defeat the cache hit.
       - name: Restore Turbo cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .turbo/cache
-          key: turbo-build-core-${{ runner.os }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
           restore-keys: |
-            turbo-build-core-${{ runner.os }}-
+            turbo-${{ runner.os }}-
 
       - name: Build API and Web with dependencies
         run: pnpm run build:core
@@ -384,14 +471,67 @@ jobs:
           pnpm run db:push
           pnpm run db:seed
 
+      # Invoked directly rather than via `pnpm run test:e2e` so this shard's
+      # --shard flag reaches playwright. The root script also re-runs
+      # db:ensure/db:push/db:seed, which the previous step already did.
       - name: Run Playwright e2e
-        run: pnpm run test:e2e
+        run: |
+          pnpm --filter @repo/e2e exec playwright test \
+            --shard=${{ matrix.shard }}/2 \
+            --reporter=blob
 
-      - name: Upload Playwright artifacts
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-blob-${{ matrix.shard }}
+          path: apps/e2e/blob-report
+          retention-days: 7
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-traces-${{ matrix.shard }}
+          path: apps/e2e/test-results
+          retention-days: 7
+
+  e2e-report:
+    name: E2E Report
+    # Merges every shard's blob report into one browsable HTML report. Runs even
+    # when a shard failed, since that is exactly when the report is wanted.
+    if: always() && needs.e2e-web-api.result != 'skipped'
+    needs: e2e-web-api
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Download shard blob reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: apps/e2e/all-blobs
+          pattern: e2e-blob-*
+          merge-multiple: true
+
+      - name: Merge into HTML report
+        run: |
+          pnpm --filter @repo/e2e exec playwright merge-reports \
+            --reporter=html \
+            ./all-blobs
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report
+
+      - name: Upload merged report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report
-          path: |
-            apps/e2e/playwright-report
-            apps/e2e/test-results
+          path: apps/e2e/playwright-report
+          retention-days: 7

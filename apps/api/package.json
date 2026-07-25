@@ -39,6 +39,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/ws": "^8.18.1"
+    "@repo/config": "workspace:*",
+    "@types/ws": "^8.18.1",
+    "vitest": "catalog:"
   }
 }

@@ -29,6 +29,7 @@
     "react-native": ">=0.81.0"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",
     "@types/react": "catalog:mobile",
@@ -42,6 +43,7 @@
     "react-native-reanimated": "catalog:mobile",
     "react-native-safe-area-context": "catalog:mobile",
     "react-native-worklets": "catalog:mobile",
-    "tailwindcss": "catalog:mobile"
+    "tailwindcss": "catalog:mobile",
+    "vitest": "catalog:"
   }
 }

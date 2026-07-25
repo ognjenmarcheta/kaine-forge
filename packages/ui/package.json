@@ -54,9 +54,11 @@
     "tailwind-merge": "catalog:"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "react-dom": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "vitest": "catalog:"
   }
 }

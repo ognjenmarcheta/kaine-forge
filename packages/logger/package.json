@@ -44,6 +44,8 @@
     "pino": "^9.6.0"
   },
   "devDependencies": {
-    "pino-pretty": "^13.0.0"
+    "@repo/config": "workspace:*",
+    "pino-pretty": "^13.0.0",
+    "vitest": "catalog:"
   }
 }

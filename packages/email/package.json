@@ -26,5 +26,9 @@
   },
   "dependencies": {
     "@repo/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "vitest": "catalog:"
   }
 }
