@@ -1,0 +1,49 @@
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Offset from the Security workflow (Mondays 06:00) so the two scans do not
+    # contend for runners.
+    - cron: "0 7 * * 1"
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # Required for CodeQL to upload results to the Security tab.
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        with:
+          languages: javascript-typescript
+          # security-extended adds the higher-noise-but-higher-recall queries on
+          # top of the default set.
+          queries: security-extended
+
+      # No build step: CodeQL analyzes TypeScript from source, and this repo's
+      # `build` is per-package `tsc` that would add several minutes for no
+      # additional coverage.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        with:
+          category: "/language:javascript-typescript"

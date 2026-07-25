@@ -316,7 +316,7 @@ jobs:
         run: pnpm run build:core
 
   docker-images:
-    name: Docker Image Builds
+    name: Docker Image (${{ matrix.app }})
     if: |
       always() &&
       needs.check-fast.result == 'success' &&
@@ -324,6 +324,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [check-fast, detect-paths]
+    permissions:
+      contents: read
+      # Trivy uploads SARIF to the Security tab.
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: Dockerfile.api
+          - app: web
+            dockerfile: Dockerfile.web
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -331,25 +343,55 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - name: Build API image
+      - name: Build ${{ matrix.app }} image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
-          file: Dockerfile.api
-          tags: kaine-forge-api:ci
+          file: ${{ matrix.dockerfile }}
+          tags: kaine-forge-${{ matrix.app }}:ci
           load: true
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
-      - name: Build web image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      # Scans the image that was just built, not a registry copy, so a
+      # vulnerability introduced by this PR's base image or apt layers is caught
+      # before the release branch moves.
+      - name: Scan ${{ matrix.app }} image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          context: .
-          file: Dockerfile.web
-          tags: kaine-forge-web:ci
-          load: true
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+          image-ref: kaine-forge-${{ matrix.app }}:ci
+          format: sarif
+          output: trivy-${{ matrix.app }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        with:
+          sarif_file: trivy-${{ matrix.app }}.sarif
+          category: trivy-${{ matrix.app }}
+
+      # Advisory for now: the release contract is the release/<app> branch, and a
+      # newly published CVE in an unchanged base image should not block an
+      # unrelated PR. Flip to exit-code 1 once base images are pinned by digest.
+      - name: Fail on fixable CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        continue-on-error: true
+        with:
+          image-ref: kaine-forge-${{ matrix.app }}:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Generate SBOM for ${{ matrix.app }}
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: kaine-forge-${{ matrix.app }}:ci
+          format: spdx-json
+          artifact-name: sbom-${{ matrix.app }}.spdx.json
+          output-file: sbom-${{ matrix.app }}.spdx.json
 
   e2e-web-api:
     name: E2E Web/API (shard ${{ matrix.shard }}/2)
