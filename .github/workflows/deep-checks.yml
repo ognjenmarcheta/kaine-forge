@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deep-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PNPM_VERSION: "10.29.3"
   # Optional remote Turbo cache — no-ops when secrets/vars are unset.
@@ -18,6 +22,7 @@ jobs:
   mobile-export:
     name: Mobile Export Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -33,6 +38,7 @@ jobs:
   desktop-check:
     name: Desktop Check
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -44,3 +50,44 @@ jobs:
 
       - name: Run desktop check
         run: pnpm --filter @repo/desktop check
+
+  desktop-build-macos:
+    name: Desktop Tauri Build (macOS)
+    # `desktop-check` only runs format/lint/typecheck/test — it never compiles the
+    # Rust side, so a broken src-tauri/ or a Cargo dependency bump could reach main
+    # undetected. This job is the only place `tauri build` actually runs, and it
+    # runs on macOS because that is a shipping target for the desktop app and its
+    # toolchain differs most from the Linux runners used everywhere else.
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Show Rust toolchain
+        # macOS runners ship stable Rust preinstalled; fail loudly if that changes
+        # rather than silently falling through to a confusing cargo error.
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Cache Cargo registry and target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Build desktop app
+        # Builds @repo/web first, then `tauri build --no-bundle` (compile only, no
+        # .dmg packaging or signing).
+        run: pnpm --filter @repo/desktop build
