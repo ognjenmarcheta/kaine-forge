@@ -247,12 +247,18 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
 
   apps/desktop:
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@tauri-apps/cli':
         specifier: ^2.0.0
         version: 2.10.0
@@ -265,6 +271,9 @@ importers:
       '@playwright/test':
         specifier: ^1.55.0
         version: 1.58.2
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       vitest:
         specifier: 'catalog:'
         version: 3.2.4(@types/node@24.10.13)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
@@ -383,6 +392,9 @@ importers:
         specifier: 'catalog:'
         version: 5.0.11(@types/react@19.1.17)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@types/react':
         specifier: catalog:mobile
         version: 19.1.17
@@ -459,6 +471,9 @@ importers:
         specifier: 'catalog:'
         version: 5.0.11(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@tailwindcss/vite':
         specifier: ^4.1.12
         version: 4.2.0(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -498,6 +513,10 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.3.6
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/config:
     devDependencies:
@@ -526,6 +545,9 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
       '@types/pg':
         specifier: ^8.15.5
         version: 8.16.0
@@ -538,8 +560,16 @@ importers:
       '@repo/logger':
         specifier: workspace:*
         version: link:../logger
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
-  packages/feature-flags: {}
+  packages/feature-flags:
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/logger:
     dependencies:
@@ -547,6 +577,9 @@ importers:
         specifier: ^9.6.0
         version: 9.14.0
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
       pino-pretty:
         specifier: ^13.0.0
         version: 13.1.3
@@ -563,6 +596,9 @@ importers:
         specifier: 'catalog:'
         version: 3.4.1
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.1
@@ -606,9 +642,17 @@ importers:
         specifier: catalog:mobile
         version: 3.4.17
 
-  packages/persistence: {}
+  packages/persistence:
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
-  packages/query: {}
+  packages/query:
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/storage:
     dependencies:
@@ -618,8 +662,16 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.750.0
         version: 3.1000.0
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
-  packages/todos: {}
+  packages/todos:
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/translation:
     dependencies:
@@ -629,6 +681,10 @@ importers:
       react-i18next:
         specifier: ^15.7.3
         version: 15.7.4(i18next@25.8.11(typescript@5.9.3))(react@19.2.4)(typescript@5.9.3)
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/ui:
     dependencies:
@@ -666,6 +722,9 @@ importers:
         specifier: 'catalog:'
         version: 3.4.1
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -700,6 +759,9 @@ importers:
         specifier: 'catalog:'
         version: 16.12.0
     devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       prettier:
         specifier: 'catalog:'
         version: 3.8.1
@@ -11530,6 +11592,7 @@ snapshots:
       - graphql
       - supports-color
       - utf-8-validate
+    optional: true
 
   '@expo/code-signing-certificates@0.0.6':
     dependencies:
@@ -11594,6 +11657,7 @@ snapshots:
     optionalDependencies:
       react: 19.2.4
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+    optional: true
 
   '@expo/env@2.0.8':
     dependencies:
@@ -11672,7 +11736,7 @@ snapshots:
       postcss: 8.4.49
       resolve-from: 5.0.0
     optionalDependencies:
-      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -11753,7 +11817,7 @@ snapshots:
       '@expo/json-file': 10.0.8
       '@react-native/normalize-colors': 0.81.5
       debug: 4.4.3
-      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       resolve-from: 5.0.0
       semver: 7.7.4
       xml2js: 0.6.0
@@ -11781,6 +11845,7 @@ snapshots:
       expo-font: 14.0.11(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+    optional: true
 
   '@expo/ws-tunnel@1.0.6': {}
 
@@ -14080,6 +14145,7 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
     optionalDependencies:
       '@types/react': 19.2.14
+    optional: true
 
   '@react-navigation/bottom-tabs@7.14.0(@react-navigation/native@7.1.28(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-screens@4.16.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
     dependencies:
@@ -15518,7 +15584,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.6
-      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -16626,6 +16692,7 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   expo-constants@18.0.13(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)):
     dependencies:
@@ -16644,6 +16711,7 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   expo-constants@57.0.6(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)):
     dependencies:
@@ -16667,6 +16735,7 @@ snapshots:
     dependencies:
       expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+    optional: true
 
   expo-font@14.0.11(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
@@ -16681,6 +16750,7 @@ snapshots:
       fontfaceobserver: 2.3.0
       react: 19.2.4
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+    optional: true
 
   expo-keep-awake@15.0.8(expo@54.0.34)(react@19.1.0):
     dependencies:
@@ -16691,6 +16761,7 @@ snapshots:
     dependencies:
       expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       react: 19.2.4
+    optional: true
 
   expo-linking@57.0.3(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
@@ -16732,6 +16803,7 @@ snapshots:
       invariant: 2.2.4
       react: 19.2.4
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+    optional: true
 
   expo-network@57.0.1(expo@54.0.34)(react@19.2.4):
     dependencies:
@@ -16925,6 +16997,7 @@ snapshots:
       - graphql
       - supports-color
       - utf-8-validate
+    optional: true
 
   exponential-backoff@3.1.3: {}
 
@@ -19212,6 +19285,7 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+    optional: true
 
   react-refresh@0.14.2: {}
 

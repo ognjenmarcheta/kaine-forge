@@ -27,5 +27,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*"
   }
 }

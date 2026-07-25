@@ -60,6 +60,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "@types/react": "catalog:mobile",
     "@types/react-dom": "catalog:mobile",
     "react-dom": "catalog:mobile",

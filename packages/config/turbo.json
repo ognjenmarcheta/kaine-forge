@@ -1,0 +1,11 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "description": "No-op build. Every workspace depends on @repo/config for its eslint, prettier, tsconfig, and tailwind presets, so this task's hash propagates to the entire graph. Inputs are narrowed to the preset files themselves; the package's own tests, CHANGELOG, and turbo logs are excluded so editing them does not invalidate every downstream build.",
+      "inputs": ["package.json", "eslint/**", "prettier/**", "typescript/**", "tailwind/**"],
+      "outputs": []
+    }
+  }
+}

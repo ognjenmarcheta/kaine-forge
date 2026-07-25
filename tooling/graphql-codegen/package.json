@@ -26,6 +26,7 @@
     "graphql": "catalog:"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "prettier": "catalog:"
   }
 }

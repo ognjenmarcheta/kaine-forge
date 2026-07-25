@@ -1,20 +1,14 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalDependencies": [
-    "tsconfig.base.json",
-    "eslint.config.mjs",
-    "pnpm-workspace.yaml",
-    "pnpm-lock.yaml",
-    ".prettierrc*",
-    "packages/config/**"
-  ],
-  "globalEnv": ["NODE_ENV", "CI"],
+  "globalDependencies": ["tsconfig.base.json", "pnpm-workspace.yaml"],
+  "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": ["CI"],
   "tasks": {
     "build": {
       "description": "Build all workspaces in dependency order",
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "!CHANGELOG.md"],
       "outputs": ["dist/**", "build/**"],
       "env": [
         "VITE_API_URL",
@@ -44,10 +38,12 @@
     },
     "format:check": {
       "description": "Check formatting",
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.prettierrc.cjs", "$TURBO_ROOT$/.prettierignore"],
       "outputs": []
     },
     "lint": {
       "description": "Lint workspace source",
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/eslint.config.mjs"],
       "outputs": []
     },
     "lint:fix": {
@@ -59,7 +55,7 @@
       "outputs": []
     },
     "test": {
-      "description": "Run workspace tests",
+      "description": "Run workspace tests. The ^build dependency is load-bearing, not caution: only apps/api, apps/mobile, packages/auth, and packages/mobile-ui alias @repo/* to source in their vitest config. Every other workspace resolves siblings through package exports, so its tests need built dist output — verified by wiping all dist and watching @repo/email#test fail. Adding source aliases everywhere would let this dependency go.",
       "dependsOn": ["^build"],
       "outputs": []
     },

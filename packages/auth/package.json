@@ -79,5 +79,8 @@
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*"
   }
 }

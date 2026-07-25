@@ -39,6 +39,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "@tailwindcss/vite": "^4.1.12",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

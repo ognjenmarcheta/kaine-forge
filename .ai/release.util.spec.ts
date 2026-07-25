@@ -12,17 +12,17 @@ const workspaces: WorkspacePackage[] = [
   {
     name: "@repo/api",
     dir: "apps/api",
-    internalDependencies: ["@repo/auth", "@repo/db"]
+    internalDependencies: ["@repo/auth", "@repo/config", "@repo/db"]
   },
   {
     name: "@repo/web",
     dir: "apps/web",
-    internalDependencies: ["@repo/auth", "@repo/ui"]
+    internalDependencies: ["@repo/auth", "@repo/config", "@repo/ui"]
   },
   {
     name: "@repo/auth",
     dir: "packages/auth",
-    internalDependencies: ["@repo/db"]
+    internalDependencies: ["@repo/config", "@repo/db"]
   },
   {
     name: "@repo/config",
@@ -115,7 +115,7 @@ describe("collectAffectedApps", () => {
     );
   });
 
-  it("treats shared build workspace changes as affecting all deployable apps", () => {
+  it("resolves shared config changes through the declared dependency graph", () => {
     expect(
       collectAffectedApps(
         ["packages/config/typescript/tsconfig.node.json"],
