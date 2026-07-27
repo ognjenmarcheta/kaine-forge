@@ -1,15 +1,14 @@
-# @repo/mobile-ui
+# @repo/logger
 
-## 1.0.3
+## 1.1.0
+
+### Minor Changes
+
+- 1114f7e: Add optional error reporter seam (disabled by default) and wire unhandled API errors through it.
 
 ### Patch Changes
 
 - 22a7c4d: Close a batch of principal architecture review findings: honest package `dev` scripts, stronger catalog enforcement, fuller `create:package` wiring, Vitest UI/`test:watch`, digest-pinned Docker bases with a blocking Trivy CRITICAL gate, and CI/DX hardening (knip/boundaries on PRs, safer concurrency, caches, launch configs).
-- bfde85a: Deferred audit backlog hardening:
-  - `@repo/e2e`: add behavioral Playwright coverage for register/login/logout and todo create/complete/delete flows with i18n-safe selectors, and fix the harness so browser GraphQL goes through the Vite proxy to the e2e API instead of the dev port from `.env`.
-  - `@repo/mobile-ui`: add a vitest + jsdom test harness with a typed react-native stub and behavior tests for the Button, Checkbox, Badge, Text, and Input primitives.
-  - `@repo/web`: raise the 12px todo attachment captions from `--ds-text-subtlest` to `--ds-text-subtle` to meet WCAG AA contrast (was 3.22:1 on white).
-
 - 7bdc15c: Add dead-code and dependency-graph enforcement, and finish declaring the graph.
 
   `pnpm knip` and `pnpm boundaries` are new and both run in `pnpm check`. `turbo boundaries` complements the existing ESLint rules rather than replacing them: it catches importing a package a workspace does not declare, which ESLint cannot see, while ESLint keeps enforcing the web/mobile UI split and the `@repo/*/src` deep-import ban. `boundaries` is experimental in Turbo 2.8, which is why it is additive.
@@ -41,15 +40,3 @@
   Three alignment tests guard the fix: every workspace must declare `@repo/config`, `globalDependencies` must not glob a package or list the lockfile, and neither Dockerfile may hand-copy `packages/config`.
 
   `test` keeps its `^build` dependency. Wiping every `dist` and running tests without building fails `@repo/email#test`, because only `apps/api`, `apps/mobile`, `packages/auth`, and `packages/mobile-ui` alias `@repo/*` to source in their vitest config; the rest resolve siblings through package exports. That is now recorded in the task description.
-
-## 1.0.2
-
-### Patch Changes
-
-- deb8ff6: Fix mobile React Native singleton resolution across the app and shared mobile UI package.
-
-## 1.0.1
-
-### Patch Changes
-
-- efcb73a: Backport template-safe runtime hardening, Docker support, bearer auth fallback, organization members wiring, mobile UI primitives, and generated AI assistant scaffold.
