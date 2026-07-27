@@ -109,7 +109,12 @@ jobs:
 
   dependency-review:
     name: Dependency Review
-    if: github.event_name == 'pull_request'
+    # Public: free Dependency Graph. Private: needs GHAS + opt-in variable.
+    # Free private templates skip this job and rely on pnpm audit + Trivy instead.
+    if: |
+      github.event_name == 'pull_request' &&
+      (github.event.repository.visibility == 'public' ||
+       vars.ENABLE_GITHUB_CODE_SCANNING == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -119,8 +124,8 @@ jobs:
       # Diff-based advisory scan of the dependencies this PR introduces. Unlike a
       # full `pnpm audit`, it only flags deps the PR adds or changes, so an
       # unrelated newly-published advisory does not fail an unrelated PR. Needs
-      # the GitHub Dependency Graph: enabled by default for public repos; requires
-      # GitHub Advanced Security on private repos.
+      # the GitHub Dependency Graph: free for public repos; private needs GitHub
+      # Advanced Security. Opt in with Actions variable ENABLE_GITHUB_CODE_SCANNING.
       - name: Dependency review
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
         with:
@@ -408,8 +413,13 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
+      # SARIF upload needs GitHub Code Scanning (same gate as CodeQL upload).
+      # CRITICAL fail below still hard-gates free private repos without GHAS.
       - name: Upload Trivy SARIF
-        if: always()
+        if: |
+          always() &&
+          (github.event.repository.visibility == 'public' ||
+           vars.ENABLE_GITHUB_CODE_SCANNING == 'true')
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
         with:
           sarif_file: trivy-${{ matrix.app }}.sarif
