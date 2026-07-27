@@ -319,6 +319,20 @@ jobs:
       - name: Build API and Web with dependencies
         run: pnpm run build:core
 
+      # Share built package/app dist with e2e shards so they do not re-run
+      # build:core (issue #145). API e2e resolves @repo/* through package
+      # exports → dist even though the server process is started via tsx.
+      - name: Upload core build outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: core-dist
+          path: |
+            packages/*/dist
+            apps/api/dist
+            apps/web/dist
+          if-no-files-found: error
+          retention-days: 1
+
   docker-images:
     name: Docker Image (${{ matrix.app }})
     # Independent of check-fast: Buildx-only, own layer cache (issue #144).
@@ -408,8 +422,10 @@ jobs:
       # intra-job parallelism races on active-organization state (see
       # apps/e2e/playwright.config.ts). Each shard gets its own Postgres service,
       # so shards are isolated. Sized at 2 because there are only 5 spec files and
-      # every shard re-pays install + build:core + browser install + db seed;
-      # raise it here and in --shard= together when the suite grows.
+      # each shard still re-pays install + browser install + db seed; build:core
+      # is shared via the core-dist artifact (issue #145). Raise shard count
+      # here and in --shard= together when the suite grows. Do not raise
+      # playwright workers.
       fail-fast: false
       matrix:
         shard: [1, 2]
@@ -436,20 +452,12 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Restore-only: build-core (needs:) already saved this exact key, and both
-      # shards read it. This step and the build must stay BEFORE "Prepare
-      # environment" — turbo hashes .env* as build inputs, so creating .env first
-      # would change task hashes and defeat the cache hit.
-      - name: Restore Turbo cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Dist from build-core — do not re-run build:core on each shard (#145).
+      - name: Download core build outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
-
-      - name: Build API and Web with dependencies
-        run: pnpm run build:core
+          name: core-dist
+          path: .
 
       - name: Cache Playwright browsers
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
