@@ -8,7 +8,7 @@ packages:
 catalog:
   # Runtime libraries shared across workspaces
   better-auth: "^1.6.25"
-  "@better-auth/expo": "1.6.23"
+  "@better-auth/expo": "1.6.25"
   dotenv: "^17.4.2"
   drizzle-orm: "^0.45.2"
   graphql: "^16.11.0"
