@@ -233,13 +233,13 @@ importers:
         version: 16.12.0
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.21.1)
       graphql-yoga:
         specifier: ^5.16.0
         version: 5.18.0(graphql@16.12.0)
       ws:
-        specifier: ^8.19.0
-        version: 8.19.0
+        specifier: ^8.21.0
+        version: 8.21.1
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -360,7 +360,7 @@ importers:
         version: 7.4.0(graphql@16.12.0)
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.21.1)
       nativewind:
         specifier: catalog:mobile
         version: 4.2.1(react-native-reanimated@4.1.1(@babel/core@7.29.0)(react-native-worklets@0.5.1(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(tailwindcss@3.4.17)
@@ -457,7 +457,7 @@ importers:
         version: 7.4.0(graphql@16.12.0)
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.21.1)
       react:
         specifier: 'catalog:'
         version: 19.2.4
@@ -9614,8 +9614,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.19.0:
-    resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+  ws@8.21.1:
+    resolution: {integrity: sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -11678,7 +11678,7 @@ snapshots:
       terminal-link: 2.1.1
       undici: 6.23.0
       wrap-ansi: 7.0.0
-      ws: 8.19.0
+      ws: 8.21.1
     optionalDependencies:
       expo-router: 6.0.23(f6d911f808cc4345f10f03996def5d2e)
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
@@ -11753,7 +11753,7 @@ snapshots:
       terminal-link: 2.1.1
       undici: 6.23.0
       wrap-ansi: 7.0.0
-      ws: 8.19.0
+      ws: 8.21.1
     optionalDependencies:
       expo-router: 6.0.23(51b2b8fc8d7b7102df94b277fb5b3ea3)
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
@@ -12659,9 +12659,9 @@ snapshots:
       '@whatwg-node/disposablestack': 0.0.5
       graphql: 16.12.0
       graphql-ws: 5.16.2(graphql@16.12.0)
-      isomorphic-ws: 5.0.0(ws@8.19.0)
+      isomorphic-ws: 5.0.0(ws@8.21.1)
       tslib: 2.8.1
-      ws: 8.19.0
+      ws: 8.21.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -12672,10 +12672,10 @@ snapshots:
       '@graphql-tools/utils': 10.11.0(graphql@16.12.0)
       '@whatwg-node/disposablestack': 0.0.6
       graphql: 16.12.0
-      graphql-ws: 6.0.7(graphql@16.12.0)(ws@8.19.0)
-      isomorphic-ws: 5.0.0(ws@8.19.0)
+      graphql-ws: 6.0.7(graphql@16.12.0)(ws@8.21.1)
+      isomorphic-ws: 5.0.0(ws@8.21.1)
       tslib: 2.8.1
-      ws: 8.19.0
+      ws: 8.21.1
     transitivePeerDependencies:
       - '@fastify/websocket'
       - bufferutil
@@ -12702,9 +12702,9 @@ snapshots:
       '@graphql-tools/utils': 11.0.0(graphql@16.12.0)
       '@types/ws': 8.18.1
       graphql: 16.12.0
-      isomorphic-ws: 5.0.0(ws@8.19.0)
+      isomorphic-ws: 5.0.0(ws@8.21.1)
       tslib: 2.8.1
-      ws: 8.19.0
+      ws: 8.21.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -12962,10 +12962,10 @@ snapshots:
       '@types/ws': 8.18.1
       '@whatwg-node/fetch': 0.9.23
       graphql: 16.12.0
-      isomorphic-ws: 5.0.0(ws@8.19.0)
+      isomorphic-ws: 5.0.0(ws@8.21.1)
       tslib: 2.8.1
       value-or-promise: 1.0.12
-      ws: 8.19.0
+      ws: 8.21.1
     transitivePeerDependencies:
       - '@types/node'
       - bufferutil
@@ -12983,10 +12983,10 @@ snapshots:
       '@whatwg-node/fetch': 0.10.13
       '@whatwg-node/promise-helpers': 1.3.2
       graphql: 16.12.0
-      isomorphic-ws: 5.0.0(ws@8.19.0)
+      isomorphic-ws: 5.0.0(ws@8.21.1)
       sync-fetch: 0.6.0-2
       tslib: 2.8.1
-      ws: 8.19.0
+      ws: 8.21.1
     transitivePeerDependencies:
       - '@fastify/websocket'
       - '@types/node'
@@ -17689,17 +17689,17 @@ snapshots:
     dependencies:
       graphql: 16.12.0
 
-  graphql-ws@6.0.7(graphql@16.12.0)(ws@8.19.0):
+  graphql-ws@6.0.7(graphql@16.12.0)(ws@8.21.1):
     dependencies:
       graphql: 16.12.0
     optionalDependencies:
-      ws: 8.19.0
+      ws: 8.21.1
 
-  graphql-ws@6.2.0(graphql@16.12.0)(ws@8.19.0):
+  graphql-ws@6.2.0(graphql@16.12.0)(ws@8.21.1):
     dependencies:
       graphql: 16.12.0
     optionalDependencies:
-      ws: 8.19.0
+      ws: 8.21.1
 
   graphql-yoga@5.18.0(graphql@16.12.0):
     dependencies:
@@ -18064,9 +18064,9 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  isomorphic-ws@5.0.0(ws@8.19.0):
+  isomorphic-ws@5.0.0(ws@8.21.1):
     dependencies:
-      ws: 8.19.0
+      ws: 8.21.1
 
   istanbul-lib-coverage@3.2.2: {}
 
@@ -18241,7 +18241,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.2.0
-      ws: 8.19.0
+      ws: 8.21.1
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -21138,7 +21138,7 @@ snapshots:
 
   ws@7.5.10: {}
 
-  ws@8.19.0: {}
+  ws@8.21.1: {}
 
   xcode@3.0.1:
     dependencies:
