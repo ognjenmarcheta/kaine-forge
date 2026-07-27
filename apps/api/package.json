@@ -35,7 +35,7 @@
     "graphql": "catalog:",
     "graphql-ws": "catalog:",
     "graphql-yoga": "^5.16.0",
-    "ws": "^8.19.0",
+    "ws": "^8.21.0",
     "zod": "catalog:"
   },
   "devDependencies": {
