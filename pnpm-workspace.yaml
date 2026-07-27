@@ -28,7 +28,7 @@ catalog:
   "@types/react": "^19.2.17"
   "@types/react-dom": "^19.2.3"
   # Web Tailwind v4
-  tailwindcss: "^4.2.0"
+  tailwindcss: "^4.3.3"
   # Tooling
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps).

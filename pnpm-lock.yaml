@@ -70,8 +70,8 @@ catalogs:
       specifier: ^3.3.1
       version: 3.4.1
     tailwindcss:
-      specifier: ^4.2.0
-      version: 4.2.0
+      specifier: ^4.3.3
+      version: 4.3.3
     typescript:
       specifier: ^5.9.2
       version: 5.9.3
@@ -500,7 +500,7 @@ importers:
         version: 5.1.4(vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.0
+        version: 4.3.3
       vite:
         specifier: ^7.3.5
         version: 7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
@@ -793,7 +793,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.2.0
+        version: 4.3.3
       vitest:
         specifier: 'catalog:'
         version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
@@ -8919,6 +8919,9 @@ packages:
 
   tailwindcss@4.2.0:
     resolution: {integrity: sha512-yYzTZ4++b7fNYxFfpnberEEKu43w44aqDMNM9MHMmcKuCH7lL8jJ4yJ7LGHv7rSwiqM0nkiobF9I6cLlpS2P7Q==}
+
+  tailwindcss@4.3.3:
+    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
 
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
@@ -19853,6 +19856,8 @@ snapshots:
       - ts-node
 
   tailwindcss@4.2.0: {}
+
+  tailwindcss@4.3.3: {}
 
   tapable@2.3.0: {}
 
