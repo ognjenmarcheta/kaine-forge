@@ -23,7 +23,7 @@
   "dependencies": {
     "@better-auth/expo": "catalog:",
     "@graphql-typed-document-node/core": "catalog:",
-    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-navigation/drawer": "^7.5.0",
     "@repo/auth": "workspace:*",
     "@repo/feature-flags": "workspace:*",
