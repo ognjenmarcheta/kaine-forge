@@ -228,6 +228,12 @@ jobs:
       - name: Build workspace packages for coverage
         run: pnpm exec turbo run build --filter="./packages/*"
 
+      # Default typecheck uses root paths → package src (fast dev). This gate
+      # clears paths and resolves @repo/* through package exports → dist so a
+      # missing export cannot typecheck green while failing at runtime (#148).
+      - name: Typecheck against package exports
+        run: pnpm run typecheck:exports:run
+
       - name: Coverage threshold
         env:
           # Some API modules import the DB client at load time during tests/coverage.

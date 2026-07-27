@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -27,6 +27,61 @@ function assertPackageHasExports(relativePath: string, expectedSubpaths: string[
   for (const subpath of expectedSubpaths) {
     expect(exportsMap).toHaveProperty(subpath);
   }
+}
+
+/** Walk production TS/TSX sources (skip tests and generated). */
+function listSourceFiles(relativeDir: string): string[] {
+  const absDir = resolve(repoRoot, relativeDir);
+  const out: string[] = [];
+
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "generated") continue;
+      const abs = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      if (/\.(test|spec)\./.test(entry.name)) continue;
+      out.push(relative(repoRoot, abs));
+    }
+  };
+
+  walk(absDir);
+  return out;
+}
+
+/**
+ * Map `@repo/auth/form` → { packageName: @repo/auth, exportKey: ./form }.
+ * Bare `@repo/auth` → exportKey `.`.
+ */
+function parseRepoSpecifier(specifier: string): { packageName: string; exportKey: string } | null {
+  const match = /^(@repo\/[^/]+)(?:\/(.+))?$/.exec(specifier);
+  if (!match) return null;
+  const packageName = match[1];
+  const rest = match[2];
+  return {
+    packageName,
+    exportKey: rest ? `./${rest}` : "."
+  };
+}
+
+function collectRepoImportSpecifiers(relativeDirs: string[]): string[] {
+  const importRe = /from\s+["'](@repo\/[^"']+)["']/g;
+  const specs = new Set<string>();
+
+  for (const dir of relativeDirs) {
+    for (const file of listSourceFiles(dir)) {
+      const text = readText(file);
+      let match: RegExpExecArray | null;
+      while ((match = importRe.exec(text)) !== null) {
+        specs.add(match[1]);
+      }
+    }
+  }
+
+  return [...specs].sort();
 }
 
 function resolveRealModulePath(moduleName: string, relativeRoot: string): string {
@@ -166,6 +221,64 @@ describe("monorepo alignment", () => {
 
     expect(exportsMap).not.toHaveProperty("./flags.definition");
     expect(exportsMap).not.toHaveProperty("./flags.config");
+  });
+
+  it("api and web @repo imports resolve through package exports maps (issue #148)", () => {
+    // Default typecheck maps @repo/* to source via tsconfig paths, so a subpath
+    // can typecheck green while missing from package.json exports (runtime fail).
+    // Consumer-driven check: every production import must be a published export.
+    const packageDirByName: Record<string, string> = {
+      "@repo/auth": "packages/auth",
+      "@repo/db": "packages/db",
+      "@repo/email": "packages/email",
+      "@repo/feature-flags": "packages/feature-flags",
+      "@repo/logger": "packages/logger",
+      "@repo/persistence": "packages/persistence",
+      "@repo/query": "packages/query",
+      "@repo/storage": "packages/storage",
+      "@repo/todos": "packages/todos",
+      "@repo/translation": "packages/translation",
+      "@repo/ui": "packages/ui"
+    };
+
+    const specs = collectRepoImportSpecifiers(["apps/api/src", "apps/web/src"]);
+    expect(specs.length).toBeGreaterThan(0);
+
+    const missing: string[] = [];
+
+    for (const specifier of specs) {
+      const parsed = parseRepoSpecifier(specifier);
+      if (!parsed) {
+        missing.push(`${specifier} (unparseable)`);
+        continue;
+      }
+
+      const packageDir = packageDirByName[parsed.packageName];
+      if (!packageDir) {
+        // Unknown workspace package — surface so the map stays complete.
+        missing.push(`${specifier} (no package dir for ${parsed.packageName})`);
+        continue;
+      }
+
+      const packageJson = readJson(`${packageDir}/package.json`) as {
+        exports?: Record<string, unknown> | string;
+      };
+      const exportsMap = packageJson.exports;
+
+      if (!exportsMap || typeof exportsMap === "string") {
+        // String exports only cover the package root.
+        if (parsed.exportKey !== ".") {
+          missing.push(`${specifier} (package has string exports, no subpath ${parsed.exportKey})`);
+        }
+        continue;
+      }
+
+      if (!(parsed.exportKey in exportsMap)) {
+        missing.push(`${specifier} (missing exports key ${parsed.exportKey} in ${packageDir})`);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 
   it("avoids hardcoded english labels in shared ui primitives", () => {
