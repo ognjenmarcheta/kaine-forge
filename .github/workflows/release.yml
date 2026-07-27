@@ -106,6 +106,7 @@ jobs:
       - name: Push release tags
         if: steps.changesets.outputs.published == 'true'
         run: |
+          set -euo pipefail
           TAGS="$(git tag --points-at HEAD)"
           if [ -z "$TAGS" ]; then
             echo "No release tags created on this commit."
@@ -121,6 +122,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           TAGS="$(git tag --points-at HEAD)"
           if [ -z "$TAGS" ]; then
             echo "No release tags found for GitHub release creation."
