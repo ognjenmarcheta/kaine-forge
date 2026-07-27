@@ -13,7 +13,7 @@ catalog:
   drizzle-orm: "^0.44.5"
   graphql: "^16.11.0"
   graphql-request: "^7.4.0"
-  graphql-ws: "^6.0.7"
+  graphql-ws: "^6.2.0"
   zod: "^4.3.6"
   zustand: "^5.0.11"
   "@tanstack/react-query": "^5.90.21"

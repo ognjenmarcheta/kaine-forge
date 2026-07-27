@@ -52,8 +52,8 @@ catalogs:
       specifier: ^7.4.0
       version: 7.4.0
     graphql-ws:
-      specifier: ^6.0.7
-      version: 6.0.7
+      specifier: ^6.2.0
+      version: 6.2.0
     prettier:
       specifier: ^3.7.4
       version: 3.8.1
@@ -230,7 +230,7 @@ importers:
         version: 16.12.0
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.0.7(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
       graphql-yoga:
         specifier: ^5.16.0
         version: 5.18.0(graphql@16.12.0)
@@ -357,7 +357,7 @@ importers:
         version: 7.4.0(graphql@16.12.0)
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.0.7(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
       nativewind:
         specifier: catalog:mobile
         version: 4.2.1(react-native-reanimated@4.1.1(@babel/core@7.29.0)(react-native-worklets@0.5.1(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(tailwindcss@3.4.17)
@@ -454,7 +454,7 @@ importers:
         version: 7.4.0(graphql@16.12.0)
       graphql-ws:
         specifier: 'catalog:'
-        version: 6.0.7(graphql@16.12.0)(ws@8.19.0)
+        version: 6.2.0(graphql@16.12.0)(ws@8.19.0)
       react:
         specifier: 'catalog:'
         version: 19.2.4
@@ -1924,11 +1924,11 @@ packages:
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild-kit/esm-loader@2.6.5':
     resolution: {integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -6904,6 +6904,22 @@ packages:
       '@fastify/websocket': ^10 || ^11
       crossws: ~0.3
       graphql: ^15.10.1 || ^16
+      ws: ^8
+    peerDependenciesMeta:
+      '@fastify/websocket':
+        optional: true
+      crossws:
+        optional: true
+      ws:
+        optional: true
+
+  graphql-ws@6.2.0:
+    resolution: {integrity: sha512-A0kH9R7JZNh4AKKHykmJdOb5IgRya07uCrhYOXm1UDyxCwc/6jEi5+UMUhoBVj/hsowJHRK7Y3LllMdlNJR+HA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@fastify/websocket': ^10 || ^11
+      crossws: ~0.3
+      graphql: ^15.10.1 || ^16 || ^17
       ws: ^8
     peerDependenciesMeta:
       '@fastify/websocket':
@@ -17878,6 +17894,12 @@ snapshots:
       graphql: 16.12.0
 
   graphql-ws@6.0.7(graphql@16.12.0)(ws@8.19.0):
+    dependencies:
+      graphql: 16.12.0
+    optionalDependencies:
+      ws: 8.19.0
+
+  graphql-ws@6.2.0(graphql@16.12.0)(ws@8.19.0):
     dependencies:
       graphql: 16.12.0
     optionalDependencies:
