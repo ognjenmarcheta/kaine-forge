@@ -14,7 +14,7 @@ catalog:
   graphql: "^16.11.0"
   graphql-request: "^7.4.0"
   graphql-ws: "^6.2.0"
-  zod: "^4.3.6"
+  zod: "^4.4.3"
   zustand: "^5.0.14"
   "@tanstack/react-query": "^5.90.21"
   "@graphql-typed-document-node/core": "^3.2.0"
@@ -27,8 +27,8 @@ catalog:
   react-dom: "^19.2.8"
   "@types/react": "^19.2.17"
   "@types/react-dom": "^19.2.3"
-  # Web Tailwind v4
-  tailwindcss: "^4.2.0"
+  # Web Tailwind v4 (keep @tailwindcss/vite on the same minor line)
+  tailwindcss: "^4.3.3"
   # Tooling
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps).

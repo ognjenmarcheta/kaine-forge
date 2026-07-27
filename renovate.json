@@ -58,6 +58,12 @@
       "enabled": false
     },
     {
+      "description": "lucide-react majors rename/remove icons; intentional @repo/ui upgrade only",
+      "matchPackageNames": ["lucide-react"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true
