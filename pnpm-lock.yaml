@@ -40,8 +40,8 @@ catalogs:
       specifier: ^2.1.1
       version: 2.1.1
     dotenv:
-      specifier: ^17.2.2
-      version: 17.3.1
+      specifier: ^17.4.2
+      version: 17.4.2
     drizzle-orm:
       specifier: ^0.45.2
       version: 0.45.2
@@ -224,7 +224,7 @@ importers:
         version: 2.2.3
       dotenv:
         specifier: 'catalog:'
-        version: 17.3.1
+        version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.29.2)(pg@8.18.0)
@@ -564,7 +564,7 @@ importers:
         version: link:../logger
       dotenv:
         specifier: 'catalog:'
-        version: 17.3.1
+        version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.29.2)(pg@8.18.0)
@@ -5888,8 +5888,8 @@ packages:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
     engines: {node: '>=12'}
 
-  dotenv@17.3.1:
-    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+  dotenv@17.4.2:
+    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
 
   drizzle-kit@0.31.9:
@@ -16604,7 +16604,7 @@ snapshots:
 
   dotenv@16.6.1: {}
 
-  dotenv@17.3.1: {}
+  dotenv@17.4.2: {}
 
   drizzle-kit@0.31.9:
     dependencies:
