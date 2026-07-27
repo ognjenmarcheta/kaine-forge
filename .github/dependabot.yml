@@ -14,3 +14,14 @@ updates:
       - release:skip-changeset
     # pnpm catalogs live in pnpm-workspace.yaml; Dependabot updates lock + manifests.
     versioning-strategy: increase
+    # Mirror Renovate (issue #198): mobile Expo/RN singleton graph moves only with
+    # intentional Expo SDK upgrades (catalogs.mobile + monorepo-alignment tests).
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "nativewind"
+      - dependency-name: "@react-navigation/*"
+      - dependency-name: "@react-native-async-storage/*"
+      - dependency-name: "@react-native-community/*"

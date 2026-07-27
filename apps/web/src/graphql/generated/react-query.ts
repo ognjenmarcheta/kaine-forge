@@ -1,485 +1,147 @@
-import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
-import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = {
-  [_ in K]?: never;
-};
+/** Internal type. DO NOT USE DIRECTLY. */
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+/** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> =
   | T
   | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string };
-  String: { input: string; output: string };
-  Boolean: { input: boolean; output: boolean };
-  Int: { input: number; output: number };
-  Float: { input: number; output: number };
-  DateTime: { input: any; output: any };
-};
-
-export type AssistantConversation = {
-  __typename?: "AssistantConversation";
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  title?: Maybe<Scalars["String"]["output"]>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type AssistantMessage = {
-  __typename?: "AssistantMessage";
-  content: Scalars["String"]["output"];
-  conversationId: Scalars["ID"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  toolActions: Array<AssistantToolAction>;
-};
-
-export type AssistantMessageDelta = {
-  __typename?: "AssistantMessageDelta";
-  conversationId: Scalars["ID"]["output"];
-  delta: Scalars["String"]["output"];
-};
-
-export type AssistantToolAction = {
-  __typename?: "AssistantToolAction";
-  input?: Maybe<Scalars["String"]["output"]>;
-  output?: Maybe<Scalars["String"]["output"]>;
-  tool: Scalars["String"]["output"];
-};
-
+import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
+import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
+import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type CreateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
+  body?: string | null | undefined;
+  title: string;
 };
 
 export type CreateTodoInput = {
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
+  description?: string | null | undefined;
+  title: string;
 };
 
-export type FileInfo = {
-  __typename?: "FileInfo";
-  bucket: Scalars["String"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  downloadUrl?: Maybe<Scalars["String"]["output"]>;
-  entityId?: Maybe<Scalars["ID"]["output"]>;
-  entityType?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  mimeType: Scalars["String"]["output"];
-  originalName: Scalars["String"]["output"];
-  sizeBytes: Scalars["Int"]["output"];
-  status: FileStatus;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export enum FileStatus {
-  Deleted = "deleted",
-  Pending = "pending",
-  Uploaded = "uploaded"
-}
+export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-  status?: InputMaybe<FileStatus>;
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
+  status?: FileStatus | null | undefined;
 };
 
 export type GenerateTodosInput = {
-  prompt: Scalars["String"]["input"];
+  prompt: string;
 };
 
-export type GenerateTodosPayload = {
-  __typename?: "GenerateTodosPayload";
-  message?: Maybe<Scalars["String"]["output"]>;
-  status: GenerateTodosStatus;
-  todos: Array<Todo>;
-};
-
-export enum GenerateTodosStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Created = "CREATED",
-  Failed = "FAILED"
-}
-
-export type Mutation = {
-  __typename?: "Mutation";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  addTodoToNote: Todo;
-  confirmUpload: FileInfo;
-  createNote: Note;
-  createTodo: Todo;
-  deleteConversation: Scalars["Boolean"]["output"];
-  deleteFile: Scalars["Boolean"]["output"];
-  deleteNote: Scalars["Boolean"]["output"];
-  deleteTodo: Scalars["Boolean"]["output"];
-  generateTodos: GenerateTodosPayload;
-  requestUploadUrl: PresignedUploadResponse;
-  sendMessage: SendMessagePayload;
-  toggleTodo: Todo;
-  updateNote: Note;
-  updateTodo: Todo;
-};
-
-export type MutationAddTodoToNoteArgs = {
-  input: CreateTodoInput;
-  noteId: Scalars["ID"]["input"];
-};
-
-export type MutationConfirmUploadArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationCreateNoteArgs = {
-  input: CreateNoteInput;
-};
-
-export type MutationCreateTodoArgs = {
-  input: CreateTodoInput;
-};
-
-export type MutationDeleteConversationArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteFileArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationGenerateTodosArgs = {
-  input: GenerateTodosInput;
-};
-
-export type MutationRequestUploadUrlArgs = {
-  input: RequestUploadInput;
-};
-
-export type MutationSendMessageArgs = {
-  input: SendMessageInput;
-};
-
-export type MutationToggleTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationUpdateNoteArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateNoteInput;
-};
-
-export type MutationUpdateTodoArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateTodoInput;
-};
-
-export type Note = {
-  __typename?: "Note";
-  body?: Maybe<Scalars["String"]["output"]>;
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  todos: Array<Todo>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type NoteDeletedPayload = {
-  __typename?: "NoteDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
-
-export type Organization = {
-  __typename?: "Organization";
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  slug: Scalars["String"]["output"];
-};
-
-export type OrganizationInvitation = {
-  __typename?: "OrganizationInvitation";
-  email: Scalars["String"]["output"];
-  expiresAt: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  status: Scalars["String"]["output"];
-};
-
-export type OrganizationMember = {
-  __typename?: "OrganizationMember";
-  email: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  userId: Scalars["ID"]["output"];
-};
-
-export type PresignedUploadResponse = {
-  __typename?: "PresignedUploadResponse";
-  expiresIn: Scalars["Int"]["output"];
-  fileId: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  uploadUrl: Scalars["String"]["output"];
-};
-
-export type Query = {
-  __typename?: "Query";
-  assistantMessages: Array<AssistantMessage>;
-  conversations: Array<AssistantConversation>;
-  currentOrganization?: Maybe<Organization>;
-  file?: Maybe<FileInfo>;
-  files: Array<FileInfo>;
-  health: Scalars["String"]["output"];
-  invitations: Array<OrganizationInvitation>;
-  members: Array<OrganizationMember>;
-  note?: Maybe<Note>;
-  notes: Array<Note>;
-  organizations: Array<Organization>;
-  todo?: Maybe<Todo>;
-  todos: Array<Todo>;
-};
-
-export type QueryAssistantMessagesArgs = {
-  conversationId: Scalars["ID"]["input"];
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryConversationsArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryFileArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryFilesArgs = {
-  filter?: InputMaybe<FilesFilterInput>;
-};
-
-export type QueryNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryNotesArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryTodosArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
+export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  mimeType: Scalars["String"]["input"];
-  originalName: Scalars["String"]["input"];
-  sizeBytes: Scalars["Int"]["input"];
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  mimeType: string;
+  originalName: string;
+  sizeBytes: number;
 };
 
 export type SendMessageInput = {
-  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
-  message: Scalars["String"]["input"];
+  conversationId?: string | number | null | undefined;
+  message: string;
 };
 
-export type SendMessagePayload = {
-  __typename?: "SendMessagePayload";
-  conversationId: Scalars["ID"]["output"];
-  message?: Maybe<Scalars["String"]["output"]>;
-  reply?: Maybe<Scalars["String"]["output"]>;
-  status: SendMessageStatus;
-  toolActions: Array<AssistantToolAction>;
-};
-
-export enum SendMessageStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Failed = "FAILED",
-  Replied = "REPLIED"
-}
-
-export type Subscription = {
-  __typename?: "Subscription";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  assistantMessageDelta: AssistantMessageDelta;
-  noteCreated: Note;
-  noteDeleted: NoteDeletedPayload;
-  noteUpdated: Note;
-  todoCreated: Todo;
-  todoDeleted: TodoDeletedPayload;
-  todoToggled: Todo;
-  todoUpdated: Todo;
-};
-
-export type Todo = {
-  __typename?: "Todo";
-  attachments: Array<FileInfo>;
-  completed: Scalars["Boolean"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  description?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type TodoDeletedPayload = {
-  __typename?: "TodoDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
+export type SendMessageStatus = "AI_NOT_CONFIGURED" | "FAILED" | "REPLIED";
 
 export type UpdateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  body?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type UpdateTodoInput = {
-  completed?: InputMaybe<Scalars["Boolean"]["input"]>;
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  completed?: boolean | null | undefined;
+  description?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type GetConversationsQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetConversationsQuery = {
-  __typename?: "Query";
-  conversations: Array<{
-    __typename?: "AssistantConversation";
-    id: string;
-    title?: string | null;
-    updatedAt: any;
-  }>;
+  conversations: Array<{ id: string; title: string | null; updatedAt: string }>;
 };
 
 export type GetConversationQueryVariables = Exact<{
-  conversationId: Scalars["ID"]["input"];
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  conversationId: string | number;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetConversationQuery = {
-  __typename?: "Query";
   assistantMessages: Array<{
-    __typename?: "AssistantMessage";
     id: string;
     conversationId: string;
     role: string;
     content: string;
-    createdAt: any;
-    toolActions: Array<{
-      __typename?: "AssistantToolAction";
-      tool: string;
-      input?: string | null;
-      output?: string | null;
-    }>;
+    createdAt: string;
+    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
   }>;
 };
 
 export type DeleteConversationMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteConversationMutation = { __typename?: "Mutation"; deleteConversation: boolean };
+export type DeleteConversationMutation = { deleteConversation: boolean };
 
 export type SendMessageMutationVariables = Exact<{
   input: SendMessageInput;
 }>;
 
 export type SendMessageMutation = {
-  __typename?: "Mutation";
   sendMessage: {
-    __typename?: "SendMessagePayload";
     status: SendMessageStatus;
     conversationId: string;
-    reply?: string | null;
-    message?: string | null;
-    toolActions: Array<{
-      __typename?: "AssistantToolAction";
-      tool: string;
-      input?: string | null;
-      output?: string | null;
-    }>;
+    reply: string | null;
+    message: string | null;
+    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
   };
 };
 
 export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnAssistantMessageDeltaSubscription = {
-  __typename?: "Subscription";
-  assistantMessageDelta: {
-    __typename?: "AssistantMessageDelta";
-    conversationId: string;
-    delta: string;
-  };
+  assistantMessageDelta: { conversationId: string; delta: string };
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
-export type HealthQuery = { __typename?: "Query"; health: string };
+export type HealthQuery = { health: string };
 
 export type GetNotesQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetNotesQuery = {
-  __typename?: "Query";
   notes: Array<{
-    __typename?: "Note";
     id: string;
     title: string;
-    body?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    body: string | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
 };
 
 export type GetNoteQueryVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type GetNoteQuery = {
-  __typename?: "Query";
-  note?: {
-    __typename?: "Note";
+  note: {
     id: string;
     title: string;
-    body?: string | null;
-    createdAt: any;
-    updatedAt: any;
-    todos: Array<{
-      __typename?: "Todo";
-      id: string;
-      title: string;
-      description?: string | null;
-      completed: boolean;
-    }>;
+    body: string | null;
+    createdAt: string;
+    updatedAt: string;
+    todos: Array<{ id: string; title: string; description: string | null; completed: boolean }>;
   } | null;
 };
 
@@ -487,105 +149,79 @@ export type CreateNoteMutationVariables = Exact<{
   input: CreateNoteInput;
 }>;
 
-export type CreateNoteMutation = {
-  __typename?: "Mutation";
-  createNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
-};
+export type CreateNoteMutation = { createNote: { id: string; title: string; body: string | null } };
 
 export type UpdateNoteMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
   input: UpdateNoteInput;
 }>;
 
-export type UpdateNoteMutation = {
-  __typename?: "Mutation";
-  updateNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
-};
+export type UpdateNoteMutation = { updateNote: { id: string; title: string; body: string | null } };
 
 export type DeleteNoteMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteNoteMutation = { __typename?: "Mutation"; deleteNote: boolean };
+export type DeleteNoteMutation = { deleteNote: boolean };
 
 export type AddTodoToNoteMutationVariables = Exact<{
-  noteId: Scalars["ID"]["input"];
+  noteId: string | number;
   input: CreateTodoInput;
 }>;
 
 export type AddTodoToNoteMutation = {
-  __typename?: "Mutation";
-  addTodoToNote: {
-    __typename?: "Todo";
-    id: string;
-    title: string;
-    description?: string | null;
-    completed: boolean;
-  };
+  addTodoToNote: { id: string; title: string; description: string | null; completed: boolean };
 };
 
 export type OnNoteCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteCreatedSubscription = {
-  __typename?: "Subscription";
-  noteCreated: { __typename?: "Note"; id: string };
-};
+export type OnNoteCreatedSubscription = { noteCreated: { id: string } };
 
 export type OnNoteUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteUpdatedSubscription = {
-  __typename?: "Subscription";
-  noteUpdated: { __typename?: "Note"; id: string };
-};
+export type OnNoteUpdatedSubscription = { noteUpdated: { id: string } };
 
 export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteDeletedSubscription = {
-  __typename?: "Subscription";
-  noteDeleted: { __typename?: "NoteDeletedPayload"; id: string };
-};
+export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
 
 export type GetFileQueryVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type GetFileQuery = {
-  __typename?: "Query";
-  file?: {
-    __typename?: "FileInfo";
+  file: {
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   } | null;
 };
 
 export type GetFilesQueryVariables = Exact<{
-  filter?: InputMaybe<FilesFilterInput>;
+  filter?: FilesFilterInput | null | undefined;
 }>;
 
 export type GetFilesQuery = {
-  __typename?: "Query";
   files: Array<{
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
 };
 
@@ -594,64 +230,52 @@ export type RequestUploadUrlMutationVariables = Exact<{
 }>;
 
 export type RequestUploadUrlMutation = {
-  __typename?: "Mutation";
-  requestUploadUrl: {
-    __typename?: "PresignedUploadResponse";
-    fileId: string;
-    uploadUrl: string;
-    key: string;
-    expiresIn: number;
-  };
+  requestUploadUrl: { fileId: string; uploadUrl: string; key: string; expiresIn: number };
 };
 
 export type ConfirmUploadMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
 export type ConfirmUploadMutation = {
-  __typename?: "Mutation";
   confirmUpload: {
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
 export type DeleteFileMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
-export type DeleteFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
+export type DeleteFileMutation = { deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetTodosQuery = {
-  __typename?: "Query";
   todos: Array<{
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   }>;
 };
@@ -661,20 +285,17 @@ export type CreateTodoMutationVariables = Exact<{
 }>;
 
 export type CreateTodoMutation = {
-  __typename?: "Mutation";
   createTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -684,76 +305,66 @@ export type GenerateTodosMutationVariables = Exact<{
 }>;
 
 export type GenerateTodosMutation = {
-  __typename?: "Mutation";
   generateTodos: {
-    __typename?: "GenerateTodosPayload";
     status: GenerateTodosStatus;
-    message?: string | null;
+    message: string | null;
     todos: Array<{
-      __typename?: "Todo";
       id: string;
       title: string;
-      description?: string | null;
+      description: string | null;
       completed: boolean;
       attachments: Array<{
-        __typename?: "FileInfo";
         id: string;
         originalName: string;
         mimeType: string;
         sizeBytes: number;
-        downloadUrl?: string | null;
+        downloadUrl: string | null;
       }>;
     }>;
   };
 };
 
 export type UpdateTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
   input: UpdateTodoInput;
 }>;
 
 export type UpdateTodoMutation = {
-  __typename?: "Mutation";
   updateTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type DeleteTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteTodoMutation = { __typename?: "Mutation"; deleteTodo: boolean };
+export type DeleteTodoMutation = { deleteTodo: boolean };
 
 export type ToggleTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type ToggleTodoMutation = {
-  __typename?: "Mutation";
   toggleTodo: {
-    __typename?: "Todo";
     id: string;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -761,22 +372,19 @@ export type ToggleTodoMutation = {
 export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoCreatedSubscription = {
-  __typename?: "Subscription";
   todoCreated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -784,57 +392,67 @@ export type OnTodoCreatedSubscription = {
 export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoUpdatedSubscription = {
-  __typename?: "Subscription";
   todoUpdated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoDeletedSubscription = {
-  __typename?: "Subscription";
-  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
-};
+export type OnTodoDeletedSubscription = { todoDeleted: { id: string; organizationId: string } };
 
 export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoToggledSubscription = {
-  __typename?: "Subscription";
   todoToggled: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
-export const GetConversationsDocument = `
+export class TypedDocumentString<TResult, TVariables>
+  extends String
+  implements DocumentTypeDecoration<TResult, TVariables>
+{
+  __apiType?: NonNullable<DocumentTypeDecoration<TResult, TVariables>["__apiType"]>;
+  private value: string;
+  public __meta__?: Record<string, any> | undefined;
+
+  constructor(value: string, __meta__?: Record<string, any> | undefined) {
+    super(value);
+    this.value = value;
+    this.__meta__ = __meta__;
+  }
+
+  override toString(): string & DocumentTypeDecoration<TResult, TVariables> {
+    return this.value;
+  }
+}
+
+export const GetConversationsDocument = new TypedDocumentString(`
     query GetConversations($limit: Int, $offset: Int) {
   conversations(limit: $limit, offset: $offset) {
     id
@@ -842,7 +460,7 @@ export const GetConversationsDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetConversationsQuery = <TData = GetConversationsQuery, TError = unknown>(
   variables?: GetConversationsQueryVariables,
@@ -862,7 +480,7 @@ export const useGetConversationsQuery = <TData = GetConversationsQuery, TError =
 useGetConversationsQuery.getKey = (variables?: GetConversationsQueryVariables) =>
   variables === undefined ? ["GetConversations"] : ["GetConversations", variables];
 
-export const GetConversationDocument = `
+export const GetConversationDocument = new TypedDocumentString(`
     query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
   assistantMessages(
     conversationId: $conversationId
@@ -881,7 +499,7 @@ export const GetConversationDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useGetConversationQuery = <TData = GetConversationQuery, TError = unknown>(
   variables: GetConversationQueryVariables,
@@ -903,11 +521,11 @@ useGetConversationQuery.getKey = (variables: GetConversationQueryVariables) => [
   variables
 ];
 
-export const DeleteConversationDocument = `
+export const DeleteConversationDocument = new TypedDocumentString(`
     mutation DeleteConversation($id: ID!) {
   deleteConversation(id: $id)
 }
-    `;
+    `);
 
 export const useDeleteConversationMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -933,7 +551,7 @@ export const useDeleteConversationMutation = <TError = unknown, TContext = unkno
 
 useDeleteConversationMutation.getKey = () => ["DeleteConversation"];
 
-export const SendMessageDocument = `
+export const SendMessageDocument = new TypedDocumentString(`
     mutation SendMessage($input: SendMessageInput!) {
   sendMessage(input: $input) {
     status
@@ -947,7 +565,7 @@ export const SendMessageDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useSendMessageMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<SendMessageMutation, TError, SendMessageMutationVariables, TContext>
@@ -963,19 +581,19 @@ export const useSendMessageMutation = <TError = unknown, TContext = unknown>(
 
 useSendMessageMutation.getKey = () => ["SendMessage"];
 
-export const OnAssistantMessageDeltaDocument = `
+export const OnAssistantMessageDeltaDocument = new TypedDocumentString(`
     subscription OnAssistantMessageDelta {
   assistantMessageDelta {
     conversationId
     delta
   }
 }
-    `;
-export const HealthDocument = `
+    `);
+export const HealthDocument = new TypedDocumentString(`
     query Health {
   health
 }
-    `;
+    `);
 
 export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
   variables?: HealthQueryVariables,
@@ -996,7 +614,7 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
 
-export const GetNotesDocument = `
+export const GetNotesDocument = new TypedDocumentString(`
     query GetNotes($limit: Int, $offset: Int) {
   notes(limit: $limit, offset: $offset) {
     id
@@ -1006,7 +624,7 @@ export const GetNotesDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetNotesQuery = <TData = GetNotesQuery, TError = unknown>(
   variables?: GetNotesQueryVariables,
@@ -1027,7 +645,7 @@ export const useGetNotesQuery = <TData = GetNotesQuery, TError = unknown>(
 useGetNotesQuery.getKey = (variables?: GetNotesQueryVariables) =>
   variables === undefined ? ["GetNotes"] : ["GetNotes", variables];
 
-export const GetNoteDocument = `
+export const GetNoteDocument = new TypedDocumentString(`
     query GetNote($id: ID!) {
   note(id: $id) {
     id
@@ -1043,7 +661,7 @@ export const GetNoteDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useGetNoteQuery = <TData = GetNoteQuery, TError = unknown>(
   variables: GetNoteQueryVariables,
@@ -1063,7 +681,7 @@ export const useGetNoteQuery = <TData = GetNoteQuery, TError = unknown>(
 
 useGetNoteQuery.getKey = (variables: GetNoteQueryVariables) => ["GetNote", variables];
 
-export const CreateNoteDocument = `
+export const CreateNoteDocument = new TypedDocumentString(`
     mutation CreateNote($input: CreateNoteInput!) {
   createNote(input: $input) {
     id
@@ -1071,7 +689,7 @@ export const CreateNoteDocument = `
     body
   }
 }
-    `;
+    `);
 
 export const useCreateNoteMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<CreateNoteMutation, TError, CreateNoteMutationVariables, TContext>
@@ -1087,7 +705,7 @@ export const useCreateNoteMutation = <TError = unknown, TContext = unknown>(
 
 useCreateNoteMutation.getKey = () => ["CreateNote"];
 
-export const UpdateNoteDocument = `
+export const UpdateNoteDocument = new TypedDocumentString(`
     mutation UpdateNote($id: ID!, $input: UpdateNoteInput!) {
   updateNote(id: $id, input: $input) {
     id
@@ -1095,7 +713,7 @@ export const UpdateNoteDocument = `
     body
   }
 }
-    `;
+    `);
 
 export const useUpdateNoteMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<UpdateNoteMutation, TError, UpdateNoteMutationVariables, TContext>
@@ -1111,11 +729,11 @@ export const useUpdateNoteMutation = <TError = unknown, TContext = unknown>(
 
 useUpdateNoteMutation.getKey = () => ["UpdateNote"];
 
-export const DeleteNoteDocument = `
+export const DeleteNoteDocument = new TypedDocumentString(`
     mutation DeleteNote($id: ID!) {
   deleteNote(id: $id)
 }
-    `;
+    `);
 
 export const useDeleteNoteMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<DeleteNoteMutation, TError, DeleteNoteMutationVariables, TContext>
@@ -1131,7 +749,7 @@ export const useDeleteNoteMutation = <TError = unknown, TContext = unknown>(
 
 useDeleteNoteMutation.getKey = () => ["DeleteNote"];
 
-export const AddTodoToNoteDocument = `
+export const AddTodoToNoteDocument = new TypedDocumentString(`
     mutation AddTodoToNote($noteId: ID!, $input: CreateTodoInput!) {
   addTodoToNote(noteId: $noteId, input: $input) {
     id
@@ -1140,7 +758,7 @@ export const AddTodoToNoteDocument = `
     completed
   }
 }
-    `;
+    `);
 
 export const useAddTodoToNoteMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -1161,28 +779,28 @@ export const useAddTodoToNoteMutation = <TError = unknown, TContext = unknown>(
 
 useAddTodoToNoteMutation.getKey = () => ["AddTodoToNote"];
 
-export const OnNoteCreatedDocument = `
+export const OnNoteCreatedDocument = new TypedDocumentString(`
     subscription OnNoteCreated {
   noteCreated {
     id
   }
 }
-    `;
-export const OnNoteUpdatedDocument = `
+    `);
+export const OnNoteUpdatedDocument = new TypedDocumentString(`
     subscription OnNoteUpdated {
   noteUpdated {
     id
   }
 }
-    `;
-export const OnNoteDeletedDocument = `
+    `);
+export const OnNoteDeletedDocument = new TypedDocumentString(`
     subscription OnNoteDeleted {
   noteDeleted {
     id
   }
 }
-    `;
-export const GetFileDocument = `
+    `);
+export const GetFileDocument = new TypedDocumentString(`
     query GetFile($id: ID!) {
   file(id: $id) {
     id
@@ -1198,7 +816,7 @@ export const GetFileDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetFileQuery = <TData = GetFileQuery, TError = unknown>(
   variables: GetFileQueryVariables,
@@ -1218,7 +836,7 @@ export const useGetFileQuery = <TData = GetFileQuery, TError = unknown>(
 
 useGetFileQuery.getKey = (variables: GetFileQueryVariables) => ["GetFile", variables];
 
-export const GetFilesDocument = `
+export const GetFilesDocument = new TypedDocumentString(`
     query GetFiles($filter: FilesFilterInput) {
   files(filter: $filter) {
     id
@@ -1234,7 +852,7 @@ export const GetFilesDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetFilesQuery = <TData = GetFilesQuery, TError = unknown>(
   variables?: GetFilesQueryVariables,
@@ -1255,7 +873,7 @@ export const useGetFilesQuery = <TData = GetFilesQuery, TError = unknown>(
 useGetFilesQuery.getKey = (variables?: GetFilesQueryVariables) =>
   variables === undefined ? ["GetFiles"] : ["GetFiles", variables];
 
-export const RequestUploadUrlDocument = `
+export const RequestUploadUrlDocument = new TypedDocumentString(`
     mutation RequestUploadUrl($input: RequestUploadInput!) {
   requestUploadUrl(input: $input) {
     fileId
@@ -1264,7 +882,7 @@ export const RequestUploadUrlDocument = `
     expiresIn
   }
 }
-    `;
+    `);
 
 export const useRequestUploadUrlMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -1287,7 +905,7 @@ export const useRequestUploadUrlMutation = <TError = unknown, TContext = unknown
 
 useRequestUploadUrlMutation.getKey = () => ["RequestUploadUrl"];
 
-export const ConfirmUploadDocument = `
+export const ConfirmUploadDocument = new TypedDocumentString(`
     mutation ConfirmUpload($fileId: ID!) {
   confirmUpload(fileId: $fileId) {
     id
@@ -1301,7 +919,7 @@ export const ConfirmUploadDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useConfirmUploadMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -1322,11 +940,11 @@ export const useConfirmUploadMutation = <TError = unknown, TContext = unknown>(
 
 useConfirmUploadMutation.getKey = () => ["ConfirmUpload"];
 
-export const DeleteFileDocument = `
+export const DeleteFileDocument = new TypedDocumentString(`
     mutation DeleteFile($fileId: ID!) {
   deleteFile(fileId: $fileId)
 }
-    `;
+    `);
 
 export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<DeleteFileMutation, TError, DeleteFileMutationVariables, TContext>
@@ -1342,7 +960,7 @@ export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
 
 useDeleteFileMutation.getKey = () => ["DeleteFile"];
 
-export const GetTodosDocument = `
+export const GetTodosDocument = new TypedDocumentString(`
     query GetTodos($limit: Int, $offset: Int) {
   todos(limit: $limit, offset: $offset) {
     id
@@ -1360,7 +978,7 @@ export const GetTodosDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetTodosQuery = <TData = GetTodosQuery, TError = unknown>(
   variables?: GetTodosQueryVariables,
@@ -1381,7 +999,7 @@ export const useGetTodosQuery = <TData = GetTodosQuery, TError = unknown>(
 useGetTodosQuery.getKey = (variables?: GetTodosQueryVariables) =>
   variables === undefined ? ["GetTodos"] : ["GetTodos", variables];
 
-export const CreateTodoDocument = `
+export const CreateTodoDocument = new TypedDocumentString(`
     mutation CreateTodo($input: CreateTodoInput!) {
   createTodo(input: $input) {
     id
@@ -1397,7 +1015,7 @@ export const CreateTodoDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useCreateTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<CreateTodoMutation, TError, CreateTodoMutationVariables, TContext>
@@ -1413,7 +1031,7 @@ export const useCreateTodoMutation = <TError = unknown, TContext = unknown>(
 
 useCreateTodoMutation.getKey = () => ["CreateTodo"];
 
-export const GenerateTodosDocument = `
+export const GenerateTodosDocument = new TypedDocumentString(`
     mutation GenerateTodos($input: GenerateTodosInput!) {
   generateTodos(input: $input) {
     status
@@ -1433,7 +1051,7 @@ export const GenerateTodosDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useGenerateTodosMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -1454,7 +1072,7 @@ export const useGenerateTodosMutation = <TError = unknown, TContext = unknown>(
 
 useGenerateTodosMutation.getKey = () => ["GenerateTodos"];
 
-export const UpdateTodoDocument = `
+export const UpdateTodoDocument = new TypedDocumentString(`
     mutation UpdateTodo($id: ID!, $input: UpdateTodoInput!) {
   updateTodo(id: $id, input: $input) {
     id
@@ -1470,7 +1088,7 @@ export const UpdateTodoDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useUpdateTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<UpdateTodoMutation, TError, UpdateTodoMutationVariables, TContext>
@@ -1486,11 +1104,11 @@ export const useUpdateTodoMutation = <TError = unknown, TContext = unknown>(
 
 useUpdateTodoMutation.getKey = () => ["UpdateTodo"];
 
-export const DeleteTodoDocument = `
+export const DeleteTodoDocument = new TypedDocumentString(`
     mutation DeleteTodo($id: ID!) {
   deleteTodo(id: $id)
 }
-    `;
+    `);
 
 export const useDeleteTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<DeleteTodoMutation, TError, DeleteTodoMutationVariables, TContext>
@@ -1506,7 +1124,7 @@ export const useDeleteTodoMutation = <TError = unknown, TContext = unknown>(
 
 useDeleteTodoMutation.getKey = () => ["DeleteTodo"];
 
-export const ToggleTodoDocument = `
+export const ToggleTodoDocument = new TypedDocumentString(`
     mutation ToggleTodo($id: ID!) {
   toggleTodo(id: $id) {
     id
@@ -1520,7 +1138,7 @@ export const ToggleTodoDocument = `
     }
   }
 }
-    `;
+    `);
 
 export const useToggleTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<ToggleTodoMutation, TError, ToggleTodoMutationVariables, TContext>
@@ -1536,7 +1154,7 @@ export const useToggleTodoMutation = <TError = unknown, TContext = unknown>(
 
 useToggleTodoMutation.getKey = () => ["ToggleTodo"];
 
-export const OnTodoCreatedDocument = `
+export const OnTodoCreatedDocument = new TypedDocumentString(`
     subscription OnTodoCreated {
   todoCreated {
     id
@@ -1554,8 +1172,8 @@ export const OnTodoCreatedDocument = `
     updatedAt
   }
 }
-    `;
-export const OnTodoUpdatedDocument = `
+    `);
+export const OnTodoUpdatedDocument = new TypedDocumentString(`
     subscription OnTodoUpdated {
   todoUpdated {
     id
@@ -1573,16 +1191,16 @@ export const OnTodoUpdatedDocument = `
     updatedAt
   }
 }
-    `;
-export const OnTodoDeletedDocument = `
+    `);
+export const OnTodoDeletedDocument = new TypedDocumentString(`
     subscription OnTodoDeleted {
   todoDeleted {
     id
     organizationId
   }
 }
-    `;
-export const OnTodoToggledDocument = `
+    `);
+export const OnTodoToggledDocument = new TypedDocumentString(`
     subscription OnTodoToggled {
   todoToggled {
     id
@@ -1600,4 +1218,4 @@ export const OnTodoToggledDocument = `
     updatedAt
   }
 }
-    `;
+    `);

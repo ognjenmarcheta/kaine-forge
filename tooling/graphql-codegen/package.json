@@ -18,11 +18,11 @@
     "generate": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
-    "@graphql-codegen/cli": "^5.0.7",
-    "@graphql-codegen/client-preset": "^5.0.1",
-    "@graphql-codegen/typescript": "^4.1.6",
-    "@graphql-codegen/typescript-operations": "^4.6.1",
-    "@graphql-codegen/typescript-react-query": "^6.1.1",
+    "@graphql-codegen/cli": "^7.2.0",
+    "@graphql-codegen/client-preset": "^6.1.0",
+    "@graphql-codegen/typescript": "^6.1.0",
+    "@graphql-codegen/typescript-operations": "^6.1.2",
+    "@graphql-codegen/typescript-react-query": "^7.0.5",
     "graphql": "catalog:"
   },
   "devDependencies": {

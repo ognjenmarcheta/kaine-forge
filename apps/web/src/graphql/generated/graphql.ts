@@ -1,485 +1,146 @@
 /* eslint-disable */
-import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = T | null | undefined;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = {
-  [_ in K]?: never;
-};
+/** Internal type. DO NOT USE DIRECTLY. */
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+/** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> =
   | T
   | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string };
-  String: { input: string; output: string };
-  Boolean: { input: boolean; output: boolean };
-  Int: { input: number; output: number };
-  Float: { input: number; output: number };
-  DateTime: { input: any; output: any };
-};
-
-export type AssistantConversation = {
-  __typename?: "AssistantConversation";
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  title?: Maybe<Scalars["String"]["output"]>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type AssistantMessage = {
-  __typename?: "AssistantMessage";
-  content: Scalars["String"]["output"];
-  conversationId: Scalars["ID"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  toolActions: Array<AssistantToolAction>;
-};
-
-export type AssistantMessageDelta = {
-  __typename?: "AssistantMessageDelta";
-  conversationId: Scalars["ID"]["output"];
-  delta: Scalars["String"]["output"];
-};
-
-export type AssistantToolAction = {
-  __typename?: "AssistantToolAction";
-  input?: Maybe<Scalars["String"]["output"]>;
-  output?: Maybe<Scalars["String"]["output"]>;
-  tool: Scalars["String"]["output"];
-};
-
+import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 export type CreateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
+  body?: string | null | undefined;
+  title: string;
 };
 
 export type CreateTodoInput = {
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
+  description?: string | null | undefined;
+  title: string;
 };
 
-export type FileInfo = {
-  __typename?: "FileInfo";
-  bucket: Scalars["String"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  downloadUrl?: Maybe<Scalars["String"]["output"]>;
-  entityId?: Maybe<Scalars["ID"]["output"]>;
-  entityType?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  mimeType: Scalars["String"]["output"];
-  originalName: Scalars["String"]["output"];
-  sizeBytes: Scalars["Int"]["output"];
-  status: FileStatus;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export enum FileStatus {
-  Deleted = "deleted",
-  Pending = "pending",
-  Uploaded = "uploaded"
-}
+export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-  status?: InputMaybe<FileStatus>;
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
+  status?: FileStatus | null | undefined;
 };
 
 export type GenerateTodosInput = {
-  prompt: Scalars["String"]["input"];
+  prompt: string;
 };
 
-export type GenerateTodosPayload = {
-  __typename?: "GenerateTodosPayload";
-  message?: Maybe<Scalars["String"]["output"]>;
-  status: GenerateTodosStatus;
-  todos: Array<Todo>;
-};
-
-export enum GenerateTodosStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Created = "CREATED",
-  Failed = "FAILED"
-}
-
-export type Mutation = {
-  __typename?: "Mutation";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  addTodoToNote: Todo;
-  confirmUpload: FileInfo;
-  createNote: Note;
-  createTodo: Todo;
-  deleteConversation: Scalars["Boolean"]["output"];
-  deleteFile: Scalars["Boolean"]["output"];
-  deleteNote: Scalars["Boolean"]["output"];
-  deleteTodo: Scalars["Boolean"]["output"];
-  generateTodos: GenerateTodosPayload;
-  requestUploadUrl: PresignedUploadResponse;
-  sendMessage: SendMessagePayload;
-  toggleTodo: Todo;
-  updateNote: Note;
-  updateTodo: Todo;
-};
-
-export type MutationAddTodoToNoteArgs = {
-  input: CreateTodoInput;
-  noteId: Scalars["ID"]["input"];
-};
-
-export type MutationConfirmUploadArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationCreateNoteArgs = {
-  input: CreateNoteInput;
-};
-
-export type MutationCreateTodoArgs = {
-  input: CreateTodoInput;
-};
-
-export type MutationDeleteConversationArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteFileArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationGenerateTodosArgs = {
-  input: GenerateTodosInput;
-};
-
-export type MutationRequestUploadUrlArgs = {
-  input: RequestUploadInput;
-};
-
-export type MutationSendMessageArgs = {
-  input: SendMessageInput;
-};
-
-export type MutationToggleTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationUpdateNoteArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateNoteInput;
-};
-
-export type MutationUpdateTodoArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateTodoInput;
-};
-
-export type Note = {
-  __typename?: "Note";
-  body?: Maybe<Scalars["String"]["output"]>;
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  todos: Array<Todo>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type NoteDeletedPayload = {
-  __typename?: "NoteDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
-
-export type Organization = {
-  __typename?: "Organization";
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  slug: Scalars["String"]["output"];
-};
-
-export type OrganizationInvitation = {
-  __typename?: "OrganizationInvitation";
-  email: Scalars["String"]["output"];
-  expiresAt: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  status: Scalars["String"]["output"];
-};
-
-export type OrganizationMember = {
-  __typename?: "OrganizationMember";
-  email: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  userId: Scalars["ID"]["output"];
-};
-
-export type PresignedUploadResponse = {
-  __typename?: "PresignedUploadResponse";
-  expiresIn: Scalars["Int"]["output"];
-  fileId: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  uploadUrl: Scalars["String"]["output"];
-};
-
-export type Query = {
-  __typename?: "Query";
-  assistantMessages: Array<AssistantMessage>;
-  conversations: Array<AssistantConversation>;
-  currentOrganization?: Maybe<Organization>;
-  file?: Maybe<FileInfo>;
-  files: Array<FileInfo>;
-  health: Scalars["String"]["output"];
-  invitations: Array<OrganizationInvitation>;
-  members: Array<OrganizationMember>;
-  note?: Maybe<Note>;
-  notes: Array<Note>;
-  organizations: Array<Organization>;
-  todo?: Maybe<Todo>;
-  todos: Array<Todo>;
-};
-
-export type QueryAssistantMessagesArgs = {
-  conversationId: Scalars["ID"]["input"];
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryConversationsArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryFileArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryFilesArgs = {
-  filter?: InputMaybe<FilesFilterInput>;
-};
-
-export type QueryNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryNotesArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryTodosArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
+export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  mimeType: Scalars["String"]["input"];
-  originalName: Scalars["String"]["input"];
-  sizeBytes: Scalars["Int"]["input"];
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  mimeType: string;
+  originalName: string;
+  sizeBytes: number;
 };
 
 export type SendMessageInput = {
-  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
-  message: Scalars["String"]["input"];
+  conversationId?: string | number | null | undefined;
+  message: string;
 };
 
-export type SendMessagePayload = {
-  __typename?: "SendMessagePayload";
-  conversationId: Scalars["ID"]["output"];
-  message?: Maybe<Scalars["String"]["output"]>;
-  reply?: Maybe<Scalars["String"]["output"]>;
-  status: SendMessageStatus;
-  toolActions: Array<AssistantToolAction>;
-};
-
-export enum SendMessageStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Failed = "FAILED",
-  Replied = "REPLIED"
-}
-
-export type Subscription = {
-  __typename?: "Subscription";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  assistantMessageDelta: AssistantMessageDelta;
-  noteCreated: Note;
-  noteDeleted: NoteDeletedPayload;
-  noteUpdated: Note;
-  todoCreated: Todo;
-  todoDeleted: TodoDeletedPayload;
-  todoToggled: Todo;
-  todoUpdated: Todo;
-};
-
-export type Todo = {
-  __typename?: "Todo";
-  attachments: Array<FileInfo>;
-  completed: Scalars["Boolean"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  description?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type TodoDeletedPayload = {
-  __typename?: "TodoDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
+export type SendMessageStatus = "AI_NOT_CONFIGURED" | "FAILED" | "REPLIED";
 
 export type UpdateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  body?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type UpdateTodoInput = {
-  completed?: InputMaybe<Scalars["Boolean"]["input"]>;
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  completed?: boolean | null | undefined;
+  description?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type GetConversationsQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetConversationsQuery = {
-  __typename?: "Query";
-  conversations: Array<{
-    __typename?: "AssistantConversation";
-    id: string;
-    title?: string | null;
-    updatedAt: any;
-  }>;
+  conversations: Array<{ id: string; title: string | null; updatedAt: unknown }>;
 };
 
 export type GetConversationQueryVariables = Exact<{
-  conversationId: Scalars["ID"]["input"];
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  conversationId: string | number;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetConversationQuery = {
-  __typename?: "Query";
   assistantMessages: Array<{
-    __typename?: "AssistantMessage";
     id: string;
     conversationId: string;
     role: string;
     content: string;
-    createdAt: any;
-    toolActions: Array<{
-      __typename?: "AssistantToolAction";
-      tool: string;
-      input?: string | null;
-      output?: string | null;
-    }>;
+    createdAt: unknown;
+    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
   }>;
 };
 
 export type DeleteConversationMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteConversationMutation = { __typename?: "Mutation"; deleteConversation: boolean };
+export type DeleteConversationMutation = { deleteConversation: boolean };
 
 export type SendMessageMutationVariables = Exact<{
   input: SendMessageInput;
 }>;
 
 export type SendMessageMutation = {
-  __typename?: "Mutation";
   sendMessage: {
-    __typename?: "SendMessagePayload";
     status: SendMessageStatus;
     conversationId: string;
-    reply?: string | null;
-    message?: string | null;
-    toolActions: Array<{
-      __typename?: "AssistantToolAction";
-      tool: string;
-      input?: string | null;
-      output?: string | null;
-    }>;
+    reply: string | null;
+    message: string | null;
+    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
   };
 };
 
 export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnAssistantMessageDeltaSubscription = {
-  __typename?: "Subscription";
-  assistantMessageDelta: {
-    __typename?: "AssistantMessageDelta";
-    conversationId: string;
-    delta: string;
-  };
+  assistantMessageDelta: { conversationId: string; delta: string };
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
-export type HealthQuery = { __typename?: "Query"; health: string };
+export type HealthQuery = { health: string };
 
 export type GetNotesQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetNotesQuery = {
-  __typename?: "Query";
   notes: Array<{
-    __typename?: "Note";
     id: string;
     title: string;
-    body?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    body: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
   }>;
 };
 
 export type GetNoteQueryVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type GetNoteQuery = {
-  __typename?: "Query";
-  note?: {
-    __typename?: "Note";
+  note: {
     id: string;
     title: string;
-    body?: string | null;
-    createdAt: any;
-    updatedAt: any;
-    todos: Array<{
-      __typename?: "Todo";
-      id: string;
-      title: string;
-      description?: string | null;
-      completed: boolean;
-    }>;
+    body: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
+    todos: Array<{ id: string; title: string; description: string | null; completed: boolean }>;
   } | null;
 };
 
@@ -487,105 +148,79 @@ export type CreateNoteMutationVariables = Exact<{
   input: CreateNoteInput;
 }>;
 
-export type CreateNoteMutation = {
-  __typename?: "Mutation";
-  createNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
-};
+export type CreateNoteMutation = { createNote: { id: string; title: string; body: string | null } };
 
 export type UpdateNoteMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
   input: UpdateNoteInput;
 }>;
 
-export type UpdateNoteMutation = {
-  __typename?: "Mutation";
-  updateNote: { __typename?: "Note"; id: string; title: string; body?: string | null };
-};
+export type UpdateNoteMutation = { updateNote: { id: string; title: string; body: string | null } };
 
 export type DeleteNoteMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteNoteMutation = { __typename?: "Mutation"; deleteNote: boolean };
+export type DeleteNoteMutation = { deleteNote: boolean };
 
 export type AddTodoToNoteMutationVariables = Exact<{
-  noteId: Scalars["ID"]["input"];
+  noteId: string | number;
   input: CreateTodoInput;
 }>;
 
 export type AddTodoToNoteMutation = {
-  __typename?: "Mutation";
-  addTodoToNote: {
-    __typename?: "Todo";
-    id: string;
-    title: string;
-    description?: string | null;
-    completed: boolean;
-  };
+  addTodoToNote: { id: string; title: string; description: string | null; completed: boolean };
 };
 
 export type OnNoteCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteCreatedSubscription = {
-  __typename?: "Subscription";
-  noteCreated: { __typename?: "Note"; id: string };
-};
+export type OnNoteCreatedSubscription = { noteCreated: { id: string } };
 
 export type OnNoteUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteUpdatedSubscription = {
-  __typename?: "Subscription";
-  noteUpdated: { __typename?: "Note"; id: string };
-};
+export type OnNoteUpdatedSubscription = { noteUpdated: { id: string } };
 
 export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnNoteDeletedSubscription = {
-  __typename?: "Subscription";
-  noteDeleted: { __typename?: "NoteDeletedPayload"; id: string };
-};
+export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
 
 export type GetFileQueryVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type GetFileQuery = {
-  __typename?: "Query";
-  file?: {
-    __typename?: "FileInfo";
+  file: {
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
   } | null;
 };
 
 export type GetFilesQueryVariables = Exact<{
-  filter?: InputMaybe<FilesFilterInput>;
+  filter?: FilesFilterInput | null | undefined;
 }>;
 
 export type GetFilesQuery = {
-  __typename?: "Query";
   files: Array<{
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
   }>;
 };
 
@@ -594,64 +229,52 @@ export type RequestUploadUrlMutationVariables = Exact<{
 }>;
 
 export type RequestUploadUrlMutation = {
-  __typename?: "Mutation";
-  requestUploadUrl: {
-    __typename?: "PresignedUploadResponse";
-    fileId: string;
-    uploadUrl: string;
-    key: string;
-    expiresIn: number;
-  };
+  requestUploadUrl: { fileId: string; uploadUrl: string; key: string; expiresIn: number };
 };
 
 export type ConfirmUploadMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
 export type ConfirmUploadMutation = {
-  __typename?: "Mutation";
   confirmUpload: {
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    downloadUrl: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
   };
 };
 
 export type DeleteFileMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
-export type DeleteFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
+export type DeleteFileMutation = { deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetTodosQuery = {
-  __typename?: "Query";
   todos: Array<{
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: unknown;
+    updatedAt: unknown;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   }>;
 };
@@ -661,20 +284,17 @@ export type CreateTodoMutationVariables = Exact<{
 }>;
 
 export type CreateTodoMutation = {
-  __typename?: "Mutation";
   createTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -684,76 +304,66 @@ export type GenerateTodosMutationVariables = Exact<{
 }>;
 
 export type GenerateTodosMutation = {
-  __typename?: "Mutation";
   generateTodos: {
-    __typename?: "GenerateTodosPayload";
     status: GenerateTodosStatus;
-    message?: string | null;
+    message: string | null;
     todos: Array<{
-      __typename?: "Todo";
       id: string;
       title: string;
-      description?: string | null;
+      description: string | null;
       completed: boolean;
       attachments: Array<{
-        __typename?: "FileInfo";
         id: string;
         originalName: string;
         mimeType: string;
         sizeBytes: number;
-        downloadUrl?: string | null;
+        downloadUrl: string | null;
       }>;
     }>;
   };
 };
 
 export type UpdateTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
   input: UpdateTodoInput;
 }>;
 
 export type UpdateTodoMutation = {
-  __typename?: "Mutation";
   updateTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type DeleteTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteTodoMutation = { __typename?: "Mutation"; deleteTodo: boolean };
+export type DeleteTodoMutation = { deleteTodo: boolean };
 
 export type ToggleTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type ToggleTodoMutation = {
-  __typename?: "Mutation";
   toggleTodo: {
-    __typename?: "Todo";
     id: string;
     completed: boolean;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -761,22 +371,19 @@ export type ToggleTodoMutation = {
 export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoCreatedSubscription = {
-  __typename?: "Subscription";
   todoCreated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: unknown;
+    updatedAt: unknown;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -784,52 +391,43 @@ export type OnTodoCreatedSubscription = {
 export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoUpdatedSubscription = {
-  __typename?: "Subscription";
   todoUpdated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: unknown;
+    updatedAt: unknown;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoDeletedSubscription = {
-  __typename?: "Subscription";
-  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
-};
+export type OnTodoDeletedSubscription = { todoDeleted: { id: string; organizationId: string } };
 
 export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnTodoToggledSubscription = {
-  __typename?: "Subscription";
   todoToggled: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: unknown;
+    updatedAt: unknown;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
