@@ -10,7 +10,7 @@ catalog:
   better-auth: "^1.6.23"
   "@better-auth/expo": "1.6.23"
   dotenv: "^17.2.2"
-  drizzle-orm: "^0.44.5"
+  drizzle-orm: "^0.45.2"
   graphql: "^16.11.0"
   graphql-request: "^7.4.0"
   graphql-ws: "^6.0.7"
@@ -32,9 +32,10 @@ catalog:
   # Tooling
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps).
-  vitest: "3.2.4"
-  "@vitest/coverage-v8": "3.2.4"
-  "@vitest/ui": "3.2.4"
+  # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image).
+  vitest: "3.2.6"
+  "@vitest/coverage-v8": "3.2.6"
+  "@vitest/ui": "3.2.6"
   prettier: "^3.7.4"
   "@types/node": "^24.3.0"
 
@@ -53,5 +54,11 @@ catalogs:
     react-native-worklets: "0.5.1"
     tailwindcss: "3.4.17"
 
+# Force fixed versions for packages that Trivy flags as CRITICAL in the API image
+# (optional better-auth peers + transitive CLI deps otherwise pin older releases).
+# minimatch: historical override for transitive vulnerability pin.
 overrides:
   minimatch: 10.2.1
+  shell-quote: "1.8.4"
+  tar: "7.5.19"
+  esbuild: "0.27.3"
