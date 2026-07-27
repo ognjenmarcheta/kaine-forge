@@ -81,7 +81,7 @@
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
-    "chalk": "^5.6.2",
+    "chalk": "^6.0.0",
     "eslint": "^9.35.0",
     "husky": "^9.1.7",
     "knip": "^6.29.0",
