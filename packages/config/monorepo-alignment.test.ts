@@ -105,6 +105,21 @@ describe("monorepo alignment", () => {
     });
   });
 
+  it("enables incremental tsc without project-references composite (issue #147)", () => {
+    // Full references (composite + references[]) stay deferred: they collide with
+    // paths: {} build configs and root source aliases. Incremental still reuses
+    // .tsbuildinfo per workspace without that graph.
+    const sharedBase = readJson("packages/config/typescript/tsconfig.base.json") as {
+      compilerOptions?: Record<string, unknown>;
+    };
+    const compilerOptions = sharedBase.compilerOptions ?? {};
+
+    expect(compilerOptions.composite).toBe(false);
+    expect(compilerOptions.incremental).toBe(true);
+    expect(compilerOptions.tsBuildInfoFile).toBe("${configDir}/.tsbuildinfo");
+    expect(readText(".gitignore")).toMatch(/tsbuildinfo/);
+  });
+
   it("emits flat dist for Docker-backed tsc packages (no nested monorepo paths)", () => {
     // Root paths map @repo/* to source, which widens tsc rootDir and nests dist
     // (e.g. apps/api/dist/apps/api/src). Production builds clear paths and pin rootDir.
