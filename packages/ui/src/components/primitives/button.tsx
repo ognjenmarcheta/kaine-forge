@@ -1,4 +1,4 @@
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 import { cn } from "../../lib/cn";
@@ -12,7 +12,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ asChild = false, appearance, className, spacing, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
+    const Comp = asChild ? Slot.Root : "button";
 
     return (
       <Comp
