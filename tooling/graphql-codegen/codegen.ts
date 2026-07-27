@@ -18,9 +18,16 @@ const config: CodegenConfig = {
     },
     "../../apps/web/src/graphql/generated/react-query.ts": {
       documents: webDocuments,
-      plugins: ["typescript", "typescript-operations", "typescript-react-query"],
+      // operations + react-query only: avoids duplicate types with typescript plugin (v6/v7).
+      plugins: ["typescript-operations", "typescript-react-query"],
       config: {
-        documentMode: "documentNode",
+        documentMode: "string",
+        preResolveTypes: true,
+        onlyOperationTypes: true,
+        skipTypename: true,
+        scalars: {
+          DateTime: "string"
+        },
         exposeMutationKeys: true,
         exposeQueryKeys: true,
         fetcher: {
@@ -38,9 +45,15 @@ const config: CodegenConfig = {
     },
     "../../apps/mobile/src/graphql/generated/react-query.ts": {
       documents: mobileDocuments,
-      plugins: ["typescript", "typescript-operations", "typescript-react-query"],
+      plugins: ["typescript-operations", "typescript-react-query"],
       config: {
-        documentMode: "documentNode",
+        documentMode: "string",
+        preResolveTypes: true,
+        onlyOperationTypes: true,
+        skipTypename: true,
+        scalars: {
+          DateTime: "string"
+        },
         exposeMutationKeys: true,
         exposeQueryKeys: true,
         fetcher: {

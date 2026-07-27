@@ -23,10 +23,10 @@ catalog:
   tailwind-merge: "^3.3.1"
   sonner: "^2.0.7"
   # Web React DOM stack (caret ranges; mobile uses catalog:mobile)
-  react: "^19.1.1"
-  react-dom: "^19.1.1"
-  "@types/react": "^19.1.10"
-  "@types/react-dom": "^19.1.7"
+  react: "^19.2.8"
+  react-dom: "^19.2.8"
+  "@types/react": "^19.2.17"
+  "@types/react-dom": "^19.2.3"
   # Web Tailwind v4
   tailwindcss: "^4.2.0"
   # Tooling
@@ -40,18 +40,19 @@ catalog:
   "@types/node": "^24.3.0"
 
 catalogs:
-  # Expo SDK / React Native singleton graph — pin exactly; Renovate freezes these paths.
+  # Expo SDK / React Native singleton graph — pin exactly; freezes paths (issue #198).
+  # Pins track Expo SDK 55 bundledNativeModules (react-native 0.83.x, react 19.2).
   mobile:
-    react: "19.1.0"
-    react-dom: "19.1.0"
-    "@types/react": "~19.1.10"
-    "@types/react-dom": "~19.1.11"
-    react-native: "0.81.5"
+    react: "19.2.0"
+    react-dom: "19.2.0"
+    "@types/react": "~19.2.0"
+    "@types/react-dom": "~19.2.0"
+    react-native: "0.83.10"
     nativewind: "4.2.1"
     react-native-css-interop: "0.2.1"
-    react-native-reanimated: "4.1.1"
+    react-native-reanimated: "4.2.1"
     react-native-safe-area-context: "5.6.2"
-    react-native-worklets: "0.5.1"
+    react-native-worklets: "0.7.4"
     tailwindcss: "3.4.17"
 
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
@@ -62,3 +63,7 @@ overrides:
   shell-quote: "1.8.4"
   tar: "7.5.19"
   esbuild: "0.27.3"
+  # Keep better-auth/expo peers on the Expo SDK 55 line (not random major peers).
+  expo-constants: "~55.0.17"
+  expo-linking: "~55.0.16"
+  "@expo/metro-runtime": "~55.0.12"

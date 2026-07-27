@@ -1,412 +1,82 @@
-import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
-import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = {
-  [_ in K]?: never;
-};
+/** Internal type. DO NOT USE DIRECTLY. */
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+/** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> =
   | T
   | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string };
-  String: { input: string; output: string };
-  Boolean: { input: boolean; output: boolean };
-  Int: { input: number; output: number };
-  Float: { input: number; output: number };
-  DateTime: { input: any; output: any };
-};
-
-export type AssistantConversation = {
-  __typename?: "AssistantConversation";
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  title?: Maybe<Scalars["String"]["output"]>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type AssistantMessage = {
-  __typename?: "AssistantMessage";
-  content: Scalars["String"]["output"];
-  conversationId: Scalars["ID"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  toolActions: Array<AssistantToolAction>;
-};
-
-export type AssistantMessageDelta = {
-  __typename?: "AssistantMessageDelta";
-  conversationId: Scalars["ID"]["output"];
-  delta: Scalars["String"]["output"];
-};
-
-export type AssistantToolAction = {
-  __typename?: "AssistantToolAction";
-  input?: Maybe<Scalars["String"]["output"]>;
-  output?: Maybe<Scalars["String"]["output"]>;
-  tool: Scalars["String"]["output"];
-};
-
-export type CreateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
-};
-
+import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
+import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
+import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type CreateTodoInput = {
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title: Scalars["String"]["input"];
+  description?: string | null | undefined;
+  title: string;
 };
 
-export type FileInfo = {
-  __typename?: "FileInfo";
-  bucket: Scalars["String"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  downloadUrl?: Maybe<Scalars["String"]["output"]>;
-  entityId?: Maybe<Scalars["ID"]["output"]>;
-  entityType?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  mimeType: Scalars["String"]["output"];
-  originalName: Scalars["String"]["output"];
-  sizeBytes: Scalars["Int"]["output"];
-  status: FileStatus;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export enum FileStatus {
-  Deleted = "deleted",
-  Pending = "pending",
-  Uploaded = "uploaded"
-}
+export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-  status?: InputMaybe<FileStatus>;
-};
-
-export type GenerateTodosInput = {
-  prompt: Scalars["String"]["input"];
-};
-
-export type GenerateTodosPayload = {
-  __typename?: "GenerateTodosPayload";
-  message?: Maybe<Scalars["String"]["output"]>;
-  status: GenerateTodosStatus;
-  todos: Array<Todo>;
-};
-
-export enum GenerateTodosStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Created = "CREATED",
-  Failed = "FAILED"
-}
-
-export type Mutation = {
-  __typename?: "Mutation";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  addTodoToNote: Todo;
-  confirmUpload: FileInfo;
-  createNote: Note;
-  createTodo: Todo;
-  deleteConversation: Scalars["Boolean"]["output"];
-  deleteFile: Scalars["Boolean"]["output"];
-  deleteNote: Scalars["Boolean"]["output"];
-  deleteTodo: Scalars["Boolean"]["output"];
-  generateTodos: GenerateTodosPayload;
-  requestUploadUrl: PresignedUploadResponse;
-  sendMessage: SendMessagePayload;
-  toggleTodo: Todo;
-  updateNote: Note;
-  updateTodo: Todo;
-};
-
-export type MutationAddTodoToNoteArgs = {
-  input: CreateTodoInput;
-  noteId: Scalars["ID"]["input"];
-};
-
-export type MutationConfirmUploadArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationCreateNoteArgs = {
-  input: CreateNoteInput;
-};
-
-export type MutationCreateTodoArgs = {
-  input: CreateTodoInput;
-};
-
-export type MutationDeleteConversationArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteFileArgs = {
-  fileId: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationDeleteTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationGenerateTodosArgs = {
-  input: GenerateTodosInput;
-};
-
-export type MutationRequestUploadUrlArgs = {
-  input: RequestUploadInput;
-};
-
-export type MutationSendMessageArgs = {
-  input: SendMessageInput;
-};
-
-export type MutationToggleTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type MutationUpdateNoteArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateNoteInput;
-};
-
-export type MutationUpdateTodoArgs = {
-  id: Scalars["ID"]["input"];
-  input: UpdateTodoInput;
-};
-
-export type Note = {
-  __typename?: "Note";
-  body?: Maybe<Scalars["String"]["output"]>;
-  createdAt: Scalars["DateTime"]["output"];
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  todos: Array<Todo>;
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type NoteDeletedPayload = {
-  __typename?: "NoteDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
-
-export type Organization = {
-  __typename?: "Organization";
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  slug: Scalars["String"]["output"];
-};
-
-export type OrganizationInvitation = {
-  __typename?: "OrganizationInvitation";
-  email: Scalars["String"]["output"];
-  expiresAt: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  role: Scalars["String"]["output"];
-  status: Scalars["String"]["output"];
-};
-
-export type OrganizationMember = {
-  __typename?: "OrganizationMember";
-  email: Scalars["String"]["output"];
-  id: Scalars["ID"]["output"];
-  name: Scalars["String"]["output"];
-  role: Scalars["String"]["output"];
-  userId: Scalars["ID"]["output"];
-};
-
-export type PresignedUploadResponse = {
-  __typename?: "PresignedUploadResponse";
-  expiresIn: Scalars["Int"]["output"];
-  fileId: Scalars["ID"]["output"];
-  key: Scalars["String"]["output"];
-  uploadUrl: Scalars["String"]["output"];
-};
-
-export type Query = {
-  __typename?: "Query";
-  assistantMessages: Array<AssistantMessage>;
-  conversations: Array<AssistantConversation>;
-  currentOrganization?: Maybe<Organization>;
-  file?: Maybe<FileInfo>;
-  files: Array<FileInfo>;
-  health: Scalars["String"]["output"];
-  invitations: Array<OrganizationInvitation>;
-  members: Array<OrganizationMember>;
-  note?: Maybe<Note>;
-  notes: Array<Note>;
-  organizations: Array<Organization>;
-  todo?: Maybe<Todo>;
-  todos: Array<Todo>;
-};
-
-export type QueryAssistantMessagesArgs = {
-  conversationId: Scalars["ID"]["input"];
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryConversationsArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryFileArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryFilesArgs = {
-  filter?: InputMaybe<FilesFilterInput>;
-};
-
-export type QueryNoteArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryNotesArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
-};
-
-export type QueryTodoArgs = {
-  id: Scalars["ID"]["input"];
-};
-
-export type QueryTodosArgs = {
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
+  status?: FileStatus | null | undefined;
 };
 
 export type RequestUploadInput = {
-  entityId?: InputMaybe<Scalars["ID"]["input"]>;
-  entityType?: InputMaybe<Scalars["String"]["input"]>;
-  mimeType: Scalars["String"]["input"];
-  originalName: Scalars["String"]["input"];
-  sizeBytes: Scalars["Int"]["input"];
-};
-
-export type SendMessageInput = {
-  conversationId?: InputMaybe<Scalars["ID"]["input"]>;
-  message: Scalars["String"]["input"];
-};
-
-export type SendMessagePayload = {
-  __typename?: "SendMessagePayload";
-  conversationId: Scalars["ID"]["output"];
-  message?: Maybe<Scalars["String"]["output"]>;
-  reply?: Maybe<Scalars["String"]["output"]>;
-  status: SendMessageStatus;
-  toolActions: Array<AssistantToolAction>;
-};
-
-export enum SendMessageStatus {
-  AiNotConfigured = "AI_NOT_CONFIGURED",
-  Failed = "FAILED",
-  Replied = "REPLIED"
-}
-
-export type Subscription = {
-  __typename?: "Subscription";
-  _empty?: Maybe<Scalars["Boolean"]["output"]>;
-  assistantMessageDelta: AssistantMessageDelta;
-  noteCreated: Note;
-  noteDeleted: NoteDeletedPayload;
-  noteUpdated: Note;
-  todoCreated: Todo;
-  todoDeleted: TodoDeletedPayload;
-  todoToggled: Todo;
-  todoUpdated: Todo;
-};
-
-export type Todo = {
-  __typename?: "Todo";
-  attachments: Array<FileInfo>;
-  completed: Scalars["Boolean"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
-  description?: Maybe<Scalars["String"]["output"]>;
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-  title: Scalars["String"]["output"];
-  updatedAt: Scalars["DateTime"]["output"];
-};
-
-export type TodoDeletedPayload = {
-  __typename?: "TodoDeletedPayload";
-  id: Scalars["ID"]["output"];
-  organizationId: Scalars["ID"]["output"];
-};
-
-export type UpdateNoteInput = {
-  body?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  entityId?: string | number | null | undefined;
+  entityType?: string | null | undefined;
+  mimeType: string;
+  originalName: string;
+  sizeBytes: number;
 };
 
 export type UpdateTodoInput = {
-  completed?: InputMaybe<Scalars["Boolean"]["input"]>;
-  description?: InputMaybe<Scalars["String"]["input"]>;
-  title?: InputMaybe<Scalars["String"]["input"]>;
+  completed?: boolean | null | undefined;
+  description?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
-export type MobileHealthQuery = { __typename?: "Query"; health: string };
+export type MobileHealthQuery = { health: string };
 
 export type GetMobileFileQueryVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type GetMobileFileQuery = {
-  __typename?: "Query";
-  file?: {
-    __typename?: "FileInfo";
+  file: {
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   } | null;
 };
 
 export type GetMobileFilesQueryVariables = Exact<{
-  filter?: InputMaybe<FilesFilterInput>;
+  filter?: FilesFilterInput | null | undefined;
 }>;
 
 export type GetMobileFilesQuery = {
-  __typename?: "Query";
   files: Array<{
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType?: string | null;
-    entityId?: string | null;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    entityType: string | null;
+    entityId: string | null;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
 };
 
@@ -415,64 +85,52 @@ export type RequestMobileUploadUrlMutationVariables = Exact<{
 }>;
 
 export type RequestMobileUploadUrlMutation = {
-  __typename?: "Mutation";
-  requestUploadUrl: {
-    __typename?: "PresignedUploadResponse";
-    fileId: string;
-    uploadUrl: string;
-    key: string;
-    expiresIn: number;
-  };
+  requestUploadUrl: { fileId: string; uploadUrl: string; key: string; expiresIn: number };
 };
 
 export type ConfirmMobileUploadMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
 export type ConfirmMobileUploadMutation = {
-  __typename?: "Mutation";
   confirmUpload: {
-    __typename?: "FileInfo";
     id: string;
     key: string;
     originalName: string;
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    downloadUrl?: string | null;
-    createdAt: any;
-    updatedAt: any;
+    downloadUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
 export type DeleteMobileFileMutationVariables = Exact<{
-  fileId: Scalars["ID"]["input"];
+  fileId: string | number;
 }>;
 
-export type DeleteMobileFileMutation = { __typename?: "Mutation"; deleteFile: boolean };
+export type DeleteMobileFileMutation = { deleteFile: boolean };
 
 export type GetMobileTodosQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars["Int"]["input"]>;
-  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 export type GetMobileTodosQuery = {
-  __typename?: "Query";
   todos: Array<{
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   }>;
 };
@@ -482,79 +140,70 @@ export type CreateMobileTodoMutationVariables = Exact<{
 }>;
 
 export type CreateMobileTodoMutation = {
-  __typename?: "Mutation";
   createTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type UpdateMobileTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
   input: UpdateTodoInput;
 }>;
 
 export type UpdateMobileTodoMutation = {
-  __typename?: "Mutation";
   updateTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
 export type DeleteMobileTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
-export type DeleteMobileTodoMutation = { __typename?: "Mutation"; deleteTodo: boolean };
+export type DeleteMobileTodoMutation = { deleteTodo: boolean };
 
 export type ToggleMobileTodoMutationVariables = Exact<{
-  id: Scalars["ID"]["input"];
+  id: string | number;
 }>;
 
 export type ToggleMobileTodoMutation = {
-  __typename?: "Mutation";
   toggleTodo: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -562,22 +211,19 @@ export type ToggleMobileTodoMutation = {
 export type OnMobileTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnMobileTodoCreatedSubscription = {
-  __typename?: "Subscription";
   todoCreated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -585,22 +231,19 @@ export type OnMobileTodoCreatedSubscription = {
 export type OnMobileTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnMobileTodoUpdatedSubscription = {
-  __typename?: "Subscription";
   todoUpdated: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
@@ -608,38 +251,53 @@ export type OnMobileTodoUpdatedSubscription = {
 export type OnMobileTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnMobileTodoDeletedSubscription = {
-  __typename?: "Subscription";
-  todoDeleted: { __typename?: "TodoDeletedPayload"; id: string; organizationId: string };
+  todoDeleted: { id: string; organizationId: string };
 };
 
 export type OnMobileTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnMobileTodoToggledSubscription = {
-  __typename?: "Subscription";
   todoToggled: {
-    __typename?: "Todo";
     id: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     completed: boolean;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string;
+    updatedAt: string;
     attachments: Array<{
-      __typename?: "FileInfo";
       id: string;
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      downloadUrl?: string | null;
+      downloadUrl: string | null;
     }>;
   };
 };
 
-export const MobileHealthDocument = `
+export class TypedDocumentString<TResult, TVariables>
+  extends String
+  implements DocumentTypeDecoration<TResult, TVariables>
+{
+  __apiType?: NonNullable<DocumentTypeDecoration<TResult, TVariables>["__apiType"]>;
+  private value: string;
+  public __meta__?: Record<string, any> | undefined;
+
+  constructor(value: string, __meta__?: Record<string, any> | undefined) {
+    super(value);
+    this.value = value;
+    this.__meta__ = __meta__;
+  }
+
+  override toString(): string & DocumentTypeDecoration<TResult, TVariables> {
+    return this.value;
+  }
+}
+
+export const MobileHealthDocument = new TypedDocumentString(`
     query MobileHealth {
   health
 }
-    `;
+    `);
 
 export const useMobileHealthQuery = <TData = MobileHealthQuery, TError = unknown>(
   variables?: MobileHealthQueryVariables,
@@ -659,7 +317,7 @@ export const useMobileHealthQuery = <TData = MobileHealthQuery, TError = unknown
 useMobileHealthQuery.getKey = (variables?: MobileHealthQueryVariables) =>
   variables === undefined ? ["MobileHealth"] : ["MobileHealth", variables];
 
-export const GetMobileFileDocument = `
+export const GetMobileFileDocument = new TypedDocumentString(`
     query GetMobileFile($id: ID!) {
   file(id: $id) {
     id
@@ -675,7 +333,7 @@ export const GetMobileFileDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetMobileFileQuery = <TData = GetMobileFileQuery, TError = unknown>(
   variables: GetMobileFileQueryVariables,
@@ -697,7 +355,7 @@ useGetMobileFileQuery.getKey = (variables: GetMobileFileQueryVariables) => [
   variables
 ];
 
-export const GetMobileFilesDocument = `
+export const GetMobileFilesDocument = new TypedDocumentString(`
     query GetMobileFiles($filter: FilesFilterInput) {
   files(filter: $filter) {
     id
@@ -713,7 +371,7 @@ export const GetMobileFilesDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetMobileFilesQuery = <TData = GetMobileFilesQuery, TError = unknown>(
   variables?: GetMobileFilesQueryVariables,
@@ -733,7 +391,7 @@ export const useGetMobileFilesQuery = <TData = GetMobileFilesQuery, TError = unk
 useGetMobileFilesQuery.getKey = (variables?: GetMobileFilesQueryVariables) =>
   variables === undefined ? ["GetMobileFiles"] : ["GetMobileFiles", variables];
 
-export const RequestMobileUploadUrlDocument = `
+export const RequestMobileUploadUrlDocument = new TypedDocumentString(`
     mutation RequestMobileUploadUrl($input: RequestUploadInput!) {
   requestUploadUrl(input: $input) {
     fileId
@@ -742,7 +400,7 @@ export const RequestMobileUploadUrlDocument = `
     expiresIn
   }
 }
-    `;
+    `);
 
 export const useRequestMobileUploadUrlMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -769,7 +427,7 @@ export const useRequestMobileUploadUrlMutation = <TError = unknown, TContext = u
 
 useRequestMobileUploadUrlMutation.getKey = () => ["RequestMobileUploadUrl"];
 
-export const ConfirmMobileUploadDocument = `
+export const ConfirmMobileUploadDocument = new TypedDocumentString(`
     mutation ConfirmMobileUpload($fileId: ID!) {
   confirmUpload(fileId: $fileId) {
     id
@@ -783,7 +441,7 @@ export const ConfirmMobileUploadDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useConfirmMobileUploadMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -810,11 +468,11 @@ export const useConfirmMobileUploadMutation = <TError = unknown, TContext = unkn
 
 useConfirmMobileUploadMutation.getKey = () => ["ConfirmMobileUpload"];
 
-export const DeleteMobileFileDocument = `
+export const DeleteMobileFileDocument = new TypedDocumentString(`
     mutation DeleteMobileFile($fileId: ID!) {
   deleteFile(fileId: $fileId)
 }
-    `;
+    `);
 
 export const useDeleteMobileFileMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -837,7 +495,7 @@ export const useDeleteMobileFileMutation = <TError = unknown, TContext = unknown
 
 useDeleteMobileFileMutation.getKey = () => ["DeleteMobileFile"];
 
-export const GetMobileTodosDocument = `
+export const GetMobileTodosDocument = new TypedDocumentString(`
     query GetMobileTodos($limit: Int, $offset: Int) {
   todos(limit: $limit, offset: $offset) {
     id
@@ -855,7 +513,7 @@ export const GetMobileTodosDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useGetMobileTodosQuery = <TData = GetMobileTodosQuery, TError = unknown>(
   variables?: GetMobileTodosQueryVariables,
@@ -875,7 +533,7 @@ export const useGetMobileTodosQuery = <TData = GetMobileTodosQuery, TError = unk
 useGetMobileTodosQuery.getKey = (variables?: GetMobileTodosQueryVariables) =>
   variables === undefined ? ["GetMobileTodos"] : ["GetMobileTodos", variables];
 
-export const CreateMobileTodoDocument = `
+export const CreateMobileTodoDocument = new TypedDocumentString(`
     mutation CreateMobileTodo($input: CreateTodoInput!) {
   createTodo(input: $input) {
     id
@@ -893,7 +551,7 @@ export const CreateMobileTodoDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useCreateMobileTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -916,7 +574,7 @@ export const useCreateMobileTodoMutation = <TError = unknown, TContext = unknown
 
 useCreateMobileTodoMutation.getKey = () => ["CreateMobileTodo"];
 
-export const UpdateMobileTodoDocument = `
+export const UpdateMobileTodoDocument = new TypedDocumentString(`
     mutation UpdateMobileTodo($id: ID!, $input: UpdateTodoInput!) {
   updateTodo(id: $id, input: $input) {
     id
@@ -934,7 +592,7 @@ export const UpdateMobileTodoDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useUpdateMobileTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -957,11 +615,11 @@ export const useUpdateMobileTodoMutation = <TError = unknown, TContext = unknown
 
 useUpdateMobileTodoMutation.getKey = () => ["UpdateMobileTodo"];
 
-export const DeleteMobileTodoDocument = `
+export const DeleteMobileTodoDocument = new TypedDocumentString(`
     mutation DeleteMobileTodo($id: ID!) {
   deleteTodo(id: $id)
 }
-    `;
+    `);
 
 export const useDeleteMobileTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -984,7 +642,7 @@ export const useDeleteMobileTodoMutation = <TError = unknown, TContext = unknown
 
 useDeleteMobileTodoMutation.getKey = () => ["DeleteMobileTodo"];
 
-export const ToggleMobileTodoDocument = `
+export const ToggleMobileTodoDocument = new TypedDocumentString(`
     mutation ToggleMobileTodo($id: ID!) {
   toggleTodo(id: $id) {
     id
@@ -1002,7 +660,7 @@ export const ToggleMobileTodoDocument = `
     updatedAt
   }
 }
-    `;
+    `);
 
 export const useToggleMobileTodoMutation = <TError = unknown, TContext = unknown>(
   options?: UseMutationOptions<
@@ -1025,7 +683,7 @@ export const useToggleMobileTodoMutation = <TError = unknown, TContext = unknown
 
 useToggleMobileTodoMutation.getKey = () => ["ToggleMobileTodo"];
 
-export const OnMobileTodoCreatedDocument = `
+export const OnMobileTodoCreatedDocument = new TypedDocumentString(`
     subscription OnMobileTodoCreated {
   todoCreated {
     id
@@ -1043,8 +701,8 @@ export const OnMobileTodoCreatedDocument = `
     updatedAt
   }
 }
-    `;
-export const OnMobileTodoUpdatedDocument = `
+    `);
+export const OnMobileTodoUpdatedDocument = new TypedDocumentString(`
     subscription OnMobileTodoUpdated {
   todoUpdated {
     id
@@ -1062,16 +720,16 @@ export const OnMobileTodoUpdatedDocument = `
     updatedAt
   }
 }
-    `;
-export const OnMobileTodoDeletedDocument = `
+    `);
+export const OnMobileTodoDeletedDocument = new TypedDocumentString(`
     subscription OnMobileTodoDeleted {
   todoDeleted {
     id
     organizationId
   }
 }
-    `;
-export const OnMobileTodoToggledDocument = `
+    `);
+export const OnMobileTodoToggledDocument = new TypedDocumentString(`
     subscription OnMobileTodoToggled {
   todoToggled {
     id
@@ -1089,4 +747,4 @@ export const OnMobileTodoToggledDocument = `
     updatedAt
   }
 }
-    `;
+    `);
