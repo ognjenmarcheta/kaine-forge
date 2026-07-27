@@ -24,7 +24,7 @@
     "@better-auth/expo": "catalog:",
     "@graphql-typed-document-node/core": "catalog:",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@react-navigation/drawer": "^7.5.0",
+    "@react-navigation/drawer": "^7.13.5",
     "@repo/auth": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/logger": "workspace:*",
