@@ -61,7 +61,7 @@
   },
   "scripts": {
     "dev": "echo \"@repo/auth has no dev runtime\"",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

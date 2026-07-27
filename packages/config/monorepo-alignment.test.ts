@@ -105,10 +105,8 @@ describe("monorepo alignment", () => {
     });
   });
 
-  it("enables incremental tsc without project-references composite (issue #147)", () => {
-    // Full references (composite + references[]) stay deferred: they collide with
-    // paths: {} build configs and root source aliases. Incremental still reuses
-    // .tsbuildinfo per workspace without that graph.
+  it("keeps typecheck base non-composite with incremental (issue #147 dual-config)", () => {
+    // IDE / turbo typecheck stays on source paths. Emit uses composite build configs.
     const sharedBase = readJson("packages/config/typescript/tsconfig.base.json") as {
       compilerOptions?: Record<string, unknown>;
     };
@@ -118,6 +116,107 @@ describe("monorepo alignment", () => {
     expect(compilerOptions.incremental).toBe(true);
     expect(compilerOptions.tsBuildInfoFile).toBe("${configDir}/.tsbuildinfo");
     expect(readText(".gitignore")).toMatch(/tsbuildinfo/);
+  });
+
+  it("uses composite project references for every tsc-emitting workspace (issue #147)", () => {
+    // Dual-config: tsconfig.json typechecks with source paths; tsconfig.build.json
+    // is composite + paths: {} + tsc -b so emit resolves @repo/* via references/dist.
+    const packageNameToBuildDir: Record<string, string> = {
+      "@repo/logger": "packages/logger",
+      "@repo/email": "packages/email",
+      "@repo/db": "packages/db",
+      "@repo/auth": "packages/auth",
+      "@repo/feature-flags": "packages/feature-flags",
+      "@repo/storage": "packages/storage",
+      "@repo/translation": "packages/translation",
+      "@repo/todos": "packages/todos",
+      "@repo/query": "packages/query",
+      "@repo/persistence": "packages/persistence",
+      "@repo/ui": "packages/ui",
+      "@repo/mobile-ui": "packages/mobile-ui",
+      "@repo/api": "apps/api"
+    };
+
+    const workspaceDirs = [
+      ...readdirSync(resolve(repoRoot, "packages"), { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => `packages/${e.name}`),
+      ...readdirSync(resolve(repoRoot, "apps"), { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => `apps/${e.name}`)
+    ];
+
+    const tscEmitDirs: string[] = [];
+
+    for (const dir of workspaceDirs) {
+      const packageJsonPath = `${dir}/package.json`;
+      try {
+        readText(packageJsonPath);
+      } catch {
+        continue;
+      }
+      const packageJson = readJson(packageJsonPath) as {
+        name?: string;
+        scripts?: Record<string, string>;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const build = packageJson.scripts?.build ?? "";
+      // Emit builds only (skip typecheck-as-build like mobile's `tsc --noEmit`).
+      if (!/\btsc\b/.test(build) || /--noEmit/.test(build)) continue;
+
+      tscEmitDirs.push(dir);
+
+      expect(build).toMatch(/tsc -b/);
+      expect(build).toContain("tsconfig.build.json");
+
+      const buildConfig = readJson(`${dir}/tsconfig.build.json`) as {
+        compilerOptions?: Record<string, unknown>;
+        exclude?: string[];
+        references?: { path: string }[];
+      };
+
+      expect(buildConfig.compilerOptions).toMatchObject({
+        composite: true,
+        rootDir: "src",
+        outDir: "dist",
+        paths: {}
+      });
+      expect(buildConfig.exclude?.some((pattern) => pattern.includes("*.test.ts"))).toBe(true);
+
+      const deps = {
+        ...packageJson.dependencies,
+        ...packageJson.devDependencies
+      };
+      const expectedRefPaths = Object.keys(deps ?? {})
+        .filter((name) => name in packageNameToBuildDir && packageNameToBuildDir[name] !== dir)
+        .map((name) => {
+          const depDir = packageNameToBuildDir[name];
+          // Prefer relative path ending with dep's tsconfig.build.json
+          return `${depDir}/tsconfig.build.json`;
+        });
+
+      const actualRefPaths = (buildConfig.references ?? []).map((ref) => {
+        // Normalize to repo-relative for comparison
+        const abs = resolve(repoRoot, dir, ref.path);
+        return relative(repoRoot, abs).replaceAll("\\", "/");
+      });
+
+      for (const expected of expectedRefPaths) {
+        expect(actualRefPaths).toContain(expected);
+      }
+    }
+
+    // Sanity: the known tsc graph is present (not only api).
+    expect(tscEmitDirs).toEqual(
+      expect.arrayContaining([
+        "packages/logger",
+        "packages/email",
+        "packages/auth",
+        "packages/db",
+        "apps/api"
+      ])
+    );
   });
 
   it("emits flat dist for Docker-backed tsc packages (no nested monorepo paths)", () => {
@@ -137,9 +236,11 @@ describe("monorepo alignment", () => {
       expect(buildConfig.compilerOptions).toMatchObject({
         rootDir: "src",
         outDir: "dist",
-        paths: {}
+        paths: {},
+        composite: true
       });
       expect(buildConfig.exclude?.some((pattern) => pattern.includes("*.test.ts"))).toBe(true);
+      expect(packageJson.scripts?.build).toMatch(/tsc -b/);
       expect(packageJson.scripts?.build).toContain("tsconfig.build.json");
     }
 
