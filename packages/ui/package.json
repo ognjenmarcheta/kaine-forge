@@ -47,7 +47,7 @@
     "@tanstack/react-form": "^1.28.3",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
-    "lucide-react": "^0.575.0",
+    "lucide-react": "^1.27.0",
     "radix-ui": "^1.4.3",
     "react": "catalog:",
     "sonner": "catalog:",
