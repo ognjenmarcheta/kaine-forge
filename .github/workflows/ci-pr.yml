@@ -171,11 +171,15 @@ jobs:
             git fetch origin "$BASE_REF" --depth=1
             FILTER="...[origin/${BASE_REF}]"
             echo "Running turbo tasks for affected filter: $FILTER"
-            pnpm exec turbo run format:check lint typecheck test --filter="$FILTER" --continue
+            # Workspace tests run once in the coverage job (issue #143 option a).
+            # Keep format/lint/typecheck affected-scoped; do not re-run turbo test.
+            pnpm exec turbo run format:check lint typecheck --filter="$FILTER" --continue
             # Root AI package checks are not turbo workspace packages.
             pnpm run ai:lint
             pnpm run ai:typecheck
             pnpm run ai:test
+            # scripts/doctor tests are not under vitest.coverage.config.ts projects.
+            node --test scripts/doctor.test.mjs
           else
             echo "Non-PR event: running full quality gates (includes ai:*)"
             pnpm run format:check
@@ -190,16 +194,17 @@ jobs:
 
   coverage:
     name: Coverage Threshold
-    # Full-repo vitest run with global + per-path floors. It is deliberately a
-    # separate job rather than a step in check-fast: it cannot be affected-scoped
-    # (thresholds are computed across all projects), so serializing it behind the
-    # affected gate made the fast gate as slow as the whole test suite.
+    # Sole PR workspace-test + threshold gate (issue #143 option a). Thresholds
+    # cannot be affected-scoped, so this stays a full-repo vitest run rather than
+    # a turbo --filter task. Build first: most packages resolve siblings through
+    # exports → dist (turbo test dependsOn ^build); coverage previously had no
+    # build step and only worked when dist happened to exist or tests stayed local.
     if: |
       always() &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
     needs: detect-paths
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -208,6 +213,20 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore Turbo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-coverage-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      # Only packages emit the dist that vitest resolves via package exports.
+      # Do not build desktop/mobile apps here — desktop runs Tauri/Rust and is
+      # far heavier than unit tests need (apps already alias or use package dist).
+      - name: Build workspace packages for coverage
+        run: pnpm exec turbo run build --filter="./packages/*"
 
       - name: Coverage threshold
         env:

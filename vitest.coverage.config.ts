@@ -5,6 +5,7 @@ export default defineConfig({
     projects: [
       "apps/api",
       "apps/desktop",
+      "apps/mobile",
       "apps/web",
       "packages/auth",
       "packages/config",
@@ -12,6 +13,7 @@ export default defineConfig({
       "packages/email",
       "packages/feature-flags",
       "packages/logger",
+      "packages/mobile-ui",
       "packages/persistence",
       "packages/query",
       "packages/storage",
@@ -39,9 +41,10 @@ export default defineConfig({
         "packages/config/eslint/**",
         "packages/config/prettier/**",
         "packages/config/tailwind/**",
-        "packages/mobile-ui/**",
         "tooling/**",
         "apps/e2e/**",
+        // App shell has almost no unit coverage (~3% lines measured). Tests still
+        // run via projects above (issue #143); re-include and floor once suite grows.
         "apps/mobile/**",
         "apps/desktop/src-tauri/**"
       ],
@@ -69,6 +72,13 @@ export default defineConfig({
           functions: 55,
           lines: 60,
           statements: 60
+        },
+        // Measured ~50% lines / ~74% branches on mobile-ui alone; floor with headroom.
+        "packages/mobile-ui/src/**": {
+          branches: 50,
+          functions: 45,
+          lines: 40,
+          statements: 40
         }
       }
     }
