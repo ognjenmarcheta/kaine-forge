@@ -1,5 +1,74 @@
 # @repo/mobile
 
+## 1.4.0
+
+### Minor Changes
+
+- 8be5914: Enable mobile social login with @better-auth/expo deep-link OAuth (server expo plugin, client expoClient, env-gated buttons).
+
+### Patch Changes
+
+- 2df98af: Fix the broken web/desktop build by adding the missing `@repo/auth/form` Vite (and mobile Vitest) alias, correct the default `API_CORS_ORIGINS` to the web dev port, migrate organization-scoped query keys to `createActiveOrganizationQueryKey` from `@repo/query` (deprecating `createTodoListQueryKey`), and harden template adoption to cover the `kaineforge`/`kaine_forge` identity forms, mobile auth prefixes, docs, and AI-source files so `template:adopt --check` passes after a by-the-book adoption.
+- 7bdc15c: Add dead-code and dependency-graph enforcement, and finish declaring the graph.
+
+  `pnpm knip` and `pnpm boundaries` are new and both run in `pnpm check`. `turbo boundaries` complements the existing ESLint rules rather than replacing them: it catches importing a package a workspace does not declare, which ESLint cannot see, while ESLint keeps enforcing the web/mobile UI split and the `@repo/*/src` deep-import ban. `boundaries` is experimental in Turbo 2.8, which is why it is additive.
+
+  `turbo boundaries` found 153 undeclared imports: 145 test files importing `vitest`, and `packages/config/eslint/*.js` importing six ESLint plugins. All resolved only through pnpm root hoisting. Every workspace that imports `vitest` now declares it, and the six plugins moved from the root to `@repo/config`, which is where they are imported — the root `eslint.config.mjs` only re-exports. `pnpm --filter <workspace> test` no longer depends on hoisting. One exception remains, marked with `@boundaries-ignore`: `packages/config/mobile-lan-dev.test.ts` reaches into `tooling/dev-mobile-lan.ts`, a loose root script with no workspace of its own to be tested from.
+
+  knip is configured against this repo's conventions rather than run on defaults, which reported 63 false "unused files". Test files are entry points; the vitest `react-native` alias target, Expo/Metro config, and template placeholder files are ignored; the `exports` and `types` rules are off because this repo deliberately exports internals for unit testing. The dependency rule keeps an explicit ignore list for things static analysis cannot see: `pino-pretty` (referenced as a transport string), `tailwindcss` (a Tailwind v4 peer of `@tailwindcss/vite`), the `catalog:mobile` React Native singleton pins, Expo plugin inferences, and `zod` in `@repo/auth`.
+
+  That last one is worth recording: knip reported `zod` as unused in `@repo/auth` and nothing imports it, but removing it breaks the build with TS2742 — better-auth's inferred types reference zod, so it is required for declaration emit. The pre-existing catalog alignment test already guarded it. **Verify a dependency removal with a build, not a grep.**
+
+  Removed genuinely dead code that knip surfaced, each verified unreferenced first: eight source files across api/web/mobile, plus `react-i18next` from `@repo/translation` (declared but imported nowhere in the repo). Deleted `vitest.workspace.ts` — it used `defineWorkspace`, deprecated in the installed Vitest 3.2.4 and removed in 4, was invoked by nothing, and had drifted from `vitest.coverage.config.ts`, which is now the single project list.
+
+  Normalized the four tsconfigs that extended the root base directly instead of the shared presets in `packages/config/typescript/`.
+
+  Five new alignment tests, each verified to fail when violated: every workspace declares `@repo/config`; `globalDependencies` never lists the lockfile or globs a package; neither Dockerfile hand-copies `packages/config`; vitest importers declare vitest; ESLint plugins live in `@repo/config` and not the root.
+
+- 6b03bd4: Add type-aware ESLint via the TypeScript project service: `no-floating-promises`, `no-misused-promises`, and `await-thenable` as errors across the repo (excluding files not covered by any tsconfig). Fix the 14 real violations it surfaced — `void`-wrapping async JSX event handlers and fire-and-forget lifecycle/teardown calls, and extracting the API server's async request handler — with no behavior change. `require-await` is intentionally not enabled (noise on async functions without `await`, e.g. resolvers).
+- 6abdbec: Apply NativeWind dark class/scheme from the resolved theme so design tokens remap in dark mode, and use a single mobile theme persistence key.
+- e69a994: Validate the mobile client environment at boot with a zod schema (`apps/mobile/src/env.config.ts`), mirroring the API and web validators. A misconfigured `EXPO_PUBLIC_API_URL`/`EXPO_PUBLIC_GRAPHQL_URL` (e.g. a value missing its `http(s)://` protocol) now fails fast with a clear message, and a blank value falls back to its default instead of overriding it. The auth config and GraphQL HTTP/WS clients read the validated env via `getMobileEnv()`.
+- 44573ea: Declare `@repo/feature-flags` and resolve organization UI visibility through the shared flag helpers instead of hardcoding true.
+- 2a37f9d: Generate mobile NativeWind design tokens from packages/ui globals.css and fail when they drift.
+- 81919a2: Share auth form validation across web and mobile via `@repo/auth/form`, and document intentional mobile-ui subset in the design system.
+- 21b3002: Make the Turbo dependency graph honest and stop the cache from invalidating itself.
+
+  `@repo/config` was consumed by every workspace through relative `tsconfig` extends and the root ESLint/Prettier configs, but was declared as a dependency by nobody. Three workarounds had grown around that missing edge: a `packages/config/**` entry in `globalDependencies`, a hand-written `COPY --from=pruner /app/packages/config/` in both Dockerfiles because `turbo prune` correctly excluded it, and a hardcoded `SHARED_BUILD_WORKSPACE_DIRS` in `.ai/release.util.ts`. Every workspace now declares `@repo/config`, and all three workarounds are gone — `turbo prune` includes the presets on its own, and `release-apps` derives affected apps from the graph.
+
+  Cache inputs are now scoped to what each task actually reads. Global hashed files drop from 27 to 2:
+  - `pnpm-lock.yaml` left `globalDependencies` — Turborepo already hashes each package's resolved external dependencies, so listing the whole lockfile invalidated every task in every package on any dependency bump (Renovate lands one grouped bump weekly).
+  - `eslint.config.mjs` and `.prettierrc*` moved from `globalDependencies` to per-task `inputs` on `lint` and `format:check` via `$TURBO_ROOT$`, so a lint-config edit no longer invalidates `build` and `test`.
+  - Globbing `packages/config/**` had pulled gitignored `.turbo/*.log` files, `CHANGELOG.md`, and the package's own tests into the global hash. A new `packages/config/turbo.json` narrows its `build` inputs to the preset files.
+  - `build` now excludes `CHANGELOG.md`, so `changeset version` no longer busts every build cache.
+  - `CI` moved from `globalEnv` to `globalPassThroughEnv`. It is unset locally and `true` in Actions, so hashing it meant a CI cache entry could never be restored on a developer machine, or the reverse.
+
+  Three alignment tests guard the fix: every workspace must declare `@repo/config`, `globalDependencies` must not glob a package or list the lockfile, and neither Dockerfile may hand-copy `packages/config`.
+
+  `test` keeps its `^build` dependency. Wiping every `dist` and running tests without building fails `@repo/email#test`, because only `apps/api`, `apps/mobile`, `packages/auth`, and `packages/mobile-ui` alias `@repo/*` to source in their vitest config; the rest resolve siblings through package exports. That is now recorded in the task description.
+
+- Updated dependencies [2df98af]
+- Updated dependencies [22a7c4d]
+- Updated dependencies [8d04ade]
+- Updated dependencies [bfde85a]
+- Updated dependencies [4c45e37]
+- Updated dependencies [7bdc15c]
+- Updated dependencies [8be5914]
+- Updated dependencies [1114f7e]
+- Updated dependencies [81919a2]
+- Updated dependencies [b64b17a]
+- Updated dependencies [fdce5d8]
+- Updated dependencies [79fa89e]
+- Updated dependencies [21b3002]
+  - @repo/todos@1.0.4
+  - @repo/auth@1.5.0
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/mobile-ui@1.0.3
+  - @repo/persistence@1.1.2
+  - @repo/query@1.3.6
+  - @repo/storage@1.2.0
+  - @repo/translation@1.3.1
+
 ## 1.3.2
 
 ### Patch Changes

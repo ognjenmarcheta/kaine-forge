@@ -1,0 +1,16 @@
+# Dependabot config for npm/pnpm workspace updates.
+# Labels match renovate.json so dep PRs skip the Changeset Required gate
+# (apps/** package.json bumps would otherwise fail CI without a release entry).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - release:skip-changeset
+    # pnpm catalogs live in pnpm-workspace.yaml; Dependabot updates lock + manifests.
+    versioning-strategy: increase

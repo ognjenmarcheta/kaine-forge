@@ -1,5 +1,53 @@
 # @repo/desktop
 
+## 1.1.1
+
+### Patch Changes
+
+- dfb7d91: Harden CI against hung jobs and unshardable bottlenecks.
+
+  Every job in all five workflows now declares `timeout-minutes` (15 jobs total). None did before, so GitHub's 360-minute default applied — a hung Playwright `webServer` or `expo export` could burn six hours of runner time per attempt.
+
+  `Coverage Threshold` moved out of `check-fast` into its own parallel job. It is a full-repo vitest run and cannot be affected-scoped, because the global and per-path thresholds are computed across all projects. Serializing it behind the affected gate made the fast gate as slow as the entire test suite.
+
+  E2E now shards across two jobs, each with its own Postgres service. Sharding is across jobs rather than workers on purpose: four of the five specs sign in as the same seeded user, and `web-organizations.e2e.ts` switches that user's active organization while `web-auth-todos` and `web-notes-flows` operate on organization-scoped rows, so concurrent workers would race on `activeOrganizationId`. That constraint is now recorded in `apps/e2e/playwright.config.ts` so `fullyParallel` is not "optimized" on later. Shard count is 2 rather than 4 because the suite is 5 tests in 4 files and every shard re-pays install, `build:core`, browser install, and db seed. Shards emit blob reports that a new `e2e-report` job merges into one HTML report, uploaded even when a shard fails.
+
+  New `Desktop Tauri Build (macOS)` job in Deep Checks. `desktop-check` only runs format, lint, typecheck, and test — the Rust side was never compiled anywhere in CI, so a broken `src-tauri/` or Cargo bump could reach `main` undetected. The job runs `tauri build --no-bundle` on `macos-latest` with a Cargo registry and target cache.
+
+  Added `concurrency` groups to Deep Checks, Security, and PR Labeler; only CI PR and Release had them, so overlapping scheduled or rapid-push runs could previously pile up.
+
+- 50b028d: Opt the Tauri desktop `build` out of Turbo caching via a package-level `apps/desktop/turbo.json`. Its Rust output (`src-tauri/target`) was never declared as a Turbo output, so a cache hit would have restored a stale or absent binary. Cargo's own incremental cache handles desktop rebuilds.
+- 7bdc15c: Add dead-code and dependency-graph enforcement, and finish declaring the graph.
+
+  `pnpm knip` and `pnpm boundaries` are new and both run in `pnpm check`. `turbo boundaries` complements the existing ESLint rules rather than replacing them: it catches importing a package a workspace does not declare, which ESLint cannot see, while ESLint keeps enforcing the web/mobile UI split and the `@repo/*/src` deep-import ban. `boundaries` is experimental in Turbo 2.8, which is why it is additive.
+
+  `turbo boundaries` found 153 undeclared imports: 145 test files importing `vitest`, and `packages/config/eslint/*.js` importing six ESLint plugins. All resolved only through pnpm root hoisting. Every workspace that imports `vitest` now declares it, and the six plugins moved from the root to `@repo/config`, which is where they are imported — the root `eslint.config.mjs` only re-exports. `pnpm --filter <workspace> test` no longer depends on hoisting. One exception remains, marked with `@boundaries-ignore`: `packages/config/mobile-lan-dev.test.ts` reaches into `tooling/dev-mobile-lan.ts`, a loose root script with no workspace of its own to be tested from.
+
+  knip is configured against this repo's conventions rather than run on defaults, which reported 63 false "unused files". Test files are entry points; the vitest `react-native` alias target, Expo/Metro config, and template placeholder files are ignored; the `exports` and `types` rules are off because this repo deliberately exports internals for unit testing. The dependency rule keeps an explicit ignore list for things static analysis cannot see: `pino-pretty` (referenced as a transport string), `tailwindcss` (a Tailwind v4 peer of `@tailwindcss/vite`), the `catalog:mobile` React Native singleton pins, Expo plugin inferences, and `zod` in `@repo/auth`.
+
+  That last one is worth recording: knip reported `zod` as unused in `@repo/auth` and nothing imports it, but removing it breaks the build with TS2742 — better-auth's inferred types reference zod, so it is required for declaration emit. The pre-existing catalog alignment test already guarded it. **Verify a dependency removal with a build, not a grep.**
+
+  Removed genuinely dead code that knip surfaced, each verified unreferenced first: eight source files across api/web/mobile, plus `react-i18next` from `@repo/translation` (declared but imported nowhere in the repo). Deleted `vitest.workspace.ts` — it used `defineWorkspace`, deprecated in the installed Vitest 3.2.4 and removed in 4, was invoked by nothing, and had drifted from `vitest.coverage.config.ts`, which is now the single project list.
+
+  Normalized the four tsconfigs that extended the root base directly instead of the shared presets in `packages/config/typescript/`.
+
+  Five new alignment tests, each verified to fail when violated: every workspace declares `@repo/config`; `globalDependencies` never lists the lockfile or globs a package; neither Dockerfile hand-copies `packages/config`; vitest importers declare vitest; ESLint plugins live in `@repo/config` and not the root.
+
+- 21b3002: Make the Turbo dependency graph honest and stop the cache from invalidating itself.
+
+  `@repo/config` was consumed by every workspace through relative `tsconfig` extends and the root ESLint/Prettier configs, but was declared as a dependency by nobody. Three workarounds had grown around that missing edge: a `packages/config/**` entry in `globalDependencies`, a hand-written `COPY --from=pruner /app/packages/config/` in both Dockerfiles because `turbo prune` correctly excluded it, and a hardcoded `SHARED_BUILD_WORKSPACE_DIRS` in `.ai/release.util.ts`. Every workspace now declares `@repo/config`, and all three workarounds are gone — `turbo prune` includes the presets on its own, and `release-apps` derives affected apps from the graph.
+
+  Cache inputs are now scoped to what each task actually reads. Global hashed files drop from 27 to 2:
+  - `pnpm-lock.yaml` left `globalDependencies` — Turborepo already hashes each package's resolved external dependencies, so listing the whole lockfile invalidated every task in every package on any dependency bump (Renovate lands one grouped bump weekly).
+  - `eslint.config.mjs` and `.prettierrc*` moved from `globalDependencies` to per-task `inputs` on `lint` and `format:check` via `$TURBO_ROOT$`, so a lint-config edit no longer invalidates `build` and `test`.
+  - Globbing `packages/config/**` had pulled gitignored `.turbo/*.log` files, `CHANGELOG.md`, and the package's own tests into the global hash. A new `packages/config/turbo.json` narrows its `build` inputs to the preset files.
+  - `build` now excludes `CHANGELOG.md`, so `changeset version` no longer busts every build cache.
+  - `CI` moved from `globalEnv` to `globalPassThroughEnv`. It is unset locally and `true` in Actions, so hashing it meant a CI cache entry could never be restored on a developer machine, or the reverse.
+
+  Three alignment tests guard the fix: every workspace must declare `@repo/config`, `globalDependencies` must not glob a package or list the lockfile, and neither Dockerfile may hand-copy `packages/config`.
+
+  `test` keeps its `^build` dependency. Wiping every `dist` and running tests without building fails `@repo/email#test`, because only `apps/api`, `apps/mobile`, `packages/auth`, and `packages/mobile-ui` alias `@repo/*` to source in their vitest config; the rest resolve siblings through package exports. That is now recorded in the task description.
+
 ## 1.1.0
 
 ### Minor Changes
