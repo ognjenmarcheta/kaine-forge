@@ -85,7 +85,7 @@
     "eslint": "^9.35.0",
     "husky": "^9.1.7",
     "knip": "^6.29.0",
-    "lint-staged": "^16.1.6",
+    "lint-staged": "^17.2.0",
     "prettier": "catalog:",
     "tsx": "^4.20.5",
     "turbo": "^2.9.14",
