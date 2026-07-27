@@ -51,7 +51,7 @@
     "react": "catalog:mobile",
     "react-native": "catalog:mobile",
     "react-native-css-interop": "catalog:mobile",
-    "react-native-gesture-handler": "^2.28.0",
+    "react-native-gesture-handler": "^3.1.0",
     "react-native-reanimated": "catalog:mobile",
     "react-native-safe-area-context": "catalog:mobile",
     "react-native-screens": "^4.16.0",
