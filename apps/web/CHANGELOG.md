@@ -1,5 +1,12 @@
 # @repo/web
 
+## 1.5.2
+
+### Patch Changes
+
+- Updated dependencies [5aa8a1d]
+  - @repo/auth@1.5.1
+
 ## 1.5.1
 
 ### Patch Changes
