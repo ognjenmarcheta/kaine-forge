@@ -76,6 +76,18 @@
       "enabled": false
     },
     {
+      "description": "GraphQL majors move Yoga/codegen/clients together; intentional suite upgrade only",
+      "matchPackageNames": ["graphql"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "ESLint 10 majors need coordinated monorepo lint toolchain upgrade",
+      "matchPackageNames": ["@eslint/js"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true
