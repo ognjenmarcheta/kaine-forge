@@ -15,7 +15,7 @@ catalog:
   graphql-request: "^7.4.0"
   graphql-ws: "^6.2.0"
   zod: "^4.3.6"
-  zustand: "^5.0.11"
+  zustand: "^5.0.14"
   "@tanstack/react-query": "^5.90.21"
   "@graphql-typed-document-node/core": "^3.2.0"
   class-variance-authority: "^0.7.1"
