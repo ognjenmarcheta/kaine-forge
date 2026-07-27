@@ -1,5 +1,11 @@
 # @repo/db
 
+## 1.6.1
+
+### Patch Changes
+
+- 5aa8a1d: Clear fixable Trivy CRITICAL findings in the API Docker image via workspace overrides (shell-quote, tar, esbuild), catalog bumps (vitest, drizzle-orm), and drop the unused base-image npm (nested tar) from the API runner stage.
+
 ## 1.6.0
 
 ### Minor Changes
