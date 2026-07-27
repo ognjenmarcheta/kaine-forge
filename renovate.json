@@ -64,6 +64,18 @@
       "enabled": false
     },
     {
+      "description": "chalk majors are intentional root-tooling upgrades only",
+      "matchPackageNames": ["chalk"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "vite plugin-react majors need intentional web Vite config review",
+      "matchPackageNames": ["@vitejs/plugin-react"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true
