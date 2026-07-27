@@ -46,6 +46,18 @@
       "enabled": false
     },
     {
+      "description": "eslint-plugin-react-hooks majors expand compiler lint rules monorepo-wide; intentional tooling PR only",
+      "matchPackageNames": ["eslint-plugin-react-hooks"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "i18next majors change TypeScript/selector surfaces; intentional @repo/translation upgrade only",
+      "matchPackageNames": ["i18next"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true
