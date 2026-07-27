@@ -45,7 +45,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "i18next": "^25.5.2"
+    "i18next": "^26.3.6"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
