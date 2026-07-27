@@ -211,3 +211,13 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 ### Dependency catalogs
 
 Shared versions are defined in `pnpm-workspace.yaml` (`catalog:` and `catalogs.mobile`). Prefer catalog references in package.json; do not reintroduce duplicate version ranges for cataloged packages.
+
+### Security scans (free private vs GitHub Code Scanning)
+
+Default security coverage does **not** require GitHub Advanced Security (GHAS):
+
+- **CodeQL** always analyzes TypeScript in CI; results upload to the Security tab only on public repos, or on private repos after you enable Code scanning and set the Actions variable `ENABLE_GITHUB_CODE_SCANNING=true`.
+- **Dependency Review** runs only under the same public / opt-in gate (needs the Dependency Graph product).
+- Free private defaults: **Gitleaks** (secrets), **Trivy** (container CRITICAL fail), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
+
+Private repos with GHAS: enable Code scanning under repository security settings, then set **Settings → Secrets and variables → Actions → Variables → `ENABLE_GITHUB_CODE_SCANNING=true`**.
