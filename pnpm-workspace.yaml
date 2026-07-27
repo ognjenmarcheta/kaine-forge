@@ -24,9 +24,9 @@ catalog:
   sonner: "^2.0.7"
   # Web React DOM stack (caret ranges; mobile uses catalog:mobile)
   react: "^19.1.1"
-  react-dom: "^19.1.1"
+  react-dom: "^19.2.8"
   "@types/react": "^19.1.10"
-  "@types/react-dom": "^19.1.7"
+  "@types/react-dom": "^19.2.3"
   # Web Tailwind v4
   tailwindcss: "^4.2.0"
   # Tooling
