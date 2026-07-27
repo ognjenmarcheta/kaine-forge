@@ -55,10 +55,17 @@ COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
 COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
 
-# Runtime only needs `node`. The base image's bundled npm ships a nested
-# `tar` that Trivy flags CRITICAL (CVE-2026-59873); remove it so the hard
-# gate tracks app dependencies rather than the Node distribution.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Runtime only needs `node` + app files. Drop install toolchains that ship
+# nested vulnerable packages (base npm tar, corepack-cached pnpm's tar) so
+# Trivy CRITICAL tracks app deps rather than the build toolchain.
+RUN rm -rf \
+  /usr/local/lib/node_modules/npm \
+  /usr/local/bin/npm \
+  /usr/local/bin/npx \
+  /usr/local/bin/corepack \
+  /root/.cache/node \
+  /pnpm \
+  "$PNPM_HOME"
 
 USER node
 EXPOSE 4000
