@@ -30,7 +30,7 @@ catalog:
   # Web Tailwind v4 (keep @tailwindcss/vite on the same minor line)
   tailwindcss: "^4.3.3"
   # Tooling
-  typescript: "^5.9.2"
+  typescript: "^6.0.3"
   # Keep vitest and its UI/coverage companions on the same version (peer deps).
   # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image).
   vitest: "3.2.6"
