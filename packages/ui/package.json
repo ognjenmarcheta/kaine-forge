@@ -48,7 +48,7 @@
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "^0.575.0",
-    "radix-ui": "^1.4.3",
+    "radix-ui": "^1.6.7",
     "react": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:"
