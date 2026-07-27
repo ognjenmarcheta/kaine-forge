@@ -146,6 +146,8 @@ Use skills when they match the task:
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
 - `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
+- `kaine-triage-deps`: triage open Dependabot/Renovate PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
@@ -180,3 +182,5 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
+- `kaine-triage-deps`: Triage open Dependabot or Renovate PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
+- `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
