@@ -88,7 +88,7 @@
     "lint-staged": "^16.1.6",
     "prettier": "catalog:",
     "tsx": "^4.20.5",
-    "turbo": "^2.8.10",
+    "turbo": "^2.9.14",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "^2.8.1"
