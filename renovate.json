@@ -88,6 +88,18 @@
       "enabled": false
     },
     {
+      "description": "pino majors need intentional @repo/logger upgrade",
+      "matchPackageNames": ["pino"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "TypeScript majors are monorepo-wide intentional upgrades",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "GitHub Actions stay SHA-pinned; Renovate updates digests with version comments",
       "matchManagers": ["github-actions"],
       "pinDigests": true

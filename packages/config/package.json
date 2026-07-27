@@ -29,7 +29,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "devDependencies": {
-    "@eslint/js": "^9.35.0",
+    "@eslint/js": "^9.39.5",
     "@types/node": "catalog:",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
