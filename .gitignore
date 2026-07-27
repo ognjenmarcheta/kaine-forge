@@ -6,6 +6,9 @@ node_modules/
 dist/
 .turbo/
 coverage/
+# TypeScript incremental cache (packages/config/typescript/tsconfig.base.json)
+*.tsbuildinfo
+.tsbuildinfo
 .env
 .env.local
 .env.*.local
