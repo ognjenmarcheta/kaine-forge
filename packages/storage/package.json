@@ -53,7 +53,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/client-s3": "^3.1095.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0"
   },
   "devDependencies": {
