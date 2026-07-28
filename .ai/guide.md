@@ -149,8 +149,11 @@ Use skills when they match the task:
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
 - `kaine-triage-deps`: triage open Dependabot/Renovate PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
+- `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
+
+The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
 Downstream products can add more skills in `.ai/skills/` without changing this generator.
 

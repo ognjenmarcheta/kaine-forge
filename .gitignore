@@ -43,6 +43,7 @@ opencode.json
 .grok/agents/
 .augment/
 graphify-out/
+scorecard-out/
 .serena/.gitignore
 .serena/cache/
 .serena/project.local.yml

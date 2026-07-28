@@ -29,6 +29,7 @@ apps/e2e/test-results/
 .vscode/
 .serena/cache/
 graphify-out/
+scorecard-out/
 .claude/settings.local.json
 .claude/hooks/
 .claude/plans/
