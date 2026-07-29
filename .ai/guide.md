@@ -86,7 +86,24 @@ Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's 
   - "After editing canonical `.ai/` sources, `pnpm ai:install` updates generated assistant outputs and `pnpm ai:doctor` reports no drift."
 - Loop until the success criteria are met or a blocker is made explicit.
 
+### Stop Conditions
+
+- If the same failing command is rerun twice in one session without a new hypothesis, stop. Capture the root cause and change strategy (different command, smaller repro, or ask).
+- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): scoped workspace checks for package work, `pnpm check` for broader changes.
+
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### Anti-Patterns
+
+Do not:
+
+- Accept a client-supplied organization id for organization-scoped reads/writes — use **Authenticated Organization Scope** / active organization from session.
+- Hand-edit generated GraphQL outputs — edit sources, then `pnpm generate`.
+- Import through deep/internal package paths — use `@repo/*` public exports only.
+- Hardcode colors/spacing or put user-facing strings outside translation JSON.
+- Edit already-shipped migration files in place — add a new migration; preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
+- Attribute commits or PRs to an AI/tool identity (`Co-Authored-By` for assistants, “Generated with …” footers, AI as author/committer).
+- Invent mobile UI/GraphQL parity for web-first features unless the task requires it (`CONTEXT.md` Template platform surfaces).
 
 ### Response Framing
 

@@ -21,3 +21,4 @@
 - Avoid alternative libraries for responsibilities already covered by the stack.
 - Add tests when behavior, authorization, data access, GraphQL, or generated flows change.
 - Treat repeated template or domain mistakes as encode candidates (`kaine-encode-knowledge`).
+- Comments explain why and consequences, not what the code already shows. Delete restating noise. Track future work in issues, not “for now” comments.

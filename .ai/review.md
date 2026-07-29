@@ -32,6 +32,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] GraphQL SDL/resolvers/adapters follow feature layout; registry updated when adding features.
 - [ ] Operations edited at source; `pnpm generate` run; generated GraphQL outputs not hand-edited.
 - [ ] Organization scoping enforced in resolvers/adapters for tenant data.
+- [ ] Already-shipped migration files are not rewritten in place; schema changes are new migrations and preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
 
 ## UI & i18n
 
@@ -45,6 +46,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] No new `any`; prefer precise types or `unknown` with narrowing.
 - [ ] Relevant checks run (workspace test/typecheck; root `pnpm check` for broad changes; e2e for user-visible web/API flows).
 - [ ] Changesets included for releasable `apps/**`, `packages/**`, `tooling/**` changes unless `release:skip-changeset`.
+- [ ] New comments explain non-obvious rationale or consequences only — no noise that restates what the code already shows.
 
 ## Domain Language
 
@@ -52,6 +54,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] New durable concepts are added to `CONTEXT.md` (and ADRs when architectural) rather than left only in chat or PR comments.
 - [ ] No contradiction of accepted ADRs under `docs/adr/` without calling it out explicitly.
 - [ ] Client scope matches `CONTEXT.md` **Template platform surfaces**: mobile is a subset; web-first features (e.g. notes, assistant) do not require mobile UI unless the task says so.
+- [ ] User-facing, config, or architectural behavior changes update the existing authoritative doc (`MONOREPO_GUIDE.md`, `CONTEXT.md`, `docs/adr/`, `DESIGN_SYSTEM.md`) in the same change when required — expand existing docs rather than leaving silent drift or speculative stubs.
 
 ## Template & AI Hygiene
 

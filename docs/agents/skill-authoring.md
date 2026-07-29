@@ -45,6 +45,16 @@ Use this skill when …
 - `argument-hint` is optional but preferred for skills that take a path, ticket, or failure mode.
 - Keep the body procedural and short: goals, commands, done criteria.
 
+## Craft
+
+Write skills as thin, re-runnable procedures — not essays.
+
+- Open with a clear **Goal** and **Non-goals** (hard stops: do not push, do not expand scope, authority limits for merge/close).
+- Prefer **Gotchas** from real failures over abstract advice when the workflow has known landmines.
+- End multi-step skills with a **Canonical commands** block when agents need copy-paste `gh` / `pnpm` / git recipes.
+- Keep the skill short; put long procedure in `docs/agents/`, ADRs, or domain guides and point to them.
+- Expand an existing skill before creating a near-duplicate.
+
 ## After you add a skill
 
 1. List it in the skill list in `.ai/guide.md` (Generated / AI Skills sections stay consistent after install).
@@ -62,6 +72,13 @@ Not every repeated instruction needs a skill. Prefer **`kaine-encode-knowledge`*
 5. `CONTEXT.md` / ADR
 
 Add a skill when the work is a **multi-step workflow** people re-run (test plan, PR open, rebase, encode loop). Prefer REVIEW or tests for single rules that should gate every change.
+
+### When not to add a skill
+
+- Single rule that should gate every change → REVIEW checklist item or focused test, not a skill.
+- Transient session state or one-off notes → issue/PR comment, not durable docs or a skill.
+- Information that will not stay true in six months without constant edits → do not encode as infrastructure yet.
+- Topic already covered adequately → expand the existing skill or guide section first.
 
 ## Related
 
