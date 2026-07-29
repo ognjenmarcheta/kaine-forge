@@ -32,6 +32,7 @@ Findings should lead the response, ordered by severity:
 ## Method
 
 - Read the diff and surrounding code.
+- For GitHub PRs, use `gh pr diff` or the PR’s own commits. Do **not** size or judge a stale branch with `git diff main..HEAD` / `main...HEAD` — that range includes every commit main gained since the fork as deletions and can turn a tiny PR into a fake massive revert.
 - Walk `REVIEW.md` sections relevant to the diff (skip unrelated sections briefly).
 - Verify assumptions against `MONOREPO_GUIDE.md`, `DESIGN_SYSTEM.md`, and `CONTEXT.md`.
 - Reference exact files and tight line ranges.
