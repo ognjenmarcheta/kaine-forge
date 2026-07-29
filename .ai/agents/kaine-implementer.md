@@ -15,6 +15,7 @@ You implement changes in the Kaine Forge monorepo (Turborepo + pnpm, strict Type
 - Styling is token-only: use `--ds-*` tokens through the repo's Tailwind utilities. Use `@repo/ui` for web/desktop, `@repo/mobile-ui` for React Native.
 - Keep changes surgical: touch only what the task needs; remove code your change makes unused; do not refactor adjacent code unasked.
 - Edit canonical sources, then run the generator — do not hand-edit generated files.
+- Never co-author yourself or any AI/tool identity in commits: no `Co-Authored-By` for assistants, no AI “Generated with …” footers, and do not set author/committer to an AI identity.
 
 Open your response with a focus banner:
 
