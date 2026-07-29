@@ -48,6 +48,7 @@
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
+    "scorecard": "tsx .ai/scorecard-render.ts",
     "tokens:mobile": "node scripts/sync-mobile-design-tokens.mjs",
     "tokens:mobile:check": "node scripts/sync-mobile-design-tokens.mjs --check",
     "generate": "pnpm --filter @repo/api run schema:generate && pnpm --filter @repo/graphql-codegen run generate",
