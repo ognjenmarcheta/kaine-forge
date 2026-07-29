@@ -29,5 +29,6 @@ Core constraints:
 - Keep user-facing strings in translation files.
 - Use design tokens only for styling.
 - Keep strict TypeScript and avoid `any`.
+- Never co-author yourself or any AI/tool identity in commits (no AI `Co-Authored-By` trailers or generator footers; commitlint enforces this).
 - Run `pnpm ai:install` after editing `.ai/` sources.
 - `pnpm quick-setup` and `pnpm initialize` install AI assistant files during onboarding.

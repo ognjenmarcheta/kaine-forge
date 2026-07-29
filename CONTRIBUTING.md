@@ -47,7 +47,7 @@ Formatting and linting are enforced by Prettier and ESLint (flat config) and sha
 - **VS Code / Cursor:** open the repo and accept the recommended extensions from `.vscode/extensions.json` (Prettier, ESLint, Tailwind, EditorConfig, Playwright, GraphQL, Vitest, Expo, Tauri). `.vscode/settings.json` enables format-on-save with Prettier plus ESLint autofix and pins the workspace TypeScript version. Cursor reads the same `.vscode/` files.
 - **WebStorm / JetBrains:** `.editorconfig` is honored natively. Enable **Prettier → "Run on save for files"** and **ESLint → "Automatic ESLint configuration"**, and set the Node interpreter from `.nvmrc`. JetBrains stores IDE settings in the gitignored `.idea/`, so these are set per machine rather than committed.
 
-Commit messages are checked by `commitlint` (Conventional Commits) via a `commit-msg` hook; the allowed types match the `type:*` PR labels.
+Commit messages are checked by `commitlint` (Conventional Commits) via a `commit-msg` hook; the allowed types match the `type:*` PR labels. AI self-attribution is rejected: no assistant `Co-Authored-By` trailers and no “Generated with …” / “Made with …” AI footers — commits stay under the human contributor’s identity only.
 
 ## Common Commands
 
