@@ -35,7 +35,7 @@
     "@repo/todos": "workspace:*",
     "@repo/translation": "workspace:*",
     "@tanstack/react-query": "catalog:",
-    "@expo/metro-runtime": "~55.0.12",
+    "@expo/metro-runtime": "~57.0.8",
     "expo": "~55.0.28",
     "expo-constants": "~55.0.17",
     "expo-document-picker": "~55.0.15",
