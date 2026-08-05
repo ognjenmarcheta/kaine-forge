@@ -105,6 +105,24 @@ Do not:
 - Attribute commits or PRs to an AI/tool identity (`Co-Authored-By` for assistants, “Generated with …” footers, AI as author/committer).
 - Invent mobile UI/GraphQL parity for web-first features unless the task requires it (`CONTEXT.md` Template platform surfaces).
 
+### Human-facing prose (ASD-STE100 style)
+
+When giving the human instructions, explaining something to them, or asking clarifying questions, write in ASD-STE100-style Simplified Technical English:
+
+- Prefer short sentences. Prefer active voice. Prefer one action or one idea per sentence.
+- Prefer simple present and imperative forms. When a step is required, say so directly (avoid vague “should / could / might” when you mean must or do).
+- Keep the wording concrete. Avoid filler and stacked abstractions.
+
+**Exemptions — keep these as-is:**
+
+- Source code, identifiers, paths, shell commands, and generated artifacts
+- Commit messages and PR titles (follow repo commit conventions)
+- Domain terms from `CONTEXT.md` (and other required domain docs). Use the glossary term even when it is multi-word or specialized. Do not replace it with a synonym the glossary forbids.
+
+This rule does **not** force STE on all final outputs (code review depth, long architectural notes, or internal agent scratch work). It applies to human-facing instructions, explanations, and clarifying questions.
+
+Always read `CONTEXT.md` (and domain docs under `docs/agents/domain.md`) before naming product concepts, and use that ubiquitous language.
+
 ### Response Framing
 
 Open each substantive work response with a one-line focus banner so drift is visible at a glance:
