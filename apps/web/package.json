@@ -45,7 +45,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^5.2.0",
     "tailwindcss": "catalog:",
-    "vite": "^7.3.5",
+    "vite": "^8.2.0",
     "vitest": "catalog:"
   }
 }
