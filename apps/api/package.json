@@ -19,7 +19,7 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^3.0.13",
+    "@ai-sdk/deepseek": "^3.0.24",
     "@ai-sdk/openai": "^4.0.20",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
