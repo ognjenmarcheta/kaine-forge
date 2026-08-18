@@ -144,6 +144,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^21.2.0
         version: 21.2.0
+      '@commitlint/types':
+        specifier: ^21.2.0
+        version: 21.2.0
       '@graphql-inspector/cli':
         specifier: 6.0.8
         version: 6.0.8(@types/node@24.10.13)(graphql@16.14.2)
@@ -804,9 +807,6 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0(@types/node@24.10.13)(graphql@16.14.2)(typescript@5.9.3)
       '@graphql-codegen/client-preset':
-        specifier: ^6.1.0
-        version: 6.1.0(graphql@16.14.2)
-      '@graphql-codegen/typescript':
         specifier: ^6.1.0
         version: 6.1.0(graphql@16.14.2)
       '@graphql-codegen/typescript-operations':
