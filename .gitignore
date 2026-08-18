@@ -46,5 +46,7 @@ graphify-out/
 scorecard-out/
 .serena/.gitignore
 .serena/cache/
+# Seeded once by ai:install, then owned by Serena (it migrates the file in place).
+.serena/project.yml
 .serena/project.local.yml
 *.pkl

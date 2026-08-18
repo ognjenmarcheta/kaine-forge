@@ -4,7 +4,7 @@
 
 Required tools:
 
-- Node.js 20 or newer.
+- Node.js 22 or newer.
 - pnpm 10.29.3 or compatible pnpm 10.
 - Docker Desktop or compatible Docker runtime for local Postgres/MinIO and optional image builds.
 - Rust toolchain for desktop/Tauri work.

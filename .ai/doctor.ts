@@ -6,6 +6,7 @@ import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
 import {
   type Agent,
+  checkSerenaProjectSemantics,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   discoverSkills,
@@ -36,11 +37,11 @@ import {
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
-  renderSerenaProject,
   REVIEW_OUT,
   REVIEW_SRC,
   SERENA_MEMORIES_SRC_DIR,
   SERENA_PROJECT_SRC,
+  shouldFailDoctor,
   type Skill
 } from "./ai.util";
 
@@ -60,6 +61,10 @@ interface AgentDrift {
 interface FileDrift {
   label: string;
   status: "missing" | "stale";
+  // Committed artifacts fail --strict; local-install artifacts (absent in CI
+  // checkouts) stay advisory.
+  tracked?: boolean;
+  hint?: string;
 }
 
 const commandExists = (command: string | undefined): boolean => {
@@ -165,42 +170,60 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
     {
       label: "AGENTS.md",
       path: join(REPO_ROOT, "AGENTS.md"),
-      content: renderAgentDoc(readGuideSource(), skills)
+      content: renderAgentDoc(readGuideSource(), skills),
+      tracked: true
     },
-    { label: "CLAUDE.md", path: join(REPO_ROOT, "CLAUDE.md"), content: renderClaudeImport() },
+    {
+      label: "CLAUDE.md",
+      path: join(REPO_ROOT, "CLAUDE.md"),
+      content: renderClaudeImport(),
+      tracked: true
+    },
     {
       label: ".claude/settings.json",
       path: join(REPO_ROOT, ".claude", "settings.json"),
-      content: renderClaudeSettings()
+      content: renderClaudeSettings(),
+      tracked: false
     }
   ];
 
   for (const file of expectedAgents) {
     if (!existsSync(file.path)) {
-      drift.push({ label: file.label, status: "missing" });
+      drift.push({ label: file.label, status: "missing", tracked: file.tracked });
       continue;
     }
     if (readFileSync(file.path, "utf8") !== file.content) {
-      drift.push({ label: file.label, status: "stale" });
+      drift.push({ label: file.label, status: "stale", tracked: file.tracked });
     }
   }
 
   if (existsSync(REVIEW_SRC)) {
     const content = renderReviewDoc(readFileSync(REVIEW_SRC, "utf8"));
     if (!existsSync(REVIEW_OUT)) {
-      drift.push({ label: "REVIEW.md", status: "missing" });
+      drift.push({ label: "REVIEW.md", status: "missing", tracked: true });
     } else if (readFileSync(REVIEW_OUT, "utf8") !== content) {
-      drift.push({ label: "REVIEW.md", status: "stale" });
+      drift.push({ label: "REVIEW.md", status: "stale", tracked: true });
     }
   }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
     const filePath = join(REPO_ROOT, ".serena", "project.yml");
-    const content = renderSerenaProject(readFileSync(SERENA_PROJECT_SRC, "utf8"));
+    // Serena rewrites this file in place (schema migrations), so a byte-exact
+    // comparison against the seed self-inflicts permanent drift. The file is
+    // gitignored and seeded once by ai:install; only its semantics are checked.
     if (!existsSync(filePath)) {
       drift.push({ label: ".serena/project.yml", status: "missing" });
-    } else if (readFileSync(filePath, "utf8") !== content) {
-      drift.push({ label: ".serena/project.yml", status: "stale" });
+    } else {
+      for (const problem of checkSerenaProjectSemantics(
+        readFileSync(SERENA_PROJECT_SRC, "utf8"),
+        readFileSync(filePath, "utf8")
+      )) {
+        drift.push({
+          label: ".serena/project.yml",
+          status: "stale",
+          hint: `${problem}; fix it, or delete the file and run pnpm ai:install`
+        });
+      }
     }
   }
 
@@ -213,9 +236,9 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
         readFileSync(join(SERENA_MEMORIES_SRC_DIR, fileName), "utf8")
       );
       if (!existsSync(filePath)) {
-        drift.push({ label: `.serena/memories/${fileName}`, status: "missing" });
+        drift.push({ label: `.serena/memories/${fileName}`, status: "missing", tracked: true });
       } else if (readFileSync(filePath, "utf8") !== content) {
-        drift.push({ label: `.serena/memories/${fileName}`, status: "stale" });
+        drift.push({ label: `.serena/memories/${fileName}`, status: "stale", tracked: true });
       }
     }
   }
@@ -261,6 +284,7 @@ const printLintIssue = (issue: LintIssue): void => {
 };
 
 const main = (): void => {
+  const strict = process.argv.includes("--strict");
   const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
@@ -373,10 +397,12 @@ const main = (): void => {
   console.log();
 
   console.log(chalk.bold("Drift"));
+  let strictDriftCount = 0;
   if (lintErrors.length > 0) {
     console.log(`  ${chalk.gray("-")}  skipped (fix lint errors first)`);
   } else {
     const fileDrift = computeSharedDrift(skills);
+    strictDriftCount = fileDrift.filter((entry) => entry.tracked).length;
     const skillDrift = computeSkillDrift(skills);
     const hookDrift = computeHookDrift();
     const claudeAgentDrift = computeAgentDefinitionDrift(
@@ -436,7 +462,7 @@ const main = (): void => {
     } else {
       for (const entry of [...fileDrift, ...hookDrift]) {
         console.log(
-          `  ${chalk.yellow("⚠")}  ${entry.label.padEnd(28)}  ${entry.status}   ${chalk.gray("(run: pnpm ai:install)")}`
+          `  ${chalk.yellow("⚠")}  ${entry.label.padEnd(28)}  ${entry.status}   ${chalk.gray(`(${entry.hint ?? "run: pnpm ai:install"})`)}`
         );
       }
 
@@ -449,9 +475,9 @@ const main = (): void => {
       ) {
         reportAgentDrift("grok agents", grokAgentDrift, ".grok/agents/<name>.md");
       }
-      // Drift is advisory (a stale local install, fixable with pnpm ai:install),
-      // consistent with skill/file/hook drift; only lint errors on canonical
-      // sources gate the exit code below.
+      // Local-install drift (skills, hooks, agents, settings) stays advisory:
+      // those artifacts are gitignored and absent in CI checkouts. Under
+      // --strict, drift in committed artifacts also gates the exit code below.
 
       for (const entry of skillDrift) {
         const agentLabel = entry.agent.padEnd(8);
@@ -490,7 +516,13 @@ const main = (): void => {
     )
   );
 
-  if (lintErrors.length > 0) {
+  if (shouldFailDoctor({ lintErrorCount: lintErrors.length, strictDriftCount, strict })) {
+    if (lintErrors.length === 0) {
+      console.log(
+        chalk.red("✗ committed AI docs drifted and --strict is set (run: pnpm ai:install)")
+      );
+      console.log();
+    }
     process.exitCode = 1;
   }
 };

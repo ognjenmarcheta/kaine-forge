@@ -163,7 +163,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: AI tooling doctor
-        run: pnpm run ai:doctor
+        # --strict fails on drift in committed AI docs (AGENTS.md, CLAUDE.md,
+        # REVIEW.md, .serena/memories); local-install drift stays advisory.
+        run: pnpm run ai:doctor -- --strict
 
       - name: Quality gates (affected packages)
         env:

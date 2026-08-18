@@ -803,6 +803,55 @@ export const renderCursorRulesFile = (cursorRulesSrc: string): string => {
 export const renderSerenaProject = (source: string): string =>
   `${TOML_HEADER}\n\n${source.trim()}\n`;
 
+// Serena migrates .serena/project.yml in place (schema upgrades rename and add
+// keys), so byte-comparing it against the seed flags every migration as drift
+// forever. Only the semantics the seed is responsible for are checked.
+export const checkSerenaProjectSemantics = (
+  seedSource: string,
+  installedContent: string
+): string[] => {
+  const asRecord = (value: unknown): Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const asStringList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+
+  let seed: Record<string, unknown>;
+  try {
+    seed = asRecord(parseYaml(seedSource));
+  } catch {
+    return ["canonical .ai/serena-project.yml is not valid YAML"];
+  }
+  let installed: Record<string, unknown>;
+  try {
+    installed = asRecord(parseYaml(installedContent));
+  } catch {
+    return ["file is not valid YAML"];
+  }
+
+  const problems: string[] = [];
+  if (installed.project_name !== seed.project_name) {
+    problems.push(`project_name is not ${JSON.stringify(seed.project_name)}`);
+  }
+  const expectedLanguages = asStringList(seed.language_servers ?? seed.languages);
+  const installedLanguages = asStringList(installed.language_servers ?? installed.languages);
+  for (const language of expectedLanguages) {
+    if (!installedLanguages.includes(language)) {
+      problems.push(`language server "${language}" is not configured`);
+    }
+  }
+  return problems;
+};
+
+// Doctor exit policy: lint errors always fail; drift fails only under --strict,
+// and only for committed artifacts (local installs are absent in CI checkouts).
+export const shouldFailDoctor = (options: {
+  lintErrorCount: number;
+  strictDriftCount: number;
+  strict: boolean;
+}): boolean => options.lintErrorCount > 0 || (options.strict && options.strictDriftCount > 0);
+
 export const renderSerenaMemory = (source: string): string =>
   `${HTML_HEADER}\n\n${source.trim()}\n`;
 
