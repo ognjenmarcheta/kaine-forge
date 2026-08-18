@@ -50,6 +50,12 @@ jobs:
               - "vitest*.ts"
               - "eslint.config.mjs"
               - "scripts/**"
+              # Doc contracts live in vitest: monorepo-alignment.test.ts reads
+              # MONOREPO_GUIDE.md and design-system.contract.test.ts reads
+              # DESIGN_SYSTEM.md. Doc-only PRs must still run the coverage job
+              # or the exact tests policing these files are skipped.
+              - "MONOREPO_GUIDE.md"
+              - "DESIGN_SYSTEM.md"
             docker:
               - "Dockerfile.api"
               - "Dockerfile.web"
@@ -165,6 +171,22 @@ jobs:
       - name: AI tooling doctor
         run: pnpm run ai:doctor
 
+      # Conventional Commits and the no-ai-coauthor rule are otherwise enforced
+      # only by the local commit-msg hook, which --no-verify and GitHub web-UI
+      # commits bypass. The PR title matters because squash merges use it as the
+      # commit subject on main. Title and shas go through env, never inlined
+      # into the script (untrusted input).
+      - name: Commitlint (PR title and commits)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PR_TITLE" | pnpm exec commitlint
+          pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA"
+
       - name: Quality gates (affected packages)
         env:
           # Some API modules import the DB client at load time during tests/coverage.
@@ -183,8 +205,9 @@ jobs:
             pnpm run ai:lint
             pnpm run ai:typecheck
             pnpm run ai:test
-            # scripts/doctor tests are not under vitest.coverage.config.ts projects.
-            node --test scripts/doctor.test.mjs
+            # scripts/* tests are not under vitest.coverage.config.ts projects.
+            # Keep this list aligned with the root "test" script.
+            node --test scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs
           else
             echo "Non-PR event: running full quality gates (includes ai:*)"
             pnpm run format:check
