@@ -344,11 +344,18 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
   }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
-    writeGenerated(
-      join(REPO_ROOT, ".serena", "project.yml"),
-      renderSerenaProject(readFileSync(SERENA_PROJECT_SRC, "utf8")),
-      results
-    );
+    // Seed once and never overwrite: Serena migrates this file in place on
+    // schema upgrades, so rewriting it here would revert those migrations and
+    // reopen a permanent drift loop. The file is gitignored; doctor checks its
+    // semantics instead of its bytes.
+    const serenaProjectPath = join(REPO_ROOT, ".serena", "project.yml");
+    if (!existsSync(serenaProjectPath)) {
+      writeGenerated(
+        serenaProjectPath,
+        renderSerenaProject(readFileSync(SERENA_PROJECT_SRC, "utf8")),
+        results
+      );
+    }
   }
 
   if (existsSync(SERENA_MEMORIES_SRC_DIR)) {

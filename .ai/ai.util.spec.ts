@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  checkSerenaProjectSemantics,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   lintAgentDefinitionsDir,
@@ -35,7 +36,8 @@ import {
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
-  REVIEW_REQUIRED_HEADINGS
+  REVIEW_REQUIRED_HEADINGS,
+  shouldFailDoctor
 } from "./ai.util";
 
 const agentDef = (
@@ -259,6 +261,64 @@ describe("serena renderers", () => {
     expect(renderSerenaMemory("# Memory\n")).toBe(
       "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n# Memory\n"
     );
+  });
+});
+
+describe("checkSerenaProjectSemantics", () => {
+  const seed = ['project_name: "kaine-forge"', "language_servers:", "  - typescript", ""].join(
+    "\n"
+  );
+
+  it("accepts a Serena-migrated file that keeps the seeded semantics", () => {
+    const migrated = [
+      "ignore_all_files_in_gitignore: true",
+      "project_name: kaine-forge",
+      "language_servers:",
+      "- typescript",
+      "added_modes:",
+      "activation_command_timeout: 180.0",
+      ""
+    ].join("\n");
+    expect(checkSerenaProjectSemantics(seed, migrated)).toEqual([]);
+  });
+
+  it("accepts the legacy languages key", () => {
+    const legacy = ['project_name: "kaine-forge"', "languages:", "  - typescript", ""].join("\n");
+    expect(checkSerenaProjectSemantics(seed, legacy)).toEqual([]);
+  });
+
+  it("flags a project_name mismatch", () => {
+    const renamed = ['project_name: "other"', "language_servers:", "  - typescript", ""].join("\n");
+    expect(checkSerenaProjectSemantics(seed, renamed)).toEqual([
+      'project_name is not "kaine-forge"'
+    ]);
+  });
+
+  it("flags a missing language server", () => {
+    const noLanguages = ['project_name: "kaine-forge"', "language_servers: []", ""].join("\n");
+    expect(checkSerenaProjectSemantics(seed, noLanguages)).toEqual([
+      'language server "typescript" is not configured'
+    ]);
+  });
+
+  it("flags invalid YAML", () => {
+    expect(checkSerenaProjectSemantics(seed, "a: [unclosed")).toEqual(["file is not valid YAML"]);
+  });
+});
+
+describe("shouldFailDoctor", () => {
+  it("fails on lint errors regardless of strict mode", () => {
+    expect(shouldFailDoctor({ lintErrorCount: 1, strictDriftCount: 0, strict: false })).toBe(true);
+    expect(shouldFailDoctor({ lintErrorCount: 1, strictDriftCount: 0, strict: true })).toBe(true);
+  });
+
+  it("fails on tracked drift only under strict mode", () => {
+    expect(shouldFailDoctor({ lintErrorCount: 0, strictDriftCount: 2, strict: true })).toBe(true);
+    expect(shouldFailDoctor({ lintErrorCount: 0, strictDriftCount: 2, strict: false })).toBe(false);
+  });
+
+  it("passes when nothing is wrong", () => {
+    expect(shouldFailDoctor({ lintErrorCount: 0, strictDriftCount: 0, strict: true })).toBe(false);
   });
 });
 

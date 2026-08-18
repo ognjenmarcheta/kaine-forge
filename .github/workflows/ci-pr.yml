@@ -169,7 +169,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: AI tooling doctor
-        run: pnpm run ai:doctor
+        # --strict fails on drift in committed AI docs (AGENTS.md, CLAUDE.md,
+        # REVIEW.md, .serena/memories); local-install drift stays advisory.
+        run: pnpm run ai:doctor -- --strict
 
       # Conventional Commits and the no-ai-coauthor rule are otherwise enforced
       # only by the local commit-msg hook, which --no-verify and GitHub web-UI
