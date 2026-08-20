@@ -1,6 +1,7 @@
 {
   "name": "kaine-forge",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.29.3",
   "engines": {
     "node": ">=22"
@@ -37,6 +38,7 @@
     "reinstall-deps": "pnpm run clean-deps && pnpm install",
     "env:ensure": "node scripts/ensure-env.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "scan:secrets": "gitleaks git . --verbose",
     "quick-setup": "docker compose up -d --wait && pnpm run initialize",
     "bootstrap": "pnpm run doctor && pnpm run env:ensure && pnpm install && pnpm run ai:install -- --non-interactive && pnpm run build && pnpm run db:generate && pnpm run db:ensure && pnpm run db:push && pnpm run db:seed",
     "initialize": "pnpm run bootstrap && pnpm run dev",
