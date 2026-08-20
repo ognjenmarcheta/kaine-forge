@@ -1,0 +1,18 @@
+name: Feature request
+description: Propose an improvement to the template.
+labels: ["type:feat"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What gap or friction does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should change, and where (workspace, package, docs)?
+    validations:
+      required: true

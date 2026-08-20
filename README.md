@@ -53,6 +53,7 @@ It is not a Next.js App Router / RSC marketing starter, not an enterprise monore
 - Docker Desktop or compatible Docker runtime for Postgres, MinIO, and image builds
 - Rust toolchain for desktop/Tauri work
 - Optional: [Graphify](https://github.com/Graphify-Labs/graphify) CLI (`uv tool install "graphifyy[sql,mcp]"`) for the `pnpm graph` codebase knowledge graph
+- Optional: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) for the `pnpm scan:secrets` full-history secret scan
 
 ## Quickstart
 
@@ -112,3 +113,7 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 | Full documentation index                                      | [`docs/README.md`](docs/README.md)                       |
 
 **Everyday commands:** `pnpm doctor` · `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
