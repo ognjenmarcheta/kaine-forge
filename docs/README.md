@@ -4,7 +4,7 @@ Use this index to find the right source of truth quickly.
 
 ## Landing and core guides
 
-- [`../README.md`](../README.md): short GitHub landing page — pitch, capability compare, quickstart, template adopt one-liner, documentation map.
+- [`../README.md`](../README.md): short GitHub landing page — pitch, badges, agent-ready overview, capability compare, quickstart, template adopt one-liner, documentation map.
 - [`../MONOREPO_GUIDE.md`](../MONOREPO_GUIDE.md): architecture, package boundaries, FDD naming, runtime/env rules, Docker, mobile LAN, data/auth/GraphQL flow, implementation workflow.
 - [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md): design tokens, web/mobile UI split, theming, component styling, layout, and accessibility.
 - [`../CONTEXT.md`](../CONTEXT.md): domain language (Organization, Authenticated Organization Scope, invitations, and related terms).

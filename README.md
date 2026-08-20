@@ -1,6 +1,10 @@
 # Kaine Forge
 
-Kaine Forge is a production-oriented Turborepo template for building a full-stack TypeScript product from one repository. It includes a GraphQL API, React web app, Tauri desktop shell, Expo mobile app, shared packages, release automation, Docker build paths, and an AI assistant scaffold that keeps multiple coding tools aligned.
+[![CI](https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml)
+[![AGENTS.md](https://img.shields.io/badge/AGENTS.md-generated-blue)](AGENTS.md)
+[![Agent harnesses](https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2)](docs/agents/day-one.md)
+
+Kaine Forge is a production-oriented, **agent-ready** Turborepo template for building a full-stack TypeScript product from one repository. It includes a GraphQL API, React web app, Tauri desktop shell, Expo mobile app, shared packages, release automation, and Docker build paths; one canonical `.ai/` source keeps five coding agents aligned with the repo's rules.
 
 Use it when you want a reusable starter with strong defaults instead of a blank monorepo.
 
@@ -12,7 +16,17 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
 - `apps/e2e`: Playwright web/API tests with accessibility coverage.
 - `packages/*`: shared auth, db, logger, config, feature flags, query helpers, storage, translation, web UI, and mobile UI packages.
-- `.ai/`: canonical AI assistant guide, skills, MCP catalog, Cursor rules, and Serena seed files.
+- `.ai/`: canonical agent scaffold — see [Agent-ready](#agent-ready).
+
+## Agent-ready
+
+Agents get the same encoded rules as humans — generated, linted, and drift-checked:
+
+- [`AGENTS.md`](AGENTS.md) and `CLAUDE.md` are generated from canonical [`.ai/`](.ai/); `pnpm ai:install` targets Claude, Codex, Cursor, OpenCode, and Grok.
+- `pnpm ai:doctor` catches skill lint errors, missing MCP requirements, and drift; strict mode runs in CI.
+- `kaine-*` skills cover tests, review, PRs, CI fixes, releases, and triage.
+- [`REVIEW.md`](REVIEW.md) is one review checklist for humans and agents; [`docs/agents/day-one.md`](docs/agents/day-one.md) is the day-one ramp.
+- Repeated agent failures become lint rules, tests, or skills ([ADR 0009](docs/adr/0009-domain-knowledge-as-agent-infra.md)).
 
 ## How it compares
 
