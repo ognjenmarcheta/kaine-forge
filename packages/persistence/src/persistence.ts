@@ -91,6 +91,9 @@ export async function getJsonValue<T>(adapter: PersistenceAdapter, key: string):
   }
 
   try {
+    // SAFETY: values under this key are written by the paired setJsonValue<T>
+    // as JSON.stringify of the caller's T, so a successful parse yields T;
+    // unparseable values fall through to null.
     return JSON.parse(raw) as T;
   } catch {
     return null;
@@ -118,6 +121,9 @@ export function getJsonValueSync<T>(storage: SyncKeyValueStorage | null, key: st
   }
 
   try {
+    // SAFETY: values under this key are written by the paired setJsonValueSync<T>
+    // as JSON.stringify of the caller's T, so a successful parse yields T;
+    // unparseable values fall through to null.
     return JSON.parse(raw) as T;
   } catch {
     return null;

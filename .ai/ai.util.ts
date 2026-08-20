@@ -145,10 +145,13 @@ export interface WriteResult {
 }
 
 const isAgent = (value: unknown): value is Agent =>
-  typeof value === "string" && (ALL_AGENTS as readonly string[]).includes(value);
+  typeof value === "string" && ALL_AGENTS.some((agent) => agent === value);
 
 const isEffort = (value: unknown): value is Effort =>
-  typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value);
+  typeof value === "string" && EFFORT_LEVELS.some((effort) => effort === value);
+
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
   if (value === undefined || value === null) {
@@ -158,15 +161,17 @@ const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
     throw new Error(`${skillName}: 'agents' must be a list`);
   }
 
+  const agents: Agent[] = [];
   for (const agent of value) {
     if (!isAgent(agent)) {
       throw new Error(
         `${skillName}: unknown agent '${String(agent)}'. Allowed: ${ALL_AGENTS.join(", ")}.`
       );
     }
+    agents.push(agent);
   }
 
-  return value as Agent[];
+  return agents;
 };
 
 const parseStringList = (skillName: string, field: string, value: unknown): string[] => {
@@ -221,7 +226,10 @@ const splitFrontmatter = (
 
   let frontmatter: Record<string, unknown>;
   try {
-    frontmatter = (parseYaml(frontmatterRaw) ?? {}) as Record<string, unknown>;
+    const parsed: unknown = parseYaml(frontmatterRaw) ?? {};
+    // Non-mapping frontmatter falls through to {} so the field checks below
+    // report the missing keys instead of a vague parse failure.
+    frontmatter = isRecord(parsed) ? parsed : {};
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`${name}: invalid YAML frontmatter: ${reason}`, { cause: error });
@@ -266,7 +274,7 @@ export const parseSkillFile = (name: string, content: string): Skill => {
     skill.model = frontmatter.model;
   }
   if (effortRaw !== undefined) {
-    skill.effort = effortRaw as Effort;
+    skill.effort = effortRaw;
   }
   if (frontmatter["disable-model-invocation"] === true) {
     skill.disableModelInvocation = true;
@@ -630,7 +638,7 @@ export const lintGuideSkillList = (guideContent: string, skillNames: string[]): 
 
   const issues: LintIssue[] = [];
   const listedNames = new Set(
-    Array.from(guideContent.matchAll(/^- `(kaine-[a-z0-9-]+)`:/gm), (match) => match[1] as string)
+    Array.from(guideContent.matchAll(/^- `(kaine-[a-z0-9-]+)`:/gm), (match) => match[1]!)
   );
 
   for (const name of skillNames) {
@@ -659,6 +667,9 @@ export const lintGuideSkillList = (guideContent: string, skillNames: string[]): 
 
 export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 
+// SAFETY: .ai/mcp.json is the repo-tracked canonical MCP config, maintained by the
+// team in McpSource shape; every McpServer field is optional, so a malformed entry
+// surfaces as absent fields downstream, not unsound access.
 export const readMcpSource = (): McpSource =>
   JSON.parse(readFileSync(MCP_SRC, "utf8")) as McpSource;
 
@@ -667,6 +678,9 @@ export const readPersonalMcpSource = (): McpSource => {
     return { mcpServers: {} };
   }
 
+  // SAFETY: Partial keeps both top-level keys optional, so the assertion trusts the
+  // gitignored file for nothing beyond object shape; the ?? fallbacks below cover
+  // files that omit either key.
   const parsed = JSON.parse(readFileSync(LOCAL_MCP_SRC, "utf8")) as Partial<
     McpSource & { mcp: McpSource["mcpServers"] }
   >;
@@ -810,10 +824,7 @@ export const checkSerenaProjectSemantics = (
   seedSource: string,
   installedContent: string
 ): string[] => {
-  const asRecord = (value: unknown): Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {};
+  const asRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
   const asStringList = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 

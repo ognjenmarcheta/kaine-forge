@@ -27,7 +27,7 @@ export function useSubscription<TData = unknown>(options: UseSubscriptionOptions
 
     const client = getSubscriptionClient();
     const cleanup = client.subscribe<TData>(
-      { query, variables: variables as Record<string, unknown> | undefined },
+      { query, variables },
       {
         next(value) {
           if (value.data && onDataRef.current) {

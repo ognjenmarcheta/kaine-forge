@@ -121,6 +121,9 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
     return response;
   };
 
+  // SAFETY: the adapter contract supplies better-auth client plugins in
+  // clientPlugins; it stays typed as unknown so web bundles never import
+  // Expo/React Native types, and `never[]` only re-widens it for `plugins`.
   const client = createAuthClient({
     baseURL: adapter.baseUrl || undefined,
     plugins: [organizationClient(), ...((adapter.clientPlugins ?? []) as never[])],

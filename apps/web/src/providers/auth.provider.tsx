@@ -50,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     mutationFn: sessionLifecycle.logout
   });
 
-  const session = (sessionQuery.data ?? null) as AuthSession | null;
+  const session: AuthSession | null = sessionQuery.data ?? null;
 
   const authTransition = useMemo(
     () =>

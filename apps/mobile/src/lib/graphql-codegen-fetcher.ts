@@ -14,10 +14,8 @@ export function useGraphqlFetcher<TData, TVariables extends Record<string, unkno
   const document = useMemo(() => String(query), [query]);
   const request = useMemo(
     () =>
-      client.request.bind(client) as (
-        document: string,
-        variables?: Record<string, unknown>
-      ) => Promise<TData>,
+      (requestDocument: string, requestVariables?: Record<string, unknown>): Promise<TData> =>
+        client.request<TData>(requestDocument, requestVariables),
     [client]
   );
 

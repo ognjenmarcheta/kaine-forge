@@ -11,7 +11,7 @@ import { useTranslation } from "../../src/hooks/use-translation";
 import type { ThemeMode } from "../../src/stores/theme.store";
 
 function nextLanguage(current: string): string {
-  const index = SUPPORTED_LANGUAGES.indexOf(current as (typeof SUPPORTED_LANGUAGES)[number]);
+  const index = SUPPORTED_LANGUAGES.findIndex((language) => language === current);
 
   if (index === -1) {
     return SUPPORTED_LANGUAGES[0];

@@ -253,7 +253,7 @@ describe("createAuthTransport", () => {
     const client = createClientStub();
     createAuthClientMock.mockReturnValue(client);
     let storedToken: string | null = null;
-    const fetcher = vi.fn(async () =>
+    const fetcher = vi.fn<AuthTransportAdapter["fetch"]>(async () =>
       storedToken
         ? new Response(null, { status: 200 })
         : new Response(null, { headers: { "set-auth-token": "token-1" }, status: 200 })
@@ -276,9 +276,9 @@ describe("createAuthTransport", () => {
     expect(storedToken).toBe("token-1");
 
     await bearerFetch("https://api.example.test/api/auth/get-session", { method: "GET" });
-    const [, secondInit] = fetcher.mock.calls[1] as unknown as [string, RequestInit];
-    expect(new Headers(secondInit.headers).get("authorization")).toBe("Bearer token-1");
-    expect(secondInit.credentials).toBe("include");
+    const secondInit = fetcher.mock.calls[1]?.[1];
+    expect(new Headers(secondInit?.headers).get("authorization")).toBe("Bearer token-1");
+    expect(secondInit?.credentials).toBe("include");
   });
 
   it("delegates social sign-in to better-auth with the configured callback url", async () => {

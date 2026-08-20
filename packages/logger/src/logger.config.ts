@@ -4,7 +4,7 @@ import { DEFAULT_LOG_LEVEL, LOG_LEVEL_ENV_KEY, LOG_LEVELS } from "./logger.defin
 import type { CreateLoggerOptions, LogLevel } from "./logger.type";
 
 function isValidLogLevel(value: string): value is LogLevel {
-  return (LOG_LEVELS as readonly string[]).includes(value);
+  return LOG_LEVELS.some((level) => level === value);
 }
 
 function resolveLogLevel(explicit?: LogLevel): LogLevel {
@@ -30,7 +30,7 @@ function resolveLogLevel(explicit?: LogLevel): LogLevel {
 export function resolveLoggerConfig(options: CreateLoggerOptions): LoggerOptions {
   const level = resolveLogLevel(options.level);
   const environment = options.environment ?? process.env["NODE_ENV"] ?? "development";
-  const isBrowser = typeof (globalThis as Record<string, unknown>)["window"] !== "undefined";
+  const isBrowser = "window" in globalThis;
 
   if (isBrowser) {
     return {

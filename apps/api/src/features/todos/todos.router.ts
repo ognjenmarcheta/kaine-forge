@@ -89,7 +89,7 @@ export const todosResolvers = {
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).createTodo(scope, args.input as CreateTodoInput);
+      return createTodoWorkflowForContext(ctx).createTodo(scope, args.input);
     },
     async generateTodos(_parent: unknown, args: GenerateTodosArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
@@ -97,11 +97,7 @@ export const todosResolvers = {
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).updateTodo(
-        scope,
-        args.id,
-        args.input as UpdateTodoInput
-      );
+      return createTodoWorkflowForContext(ctx).updateTodo(scope, args.id, args.input);
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();

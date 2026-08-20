@@ -30,6 +30,9 @@ export function createLoggerPlugin({ logger }: LoggerPluginOptions) {
       request: Request;
       serverContext: Record<string, unknown>;
     }) {
+      // SAFETY: onRequest above stores a request-scoped child Logger under
+      // this key on the same serverContext object; it is absent only when
+      // onRequest did not run, which the ?? fallback covers.
       const requestLogger = (serverContext["requestLogger"] as Logger | undefined) ?? logger;
       const url = new URL(request.url);
 

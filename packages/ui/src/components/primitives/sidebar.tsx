@@ -113,6 +113,8 @@ function SidebarProvider({
         <div
           data-slot="sidebar-wrapper"
           style={
+            // SAFETY: `--*` custom properties are valid inline styles at
+            // runtime; React.CSSProperties has no index signature for them.
             {
               "--sidebar-width": SIDEBAR_WIDTH,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
@@ -179,6 +181,8 @@ function Sidebar({
           data-mobile="true"
           className="bg-[var(--ds-surface-sunken)] text-[color:var(--ds-text)] w-(--sidebar-width) p-0 [&>button]:hidden"
           style={
+            // SAFETY: `--*` custom properties are valid inline styles at
+            // runtime; React.CSSProperties has no index signature for them.
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE
             } as React.CSSProperties
@@ -615,6 +619,8 @@ function SidebarMenuSkeleton({
         className="h-4 max-w-(--skeleton-width) flex-1"
         data-sidebar="menu-skeleton-text"
         style={
+          // SAFETY: `--*` custom properties are valid inline styles at
+          // runtime; React.CSSProperties has no index signature for them.
           {
             "--skeleton-width": width
           } as React.CSSProperties

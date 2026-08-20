@@ -24,11 +24,7 @@ function resolveSupportedLanguage(
   supportedLanguages: readonly SupportedLanguage[],
   defaultLanguage: SupportedLanguage
 ): SupportedLanguage {
-  if (supportedLanguages.includes(value as SupportedLanguage)) {
-    return value as SupportedLanguage;
-  }
-
-  return defaultLanguage;
+  return supportedLanguages.find((language) => language === value) ?? defaultLanguage;
 }
 
 export function createTranslationRuntime(input: CreateTranslationRuntimeInput) {

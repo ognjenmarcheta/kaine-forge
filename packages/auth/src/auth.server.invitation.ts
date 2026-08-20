@@ -40,6 +40,9 @@ async function requireAdminMembership(scope: AuthenticatedOrganizationScope): Pr
       userId: scope.userId
     }));
 
+  // SAFETY: member roles are written only by the better-auth organization
+  // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
+  // closed (returns false) for any string outside the role hierarchy.
   if (
     !membership ||
     !hasRoleAtLeast(membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)

@@ -20,7 +20,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Prefer tests that prove the requested behavior over snapshot churn or unrelated coverage.
 - Preserve Feature-Driven Development naming: `{feature}.{purpose}.ts(x)` inside feature folders.
 - Preserve `@repo/*` package boundaries. Do not import through internal package paths.
-- Keep TypeScript strict. Do not use `any`; use `unknown` with narrowing when needed.
+- Keep TypeScript strict. Do not use `any`; use `unknown` only at intake boundaries and narrow it immediately. Do not put `unknown` in exported params/returns (error `cause` excepted) or dictionary value types outside true serialization seams.
 - Keep user-facing strings in translation JSON files and access them through i18n helpers.
 - Use generated GraphQL operations and schema generation flow. Do not hand-edit generated GraphQL outputs.
 - Keep organization-scoped data organization-scoped. Resolve active organization from session/context.
@@ -104,6 +104,7 @@ Do not:
 - Edit already-shipped migration files in place — add a new migration; preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
 - Attribute commits or PRs to an AI/tool identity (`Co-Authored-By` for assistants, “Generated with …” footers, AI as author/committer).
 - Invent mobile UI/GraphQL parity for web-first features unless the task requires it (`CONTEXT.md` Template platform surfaces).
+- Launder types through assertions (`x as unknown as T`, widen-then-assert) or assert without a `// SAFETY:` comment stating the checked invariant — the `anti-slop/*` ESLint rules block both; refactor toward narrowing, `satisfies`, or boundary parsing instead.
 
 ### Human-facing prose (ASD-STE100 style)
 

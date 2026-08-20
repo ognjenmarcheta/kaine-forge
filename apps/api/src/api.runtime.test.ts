@@ -1,4 +1,4 @@
-import type { Logger } from "@repo/logger";
+import { createLogger, type Logger } from "@repo/logger";
 import { describe, expect, it, vi } from "vitest";
 
 import { startApiRuntime } from "./api.runtime";
@@ -9,15 +9,9 @@ type ListenFake = {
 };
 
 function logger(): Logger {
-  return {
-    child: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    info: vi.fn(),
-    trace: vi.fn(),
-    warn: vi.fn()
-  } as unknown as Logger;
+  const log = createLogger({ name: "api-runtime-test", level: "silent" });
+  vi.spyOn(log, "info");
+  return log;
 }
 
 describe("api runtime", () => {

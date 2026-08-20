@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
-import { REPO_ROOT } from "./ai.util";
+import { isRecord, REPO_ROOT } from "./ai.util";
 
 const WORKSPACE_ROOTS = ["apps", "packages", "tooling"] as const;
 const ROOT_BUILD_CONFIGS = new Set([
@@ -40,7 +40,7 @@ const internalWorkspaceDeps = (manifest: Record<string, unknown>): string[] => {
       continue;
     }
 
-    for (const name of Object.keys(deps as Record<string, unknown>)) {
+    for (const name of Object.keys(deps)) {
       if (name.startsWith("@repo/")) {
         result.add(name);
       }
@@ -124,8 +124,8 @@ export const discoverWorkspacePackages = (rootDir = REPO_ROOT): WorkspacePackage
         continue;
       }
 
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-      if (typeof manifest.name !== "string") {
+      const manifest: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+      if (!isRecord(manifest) || typeof manifest.name !== "string") {
         throw new Error(
           `${relative(rootDir, manifestPath)}: package.json is missing a string name`
         );

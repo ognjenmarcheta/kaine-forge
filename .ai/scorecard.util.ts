@@ -22,7 +22,9 @@ export const DIMENSIONS = [
   "Docs & Agent Scaffolding"
 ] as const;
 
-export type Disposition = "open" | "fixed" | "wontfix" | "observed" | "regression";
+const DISPOSITIONS = ["open", "fixed", "wontfix", "observed", "regression"] as const;
+
+export type Disposition = (typeof DISPOSITIONS)[number];
 
 export interface DimensionScore {
   score: number | null;
@@ -78,6 +80,9 @@ export interface LedgerData {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isDisposition = (value: string): value is Disposition =>
+  DISPOSITIONS.some((disposition) => disposition === value);
 
 const requireString = (value: unknown, path: string): string => {
   if (typeof value !== "string") {
@@ -192,15 +197,21 @@ const parseRun = (value: unknown, path: string): ScorecardRun => {
       if (!isRecord(finding)) {
         throw new Error(`${path}.findings[${index}]: expected an object`);
       }
+      const disposition = requireString(
+        finding.disposition,
+        `${path}.findings[${index}].disposition`
+      );
+      if (!isDisposition(disposition)) {
+        throw new Error(
+          `${path}.findings[${index}].disposition: unknown disposition '${disposition}'`
+        );
+      }
       return {
         slug: requireString(finding.slug, `${path}.findings[${index}].slug`),
         title: requireString(finding.title, `${path}.findings[${index}].title`),
         dimension: requireNumber(finding.dimension, `${path}.findings[${index}].dimension`),
         ladderRank: requireNumber(finding.ladderRank, `${path}.findings[${index}].ladderRank`),
-        disposition: requireString(
-          finding.disposition,
-          `${path}.findings[${index}].disposition`
-        ) as Disposition,
+        disposition,
         issue: typeof finding.issue === "number" ? finding.issue : undefined,
         reason: typeof finding.reason === "string" ? finding.reason : undefined
       };

@@ -77,7 +77,7 @@ export async function listFiles(
   }
 
   if (filter.status) {
-    conditions.push(eq(filesTable.status, filter.status as "pending" | "uploaded" | "deleted"));
+    conditions.push(eq(filesTable.status, filter.status));
   }
 
   return db
