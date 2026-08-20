@@ -16,7 +16,7 @@ Before code changes:
 Behavioral guidelines:
 
 - Think before coding. Restate multi-part goals, state assumptions, inspect relevant files/tests, and ask when guessing would change behavior.
-- Simplicity first. Write the minimum code that solves the problem; avoid speculative features, abstractions, and new patterns.
+- Simplicity first. Stop at the first rung that holds: not needed at all → existing repo helper → stdlib → platform feature → installed dependency → one line → minimum code. Avoid speculative features, abstractions, and new patterns.
 - Surgical changes. Touch only necessary files, match existing style, remove only unused code created by your change, and edit canonical sources before generated outputs.
 - Goal-driven execution. Define verifiable success criteria, choose checks that prove behavior, and loop until met or a blocker is explicit.
 

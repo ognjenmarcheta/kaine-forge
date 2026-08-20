@@ -57,15 +57,29 @@ Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's 
 - State assumptions explicitly. If two interpretations would produce different code, surface the fork instead of choosing silently.
 - Read the relevant existing files and tests first. Let the current architecture, naming, and package boundaries shape the change.
 - Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
+- Fix bugs at the root cause: a report names a symptom. Trace every caller of the function you change and fix the shared function once — one guard there beats one per caller, and patching only the reported path leaves sibling callers broken.
 - If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
 
 ### Simplicity First
 
-- Write the minimum code that solves the stated problem.
+The best code is the code never written. Before writing any code, stop at the first rung that holds (adapted from DietrichGebert/ponytail):
+
+1. Does this need to be built at all? (YAGNI)
+2. Does the monorepo already have the helper, util, or pattern? Reuse it — check the feature folder and `@repo/*` packages first.
+3. Does the standard library cover it?
+4. Does the platform (browser, React Native, Node) cover it?
+5. Does an already-installed dependency cover it?
+6. Can it be one line? Make it one line.
+7. Only then: write the minimum code that works.
+
+The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb. The smallest change in the wrong place is not simple — it is a second bug.
+
 - Avoid unrequested features, speculative options, broad abstractions, and error handling for impossible states.
-- Prefer existing helpers and conventions over new frameworks, new patterns, or one-off infrastructure.
 - If a direct implementation is clearer than a generic abstraction, keep it direct.
 - If a solution is growing large, pause and look for the smaller design before continuing.
+- When two same-size approaches differ in edge-case correctness, pick the correct one — simplicity means less code, not a flimsier algorithm.
+- Minimalism never cuts: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. Non-trivial logic still ships with a test at the nearest useful layer.
+- A deliberate simplification with a known ceiling gets a GitHub issue naming the ceiling and the upgrade trigger — never a "for now" comment.
 
 ### Surgical Changes
 
@@ -183,6 +197,7 @@ Use skills when they match the task:
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
 - `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
 - `kaine-triage-deps`: triage open Dependabot/Renovate PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
