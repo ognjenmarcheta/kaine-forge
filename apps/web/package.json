@@ -33,7 +33,7 @@
     "graphql-ws": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.2",
     "sonner": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
