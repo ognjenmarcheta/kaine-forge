@@ -16,8 +16,8 @@ catalogs:
       specifier: ^5.101.4
       version: 5.101.4
     '@types/node':
-      specifier: ^24.3.0
-      version: 24.10.13
+      specifier: ^26.2.0
+      version: 26.2.0
     '@types/react':
       specifier: ^19.2.17
       version: 19.2.17
@@ -134,13 +134,13 @@ importers:
     devDependencies:
       '@changesets/cli':
         specifier: ^2.31.1
-        version: 2.31.1(@types/node@24.10.13)
+        version: 2.31.1(@types/node@26.2.0)
       '@clack/prompts':
         specifier: ^0.11.0
         version: 0.11.0
       '@commitlint/cli':
         specifier: ^21.2.1
-        version: 21.2.1(@types/node@24.10.13)(conventional-commits-parser@7.1.0)(typescript@5.9.3)
+        version: 21.2.1(@types/node@26.2.0)(conventional-commits-parser@7.1.0)(typescript@5.9.3)
       '@commitlint/config-conventional':
         specifier: ^21.2.0
         version: 21.2.0
@@ -149,10 +149,10 @@ importers:
         version: 21.2.0
       '@graphql-inspector/cli':
         specifier: 6.0.8
-        version: 6.0.8(@types/node@24.10.13)(graphql@16.14.2)
+        version: 6.0.8(@types/node@26.2.0)(graphql@16.14.2)
       '@types/node':
         specifier: 'catalog:'
-        version: 24.10.13
+        version: 26.2.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 3.2.6(vitest@3.2.6)
@@ -188,7 +188,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
       yaml:
         specifier: ^2.8.3
         version: 2.9.0
@@ -258,7 +258,7 @@ importers:
         version: 8.18.1
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   apps/desktop:
     devDependencies:
@@ -270,7 +270,7 @@ importers:
         version: 2.11.4
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   apps/e2e:
     devDependencies:
@@ -285,7 +285,7 @@ importers:
         version: link:../../packages/config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   apps/mobile:
     dependencies:
@@ -421,7 +421,7 @@ importers:
         version: 3.4.17
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   apps/web:
     dependencies:
@@ -491,7 +491,7 @@ importers:
         version: link:../../packages/config
       '@tailwindcss/vite':
         specifier: ^4.3.3
-        version: 4.3.3(vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 4.3.3(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.17
@@ -500,16 +500,16 @@ importers:
         version: 19.2.3(@types/react@19.2.17)
       '@vitejs/plugin-react':
         specifier: ^5.2.0
-        version: 5.2.0(vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 5.2.0(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
       vite:
         specifier: ^7.3.5
-        version: 7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/auth:
     dependencies:
@@ -537,7 +537,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/config:
     devDependencies:
@@ -546,7 +546,7 @@ importers:
         version: 9.39.5
       '@types/node':
         specifier: 'catalog:'
-        version: 24.10.13
+        version: 26.2.0
       eslint:
         specifier: ^9.35.0
         version: 9.39.5(jiti@2.7.0)
@@ -567,7 +567,7 @@ importers:
         version: 8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/db:
     dependencies:
@@ -601,7 +601,7 @@ importers:
         version: 0.31.10
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/email:
     dependencies:
@@ -614,7 +614,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/feature-flags:
     devDependencies:
@@ -623,7 +623,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/logger:
     dependencies:
@@ -639,7 +639,7 @@ importers:
         version: 13.1.3
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/mobile-ui:
     dependencies:
@@ -700,7 +700,7 @@ importers:
         version: 3.4.17
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/persistence:
     devDependencies:
@@ -709,7 +709,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/query:
     devDependencies:
@@ -718,7 +718,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/storage:
     dependencies:
@@ -734,7 +734,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/todos:
     devDependencies:
@@ -743,7 +743,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/translation:
     dependencies:
@@ -756,7 +756,7 @@ importers:
         version: link:../config
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/ui:
     dependencies:
@@ -802,13 +802,13 @@ importers:
         version: 4.3.3
       vitest:
         specifier: 'catalog:'
-        version: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   tooling/graphql-codegen:
     dependencies:
       '@graphql-codegen/cli':
         specifier: ^7.2.0
-        version: 7.2.0(@types/node@24.10.13)(graphql@16.14.2)(typescript@5.9.3)
+        version: 7.2.0(@types/node@26.2.0)(graphql@16.14.2)(typescript@5.9.3)
       '@graphql-codegen/client-preset':
         specifier: ^6.1.0
         version: 6.1.0(graphql@16.14.2)
@@ -905,6 +905,9 @@ packages:
   '@aws-sdk/core@3.977.1':
     resolution: {integrity: sha512-KVtQRtc00ES/y+Sc3vYXeP6pCIcNlBJCZOwvqSy8ZpVGmbM5+IG+AfhuTKQ2oXmIVqZJewaGMMpzPkywC6xg0w==}
     engines: {node: '>=20.0.0'}
+    deprecated: |-
+      Deprecated due to Document number parsing bug in JSON, see
+        https://github.com/aws/aws-sdk-js-v3/issues/8246. Newer version available.
 
   '@aws-sdk/credential-provider-env@3.972.61':
     resolution: {integrity: sha512-qihs2ekMb89Nxd2JenCgVFhjbkb3EIo7HEBCBzyZACKVJdrLUZBLOmAE3xr0Sayml8n/jZSzwO/IufIiIzO7PQ==}
@@ -4925,6 +4928,9 @@ packages:
 
   '@types/node@24.10.13':
     resolution: {integrity: sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg==}
+
+  '@types/node@26.2.0':
+    resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
 
   '@types/pg@8.20.0':
     resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
@@ -9224,6 +9230,9 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
+  undici-types@8.3.0:
+    resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
+
   undici@7.29.0:
     resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
     engines: {node: '>=20.18.1'}
@@ -10861,7 +10870,7 @@ snapshots:
     dependencies:
       '@changesets/types': 6.1.0
 
-  '@changesets/cli@2.31.1(@types/node@24.10.13)':
+  '@changesets/cli@2.31.1(@types/node@26.2.0)':
     dependencies:
       '@changesets/apply-release-plan': 7.1.1
       '@changesets/assemble-release-plan': 6.0.10
@@ -10877,7 +10886,7 @@ snapshots:
       '@changesets/should-skip-package': 0.1.2
       '@changesets/types': 6.1.0
       '@changesets/write': 0.4.0
-      '@inquirer/external-editor': 1.0.3(@types/node@24.10.13)
+      '@inquirer/external-editor': 1.0.3(@types/node@26.2.0)
       '@manypkg/get-packages': 1.1.3
       ansi-colors: 4.1.3
       enquirer: 2.4.1
@@ -10989,12 +10998,12 @@ snapshots:
   '@colors/colors@1.5.0':
     optional: true
 
-  '@commitlint/cli@21.2.1(@types/node@24.10.13)(conventional-commits-parser@7.1.0)(typescript@5.9.3)':
+  '@commitlint/cli@21.2.1(@types/node@26.2.0)(conventional-commits-parser@7.1.0)(typescript@5.9.3)':
     dependencies:
       '@commitlint/config-conventional': 21.2.0
       '@commitlint/format': 21.2.0
       '@commitlint/lint': 21.2.0
-      '@commitlint/load': 21.2.0(@types/node@24.10.13)(typescript@5.9.3)
+      '@commitlint/load': 21.2.0(@types/node@26.2.0)(typescript@5.9.3)
       '@commitlint/read': 21.2.1(conventional-commits-parser@7.1.0)
       '@commitlint/types': 21.2.0
       tinyexec: 1.2.4
@@ -11039,14 +11048,14 @@ snapshots:
       '@commitlint/rules': 21.2.0
       '@commitlint/types': 21.2.0
 
-  '@commitlint/load@21.2.0(@types/node@24.10.13)(typescript@5.9.3)':
+  '@commitlint/load@21.2.0(@types/node@26.2.0)(typescript@5.9.3)':
     dependencies:
       '@commitlint/config-validator': 21.2.0
       '@commitlint/execute-rule': 21.0.1
       '@commitlint/resolve-extends': 21.2.0
       '@commitlint/types': 21.2.0
       cosmiconfig: 9.0.2(typescript@5.9.3)
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@24.10.13)(cosmiconfig@9.0.2(typescript@5.9.3))(typescript@5.9.3)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.2.0)(cosmiconfig@9.0.2(typescript@5.9.3))(typescript@5.9.3)
       es-toolkit: 1.49.0
       is-plain-obj: 4.1.0
       picocolors: 1.1.1
@@ -11873,7 +11882,7 @@ snapshots:
       graphql: 16.14.2
       tslib: 2.8.1
 
-  '@graphql-codegen/cli@7.2.0(@types/node@24.10.13)(graphql@16.14.2)(typescript@5.9.3)':
+  '@graphql-codegen/cli@7.2.0(@types/node@26.2.0)(graphql@16.14.2)(typescript@5.9.3)':
     dependencies:
       '@babel/generator': 7.29.7
       '@babel/template': 7.29.7
@@ -11884,21 +11893,21 @@ snapshots:
       '@graphql-tools/apollo-engine-loader': 8.0.28(graphql@16.14.2)
       '@graphql-tools/code-file-loader': 8.1.28(graphql@16.14.2)
       '@graphql-tools/git-loader': 8.0.32(graphql@16.14.2)
-      '@graphql-tools/github-loader': 9.1.6(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/github-loader': 9.1.6(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/graphql-file-loader': 8.1.18(graphql@16.14.2)
       '@graphql-tools/json-file-loader': 8.0.26(graphql@16.14.2)
       '@graphql-tools/load': 8.1.8(graphql@16.14.2)
       '@graphql-tools/merge': 9.1.7(graphql@16.14.2)
-      '@graphql-tools/url-loader': 9.1.6(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/url-loader': 9.1.6(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/utils': 11.2.2(graphql@16.14.2)
-      '@inquirer/prompts': 8.5.2(@types/node@24.10.13)
+      '@inquirer/prompts': 8.5.2(@types/node@26.2.0)
       '@whatwg-node/fetch': 0.10.13
       chalk: 5.6.2
       cosmiconfig: 9.0.2(typescript@5.9.3)
       debounce: 3.0.0
       detect-indent: 7.0.2
       graphql: 16.14.2
-      graphql-config: 5.1.6(@types/node@24.10.13)(graphql@16.14.2)(typescript@5.9.3)
+      graphql-config: 5.1.6(@types/node@26.2.0)(graphql@16.14.2)(typescript@5.9.3)
       is-glob: 4.0.3
       jiti: 2.7.0
       json-to-pretty-yaml: 1.2.2
@@ -12040,7 +12049,7 @@ snapshots:
       - '@graphql-inspector/loaders'
       - yargs
 
-  '@graphql-inspector/cli@6.0.8(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-inspector/cli@6.0.8(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@babel/core': 7.26.10
       '@graphql-inspector/audit-command': 5.0.20(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
@@ -12051,14 +12060,14 @@ snapshots:
       '@graphql-inspector/diff-command': 6.0.8(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
       '@graphql-inspector/docs-command': 5.0.5(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
       '@graphql-inspector/git-loader': 5.0.1(graphql@16.14.2)
-      '@graphql-inspector/github-loader': 5.0.1(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-inspector/github-loader': 5.0.1(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-inspector/graphql-loader': 5.0.1(graphql@16.14.2)
       '@graphql-inspector/introspect-command': 5.0.20(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
       '@graphql-inspector/json-loader': 5.0.1(graphql@16.14.2)
       '@graphql-inspector/loaders': 4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2)
       '@graphql-inspector/serve-command': 5.0.7(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
       '@graphql-inspector/similar-command': 5.0.20(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
-      '@graphql-inspector/url-loader': 5.0.1(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-inspector/url-loader': 5.0.1(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-inspector/validate-command': 5.0.20(@graphql-inspector/config@4.0.2(graphql@16.14.2))(@graphql-inspector/loaders@4.1.0(@graphql-inspector/config@4.0.2(graphql@16.14.2))(graphql@16.14.2))(graphql@16.14.2)(yargs@17.7.2)
       graphql: 16.14.2
       tslib: 2.6.2
@@ -12142,9 +12151,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@graphql-inspector/github-loader@5.0.1(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-inspector/github-loader@5.0.1(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
-      '@graphql-tools/github-loader': 8.0.1(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/github-loader': 8.0.1(@types/node@26.2.0)(graphql@16.14.2)
       graphql: 16.14.2
       tslib: 2.6.2
     transitivePeerDependencies:
@@ -12220,9 +12229,9 @@ snapshots:
       - '@graphql-inspector/loaders'
       - yargs
 
-  '@graphql-inspector/url-loader@5.0.1(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-inspector/url-loader@5.0.1(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
-      '@graphql-tools/url-loader': 8.0.2(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/url-loader': 8.0.2(@types/node@26.2.0)(graphql@16.14.2)
       graphql: 16.14.2
       tslib: 2.6.2
     transitivePeerDependencies:
@@ -12380,7 +12389,7 @@ snapshots:
       - crossws
       - utf-8-validate
 
-  '@graphql-tools/executor-http@1.3.3(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/executor-http@1.3.3(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@graphql-hive/signal': 1.0.0
       '@graphql-tools/executor-common': 0.0.4(graphql@16.14.2)
@@ -12390,12 +12399,12 @@ snapshots:
       '@whatwg-node/fetch': 0.10.13
       '@whatwg-node/promise-helpers': 1.3.2
       graphql: 16.14.2
-      meros: 1.3.2(@types/node@24.10.13)
+      meros: 1.3.2(@types/node@26.2.0)
       tslib: 2.8.1
     transitivePeerDependencies:
       - '@types/node'
 
-  '@graphql-tools/executor-http@3.3.0(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/executor-http@3.3.0(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@graphql-hive/signal': 2.0.0
       '@graphql-tools/executor-common': 1.0.6(graphql@16.14.2)
@@ -12405,7 +12414,7 @@ snapshots:
       '@whatwg-node/fetch': 0.10.13
       '@whatwg-node/promise-helpers': 1.3.2
       graphql: 16.14.2
-      meros: 1.3.2(@types/node@24.10.13)
+      meros: 1.3.2(@types/node@26.2.0)
       tslib: 2.8.1
     transitivePeerDependencies:
       - '@types/node'
@@ -12468,10 +12477,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@graphql-tools/github-loader@8.0.1(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/github-loader@8.0.1(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@ardatan/sync-fetch': 0.0.1
-      '@graphql-tools/executor-http': 1.3.3(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/executor-http': 1.3.3(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/graphql-tag-pluck': 8.3.27(graphql@16.14.2)
       '@graphql-tools/utils': 10.11.0(graphql@16.14.2)
       '@whatwg-node/fetch': 0.9.23
@@ -12483,9 +12492,9 @@ snapshots:
       - encoding
       - supports-color
 
-  '@graphql-tools/github-loader@9.1.6(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/github-loader@9.1.6(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
-      '@graphql-tools/executor-http': 3.3.0(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/executor-http': 3.3.0(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/graphql-tag-pluck': 8.3.35(graphql@16.14.2)
       '@graphql-tools/utils': 11.2.2(graphql@16.14.2)
       '@whatwg-node/fetch': 0.10.13
@@ -12644,12 +12653,12 @@ snapshots:
       graphql: 16.14.2
       tslib: 2.8.1
 
-  '@graphql-tools/url-loader@8.0.2(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/url-loader@8.0.2(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@ardatan/sync-fetch': 0.0.1
       '@graphql-tools/delegate': 10.2.23(graphql@16.14.2)
       '@graphql-tools/executor-graphql-ws': 1.3.7(graphql@16.14.2)
-      '@graphql-tools/executor-http': 1.3.3(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/executor-http': 1.3.3(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/executor-legacy-ws': 1.1.25(graphql@16.14.2)
       '@graphql-tools/utils': 10.11.0(graphql@16.14.2)
       '@graphql-tools/wrap': 10.1.4(graphql@16.14.2)
@@ -12666,10 +12675,10 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@graphql-tools/url-loader@9.1.6(@types/node@24.10.13)(graphql@16.14.2)':
+  '@graphql-tools/url-loader@9.1.6(@types/node@26.2.0)(graphql@16.14.2)':
     dependencies:
       '@graphql-tools/executor-graphql-ws': 3.1.5(graphql@16.14.2)
-      '@graphql-tools/executor-http': 3.3.0(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/executor-http': 3.3.0(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/executor-legacy-ws': 1.1.32(graphql@16.14.2)
       '@graphql-tools/utils': 11.2.2(graphql@16.14.2)
       '@graphql-tools/wrap': 11.1.20(graphql@16.14.2)
@@ -12776,129 +12785,129 @@ snapshots:
 
   '@inquirer/ansi@2.0.7': {}
 
-  '@inquirer/checkbox@5.2.1(@types/node@24.10.13)':
+  '@inquirer/checkbox@5.2.1(@types/node@26.2.0)':
     dependencies:
       '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
       '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/confirm@6.1.1(@types/node@24.10.13)':
+  '@inquirer/confirm@6.1.1(@types/node@26.2.0)':
     dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/core@11.2.1(@types/node@24.10.13)':
+  '@inquirer/core@11.2.1(@types/node@26.2.0)':
     dependencies:
       '@inquirer/ansi': 2.0.7
       '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
       cli-width: 4.1.0
       fast-wrap-ansi: 0.2.2
       mute-stream: 3.0.0
       signal-exit: 4.1.0
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/editor@5.2.2(@types/node@24.10.13)':
+  '@inquirer/editor@5.2.2(@types/node@26.2.0)':
     dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/external-editor': 3.0.3(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/external-editor': 3.0.3(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/expand@5.1.1(@types/node@24.10.13)':
+  '@inquirer/expand@5.1.1(@types/node@26.2.0)':
     dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/external-editor@1.0.3(@types/node@24.10.13)':
-    dependencies:
-      chardet: 2.1.1
-      iconv-lite: 0.7.2
-    optionalDependencies:
-      '@types/node': 24.10.13
-
-  '@inquirer/external-editor@3.0.3(@types/node@24.10.13)':
+  '@inquirer/external-editor@1.0.3(@types/node@26.2.0)':
     dependencies:
       chardet: 2.1.1
       iconv-lite: 0.7.2
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
+
+  '@inquirer/external-editor@3.0.3(@types/node@26.2.0)':
+    dependencies:
+      chardet: 2.1.1
+      iconv-lite: 0.7.2
+    optionalDependencies:
+      '@types/node': 26.2.0
 
   '@inquirer/figures@2.0.7': {}
 
-  '@inquirer/input@5.1.2(@types/node@24.10.13)':
+  '@inquirer/input@5.1.2(@types/node@26.2.0)':
     dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/number@4.1.1(@types/node@24.10.13)':
+  '@inquirer/number@4.1.1(@types/node@26.2.0)':
     dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/password@5.1.1(@types/node@24.10.13)':
-    dependencies:
-      '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
-    optionalDependencies:
-      '@types/node': 24.10.13
-
-  '@inquirer/prompts@8.5.2(@types/node@24.10.13)':
-    dependencies:
-      '@inquirer/checkbox': 5.2.1(@types/node@24.10.13)
-      '@inquirer/confirm': 6.1.1(@types/node@24.10.13)
-      '@inquirer/editor': 5.2.2(@types/node@24.10.13)
-      '@inquirer/expand': 5.1.1(@types/node@24.10.13)
-      '@inquirer/input': 5.1.2(@types/node@24.10.13)
-      '@inquirer/number': 4.1.1(@types/node@24.10.13)
-      '@inquirer/password': 5.1.1(@types/node@24.10.13)
-      '@inquirer/rawlist': 5.3.1(@types/node@24.10.13)
-      '@inquirer/search': 4.2.1(@types/node@24.10.13)
-      '@inquirer/select': 5.2.1(@types/node@24.10.13)
-    optionalDependencies:
-      '@types/node': 24.10.13
-
-  '@inquirer/rawlist@5.3.1(@types/node@24.10.13)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
-    optionalDependencies:
-      '@types/node': 24.10.13
-
-  '@inquirer/search@4.2.1(@types/node@24.10.13)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
-    optionalDependencies:
-      '@types/node': 24.10.13
-
-  '@inquirer/select@5.2.1(@types/node@24.10.13)':
+  '@inquirer/password@5.1.1(@types/node@26.2.0)':
     dependencies:
       '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.10.13)
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.10.13)
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
-  '@inquirer/type@4.0.7(@types/node@24.10.13)':
+  '@inquirer/prompts@8.5.2(@types/node@26.2.0)':
+    dependencies:
+      '@inquirer/checkbox': 5.2.1(@types/node@26.2.0)
+      '@inquirer/confirm': 6.1.1(@types/node@26.2.0)
+      '@inquirer/editor': 5.2.2(@types/node@26.2.0)
+      '@inquirer/expand': 5.1.1(@types/node@26.2.0)
+      '@inquirer/input': 5.1.2(@types/node@26.2.0)
+      '@inquirer/number': 4.1.1(@types/node@26.2.0)
+      '@inquirer/password': 5.1.1(@types/node@26.2.0)
+      '@inquirer/rawlist': 5.3.1(@types/node@26.2.0)
+      '@inquirer/search': 4.2.1(@types/node@26.2.0)
+      '@inquirer/select': 5.2.1(@types/node@26.2.0)
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
+
+  '@inquirer/rawlist@5.3.1(@types/node@26.2.0)':
+    dependencies:
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
+    optionalDependencies:
+      '@types/node': 26.2.0
+
+  '@inquirer/search@4.2.1(@types/node@26.2.0)':
+    dependencies:
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/figures': 2.0.7
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
+    optionalDependencies:
+      '@types/node': 26.2.0
+
+  '@inquirer/select@5.2.1(@types/node@26.2.0)':
+    dependencies:
+      '@inquirer/ansi': 2.0.7
+      '@inquirer/core': 11.2.1(@types/node@26.2.0)
+      '@inquirer/figures': 2.0.7
+      '@inquirer/type': 4.0.7(@types/node@26.2.0)
+    optionalDependencies:
+      '@types/node': 26.2.0
+
+  '@inquirer/type@4.0.7(@types/node@26.2.0)':
+    optionalDependencies:
+      '@types/node': 26.2.0
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -14843,12 +14852,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
-  '@tailwindcss/vite@4.3.3(vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@tailwindcss/vite@4.3.3(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   '@tanstack/devtools-event-client@0.4.4': {}
 
@@ -15048,6 +15057,10 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@types/node@26.2.0':
+    dependencies:
+      undici-types: 8.3.0
+
   '@types/pg@8.20.0':
     dependencies:
       '@types/node': 24.10.13
@@ -15177,7 +15190,7 @@ snapshots:
 
   '@vercel/oidc@3.2.0': {}
 
-  '@vitejs/plugin-react@5.2.0(vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@vitejs/plugin-react@5.2.0(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.7)
@@ -15185,7 +15198,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -15204,7 +15217,7 @@ snapshots:
       std-env: 3.10.0
       test-exclude: 7.0.1
       tinyrainbow: 2.0.0
-      vitest: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -15216,13 +15229,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.6(vite@7.3.1(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@vitest/mocker@3.2.6(vite@7.3.1(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 3.2.6
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.1(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   '@vitest/pretty-format@3.2.6':
     dependencies:
@@ -15257,7 +15270,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 2.0.0
-      vitest: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
 
   '@vitest/utils@3.2.6':
     dependencies:
@@ -15688,7 +15701,7 @@ snapshots:
       pg: 8.22.0
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
-      vitest: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
@@ -15718,7 +15731,7 @@ snapshots:
       pg: 8.22.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      vitest: 3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest: 3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
@@ -16067,9 +16080,9 @@ snapshots:
 
   core-util-is@1.0.3: {}
 
-  cosmiconfig-typescript-loader@6.3.0(@types/node@24.10.13)(cosmiconfig@9.0.2(typescript@5.9.3))(typescript@5.9.3):
+  cosmiconfig-typescript-loader@6.3.0(@types/node@26.2.0)(cosmiconfig@9.0.2(typescript@5.9.3))(typescript@5.9.3):
     dependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
       cosmiconfig: 9.0.2(typescript@5.9.3)
       jiti: 2.6.1
       typescript: 5.9.3
@@ -17300,13 +17313,13 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  graphql-config@5.1.6(@types/node@24.10.13)(graphql@16.14.2)(typescript@5.9.3):
+  graphql-config@5.1.6(@types/node@26.2.0)(graphql@16.14.2)(typescript@5.9.3):
     dependencies:
       '@graphql-tools/graphql-file-loader': 8.1.18(graphql@16.14.2)
       '@graphql-tools/json-file-loader': 8.0.26(graphql@16.14.2)
       '@graphql-tools/load': 8.1.8(graphql@16.14.2)
       '@graphql-tools/merge': 9.2.2(graphql@16.14.2)
-      '@graphql-tools/url-loader': 9.1.6(@types/node@24.10.13)(graphql@16.14.2)
+      '@graphql-tools/url-loader': 9.1.6(@types/node@26.2.0)(graphql@16.14.2)
       '@graphql-tools/utils': 11.2.2(graphql@16.14.2)
       cosmiconfig: 8.3.6(typescript@5.9.3)
       graphql: 16.14.2
@@ -18210,9 +18223,9 @@ snapshots:
 
   merge2@1.4.1: {}
 
-  meros@1.3.2(@types/node@24.10.13):
+  meros@1.3.2(@types/node@26.2.0):
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
 
   metro-babel-transformer@0.83.7:
     dependencies:
@@ -20206,6 +20219,8 @@ snapshots:
 
   undici-types@7.16.0: {}
 
+  undici-types@8.3.0: {}
+
   undici@7.29.0: {}
 
   undici@8.9.0: {}
@@ -20327,13 +20342,13 @@ snapshots:
       - '@types/react-dom'
     optional: true
 
-  vite-node@3.2.4(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
+  vite-node@3.2.4(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -20348,7 +20363,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.3.1(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
+  vite@7.3.1(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.5)
@@ -20357,7 +20372,7 @@ snapshots:
       rollup: 4.57.1
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
       fsevents: 2.3.3
       jiti: 2.7.0
       lightningcss: 1.32.0
@@ -20365,7 +20380,7 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vite@7.3.6(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
+  vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.5)
@@ -20374,7 +20389,7 @@ snapshots:
       rollup: 4.57.1
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
       fsevents: 2.3.3
       jiti: 2.7.0
       lightningcss: 1.32.0
@@ -20382,11 +20397,11 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vitest@3.2.6(@types/node@24.10.13)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
+  vitest@3.2.6(@types/node@26.2.0)(@vitest/ui@3.2.6)(jiti@2.7.0)(jsdom@30.0.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.6
-      '@vitest/mocker': 3.2.6(vite@7.3.1(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
+      '@vitest/mocker': 3.2.6(vite@7.3.1(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.6
       '@vitest/snapshot': 3.2.6
@@ -20404,11 +20419,11 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.1(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
-      vite-node: 3.2.4(@types/node@24.10.13)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.1(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite-node: 3.2.4(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.23.1)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.10.13
+      '@types/node': 26.2.0
       '@vitest/ui': 3.2.6(vitest@3.2.6)
       jsdom: 30.0.0(@noble/hashes@2.0.1)
     transitivePeerDependencies:
