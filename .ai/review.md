@@ -44,6 +44,10 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 - [ ] Tests cover new or changed behavior at the nearest useful layer; risky auth/tenancy/GraphQL paths have tests.
 - [ ] No new `any`; prefer precise types or `unknown` with narrowing.
+- [ ] `SAFETY:` comments on type assertions state the specific checked invariant (what validated the value), not boilerplate like "needed for types" (lint requires the comment; review checks its substance).
+- [ ] Preserved inference or `satisfies` over widening annotations that discard known keys/values (e.g. `const handlers: Record<string, Handler> = { start }` loses the `start` key).
+- [ ] `unknown` appears only at intake boundaries and is narrowed immediately; not in exported params/returns (error `cause` excepted) and not as dictionary value contracts (`Record<string, unknown>`) outside true serialization seams (logger context, JSON intake).
+- [ ] Parsing or type guards at the boundary seam instead of scattered ad hoc `typeof` checks.
 - [ ] Relevant checks run (workspace test/typecheck; root `pnpm check` for broad changes; e2e for user-visible web/API flows).
 - [ ] Changesets included for releasable `apps/**`, `packages/**`, `tooling/**` changes unless `release:skip-changeset`.
 - [ ] New comments explain non-obvious rationale or consequences only — no noise that restates what the code already shows.

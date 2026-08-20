@@ -238,12 +238,15 @@ const stringField = (
   return value;
 };
 
+const isJsonObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 export const parseTemplateAdoptionConfig = (raw: unknown): TemplateAdoptionConfig => {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isJsonObject(raw)) {
     throw new Error("template adoption config must be a JSON object");
   }
 
-  const object = raw as Record<string, unknown>;
+  const object = raw;
   const input: TemplateAdoptionInput = {};
   const fields: Array<keyof TemplateAdoptionInput> = [
     "productName",

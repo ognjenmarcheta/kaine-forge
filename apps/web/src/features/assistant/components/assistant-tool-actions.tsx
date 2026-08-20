@@ -16,6 +16,10 @@ function readString(record: Record<string, unknown>, key: string): string | null
   return typeof value === "string" ? value : null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function noteLinkFor(action: { output: string | null; tool: string }): NoteLink | null {
   if (!action.output) return null;
   let parsed: unknown;
@@ -24,15 +28,14 @@ function noteLinkFor(action: { output: string | null; tool: string }): NoteLink 
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const record = parsed as Record<string, unknown>;
+  if (!isRecord(parsed)) return null;
   if (action.tool === "createNote" || action.tool === "updateNote") {
-    const noteId = readString(record, "id");
-    if (noteId) return { noteId, title: readString(record, "title") ?? noteId };
+    const noteId = readString(parsed, "id");
+    if (noteId) return { noteId, title: readString(parsed, "title") ?? noteId };
   }
   if (action.tool === "addTodoToNote") {
-    const noteId = readString(record, "noteId");
-    if (noteId) return { noteId, title: readString(record, "title") ?? noteId };
+    const noteId = readString(parsed, "noteId");
+    if (noteId) return { noteId, title: readString(parsed, "title") ?? noteId };
   }
   return null;
 }

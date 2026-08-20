@@ -19,6 +19,7 @@ function createResponse() {
 
 function createContext(method: string, url: string) {
   const res = createResponse();
+  // eslint-disable-next-line anti-slop/no-chained-type-assertions -- the fakes model only the req/res fields the transport reads; fully typed node IncomingMessage/ServerResponse fakes are impractical
   const ctx = { req: { method, url }, res } as unknown as HealthRouteContext;
   return { ctx, res };
 }

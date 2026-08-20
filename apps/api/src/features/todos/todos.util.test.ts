@@ -33,12 +33,15 @@ describe("todos.util", () => {
   });
 
   it("applyTodoPatch only returns editable fields", () => {
-    const patch = applyTodoPatch({
+    // Assigned to a variable so the extra runtime-only key skips the
+    // excess-property check a fresh literal would trigger.
+    const input = {
       title: "  Edited ",
       description: "  ",
       completed: true,
       ignored: "x"
-    });
+    };
+    const patch = applyTodoPatch(input);
 
     expect(patch).toEqual({ title: "Edited", description: null, completed: true });
   });

@@ -62,7 +62,7 @@ export async function listOrganizationsRequest(): Promise<ListOrganizationsRespo
 
 export async function listOrganizationMembersRequest(): Promise<ListOrganizationMembersResponse> {
   return {
-    members: (await authTransport.listOrganizationMembers()) as OrganizationMember[]
+    members: await authTransport.listOrganizationMembers()
   };
 }
 

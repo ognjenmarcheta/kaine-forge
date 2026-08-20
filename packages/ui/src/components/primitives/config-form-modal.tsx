@@ -11,7 +11,6 @@ import {
   buildSimpleFormDefaults,
   validateSimpleField,
   type SimpleFieldConfig,
-  type SimpleFormValue,
   type SimpleFormValues
 } from "../../lib/forms/simple-form-config";
 
@@ -103,14 +102,13 @@ export function ConfigFormModal({
           key={field.name}
           name={field.name}
           validators={{
-            onChange: ({ value }) =>
-              validateSimpleField(field, value as SimpleFormValue, form.state.values)
+            onChange: ({ value }) => validateSimpleField(field, value, form.state.values)
           }}
         >
           {(fieldApi) => {
             const error =
               fieldApi.state.meta.isTouched && fieldApi.state.meta.errors.length > 0
-                ? toFirstError(fieldApi.state.meta.errors as unknown[])
+                ? toFirstError(fieldApi.state.meta.errors)
                 : null;
 
             if (field.type === "checkbox") {

@@ -3,6 +3,8 @@ import importPlugin from "eslint-plugin-import";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import antiSlopConfig from "./anti-slop.js";
+
 export default [
   {
     ignores: [
@@ -19,6 +21,7 @@ export default [
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  ...antiSlopConfig,
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {

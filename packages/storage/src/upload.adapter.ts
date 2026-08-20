@@ -45,6 +45,9 @@ interface CreateUploadTransferInput<TFile> {
 }
 
 function createDefaultXhr(): UploadXmlHttpRequest {
+  // SAFETY: UploadXmlHttpRequest lists only members every runtime
+  // XMLHttpRequest implements; the cast probes globalThis for the constructor
+  // without pulling the DOM lib into this package, and absence throws below.
   const xhrConstructor = (globalThis as { XMLHttpRequest?: new () => UploadXmlHttpRequest })
     .XMLHttpRequest;
 

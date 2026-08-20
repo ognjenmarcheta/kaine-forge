@@ -9,7 +9,9 @@ export interface RequestUploadInput {
 export interface FilesFilterInput {
   entityType?: string;
   entityId?: string;
-  status?: string;
+  // Mirrors the FileStatus enum in storage.schema.ts; GraphQL validates the
+  // value against that enum before any resolver runs.
+  status?: "pending" | "uploaded" | "deleted";
   limit?: number;
   offset?: number;
 }

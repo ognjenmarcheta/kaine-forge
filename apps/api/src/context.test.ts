@@ -15,6 +15,7 @@ vi.mock("@repo/db", () => ({
 describe("createContextFromHeaders", () => {
   it("reuses the injected ServerAuth adapter for Session and membership resolution", async () => {
     const auth = {
+      getCurrentOrganizationByScope: vi.fn(async () => null),
       getOrganizationMembershipProof: vi.fn(async () => ({
         id: "membership-1",
         organizationId: "org-1",
@@ -26,18 +27,22 @@ describe("createContextFromHeaders", () => {
         expiresAt: "2026-01-01T00:00:00.000Z",
         user: {
           email: "user@example.com",
+          emailVerified: true,
           id: "user-1",
           name: "User"
         }
-      }))
-    };
+      })),
+      listInvitationsByScope: vi.fn(async () => []),
+      listOrganizationMembersByScope: vi.fn(async () => []),
+      listOrganizationsByScope: vi.fn(async () => [])
+    } satisfies ServerAuth;
 
     const context = await createContextFromHeaders(
       {
         authorization: "Bearer session-token"
       },
       createLogger({ name: "test" }),
-      auth as unknown as ServerAuth
+      auth
     );
 
     expect(context.auth).toBe(auth);

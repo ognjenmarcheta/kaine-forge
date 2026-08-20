@@ -152,7 +152,7 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
 
 const readConfig = (configPath: string): TemplateAdoptionConfig => {
   const absolutePath = isAbsolute(configPath) ? configPath : join(REPO_ROOT, configPath);
-  const parsed = JSON.parse(readFileSync(absolutePath, "utf8")) as unknown;
+  const parsed: unknown = JSON.parse(readFileSync(absolutePath, "utf8"));
   return parseTemplateAdoptionConfig(parsed);
 };
 

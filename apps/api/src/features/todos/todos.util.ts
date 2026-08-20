@@ -37,7 +37,7 @@ export function parseOptionalDescription(description?: string | null): string | 
   return trimmed.length === 0 ? null : trimmed;
 }
 
-export function applyTodoPatch(input: UpdateTodoInput & Record<string, unknown>): TodoPatch {
+export function applyTodoPatch(input: UpdateTodoInput): TodoPatch {
   const patch: TodoPatch = {};
 
   if (typeof input.title === "string") {

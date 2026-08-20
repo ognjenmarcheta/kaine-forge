@@ -48,8 +48,7 @@ function getOrganizationPluginOptions(
   instance: typeof auth = auth
 ): OrganizationPluginOptions | undefined {
   const plugin = (instance.options.plugins ?? []).find((entry) => entry.id === "organization") as
-    | { options?: OrganizationPluginOptions }
-    | undefined;
+    { options?: OrganizationPluginOptions } | undefined;
 
   return plugin?.options;
 }
@@ -166,8 +165,7 @@ describe("auth.instance email hooks", () => {
 
     // The options literal deliberately omits the key, so widen to inspect it.
     const emailAndPassword = createAuthInstance().options.emailAndPassword as
-      | { requireEmailVerification?: boolean }
-      | undefined;
+      { requireEmailVerification?: boolean } | undefined;
 
     expect(emailAndPassword?.requireEmailVerification).toBeUndefined();
   });

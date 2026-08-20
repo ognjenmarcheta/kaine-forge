@@ -42,6 +42,10 @@ const ROUTE_TO_BREADCRUMB = {
   "/todos": "navigation.todos"
 } as const;
 
+function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_BREADCRUMB {
+  return pathname in ROUTE_TO_BREADCRUMB;
+}
+
 function ShellLayout() {
   const { isLoading, logout, session } = useAuth();
   const {
@@ -78,9 +82,9 @@ function ShellLayout() {
     const isTodosActive = location.pathname === "/todos";
     const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
     const isAssistantActive = location.pathname === "/assistant";
-    const currentRouteKey =
-      ROUTE_TO_BREADCRUMB[location.pathname as keyof typeof ROUTE_TO_BREADCRUMB] ??
-      "navigation.dashboard";
+    const currentRouteKey = isBreadcrumbRoute(location.pathname)
+      ? ROUTE_TO_BREADCRUMB[location.pathname]
+      : "navigation.dashboard";
     const organizationOptions =
       organizations.length > 0
         ? organizations.map((organization) => ({

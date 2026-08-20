@@ -3,7 +3,7 @@ import { createServerAuth } from "@repo/auth/server";
 import { createErrorReporter, type Logger } from "@repo/logger";
 import { toNodeHandler } from "better-auth/node";
 import { useServer } from "graphql-ws/use/ws";
-import { createYoga } from "graphql-yoga";
+import { createYoga, type YogaInitialContext } from "graphql-yoga";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -101,16 +101,22 @@ export function createApiServer({
       })
     ],
     context: async (initialContext) => {
-      const serverContext = initialContext as unknown as Record<string, unknown>;
-      const requestLogger = (serverContext["requestLogger"] as Logger | undefined) ?? logger;
+      // The node adapter merges { req } into the server context for HTTP
+      // requests and the logger plugin stashes a request-scoped child logger
+      // on the same object; yoga's inferred context type carries neither, so
+      // declare those extra properties instead of asserting them.
+      const serverContext: YogaInitialContext & {
+        req?: { headers?: IncomingHttpHeaders };
+        requestLogger?: Logger;
+      } = initialContext;
+      const requestLogger = serverContext.requestLogger ?? logger;
 
-      const nodeHeaders = (initialContext as { req?: { headers?: IncomingHttpHeaders } }).req
-        ?.headers;
+      const nodeHeaders = serverContext.req?.headers;
       if (nodeHeaders) {
         return createContextFromHeaders(nodeHeaders, requestLogger, auth);
       }
 
-      return createContext(initialContext.request, requestLogger, auth);
+      return createContext(serverContext.request, requestLogger, auth);
     },
     maskedErrors: runtimeConfig.maskedErrors,
     cors,
@@ -211,9 +217,8 @@ export function createApiServer({
     {
       schema: apiSchema,
       context: async (ctx) => {
-        const req = ctx.extra.request as IncomingMessage;
-        const headers = req.headers;
-        const connectionParams = ctx.connectionParams as Record<string, unknown> | undefined;
+        const headers = ctx.extra.request.headers;
+        const connectionParams = ctx.connectionParams;
         return createContextFromHeaders(
           mergeWebSocketConnectionHeaders(headers, connectionParams),
           logger,
@@ -221,9 +226,8 @@ export function createApiServer({
         );
       },
       onConnect: async (ctx) => {
-        const req = ctx.extra.request as IncomingMessage;
-        const headers = req.headers;
-        const connectionParams = ctx.connectionParams as Record<string, unknown> | undefined;
+        const headers = ctx.extra.request.headers;
+        const connectionParams = ctx.connectionParams;
         const session = await auth.getSessionFromHeaders(
           mergeWebSocketConnectionHeaders(headers, connectionParams)
         );

@@ -71,11 +71,7 @@ export function createTodoWorkflow(adapter: TodoWorkflowAdapter) {
       id: string,
       input: UpdateTodoInput
     ): Promise<TodoEventPayload> {
-      const result = await adapter.updateTodo(
-        scope,
-        id,
-        applyTodoPatch(input as UpdateTodoInput & Record<string, unknown>)
-      );
+      const result = await adapter.updateTodo(scope, id, applyTodoPatch(input));
 
       adapter.publishTodoEvent("todo:updated", result);
       return result;

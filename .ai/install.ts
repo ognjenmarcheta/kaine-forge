@@ -13,6 +13,7 @@ import {
   discoverAgentDefinitions,
   discoverSkills,
   ensureLocalMcpEnv,
+  isRecord,
   KAINE_PREFIX,
   LOCAL_MCP_SRC,
   MCP_JSON_EXAMPLE_SRC,
@@ -72,6 +73,8 @@ Otherwise defaults to: --agent claude --agent codex, all default skills, all def
 
 const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode", "grok"];
 
+const isAgent = (value: string): value is Agent => ALL_AGENTS.some((agent) => agent === value);
+
 const SKILL_DIRS: Record<Agent, string> = {
   claude: ".claude/skills",
   codex: ".agents/skills",
@@ -118,7 +121,7 @@ const detectAgents = (): Set<Agent> => {
 
 const promptAgents = async (): Promise<Agent[]> => {
   const detected = detectAgents();
-  const result = await multiselect({
+  const result = await multiselect<Agent>({
     message: "Which AI coding tools do you use?",
     options: ALL_AGENTS.map((agent) => ({
       value: agent,
@@ -134,7 +137,7 @@ const promptAgents = async (): Promise<Agent[]> => {
     process.exit(0);
   }
 
-  return result as Agent[];
+  return result;
 };
 
 const installedMcpsForAgent = (agent: Agent): Set<string> => {
@@ -163,14 +166,14 @@ const installedMcpsForAgent = (agent: Agent): Set<string> => {
   }
 
   try {
-    const parsed = JSON.parse(content) as {
-      mcp?: Record<string, unknown>;
-      mcpServers?: Record<string, unknown>;
-    };
-    for (const name of Object.keys(parsed.mcpServers ?? {})) {
+    const parsed: unknown = JSON.parse(content);
+    if (!isRecord(parsed)) {
+      return result;
+    }
+    for (const name of Object.keys(isRecord(parsed.mcpServers) ? parsed.mcpServers : {})) {
       result.add(name);
     }
-    for (const name of Object.keys(parsed.mcp ?? {})) {
+    for (const name of Object.keys(isRecord(parsed.mcp) ? parsed.mcp : {})) {
       result.add(name);
     }
   } catch {
@@ -224,7 +227,7 @@ const promptOptInMcps = async (agents: Agent[]): Promise<string[]> => {
     process.exit(0);
   }
 
-  return result as string[];
+  return result;
 };
 
 const parseArgs = (): InstallOptions => {
@@ -251,10 +254,10 @@ const parseArgs = (): InstallOptions => {
         throw new Error("--agent requires a value");
       }
       for (const item of parseListArg(value)) {
-        if (!ALL_AGENTS.includes(item as Agent)) {
+        if (!isAgent(item)) {
           throw new Error(`Unsupported agent: ${item}`);
         }
-        agents.push(item as Agent);
+        agents.push(item);
       }
       index += 1;
       continue;
