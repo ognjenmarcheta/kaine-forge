@@ -11,7 +11,7 @@ Report privately to the maintainers with:
 - reproduction steps
 - suggested remediation, if known
 
-Until a dedicated security contact is published, open a private maintainer channel and include `SECURITY` in the title.
+Use GitHub private vulnerability reporting: the repository's **Security** tab → **Report a vulnerability**. If that is unavailable, open a private maintainer channel and include `SECURITY` in the title.
 
 ## Response Expectations
 

@@ -1,0 +1,22 @@
+name: Bug report
+description: Something in the template is broken or behaves unexpectedly.
+labels: ["type:fix"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: Steps to reproduce, expected behavior, actual behavior.
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Affected workspace or area
+      placeholder: e.g. apps/api, packages/auth, .ai/ tooling, docs
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Node version, pnpm version, commit or release.
