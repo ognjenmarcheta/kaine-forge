@@ -50,6 +50,9 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Preserved inference or `satisfies` over widening annotations that discard known keys/values (e.g. `const handlers: Record<string, Handler> = { start }` loses the `start` key).
 - [ ] `unknown` appears only at intake boundaries and is narrowed immediately; not in exported params/returns (error `cause` excepted) and not as dictionary value contracts (`Record<string, unknown>`) outside true serialization seams (logger context, JSON intake).
 - [ ] Parsing or type guards at the boundary seam instead of scattered ad hoc `typeof` checks.
+- [ ] No reinvented standard-library or platform features, and no new dependency where stdlib or an already-installed one covers it.
+- [ ] No speculative abstraction: single-implementation interfaces, one-caller layers, or config nobody sets — inline until a second consumer exists.
+- [ ] Deliberate simplifications with a known ceiling are tracked as GitHub issues naming the ceiling and upgrade trigger, not "for now" comments.
 - [ ] Relevant checks run (workspace test/typecheck; root `pnpm check` for broad changes; e2e for user-visible web/API flows).
 - [ ] Changesets included for releasable `apps/**`, `packages/**`, `tooling/**` changes unless `release:skip-changeset`.
 - [ ] New comments explain non-obvious rationale or consequences only — no noise that restates what the code already shows.
