@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  coverageSummaryAgeDays,
+  labelerLabelNames,
   missingEnvKeys,
+  missingTrackerLabels,
   nodeSatisfiesEngine,
   pnpmMatchesPackageManager,
   REQUIRED_ENV_KEYS
@@ -43,5 +46,49 @@ API_PORT=4000
   it("passes when all required keys are non-empty", () => {
     const sample = REQUIRED_ENV_KEYS.map((k) => `${k}=value`).join("\n");
     assert.deepEqual(missingEnvKeys(sample), []);
+  });
+});
+
+describe("labelerLabelNames", () => {
+  it("parses only top-level quoted keys, ignoring nested mappings", () => {
+    const yaml = [
+      '"area:web":',
+      "  - changed-files:",
+      "      - any-glob-to-any-file:",
+      '          - "apps/web/**"',
+      '"dependencies":',
+      "  - changed-files:",
+      ""
+    ].join("\n");
+    assert.deepEqual(labelerLabelNames(yaml), ["area:web", "dependencies"]);
+  });
+
+  it("returns empty when there are no top-level labels", () => {
+    assert.deepEqual(labelerLabelNames('foo:\n  - "bar"\n'), []);
+  });
+});
+
+describe("missingTrackerLabels", () => {
+  it("reports labeler labels absent from the tracker", () => {
+    assert.deepEqual(missingTrackerLabels(["area:web", "area:desktop"], ["area:web"]), [
+      "area:desktop"
+    ]);
+  });
+
+  it("returns empty when the tracker covers every labeler label", () => {
+    assert.deepEqual(missingTrackerLabels(["a"], ["a", "b"]), []);
+  });
+});
+
+describe("coverageSummaryAgeDays", () => {
+  it("computes whole days elapsed", () => {
+    const now = Date.UTC(2026, 7, 21);
+    assert.equal(coverageSummaryAgeDays(now - 3 * 86_400_000, now), 3);
+  });
+
+  it("floors partial days", () => {
+    const now = Date.UTC(2026, 7, 21);
+    const before = now - (13 * 86_400_000 + 3_600_000);
+    assert.equal(coverageSummaryAgeDays(before, now), 13);
   });
 });

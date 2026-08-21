@@ -5,10 +5,10 @@
 // AI scaffold health remains `pnpm ai:doctor`.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createConnection } from "node:net";
 import { dirname, join, resolve as resolvePath } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TROUBLESHOOTING = "docs/troubleshooting.md";
@@ -37,9 +37,7 @@ export function nodeSatisfiesEngine(range, version) {
     maj > minMajor ||
     (maj === minMajor && min > minMinor) ||
     (maj === minMajor && min === minMinor && pat >= minPatch);
-  return ok
-    ? { ok: true }
-    : { ok: false, reason: `need ${range}, found ${actual}` };
+  return ok ? { ok: true } : { ok: false, reason: `need ${range}, found ${actual}` };
 }
 
 /**
@@ -95,6 +93,49 @@ export const CHECK_PORTS = [
   { port: 3000, label: "Web (Vite)", section: "Ports reference (defaults)" },
   { port: 4000, label: "API", section: "Ports reference (defaults)" }
 ];
+
+/**
+ * Parse top-level quoted label keys from `.github/labeler.yml` content.
+ * Only column-0 `"name":` entries count; nested mapping keys are indented.
+ * Kept regex-based so doctor stays dependency-free (no YAML parser).
+ * @param {string} yamlContent
+ * @returns {string[]}
+ */
+export function labelerLabelNames(yamlContent) {
+  const names = [];
+  const re = /^"([^"]+)":/gm;
+  let match;
+  while ((match = re.exec(yamlContent)) !== null) {
+    names.push(match[1]);
+  }
+  return names;
+}
+
+/**
+ * Labels referenced by labeler config but absent from the issue tracker.
+ * @param {string[]} labelerLabels
+ * @param {string[]} trackerLabels
+ * @returns {string[]}
+ */
+export function missingTrackerLabels(labelerLabels, trackerLabels) {
+  const known = new Set(trackerLabels);
+  return labelerLabels.filter((label) => !known.has(label));
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Whole days elapsed since the coverage summary was written.
+ * @param {number} mtimeMs
+ * @param {number} nowMs
+ * @returns {number}
+ */
+export function coverageSummaryAgeDays(mtimeMs, nowMs) {
+  return Math.floor((nowMs - mtimeMs) / DAY_MS);
+}
+
+/** Coverage evidence older than this is flagged as stale (informational). */
+export const COVERAGE_MAX_AGE_DAYS = 14;
 
 /**
  * @param {number} port
@@ -279,7 +320,11 @@ function checkEnv() {
       remediation: "Regenerate: delete .env and run `pnpm env:ensure`, or set a strong secret."
     };
   }
-  return { ok: true, name: ".env", detail: `present with required keys (${REQUIRED_ENV_KEYS.join(", ")})` };
+  return {
+    ok: true,
+    name: ".env",
+    detail: `present with required keys (${REQUIRED_ENV_KEYS.join(", ")})`
+  };
 }
 
 /**
@@ -289,8 +334,7 @@ function checkEnv() {
 async function checkPostgres() {
   const envPath = join(repoRoot, ".env");
   let databaseUrl =
-    process.env.DATABASE_URL ??
-    "postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev";
+    process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev";
   if (existsSync(envPath)) {
     const contents = readFileSync(envPath, "utf8");
     const m = /^DATABASE_URL=(.+)$/m.exec(contents);
@@ -326,6 +370,71 @@ async function checkPostgres() {
   };
 }
 
+/**
+ * Labeler labels must exist in the issue tracker, or `gh pr create --label`
+ * and the PR labeler workflow fail at use time. Skips gracefully when gh is
+ * unavailable (doctor also runs before install on fresh machines).
+ * @returns {CheckResult}
+ */
+function checkTrackerLabels() {
+  const labelerPath = join(repoRoot, ".github", "labeler.yml");
+  if (!existsSync(labelerPath)) {
+    return { ok: true, name: "Tracker labels", detail: "labeler.yml absent (skipped)" };
+  }
+  const probe = runQuiet("gh", ["label", "list", "--limit", "200"]);
+  if (probe.error || probe.status !== 0) {
+    return {
+      ok: true,
+      name: "Tracker labels",
+      detail: "skipped (gh CLI unavailable or not authenticated)"
+    };
+  }
+  const trackerLabels = (probe.stdout || "")
+    .split("\n")
+    .map((line) => line.split("\t")[0].trim())
+    .filter(Boolean);
+  const labelerLabels = labelerLabelNames(readFileSync(labelerPath, "utf8"));
+  const missing = missingTrackerLabels(labelerLabels, trackerLabels);
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      name: "Tracker labels",
+      detail: `labeler.yml references labels missing from the tracker: ${missing.join(", ")}`,
+      remediation: missing.map((label) => `gh label create "${label}" --color ededed`).join(" · ")
+    };
+  }
+  return {
+    ok: true,
+    name: "Tracker labels",
+    detail: `${labelerLabels.length} labeler labels all exist in tracker`
+  };
+}
+
+/**
+ * Coverage evidence goes stale once CI stops producing it; stale floors are
+ * informational here — never a bootstrap failure.
+ * @returns {CheckResult}
+ */
+function checkCoverageFreshness() {
+  const summaryPath = join(repoRoot, "coverage", "coverage-summary.json");
+  if (!existsSync(summaryPath)) {
+    return {
+      ok: true,
+      name: "Coverage data",
+      detail: "absent (run `pnpm coverage` when you need floor evidence)"
+    };
+  }
+  const ageDays = coverageSummaryAgeDays(statSync(summaryPath).mtimeMs, Date.now());
+  if (ageDays > COVERAGE_MAX_AGE_DAYS) {
+    return {
+      ok: true,
+      name: "Coverage data",
+      detail: `${ageDays} days old (> ${COVERAGE_MAX_AGE_DAYS}) — run \`pnpm coverage\` before trusting floors`
+    };
+  }
+  return { ok: true, name: "Coverage data", detail: `${ageDays} days old` };
+}
+
 function printResult(result) {
   const icon = result.ok ? "ok" : "FAIL";
   console.log(`[doctor] ${icon.padEnd(4)} ${result.name}: ${result.detail}`);
@@ -346,6 +455,8 @@ async function main() {
   results.push(checkDocker());
   results.push(await checkPorts());
   results.push(checkEnv());
+  results.push(checkTrackerLabels());
+  results.push(checkCoverageFreshness());
   if (withDb) {
     results.push(await checkPostgres());
   }
@@ -368,8 +479,7 @@ async function main() {
 }
 
 const invokedDirectly =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(resolvePath(process.argv[1])).href;
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolvePath(process.argv[1])).href;
 
 if (invokedDirectly) {
   main().catch((err) => {

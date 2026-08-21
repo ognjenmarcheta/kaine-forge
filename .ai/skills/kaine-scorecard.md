@@ -54,7 +54,6 @@ Propose the full table and **wait for an explicit go-ahead before filing.** Then
 - Title `scope: lowercase declarative statement of the defect`. No priority prefixes.
 - Body `## What` / `## Evidence` / `## Why it matters` / `## Suggested fix` / optional `## Related` / `## Origin`. `## Origin` cites the run date, commit, overall score, and the ledger path.
 - Labels: one `type:*`, one or more `area:*`, and `ready-for-agent` (or `ready-for-human` when no agent fix exists).
-- `area:desktop` and `platform:desktop` appear in `.github/labeler.yml` but **do not exist in the tracker** — using them fails the create.
 
 See `docs/agents/issue-tracker.md` for `gh` usage and `docs/agents/triage-labels.md` for the triage roles.
 
