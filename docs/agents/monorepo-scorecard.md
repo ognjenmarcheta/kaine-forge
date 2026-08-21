@@ -132,6 +132,78 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Local-only; fixed by pnpm ai:install — not a tracked defect"
         }
       ]
+    },
+    {
+      "date": "2026-08-21",
+      "commit": "4cbdfeb8e803ea7c2d7c7fa7d3bee4c765ab8506",
+      "mode": "sequential",
+      "agent": "opencode",
+      "overall": 7.3,
+      "dimensions": {
+        "1": {
+          "score": 7,
+          "evidence": "Prior knip red fixed (#279) but new red: pnpm knip exits 1 on 'Unlisted binaries (1): gitleaks' from root package.json scan:secrets script; hard gate still red on main for a trivial reason"
+        },
+        "2": {
+          "score": 8,
+          "evidence": "turbo.json unchanged: dependsOn/inputs/outputs per task, load-bearing test^build documented (turbo.json:62), globalDependencies tsconfig.base+pnpm-workspace (turbo.json:4)"
+        },
+        "3": {
+          "score": 7,
+          "evidence": "Topology unchanged; billing blocker persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)",
+          "calibration": "Per 2026-07-28 note: scores topology design, not account billing. Impact escalated since baseline — releases frozen ~3 weeks."
+        },
+        "4": {
+          "score": 7,
+          "evidence": "coverage-summary.json lines 52.06 / funcs 62.24 / branches 78.29 vs floors 50/55/70 (vitest.coverage.config.ts); data stale since Jul 25 because CI cannot run; ec589f0 added commitlint/doc-contract/script tests to PRs"
+        },
+        "5": {
+          "score": 6,
+          "evidence": "pnpm audit --audit-level high: 19 high / 0 critical, exit non-zero (down from 25 after #285 + overrides pnpm-workspace.yaml:61-73); catalogs and both bots intact; gate still red"
+        },
+        "6": {
+          "score": 8,
+          "evidence": "Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream billing impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned"
+        },
+        "7": {
+          "score": 7,
+          "evidence": "Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs billing-blocked"
+        },
+        "8": {
+          "score": 8,
+          "evidence": "doctor.mjs/bootstrap/quick-setup intact; anti-slop lint rules adopted (#282), ponytail decision ladder (#283), README agent-ready section (#284)"
+        },
+        "9": {
+          "score": 8,
+          "evidence": "pnpm ai:doctor exit 0: all agent installs valid, zero drift (baseline kaine-scorecard drift cleared); strict drift gate (#281); team skills 13→15"
+        }
+      },
+      "findings": [
+        {
+          "slug": "github-actions-billing-blocked",
+          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "observed",
+          "reason": "Persists from baseline; operator-owned. Impact escalated: releases frozen ~3 weeks (release/api Jul 29 vs main Aug 20), changesets unversioned, Security/CodeQL not running"
+        },
+        {
+          "slug": "knip-unlisted-gitleaks-binary",
+          "title": "tooling: knip fails on unlisted gitleaks binary",
+          "dimension": 1,
+          "ladderRank": 2,
+          "disposition": "open",
+          "issue": 288
+        },
+        {
+          "slug": "pnpm-audit-high-debt",
+          "title": "security: pnpm audit reports high-severity advisories (Security workflow gate)",
+          "dimension": 5,
+          "ladderRank": 3,
+          "disposition": "open",
+          "issue": 258
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -202,35 +274,34 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 ### Run history
 
-| Date       | Commit    | Mode       | Agent | Overall | Findings filed |
-| ---------- | --------- | ---------- | ----- | ------- | -------------- |
-| 2026-07-28 | `15102fc` | sequential | grok  | **7.3** | 2              |
+| Date       | Commit    | Mode       | Agent    | Overall | Findings filed |
+| ---------- | --------- | ---------- | -------- | ------- | -------------- |
+| 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 2              |
+| 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 2              |
 
-### Latest scorecard — 2026-07-28 (`15102fc`, sequential)
+### Latest scorecard — 2026-08-21 (`4cbdfeb`, sequential)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                           |
-| --- | ------------------------ | ----- | ------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | —   | pnpm boundaries: 1115 files/19 packages clean; package exports on all packages/\*; typecheck:exports in ci-pr.yml:240; knip fails: unused @graphql-codegen/typescript (tooling/graphql-codegen/package.json:23)                                                                    |
-| 2   | Build & Cache            | 8.0   | `████████░░` | —   | turbo.json dependsOn/inputs/outputs + documented test^build; CI shared turbo-${{ runner.os }}- restore prefix (ci-pr.yml:157-163, release.yml:58-63); globalDependencies tsconfig+workspace                                                                                        |
-| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | —   | ci-pr path filters + parallel coverage/docker/e2e shards (artifacts #145); knip+boundaries on PR (#142). Ops: all main/PR jobs since ~2026-07-27T14:06 fail to start — GitHub billing/spending limit (run 30278372014 annotation)                                                  |
-| 4   | Testing & Coverage       | 7.0   | `███████░░░` | —   | coverage-summary.json lines 52.06% / funcs 62.24% / branches 78.29% vs floors 50/55/70 (vitest.coverage.config.ts:55-59); stricter auth/api floors; 140 unit + 5 e2e; apps/mobile/\*\* excluded from floors (config:48)                                                            |
-| 5   | Dependency Hygiene       | 6.0   | `██████░░░░` | —   | pnpm-workspace.yaml catalogs + catalogs.mobile; monorepo-alignment.test.ts catalog enforcement; Dependabot+Renovate both label release:skip-changeset. pnpm audit --audit-level high: 25 high / 0 critical (exit non-zero)                                                         |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | —   | release.yml: check:ci+build:core+test:e2e → release:apps → changesets; origin/release/api                                                                                                                                                                                          | web exist; Dockerfile.\* digest-pinned; .changeset/config privatePackages version+tag; pnpm release:status shows pending patches/minors |
-| 7   | Security Posture         | 7.0   | `███████░░░` | —   | CodeQL security-extended; Gitleaks; Trivy CRITICAL exit-code 1 (ci-pr.yml:430-437); CORS fail-closed apps/api/src/server.config.ts:53-56 + tests; org scope from session (context.auth-scope.ts). Gate scripts present; audit high debt + billing blocks live Security/CodeQL runs |
-| 8   | DX & Onboarding          | 8.0   | `████████░░` | —   | scripts/doctor.mjs preflight; bootstrap/quick-setup/initialize; .vscode/launch.json+settings; create-package.mjs wires tsconfig/coverage; husky pre-commit/commit-msg/pre-push; closed DX issues #150-#154                                                                         |
-| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | —   | pnpm ai:doctor exit 0: skills valid, MCP ok, shared docs present; local install drift on kaine-scorecard (run ai:install). CONTEXT.md + ADR 0001-0009 + REVIEW.md + serena memories; 13 team skills                                                                                |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                  |
+| --- | ------------------------ | ----- | ------------ | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | 0   | Prior knip red fixed (#279) but new red: pnpm knip exits 1 on 'Unlisted binaries (1): gitleaks' from root package.json scan:secrets script; hard gate still red on main for a trivial reason                              |
+| 2   | Build & Cache            | 8.0   | `████████░░` | 0   | turbo.json unchanged: dependsOn/inputs/outputs per task, load-bearing test^build documented (turbo.json:62), globalDependencies tsconfig.base+pnpm-workspace (turbo.json:4)                                               |
+| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Topology unchanged; billing blocker persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)                                                       |
+| 4   | Testing & Coverage       | 7.0   | `███████░░░` | 0   | coverage-summary.json lines 52.06 / funcs 62.24 / branches 78.29 vs floors 50/55/70 (vitest.coverage.config.ts); data stale since Jul 25 because CI cannot run; ec589f0 added commitlint/doc-contract/script tests to PRs |
+| 5   | Dependency Hygiene       | 6.0   | `██████░░░░` | 0   | pnpm audit --audit-level high: 19 high / 0 critical, exit non-zero (down from 25 after #285 + overrides pnpm-workspace.yaml:61-73); catalogs and both bots intact; gate still red                                         |
+| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream billing impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned       |
+| 7   | Security Posture         | 7.0   | `███████░░░` | 0   | Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs billing-blocked               |
+| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | doctor.mjs/bootstrap/quick-setup intact; anti-slop lint rules adopted (#282), ponytail decision ladder (#283), README agent-ready section (#284)                                                                          |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | pnpm ai:doctor exit 0: all agent installs valid, zero drift (baseline kaine-scorecard drift cleared); strict drift gate (#281); team skills 13→15                                                                         |
 
-**Overall: 7.3**
+**Overall: 7.3** (0)
 
 ### Findings
 
-| Slug                                     | Dimension | Ladder | Disposition | Issue | Title                                                                             |
-| ---------------------------------------- | --------- | ------ | ----------- | ----- | --------------------------------------------------------------------------------- |
-| `knip-unused-graphql-codegen-typescript` | 1         | 1      | open        | #257  | tooling: knip fails on unused @graphql-codegen/typescript                         |
-| `github-actions-billing-blocked`         | 3         | 1      | observed    | —     | ci: GitHub Actions jobs fail to start due to account billing or spending limit    |
-| `pnpm-audit-high-debt`                   | 5         | 2      | open        | #258  | security: pnpm audit reports 25 high-severity advisories (Security workflow gate) |
-| `coverage-mobile-app-excluded`           | 4         | 6      | observed    | —     | testing: apps/mobile/\*\* excluded from coverage floors                           |
-| `ai-install-local-drift-scorecard`       | 9         | 9      | observed    | —     | dx: local agent installs stale for kaine-scorecard                                |
+| Slug                             | Dimension | Ladder | Disposition | Issue | Title                                                                          |
+| -------------------------------- | --------- | ------ | ----------- | ----- | ------------------------------------------------------------------------------ |
+| `github-actions-billing-blocked` | 3         | 1      | observed    | —     | ci: GitHub Actions jobs fail to start due to account billing or spending limit |
+| `knip-unlisted-gitleaks-binary`  | 1         | 2      | open        | #288  | tooling: knip fails on unlisted gitleaks binary                                |
+| `pnpm-audit-high-debt`           | 5         | 3      | open        | #258  | security: pnpm audit reports high-severity advisories (Security workflow gate) |
 
 <!-- scorecard:generated:end -->
 
@@ -246,3 +317,10 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Audit high debt.** Dim 5 is 6 because catalog discipline is strong but `pnpm audit --audit-level high` is red (25 high). Many paths are Expo CLI / vitest→vite transitive; do not treat every advisory as a direct product CVE when scoring security vs hygiene.
 - **Security app posture.** Dim 7 stays 7: CORS fail-closed, org session scope, digest-pinned images, Trivy CRITICAL hard gate, CodeQL+Gitleaks configured. Live workflow greenness is blocked by the same billing issue as dim 3.
 - **Coverage mobile exclusion.** `apps/mobile/**` outside floors is intentional (measured ~3% app shell); do not ding dim 4 for that without a decision to re-include.
+
+### 2026-08-21 — second run (`4cbdfeb`, sequential)
+
+- **Billing blocker persists into a second run.** All workflows still fail to start (~4s); releases frozen (release/api last advanced Jul 29, main at Aug 20), five changesets unversioned, Security/CodeQL dark. Dims 3 and 6 continue to score mechanism design per the 2026-07-28 calibration; operational impact stays in finding `github-actions-billing-blocked`. Resolving billing is the single highest-leverage action for this repo.
+- **Audit debt trend.** High advisories fell 25 → 19 after #285 consolidated bot bumps and added transitive security floors (`pnpm-workspace.yaml` overrides). Dim 5 stays 6 until `pnpm audit --audit-level high` exits 0; treat remaining highs as mostly transitive (vitest→vite→postcss).
+- **Knip red swapped, not cleared.** #257 (unused codegen dep) was fixed via #279, but a new unlisted-binary red (`gitleaks`) appeared. Dim 1 stays 7 under the same hard-gate logic as baseline; fix tracked as `knip-unlisted-gitleaks-binary` (#288).
+- **AI scaffolding drift cleared.** Baseline's local kaine-scorecard install drift is gone; doctor now gates drift strictly (#281). Dim 9 holds at 8 — band 9 requires a proven regression gate across agents, not just doctor greenness.
