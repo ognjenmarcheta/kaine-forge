@@ -1161,7 +1161,7 @@ body {
   }
 }
 
-@media (max-width: var(--ds-breakpoint-md)) {
+@media (max-width: 768px) {
   .ui-sidebar {
     border-bottom: var(--ds-border-width) solid var(--ds-border);
     border-right: 0;
