@@ -34,7 +34,7 @@
     "drizzle-orm": "catalog:",
     "graphql": "catalog:",
     "graphql-ws": "catalog:",
-    "graphql-yoga": "^5.21.2",
+    "graphql-yoga": "^5.22.0",
     "ws": "^8.21.3",
     "zod": "catalog:"
   },
