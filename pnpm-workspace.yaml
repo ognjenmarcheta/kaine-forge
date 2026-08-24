@@ -21,7 +21,7 @@ catalog:
   class-variance-authority: "^0.7.1"
   clsx: "^2.1.1"
   tailwind-merge: "^3.6.0"
-  sonner: "^2.0.7"
+  sonner: "^2.0.8"
   # Web React DOM stack (caret ranges; mobile uses catalog:mobile)
   react: "^19.2.8"
   react-dom: "^19.2.8"
