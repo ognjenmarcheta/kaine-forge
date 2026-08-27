@@ -336,12 +336,13 @@ describe("renderReviewDoc", () => {
 });
 
 describe("REVIEW_REQUIRED_HEADINGS", () => {
-  it("lists the eight compact-hybrid headings in order", () => {
+  it("lists the nine compact-hybrid headings in order", () => {
     expect([...REVIEW_REQUIRED_HEADINGS]).toEqual([
       "Correctness",
       "Security, Auth & Tenancy",
       "Architecture & Boundaries",
       "Data & GraphQL",
+      "Performance",
       "UI & i18n",
       "Quality Gates",
       "Domain Language",
