@@ -32,6 +32,7 @@ export const REVIEW_REQUIRED_HEADINGS = [
   "Security, Auth & Tenancy",
   "Architecture & Boundaries",
   "Data & GraphQL",
+  "Performance",
   "UI & i18n",
   "Quality Gates",
   "Domain Language",

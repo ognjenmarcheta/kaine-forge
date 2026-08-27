@@ -34,6 +34,13 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Organization scoping enforced in resolvers/adapters for tenant data.
 - [ ] Already-shipped migration files are not rewritten in place; schema changes are new migrations and preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
 
+## Performance
+
+- [ ] No N+1 query patterns in resolvers/adapters — batch or join where the change reads per-item data for lists.
+- [ ] List reads (GraphQL fields, endpoints, DB queries) are paginated or explicitly bounded.
+- [ ] No unbounded loops or unconstrained data fetching on hot paths.
+- [ ] No blocking synchronous work or large-object churn in hot paths where async or streaming fits.
+
 ## UI & i18n
 
 - [ ] Styling is token-only (`--ds-*` via repo Tailwind utilities); no raw colors/spacing hacks (`DESIGN_SYSTEM.md`).

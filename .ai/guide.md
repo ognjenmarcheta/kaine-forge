@@ -196,7 +196,7 @@ Use skills when they match the task:
 - `kaine-release-apps`: update per-app deploy branches after merge to `main`.
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
-- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
 - `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.

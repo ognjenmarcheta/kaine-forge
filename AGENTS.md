@@ -196,7 +196,7 @@ Use skills when they match the task:
 - `kaine-release-apps`: update per-app deploy branches after merge to `main`.
 - `kaine-rebase`: safely rebase a feature branch onto `main`.
 - `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
-- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
 - `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
@@ -235,7 +235,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
-- `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, and template-rule violations.
+- `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-scorecard`: Scan the monorepo, score it on nine health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
