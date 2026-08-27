@@ -6,7 +6,7 @@ argument-hint: diff, branch, PR, path, or "repo" for a whole-tree audit
 
 # Simplify Review Workflow
 
-Hunt unnecessary complexity and nothing else (adapted from DietrichGebert/ponytail). Default scope is the current diff; scan the whole tree when asked to audit the repo. The diff's best outcome is getting shorter.
+Hunt unnecessary complexity and nothing else. Default scope is the current diff; scan the whole tree when asked to audit the repo. The diff's best outcome is getting shorter.
 
 ## Tags
 

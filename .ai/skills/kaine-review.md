@@ -6,7 +6,7 @@ argument-hint: diff, branch, PR, or path
 
 # Review Workflow
 
-Use this skill when asked to review code or assess a patch. Finding labels, sizing thresholds, and the approval standard are adapted from addyosmani/agent-skills `code-review-and-quality`.
+Use this skill when asked to review code or assess a patch.
 
 ## Contract
 

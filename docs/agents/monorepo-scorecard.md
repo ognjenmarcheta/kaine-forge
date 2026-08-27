@@ -171,7 +171,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "8": {
           "score": 8,
-          "evidence": "doctor.mjs/bootstrap/quick-setup intact; anti-slop lint rules adopted (#282), ponytail decision ladder (#283), README agent-ready section (#284)"
+          "evidence": "doctor.mjs/bootstrap/quick-setup intact; anti-slop lint rules adopted (#282), decision ladder (#283), README agent-ready section (#284)"
         },
         "9": {
           "score": 8,

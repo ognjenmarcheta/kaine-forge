@@ -43,7 +43,7 @@ Canonical AI assistant sources live in [`../.ai/`](../.ai/).
 - [`../.ai/mcp.json`](../.ai/mcp.json): canonical MCP catalog for local agent installs.
 - [`../.ai/serena-project.yml`](../.ai/serena-project.yml): generated into `.serena/project.yml`.
 - [`../.ai/serena-memories/*.md`](../.ai/serena-memories/): generated into Serena memories.
-- [`agents/`](agents/): repo-local configuration for Matt Pocock engineering skills, including issue tracker, triage labels, and domain-doc layout.
+- [`agents/`](agents/): repo-local agent workflow configuration, including issue tracker, triage labels, and domain-doc layout.
 - [`agents/day-one.md`](agents/day-one.md): day-one agent-assisted contribution ramp.
 - [`agents/skill-authoring.md`](agents/skill-authoring.md): how to add product-specific skills.
 - [`agents/automation-gap-audit.md`](agents/automation-gap-audit.md): residual automation opportunities.

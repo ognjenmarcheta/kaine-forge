@@ -49,7 +49,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 
 ## AI Behavioral Guidelines
 
-Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's observations and related agent workflow guidance):
+Principles to reduce common LLM coding mistakes:
 
 ### Think Before Coding
 
@@ -62,7 +62,7 @@ Principles to reduce common LLM coding mistakes (adapted from Andrej Karpathy's 
 
 ### Simplicity First
 
-The best code is the code never written. Before writing any code, stop at the first rung that holds (adapted from DietrichGebert/ponytail):
+The best code is the code never written. Before writing any code, stop at the first rung that holds:
 
 1. Does this need to be built at all? (YAGNI)
 2. Does the monorepo already have the helper, util, or pattern? Reuse it — check the feature folder and `@repo/*` packages first.
@@ -220,7 +220,7 @@ Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `
 
 ### Triage labels
 
-Triage uses the canonical Matt Pocock skill labels. See `docs/agents/triage-labels.md`.
+Triage uses the canonical skill triage labels. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 

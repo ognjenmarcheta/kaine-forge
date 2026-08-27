@@ -1,6 +1,5 @@
-// Ported from dmmulroy/anti-slop (Oxlint) to our ESLint stack. Rules live in a
-// dedicated plugin namespace so they never collide with the no-restricted-syntax
-// composition in react.js.
+// Rules live in a dedicated plugin namespace so they never collide with the
+// no-restricted-syntax composition in react.js.
 const SHAPE_NAME = /Shape/;
 const SAFETY_COMMENT = /^\s*SAFETY:\s*\S/;
 
