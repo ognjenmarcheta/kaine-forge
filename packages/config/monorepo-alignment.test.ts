@@ -624,6 +624,25 @@ describe("monorepo alignment", () => {
     }
   });
 
+  it("invalidates dependent typecheck and lint when a dependency or shared preset changes (issue #308)", () => {
+    // typecheck resolves @repo/* to sibling source through tsconfig.base.json
+    // paths, so a dependency's type change must reach the dependent's hash.
+    // Reproduced before the fix: editing packages/storage/src left
+    // @repo/web#typecheck on a cache HIT. Lint's typed rules and prettier read
+    // the shared presets in packages/config, which sit outside every package.
+    const turboConfig = readJson("turbo.json") as {
+      tasks?: Record<string, { dependsOn?: string[]; inputs?: string[] }>;
+    };
+    const tasks = turboConfig.tasks ?? {};
+    const presetGlob = "$TURBO_ROOT$/packages/config/typescript/*.json";
+
+    expect(tasks.typecheck?.dependsOn).toContain("^typecheck");
+    expect(tasks.typecheck?.inputs).toContain(presetGlob);
+    expect(tasks.lint?.inputs).toContain(presetGlob);
+    expect(tasks["format:check"]?.inputs).toContain("$TURBO_ROOT$/packages/config/prettier/**");
+    expect(tasks["format:check"]?.inputs).toContain("$TURBO_ROOT$/.editorconfig");
+  });
+
   it("builds deployable images from turbo prune output only", () => {
     for (const dockerfile of ["Dockerfile.api", "Dockerfile.web"]) {
       expect(
