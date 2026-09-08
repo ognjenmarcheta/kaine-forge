@@ -1,5 +1,11 @@
 # @repo/storage
 
+## 1.2.1
+
+### Patch Changes
+
+- 9f617ba: Align @aws-sdk/client-s3 with s3-request-presigner after #203, and bump drizzle-kit patch.
+
 ## 1.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@repo/mobile",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "main": "expo-router/entry",
   "type": "module",
