@@ -1,5 +1,13 @@
 # @repo/mobile
 
+## 1.5.1
+
+### Patch Changes
+
+- 67abc54: Add a client-safe `@repo/storage/client` entry and move the web and mobile upload hooks onto it. The root barrel re-exported the S3 client, which pulled `@aws-sdk/client-s3` and its `node:https` handler into the Expo bundle and broke `expo export`. ESLint now rejects server-only package entries in client apps, and pull requests that touch shared packages or the lockfile run the mobile export.
+- Updated dependencies [67abc54]
+  - @repo/storage@1.2.2
+
 ## 1.5.0
 
 ### Minor Changes
