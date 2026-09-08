@@ -1,8 +1,4 @@
-export * from "./storage.definition";
+// Server barrel. Client bundles import `@repo/storage/client` instead.
+export * from "./client";
 export * from "./storage.config";
-export * from "./storage.type";
 export * from "./storage.client";
-export * from "./storage.util";
-export * from "./upload.adapter";
-export * from "./upload.lifecycle";
-export * from "./upload.workflow";

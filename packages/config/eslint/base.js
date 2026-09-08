@@ -5,6 +5,17 @@ import tseslint from "typescript-eslint";
 
 import antiSlopConfig from "./anti-slop.js";
 
+// Package entries that pull Node-only dependencies (AWS SDK, Postgres, mail,
+// node:crypto) and must never reach a browser or React Native bundle. Kept as
+// an anchored regex so client-safe subpaths (@repo/storage/client,
+// @repo/auth/{client,session,transport,form}) stay importable. `[.]` instead of
+// `\.` keeps the source text identical to the runtime pattern for the contract
+// test in packages/config/monorepo-alignment.test.ts.
+const SERVER_ONLY_ENTRY_PATTERN =
+  "^(@repo/storage(/storage[.](client|config))?|@repo/auth(/(server|instance|password))?|@repo/(db|email)(/.*)?)$";
+const SERVER_ONLY_ENTRY_MESSAGE =
+  "Server-only package entry: it bundles Node-only dependencies into the client. Import a client-safe entry instead (@repo/storage/client, @repo/auth/client|session|transport|form).";
+
 export default [
   {
     ignores: [
@@ -77,6 +88,12 @@ export default [
             {
               group: ["@repo/mobile-ui", "@repo/mobile-ui/*"],
               message: "Use @repo/ui for web/desktop. @repo/mobile-ui is React Native only."
+            },
+            {
+              // Anchored regex, not a gitignore group: a `@repo/storage` group would
+              // also block the client-safe `@repo/storage/client` subpath.
+              regex: SERVER_ONLY_ENTRY_PATTERN,
+              message: SERVER_ONLY_ENTRY_MESSAGE
             }
           ]
         }
@@ -99,6 +116,10 @@ export default [
             {
               group: ["@repo/ui", "@repo/ui/*"],
               message: "Use @repo/mobile-ui for React Native. @repo/ui is web/desktop only."
+            },
+            {
+              regex: SERVER_ONLY_ENTRY_PATTERN,
+              message: SERVER_ONLY_ENTRY_MESSAGE
             }
           ]
         }

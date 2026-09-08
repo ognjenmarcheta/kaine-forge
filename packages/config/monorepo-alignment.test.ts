@@ -279,6 +279,8 @@ describe("monorepo alignment", () => {
       "./primitives/sheet",
       "./styles/globals.css"
     ]);
+    // Client bundles must never resolve the root barrel (issue #305).
+    assertPackageHasExports("packages/storage/package.json", [".", "./client"]);
   });
 
   it("defines token base layer with light and dark themes", () => {
@@ -538,6 +540,43 @@ describe("monorepo alignment", () => {
     expect(eslintBase).toContain("@repo/mobile-ui");
     expect(eslintBase).toContain("@repo/ui");
     expect(eslintBase).toContain("no-restricted-imports");
+  });
+
+  it("keeps server-only package entries out of client bundles (issue #305)", () => {
+    // The storage root barrel re-exported the S3 client, which pulled
+    // @aws-sdk/client-s3 into the Expo bundle. Both client blocks (web/desktop/ui
+    // and mobile/mobile-ui) must carry the server-only gate, and it must be an
+    // anchored regex: a gitignore-style `@repo/storage` group also matches the
+    // client-safe `@repo/storage/client` subpath.
+    const eslintBase = readText("packages/config/eslint/base.js");
+    const pattern = /SERVER_ONLY_ENTRY_PATTERN =\s*"([^"]+)"/.exec(eslintBase)?.[1];
+    expect(pattern, "base.js must define SERVER_ONLY_ENTRY_PATTERN").toBeTruthy();
+    expect(eslintBase.match(/regex: SERVER_ONLY_ENTRY_PATTERN/g)).toHaveLength(2);
+
+    const serverOnly = new RegExp(pattern ?? "");
+    for (const specifier of [
+      "@repo/storage",
+      "@repo/storage/storage.client",
+      "@repo/auth",
+      "@repo/auth/server",
+      "@repo/auth/instance",
+      "@repo/db",
+      "@repo/db/client",
+      "@repo/email"
+    ]) {
+      expect(serverOnly.test(specifier), `${specifier} must be blocked in clients`).toBe(true);
+    }
+    for (const specifier of [
+      "@repo/storage/client",
+      "@repo/storage/upload.lifecycle",
+      "@repo/auth/client",
+      "@repo/auth/session",
+      "@repo/auth/transport",
+      "@repo/auth/form",
+      "@repo/logger"
+    ]) {
+      expect(serverOnly.test(specifier), `${specifier} must stay importable`).toBe(false);
+    }
   });
 
   it("requires each source workspace to ship at least one vitest test", () => {
