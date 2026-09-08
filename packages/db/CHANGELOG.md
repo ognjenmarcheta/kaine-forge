@@ -1,5 +1,12 @@
 # @repo/db
 
+## 1.6.2
+
+### Patch Changes
+
+- 9f617ba: Align @aws-sdk/client-s3 with s3-request-presigner after #203, and bump drizzle-kit patch.
+  - @repo/logger@1.1.0
+
 ## 1.6.1
 
 ### Patch Changes

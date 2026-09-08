@@ -1,5 +1,13 @@
 # @repo/ui
 
+## 1.2.1
+
+### Patch Changes
+
+- ceef03e: Intentional dependency upgrades from issue #198: Dependabot freezes for mobile singleton packages, jsdom 30, web React 19.2 catalog, GraphQL Codegen v7 suite with client regenerate, and Expo SDK 55 mobile graph (RN 0.83, expo ~55).
+- 14601b7: Use a single `radix-ui` entrypoint (drop dual `@radix-ui/*` pins) and bump to 1.6.7 for root-import type and primitive fixes.
+- fc1395e: Upgrade web tooling to Vite 8 (Rolldown-powered build, lightningcss minification). Replace the invalid `var()` media query in `globals.css` with its literal breakpoint value: media queries cannot consume custom properties, so the sub-768px layout block previously never matched in any browser and now applies as intended. Closes the vite workstream from the 2026-08 security triage.
+
 ## 1.2.0
 
 ### Minor Changes

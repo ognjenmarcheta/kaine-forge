@@ -1,5 +1,18 @@
 # @repo/api
 
+## 1.6.2
+
+### Patch Changes
+
+- Updated dependencies [ceef03e]
+- Updated dependencies [9f617ba]
+  - @repo/auth@1.5.2
+  - @repo/storage@1.2.1
+  - @repo/db@1.6.2
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/translation@1.3.1
+
 ## 1.6.1
 
 ### Patch Changes

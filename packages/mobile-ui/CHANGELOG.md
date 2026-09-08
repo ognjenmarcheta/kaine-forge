@@ -1,5 +1,11 @@
 # @repo/mobile-ui
 
+## 1.0.4
+
+### Patch Changes
+
+- ceef03e: Intentional dependency upgrades from issue #198: Dependabot freezes for mobile singleton packages, jsdom 30, web React 19.2 catalog, GraphQL Codegen v7 suite with client regenerate, and Expo SDK 55 mobile graph (RN 0.83, expo ~55).
+
 ## 1.0.3
 
 ### Patch Changes

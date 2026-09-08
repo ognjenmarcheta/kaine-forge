@@ -1,5 +1,15 @@
 # @repo/graphql-codegen
 
+## 1.3.0
+
+### Minor Changes
+
+- ceef03e: Intentional dependency upgrades from issue #198: Dependabot freezes for mobile singleton packages, jsdom 30, web React 19.2 catalog, GraphQL Codegen v7 suite with client regenerate, and Expo SDK 55 mobile graph (RN 0.83, expo ~55).
+
+### Patch Changes
+
+- 25b6cc4: Remove the unused `@graphql-codegen/typescript` dependency (the codegen config uses only the `client` preset plus `typescript-operations`/`typescript-react-query`), declare `@commitlint/types` at the root for the commitlint config's JSDoc type import, and refresh generated GraphQL clients with the lockfile-current codegen toolchain. Fixes the `pnpm knip` failure on `main` and the latent `graphql-schema` regeneration drift.
+
 ## 1.2.1
 
 ### Patch Changes
