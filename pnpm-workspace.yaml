@@ -57,9 +57,10 @@ catalogs:
 
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
 # (optional better-auth peers + transitive CLI deps otherwise pin older releases).
-# minimatch: historical override for transitive vulnerability pin.
 overrides:
-  minimatch: 10.2.1
+  # minimatch: transitive vulnerability floor. Caret, not an exact pin — the old
+  # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
+  minimatch: "^10.2.3"
   shell-quote: "^1.10.0"
   tar: "7.5.19"
   esbuild: "0.27.3"
@@ -68,7 +69,33 @@ overrides:
   defu: "^6.1.5"
   "nanoid@3": "^3.3.18"
   node-forge: "^1.4.0"
+  # Security floors from the 2026-09 audit (issue #258). All transitive dev
+  # tooling; caret ranges so later patches flow and the major stays put.
+  # Selector `pkg@N` keeps the floor inside the major the dependent expects.
+  "brace-expansion@5": "^5.0.9" # GHSA-rgw5-rvv9-x895 via @vitest/coverage-v8>test-exclude>minimatch
+  browserslist: "^4.28.7" # GHSA-73wf-gq98-2v4g, GHSA-c83g-rgw3-j3cx via @graphql-inspector/cli>@babel/core
+  "fast-uri@3": "^3.1.6" # GHSA-f65p-4m7j-42xc and four more via @commitlint/cli>…>ajv
+  flatted: "^3.4.2" # GHSA-25h7-pfq9-p65f, GHSA-rf6f-7fwh-wjgh via @vitest/ui
+  "js-yaml@3": "^3.15.1" # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj via @changesets/cli>@manypkg/get-packages
+  "js-yaml@4": "^4.3.1" # same advisories via @commitlint/load>cosmiconfig and @changesets/parse
+  postcss: "^8.5.18" # GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 via vitest>vite
+  "rollup@4": "^4.59.0" # GHSA-mw96-cpmx-2vgc via vitest>vite (web itself builds with vite 8 / rolldown)
+  # vite 7 is only vitest's; parent-scoped so the floor does not rewrite peer
+  # ranges elsewhere (a bare `vite@7` selector narrowed @tailwindcss/vite's
+  # `^5||^6||^7||^8` peer to `^7.3.5` and left web's vite 8 "unmet").
+  "vitest>vite": "^7.3.5" # GHSA-p9ff-h696-f583, GHSA-fx2h-pf6j-xcff, GHSA-v2wj-q39q-566r
+  "vite-node>vite": "^7.3.5"
+  "@vitest/mocker>vite": "^7.3.5"
   # Keep better-auth/expo peers on the Expo SDK 55 line (not random major peers).
   expo-constants: "~55.0.17"
   expo-linking: "~55.0.16"
   "@expo/metro-runtime": "~55.0.12"
+
+# pnpm audit ignores. Only for advisories with no patched release. Each entry
+# names the path and the condition that removes it.
+auditConfig:
+  ignoreGhsas:
+    # image-size <=2.0.2 (every published version) via expo>@expo/metro>metro;
+    # no fixed release exists. Drop both when Expo ships a metro with image-size >2.0.2.
+    - GHSA-5p2g-fcmc-qvqq
+    - GHSA-w3rx-r6r6-pgpr
