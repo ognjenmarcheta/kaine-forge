@@ -112,7 +112,7 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 | Release validation                                            | [`docs/release-checklist.md`](docs/release-checklist.md) |
 | Full documentation index                                      | [`docs/README.md`](docs/README.md)                       |
 
-**Everyday commands:** `pnpm doctor` · `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
+**Everyday commands:** `pnpm preflight` · `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
 
 ## License
 

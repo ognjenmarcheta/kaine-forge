@@ -200,7 +200,7 @@ Use skills when they match the task:
 - `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
 - `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
-- `kaine-triage-deps`: triage open Dependabot/Renovate PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
+- `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
 - `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
 
@@ -241,5 +241,5 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
-- `kaine-triage-deps`: Triage open Dependabot or Renovate PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
+- `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 - `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.

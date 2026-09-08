@@ -2,7 +2,7 @@
 
 Common local setup and runtime failures for Kaine Forge. Prefer this guide before reinstalling the monorepo.
 
-**Preflight:** `pnpm doctor` checks Node, pnpm, Docker, common ports, and `.env` before bootstrap spends minutes on install/build. Re-run with `pnpm doctor -- --with-db` after Compose is up to probe Postgres TCP. AI scaffold drift is separate: `pnpm ai:doctor`.
+**Preflight:** `pnpm preflight` checks Node, pnpm, Docker, common ports, and `.env` before bootstrap spends minutes on install/build. Re-run with `pnpm preflight -- --with-db` after Compose is up to probe Postgres TCP. (The script is not named `doctor` because `pnpm doctor` is a pnpm built-in that would run instead and report a false green.) AI scaffold drift is separate: `pnpm ai:doctor`.
 
 ## Database and Docker
 

@@ -139,7 +139,7 @@ Create release metadata:
 pnpm changeset
 ```
 
-Required CI checks are defined in `.github/workflows/ci-pr.yml`.
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Mark them required in branch protection or rulesets once the plan allows it (free for public repositories; private repositories need GitHub Pro or better).
 
 ## Validation Expectations
 

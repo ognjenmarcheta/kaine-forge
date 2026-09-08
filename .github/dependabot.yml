@@ -1,6 +1,9 @@
-# Dependabot config for npm/pnpm workspace updates.
-# Labels match renovate.json so dep PRs skip the Changeset Required gate
-# (apps/** package.json bumps would otherwise fail CI without a release entry).
+# Dependabot is the single dependency bot for this template: npm (workspace
+# manifests + pnpm catalogs), GitHub Actions SHA pins, and Docker base-image
+# digests. Downstream projects that prefer Renovate can swap it in; do not run
+# both. Labels: `dependencies` for kaine-triage-deps and `release:skip-changeset`
+# so bot PRs pass the Changeset Required gate (apps/** package.json bumps would
+# otherwise fail CI without a release entry).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,12 +17,26 @@ updates:
       - release:skip-changeset
     # pnpm catalogs live in pnpm-workspace.yaml; Dependabot updates lock + manifests.
     versioning-strategy: increase
-    # Mirror Renovate (issue #198): mobile Expo/RN singleton graph moves only with
-    # intentional Expo SDK upgrades (catalogs.mobile + monorepo-alignment tests).
+    groups:
+      # better-auth and its Expo companion sit on one catalog line and must
+      # move together. A dependency joins the first group it matches.
+      better-auth:
+        patterns:
+          - "better-auth"
+          - "@better-auth/*"
+      # One weekly PR for every minor and patch bump instead of a PR storm.
+      non-major:
+        update-types:
+          - minor
+          - patch
+    # Mobile Expo/RN singleton graph moves only with intentional Expo SDK
+    # upgrades (catalogs.mobile + monorepo-alignment tests, issue #198). Scoped
+    # `@expo/*` packages need their own entry: `expo-*` does not match them.
     # Majors below need intentional PRs (compiler lint rules / i18next types), not bot merges.
     ignore:
       - dependency-name: "expo"
       - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
       - dependency-name: "react-native"
       - dependency-name: "react-native-*"
       - dependency-name: "nativewind"
@@ -44,3 +61,31 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+
+  # Workflows pin actions to commit SHAs with a `# vN` comment; Dependabot bumps
+  # the SHA and keeps the comment current. Grouped: one PR per week.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - release:skip-changeset
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Dockerfile.api and Dockerfile.web pin base images by digest. Dependabot
+  # matches any file whose name contains "dockerfile" and bumps the sha256.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - release:skip-changeset
