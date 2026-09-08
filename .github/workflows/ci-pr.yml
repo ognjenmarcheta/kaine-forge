@@ -80,6 +80,13 @@ jobs:
               - "packages/mobile-ui/**"
               - "packages/config/tailwind/**"
               - "scripts/sync-mobile-design-tokens.mjs"
+              # Metro resolves @repo/* to package source through tsconfig paths, so
+              # any shared package or dependency change can break the mobile
+              # bundle (issue #305: a storage barrel pulled @aws-sdk into Expo).
+              - "packages/**"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "tsconfig.base.json"
 
   changeset-required:
     name: Changeset Required
@@ -292,6 +299,29 @@ jobs:
         run: |
           pnpm --filter @repo/mobile-ui typecheck
           pnpm --filter @repo/mobile typecheck
+
+  mobile-export:
+    name: Mobile Export Validation
+    # Typecheck cannot see what Metro bundles: a package barrel that re-exports a
+    # Node-only module typechecks green and fails at `expo export` (issue #305).
+    # Deep Checks runs the same export twice a week; this catches it on the PR.
+    if: |
+      always() &&
+      (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
+    needs: [detect-paths]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Export mobile bundle
+        run: CI=1 EXPO_NO_WATCHMAN=1 pnpm --filter @repo/mobile exec expo export --platform ios --output-dir /tmp/mobile-export
 
   graphql-schema:
     name: GraphQL Schema Compatibility

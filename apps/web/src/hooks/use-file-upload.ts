@@ -3,7 +3,7 @@ import {
   createAttachmentUploadWorkflow,
   toBrowserUploadRequestInput,
   type UploadState
-} from "@repo/storage";
+} from "@repo/storage/client";
 import { useCallback, useMemo, useState } from "react";
 
 import {
