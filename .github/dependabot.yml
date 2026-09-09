@@ -1,7 +1,8 @@
 # Dependabot is the single dependency bot for this template: npm (workspace
-# manifests + pnpm catalogs), GitHub Actions SHA pins, and Docker base-image
-# digests. Downstream projects that prefer Renovate can swap it in; do not run
-# both. Labels: `dependencies` for kaine-triage-deps and `release:skip-changeset`
+# manifests + pnpm catalogs), GitHub Actions SHA pins, Docker base-image
+# digests, the Tauri Cargo graph, and Compose image tags. Downstream projects
+# that prefer Renovate can swap it in; do not run both.
+# Labels: `dependencies` for kaine-triage-deps and `release:skip-changeset`
 # so bot PRs pass the Changeset Required gate (apps/** package.json bumps would
 # otherwise fail CI without a release entry).
 version: 2
@@ -128,4 +129,47 @@ updates:
     # bumps within the major still flow.
     ignore:
       - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  # The Tauri shell's Rust graph (apps/desktop/src-tauri/Cargo.lock) has no other
+  # refresh path, so crates.io advisories sat open (#357). Grouped: one PR per
+  # week. Tauri majors are intentional migrations, not bot bumps.
+  - package-ecosystem: cargo
+    directory: "/apps/desktop/src-tauri"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - release:skip-changeset
+    groups:
+      cargo:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "tauri"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tauri-*"
+        update-types: ["version-update:semver-major"]
+
+  # docker-compose.yml pins the local postgres and MinIO images by tag; the
+  # docker ecosystem above reads only Dockerfiles (#357). Grouped: one PR per week.
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - release:skip-changeset
+    groups:
+      docker-compose:
+        patterns:
+          - "*"
+    # Postgres majors move together with the CI service containers in ci-pr.yml
+    # and release.yml (not bot-managed) and need a pgdata volume migration.
+    ignore:
+      - dependency-name: "postgres"
         update-types: ["version-update:semver-major"]
