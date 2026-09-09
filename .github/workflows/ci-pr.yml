@@ -66,6 +66,7 @@ jobs:
               - "package.json"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
+              - ".npmrc"
               - "turbo.json"
               - "tsconfig.base.json"
             graphql:

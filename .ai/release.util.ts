@@ -5,12 +5,17 @@ import { isRecord, REPO_ROOT } from "./ai.util";
 
 const WORKSPACE_ROOTS = ["apps", "packages", "tooling"] as const;
 const ROOT_BUILD_CONFIGS = new Set([
+  ".npmrc",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "turbo.json",
   "tsconfig.base.json",
   "tsconfig.json"
+]);
+// Root files a single Dockerfile.<app> copies into its image.
+const ROOT_APP_INPUTS = new Map<string, ReadonlySet<string>>([
+  ["api", new Set(["scripts/fix-esm-extensions.mjs"])]
 ]);
 
 export interface WorkspacePackage {
@@ -203,6 +208,14 @@ export const collectAffectedApps = (
 
     if (ROOT_BUILD_CONFIGS.has(file)) {
       for (const app of deployableApps) {
+        affected.add(app.app);
+      }
+      continue;
+    }
+
+    const rootInputApps = deployableApps.filter((app) => ROOT_APP_INPUTS.get(app.app)?.has(file));
+    if (rootInputApps.length > 0) {
+      for (const app of rootInputApps) {
         affected.add(app.app);
       }
       continue;
