@@ -36,9 +36,9 @@ catalog:
   # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image). vitest 4 changes
   # v8 coverage accounting (AST-aware remapping) and needs re-baselined floors —
   # a dedicated migration, not a bot bump.
-  vitest: "3.2.6"
-  "@vitest/coverage-v8": "3.2.6"
-  "@vitest/ui": "3.2.6"
+  vitest: "3.2.7"
+  "@vitest/coverage-v8": "3.2.7"
+  "@vitest/ui": "3.2.7"
   prettier: "^3.9.6"
   "@types/node": "^24.3.0"
 
