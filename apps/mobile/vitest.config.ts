@@ -1,3 +1,4 @@
+import { vitestExclude } from "@repo/config/vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
@@ -19,5 +20,8 @@ export default defineConfig({
       "@repo/todos": path.join(workspaceRoot, "packages/todos/src/index.ts"),
       "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts")
     }
+  },
+  test: {
+    exclude: vitestExclude
   }
 });
