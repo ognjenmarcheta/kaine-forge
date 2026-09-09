@@ -92,22 +92,27 @@ jobs:
           # checkout authenticates origin; push uses the job token (contents: write).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Pinned to v1 on purpose: v2+ of this action requires Changesets CLI v3 and
-      # renamed its inputs (version-script/publish-script). The CLI major is a
-      # tracked migration (#287); Dependabot ignores this action's majors until then.
+      # changesets/action v2 pairs with Changesets CLI v3 (inputs were renamed in
+      # v2). Tag push and GitHub releases stay in the explicit steps below, which
+      # generate release notes; the action only versions or runs the tag script.
       - name: Version packages or publish tags
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          version: pnpm run release:version
-          publish: pnpm run release:publish
-          title: "chore(release): version packages"
-          commit: "chore(release): version packages"
+          version-script: pnpm run release:version
+          publish-script: pnpm run release:publish
+          pr-title: "chore(release): version packages"
+          commit-message: "chore(release): version packages"
+          push-git-tags: false
+          create-github-releases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Both steps below key on the tags at HEAD, not on the action's `published`
+      # output: `changeset git-tag` only creates tags that are missing, pushing an
+      # existing tag is a no-op, and `gh release view` skips existing releases.
+      # A version-PR run has no tags at HEAD and both steps exit early.
       - name: Push release tags
-        if: steps.changesets.outputs.published == 'true'
         run: |
           set -euo pipefail
           TAGS="$(git tag --points-at HEAD)"
@@ -121,7 +126,6 @@ jobs:
           done <<< "$TAGS"
 
       - name: Create GitHub Releases for tags
-        if: steps.changesets.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

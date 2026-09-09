@@ -97,8 +97,8 @@ updates:
       github-actions:
         patterns:
           - "*"
-    # changesets/action v2+ requires Changesets CLI v3 (deferred in #287); the
-    # v1 line keeps working with CLI v2 and the current release.yml inputs.
+    # changesets/action moves together with @changesets/cli (inputs change across
+    # majors); both majors are intentional migrations, not bot bumps (#287).
     ignore:
       - dependency-name: "changesets/action"
         update-types: ["version-update:semver-major"]
