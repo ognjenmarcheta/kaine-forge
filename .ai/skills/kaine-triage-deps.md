@@ -8,7 +8,7 @@ argument-hint: optional PR numbers, or all open dependency PRs
 
 Use this skill for the Dependabot queue, dependency PR storms, or when the user pastes a deps-triage prompt.
 
-**Scope:** Dependabot across its three ecosystems here (npm, GitHub Actions, Docker). Issues and product features are out of scope (`kaine-triage-issue` / implementers).
+**Scope:** Dependabot across its five ecosystems here (npm, GitHub Actions, Docker, Cargo, Docker Compose). Issues and product features are out of scope (`kaine-triage-issue` / implementers).
 
 ## Inventory
 
@@ -34,7 +34,7 @@ For each PR: changed paths, packages, mergeable status, CI checks, whether main 
 | Ambient CI hard gate (e.g. Trivy CRITICAL on main)                                                            | Fix **once** on main; re-run/update dep PRs — do not thrash every PR with the same root cause                                                                |
 | CI “fail” with empty jobs / ~3s infra noise                                                                   | Re-run or rely on local verification; do not treat as package rejection without logs                                                                         |
 
-Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/config/monorepo-alignment.test.ts`, `.github/dependabot.yml` (ignore list, groups, three ecosystems), issue **#198** pattern for intentional upgrade tracking.
+Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/config/monorepo-alignment.test.ts`, `.github/dependabot.yml` (ignore list, groups, five ecosystems), issue **#198** pattern for intentional upgrade tracking.
 
 ## Process
 
