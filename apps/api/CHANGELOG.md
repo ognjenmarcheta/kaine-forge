@@ -1,5 +1,12 @@
 # @repo/api
 
+## 1.6.3
+
+### Patch Changes
+
+- Updated dependencies [67abc54]
+  - @repo/storage@1.2.2
+
 ## 1.6.2
 
 ### Patch Changes
