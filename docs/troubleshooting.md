@@ -2,7 +2,7 @@
 
 Common local setup and runtime failures for Kaine Forge. Prefer this guide before reinstalling the monorepo.
 
-**Preflight:** `pnpm preflight` checks Node, pnpm, Docker, common ports, and `.env` before bootstrap spends minutes on install/build. Re-run with `pnpm preflight -- --with-db` after Compose is up to probe Postgres TCP. (The script is not named `doctor` because `pnpm doctor` is a pnpm built-in that would run instead and report a false green.) AI scaffold drift is separate: `pnpm ai:doctor`.
+**Preflight:** `pnpm preflight` checks Node, pnpm, Docker, common ports, and `.env` before bootstrap spends minutes on install/build. Re-run with `pnpm preflight -- --with-db` after Compose is up to probe Postgres TCP. A missing Rust toolchain (`rustc`/`cargo`) is a warning, because only desktop/Tauri work needs it; pass `pnpm preflight -- --with-desktop` to make it a failure. (The script is not named `doctor` because `pnpm doctor` is a pnpm built-in that would run instead and report a false green.) AI scaffold drift is separate: `pnpm ai:doctor`.
 
 ## Database and Docker
 
@@ -98,6 +98,23 @@ pnpm typecheck
 ```
 
 Root `pnpm generate` runs API `schema:generate` then client codegen in one step. CI fails if generated files drift from the commit.
+
+## Desktop and Tauri
+
+### `pnpm boundaries` / `pnpm check` fails after a desktop build
+
+**Symptom:** `pnpm boundaries` (and so `pnpm check`) exits 1 with `failed to read file .../apps/desktop/src-tauri/target/.../tauri-codegen-assets/<hash>.js` after a desktop build (`tauri build` or `tauri dev`) that ran before the Cargo target directory moved out of the package.
+
+**Cause:** `turbo boundaries` walks every `*.js` file under a workspace, gitignored or not. Tauri writes compressed codegen assets with a `.js` extension into the Cargo target directory; they are not valid UTF-8, so the walk fails on the first one. Cargo output now goes to the repo-root `.tauri-target/` (set by `apps/desktop/src-tauri/.cargo/config.toml`), which is outside every workspace, gitignored, and dockerignored.
+
+**Fix:** Delete the old target directory, then re-run the gate:
+
+```bash
+rm -rf apps/desktop/src-tauri/target
+pnpm boundaries
+```
+
+`pnpm --filter @repo/desktop run clean` removes the current `.tauri-target/`. `pnpm bootstrap` never compiles the desktop app: it runs `turbo run build --filter=!@repo/desktop`, so only `pnpm --filter @repo/desktop build` (or a full `pnpm build`) produces Cargo output.
 
 ## AI assistant scaffold
 

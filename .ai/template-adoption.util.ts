@@ -347,6 +347,9 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     segments.includes("coverage") ||
     segments.includes(".turbo") ||
     normalized.startsWith("apps/desktop/src-tauri/target/") ||
+    // Cargo output for the desktop app, moved to the repo root by
+    // apps/desktop/src-tauri/.cargo/config.toml (issue #351).
+    normalized.startsWith(".tauri-target/") ||
     normalized.endsWith("CHANGELOG.md") ||
     normalized.includes("/graphql/generated/")
   ) {

@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL, URL } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TROUBLESHOOTING = "docs/troubleshooting.md";
 
-/** @typedef {{ ok: boolean, name: string, detail: string, remediation?: string }} CheckResult */
+/** @typedef {{ ok: boolean, warn?: boolean, name: string, detail: string, remediation?: string }} CheckResult */
 
 /**
  * Parse a simple `>=N` or `>=N.M` engines.node range (what this repo uses).
@@ -138,6 +138,37 @@ export function coverageSummaryAgeDays(mtimeMs, nowMs) {
 export const COVERAGE_MAX_AGE_DAYS = 14;
 
 /**
+ * Rust is only needed for desktop/Tauri work (README prerequisites), so a
+ * missing toolchain warns instead of failing unless `--with-desktop` opts in.
+ * @param {{ rustc: string | null, cargo: string | null }} versions `null` when the binary is absent
+ * @param {boolean} withDesktop
+ * @returns {CheckResult}
+ */
+export function rustToolchainResult(versions, withDesktop) {
+  const missing = Object.entries(versions)
+    .filter(([, version]) => version === null)
+    .map(([name]) => name);
+  if (missing.length === 0) {
+    return { ok: true, name: "Rust", detail: `${versions.rustc}, ${versions.cargo}` };
+  }
+  const detail = `${missing.join(" and ")} not found on PATH`;
+  if (withDesktop) {
+    return {
+      ok: false,
+      name: "Rust",
+      detail,
+      remediation: "Install the Rust toolchain (https://rustup.rs), then retry with --with-desktop."
+    };
+  }
+  return {
+    ok: true,
+    warn: true,
+    name: "Rust",
+    detail: `${detail} (ok — only desktop/Tauri work needs it; re-run with --with-desktop to require it)`
+  };
+}
+
+/**
  * @param {number} port
  * @param {string} host
  * @returns {Promise<boolean>} true if something accepts connections
@@ -254,6 +285,19 @@ function checkDocker() {
     };
   }
   return { ok: true, name: "Docker", detail: "daemon reachable (docker info)" };
+}
+
+/**
+ * @param {boolean} withDesktop
+ * @returns {CheckResult}
+ */
+function checkRust(withDesktop) {
+  /** @param {string} command */
+  const versionOf = (command) => {
+    const probe = runQuiet(command, ["--version"]);
+    return probe.error || probe.status !== 0 ? null : (probe.stdout || "").trim();
+  };
+  return rustToolchainResult({ rustc: versionOf("rustc"), cargo: versionOf("cargo") }, withDesktop);
 }
 
 /**
@@ -436,7 +480,7 @@ function checkCoverageFreshness() {
 }
 
 function printResult(result) {
-  const icon = result.ok ? "ok" : "FAIL";
+  const icon = result.ok ? (result.warn ? "warn" : "ok") : "FAIL";
   console.log(`[doctor] ${icon.padEnd(4)} ${result.name}: ${result.detail}`);
   if (!result.ok && result.remediation) {
     console.log(`[doctor]      → ${result.remediation}`);
@@ -445,6 +489,7 @@ function printResult(result) {
 
 async function main() {
   const withDb = process.argv.includes("--with-db");
+  const withDesktop = process.argv.includes("--with-desktop");
   console.log("[doctor] Environment preflight (AI scaffold: pnpm ai:doctor)");
   console.log(`[doctor] Repo: ${repoRoot}`);
 
@@ -453,6 +498,7 @@ async function main() {
   results.push(checkNode());
   results.push(checkPnpm());
   results.push(checkDocker());
+  results.push(checkRust(withDesktop));
   results.push(await checkPorts());
   results.push(checkEnv());
   results.push(checkTrackerLabels());

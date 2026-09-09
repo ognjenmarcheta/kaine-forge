@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "clean": "rm -rf dist .turbo src-tauri/target"
+    "clean": "rm -rf dist .turbo ../../.tauri-target"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",

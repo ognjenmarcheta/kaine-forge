@@ -7,7 +7,8 @@ import {
   missingTrackerLabels,
   nodeSatisfiesEngine,
   pnpmMatchesPackageManager,
-  REQUIRED_ENV_KEYS
+  REQUIRED_ENV_KEYS,
+  rustToolchainResult
 } from "./doctor.mjs";
 
 describe("nodeSatisfiesEngine", () => {
@@ -90,5 +91,29 @@ describe("coverageSummaryAgeDays", () => {
     const now = Date.UTC(2026, 7, 21);
     const before = now - (13 * 86_400_000 + 3_600_000);
     assert.equal(coverageSummaryAgeDays(before, now), 13);
+  });
+});
+
+describe("rustToolchainResult", () => {
+  it("passes when rustc and cargo are both on PATH", () => {
+    const result = rustToolchainResult({ rustc: "rustc 1.88.0", cargo: "cargo 1.88.0" }, false);
+    assert.equal(result.ok, true);
+    assert.equal(result.warn, undefined);
+    assert.match(result.detail, /rustc 1\.88\.0, cargo 1\.88\.0/);
+  });
+
+  it("warns without failing when the toolchain is missing and desktop is not requested", () => {
+    const result = rustToolchainResult({ rustc: null, cargo: null }, false);
+    assert.equal(result.ok, true);
+    assert.equal(result.warn, true);
+    assert.match(result.detail, /rustc and cargo not found on PATH/);
+    assert.match(result.detail, /--with-desktop/);
+  });
+
+  it("fails when --with-desktop requires a missing binary", () => {
+    const result = rustToolchainResult({ rustc: "rustc 1.88.0", cargo: null }, true);
+    assert.equal(result.ok, false);
+    assert.equal(result.detail, "cargo not found on PATH");
+    assert.match(result.remediation ?? "", /rustup/);
   });
 });

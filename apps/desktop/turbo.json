@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "description": "Tauri desktop build. Rust artifacts under src-tauri/target are managed by Cargo's own incremental cache and are intentionally not declared as Turbo outputs, so this task opts out of Turbo caching to avoid restoring a stale or absent binary on a cache hit.",
+      "description": "Tauri desktop build. Rust artifacts under the repo-root .tauri-target (src-tauri/.cargo/config.toml) are managed by Cargo's own incremental cache and are intentionally not declared as Turbo outputs, so this task opts out of Turbo caching to avoid restoring a stale or absent binary on a cache hit.",
       "dependsOn": ["^build"],
       "cache": false
     }

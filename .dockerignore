@@ -7,6 +7,7 @@ build/
 **/.turbo/
 .next/
 *.tsbuildinfo
+.tauri-target/
 
 # Version control
 .git/
