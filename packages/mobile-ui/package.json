@@ -32,7 +32,7 @@
   "devDependencies": {
     "@repo/config": "workspace:*",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "catalog:mobile",
     "@types/react-dom": "catalog:mobile",
     "jsdom": "^30.0.1",

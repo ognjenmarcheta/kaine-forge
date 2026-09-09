@@ -71,6 +71,16 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitest/*"
         update-types: ["version-update:semver-major"]
+      # Deferred on 2026-09-09 (#287): each needs its own migration, not a bot merge.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@changesets/cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@graphql-inspector/cli"
+        update-types: ["version-update:semver-major"]
+      # @types/node tracks the Node major in .nvmrc / engines / Dockerfiles.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Workflows pin actions to commit SHAs with a `# vN` comment; Dependabot bumps
   # the SHA and keeps the comment current. Grouped: one PR per week.
