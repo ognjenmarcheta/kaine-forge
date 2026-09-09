@@ -24,6 +24,12 @@ updates:
         patterns:
           - "better-auth"
           - "@better-auth/*"
+      # vitest, @vitest/coverage-v8 and @vitest/ui are peers pinned to one catalog
+      # version; a lone bump fails the lockstep guard in monorepo-alignment (#324).
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       # One weekly PR for every minor and patch bump instead of a PR storm.
       non-major:
         update-types:
@@ -61,6 +67,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/*"
+        update-types: ["version-update:semver-major"]
 
   # Workflows pin actions to commit SHAs with a `# vN` comment; Dependabot bumps
   # the SHA and keeps the comment current. Grouped: one PR per week.
@@ -89,3 +99,9 @@ updates:
     labels:
       - dependencies
       - release:skip-changeset
+    # Node majors are a deliberate migration across .nvmrc, engines, Dockerfiles,
+    # and CI (#323: node:26-slim has no corepack and broke both images). Digest
+    # bumps within the major still flow.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
