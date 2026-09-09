@@ -105,6 +105,69 @@ describe("monorepo alignment", () => {
     });
   });
 
+  it("keeps root script names off pnpm built-in commands (issue #307)", () => {
+    // pnpm resolves its own commands before package scripts, so a script named
+    // `doctor` was unreachable as `pnpm doctor`: pnpm's built-in doctor ran and
+    // printed "All checks passed" while scripts/doctor.mjs never executed.
+    // test/start/stop/restart are the documented exceptions pnpm routes to scripts.
+    const pnpmBuiltinCommands = new Set([
+      "add",
+      "approve-builds",
+      "audit",
+      "bin",
+      "cache",
+      "cat-file",
+      "cat-index",
+      "config",
+      "create",
+      "dedupe",
+      "deploy",
+      "dlx",
+      "doctor",
+      "env",
+      "exec",
+      "fetch",
+      "find-hash",
+      "help",
+      "ignored-builds",
+      "import",
+      "init",
+      "install",
+      "licenses",
+      "link",
+      "list",
+      "ls",
+      "outdated",
+      "pack",
+      "patch",
+      "patch-commit",
+      "patch-remove",
+      "prune",
+      "publish",
+      "rebuild",
+      "recursive",
+      "remove",
+      "root",
+      "run",
+      "self-update",
+      "server",
+      "setup",
+      "store",
+      "unlink",
+      "update",
+      "why"
+    ]);
+    const rootPackage = readJson("package.json") as { scripts?: Record<string, string> };
+    const collisions = Object.keys(rootPackage.scripts ?? {}).filter((name) =>
+      pnpmBuiltinCommands.has(name)
+    );
+
+    expect(
+      collisions,
+      "rename these scripts: `pnpm <name>` runs the pnpm built-in, never the script"
+    ).toEqual([]);
+  });
+
   it("keeps typecheck base non-composite with incremental (issue #147 dual-config)", () => {
     // IDE / turbo typecheck stays on source paths. Emit uses composite build configs.
     const sharedBase = readJson("packages/config/typescript/tsconfig.base.json") as {

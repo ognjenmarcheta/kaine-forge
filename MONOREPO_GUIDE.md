@@ -54,7 +54,7 @@ All internal packages use the `@repo/*` scope. Import through package exports on
 Shared third-party versions live in `pnpm-workspace.yaml`:
 
 - Default `catalog:` — web/API/shared libs (`zod`, `graphql`, `drizzle-orm`, `better-auth`, web React `^19.1.x`, tooling, etc.).
-- Named `catalog:mobile` — Expo/React Native **exact pins** (`react@19.1.0`, `react-native`, NativeWind, mobile Tailwind v3). Renovate freezes these paths; move them only with a deliberate Expo SDK upgrade.
+- Named `catalog:mobile` — Expo/React Native **exact pins** (`react@19.1.0`, `react-native`, NativeWind, mobile Tailwind v3). Dependabot ignores these paths (`.github/dependabot.yml`); move them only with a deliberate Expo SDK upgrade. Dependabot is the only dependency bot in the template (npm, GitHub Actions SHA pins, Docker digests); a downstream project that prefers Renovate can swap it in, but never run both.
 
 Prefer `"zod": "catalog:"` (or `"react": "catalog:mobile"`) in package.json over duplicated ranges. Scaffold a package with `pnpm create:package <name>`.
 

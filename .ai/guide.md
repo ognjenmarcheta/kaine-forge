@@ -200,7 +200,7 @@ Use skills when they match the task:
 - `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
 - `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
-- `kaine-triage-deps`: triage open Dependabot/Renovate PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
+- `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
 - `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
 

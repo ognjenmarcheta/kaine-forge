@@ -1,21 +1,21 @@
 ---
 name: kaine-triage-deps
-description: Triage open Dependabot or Renovate PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
+description: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 argument-hint: optional PR numbers, or all open dependency PRs
 ---
 
 # Triage Dependency Bot PRs
 
-Use this skill for Dependabot/Renovate queues, dependency PR storms, or when the user pastes a deps-triage prompt.
+Use this skill for the Dependabot queue, dependency PR storms, or when the user pastes a deps-triage prompt.
 
-**Scope:** Dependabot **and** Renovate. Issues and product features are out of scope (`kaine-triage-issue` / implementers).
+**Scope:** Dependabot across its three ecosystems here (npm, GitHub Actions, Docker). Issues and product features are out of scope (`kaine-triage-issue` / implementers).
 
 ## Inventory
 
 ```bash
 gh pr list --state open --label dependencies --json number,title,author,headRefName,mergeable,files
 # also bot authors if unlabeled
-gh pr list --state open --search "author:app/dependabot OR author:app/renovate"
+gh pr list --state open --search "author:app/dependabot"
 ```
 
 For each PR: changed paths, packages, mergeable status, CI checks, whether main already has the bump.
@@ -34,13 +34,13 @@ For each PR: changed paths, packages, mergeable status, CI checks, whether main 
 | Ambient CI hard gate (e.g. Trivy CRITICAL on main)                                                            | Fix **once** on main; re-run/update dep PRs — do not thrash every PR with the same root cause                                                                |
 | CI “fail” with empty jobs / ~3s infra noise                                                                   | Re-run or rely on local verification; do not treat as package rejection without logs                                                                         |
 
-Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/config/monorepo-alignment.test.ts`, `.github/dependabot.yml`, `renovate.json`, issue **#198** pattern for intentional upgrade tracking.
+Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/config/monorepo-alignment.test.ts`, `.github/dependabot.yml` (ignore list, groups, three ecosystems), issue **#198** pattern for intentional upgrade tracking.
 
 ## Process
 
 1. Prefer `release:skip-changeset` for pure dependency bumps when Changeset Required would fail on `apps/**` / `packages/**`.
 2. After closing unsafe one-offs, file or update **one** tracking issue grouping workstreams; comment on closed PRs: `Tracked in #<N>`.
-3. Optionally harden Dependabot/Renovate `ignore` rules so frozen graphs stop reopening (prefer matching Renovate’s mobile freeze list).
+3. Optionally harden the Dependabot `ignore` list or `groups` so frozen graphs stop reopening (the mobile freeze list lives in `.github/dependabot.yml`).
 4. **Authority:** merge/close only when the user asked to resolve, merge, or clear the queue. Otherwise list recommended dispositions and stop.
 
 ## Output

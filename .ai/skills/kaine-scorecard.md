@@ -22,10 +22,10 @@ Nine dimensions, scored 0-10. Each needs a machine feed **and** judgment. Band d
 | 2   | Build & Cache            | `turbo.json` `dependsOn`/`inputs`/`outputs`, global hash surface               |
 | 3   | CI Topology & Speed      | job DAG and gates across `.github/workflows/*`, `gh run` timings               |
 | 4   | Testing & Coverage       | `vitest.coverage.config.ts` floors vs measured, excluded workspaces            |
-| 5   | Dependency Hygiene       | catalog usage and drift, `pnpm audit`, Dependabot/Renovate state               |
+| 5   | Dependency Hygiene       | catalog usage and drift, `pnpm audit`, Dependabot state (npm, actions, docker) |
 | 6   | Release & Deploy         | `.changeset/`, `pnpm release:status`, `release/<app>` branches, `Dockerfile.*` |
 | 7   | Security Posture         | CodeQL, Trivy, secret scan, auth/tenancy/CORS gates, base-image pinning        |
-| 8   | DX & Onboarding          | `pnpm doctor`, `quick-setup`/`bootstrap`, editor config, script honesty        |
+| 8   | DX & Onboarding          | `pnpm preflight`, `quick-setup`/`bootstrap`, editor config, script honesty     |
 | 9   | Docs & Agent Scaffolding | `pnpm ai:doctor`, CONTEXT/ADR/REVIEW coverage, Serena memory accuracy          |
 
 `REVIEW.md` governs diffs; this rubric governs the repo. REVIEW violations feed dimensions 1, 7, and 9.
