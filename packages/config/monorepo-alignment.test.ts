@@ -182,13 +182,6 @@ describe("monorepo alignment", () => {
       .map((check) => check.context);
     expect(required.length).toBeGreaterThan(0);
 
-    const jobNames = new Set<string>();
-    for (const workflow of [".github/workflows/ci-pr.yml", ".github/workflows/codeql.yml"]) {
-      for (const match of readText(workflow).matchAll(/^ {4}name: (.+)$/gm)) {
-        jobNames.add(match[1].trim());
-      }
-    }
-
     // Matrix jobs render their name per entry; the ruleset lists the rendered names.
     const rendered = (name: string): string[] =>
       name.includes("${{ matrix.app }}")
@@ -196,10 +189,31 @@ describe("monorepo alignment", () => {
         : name.includes("${{ matrix.shard }}")
           ? ["1", "2"].map((shard) => name.replace("${{ matrix.shard }}", shard))
           : [name];
-    const renderedNames = new Set([...jobNames].flatMap(rendered));
 
-    const unknown = required.filter((context) => !renderedNames.has(context));
+    // Rendered job name -> the workflow that produces the check.
+    const checkWorkflows = new Map<string, string>();
+    const mergeGroupWorkflows = new Set<string>();
+    for (const workflow of [".github/workflows/ci-pr.yml", ".github/workflows/codeql.yml"]) {
+      const text = readText(workflow);
+      if (/^ {2}merge_group:/m.test(text)) mergeGroupWorkflows.add(workflow);
+      for (const match of text.matchAll(/^ {4}name: (.+)$/gm)) {
+        for (const name of rendered(match[1].trim())) checkWorkflows.set(name, workflow);
+      }
+    }
+
+    const unknown = required.filter((context) => !checkWorkflows.has(context));
     expect(unknown, "ruleset contexts must match workflow job names").toEqual([]);
+
+    // The merge queue runs checks on a `merge_group` event. A required check whose
+    // workflow never triggers there stalls every queue entry until the ruleset's
+    // `check_response_timeout_minutes` elapses, then fails it (issue #354).
+    const missingMergeGroup = required.flatMap((context) => {
+      const workflow = checkWorkflows.get(context);
+      return workflow === undefined || mergeGroupWorkflows.has(workflow)
+        ? []
+        : [`${workflow}: add \`merge_group:\` under \`on:\` — the ruleset requires "${context}"`];
+    });
+    expect(missingMergeGroup, "required checks must run on merge_group").toEqual([]);
   });
 
   it("keeps typecheck base non-composite with incremental (issue #147 dual-config)", () => {
