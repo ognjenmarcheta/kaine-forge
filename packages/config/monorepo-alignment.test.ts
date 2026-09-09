@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -593,6 +593,36 @@ describe("monorepo alignment", () => {
     expect(vitestVersion, "vitest must be cataloged").toBeTruthy();
     expect(catalogVersion("@vitest/coverage-v8")).toBe(vitestVersion);
     expect(catalogVersion("@vitest/ui")).toBe(vitestVersion);
+  });
+
+  it("excludes build output from every vitest workspace (vitest 4 default exclude)", () => {
+    // Vitest 4 only excludes node_modules and .git by default, so compiled
+    // tests left in dist/ from an older build run and fail against missing
+    // source files. Every workspace that runs vitest must spread the shared
+    // list from @repo/config/vitest in its own vitest.config.ts, which also
+    // covers the root coverage run's projects list.
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const manifests = tracked.filter((file) =>
+      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+    );
+    const missing: string[] = [];
+
+    for (const manifest of manifests) {
+      const workspaceDir = manifest.replace(/\/package\.json$/, "");
+      const packageJson = readJson(manifest) as { scripts?: Record<string, string> };
+      if (!/\bvitest\b/.test(packageJson.scripts?.test ?? "")) continue;
+
+      const configPath = `${workspaceDir}/vitest.config.ts`;
+      if (!existsSync(resolve(repoRoot, configPath))) {
+        missing.push(`${workspaceDir}: no vitest.config.ts`);
+        continue;
+      }
+      if (!readText(configPath).includes("vitestExclude")) {
+        missing.push(`${workspaceDir}: vitest.config.ts does not use vitestExclude`);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 
   it("documents web vs mobile React version policy", () => {

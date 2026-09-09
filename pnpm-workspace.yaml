@@ -33,12 +33,12 @@ catalog:
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps);
   # monorepo-alignment pins the lockstep and Dependabot groups them (#324).
-  # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image). vitest 4 changes
-  # v8 coverage accounting (AST-aware remapping) and needs re-baselined floors —
-  # a dedicated migration, not a bot bump.
-  vitest: "3.2.7"
-  "@vitest/coverage-v8": "3.2.7"
-  "@vitest/ui": "3.2.7"
+  # 4.x: v8 coverage uses AST-aware remapping and only reports files it loads
+  # unless coverage.include is set; floors in vitest.coverage.config.ts are
+  # baselined against that accounting (#329). Majors stay intentional.
+  vitest: "4.1.11"
+  "@vitest/coverage-v8": "4.1.11"
+  "@vitest/ui": "4.1.11"
   prettier: "^3.9.6"
   "@types/node": "^24.3.0"
 
@@ -87,7 +87,6 @@ overrides:
   # ranges elsewhere (a bare `vite@7` selector narrowed @tailwindcss/vite's
   # `^5||^6||^7||^8` peer to `^7.3.5` and left web's vite 8 "unmet").
   "vitest>vite": "^7.3.5" # GHSA-p9ff-h696-f583, GHSA-fx2h-pf6j-xcff, GHSA-v2wj-q39q-566r
-  "vite-node>vite": "^7.3.5"
   "@vitest/mocker>vite": "^7.3.5"
   # Keep better-auth/expo peers on the Expo SDK 55 line (not random major peers).
   expo-constants: "~55.0.17"

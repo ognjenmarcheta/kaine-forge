@@ -10,6 +10,10 @@
     "./eslint": "./eslint/index.js",
     "./prettier": "./prettier/index.cjs",
     "./tailwind/preset": "./tailwind/preset.js",
+    "./vitest": {
+      "types": "./vitest/index.d.ts",
+      "default": "./vitest/index.js"
+    },
     "./typescript/tsconfig.base.json": "./typescript/tsconfig.base.json",
     "./typescript/tsconfig.node.json": "./typescript/tsconfig.node.json",
     "./typescript/tsconfig.react.json": "./typescript/tsconfig.react.json",
