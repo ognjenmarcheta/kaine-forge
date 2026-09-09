@@ -41,7 +41,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@tanstack/react-form": "^1.33.2",
+    "@tanstack/react-form": "^1.33.5",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "^0.577.0",
