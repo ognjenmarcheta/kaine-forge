@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
-    "prettier": "catalog:"
+    "prettier": "catalog:",
+    "vitest": "catalog:"
   }
 }
