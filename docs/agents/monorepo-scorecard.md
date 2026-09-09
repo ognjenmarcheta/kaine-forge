@@ -696,6 +696,320 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Unchanged; trivial fix, lowest ladder tier"
         }
       ]
+    },
+    {
+      "date": "2026-09-09",
+      "commit": "7e867a9c1516029db0dbb99372a3a612949220f2",
+      "mode": "fan-out",
+      "agent": "claude",
+      "overall": 7.7,
+      "dimensions": {
+        "1": {
+          "score": 8,
+          "evidence": "Server-only regex (packages/config/eslint/base.js:14-15) blocks @repo/storage root, @repo/auth server entries, all of @repo/db and @repo/email in both client blocks (base.js:77,105) with a contract test (monorepo-alignment.test.ts:679-712); 0 deep @repo/*/src|dist imports; all 14 packages declare exports, no wildcards; knip exit 0; Mobile Export green on PR CI (34330942328). Observed: knip.json:76-78 ignores two undeclared deps (expo-updates, expo-system-ui) and unused zod in packages/auth (package.json:81, 0 imports) while --no-config-hints hides the drift; @repo/logger reachable from mobile by design; one @boundaries-ignore (packages/config/mobile-lan-dev.test.ts:3)"
+        },
+        "2": {
+          "score": 8,
+          "evidence": "^typecheck edge and preset inputs hold (@repo/web#typecheck dry-run: 9 dependencies, 93 inputs); global hash exactly pnpm-workspace.yaml + tsconfig.base.json; lint/format:check inputs cover packages/config. Reproduced gap: @repo/config#test hashes 23 inputs, none of the root files its contract tests read (MONOREPO_GUIDE.md, DESIGN_SYSTEM.md, .github/rulesets/main.json, ci-pr.yml, Dockerfile.*; monorepo-alignment.test.ts:176,186,344,393-394), and Release check:ci runs turbo test against the restored shared cache (ci-pr.yml:171-176,225; release.yml cache step); @repo/desktop#build depends only on @repo/config#build while its script builds @repo/web inline and writes src-tauri/target outside outputs (local turbo path only); turbo.json:71 alias comment stale"
+        },
+        "3": {
+          "score": 7,
+          "evidence": "Topology unchanged; every job has timeout-minutes and every workflow a concurrency group; ruleset file + job-name contract test landed (#342) but rulesets and branch protection still return 403 on the private plan; three PRs merged red today (#341 run 34328147938, #342 34328298593, #345 34329133651) and Release failed on four consecutive main commits (bf15118, 399dbb8, 97bc907, 6ce8906); codeql.yml:3-12 has no merge_group trigger while .github/rulesets/main.json:43 requires Analyze TypeScript, so the shipped merge queue would time out (main.json:56); last green code PR 8m06s (34330942328) with Docker Image (api) 7m54s on the critical path: build-push-action never runs on main so the gha cache scope is cold on every new branch (CACHED=0 on 34318105496 vs 24 on re-push 34318778616) and SBOM alone takes 2m44s; docker filter omits .npmrc (Dockerfile.api:19); no desktop gate on PRs (Deep Checks Tue/Fri only, 5 of 5 recent runs red at 5f6f91f before #313)",
+          "calibration": "Held at 7 per the 09-09 binding condition: required checks or a merge queue are still not in use (plan 403). When the ruleset is applied, the CodeQL merge_group gap must be closed first or the queue stalls."
+        },
+        "4": {
+          "score": 8,
+          "evidence": "Test gate green on main (Release 34333983591 check:ci); vitest 4.1.11 trio with a major-agnostic lockstep test (monorepo-alignment.test.ts:620-628); every workspace vitest.config.ts spreads the @repo/config/vitest exclude preset, contract-tested (:632-660); floors re-baselined with headroom and proven by the Coverage Threshold gate (34330942328: 141 files, lines 49.91 / branches 42.31 / funcs 43.23 vs 45/38/40; auth 83.4/79.4 vs 80/75, api 62.0/56.9 vs 55/50, mobile-ui 57.5/38.7 vs 50/35 from coverage-summary.json today). Observed: no test executes a GraphQL operation through the schema (server.test.ts:35-58 posts no operation); cross-organization e2e covers todos only; 6 of 11 web tests read source text, 0 render; 2 invitation/attachment e2e tests skipped"
+        },
+        "5": {
+          "score": 7,
+          "evidence": "Binding conditions met: pnpm audit --audit-level high exit 0 (Security 34333983597 green) and #323/#324 closed. dependabot.yml covers npm (better-auth/vitest/non-major groups, major ignores for the deferred set), github-actions, docker; 0 open bot PRs; Dependabot alerts 0 high / 5 medium / 3 low; 74 catalog: + 22 catalog:mobile refs with zero duplicate literal ranges; pnpm outdated -r: 23 majors behind, all covered by ignores or #287 except @clack/prompts. Gaps: the npm updater job ends red every run (@types/node unknown_error, runs 34330308527 and 34321500749) while still opening PRs; pnpm-workspace.yaml:69 exact esbuild 0.27.3 override is itself the open advisory floor (fixed 0.28.1) and :68 tar matches nothing in the lock; the Cargo graph (glib 0.18.5 medium alert, Cargo.lock:1088) has no bot ecosystem or audit gate; docker-compose images tag-pinned outside Dependabot; eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 (pnpm-lock.yaml:6118,6129)"
+        },
+        "6": {
+          "score": 8,
+          "evidence": "Release path proven again today: 34333983591 green on 7e867a9 (check:ci, build:core, test:e2e, release:apps advanced release/api and release/web to HEAD), version PRs #311/#317 wrote CHANGELOGs, tags + GitHub releases for 10 packages published on 55d098f, every workspace version has a matching tag, no pending changesets; Changesets CLI 3 + changesets/action v2.1.2 SHA-pinned with tag steps keyed on git tag --points-at HEAD (release.yml:118,133); app discovery derived from Dockerfile.<app> (release.util.ts:53-56,145-180); migrations copied and gated by API_RUN_MIGRATIONS (Dockerfile.api:52, startup.config.ts:27, docs/release-checklist.md:33-35). Gaps: Release ran red on four main commits today behind unrequired checks (dim 3) and a lockfile-less major (#345 then #346); the release:apps affected set (release.util.ts:7-14,211-214) and the docker PR filter ignore .npmrc and scripts/fix-esm-extensions.mjs that Dockerfile.api:19,26 copies; nothing tests the release path itself"
+        },
+        "7": {
+          "score": 8,
+          "evidence": "Audit gate green (pnpm audit --audit-level high exit 0; Security 34333983597 success) after caret floors + documented ignoreGhsas in pnpm-workspace.yaml; CodeQL and Gitleaks green; tenancy uniformly session-derived: 36 requireOrganizationScope router calls, every adapter filters scope.organizationId, no input carries organizationId, proven at runtime by web-organization-isolation.e2e.ts; introspection off in prod, depth/complexity limits, in-memory rate limit, CORS fail-closed (server.config.ts:53-121, server.ts:97-101), secret entropy guard (auth.config.ts:19-42); frozen lockfile in every CI install, prod image --ignore-scripts, digest-pinned bases, Trivy CRITICAL gate + SBOM; SECURITY.md present. Observed: introspection/depth/complexity and confirm content-type gates have unit tests only (server.config.test.ts:37-81; storage.lifecycle.ts:175-180 untested); docker-compose images tag-pinned outside Dependabot; cookie attributes and server password minimum rely on better-auth defaults; code scanning plan-limited"
+        },
+        "8": {
+          "score": 7,
+          "evidence": "Every documented pnpm command exists and parses its flags; pnpm preflight honest (Node, pnpm, Docker, ports, .env, labels, coverage age); husky pre-commit/commit-msg/pre-push intact; Node 22 / pnpm 10.29.3 single-sourced. Reproduced: the documented first run (quick-setup > initialize > bootstrap > pnpm run build > turbo run build) includes @repo/desktop#build = tauri build --no-bundle, a full Rust compile that README.md:54 scopes to desktop work and scripts/doctor.mjs never checks for; the resulting src-tauri/target then fails pnpm boundaries and so pnpm check (local exit 1 today), the pre-PR gate named in CONTRIBUTING.md:164 and day-one.md:52 that docs/troubleshooting.md never mentions. scripts/create-package.mjs:151-219 writes no vitest.config.ts or tsconfig.build.json, so a new package fails the vitest-exclude contract test once tracked and its tsc build emits dist/*.test.js that vitest 4 then runs. .vscode/launch.json:26-31 vitest config still runs from the root with no config"
+        },
+        "9": {
+          "score": 8,
+          "evidence": "ai:doctor --strict exit 0 (zero drift, 15 skills valid, 5 installs, 6 MCP ok) and enforced on every PR (ci-pr.yml Check Fast); REVIEW.md equals .ai/review.md bar the generated header; serena memories resolve against current scripts, .nvmrc, workspace; 9 ADRs; all triage labels exist; Dockerfile Renovate comments fixed (#328). Observed: MONOREPO_GUIDE.md:56,57,78,79,84,326,327,349 state superseded versions or gate shapes (React 19.1, Vite 7, Expo SDK 54, better-auth 1.6, check without boundaries/knip, floors without mobile-ui, mobile export scheduled-only); ADR 0002 (SDK 54) and ADR 0003 (mobile export scheduled-only) contradict apps/mobile/package.json and ci-pr.yml:303-313; dashboard.json:4 Teams/squads/timove; turbo.json:71 stale"
+        }
+      },
+      "findings": [
+        {
+          "slug": "bootstrap-builds-tauri-desktop",
+          "title": "dx: pnpm bootstrap compiles the Tauri desktop app and leaves pnpm check red on every fresh clone",
+          "dimension": 8,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Proposed; root build script runs @repo/desktop#build (tauri build --no-bundle) with no Rust preflight, and the target dir then fails turbo boundaries"
+        },
+        {
+          "slug": "boundaries-local-red-tauri-target",
+          "title": "tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output",
+          "dimension": 8,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Upgraded from observed: bootstrap itself creates the directory, so every onboarded clone hits it; same issue as bootstrap-builds-tauri-desktop"
+        },
+        {
+          "slug": "create-package-missing-vitest-config",
+          "title": "tooling: create-package scaffolds a package that the vitest-exclude contract test rejects",
+          "dimension": 8,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Proposed; scripts/create-package.mjs writes no vitest.config.ts or tsconfig.build.json (monorepo-alignment.test.ts:632-660)"
+        },
+        {
+          "slug": "test-task-inputs-omit-doc-contracts",
+          "title": "build: turbo test hash for packages/config omits the root files its contract tests read, so Release and local runs can hit a stale cache",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Broadened from the 09-09 observed entry: rulesets/main.json, ci-pr.yml, Dockerfile.* and both docs are read but unhashed (dry-run 23 inputs); proposed for filing"
+        },
+        {
+          "slug": "codeql-missing-merge-group-trigger",
+          "title": "ci: codeql.yml never runs on merge_group while the ruleset requires Analyze TypeScript",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Proposed; latent until the ruleset applies, then the merge queue times out after 60 minutes (main.json:43,56)"
+        },
+        {
+          "slug": "deploy-inputs-invisible-to-affected-gates",
+          "title": "release: files the api image copies are neither release:apps nor docker-filter inputs",
+          "dimension": 6,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Proposed; .npmrc and scripts/fix-esm-extensions.mjs (Dockerfile.api:19,26) are dropped by release.util.ts:7-14,211-214 and absent from ci-pr.yml docker filter"
+        },
+        {
+          "slug": "dependabot-npm-updater-red-types-node",
+          "title": "deps: the Dependabot npm updater job ends in error on @types/node every run",
+          "dimension": 5,
+          "ladderRank": 1,
+          "disposition": "open",
+          "reason": "Proposed; runs 34330308527 and 34321500749 report @types/node unknown_error after opening PRs; a red job masks future errors; cause undetermined"
+        },
+        {
+          "slug": "esbuild-override-pins-advisory-floor",
+          "title": "deps: the exact esbuild override pins the version an open advisory names as vulnerable",
+          "dimension": 5,
+          "ladderRank": 2,
+          "disposition": "open",
+          "reason": "Proposed with cargo-deps-unaudited and compose pins as one supply-chain issue; pnpm-workspace.yaml:69 vs alert fixed=0.28.1; :68 tar override matches nothing"
+        },
+        {
+          "slug": "cargo-deps-unaudited",
+          "title": "deps: the Tauri Cargo graph has no bot ecosystem and no audit gate",
+          "dimension": 5,
+          "ladderRank": 2,
+          "disposition": "open",
+          "reason": "Proposed; dependabot.yml lacks a cargo ecosystem, no cargo audit in workflows, glib 0.18.5 medium alert open (Cargo.lock:1088)"
+        },
+        {
+          "slug": "compose-images-tag-pinned-outside-dependabot",
+          "title": "deps: docker-compose postgres and minio images are tag-pinned and not bot-managed",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "open",
+          "reason": "Proposed as part of the supply-chain issue; docker-compose.yml:3,19,31; dependabot.yml:117"
+        },
+        {
+          "slug": "hardening-gates-untested",
+          "title": "security: introspection-off, depth/complexity, and confirm-time content-type gates have no request-level test",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "open",
+          "reason": "Observed for three runs and #309 closed without it; proposed for filing (server.config.test.ts:37-81 unit only, storage.lifecycle.ts:175-180 untested)"
+        },
+        {
+          "slug": "docker-cache-cold-on-every-new-branch",
+          "title": "ci: the Docker layer cache is never seeded from main, so each branch's first build runs cold",
+          "dimension": 3,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Below the filing bar (performance); the largest PR wall-clock lever (Docker api 7m54s of 8m06s; CACHED=0 vs 24 on re-push); ci-pr.yml never runs build-push-action on main"
+        },
+        {
+          "slug": "desktop-build-hash-omits-web",
+          "title": "build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "observed",
+          "reason": "Local turbo path only (no CI path runs turbo build for desktop); folds into bootstrap-builds-tauri-desktop, whose fix removes desktop from the root build"
+        },
+        {
+          "slug": "red-prs-merged-without-required-checks",
+          "title": "process: pull requests with failing checks reach main because required checks are unavailable on the plan",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 325,
+          "reason": "Recurred today: #341, #342, #345 merged with red PR CI; Release red on four main commits. Ruleset shipped (#342), still ready-for-human"
+        },
+        {
+          "slug": "pnpm-audit-high-debt",
+          "title": "security: pnpm audit reports high-severity advisories (Security workflow gate)",
+          "dimension": 5,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 258,
+          "reason": "Caret floors + documented ignoreGhsas (#328); audit exit 0 on 7e867a9"
+        },
+        {
+          "slug": "dependabot-node-major-breaks-docker-images",
+          "title": "deploy: node:26-slim base images fail to build and diverge from the Node 22 toolchain",
+          "dimension": 6,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 323
+        },
+        {
+          "slug": "vitest-major-bump-breaks-catalog-lockstep",
+          "title": "testing: vitest 4 catalog bump leaves coverage and ui companions on 3.2.6 and fails the lockstep guard",
+          "dimension": 4,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 324
+        },
+        {
+          "slug": "release-tags-pending-green-main",
+          "title": "release: tags and GitHub releases for 1.6.2/1.6.3 not yet published",
+          "dimension": 6,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "Published by the Release run on 55d098f; every workspace version now has a tag"
+        },
+        {
+          "slug": "dependabot-prs-stale-untriaged",
+          "title": "deps: 10 Dependabot PRs open since 2026-08-24 plus #321",
+          "dimension": 5,
+          "ladderRank": 7,
+          "disposition": "fixed",
+          "reason": "Recreated as #336 and merged; 0 open PRs"
+        },
+        {
+          "slug": "coverage-evidence-stale",
+          "title": "testing: coverage cannot be measured on main",
+          "dimension": 4,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "Measured today locally and by the Coverage Threshold gate on 34330942328"
+        },
+        {
+          "slug": "no-schema-level-graphql-test",
+          "title": "testing: no test executes a GraphQL operation through the schema",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Depth gap, gate intact; server.test.ts:35-58 posts to /graphql without an operation, features.test.ts asserts the resolver map only"
+        },
+        {
+          "slug": "e2e-cross-org-todos-only",
+          "title": "testing: cross-organization isolation is asserted for todos only",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Noted at #309 closure; notes, attachments, organizations, invitations have no cross-organization assertion"
+        },
+        {
+          "slug": "web-tests-source-string-assertions",
+          "title": "testing: web feature tests assert on source text, no rendered component tests",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Unchanged: 6 of 11 web tests read source text, 0 render"
+        },
+        {
+          "slug": "knip-ignore-stale-and-laundering",
+          "title": "tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "knip.json:76-78 (expo-updates, expo-system-ui undeclared; zod unused in packages/auth); --no-config-hints suppresses the hint; lower ladder tier"
+        },
+        {
+          "slug": "eslint-duplicate-resolution",
+          "title": "deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "pnpm-lock.yaml:6118,6129; a pnpm dedupe pass, lower ladder tier"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Mechanism gap unchanged; no high alerts open today, floors moved by hand in pnpm-workspace.yaml"
+        },
+        {
+          "slug": "ci-scripts-test-list-comment-only",
+          "title": "ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "ci-pr.yml:218-219; lists match today; lower ladder tier"
+        },
+        {
+          "slug": "deep-checks-red-until-next-schedule",
+          "title": "ci: Deep Checks is red on its last five runs, all at 5f6f91f before the mobile export fix",
+          "dimension": 3,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Cause fixed by #313; the PR-time Mobile Export gate is green; next scheduled run Friday proves it"
+        },
+        {
+          "slug": "launch-json-vitest-config-broken",
+          "title": "dx: .vscode/launch.json vitest debug config runs from the root without a vitest config",
+          "dimension": 8,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "Unchanged after #341: launch.json:26-31 cwd is the root, which has no vitest.config.*"
+        },
+        {
+          "slug": "docs-version-facts-stale",
+          "title": "docs: MONOREPO_GUIDE.md and ADRs 0002/0003 carry superseded version and gate facts",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "Recurring third run; MONOREPO_GUIDE.md:56,57,78,79,84,326,327,349 and docs/adr/0002,0003; a one-PR docs chore, below the filing bar"
+        },
+        {
+          "slug": "translation-team-language-drift",
+          "title": "i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization",
+          "dimension": 9,
+          "ladderRank": 11,
+          "disposition": "observed",
+          "reason": "Unchanged; trivial fix, lowest ladder tier"
+        },
+        {
+          "slug": "branch-protection-unavailable-private-plan",
+          "title": "ci: no required status checks, branch protection and rulesets unavailable on the private free plan",
+          "dimension": 3,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Plan-limited (API 403 today); .github/rulesets/main.json ready to import at go-public"
+        },
+        {
+          "slug": "code-scanning-disabled-private-plan",
+          "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Plan-limited; resolves at go-public"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -903,56 +1217,66 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | -------------- |
+| 2026-09-09 | `7e867a9` | fan-out    | claude   | **7.7** | 4              |
 | 2026-09-09 | `c4189a5` | sequential | claude   | **7.4** | 9              |
 | 2026-09-08 | `5f6f91f` | sequential | claude   | **7**   | 6              |
 | 2026-08-21 | `aef4493` | sequential | opencode | **7.4** | 2              |
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 2              |
 
-### Latest scorecard — 2026-09-09 (`c4189a5`, sequential)
+### Latest scorecard — 2026-09-09 (`7e867a9`, fan-out)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --- | ------------------------ | ----- | ------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | ▲+1 | Server-only gate (SERVER_ONLY_ENTRY_PATTERN) in both client ESLint blocks with a contract test (#313); hooks on @repo/storage/client; knip green; boundaries green in CI (local red on gitignored src-tauri/target); no deep imports in apps/** or packages/**. Known gap: @repo/logger stays importable from mobile by design (pino browser build; PR-time expo export is the guard)                                                                                                                                   |
-| 2   | Build & Cache            | 8.0   | `████████░░` | ▲+1 | typecheck has dependsOn ^typecheck and the shared tsconfig presets as inputs (#314): @repo/web#typecheck dry-run shows 9 dependencies and 5 preset inputs; lint/format:check inputs cover packages/config; contract test pins all three; global hash still pnpm-workspace.yaml + tsconfig.base.json. Open: the test task has no inputs for the doc-contract reads in packages/config (CI's coverage job runs vitest directly, uncached)                                                                                 |
-| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Topology improved: Mobile Export Validation on PRs behind a widened mobile filter, action pins refreshed by Dependabot (#322), PR wall-clock 4m45s (run for #316: Check Fast 55s, Coverage 2m37s, e2e shards ~1m50s). But #318 (Docker Image api/web failed) and #320 (Coverage Threshold failed) were merged, so Release and Security are red on main; branch protection/required checks return 403 on this plan (#325)                                                                                                |
-| 4   | Testing & Coverage       | 7.0   | `███████░░░` | 0   | Cross-organization isolation e2e landed (#316: null read, absent list, rejected mutation, empty page, positive control; todos only). Test gate red on main: the vitest 3.x lockstep guard (monorepo-alignment.test.ts:587-588) fails after #320 bumped vitest to 4.1.11 with companions on 3.2.6, so pnpm test and pnpm coverage cannot complete (1 of 546 tests failing; no coverage-summary written). Floors unchanged (50/55/70); no schema-level GraphQL test; web feature tests still source-string                |
-| 5   | Dependency Hygiene       | 6.0   | `██████░░░░` | ▲+1 | Dependabot proven across npm, github-actions, docker within 24h of #315 (PRs #318-#322; Dependabot alerts 22→7 high); catalogs intact. Audit red again: pnpm audit --audit-level high exit 1 with 9 high (@xmldom/xmldom 0.8.14 ×6, js-yaml 4.3.1) published after #312; Dependabot reports security_update_not_possible for transitive deps so floors move by hand (#258 reopened). Policy gaps in the new config: no Node-major ignore for docker (#323), no vitest group (#324); 10 August bot PRs + #321 still open |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release path proven end to end on 2026-09-08: release/api and release/web advanced to 369f4d6, version PRs #311 and #317 generated and merged. Blocked now: Release runs on 52ca788 and c4189a5 fail at check:ci (vitest guard); the run on 5bc1c4b that would have published tags was cancelled by later merges, so tags for 1.6.2/1.6.3 wait for a green run. Docker images unbuildable on node:26-slim (#323)                                                                                                        |
-| 7   | Security Posture         | 7.0   | `███████░░░` | 0   | CodeQL and Gitleaks green; tenancy proven at runtime by the isolation e2e; every resolver still scopes from session (60 organizationId hits, none from client input); supply-chain pins now refreshed by Dependabot; audit gate red (9 transitive highs); introspection/complexity/confirm content-type gates still lack behavior tests; code scanning plan-limited                                                                                                                                                     |
-| 8   | DX & Onboarding          | 8.0   | `████████░░` | ▲+1 | pnpm preflight runs scripts/doctor.mjs and a contract test rejects built-in collisions (#307); every documented pnpm command exists and accepts its flags; bootstrap/quick-setup/husky intact. Open: local pnpm boundaries red on gitignored Tauri output; .vscode/launch.json vitest config proven broken (no root vitest config, per-workspace aliases not loaded)                                                                                                                                                    |
-| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor --strict zero drift and proven on every PR since billing cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift                                                                                          |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --- | ------------------------ | ----- | ------------ | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | 0   | Server-only regex (packages/config/eslint/base.js:14-15) blocks @repo/storage root, @repo/auth server entries, all of @repo/db and @repo/email in both client blocks (base.js:77,105) with a contract test (monorepo-alignment.test.ts:679-712); 0 deep @repo/*/src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | dist imports; all 14 packages declare exports, no wildcards; knip exit 0; Mobile Export green on PR CI (34330942328). Observed: knip.json:76-78 ignores two undeclared deps (expo-updates, expo-system-ui) and unused zod in packages/auth (package.json:81, 0 imports) while --no-config-hints hides the drift; @repo/logger reachable from mobile by design; one @boundaries-ignore (packages/config/mobile-lan-dev.test.ts:3) |
+| 2   | Build & Cache            | 8.0   | `████████░░` | 0   | ^typecheck edge and preset inputs hold (@repo/web#typecheck dry-run: 9 dependencies, 93 inputs); global hash exactly pnpm-workspace.yaml + tsconfig.base.json; lint/format:check inputs cover packages/config. Reproduced gap: @repo/config#test hashes 23 inputs, none of the root files its contract tests read (MONOREPO_GUIDE.md, DESIGN_SYSTEM.md, .github/rulesets/main.json, ci-pr.yml, Dockerfile.*; monorepo-alignment.test.ts:176,186,344,393-394), and Release check:ci runs turbo test against the restored shared cache (ci-pr.yml:171-176,225; release.yml cache step); @repo/desktop#build depends only on @repo/config#build while its script builds @repo/web inline and writes src-tauri/target outside outputs (local turbo path only); turbo.json:71 alias comment stale                                                                                                                                                                                                                                                                       |
+| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Topology unchanged; every job has timeout-minutes and every workflow a concurrency group; ruleset file + job-name contract test landed (#342) but rulesets and branch protection still return 403 on the private plan; three PRs merged red today (#341 run 34328147938, #342 34328298593, #345 34329133651) and Release failed on four consecutive main commits (bf15118, 399dbb8, 97bc907, 6ce8906); codeql.yml:3-12 has no merge_group trigger while .github/rulesets/main.json:43 requires Analyze TypeScript, so the shipped merge queue would time out (main.json:56); last green code PR 8m06s (34330942328) with Docker Image (api) 7m54s on the critical path: build-push-action never runs on main so the gha cache scope is cold on every new branch (CACHED=0 on 34318105496 vs 24 on re-push 34318778616) and SBOM alone takes 2m44s; docker filter omits .npmrc (Dockerfile.api:19); no desktop gate on PRs (Deep Checks Tue/Fri only, 5 of 5 recent runs red at 5f6f91f before #313)                                                                |
+| 4   | Testing & Coverage       | 8.0   | `████████░░` | ▲+1 | Test gate green on main (Release 34333983591 check:ci); vitest 4.1.11 trio with a major-agnostic lockstep test (monorepo-alignment.test.ts:620-628); every workspace vitest.config.ts spreads the @repo/config/vitest exclude preset, contract-tested (:632-660); floors re-baselined with headroom and proven by the Coverage Threshold gate (34330942328: 141 files, lines 49.91 / branches 42.31 / funcs 43.23 vs 45/38/40; auth 83.4/79.4 vs 80/75, api 62.0/56.9 vs 55/50, mobile-ui 57.5/38.7 vs 50/35 from coverage-summary.json today). Observed: no test executes a GraphQL operation through the schema (server.test.ts:35-58 posts no operation); cross-organization e2e covers todos only; 6 of 11 web tests read source text, 0 render; 2 invitation/attachment e2e tests skipped                                                                                                                                                                                                                                                                     |
+| 5   | Dependency Hygiene       | 7.0   | `███████░░░` | ▲+1 | Binding conditions met: pnpm audit --audit-level high exit 0 (Security 34333983597 green) and #323/#324 closed. dependabot.yml covers npm (better-auth/vitest/non-major groups, major ignores for the deferred set), github-actions, docker; 0 open bot PRs; Dependabot alerts 0 high / 5 medium / 3 low; 74 catalog: + 22 catalog:mobile refs with zero duplicate literal ranges; pnpm outdated -r: 23 majors behind, all covered by ignores or #287 except @clack/prompts. Gaps: the npm updater job ends red every run (@types/node unknown_error, runs 34330308527 and 34321500749) while still opening PRs; pnpm-workspace.yaml:69 exact esbuild 0.27.3 override is itself the open advisory floor (fixed 0.28.1) and :68 tar matches nothing in the lock; the Cargo graph (glib 0.18.5 medium alert, Cargo.lock:1088) has no bot ecosystem or audit gate; docker-compose images tag-pinned outside Dependabot; eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 (pnpm-lock.yaml:6118,6129)                                                                       |
+| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release path proven again today: 34333983591 green on 7e867a9 (check:ci, build:core, test:e2e, release:apps advanced release/api and release/web to HEAD), version PRs #311/#317 wrote CHANGELOGs, tags + GitHub releases for 10 packages published on 55d098f, every workspace version has a matching tag, no pending changesets; Changesets CLI 3 + changesets/action v2.1.2 SHA-pinned with tag steps keyed on git tag --points-at HEAD (release.yml:118,133); app discovery derived from Dockerfile.<app> (release.util.ts:53-56,145-180); migrations copied and gated by API_RUN_MIGRATIONS (Dockerfile.api:52, startup.config.ts:27, docs/release-checklist.md:33-35). Gaps: Release ran red on four main commits today behind unrequired checks (dim 3) and a lockfile-less major (#345 then #346); the release:apps affected set (release.util.ts:7-14,211-214) and the docker PR filter ignore .npmrc and scripts/fix-esm-extensions.mjs that Dockerfile.api:19,26 copies; nothing tests the release path itself                                          |
+| 7   | Security Posture         | 8.0   | `████████░░` | ▲+1 | Audit gate green (pnpm audit --audit-level high exit 0; Security 34333983597 success) after caret floors + documented ignoreGhsas in pnpm-workspace.yaml; CodeQL and Gitleaks green; tenancy uniformly session-derived: 36 requireOrganizationScope router calls, every adapter filters scope.organizationId, no input carries organizationId, proven at runtime by web-organization-isolation.e2e.ts; introspection off in prod, depth/complexity limits, in-memory rate limit, CORS fail-closed (server.config.ts:53-121, server.ts:97-101), secret entropy guard (auth.config.ts:19-42); frozen lockfile in every CI install, prod image --ignore-scripts, digest-pinned bases, Trivy CRITICAL gate + SBOM; SECURITY.md present. Observed: introspection/depth/complexity and confirm content-type gates have unit tests only (server.config.test.ts:37-81; storage.lifecycle.ts:175-180 untested); docker-compose images tag-pinned outside Dependabot; cookie attributes and server password minimum rely on better-auth defaults; code scanning plan-limited |
+| 8   | DX & Onboarding          | 7.0   | `███████░░░` | ▼-1 | Every documented pnpm command exists and parses its flags; pnpm preflight honest (Node, pnpm, Docker, ports, .env, labels, coverage age); husky pre-commit/commit-msg/pre-push intact; Node 22 / pnpm 10.29.3 single-sourced. Reproduced: the documented first run (quick-setup > initialize > bootstrap > pnpm run build > turbo run build) includes @repo/desktop#build = tauri build --no-bundle, a full Rust compile that README.md:54 scopes to desktop work and scripts/doctor.mjs never checks for; the resulting src-tauri/target then fails pnpm boundaries and so pnpm check (local exit 1 today), the pre-PR gate named in CONTRIBUTING.md:164 and day-one.md:52 that docs/troubleshooting.md never mentions. scripts/create-package.mjs:151-219 writes no vitest.config.ts or tsconfig.build.json, so a new package fails the vitest-exclude contract test once tracked and its tsc build emits dist/*.test.js that vitest 4 then runs. .vscode/launch.json:26-31 vitest config still runs from the root with no config                                |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor --strict exit 0 (zero drift, 15 skills valid, 5 installs, 6 MCP ok) and enforced on every PR (ci-pr.yml Check Fast); REVIEW.md equals .ai/review.md bar the generated header; serena memories resolve against current scripts, .nvmrc, workspace; 9 ADRs; all triage labels exist; Dockerfile Renovate comments fixed (#328). Observed: MONOREPO_GUIDE.md:56,57,78,79,84,326,327,349 state superseded versions or gate shapes (React 19.1, Vite 7, Expo SDK 54, better-auth 1.6, check without boundaries/knip, floors without mobile-ui, mobile export scheduled-only); ADR 0002 (SDK 54) and ADR 0003 (mobile export scheduled-only) contradict apps/mobile/package.json and ci-pr.yml:303-313; dashboard.json:4 Teams/squads/timove; turbo.json:71 stale                                                                                                                                                                                                                                                                                              |
 
-**Overall: 7.4** (▲+0.4)
+**Overall: 7.7** (▲+0.3)
 
 ### Findings
 
-| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                                |
-| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------- |
-| `dependabot-node-major-breaks-docker-images`          | 6         | 1      | open        | #323  | deploy: node:26-slim base images fail to build and diverge from the Node 22 toolchain                                |
-| `vitest-major-bump-breaks-catalog-lockstep`           | 4         | 1      | open        | #324  | testing: vitest 4 catalog bump leaves coverage and ui companions on 3.2.6 and fails the lockstep guard               |
-| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are unavailable on the plan            |
-| `mobile-export-storage-node-only-barrel`              | 1         | 1      | fixed       | #305  | storage: @repo/storage barrel pulls @aws-sdk/client-s3 into the Expo bundle and breaks expo export                   |
-| `turbo-typecheck-hash-omits-cross-package-inputs`     | 2         | 1      | fixed       | #308  | build: turbo typecheck and lint hashes omit cross-package source and shared config, so affected runs hit stale cache |
-| `doctor-script-shadowed-by-pnpm-builtin`              | 8         | 1      | fixed       | #307  | dx: documented pnpm doctor runs pnpm's built-in doctor, never scripts/doctor.mjs                                     |
-| `github-actions-billing-blocked`                      | 3         | 1      | fixed       | —     | ci: GitHub Actions jobs fail to start due to account billing or spending limit                                       |
-| `renovate-inert-digest-refresh-absent`                | 5         | 2      | fixed       | #306  | deps: renovate.json is inert and dependabot.yml covers only npm, so action SHAs and image digests never refresh      |
-| `pnpm-audit-high-debt`                                | 5         | 3      | regression  | #258  | security: pnpm audit reports high-severity advisories (Security workflow gate)                                       |
-| `no-cross-organization-isolation-test`                | 4         | 4      | fixed       | #309  | testing: no test asserts cross-organization isolation end to end                                                     |
-| `release-branches-frozen-since-jul-29`                | 6         | 4      | fixed       | —     | release: release/api and release/web frozen at 2026-07-29 while main is at 2026-08-27                                |
-| `release-tags-pending-green-main`                     | 6         | 4      | observed    | —     | release: tags and GitHub releases for 1.6.2/1.6.3 not yet published                                                  |
-| `hardening-gates-untested`                            | 7         | 4      | observed    | —     | security: introspection-off, depth/complexity, and confirm-time content-type gates have no behavior test             |
-| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                        |
-| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible                  |
-| `branch-protection-unavailable-private-plan`          | 3         | 5      | observed    | —     | ci: no required status checks — branch protection and rulesets unavailable on the private free plan                  |
-| `code-scanning-disabled-private-plan`                 | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                        |
-| `test-task-inputs-omit-doc-contracts`                 | 2         | 6      | observed    | —     | build: turbo test task has no inputs for MONOREPO_GUIDE.md and DESIGN_SYSTEM.md read by packages/config tests        |
-| `dependabot-prs-stale-untriaged`                      | 5         | 7      | observed    | —     | deps: 10 Dependabot PRs open since 2026-08-24 plus #321                                                              |
-| `boundaries-local-red-tauri-target`                   | 8         | 8      | observed    | —     | tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output                           |
-| `coverage-evidence-stale`                             | 4         | 9      | observed    | —     | testing: coverage cannot be measured on main                                                                         |
-| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                               |
-| `docs-version-facts-stale`                            | 9         | 10     | observed    | —     | docs: MONOREPO_GUIDE.md and Dockerfile comments carry stale version and bot facts                                    |
-| `translation-team-language-drift`                     | 9         | 11     | observed    | —     | i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization                                    |
+| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                                                    |
+| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap-builds-tauri-desktop`                      | 8         | 1      | open        | —     | dx: pnpm bootstrap compiles the Tauri desktop app and leaves pnpm check red on every fresh clone                                         |
+| `boundaries-local-red-tauri-target`                   | 8         | 1      | open        | —     | tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output                                               |
+| `create-package-missing-vitest-config`                | 8         | 1      | open        | —     | tooling: create-package scaffolds a package that the vitest-exclude contract test rejects                                                |
+| `test-task-inputs-omit-doc-contracts`                 | 2         | 1      | open        | —     | build: turbo test hash for packages/config omits the root files its contract tests read, so Release and local runs can hit a stale cache |
+| `codeql-missing-merge-group-trigger`                  | 3         | 1      | open        | —     | ci: codeql.yml never runs on merge_group while the ruleset requires Analyze TypeScript                                                   |
+| `deploy-inputs-invisible-to-affected-gates`           | 6         | 1      | open        | —     | release: files the api image copies are neither release:apps nor docker-filter inputs                                                    |
+| `dependabot-npm-updater-red-types-node`               | 5         | 1      | open        | —     | deps: the Dependabot npm updater job ends in error on @types/node every run                                                              |
+| `desktop-build-hash-omits-web`                        | 2         | 1      | observed    | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output                                |
+| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are unavailable on the plan                                |
+| `dependabot-node-major-breaks-docker-images`          | 6         | 1      | fixed       | #323  | deploy: node:26-slim base images fail to build and diverge from the Node 22 toolchain                                                    |
+| `vitest-major-bump-breaks-catalog-lockstep`           | 4         | 1      | fixed       | #324  | testing: vitest 4 catalog bump leaves coverage and ui companions on 3.2.6 and fails the lockstep guard                                   |
+| `esbuild-override-pins-advisory-floor`                | 5         | 2      | open        | —     | deps: the exact esbuild override pins the version an open advisory names as vulnerable                                                   |
+| `cargo-deps-unaudited`                                | 5         | 2      | open        | —     | deps: the Tauri Cargo graph has no bot ecosystem and no audit gate                                                                       |
+| `compose-images-tag-pinned-outside-dependabot`        | 7         | 2      | open        | —     | deps: docker-compose postgres and minio images are tag-pinned and not bot-managed                                                        |
+| `pnpm-audit-high-debt`                                | 5         | 3      | fixed       | #258  | security: pnpm audit reports high-severity advisories (Security workflow gate)                                                           |
+| `hardening-gates-untested`                            | 7         | 4      | open        | —     | security: introspection-off, depth/complexity, and confirm-time content-type gates have no request-level test                            |
+| `release-tags-pending-green-main`                     | 6         | 4      | fixed       | —     | release: tags and GitHub releases for 1.6.2/1.6.3 not yet published                                                                      |
+| `no-schema-level-graphql-test`                        | 4         | 4      | observed    | —     | testing: no test executes a GraphQL operation through the schema                                                                         |
+| `e2e-cross-org-todos-only`                            | 4         | 4      | observed    | —     | testing: cross-organization isolation is asserted for todos only                                                                         |
+| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                                            |
+| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible                                      |
+| `branch-protection-unavailable-private-plan`          | 3         | 5      | observed    | —     | ci: no required status checks, branch protection and rulesets unavailable on the private free plan                                       |
+| `code-scanning-disabled-private-plan`                 | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                                            |
+| `docker-cache-cold-on-every-new-branch`               | 3         | 6      | observed    | —     | ci: the Docker layer cache is never seeded from main, so each branch's first build runs cold                                             |
+| `dependabot-prs-stale-untriaged`                      | 5         | 7      | fixed       | —     | deps: 10 Dependabot PRs open since 2026-08-24 plus #321                                                                                  |
+| `knip-ignore-stale-and-laundering`                    | 1         | 8      | observed    | —     | tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep                                                       |
+| `eslint-duplicate-resolution`                         | 5         | 8      | observed    | —     | deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile                                                                       |
+| `ci-scripts-test-list-comment-only`                   | 3         | 8      | observed    | —     | ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment                                      |
+| `coverage-evidence-stale`                             | 4         | 9      | fixed       | —     | testing: coverage cannot be measured on main                                                                                             |
+| `deep-checks-red-until-next-schedule`                 | 3         | 9      | observed    | —     | ci: Deep Checks is red on its last five runs, all at 5f6f91f before the mobile export fix                                                |
+| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                                                   |
+| `docs-version-facts-stale`                            | 9         | 10     | observed    | —     | docs: MONOREPO_GUIDE.md and ADRs 0002/0003 carry superseded version and gate facts                                                       |
+| `translation-team-language-drift`                     | 9         | 11     | observed    | —     | i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization                                                        |
 
 <!-- scorecard:generated:end -->
 
@@ -1004,3 +1328,14 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Red gate on main scored like the knip precedent.** Dim 4 holds at 7 with the vitest lockstep guard red on main (mechanism works, one broken contract on main); dim 6 holds at 8 because the release mechanism itself is proven and the block is dim 4's gate.
 - **Regression slug handled per rule.** `pnpm-audit-high-debt` was `fixed` on 09-08 and is detected again: recorded as `regression`, #258 reopened, no duplicate.
 - **Depth floor kept.** Same three explorer probes as 09-08 (dims 1/2, 4/7, 8/9); deltas are like for like. Overall 7.0 → 7.4.
+
+### 2026-09-09 — sixth run (`7e867a9`, fan-out: four explorer probes covering all nine dimensions)
+
+- **First `fan-out` run.** Bands and every binding note above are unchanged, and four read-only `kaine-explorer` probes (dims 1/2, 4/7, 8/9, 3/5/6) exceed the three-probe floor from 09-08. The delta against the morning `sequential` run is reported but is cross-mode per the header rule; treat it as indicative.
+- **Dim 4 → 8 with cause.** The 08-21 raise condition is met: after the vitest 4 re-baseline (#341) every floor has 3-8 points of headroom and the Coverage Threshold gate proved them on run 34330942328; the lockstep red cleared (#328). Do not raise to 9 until a schema-level GraphQL test and a rendered web component test exist.
+- **Dim 5 → 7 per the 09-09 binding condition** (audit exit 0, #323 and #324 closed). Hold at 7 until the Dependabot npm updater job is green, the Cargo graph has a bot or audit gate, and security overrides are caret floors rather than exact pins.
+- **Dim 7 → 8 with cause.** The audit gate is green on a Security push run for the first time, Dependabot refreshes every pin, and tenancy is runtime-proven by the isolation e2e. Do not raise to 9 until the introspection, depth/complexity, and confirm content-type gates have request-level tests.
+- **Dim 8 → 7, depth discovery not regression.** The documented first run (`bootstrap` → `turbo run build`) compiles the Tauri app with no Rust preflight and then leaves `pnpm check` red on the gitignored target dir; `create-package` scaffolds a workspace the vitest-exclude contract test rejects. Both predate this run undetected. Raise back to 8 when both are fixed.
+- **Dim 3 held at 7 (binding).** The ruleset file shipped (#342) but cannot be applied on the plan; three more red PRs merged today. New latent condition recorded: `codeql.yml` lacks a `merge_group` trigger the ruleset's required check depends on.
+- **Dims 1, 2, 6, 9 held.** Dim 2's test-inputs gap is broadened (ruleset, workflow, and Dockerfile reads are unhashed too) and filed rather than re-scored, because the PR-path gate runs vitest uncached. Dim 9's stale-fact count grew (8 guide lines, 2 ADRs) but stays observed: hand-written facts have no gate, which is the known ceiling of band 8.
+- **Overall 7.4 → 7.7.** Dims 4, 5, 7 up one each with cited causes; dim 8 down one on depth; the rest re-evidenced flat.
