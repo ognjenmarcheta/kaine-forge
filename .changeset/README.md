@@ -25,7 +25,7 @@ pnpm release:publish
 
 - `release:status` checks pending release metadata.
 - `release:version` applies changesets and updates changelogs/versions.
-- `release:publish` creates git tags from versioned packages (no npm publish).
+- `release:publish` runs `changeset git-tag` to create git tags from versioned packages (no npm publish).
 
 ## CI behavior
 
