@@ -19,8 +19,8 @@
     "clean": "rm -rf playwright-report test-results .turbo"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.62.1",
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@repo/config": "workspace:*",
     "vitest": "catalog:"
   }
