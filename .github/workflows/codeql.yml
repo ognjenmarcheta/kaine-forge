@@ -30,10 +30,10 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           languages: javascript-typescript
           # security-extended adds the higher-noise-but-higher-recall queries on
@@ -49,7 +49,7 @@ jobs:
       # the job stays green. Private + GHAS: set Actions variable
       # ENABLE_GITHUB_CODE_SCANNING=true after enabling code scanning in settings.
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           category: "/language:javascript-typescript"
           upload: ${{ (github.event.repository.visibility == 'public' || vars.ENABLE_GITHUB_CODE_SCANNING == 'true') && 'always' || 'never' }}
