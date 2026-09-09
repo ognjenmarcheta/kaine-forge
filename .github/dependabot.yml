@@ -16,6 +16,9 @@ updates:
       - dependencies
       - release:skip-changeset
     # pnpm catalogs live in pnpm-workspace.yaml; Dependabot updates lock + manifests.
+    # No cooldown block: Dependabot's default 3-day cooldown applies, and
+    # pnpm-workspace.yaml mirrors it as minimumReleaseAge so the ungated
+    # `pnpm update` step cannot pull a release the gated install rejects (#356).
     versioning-strategy: increase
     groups:
       # better-auth and its Expo companion sit on one catalog line and must
