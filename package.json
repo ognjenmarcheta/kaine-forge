@@ -86,7 +86,7 @@
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
     "chalk": "^5.6.2",
-    "eslint": "^9.35.0",
+    "eslint": "^10.10.0",
     "husky": "^9.1.7",
     "knip": "^6.29.0",
     "lint-staged": "^17.3.0",
