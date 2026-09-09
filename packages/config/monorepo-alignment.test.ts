@@ -816,6 +816,53 @@ describe("monorepo alignment", () => {
     expect(tasks["format:check"]?.inputs).toContain("$TURBO_ROOT$/.editorconfig");
   });
 
+  it("hashes the files the package contract tests read outside their package (issue #353)", () => {
+    // The root test task has no inputs, so a package's test hash covered only
+    // its own files while these contract tests read the ruleset, workflows,
+    // Dockerfiles, guides, and every sibling workspace. Reproduced before the
+    // fix: editing .github/rulesets/main.json left @repo/config#test on a cache
+    // HIT. Each pinned entry maps to a read in this file or in packages/ui's
+    // style contracts; drop one only after removing that read.
+    const readTestInputs = (turboPath: string): string[] => {
+      const config = readJson(turboPath) as { tasks?: Record<string, { inputs?: string[] }> };
+      return config.tasks?.test?.inputs ?? [];
+    };
+
+    const configInputs = readTestInputs("packages/config/turbo.json");
+    for (const input of [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/MONOREPO_GUIDE.md",
+      "$TURBO_ROOT$/DESIGN_SYSTEM.md",
+      "$TURBO_ROOT$/.github/rulesets/main.json",
+      "$TURBO_ROOT$/.github/workflows/*.yml",
+      "$TURBO_ROOT$/Dockerfile.*",
+      "$TURBO_ROOT$/.gitignore",
+      "$TURBO_ROOT$/package.json",
+      "$TURBO_ROOT$/turbo.json",
+      "$TURBO_ROOT$/tooling/dev-mobile-lan.ts",
+      "$TURBO_ROOT$/{apps,packages,tooling}/*/package.json",
+      "$TURBO_ROOT$/{apps,packages}/*/tsconfig.build.json",
+      "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
+      "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
+      "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
+      "$TURBO_ROOT$/packages/ui/src/styles/globals.css"
+    ]) {
+      expect(configInputs, `packages/config/turbo.json test.inputs must hash ${input}`).toContain(
+        input
+      );
+    }
+
+    const uiInputs = readTestInputs("packages/ui/turbo.json");
+    for (const input of [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/DESIGN_SYSTEM.md",
+      "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
+      "$TURBO_ROOT$/apps/mobile/src/styles/global.css"
+    ]) {
+      expect(uiInputs, `packages/ui/turbo.json test.inputs must hash ${input}`).toContain(input);
+    }
+  });
+
   it("builds deployable images from turbo prune output only", () => {
     for (const dockerfile of ["Dockerfile.api", "Dockerfile.web"]) {
       expect(

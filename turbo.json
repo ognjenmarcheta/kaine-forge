@@ -68,7 +68,7 @@
       "outputs": []
     },
     "test": {
-      "description": "Run workspace tests. The ^build dependency is load-bearing, not caution: only apps/api, apps/mobile, packages/auth, and packages/mobile-ui alias @repo/* to source in their vitest config. Every other workspace resolves siblings through package exports, so its tests need built dist output — verified by wiping all dist and watching @repo/email#test fail. Adding source aliases everywhere would let this dependency go.",
+      "description": "Run workspace tests. The ^build dependency is load-bearing, not caution: only apps/api, apps/mobile, packages/auth, and apps/web (through vite.config.ts, merged by its vitest config) alias @repo/* to source; packages/mobile-ui aliases only react-native to a test stub. Every other workspace resolves siblings through package exports, so its tests need built dist output — verified by wiping all dist and watching @repo/email#test fail. Adding source aliases everywhere would let this dependency go.",
       "dependsOn": ["^build"],
       "outputs": []
     },
