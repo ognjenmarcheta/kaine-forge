@@ -77,15 +77,18 @@ jobs:
           cargo --version
 
       - name: Cache Cargo registry and target
+        # Cargo output lives at the repo root (apps/desktop/src-tauri/.cargo/config.toml
+        # sets build.target-dir, issue #351). The key prefix moved with the path so an
+        # entry saved under the old location is never an exact hit that skips the save.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            apps/desktop/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+            .tauri-target
+          key: cargo-target-${{ runner.os }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-
+            cargo-target-${{ runner.os }}-
 
       - name: Build desktop app
         # Builds @repo/web first, then `tauri build --no-bundle` (compile only, no

@@ -1,0 +1,7 @@
+# Keep Cargo output outside the package. `turbo boundaries` walks every *.js
+# under apps/desktop, gitignored or not, and Tauri's compressed codegen assets
+# under the target dir are not valid UTF-8, so a desktop build left `pnpm check`
+# red (issue #351). The path is relative to the parent of this .cargo directory,
+# so it resolves to the repo-root `.tauri-target/` (gitignored, dockerignored).
+[build]
+target-dir = "../../../.tauri-target"

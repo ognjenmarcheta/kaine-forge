@@ -16,6 +16,8 @@ coverage/
 .idea/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+# Cargo target dir for the desktop app (apps/desktop/src-tauri/.cargo/config.toml)
+.tauri-target/
 apps/mobile/.expo/
 apps/mobile/.expo-shared/
 apps/e2e/playwright-report/

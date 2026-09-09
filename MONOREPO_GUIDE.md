@@ -319,7 +319,7 @@ Root commands:
 | Command               | Purpose                                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------ |
 | `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes |
-| `pnpm bootstrap`      | env, install, AI files, build, db seed (no dev server)                                                 |
+| `pnpm bootstrap`      | env, install, AI files, build (every workspace except `@repo/desktop`), db seed (no dev server)        |
 | `pnpm initialize`     | `bootstrap` then `dev`                                                                                 |
 | `pnpm build`          | build all workspaces                                                                                   |
 | `pnpm build:core`     | build API and web dependency graph                                                                     |

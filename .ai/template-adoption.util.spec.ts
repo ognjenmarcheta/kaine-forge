@@ -211,6 +211,7 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption("apps/desktop/src-tauri/target/debug/build.txt")).toBe(
       true
     );
+    expect(excludedFromTemplateAdoption(".tauri-target/release/build/out/a.js")).toBe(true);
     expect(excludedFromTemplateAdoption(".worktrees/adopted-repo/README.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/template-adoption.util.ts")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/skills/kaine-adopt-template.md")).toBe(true);

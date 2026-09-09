@@ -168,6 +168,20 @@ describe("monorepo alignment", () => {
     ).toEqual([]);
   });
 
+  it("keeps pnpm bootstrap off the Tauri desktop compile (issue #351)", () => {
+    // `pnpm run build` is `turbo run build` across every workspace, which
+    // includes @repo/desktop#build = `tauri build --no-bundle`: a full Rust
+    // compile that a fresh clone without Rust cannot run and one with Rust did
+    // not ask for. Bootstrap must build with the desktop app filtered out.
+    const rootPackage = readJson("package.json") as { scripts?: Record<string, string> };
+    const bootstrapSteps = (rootPackage.scripts?.bootstrap ?? "")
+      .split("&&")
+      .map((step) => step.trim());
+
+    expect(bootstrapSteps).not.toContain("pnpm run build");
+    expect(bootstrapSteps).toContain("turbo run build --filter=!@repo/desktop");
+  });
+
   it("keeps the importable main ruleset aligned with the workflow job names (issue #325)", () => {
     // Required checks are matched by job name. A renamed job with a stale
     // ruleset would block every merge once the ruleset is applied, or silently
