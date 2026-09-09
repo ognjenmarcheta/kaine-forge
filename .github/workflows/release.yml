@@ -92,9 +92,12 @@ jobs:
           # checkout authenticates origin; push uses the job token (contents: write).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pinned to v1 on purpose: v2+ of this action requires Changesets CLI v3 and
+      # renamed its inputs (version-script/publish-script). The CLI major is a
+      # tracked migration (#287); Dependabot ignores this action's majors until then.
       - name: Version packages or publish tags
         id: changesets
-        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
         with:
           version: pnpm run release:version
           publish: pnpm run release:publish
