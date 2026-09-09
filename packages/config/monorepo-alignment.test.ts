@@ -168,6 +168,40 @@ describe("monorepo alignment", () => {
     ).toEqual([]);
   });
 
+  it("keeps the importable main ruleset aligned with the workflow job names (issue #325)", () => {
+    // Required checks are matched by job name. A renamed job with a stale
+    // ruleset would block every merge once the ruleset is applied, or silently
+    // stop requiring the check. Job names are the 4-space `name:` keys under
+    // `jobs:` in the PR workflows.
+    const ruleset = readJson(".github/rulesets/main.json") as {
+      rules?: { type: string; parameters?: { required_status_checks?: { context: string }[] } }[];
+    };
+    const required = (ruleset.rules ?? [])
+      .filter((rule) => rule.type === "required_status_checks")
+      .flatMap((rule) => rule.parameters?.required_status_checks ?? [])
+      .map((check) => check.context);
+    expect(required.length).toBeGreaterThan(0);
+
+    const jobNames = new Set<string>();
+    for (const workflow of [".github/workflows/ci-pr.yml", ".github/workflows/codeql.yml"]) {
+      for (const match of readText(workflow).matchAll(/^ {4}name: (.+)$/gm)) {
+        jobNames.add(match[1].trim());
+      }
+    }
+
+    // Matrix jobs render their name per entry; the ruleset lists the rendered names.
+    const rendered = (name: string): string[] =>
+      name.includes("${{ matrix.app }}")
+        ? ["api", "web"].map((app) => name.replace("${{ matrix.app }}", app))
+        : name.includes("${{ matrix.shard }}")
+          ? ["1", "2"].map((shard) => name.replace("${{ matrix.shard }}", shard))
+          : [name];
+    const renderedNames = new Set([...jobNames].flatMap(rendered));
+
+    const unknown = required.filter((context) => !renderedNames.has(context));
+    expect(unknown, "ruleset contexts must match workflow job names").toEqual([]);
+  });
+
   it("keeps typecheck base non-composite with incremental (issue #147 dual-config)", () => {
     // IDE / turbo typecheck stays on source paths. Emit uses composite build configs.
     const sharedBase = readJson("packages/config/typescript/tsconfig.base.json") as {
