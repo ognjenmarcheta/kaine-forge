@@ -81,7 +81,7 @@
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "@commitlint/types": "^21.2.0",
-    "@graphql-inspector/cli": "6.0.8",
+    "@graphql-inspector/cli": "7.0.0",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
