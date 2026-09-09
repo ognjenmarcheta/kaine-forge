@@ -37,16 +37,23 @@
       "cache": false
     },
     "format:check": {
-      "description": "Check formatting",
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.prettierrc.cjs", "$TURBO_ROOT$/.prettierignore"],
+      "description": "Check formatting. Inputs name every file prettier reads outside the package: the root config re-exports packages/config/prettier, and .editorconfig feeds prettier's defaults.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.prettierrc.cjs",
+        "$TURBO_ROOT$/.prettierignore",
+        "$TURBO_ROOT$/packages/config/prettier/**",
+        "$TURBO_ROOT$/.editorconfig"
+      ],
       "outputs": []
     },
     "lint": {
-      "description": "Lint workspace source",
+      "description": "Lint workspace source. Typed rules load the shared tsconfig presets through projectService, so they are inputs too (issue #308).",
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/eslint.config.mjs",
-        "$TURBO_ROOT$/packages/config/eslint/**"
+        "$TURBO_ROOT$/packages/config/eslint/**",
+        "$TURBO_ROOT$/packages/config/typescript/*.json"
       ],
       "outputs": []
     },
@@ -55,7 +62,9 @@
       "cache": false
     },
     "typecheck": {
-      "description": "Type-check workspace source (source paths; no prior build required)",
+      "description": "Type-check workspace source (source paths; no prior build required). The ^typecheck edge is load-bearing: tsconfig.base.json paths resolve @repo/* to sibling source, so without it a dependency's type change left every dependent's typecheck on a stale cache hit (issue #308). The shared tsconfig presets are inputs for the same reason.",
+      "dependsOn": ["^typecheck"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/config/typescript/*.json"],
       "outputs": []
     },
     "test": {
