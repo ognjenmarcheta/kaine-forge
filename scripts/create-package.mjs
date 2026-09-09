@@ -17,7 +17,10 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// CREATE_PACKAGE_ROOT points the scaffold at a temp copy of the repo (used by the test).
+const root = process.env.CREATE_PACKAGE_ROOT
+  ? resolve(process.env.CREATE_PACKAGE_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 function usage(exitCode = 1) {
   console.log(`Usage: pnpm create:package <kebab-name> [options]
@@ -150,7 +153,7 @@ const packageJson = {
   },
   scripts: {
     dev: `echo "${packageName} has no dev runtime"`,
-    build: "tsc -p tsconfig.json",
+    build: "tsc -b tsconfig.build.json",
     check: "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     format: "prettier --write .",
     "format:check": "prettier --check .",
@@ -175,6 +178,39 @@ const tsconfig = {
   },
   include: ["src/**/*.ts"]
 };
+
+const tsconfigBuild = {
+  extends: "./tsconfig.json",
+  compilerOptions: {
+    composite: true,
+    rootDir: "src",
+    outDir: "dist",
+    paths: {},
+    tsBuildInfoFile: "${configDir}/dist/.tsbuildinfo"
+  },
+  exclude: [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*test-helpers*.ts"
+  ]
+};
+
+const vitestConfig = `import { vitestExclude } from "@repo/config/vitest";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    exclude: vitestExclude
+  }
+});
+`;
+
+const prettierignore = `dist
+.turbo
+node_modules
+`;
 
 const indexTs = `export * from "./${utilBase}.util";
 `;
@@ -213,6 +249,9 @@ insertCoverageProject(name);
 mkdirSync(join(dir, "src"), { recursive: true });
 writeFileSync(join(dir, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`);
 writeFileSync(join(dir, "tsconfig.json"), `${JSON.stringify(tsconfig, null, 2)}\n`);
+writeFileSync(join(dir, "tsconfig.build.json"), `${JSON.stringify(tsconfigBuild, null, 2)}\n`);
+writeFileSync(join(dir, "vitest.config.ts"), vitestConfig);
+writeFileSync(join(dir, ".prettierignore"), prettierignore);
 writeFileSync(join(dir, "CHANGELOG.md"), changelog);
 writeFileSync(join(dir, "src", "index.ts"), indexTs);
 writeFileSync(join(dir, "src", `${utilBase}.util.ts`), utilTs);
@@ -225,6 +264,9 @@ Wired:
   - apps/web/vite.config.ts alias
   - vitest.coverage.config.ts project
   - tsconfig extends ${tsconfigExtends}
+  - tsconfig.build.json composite build (tsc -b), tests excluded from dist
+  - vitest.config.ts spreads vitestExclude from @repo/config/vitest
+  - .prettierignore for dist, .turbo, node_modules
   - devDependencies: @repo/config, vitest
 
 Next steps:
