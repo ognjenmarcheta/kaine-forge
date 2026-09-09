@@ -40,6 +40,15 @@ updates:
     # `@expo/*` packages need their own entry: `expo-*` does not match them.
     # Majors below need intentional PRs (compiler lint rules / i18next types), not bot merges.
     ignore:
+      # React and its types live in two catalogs (web caret ranges, mobile exact
+      # Expo SDK pins). Dependabot cannot target the mobile catalog and instead
+      # rewrites the web ranges to exact pins on every weekly run (#327, #340,
+      # #347). React moves by intentional PR: `pnpm update react react-dom` for
+      # web, the Expo SDK upgrade for mobile.
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
       - dependency-name: "expo"
       - dependency-name: "expo-*"
       - dependency-name: "@expo/*"
