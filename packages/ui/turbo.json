@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "description": "The style contract tests read files outside this package, so those files are inputs too (issue #353): design-system.contract.test.ts reads DESIGN_SYSTEM.md, and mobile-tokens.contract.test.ts runs scripts/sync-mobile-design-tokens.mjs, which diffs globals.css against apps/mobile/src/styles/global.css. The tailwind preset it also reads reaches the hash through the @repo/config#build edge.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/DESIGN_SYSTEM.md",
+        "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
+        "$TURBO_ROOT$/apps/mobile/src/styles/global.css"
+      ]
+    }
+  }
+}

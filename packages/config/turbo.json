@@ -6,6 +6,27 @@
       "description": "No-op build. Every workspace depends on @repo/config for its eslint, prettier, tsconfig, and tailwind presets, so this task's hash propagates to the entire graph. Inputs are narrowed to the preset files themselves; the package's own tests, CHANGELOG, and turbo logs are excluded so editing them does not invalidate every downstream build.",
       "inputs": ["package.json", "eslint/**", "prettier/**", "typescript/**", "tailwind/**"],
       "outputs": []
+    },
+    "test": {
+      "description": "The contract tests read files outside this package, so those files are inputs too (issue #353): the root guides, ruleset, workflows, Dockerfiles, .gitignore, package.json, turbo.json, tooling/dev-mobile-lan.ts, every workspace's manifest, tsconfig.build.json, turbo.json, and vitest config, and every src/** TypeScript file (the @repo/* export and vitest-import scans). Globs stay narrow because explicit inputs also match gitignored files such as dist/ and .turbo/*.log.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/MONOREPO_GUIDE.md",
+        "$TURBO_ROOT$/DESIGN_SYSTEM.md",
+        "$TURBO_ROOT$/.github/rulesets/main.json",
+        "$TURBO_ROOT$/.github/workflows/*.yml",
+        "$TURBO_ROOT$/Dockerfile.*",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/tooling/dev-mobile-lan.ts",
+        "$TURBO_ROOT$/{apps,packages,tooling}/*/package.json",
+        "$TURBO_ROOT$/{apps,packages}/*/tsconfig.build.json",
+        "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
+        "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
+        "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
+        "$TURBO_ROOT$/packages/ui/src/styles/globals.css"
+      ]
     }
   }
 }
