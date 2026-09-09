@@ -139,7 +139,13 @@ Create release metadata:
 pnpm changeset
 ```
 
-CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Mark them required in branch protection or rulesets once the plan allows it (free for public repositories; private repositories need GitHub Pro or better).
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required on the current plan (free private repositories cannot use branch protection or rulesets), so a red check only blocks a merge if the person merging treats it as blocking — which is the rule until the ruleset lands. `.github/rulesets/main.json` is the ready-to-import ruleset (required checks, squash-only pull requests, merge queue); apply it once the plan allows it (public repositories, or GitHub Pro and up):
+
+```bash
+gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
+```
+
+A contract test keeps the ruleset's check names aligned with the workflow job names.
 
 ## Validation Expectations
 
