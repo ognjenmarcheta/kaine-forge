@@ -584,8 +584,15 @@ describe("monorepo alignment", () => {
       devDependencies?: Record<string, string>;
     };
     expect(rootPackage.devDependencies?.["@vitest/coverage-v8"]).toBe("catalog:");
-    expect(workspace).toMatch(/"@vitest\/coverage-v8":\s*"\^?3\./);
-    expect(workspace).toMatch(/vitest:\s*"\^?3\./);
+    // Lockstep, not a frozen major: all three catalog entries must share the
+    // same version string, so a lone bump (#320 moved vitest to 4.1.11 and left
+    // the companions on 3.2.6) fails here before it fails in the coverage run.
+    const catalogVersion = (name: string): string | undefined =>
+      new RegExp(`^\\s*"?${name.replace("/", "\\/")}"?:\\s*"([^"]+)"`, "m").exec(workspace)?.[1];
+    const vitestVersion = catalogVersion("vitest");
+    expect(vitestVersion, "vitest must be cataloged").toBeTruthy();
+    expect(catalogVersion("@vitest/coverage-v8")).toBe(vitestVersion);
+    expect(catalogVersion("@vitest/ui")).toBe(vitestVersion);
   });
 
   it("documents web vs mobile React version policy", () => {

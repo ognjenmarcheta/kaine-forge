@@ -31,9 +31,12 @@ catalog:
   tailwindcss: "^4.3.3"
   # Tooling
   typescript: "^5.9.2"
-  # Keep vitest and its UI/coverage companions on the same version (peer deps).
-  # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image).
-  vitest: "4.1.11"
+  # Keep vitest and its UI/coverage companions on the same version (peer deps);
+  # monorepo-alignment pins the lockstep and Dependabot groups them (#324).
+  # 3.2.6+ clears CVE-2026-47429 (Trivy CRITICAL on API image). vitest 4 changes
+  # v8 coverage accounting (AST-aware remapping) and needs re-baselined floors —
+  # a dedicated migration, not a bot bump.
+  vitest: "3.2.6"
   "@vitest/coverage-v8": "3.2.6"
   "@vitest/ui": "3.2.6"
   prettier: "^3.9.6"
@@ -65,7 +68,7 @@ overrides:
   tar: "7.5.19"
   esbuild: "0.27.3"
   # Security floors for transitive Dependabot highs (GHSA fixes; 2026-08 triage).
-  "@xmldom/xmldom": "^0.8.13"
+  "@xmldom/xmldom": "^0.8.15" # 2026-09-09: six GHSAs via expo>@expo/cli>@expo/plist (#258)
   defu: "^6.1.5"
   "nanoid@3": "^3.3.18"
   node-forge: "^1.4.0"
@@ -77,7 +80,7 @@ overrides:
   "fast-uri@3": "^3.1.6" # GHSA-f65p-4m7j-42xc and four more via @commitlint/cli>…>ajv
   flatted: "^3.4.2" # GHSA-25h7-pfq9-p65f, GHSA-rf6f-7fwh-wjgh via @vitest/ui
   "js-yaml@3": "^3.15.1" # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj via @changesets/cli>@manypkg/get-packages
-  "js-yaml@4": "^4.3.1" # same advisories via @commitlint/load>cosmiconfig and @changesets/parse
+  "js-yaml@4": "^4.3.2" # same advisories + GHSA-2883-xcg3-v3hh via @commitlint/load>cosmiconfig and @changesets/parse
   postcss: "^8.5.18" # GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 via vitest>vite
   "rollup@4": "^4.59.0" # GHSA-mw96-cpmx-2vgc via vitest>vite (web itself builds with vite 8 / rolldown)
   # vite 7 is only vitest's; parent-scoped so the floor does not rewrite peer
