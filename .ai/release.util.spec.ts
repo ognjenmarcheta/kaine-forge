@@ -115,6 +115,28 @@ describe("collectAffectedApps", () => {
     );
   });
 
+  it("treats .npmrc as a root build config copied into every image", () => {
+    expect(collectAffectedApps([".npmrc"], deployableApps, workspaces)).toEqual(
+      new Set(["api", "web"])
+    );
+  });
+
+  it("marks only the api app affected when the esm-extension script changes", () => {
+    expect(
+      collectAffectedApps(["scripts/fix-esm-extensions.mjs"], deployableApps, workspaces)
+    ).toEqual(new Set(["api"]));
+  });
+
+  it("ignores root files no dockerfile copies", () => {
+    expect(
+      collectAffectedApps(
+        [".nvmrc", "scripts/sync-mobile-design-tokens.mjs"],
+        deployableApps,
+        workspaces
+      )
+    ).toEqual(new Set());
+  });
+
   it("resolves shared config changes through the declared dependency graph", () => {
     expect(
       collectAffectedApps(
