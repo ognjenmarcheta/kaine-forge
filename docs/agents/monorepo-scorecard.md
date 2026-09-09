@@ -453,6 +453,249 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "packages/translation/src/locales/{de,en,sr}/dashboard.json:4; trivial fix, lowest ladder tier"
         }
       ]
+    },
+    {
+      "date": "2026-09-09",
+      "commit": "c4189a5c2e449ab895272b66bd5dde2663375751",
+      "mode": "sequential",
+      "agent": "claude",
+      "overall": 7.4,
+      "dimensions": {
+        "1": {
+          "score": 8,
+          "evidence": "Server-only gate (SERVER_ONLY_ENTRY_PATTERN) in both client ESLint blocks with a contract test (#313); hooks on @repo/storage/client; knip green; boundaries green in CI (local red on gitignored src-tauri/target); no deep imports in apps/** or packages/**. Known gap: @repo/logger stays importable from mobile by design (pino browser build; PR-time expo export is the guard)"
+        },
+        "2": {
+          "score": 8,
+          "evidence": "typecheck has dependsOn ^typecheck and the shared tsconfig presets as inputs (#314): @repo/web#typecheck dry-run shows 9 dependencies and 5 preset inputs; lint/format:check inputs cover packages/config; contract test pins all three; global hash still pnpm-workspace.yaml + tsconfig.base.json. Open: the test task has no inputs for the doc-contract reads in packages/config (CI's coverage job runs vitest directly, uncached)"
+        },
+        "3": {
+          "score": 7,
+          "evidence": "Topology improved: Mobile Export Validation on PRs behind a widened mobile filter, action pins refreshed by Dependabot (#322), PR wall-clock 4m45s (run for #316: Check Fast 55s, Coverage 2m37s, e2e shards ~1m50s). But #318 (Docker Image api/web failed) and #320 (Coverage Threshold failed) were merged, so Release and Security are red on main; branch protection/required checks return 403 on this plan (#325)",
+          "calibration": "Held at 7 with an explicit raise condition: required checks (rulesets at go-public) or a merge queue in use. Topology design is 8-capable; the outcome today shows the missing gate."
+        },
+        "4": {
+          "score": 7,
+          "evidence": "Cross-organization isolation e2e landed (#316: null read, absent list, rejected mutation, empty page, positive control; todos only). Test gate red on main: the vitest 3.x lockstep guard (monorepo-alignment.test.ts:587-588) fails after #320 bumped vitest to 4.1.11 with companions on 3.2.6, so pnpm test and pnpm coverage cannot complete (1 of 546 tests failing; no coverage-summary written). Floors unchanged (50/55/70); no schema-level GraphQL test; web feature tests still source-string"
+        },
+        "5": {
+          "score": 6,
+          "evidence": "Dependabot proven across npm, github-actions, docker within 24h of #315 (PRs #318-#322; Dependabot alerts 22→7 high); catalogs intact. Audit red again: pnpm audit --audit-level high exit 1 with 9 high (@xmldom/xmldom 0.8.14 ×6, js-yaml 4.3.1) published after #312; Dependabot reports security_update_not_possible for transitive deps so floors move by hand (#258 reopened). Policy gaps in the new config: no Node-major ignore for docker (#323), no vitest group (#324); 10 August bot PRs + #321 still open"
+        },
+        "6": {
+          "score": 8,
+          "evidence": "Release path proven end to end on 2026-09-08: release/api and release/web advanced to 369f4d6, version PRs #311 and #317 generated and merged. Blocked now: Release runs on 52ca788 and c4189a5 fail at check:ci (vitest guard); the run on 5bc1c4b that would have published tags was cancelled by later merges, so tags for 1.6.2/1.6.3 wait for a green run. Docker images unbuildable on node:26-slim (#323)"
+        },
+        "7": {
+          "score": 7,
+          "evidence": "CodeQL and Gitleaks green; tenancy proven at runtime by the isolation e2e; every resolver still scopes from session (60 organizationId hits, none from client input); supply-chain pins now refreshed by Dependabot; audit gate red (9 transitive highs); introspection/complexity/confirm content-type gates still lack behavior tests; code scanning plan-limited"
+        },
+        "8": {
+          "score": 8,
+          "evidence": "pnpm preflight runs scripts/doctor.mjs and a contract test rejects built-in collisions (#307); every documented pnpm command exists and accepts its flags; bootstrap/quick-setup/husky intact. Open: local pnpm boundaries red on gitignored Tauri output; .vscode/launch.json vitest config proven broken (no root vitest config, per-workspace aliases not loaded)"
+        },
+        "9": {
+          "score": 8,
+          "evidence": "ai:doctor --strict zero drift and proven on every PR since billing cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift"
+        }
+      },
+      "findings": [
+        {
+          "slug": "dependabot-node-major-breaks-docker-images",
+          "title": "deploy: node:26-slim base images fail to build and diverge from the Node 22 toolchain",
+          "dimension": 6,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 323
+        },
+        {
+          "slug": "vitest-major-bump-breaks-catalog-lockstep",
+          "title": "testing: vitest 4 catalog bump leaves coverage and ui companions on 3.2.6 and fails the lockstep guard",
+          "dimension": 4,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 324
+        },
+        {
+          "slug": "red-prs-merged-without-required-checks",
+          "title": "process: pull requests with failing checks reach main because required checks are unavailable on the plan",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 325,
+          "reason": "ready-for-human: no agent code fix; rulesets at go-public"
+        },
+        {
+          "slug": "pnpm-audit-high-debt",
+          "title": "security: pnpm audit reports high-severity advisories (Security workflow gate)",
+          "dimension": 5,
+          "ladderRank": 3,
+          "disposition": "regression",
+          "issue": 258,
+          "reason": "Fixed by #312 on 09-08, red again on 09-09 with 9 transitive highs (@xmldom/xmldom, js-yaml) that Dependabot cannot patch; #258 reopened rather than a duplicate"
+        },
+        {
+          "slug": "mobile-export-storage-node-only-barrel",
+          "title": "storage: @repo/storage barrel pulls @aws-sdk/client-s3 into the Expo bundle and breaks expo export",
+          "dimension": 1,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 305
+        },
+        {
+          "slug": "turbo-typecheck-hash-omits-cross-package-inputs",
+          "title": "build: turbo typecheck and lint hashes omit cross-package source and shared config, so affected runs hit stale cache",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 308
+        },
+        {
+          "slug": "doctor-script-shadowed-by-pnpm-builtin",
+          "title": "dx: documented pnpm doctor runs pnpm's built-in doctor, never scripts/doctor.mjs",
+          "dimension": 8,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 307
+        },
+        {
+          "slug": "renovate-inert-digest-refresh-absent",
+          "title": "deps: renovate.json is inert and dependabot.yml covers only npm, so action SHAs and image digests never refresh",
+          "dimension": 5,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "issue": 306
+        },
+        {
+          "slug": "no-cross-organization-isolation-test",
+          "title": "testing: no test asserts cross-organization isolation end to end",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "issue": 309,
+          "reason": "Todos covered end to end; notes and attachments still have no cross-organization assertion (observed)"
+        },
+        {
+          "slug": "release-branches-frozen-since-jul-29",
+          "title": "release: release/api and release/web frozen at 2026-07-29 while main is at 2026-08-27",
+          "dimension": 6,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "Both branches advanced to 369f4d6 on 2026-09-08 by the Release workflow"
+        },
+        {
+          "slug": "github-actions-billing-blocked",
+          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "reason": "Unchanged since 09-08; every workflow executes"
+        },
+        {
+          "slug": "release-tags-pending-green-main",
+          "title": "release: tags and GitHub releases for 1.6.2/1.6.3 not yet published",
+          "dimension": 6,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "The Release run on 5bc1c4b (no pending changesets) was cancelled by later merges; subsequent runs fail at check:ci. Publishes on the next green Release run — no mechanism defect"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Three failed security-update jobs on 09-09 (@xmldom/xmldom, js-yaml, @vitest/mocker); transitive advisories need the pnpm-workspace.yaml floor pattern — folded into #258"
+        },
+        {
+          "slug": "dependabot-prs-stale-untriaged",
+          "title": "deps: 10 Dependabot PRs open since 2026-08-24 plus #321",
+          "dimension": 5,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "Workflow task — run kaine-triage-deps; #300 is superseded by the better-auth group PR #321"
+        },
+        {
+          "slug": "test-task-inputs-omit-doc-contracts",
+          "title": "build: turbo test task has no inputs for MONOREPO_GUIDE.md and DESIGN_SYSTEM.md read by packages/config tests",
+          "dimension": 2,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Local pnpm test can hit a stale cache after a doc edit; CI's coverage job runs vitest directly and path-filters both docs — bounded"
+        },
+        {
+          "slug": "launch-json-vitest-config-broken",
+          "title": "dx: .vscode/launch.json vitest debug config runs from the root without a vitest config",
+          "dimension": 8,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "Proven: mobile-ui tests fail to parse and scripts/*.test.mjs are node:test; lower ladder tier"
+        },
+        {
+          "slug": "docs-version-facts-stale",
+          "title": "docs: MONOREPO_GUIDE.md and Dockerfile comments carry stale version and bot facts",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "MONOREPO_GUIDE.md:57,78,79 (react@19.1.0, Vite 7, Expo SDK 54) and Dockerfile.*:3 (Renovate); the Dockerfile comment is fixed with #323"
+        },
+        {
+          "slug": "hardening-gates-untested",
+          "title": "security: introspection-off, depth/complexity, and confirm-time content-type gates have no behavior test",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Unchanged; gates exist, no test sends __schema, an over-limit query, or a mismatched content type"
+        },
+        {
+          "slug": "web-tests-source-string-assertions",
+          "title": "testing: web feature tests assert on source text, no rendered component tests",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Unchanged: 6 of 11 web tests read source text, 0 render"
+        },
+        {
+          "slug": "branch-protection-unavailable-private-plan",
+          "title": "ci: no required status checks — branch protection and rulesets unavailable on the private free plan",
+          "dimension": 3,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Plan-limited; consequence materialized on 09-09 (#325)"
+        },
+        {
+          "slug": "code-scanning-disabled-private-plan",
+          "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Plan-limited; resolves at go-public"
+        },
+        {
+          "slug": "boundaries-local-red-tauri-target",
+          "title": "tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output",
+          "dimension": 8,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Unchanged; workaround pnpm --filter @repo/desktop clean"
+        },
+        {
+          "slug": "coverage-evidence-stale",
+          "title": "testing: coverage cannot be measured on main",
+          "dimension": 4,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Local pnpm coverage on c4189a5 stops at the vitest guard; resolves with #324"
+        },
+        {
+          "slug": "translation-team-language-drift",
+          "title": "i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization",
+          "dimension": 9,
+          "ladderRank": 11,
+          "disposition": "observed",
+          "reason": "Unchanged; trivial fix, lowest ladder tier"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -660,47 +903,56 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | -------------- |
+| 2026-09-09 | `c4189a5` | sequential | claude   | **7.4** | 9              |
 | 2026-09-08 | `5f6f91f` | sequential | claude   | **7**   | 6              |
 | 2026-08-21 | `aef4493` | sequential | opencode | **7.4** | 2              |
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 2              |
 
-### Latest scorecard — 2026-09-08 (`5f6f91f`, sequential)
+### Latest scorecard — 2026-09-09 (`c4189a5`, sequential)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --- | ------------------------ | ----- | ------------ | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | ▼-1 | knip green; boundaries green in CI (red locally on gitignored src-tauri/target); packages/storage/src/index.ts:4 barrel re-exports the AWS S3 client into web+mobile — Expo export red on every Deep Checks run since jobs execute (34199443237, 33848740914, 33484859563); @repo/logger barrel also reaches mobile; no ESLint/boundaries/test gate separates client-safe from server-only surface (base.js:50-105, no turbo tags) (#305)          |
-| 2   | Build & Cache            | 7.0   | `███████░░░` | ▼-1 | Global hash still 2 files + NODE_ENV (dry-run); typecheck tasks have dependencies=[] while reading sibling src via tsconfig.base.json:21-54 and packages/config/typescript/* — reproduced: storage src edit left web/api/mobile typecheck on cache HITs; lint/format:check inputs omit shared config; mitigated by uncached typecheck:exports:run + mobile-typecheck (#308)                                                                        |
-| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Topology unchanged; billing cleared ~2026-09-01 (CodeQL 34126323459 green, Deep Checks executes); last green PR wall-clock ~4 min (30267187333: Check Fast 52s, Coverage 2m09s, e2e shards ~1m40s); mobile export gate runs twice weekly only; branch protection/required checks unavailable on private free plan                                                                                                                                  |
-| 4   | Testing & Coverage       | 7.0   | `███████░░░` | 0   | coverage-summary.json still 2026-07-25 (lines 52.06 / funcs 62.24 / branches 78.29 vs floors 50/55/70); no CI coverage run since 07-27; probe: no test executes a GraphQL operation against the schema, no cross-organization isolation test (#309), web feature tests are source-string assertions — floors hold but depth is thin                                                                                                                |
-| 5   | Dependency Hygiene       | 5.0   | `█████░░░░░` | ▼-1 | pnpm audit --audit-level high: 25 high (19 on 08-21; fast-uri via commitlint, browserslist); Dependabot security updates error security_update_not_possible (34081415606); 10 bot PRs stale since 08-24 incl. policy-violating #300/#301 (dependabot.yml:20-28 misses @expo/*); renovate.json inert (0 Renovate PRs, no dashboard) and dependabot.yml npm-only so action/image digests never refresh (Dockerfile digests since 07-27) (#306, #258) |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Mechanism intact (release.yml gates, digest-pinned Dockerfiles, changesets config); release/api 04df1c8 and release/web d05bc9a frozen at 07-29 vs main 08-27, 6 changesets pending; billing cleared but no push since — next merge or workflow_dispatch exercises the path                                                                                                                                                                        |
-| 7   | Security Posture         | 7.0   | `███████░░░` | 0   | CodeQL green (upload never: private plan), Gitleaks green, Trivy CRITICAL gate + SBOM in ci-pr; org scope from session at every resolver (~35 requireOrganizationScope sites), CORS fail-closed, secret entropy; audit gate red 25 high, 22 high Dependabot alerts open; SHA/digest pins have no refresh mechanism; introspection/complexity gates lack behavior tests                                                                             |
-| 8   | DX & Onboarding          | 7.0   | `███████░░░` | ▼-1 | Documented pnpm doctor (README.md:115, docs/troubleshooting.md:5) runs pnpm's built-in, never scripts/doctor.mjs (#307); pnpm check red locally after a desktop build (boundaries reads src-tauri/target); bootstrap/quick-setup/husky/.vscode intact, create-package honest, every other documented command exists and accepts its flags                                                                                                          |
-| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor zero drift across 5 installs; 15 skills valid; 9 ADRs; REVIEW 9 headings; serena memories verified accurate against scripts/.nvmrc/workspace; stale claims MONOREPO_GUIDE.md:57 + kaine-triage-deps.md:9-43 (Renovate) and CONTRIBUTING.md:142 (required checks) fold into #306; strict drift gate not yet proven in CI since billing                                                                                                    |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --- | ------------------------ | ----- | ------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | ▲+1 | Server-only gate (SERVER_ONLY_ENTRY_PATTERN) in both client ESLint blocks with a contract test (#313); hooks on @repo/storage/client; knip green; boundaries green in CI (local red on gitignored src-tauri/target); no deep imports in apps/** or packages/**. Known gap: @repo/logger stays importable from mobile by design (pino browser build; PR-time expo export is the guard)                                                                                                                                   |
+| 2   | Build & Cache            | 8.0   | `████████░░` | ▲+1 | typecheck has dependsOn ^typecheck and the shared tsconfig presets as inputs (#314): @repo/web#typecheck dry-run shows 9 dependencies and 5 preset inputs; lint/format:check inputs cover packages/config; contract test pins all three; global hash still pnpm-workspace.yaml + tsconfig.base.json. Open: the test task has no inputs for the doc-contract reads in packages/config (CI's coverage job runs vitest directly, uncached)                                                                                 |
+| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Topology improved: Mobile Export Validation on PRs behind a widened mobile filter, action pins refreshed by Dependabot (#322), PR wall-clock 4m45s (run for #316: Check Fast 55s, Coverage 2m37s, e2e shards ~1m50s). But #318 (Docker Image api/web failed) and #320 (Coverage Threshold failed) were merged, so Release and Security are red on main; branch protection/required checks return 403 on this plan (#325)                                                                                                |
+| 4   | Testing & Coverage       | 7.0   | `███████░░░` | 0   | Cross-organization isolation e2e landed (#316: null read, absent list, rejected mutation, empty page, positive control; todos only). Test gate red on main: the vitest 3.x lockstep guard (monorepo-alignment.test.ts:587-588) fails after #320 bumped vitest to 4.1.11 with companions on 3.2.6, so pnpm test and pnpm coverage cannot complete (1 of 546 tests failing; no coverage-summary written). Floors unchanged (50/55/70); no schema-level GraphQL test; web feature tests still source-string                |
+| 5   | Dependency Hygiene       | 6.0   | `██████░░░░` | ▲+1 | Dependabot proven across npm, github-actions, docker within 24h of #315 (PRs #318-#322; Dependabot alerts 22→7 high); catalogs intact. Audit red again: pnpm audit --audit-level high exit 1 with 9 high (@xmldom/xmldom 0.8.14 ×6, js-yaml 4.3.1) published after #312; Dependabot reports security_update_not_possible for transitive deps so floors move by hand (#258 reopened). Policy gaps in the new config: no Node-major ignore for docker (#323), no vitest group (#324); 10 August bot PRs + #321 still open |
+| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release path proven end to end on 2026-09-08: release/api and release/web advanced to 369f4d6, version PRs #311 and #317 generated and merged. Blocked now: Release runs on 52ca788 and c4189a5 fail at check:ci (vitest guard); the run on 5bc1c4b that would have published tags was cancelled by later merges, so tags for 1.6.2/1.6.3 wait for a green run. Docker images unbuildable on node:26-slim (#323)                                                                                                        |
+| 7   | Security Posture         | 7.0   | `███████░░░` | 0   | CodeQL and Gitleaks green; tenancy proven at runtime by the isolation e2e; every resolver still scopes from session (60 organizationId hits, none from client input); supply-chain pins now refreshed by Dependabot; audit gate red (9 transitive highs); introspection/complexity/confirm content-type gates still lack behavior tests; code scanning plan-limited                                                                                                                                                     |
+| 8   | DX & Onboarding          | 8.0   | `████████░░` | ▲+1 | pnpm preflight runs scripts/doctor.mjs and a contract test rejects built-in collisions (#307); every documented pnpm command exists and accepts its flags; bootstrap/quick-setup/husky intact. Open: local pnpm boundaries red on gitignored Tauri output; .vscode/launch.json vitest config proven broken (no root vitest config, per-workspace aliases not loaded)                                                                                                                                                    |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor --strict zero drift and proven on every PR since billing cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift                                                                                          |
 
-**Overall: 7** (▼-0.4)
+**Overall: 7.4** (▲+0.4)
 
 ### Findings
 
-| Slug                                              | Dimension | Ladder | Disposition | Issue | Title                                                                                                                |
-| ------------------------------------------------- | --------- | ------ | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------- |
-| `mobile-export-storage-node-only-barrel`          | 1         | 1      | open        | #305  | storage: @repo/storage barrel pulls @aws-sdk/client-s3 into the Expo bundle and breaks expo export                   |
-| `turbo-typecheck-hash-omits-cross-package-inputs` | 2         | 1      | open        | #308  | build: turbo typecheck and lint hashes omit cross-package source and shared config, so affected runs hit stale cache |
-| `doctor-script-shadowed-by-pnpm-builtin`          | 8         | 1      | open        | #307  | dx: documented pnpm doctor runs pnpm's built-in doctor, never scripts/doctor.mjs                                     |
-| `github-actions-billing-blocked`                  | 3         | 1      | fixed       | —     | ci: GitHub Actions jobs fail to start due to account billing or spending limit                                       |
-| `renovate-inert-digest-refresh-absent`            | 5         | 2      | open        | #306  | deps: renovate.json is inert and dependabot.yml covers only npm, so action SHAs and image digests never refresh      |
-| `pnpm-audit-high-debt`                            | 5         | 3      | open        | #258  | security: pnpm audit reports high-severity advisories (Security workflow gate)                                       |
-| `no-cross-organization-isolation-test`            | 4         | 4      | open        | #309  | testing: no test asserts cross-organization isolation end to end                                                     |
-| `hardening-gates-untested`                        | 7         | 4      | observed    | —     | security: introspection-off, depth/complexity, and confirm-time content-type gates have no behavior test             |
-| `web-tests-source-string-assertions`              | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                        |
-| `release-branches-frozen-since-jul-29`            | 6         | 4      | observed    | —     | release: release/api and release/web frozen at 2026-07-29 while main is at 2026-08-27                                |
-| `branch-protection-unavailable-private-plan`      | 3         | 5      | observed    | —     | ci: no required status checks — branch protection and rulesets unavailable on the private free plan                  |
-| `code-scanning-disabled-private-plan`             | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                        |
-| `dependabot-prs-stale-untriaged`                  | 5         | 7      | observed    | —     | deps: 10 Dependabot PRs open since 2026-08-24 (#294–#303)                                                            |
-| `boundaries-local-red-tauri-target`               | 8         | 8      | observed    | —     | tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output                           |
-| `coverage-evidence-stale`                         | 4         | 9      | observed    | —     | testing: coverage-summary.json is 45 days old                                                                        |
-| `translation-team-language-drift`                 | 9         | 11     | observed    | —     | i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization                                    |
+| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                                |
+| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------- |
+| `dependabot-node-major-breaks-docker-images`          | 6         | 1      | open        | #323  | deploy: node:26-slim base images fail to build and diverge from the Node 22 toolchain                                |
+| `vitest-major-bump-breaks-catalog-lockstep`           | 4         | 1      | open        | #324  | testing: vitest 4 catalog bump leaves coverage and ui companions on 3.2.6 and fails the lockstep guard               |
+| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are unavailable on the plan            |
+| `mobile-export-storage-node-only-barrel`              | 1         | 1      | fixed       | #305  | storage: @repo/storage barrel pulls @aws-sdk/client-s3 into the Expo bundle and breaks expo export                   |
+| `turbo-typecheck-hash-omits-cross-package-inputs`     | 2         | 1      | fixed       | #308  | build: turbo typecheck and lint hashes omit cross-package source and shared config, so affected runs hit stale cache |
+| `doctor-script-shadowed-by-pnpm-builtin`              | 8         | 1      | fixed       | #307  | dx: documented pnpm doctor runs pnpm's built-in doctor, never scripts/doctor.mjs                                     |
+| `github-actions-billing-blocked`                      | 3         | 1      | fixed       | —     | ci: GitHub Actions jobs fail to start due to account billing or spending limit                                       |
+| `renovate-inert-digest-refresh-absent`                | 5         | 2      | fixed       | #306  | deps: renovate.json is inert and dependabot.yml covers only npm, so action SHAs and image digests never refresh      |
+| `pnpm-audit-high-debt`                                | 5         | 3      | regression  | #258  | security: pnpm audit reports high-severity advisories (Security workflow gate)                                       |
+| `no-cross-organization-isolation-test`                | 4         | 4      | fixed       | #309  | testing: no test asserts cross-organization isolation end to end                                                     |
+| `release-branches-frozen-since-jul-29`                | 6         | 4      | fixed       | —     | release: release/api and release/web frozen at 2026-07-29 while main is at 2026-08-27                                |
+| `release-tags-pending-green-main`                     | 6         | 4      | observed    | —     | release: tags and GitHub releases for 1.6.2/1.6.3 not yet published                                                  |
+| `hardening-gates-untested`                            | 7         | 4      | observed    | —     | security: introspection-off, depth/complexity, and confirm-time content-type gates have no behavior test             |
+| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                        |
+| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible                  |
+| `branch-protection-unavailable-private-plan`          | 3         | 5      | observed    | —     | ci: no required status checks — branch protection and rulesets unavailable on the private free plan                  |
+| `code-scanning-disabled-private-plan`                 | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                        |
+| `test-task-inputs-omit-doc-contracts`                 | 2         | 6      | observed    | —     | build: turbo test task has no inputs for MONOREPO_GUIDE.md and DESIGN_SYSTEM.md read by packages/config tests        |
+| `dependabot-prs-stale-untriaged`                      | 5         | 7      | observed    | —     | deps: 10 Dependabot PRs open since 2026-08-24 plus #321                                                              |
+| `boundaries-local-red-tauri-target`                   | 8         | 8      | observed    | —     | tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output                           |
+| `coverage-evidence-stale`                             | 4         | 9      | observed    | —     | testing: coverage cannot be measured on main                                                                         |
+| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                               |
+| `docs-version-facts-stale`                            | 9         | 10     | observed    | —     | docs: MONOREPO_GUIDE.md and Dockerfile comments carry stale version and bot facts                                    |
+| `translation-team-language-drift`                     | 9         | 11     | observed    | —     | i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization                                    |
 
 <!-- scorecard:generated:end -->
 
@@ -743,3 +995,12 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Dim 4 held at 7 despite thinner depth than assumed.** Floors hold and the gate works; the missing cross-organization isolation test is filed (#309); schema-level and rendered-component gaps are observed. Coverage evidence unchanged since 07-25 by user choice (no local refresh this run).
 - **Dim 9 held at 8.** Serena memories verified accurate; three stale mechanism claims (Renovate ×2, required checks) fold into #306.
 - **Overall 7.4 → 7.0.** Two regressions (dims 1, 5) plus two depth discoveries (dims 2, 8); dims 3, 4, 6, 7, 9 re-evidenced flat.
+
+### 2026-09-09 — fifth run (`c4189a5`, sequential + three explorer probes)
+
+- **Raise conditions from 09-08 met and applied.** Dim 1 → 8 (#313: server-only gate in both client ESLint blocks, contract test, export proven). Dim 2 → 8 (#314: `^typecheck` edge and preset inputs, dry-run shows dependents invalidate). Dim 5 → 6 (#306 landed via #315; audit was green after #312). Dim 8 → 8 (#307: `pnpm preflight` honest, built-in-collision test).
+- **Dim 5 stays below 7.** The audit gate went red again within a day (transitive advisories that Dependabot cannot patch in pnpm). Raise to 7 only when `pnpm audit --audit-level high` is green **and** the two policy gaps are closed (#323 Node-major ignore, #324 vitest group).
+- **Dim 3 held at 7 with a new binding condition.** #318 and #320 merged with failing checks and main went red on Release, Security, and Docker images. Topology design is 8-capable; do not raise dim 3 until required checks exist (rulesets at go-public) or a merge queue is in use (#325).
+- **Red gate on main scored like the knip precedent.** Dim 4 holds at 7 with the vitest lockstep guard red on main (mechanism works, one broken contract on main); dim 6 holds at 8 because the release mechanism itself is proven and the block is dim 4's gate.
+- **Regression slug handled per rule.** `pnpm-audit-high-debt` was `fixed` on 09-08 and is detected again: recorded as `regression`, #258 reopened, no duplicate.
+- **Depth floor kept.** Same three explorer probes as 09-08 (dims 1/2, 4/7, 8/9); deltas are like for like. Overall 7.0 → 7.4.
