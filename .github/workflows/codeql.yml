@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+  # The main ruleset requires this job's check in the merge queue.
+  merge_group:
   workflow_dispatch:
   schedule:
     # Offset from the Security workflow (Mondays 06:00) so the two scans do not
