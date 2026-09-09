@@ -127,6 +127,36 @@ describe("createStorageLifecycle", () => {
     await expect(lifecycle.confirmUpload(scope, "file-1")).rejects.toThrow(/exceeds claimed size/);
   });
 
+  it("rejects confirm when the uploaded content type differs from the claimed MIME type", async () => {
+    const updateFileStatus = vi.fn(async () => ({ id: "file-1", key: "key", status: "uploaded" }));
+    const lifecycle = createStorageLifecycle({
+      bucket: "uploads",
+      createFileId: () => "file-1",
+      createFileRecord: async () => ({ id: "file-1", key: "key" }),
+      createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
+      createDownloadUrl: async () => ({ url: "download-url" }),
+      defaultEntityType: "general",
+      deleteObject: async () => undefined,
+      fileExists: async () => true,
+      getObjectMetadata: async () => ({ contentType: "application/pdf", sizeBytes: 1024 }),
+      getFileById: async () => ({
+        id: "file-1",
+        key: "key",
+        mimeType: "image/png",
+        sizeBytes: 1024,
+        status: "pending"
+      }),
+      listFiles: async () => [],
+      presignedUrlExpirySeconds: 900,
+      updateFileStatus
+    });
+
+    await expect(lifecycle.confirmUpload(scope, "file-1")).rejects.toThrow(
+      /does not match claimed type/
+    );
+    expect(updateFileStatus).not.toHaveBeenCalled();
+  });
+
   it("keeps lookup, listing, and uploaded-only download URL behavior behind one lifecycle", async () => {
     const uploadedFile = {
       id: "file-1",
