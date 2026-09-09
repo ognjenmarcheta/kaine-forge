@@ -1,0 +1,73 @@
+name: Docker Cache
+
+# Seeds the per-app Docker layer cache from main (issue #359). GitHub Actions
+# caches are readable from the current branch and the default branch only. The
+# Docker Image job in ci-pr.yml writes `type=gha,scope=<app>` on pull_request
+# and merge_group, so a PR branch could only ever hit layers it had built
+# itself, and nothing wrote main's scope: every new branch's first Docker Image
+# job ran cold (~4 min vs ~1 min warm). Building here on push to main fills the
+# default-branch scope that PR branches fall back to.
+#
+# Cache-only: no `load`, no `push`, no scan. Trivy and SBOM stay on the PR job.
+
+on:
+  push:
+    branches:
+      - main
+    # Same list as the `docker` path filter in ci-pr.yml, so docs-only pushes
+    # skip the seed exactly when they would skip the PR image build.
+    paths:
+      - "Dockerfile.api"
+      - "Dockerfile.web"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "packages/**"
+      - "scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".npmrc"
+      - "turbo.json"
+      - "tsconfig.base.json"
+  workflow_dispatch:
+
+concurrency:
+  # A newer push to main supersedes the older seed. Cancelling only skips that
+  # run's cache export; the next run writes it.
+  group: docker-cache-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docker-cache:
+    name: Docker Cache (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: Dockerfile.api
+          - app: web
+            dockerfile: Dockerfile.web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      # Must match the PR job's build inputs (context, file, no build-args):
+      # any difference changes the layer keys and the PR build misses the cache.
+      # mode=max exports the intermediate pruner/builder stages too, which is
+      # where the pnpm install and turbo build layers live.
+      - name: Build ${{ matrix.app }} image (cache only)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
