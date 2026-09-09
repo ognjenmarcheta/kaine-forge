@@ -28,3 +28,8 @@ Use a two-tier CI strategy:
 - Cons:
   - deep runtime issues may appear after PR merge window
   - requires active monitoring of scheduled workflow failures
+
+## Status update (2026-09-09)
+
+- Mobile Export Validation now also runs in the required PR gate on pull requests that touch mobile paths (`ci-pr.yml`, issue #305 / PR #313). Deep Checks keeps the scheduled run.
+- `docker-cache.yml` builds both images on pushes to `main` to seed the Docker layer cache that PR branches fall back to (issue #359 / PR #364).

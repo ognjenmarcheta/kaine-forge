@@ -39,7 +39,7 @@ Use this checklist before merging a release PR or cutting a manual release from 
 
 ## 5. Docker
 
-- [ ] Prefer CI: PR/main `docker-images` job builds `Dockerfile.api` / `Dockerfile.web` when relevant paths change
+- [ ] Prefer CI: the `docker-images` job builds `Dockerfile.api` / `Dockerfile.web` on pull requests when relevant paths change. On `main`, the `docker-cache.yml` workflow builds both images to seed the layer cache.
 - [ ] Local optional: `docker build -f Dockerfile.api -t kaine-forge-api .`
 - [ ] Local optional: `docker build -f Dockerfile.web -t kaine-forge-web .`
 - [ ] Smoke test web nginx proxying for `/api` and `/graphql` when Docker is available

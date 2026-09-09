@@ -23,3 +23,7 @@ pnpm --filter @repo/mobile exec expo install --check
 - Cons:
   - slower adoption of newest upstream package versions
   - requires deliberate upgrade workflow when bumping SDK
+
+## Status update (2026-09-09)
+
+The pins now track Expo SDK 55: `apps/mobile/package.json` depends on `expo` `~55.0.28`, and the `catalog:mobile` entries in `pnpm-workspace.yaml` follow its bundled native modules. The decision is unchanged; only the target SDK moved.
