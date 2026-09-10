@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectAffectedApps,
   deployableAppsFromEntries,
+  originSyncState,
   releaseBranchName,
   resolveSelectedApps,
   type WorkspacePackage
@@ -74,6 +75,38 @@ describe("releaseBranchName", () => {
   it("uses stable release branches per app", () => {
     expect(releaseBranchName("api")).toBe("release/api");
     expect(releaseBranchName("web")).toBe("release/web");
+  });
+});
+
+describe("originSyncState", () => {
+  it("treats an identical HEAD and origin/main as synced", () => {
+    expect(
+      originSyncState({
+        localHead: "aaaaaaa",
+        originHead: "aaaaaaa",
+        headIsAncestorOfOrigin: true
+      })
+    ).toBe("synced");
+  });
+
+  it("treats a HEAD that origin/main already contains as behind", () => {
+    expect(
+      originSyncState({
+        localHead: "aaaaaaa",
+        originHead: "bbbbbbb",
+        headIsAncestorOfOrigin: true
+      })
+    ).toBe("behind");
+  });
+
+  it("treats a HEAD outside origin/main history as diverged", () => {
+    expect(
+      originSyncState({
+        localHead: "aaaaaaa",
+        originHead: "bbbbbbb",
+        headIsAncestorOfOrigin: false
+      })
+    ).toBe("diverged");
   });
 });
 

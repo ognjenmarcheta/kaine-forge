@@ -9,6 +9,7 @@ import {
   discoverDeployableApps,
   discoverWorkspacePackages,
   type DeployableApp,
+  originSyncState,
   releaseBranchName,
   resolveSelectedApps
 } from "./release.util";
@@ -114,6 +115,9 @@ const tryGit = (args: string[]): string | null => {
 
 const hasRef = (ref: string): boolean => tryGit(["rev-parse", "--verify", ref]) !== null;
 
+const isAncestor = (ancestorRef: string, descendantRef: string): boolean =>
+  tryGit(["merge-base", "--is-ancestor", ancestorRef, descendantRef]) !== null;
+
 const ensureCleanWorktree = (): void => {
   const status = runGit(["status", "--porcelain"]);
   if (status.length > 0) {
@@ -138,7 +142,23 @@ const ensureSyncedWithOriginMain = (): void => {
       "origin/main is unavailable. Fetch main from origin before running pnpm release:apps."
     );
   }
-  if (localHead !== originHead) {
+
+  const syncState = originSyncState({
+    localHead,
+    originHead,
+    headIsAncestorOfOrigin: isAncestor("HEAD", "origin/main")
+  });
+
+  if (syncState === "behind") {
+    console.log(
+      chalk.gray(
+        "origin/main advanced past HEAD; the queued Release run for the newer commit updates the release branches."
+      )
+    );
+    process.exit(0);
+  }
+
+  if (syncState === "diverged") {
     throw new Error(
       "Local main is not synchronized with origin/main. Pull the latest main commit, then rerun pnpm release:apps."
     );
