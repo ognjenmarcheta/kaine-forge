@@ -372,8 +372,9 @@ Tracked shared outputs:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `REVIEW.md`
-- `.serena/project.yml`
 - `.serena/memories/*.md`
+- `.claude/settings.json`
+- `.claude/README.md`
 
 Shared review contract `REVIEW.md` (from `.ai/review.md`); promote recurring failures with `kaine-encode-knowledge` (ADR 0009).
 

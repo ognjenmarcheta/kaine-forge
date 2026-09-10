@@ -99,6 +99,12 @@ pnpm ai:install && pnpm ai:doctor && pnpm template:adopt --check
 
 After adoption: rotate secrets, rewrite `.env.example` defaults, review remaining `--check` findings, and keep org-specific MCP/skills only in the downstream project.
 
+Repository settings the template cannot carry over (GitHub copies files, not settings):
+
+- Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, or the Release workflow cannot open version pull requests.
+- Import the branch ruleset: `gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json`.
+- Optional: set the remote Turbo cache secret `TURBO_TOKEN` and variable `TURBO_TEAM` (see [CI speed](#ci-speed-maintainers)).
+
 ## AI Assistant Files
 
 `.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
@@ -139,7 +145,7 @@ Create release metadata:
 pnpm changeset
 ```
 
-CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required on the current plan (free private repositories cannot use branch protection or rulesets), so a red check only blocks a merge if the person merging treats it as blocking — which is the rule until the ruleset lands. `.github/rulesets/main.json` is the ready-to-import ruleset (required checks, squash-only pull requests, merge queue); apply it once the plan allows it (public repositories, or GitHub Pro and up):
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. The ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, merge queue) is applied on this repository, so a red check blocks the merge. Repositories generated from this template start without it; import it once (public repositories, or GitHub Pro and up):
 
 ```bash
 gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
@@ -218,12 +224,12 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 Shared versions are defined in `pnpm-workspace.yaml` (`catalog:` and `catalogs.mobile`). Prefer catalog references in package.json; do not reintroduce duplicate version ranges for cataloged packages.
 
-### Security scans (free private vs GitHub Code Scanning)
+### Security scans (with and without GitHub Code Scanning)
 
 Default security coverage does **not** require GitHub Advanced Security (GHAS):
 
 - **CodeQL** always analyzes TypeScript in CI; results upload to the Security tab only on public repos, or on private repos after you enable Code scanning and set the Actions variable `ENABLE_GITHUB_CODE_SCANNING=true`.
 - **Dependency Review** runs only under the same public / opt-in gate (needs the Dependency Graph product).
-- Free private defaults: **Gitleaks** (secrets), **Trivy** (container CRITICAL fail), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
+- Without Code Scanning (private repo, no GHAS): **Gitleaks** (secrets), **Trivy** (container CRITICAL fail), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
 
 Private repos with GHAS: enable Code scanning under repository security settings, then set **Settings → Secrets and variables → Actions → Variables → `ENABLE_GITHUB_CODE_SCANNING=true`**.

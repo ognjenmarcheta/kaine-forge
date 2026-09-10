@@ -47,7 +47,7 @@ jobs:
       # additional coverage.
       #
       # Upload needs the GitHub Code Scanning product (free on public repos;
-      # private needs GHAS). Free private templates analyze without uploading so
+      # private needs GHAS). Without it the job analyzes without uploading so
       # the job stays green. Private + GHAS: set Actions variable
       # ENABLE_GITHUB_CODE_SCANNING=true after enabling code scanning in settings.
       - name: Perform CodeQL analysis

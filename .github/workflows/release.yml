@@ -106,7 +106,11 @@ jobs:
           push-git-tags: false
           create-github-releases: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A version PR opened with the job token gets no `pull_request` workflow
+          # runs, so its required checks never report. Set repository secret
+          # RELEASE_PR_TOKEN (fine-grained PAT: Contents rw, Pull requests rw) to
+          # have the PR trigger CI. Falls back to the job token when unset.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
 
       # Both steps below key on the tags at HEAD, not on the action's `published`
       # output: `changeset git-tag` only creates tags that are missing, pushing an

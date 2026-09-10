@@ -124,7 +124,7 @@ jobs:
   dependency-review:
     name: Dependency Review
     # Public: free Dependency Graph. Private: needs GHAS + opt-in variable.
-    # Free private templates skip this job and rely on pnpm audit + Trivy instead.
+    # Without it this job is skipped and pnpm audit + Trivy carry the gate.
     if: |
       github.event_name == 'pull_request' &&
       (github.event.repository.visibility == 'public' ||
@@ -470,7 +470,7 @@ jobs:
           ignore-unfixed: true
 
       # SARIF upload needs GitHub Code Scanning (same gate as CodeQL upload).
-      # CRITICAL fail below still hard-gates free private repos without GHAS.
+      # CRITICAL fail below still hard-gates repos without Code Scanning.
       - name: Upload Trivy SARIF
         if: |
           always() &&
