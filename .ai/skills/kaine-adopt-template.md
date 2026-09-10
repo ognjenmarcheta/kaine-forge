@@ -10,7 +10,7 @@ Use this skill when turning this template repository into a downstream product r
 
 ## Workflow
 
-1. Read the current identity from `package.json`, `README.md`, `.env.example`, app metadata, Tauri metadata, translation locale files, and canonical `.ai/` sources.
+1. Read the current identity from `package.json`, `README.md`, `.env.example`, app metadata, Tauri metadata, translation locale files, and canonical `.ai/` sources. Note the downstream GitHub owner so you can set `repoOwner`.
 2. If a config path was provided, inspect it and run:
 
    ```bash
@@ -31,13 +31,15 @@ Use this skill when turning this template repository into a downstream product r
 7. Use targeted searches for remaining active template identity and review each leftover:
 
    ```bash
-   rg -n "Kaine Forge|kaine-forge|kaineforge|kaine_forge|com\\.kaine\\.forge" \
+   rg -n "Kaine Forge|kaine-forge|kaineforge|kaine_forge|com\\.kaine\\.forge|ognjenmarcheta" \
      --glob '!**/CHANGELOG.md' \
      --glob '!**/graphql/generated/**' \
      --glob '!apps/desktop/src-tauri/target/**' \
      --glob '!pnpm-lock.yaml' \
      --glob '!docs/superpowers/**'
    ```
+
+8. Replace `media/logo.jpg` with your own logo. Adoption already rewrites the README image alt text.
 
 ## Config Shape
 
@@ -56,6 +58,7 @@ Optional fields can override derived defaults:
 
 - `packageName`
 - `repoSlug`
+- `repoOwner` (GitHub user or org; rewrites badge URLs, repo links, and `CODEOWNERS`)
 - `dockerImagePrefix`
 - `s3Bucket`
 - `webTitle`

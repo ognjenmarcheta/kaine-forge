@@ -2,6 +2,7 @@ export interface TemplateAdoptionInput {
   productName?: string;
   packageName?: string;
   repoSlug?: string;
+  repoOwner?: string;
   dockerImagePrefix?: string;
   s3Bucket?: string;
   webTitle?: string;
@@ -19,6 +20,7 @@ export interface TemplateAdoptionConfig {
   productName: string;
   packageName: string;
   repoSlug: string;
+  repoOwner?: string | undefined;
   dockerImagePrefix: string;
   s3Bucket: string;
   webTitle: string;
@@ -51,6 +53,7 @@ export interface TemplateAdoptionResult {
 const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const DESKTOP_IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)+$/;
+const GITHUB_OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 
 export const adoptionTargets = [
   "package.json",
@@ -61,6 +64,8 @@ export const adoptionTargets = [
   "DESIGN_SYSTEM.md",
   "docker-compose.yml",
   ".env.example",
+  ".github/CODEOWNERS",
+  ".github/ISSUE_TEMPLATE/config.yml",
   "docs/README.md",
   "docs/release-checklist.md",
   "docs/adr/0008-adopt-better-auth.md",
@@ -106,6 +111,7 @@ export const adoptionTargets = [
   ".ai/ai.util.spec.ts",
   ".ai/session-start-hook.spec.ts",
   ".ai/hooks/session-start.mjs",
+  ".claude/settings.json",
   "docs/agents/day-one.md",
   "docs/agents/domain.md",
   "docs/agents/issue-tracker.md",
@@ -122,7 +128,9 @@ const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bcom\.kaine\.forge\b/g, "com.kaine.forge"],
   [/"kaine\./g, '"kaine.'],
   [/`kaine\./g, "`kaine."],
-  [/"kaine"/g, '"kaine"']
+  [/"kaine"/g, '"kaine"'],
+  // Owner handle in badge URLs, issue-tracker links, and CODEOWNERS.
+  [/\bognjenmarcheta\b/g, "ognjenmarcheta"]
 ];
 
 const normalizePath = (path: string): string => path.replace(/\\/g, "/").replace(/^\.\//, "");
@@ -172,6 +180,15 @@ const validateMobileScheme = (value: string): string => {
   return value;
 };
 
+const validateGithubOwner = (value: string): string => {
+  if (!GITHUB_OWNER_PATTERN.test(value)) {
+    throw new Error(
+      "template adoption config field 'repoOwner' must be a GitHub user or organization handle"
+    );
+  }
+  return value;
+};
+
 const validateDesktopIdentifier = (value: string): string => {
   if (!DESKTOP_IDENTIFIER_PATTERN.test(value)) {
     throw new Error(
@@ -194,11 +211,14 @@ export const deriveTemplateAdoptionConfig = (
   const packageName = validatePackageName(input.packageName ?? productSlug);
   const repoSlug = validateSlug("repoSlug", input.repoSlug ?? productSlug);
   const mobileSlug = validateSlug("mobileSlug", input.mobileSlug ?? `${productSlug}-mobile`);
+  const repoOwner =
+    input.repoOwner === undefined ? undefined : validateGithubOwner(input.repoOwner);
 
   return {
     productName,
     packageName,
     repoSlug,
+    repoOwner,
     dockerImagePrefix: requireText("dockerImagePrefix", input.dockerImagePrefix ?? repoSlug),
     s3Bucket: requireText("s3Bucket", input.s3Bucket ?? `${repoSlug}-dev`),
     webTitle: requireText("webTitle", input.webTitle ?? productName),
@@ -252,6 +272,7 @@ export const parseTemplateAdoptionConfig = (raw: unknown): TemplateAdoptionConfi
     "productName",
     "packageName",
     "repoSlug",
+    "repoOwner",
     "dockerImagePrefix",
     "s3Bucket",
     "webTitle",
@@ -294,9 +315,22 @@ const replacePolicyBlock = (source: string, replacement: string): [string, numbe
   return [updated, count];
 };
 
+// Owner-qualified forms only: the generic kaine-forge pair rewrites the repo
+// half and would otherwise leave the upstream owner in place.
+const ownerReplacements = (
+  config: TemplateAdoptionConfig
+): ReadonlyArray<readonly [string, string]> =>
+  config.repoOwner === undefined
+    ? []
+    : [
+        ["ognjenmarcheta/kaine-forge", `${config.repoOwner}/${config.repoSlug}`],
+        ["@ognjenmarcheta", `@${config.repoOwner}`]
+      ];
+
 const replacementsForConfig = (
   config: TemplateAdoptionConfig
 ): ReadonlyArray<readonly [string, string]> => [
+  ...ownerReplacements(config),
   // Before the generic kaine-forge pair, which would slug-case the web title.
   ["<title>kaine-forge</title>", `<title>${config.webTitle}</title>`],
   ["com.kaine.forge.desktop", config.desktopIdentifier],
