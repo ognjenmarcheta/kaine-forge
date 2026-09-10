@@ -1,5 +1,12 @@
 # @repo/web
 
+## 1.6.2
+
+### Patch Changes
+
+- Updated dependencies [cd623ee]
+  - @repo/translation@1.3.2
+
 ## 1.6.1
 
 ### Patch Changes

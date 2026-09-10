@@ -1,5 +1,11 @@
 # @repo/translation
 
+## 1.3.2
+
+### Patch Changes
+
+- cd623ee: Describe the dashboard Flow card in Organization language instead of team wording across the `en`, `de`, and `sr` locales.
+
 ## 1.3.1
 
 ### Patch Changes

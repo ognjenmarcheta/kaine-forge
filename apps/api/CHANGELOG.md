@@ -1,5 +1,12 @@
 # @repo/api
 
+## 1.6.4
+
+### Patch Changes
+
+- Updated dependencies [cd623ee]
+  - @repo/translation@1.3.2
+
 ## 1.6.3
 
 ### Patch Changes
