@@ -1,8 +1,14 @@
-# Kaine Forge
+<p align="center">
+  <img src="media/kaine-forge-logo.jpg" width="640" alt="Kaine Forge — an olive branch growing from an anvil" />
+</p>
 
-[![CI](https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml)
-[![AGENTS.md](https://img.shields.io/badge/AGENTS.md-generated-blue)](AGENTS.md)
-[![Agent harnesses](https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2)](docs/agents/day-one.md)
+<p align="center">
+  <a href="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml"><img alt="CI" src="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg"></a>
+  <a href="AGENTS.md"><img alt="AGENTS.md" src="https://img.shields.io/badge/AGENTS.md-generated-blue"></a>
+  <a href="docs/agents/day-one.md"><img alt="Agent harnesses" src="https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2"></a>
+</p>
+
+# Kaine Forge
 
 Kaine Forge is a production-oriented, **agent-ready** Turborepo template for building a full-stack TypeScript product from one repository. It includes a GraphQL API, React web app, Tauri desktop shell, Expo mobile app, shared packages, release automation, and Docker build paths; one canonical `.ai/` source keeps five coding agents aligned with the repo's rules.
 
