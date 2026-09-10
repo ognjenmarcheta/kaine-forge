@@ -53,8 +53,8 @@ All internal packages use the `@repo/*` scope. Import through package exports on
 
 Shared third-party versions live in `pnpm-workspace.yaml`:
 
-- Default `catalog:` — web/API/shared libs (`zod`, `graphql`, `drizzle-orm`, `better-auth`, web React `^19.1.x`, tooling, etc.).
-- Named `catalog:mobile` — Expo/React Native **exact pins** (`react@19.1.0`, `react-native`, NativeWind, mobile Tailwind v3). Dependabot ignores these paths (`.github/dependabot.yml`); move them only with a deliberate Expo SDK upgrade. Dependabot is the only dependency bot in the template (npm, GitHub Actions SHA pins, Docker digests, the Tauri Cargo graph, Compose image tags); a downstream project that prefers Renovate can swap it in, but never run both.
+- Default `catalog:` — web/API/shared libs (`zod`, `graphql`, `drizzle-orm`, `better-auth`, web React `^19.2.x`, tooling, etc.).
+- Named `catalog:mobile` — Expo/React Native **exact pins** (`react@19.2.0`, `react-native`, NativeWind, mobile Tailwind v3). Dependabot ignores these paths (`.github/dependabot.yml`); move them only with a deliberate Expo SDK upgrade. Dependabot is the only dependency bot in the template (npm, GitHub Actions SHA pins, Docker digests, the Tauri Cargo graph, Compose image tags); a downstream project that prefers Renovate can swap it in, but never run both.
 
 Prefer `"zod": "catalog:"` (or `"react": "catalog:mobile"`) in package.json over duplicated ranges. Scaffold a package with `pnpm create:package <name>`.
 
@@ -75,13 +75,13 @@ import { MobileButton } from "@repo/mobile-ui";
 | Package manager | pnpm 10                                                                         |
 | Orchestration   | Turborepo 2                                                                     |
 | Language        | TypeScript strict mode                                                          |
-| Web             | React 19, Vite 7, TanStack React Query                                          |
-| Mobile          | Expo SDK 54, React Native, NativeWind                                           |
+| Web             | React 19, Vite 8, TanStack React Query                                          |
+| Mobile          | Expo SDK 55, React Native, NativeWind                                           |
 | Desktop         | Tauri v2                                                                        |
 | API             | Node.js, GraphQL Yoga                                                           |
 | GraphQL client  | GraphQL Code Generator, graphql-request, React Query                            |
 | Database        | PostgreSQL 17, Drizzle ORM                                                      |
-| Auth            | better-auth 1.6 (organization + bearer plugins, scrypt password hooks)          |
+| Auth            | better-auth 1.7 (organization + bearer plugins, scrypt password hooks)          |
 | Styling         | Tailwind CSS v4 for web/UI, NativeWind with Tailwind CSS v3 pipeline for mobile |
 | Testing         | Vitest and Playwright                                                           |
 | Releases        | Changesets and GitHub Actions                                                   |
@@ -316,23 +316,23 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command               | Purpose                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes |
-| `pnpm bootstrap`      | env, install, AI files, build (every workspace except `@repo/desktop`), db seed (no dev server)        |
-| `pnpm initialize`     | `bootstrap` then `dev`                                                                                 |
-| `pnpm build`          | build all workspaces                                                                                   |
-| `pnpm build:core`     | build API and web dependency graph                                                                     |
-| `pnpm check`          | format check, lint, typecheck, test                                                                    |
-| `pnpm coverage`       | Vitest coverage: global floors plus stricter per-package floors for `@repo/auth` and `@repo/api`       |
-| `pnpm test:e2e`       | Playwright web/API suite                                                                               |
-| `pnpm generate`       | GraphQL codegen                                                                                        |
-| `pnpm create:package` | scaffold a new `@repo/*` package                                                                       |
-| `pnpm db:*`           | database lifecycle commands                                                                            |
-| `pnpm ai:install`     | install shared assistant files locally                                                                 |
-| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                               |
-| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                      |
-| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                              |
+| Command               | Purpose                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes      |
+| `pnpm bootstrap`      | env, install, AI files, build (every workspace except `@repo/desktop`), db seed (no dev server)             |
+| `pnpm initialize`     | `bootstrap` then `dev`                                                                                      |
+| `pnpm build`          | build all workspaces                                                                                        |
+| `pnpm build:core`     | build API and web dependency graph                                                                          |
+| `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                       |
+| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui` |
+| `pnpm test:e2e`       | Playwright web/API suite                                                                                    |
+| `pnpm generate`       | GraphQL codegen                                                                                             |
+| `pnpm create:package` | scaffold a new `@repo/*` package                                                                            |
+| `pnpm db:*`           | database lifecycle commands                                                                                 |
+| `pnpm ai:install`     | install shared assistant files locally                                                                      |
+| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                    |
+| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                           |
+| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                   |
 
 Use scoped commands from the repo root:
 
@@ -346,7 +346,7 @@ pnpm --filter @repo/mobile-ui typecheck
 
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
-- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck is required when mobile paths change. Deep mobile export / desktop checks stay on the scheduled workflow (ADR 0003).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
 - Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, run `pnpm release:apps` so only affected `release/<app>` branches redeploy.
