@@ -26,7 +26,7 @@ This decision **supersedes the "custom session implementation" characterization*
 ## Alternatives Considered
 
 - Keep the custom session implementation: rejected. It reinvents a maintained library and offers no path to OAuth, passkeys, or 2FA without building each mechanism (and its hardening) by hand.
-- Other auth libraries (Auth.js/NextAuth, Lucia): rejected. better-auth's first-class `organization` plugin and Drizzle adapter fit the template's organization-scoped, Drizzle/Postgres model directly; the alternatives fit the org-membership and schema shape worse and would force more glue.
+- Other auth libraries (Auth.js/NextAuth, Lucia): rejected. better-auth's first-class `organization` plugin and Drizzle adapter fit the template's organization-scoped, Drizzle/Postgres model directly; the alternatives fit this repo's org-membership and schema shape less directly and would force more glue.
 
 ## Consequences
 

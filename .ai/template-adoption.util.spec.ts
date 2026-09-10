@@ -85,6 +85,69 @@ describe("parseTemplateAdoptionConfig", () => {
 });
 
 describe("applyTemplateAdoption", () => {
+  it("strips TEMPLATE_ONLY blocks so adopters do not publish template positioning", () => {
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Ops",
+      desktopIdentifier: "com.acme.ops.desktop",
+      compatibilityPolicy: "Acme supports the current public API for one major version.",
+      designCompatibilityPolicy: "Acme records visual breaking changes in release notes."
+    });
+    const readme = [
+      "# Kaine Forge",
+      "",
+      "Kaine Forge is a Turborepo template.",
+      "",
+      "<!-- TEMPLATE_ONLY_START -->",
+      "",
+      "## Is this the right template?",
+      "",
+      "Other templates fit other shapes better:",
+      "",
+      "- [next-forge](https://github.com/vercel/next-forge) for a Next.js App Router SaaS.",
+      "",
+      "<!-- TEMPLATE_ONLY_END -->",
+      "",
+      "## Prerequisites",
+      "",
+      "- Node.js `>=22`",
+      ""
+    ].join("\n");
+
+    const result = applyTemplateAdoption(new Map<string, string>([["README.md", readme]]), config);
+    const next = result.files.get("README.md") ?? "";
+
+    // The template-only block is gone, competitor names with it.
+    expect(next).not.toContain("TEMPLATE_ONLY");
+    expect(next).not.toContain("next-forge");
+    expect(next).not.toContain("Is this the right template");
+
+    // Everything around it survives and is still identity-rewritten.
+    expect(next).toContain("# Acme Ops");
+    expect(next).toContain("Acme Ops is a Turborepo template.");
+    expect(next).toContain("## Prerequisites");
+    expect(next).toContain("- Node.js `>=22`");
+
+    // Formatting stays prettier-clean in the adopted repository.
+    expect(next).not.toContain("\n\n\n");
+    expect(next.endsWith("\n")).toBe(true);
+    expect(next.endsWith("\n\n")).toBe(false);
+  });
+
+  it("leaves files without TEMPLATE_ONLY markers byte-identical apart from identity", () => {
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Ops",
+      desktopIdentifier: "com.acme.ops.desktop",
+      compatibilityPolicy: "Acme supports the current public API for one major version.",
+      designCompatibilityPolicy: "Acme records visual breaking changes in release notes."
+    });
+    // Trailing blank lines here are deliberate: the strip must not reformat a
+    // file it did not touch.
+    const source = "# Kaine Forge\n\n\nStill Kaine Forge.\n\n";
+    const result = applyTemplateAdoption(new Map<string, string>([["README.md", source]]), config);
+
+    expect(result.files.get("README.md")).toBe("# Acme Ops\n\n\nStill Acme Ops.\n\n");
+  });
+
   it("empties the scorecard ledger so adopters do not inherit template run history", () => {
     const config = deriveTemplateAdoptionConfig({
       productName: "Acme Ops",

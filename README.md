@@ -34,23 +34,22 @@ Agents get the same encoded rules as humans — generated, linted, and drift-che
 - [`REVIEW.md`](REVIEW.md) is one review checklist for humans and agents; [`docs/agents/day-one.md`](docs/agents/day-one.md) is the day-one ramp.
 - Repeated agent failures become lint rules, tests, or skills ([ADR 0009](docs/adr/0009-domain-knowledge-as-agent-infra.md)).
 
-## How it compares
+<!-- TEMPLATE_ONLY_START -->
 
-Capability-focused snapshot against common TypeScript monorepo starters (not a popularity ranking):
+## Is this the right template?
 
-|                                                                                           | Multi-app product |  Org tenancy   |   Mobile    |   Desktop   | AI agent scaffold | Famous |
-| ----------------------------------------------------------------------------------------- | :---------------: | :------------: | :---------: | :---------: | :---------------: | :----: |
-| **[Kaine Forge](https://github.com/ognjenmarcheta/kaine-forge)**                          |        ✅         | ✅ first-class |   ✅ Expo   |  ✅ Tauri   |   ✅ strongest    | ❌ yet |
-| [next-forge](https://github.com/vercel/next-forge)                                        |    ✅ web SaaS    | partial/varies | ❌ typical  |     ❌      |       weak        |   ✅   |
-| [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo)                              |    ✅ starter     |  via packages  |   ✅ Expo   | ❌ default  |       weak        |  ✅✅  |
-| [Nx integrated](https://nx.dev/docs/concepts/integrated-vs-package-based)                 |     platform      |      DIY       | via plugins | via plugins |      growing      |  ✅✅  |
-| [Turbo kitchen-sink](https://github.com/vercel/turborepo/tree/main/examples/kitchen-sink) |       demo        |       ❌       |    demo     |     ❌      |        ❌         |   ✅   |
+Kaine Forge assumes you are shipping one product across several surfaces from a single repository, with organization-scoped tenancy from the first commit and coding agents working in the repo alongside people.
 
-### Verdict
+It ships a GraphQL API, a React SPA, an Expo mobile app, a Tauri desktop shell, Playwright end-to-end tests, thirteen shared packages, a Docker build path per deployable app, and a generated agent scaffold.
 
-**Kaine Forge** is for teams shipping a multi-platform product monorepo: web + API + Expo mobile + Tauri desktop, organization-scoped multi-tenant defaults, token design systems, Docker release contracts, and a first-class AI assistant scaffold so agents stay aligned with repo rules.
+Other templates fit other shapes better:
 
-It is not a Next.js App Router / RSC marketing starter, not an enterprise monorepo platform with generators, and not a blank Turbo kitchen-sink. The matrix above is for capability fit—not a suggestion to use another template when those other lanes matter more to you.
+- [next-forge](https://github.com/vercel/next-forge) for a Next.js App Router SaaS.
+- [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo) for the T3 stack with Expo and a smaller surface.
+- [Nx](https://nx.dev) when you want generators and a plugin platform.
+- [Turborepo examples](https://github.com/vercel/turborepo/tree/main/examples) for minimal wiring to build on.
+
+<!-- TEMPLATE_ONLY_END -->
 
 ## Prerequisites
 
@@ -92,6 +91,8 @@ For faster CI and local rebuilds, set repository secret `TURBO_TOKEN` and variab
 
 Common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
+<!-- TEMPLATE_ONLY_START -->
+
 ## Template adoption
 
 If you created a repo from this GitHub template, adopt product identity **before** full bootstrap:
@@ -103,6 +104,8 @@ pnpm ai:install && pnpm ai:doctor && pnpm template:adopt --check
 ```
 
 Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist): [`CONTRIBUTING.md`](CONTRIBUTING.md#template-adoption).
+
+<!-- TEMPLATE_ONLY_END -->
 
 ## Where to go next
 
