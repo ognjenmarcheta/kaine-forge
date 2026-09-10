@@ -145,7 +145,7 @@ Create release metadata:
 pnpm changeset
 ```
 
-CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. The ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, merge queue) is applied on this repository, so a red check blocks the merge. Repositories generated from this template start without it; import it once (public repositories, or GitHub Pro and up):
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required until the ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, merge queue) is imported, so until then a red check blocks a merge only if the person merging treats it as blocking. Import it once per repository (public repositories, or GitHub Pro and up):
 
 ```bash
 gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json

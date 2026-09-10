@@ -62,8 +62,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "ci-pr path filters + parallel coverage/docker/e2e shards (artifacts #145); knip+boundaries on PR (#142). Ops: all main/PR jobs since ~2026-07-27T14:06 fail to start — operator-side Actions outage (run 30278372014 annotation)",
-          "calibration": "Score reflects topology design, not the operator-side outage. Do not re-penalize design for an account-level block unless topology itself regressed."
+          "evidence": "ci-pr path filters + parallel coverage/docker/e2e shards (artifacts #145); knip+boundaries on PR (#142). Ops: all main/PR jobs since ~2026-07-27T14:06 fail to start — CI stoppage outside the codebase (run 30278372014 annotation)",
+          "calibration": "Score reflects topology design, not the CI stoppage. Do not re-penalize design for a stoppage outside the codebase unless topology itself regressed."
         },
         "4": {
           "score": 7,
@@ -79,7 +79,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "7": {
           "score": 7,
-          "evidence": "CodeQL security-extended; Gitleaks; Trivy CRITICAL exit-code 1 (ci-pr.yml:430-437); CORS fail-closed apps/api/src/server.config.ts:53-56 + tests; org scope from session (context.auth-scope.ts). Gate scripts present; audit high debt + the outage blocks live Security/CodeQL runs"
+          "evidence": "CodeQL security-extended; Gitleaks; Trivy CRITICAL exit-code 1 (ci-pr.yml:430-437); CORS fail-closed apps/api/src/server.config.ts:53-56 + tests; org scope from session (context.auth-scope.ts). Gate scripts present; audit high debt + the stoppage blocks live Security/CodeQL runs"
         },
         "8": {
           "score": 8,
@@ -101,11 +101,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "github-actions-jobs-not-starting",
-          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
+          "title": "ci: GitHub Actions jobs fail to start (cause outside the codebase)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
-          "reason": "Not filed: the outage is operator-owned, not a code issue"
+          "reason": "Not filed: the cause is outside the codebase"
         },
         {
           "slug": "pnpm-audit-high-debt",
@@ -150,8 +150,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; the outage persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)",
-          "calibration": "Per 2026-07-28 note: scores topology design, not the operator-side outage. Impact escalated since baseline — releases frozen ~3 weeks."
+          "evidence": "Topology unchanged; the stoppage persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)",
+          "calibration": "Per 2026-07-28 note: scores topology design, not the CI stoppage. Impact escalated since baseline — releases frozen ~3 weeks."
         },
         "4": {
           "score": 7,
@@ -163,11 +163,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream outage impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned"
+          "evidence": "Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned"
         },
         "7": {
           "score": 7,
-          "evidence": "Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs blocked by the outage"
+          "evidence": "Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs blocked by the stoppage"
         },
         "8": {
           "score": 8,
@@ -181,11 +181,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
       "findings": [
         {
           "slug": "github-actions-jobs-not-starting",
-          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
+          "title": "ci: GitHub Actions jobs fail to start (cause outside the codebase)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
-          "reason": "Persists from baseline; operator-owned. Impact escalated: releases frozen ~3 weeks (release/api Jul 29 vs main Aug 20), changesets unversioned, Security/CodeQL not running"
+          "reason": "Persists from baseline; cause outside the codebase. Impact escalated: releases frozen ~3 weeks (release/api Jul 29 vs main Aug 20), changesets unversioned, Security/CodeQL not running"
         },
         {
           "slug": "knip-unlisted-gitleaks-binary",
@@ -222,8 +222,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; the outage persists: all workflows on the #292 merge failed to start in ~4-5s (runs 32470963xxx, 2026-08-21T10:04Z)",
-          "calibration": "Per 2026-07-28 note: scores topology design, not the operator-side outage."
+          "evidence": "Topology unchanged; the stoppage persists: all workflows on the #292 merge failed to start in ~4-5s (runs 32470963xxx, 2026-08-21T10:04Z)",
+          "calibration": "Per 2026-07-28 note: scores topology design, not the CI stoppage."
         },
         "4": {
           "score": 7,
@@ -235,11 +235,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact; release/api frozen at Jul 29 vs main Aug 21, six pending changesets — downstream outage impact scored per calibration"
+          "evidence": "Mechanism intact; release/api frozen at Jul 29 vs main Aug 21, six pending changesets — downstream impact scored per calibration"
         },
         "7": {
           "score": 7,
-          "evidence": "Gitleaks/CodeQL SHA-pinned unchanged; Security+CodeQL dark (outage); audit debt unchanged at 19 high"
+          "evidence": "Gitleaks/CodeQL SHA-pinned unchanged; Security+CodeQL dark (stoppage); audit debt unchanged at 19 high"
         },
         "8": {
           "score": 8,
@@ -253,11 +253,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
       "findings": [
         {
           "slug": "github-actions-jobs-not-starting",
-          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
+          "title": "ci: GitHub Actions jobs fail to start (cause outside the codebase)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
-          "reason": "Third consecutive run observing the blocker; operator-owned, resolves at go-public per maintainer"
+          "reason": "Third consecutive run observing the stoppage; cause outside the codebase"
         },
         {
           "slug": "knip-unlisted-gitleaks-binary",
@@ -294,8 +294,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; outage cleared ~2026-09-01 (CodeQL 34126323459 green, Deep Checks executes); last green PR wall-clock ~4 min (30267187333: Check Fast 52s, Coverage 2m09s, e2e shards ~1m40s); mobile export gate runs twice weekly only; branch protection/required checks unavailable on private free plan",
-          "calibration": "Per 2026-07-28 note: scores topology design. Outage resolved; the mobile export red is an export-contract defect scored under dim 1."
+          "evidence": "Topology unchanged; stoppage cleared ~2026-09-01 (CodeQL 34126323459 green, Deep Checks executes); last green PR wall-clock ~4 min (30267187333: Check Fast 52s, Coverage 2m09s, e2e shards ~1m40s); mobile export gate runs twice weekly only; branch protection/required checks not enforced on this repository",
+          "calibration": "Per 2026-07-28 note: scores topology design. Stoppage resolved; the mobile export red is an export-contract defect scored under dim 1."
         },
         "4": {
           "score": 7,
@@ -307,11 +307,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact (release.yml gates, digest-pinned Dockerfiles, changesets config); release/api 04df1c8 and release/web d05bc9a frozen at 07-29 vs main 08-27, 6 changesets pending; outage cleared but no push since — next merge or workflow_dispatch exercises the path"
+          "evidence": "Mechanism intact (release.yml gates, digest-pinned Dockerfiles, changesets config); release/api 04df1c8 and release/web d05bc9a frozen at 07-29 vs main 08-27, 6 changesets pending; stoppage cleared but no push since — next merge or workflow_dispatch exercises the path"
         },
         "7": {
           "score": 7,
-          "evidence": "CodeQL green (upload never: private plan), Gitleaks green, Trivy CRITICAL gate + SBOM in ci-pr; org scope from session at every resolver (~35 requireOrganizationScope sites), CORS fail-closed, secret entropy; audit gate red 25 high, 22 high Dependabot alerts open; SHA/digest pins have no refresh mechanism; introspection/complexity gates lack behavior tests"
+          "evidence": "CodeQL green (upload disabled on this repository), Gitleaks green, Trivy CRITICAL gate + SBOM in ci-pr; org scope from session at every resolver (~35 requireOrganizationScope sites), CORS fail-closed, secret entropy; audit gate red 25 high, 22 high Dependabot alerts open; SHA/digest pins have no refresh mechanism; introspection/complexity gates lack behavior tests"
         },
         "8": {
           "score": 7,
@@ -319,7 +319,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "9": {
           "score": 8,
-          "evidence": "ai:doctor zero drift across 5 installs; 15 skills valid; 9 ADRs; REVIEW 9 headings; serena memories verified accurate against scripts/.nvmrc/workspace; stale claims MONOREPO_GUIDE.md:57 + kaine-triage-deps.md:9-43 (Renovate) and CONTRIBUTING.md:142 (required checks) fold into #306; strict drift gate not yet proven in CI since the outage"
+          "evidence": "ai:doctor zero drift across 5 installs; 15 skills valid; 9 ADRs; REVIEW 9 headings; serena memories verified accurate against scripts/.nvmrc/workspace; stale claims MONOREPO_GUIDE.md:57 + kaine-triage-deps.md:9-43 (Renovate) and CONTRIBUTING.md:142 (required checks) fold into #306; strict drift gate not yet proven in CI since the stoppage"
         }
       },
       "findings": [
@@ -349,11 +349,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "github-actions-jobs-not-starting",
-          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
+          "title": "ci: GitHub Actions jobs fail to start (cause outside the codebase)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "fixed",
-          "reason": "Jobs execute since ~2026-09-01 (CodeQL 34126323459 green 09-07); operator resolved the outage. Release still unexercised: no push to main since 08-27"
+          "reason": "Jobs execute since ~2026-09-01 (CodeQL 34126323459 green 09-07); the stoppage cleared. Release still unexercised: no push to main since 08-27"
         },
         {
           "slug": "renovate-inert-digest-refresh-absent",
@@ -402,23 +402,23 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 6,
           "ladderRank": 4,
           "disposition": "observed",
-          "reason": "Mechanism intact; resolves on the next push to main or a Release workflow_dispatch now that the outage is cleared"
+          "reason": "Mechanism intact; resolves on the next push to main or a Release workflow_dispatch now that the stoppage is cleared"
         },
         {
-          "slug": "branch-protection-unavailable-private-plan",
-          "title": "ci: no required status checks — branch protection and rulesets unavailable on the private free plan",
+          "slug": "required-status-checks-not-enforced",
+          "title": "ci: no required status checks — the ruleset is not imported on this repository",
           "dimension": 3,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited (API 403); resolves at go-public; merge_group trigger in ci-pr.yml is inert until then"
+          "reason": "Rulesets API returns 403 on this repository; the merge_group trigger in ci-pr.yml is inert until the ruleset is imported"
         },
         {
-          "slug": "code-scanning-disabled-private-plan",
+          "slug": "code-scanning-uploads-disabled",
           "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
           "dimension": 7,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited; workflows already gate uploads on visibility/ENABLE_GITHUB_CODE_SCANNING; resolves at go-public"
+          "reason": "Uploads disabled on this repository; workflows already gate on visibility/ENABLE_GITHUB_CODE_SCANNING"
         },
         {
           "slug": "dependabot-prs-stale-untriaged",
@@ -471,8 +471,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology improved: Mobile Export Validation on PRs behind a widened mobile filter, action pins refreshed by Dependabot (#322), PR wall-clock 4m45s (run for #316: Check Fast 55s, Coverage 2m37s, e2e shards ~1m50s). But #318 (Docker Image api/web failed) and #320 (Coverage Threshold failed) were merged, so Release and Security are red on main; branch protection/required checks return 403 on this plan (#325)",
-          "calibration": "Held at 7 with an explicit raise condition: required checks (rulesets at go-public) or a merge queue in use. Topology design is 8-capable; the outcome today shows the missing gate."
+          "evidence": "Topology improved: Mobile Export Validation on PRs behind a widened mobile filter, action pins refreshed by Dependabot (#322), PR wall-clock 4m45s (run for #316: Check Fast 55s, Coverage 2m37s, e2e shards ~1m50s). But #318 (Docker Image api/web failed) and #320 (Coverage Threshold failed) were merged, so Release and Security are red on main; branch protection/required checks return 403 on this repository (#325)",
+          "calibration": "Held at 7 with an explicit raise condition: required checks (import the ruleset) or a merge queue in use. Topology design is 8-capable; the outcome today shows the missing gate."
         },
         "4": {
           "score": 7,
@@ -488,7 +488,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "7": {
           "score": 7,
-          "evidence": "CodeQL and Gitleaks green; tenancy proven at runtime by the isolation e2e; every resolver still scopes from session (60 organizationId hits, none from client input); supply-chain pins now refreshed by Dependabot; audit gate red (9 transitive highs); introspection/complexity/confirm content-type gates still lack behavior tests; code scanning plan-limited"
+          "evidence": "CodeQL and Gitleaks green; tenancy proven at runtime by the isolation e2e; every resolver still scopes from session (60 organizationId hits, none from client input); supply-chain pins now refreshed by Dependabot; audit gate red (9 transitive highs); introspection/complexity/confirm content-type gates still lack behavior tests; code scanning uploads disabled"
         },
         "8": {
           "score": 8,
@@ -496,7 +496,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "9": {
           "score": 8,
-          "evidence": "ai:doctor --strict zero drift and proven on every PR since the outage cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift"
+          "evidence": "ai:doctor --strict zero drift and proven on every PR since the stoppage cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift"
         }
       },
       "findings": [
@@ -518,12 +518,12 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "red-prs-merged-without-required-checks",
-          "title": "process: pull requests with failing checks reach main because required checks are unavailable on the plan",
+          "title": "process: pull requests with failing checks reach main because required checks are not enforced",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "open",
           "issue": 325,
-          "reason": "ready-for-human: no agent code fix; rulesets at go-public"
+          "reason": "ready-for-human: no agent code fix; import the ruleset"
         },
         {
           "slug": "pnpm-audit-high-debt",
@@ -585,7 +585,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "github-actions-jobs-not-starting",
-          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
+          "title": "ci: GitHub Actions jobs fail to start (cause outside the codebase)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "fixed",
@@ -656,20 +656,20 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Unchanged: 6 of 11 web tests read source text, 0 render"
         },
         {
-          "slug": "branch-protection-unavailable-private-plan",
-          "title": "ci: no required status checks — branch protection and rulesets unavailable on the private free plan",
+          "slug": "required-status-checks-not-enforced",
+          "title": "ci: no required status checks — the ruleset is not imported on this repository",
           "dimension": 3,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited; consequence materialized on 09-09 (#325)"
+          "reason": "Not enforced; consequence materialized on 09-09 (#325)"
         },
         {
-          "slug": "code-scanning-disabled-private-plan",
+          "slug": "code-scanning-uploads-disabled",
           "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
           "dimension": 7,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited; resolves at go-public"
+          "reason": "Not enabled on this repository"
         },
         {
           "slug": "boundaries-local-red-tauri-target",
@@ -714,8 +714,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; every job has timeout-minutes and every workflow a concurrency group; ruleset file + job-name contract test landed (#342) but rulesets and branch protection still return 403 on the private plan; three PRs merged red today (#341 run 34328147938, #342 34328298593, #345 34329133651) and Release failed on four consecutive main commits (bf15118, 399dbb8, 97bc907, 6ce8906); codeql.yml:3-12 has no merge_group trigger while .github/rulesets/main.json:43 requires Analyze TypeScript, so the shipped merge queue would time out (main.json:56); last green code PR 8m06s (34330942328) with Docker Image (api) 7m54s on the critical path: build-push-action never runs on main so the gha cache scope is cold on every new branch (CACHED=0 on 34318105496 vs 24 on re-push 34318778616) and SBOM alone takes 2m44s; docker filter omits .npmrc (Dockerfile.api:19); no desktop gate on PRs (Deep Checks Tue/Fri only, 5 of 5 recent runs red at 5f6f91f before #313)",
-          "calibration": "Held at 7 per the 09-09 binding condition: required checks or a merge queue are still not in use (plan 403). When the ruleset is applied, the CodeQL merge_group gap must be closed first or the queue stalls."
+          "evidence": "Topology unchanged; every job has timeout-minutes and every workflow a concurrency group; ruleset file + job-name contract test landed (#342) but rulesets and branch protection still return 403 on this repository; three PRs merged red today (#341 run 34328147938, #342 34328298593, #345 34329133651) and Release failed on four consecutive main commits (bf15118, 399dbb8, 97bc907, 6ce8906); codeql.yml:3-12 has no merge_group trigger while .github/rulesets/main.json:43 requires Analyze TypeScript, so the shipped merge queue would time out (main.json:56); last green code PR 8m06s (34330942328) with Docker Image (api) 7m54s on the critical path: build-push-action never runs on main so the gha cache scope is cold on every new branch (CACHED=0 on 34318105496 vs 24 on re-push 34318778616) and SBOM alone takes 2m44s; docker filter omits .npmrc (Dockerfile.api:19); no desktop gate on PRs (Deep Checks Tue/Fri only, 5 of 5 recent runs red at 5f6f91f before #313)",
+          "calibration": "Held at 7 per the 09-09 binding condition: required checks or a merge queue are still not in use (rulesets API 403). When the ruleset is applied, the CodeQL merge_group gap must be closed first or the queue stalls."
         },
         "4": {
           "score": 8,
@@ -731,7 +731,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "7": {
           "score": 8,
-          "evidence": "Audit gate green (pnpm audit --audit-level high exit 0; Security 34333983597 success) after caret floors + documented ignoreGhsas in pnpm-workspace.yaml; CodeQL and Gitleaks green; tenancy uniformly session-derived: 36 requireOrganizationScope router calls, every adapter filters scope.organizationId, no input carries organizationId, proven at runtime by web-organization-isolation.e2e.ts; introspection off in prod, depth/complexity limits, in-memory rate limit, CORS fail-closed (server.config.ts:53-121, server.ts:97-101), secret entropy guard (auth.config.ts:19-42); frozen lockfile in every CI install, prod image --ignore-scripts, digest-pinned bases, Trivy CRITICAL gate + SBOM; SECURITY.md present. Observed: introspection/depth/complexity and confirm content-type gates have unit tests only (server.config.test.ts:37-81; storage.lifecycle.ts:175-180 untested); docker-compose images tag-pinned outside Dependabot; cookie attributes and server password minimum rely on better-auth defaults; code scanning plan-limited"
+          "evidence": "Audit gate green (pnpm audit --audit-level high exit 0; Security 34333983597 success) after caret floors + documented ignoreGhsas in pnpm-workspace.yaml; CodeQL and Gitleaks green; tenancy uniformly session-derived: 36 requireOrganizationScope router calls, every adapter filters scope.organizationId, no input carries organizationId, proven at runtime by web-organization-isolation.e2e.ts; introspection off in prod, depth/complexity limits, in-memory rate limit, CORS fail-closed (server.config.ts:53-121, server.ts:97-101), secret entropy guard (auth.config.ts:19-42); frozen lockfile in every CI install, prod image --ignore-scripts, digest-pinned bases, Trivy CRITICAL gate + SBOM; SECURITY.md present. Observed: introspection/depth/complexity and confirm content-type gates have unit tests only (server.config.test.ts:37-81; storage.lifecycle.ts:175-180 untested); docker-compose images tag-pinned outside Dependabot; cookie attributes and server password minimum rely on better-auth defaults; code scanning uploads disabled"
         },
         "8": {
           "score": 7,
@@ -849,7 +849,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "red-prs-merged-without-required-checks",
-          "title": "process: pull requests with failing checks reach main because required checks are unavailable on the plan",
+          "title": "process: pull requests with failing checks reach main because required checks are not enforced",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "open",
@@ -994,20 +994,20 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Unchanged; trivial fix, lowest ladder tier"
         },
         {
-          "slug": "branch-protection-unavailable-private-plan",
-          "title": "ci: no required status checks, branch protection and rulesets unavailable on the private free plan",
+          "slug": "required-status-checks-not-enforced",
+          "title": "ci: no required status checks, the ruleset is not imported on this repository",
           "dimension": 3,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited (API 403 today); .github/rulesets/main.json ready to import at go-public"
+          "reason": "Rulesets API 403 today; .github/rulesets/main.json ready to import"
         },
         {
-          "slug": "code-scanning-disabled-private-plan",
+          "slug": "code-scanning-uploads-disabled",
           "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
           "dimension": 7,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited; resolves at go-public"
+          "reason": "Not enabled on this repository"
         }
       ]
     },
@@ -1028,8 +1028,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Held by the binding condition: rulesets/branch protection still 403 on the plan, #325 open. Topology improved: docker-cache.yml (push to main, path list equal to ci-pr's docker filter, identical SHA pins) seeded green on 003c064 and cd623ee; PR 34401778755 wall clock 5m57s (was 8m06s) with Docker Image (api) 5m43s and 16 CACHED layers, now dominated by image load + two Trivy passes + SBOM (~3m40s) after a 30s compile; codeql.yml:9 runs on merge_group and monorepo-alignment.test.ts:210-230 asserts it for every required check; deep-checks.yml:85-89 caches the moved .tauri-target. Observed: docker-cache path list equals ci-pr's by comment only; Deep Checks last ran 2026-09-08 at 5f6f91f (pre-fix red), next scheduled Fri",
-          "calibration": "Held at 7 per the 09-09 binding condition (required checks or a merge queue in use). The latent CodeQL merge_group gap is closed, so applying .github/rulesets/main.json at go-public is the only remaining step."
+          "evidence": "Held by the binding condition: rulesets/branch protection still 403 on this repository, #325 open. Topology improved: docker-cache.yml (push to main, path list equal to ci-pr's docker filter, identical SHA pins) seeded green on 003c064 and cd623ee; PR 34401778755 wall clock 5m57s (was 8m06s) with Docker Image (api) 5m43s and 16 CACHED layers, now dominated by image load + two Trivy passes + SBOM (~3m40s) after a 30s compile; codeql.yml:9 runs on merge_group and monorepo-alignment.test.ts:210-230 asserts it for every required check; deep-checks.yml:85-89 caches the moved .tauri-target. Observed: docker-cache path list equals ci-pr's by comment only; Deep Checks last ran 2026-09-08 at 5f6f91f (pre-fix red), next scheduled Fri",
+          "calibration": "Held at 7 per the 09-09 binding condition (required checks or a merge queue in use). The latent CodeQL merge_group gap is closed, so importing .github/rulesets/main.json is the only remaining step."
         },
         "4": {
           "score": 8,
@@ -1045,7 +1045,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "7": {
           "score": 8,
-          "evidence": "Audit exit 0 (Security 34441002645 green), CodeQL green, Gitleaks green; request-level hardening tests landed (#368: server.hardening.test.ts:93-171; content-type at the service layer storage.lifecycle.test.ts:130-158); tenancy: 36 requireOrganizationScope router calls, adapters filter scope.organizationId, runtime-proven by the isolation e2e; minimumReleaseAge gate for human installs; frozen lockfile in every CI install; digest-pinned bases with Trivy CRITICAL gate + SBOM; compose images now under the docker-compose ecosystem (dependabot.yml:161) though still tag-pinned (docker-compose.yml:3,19,31); SECURITY.md. Observed: cookie attributes and server password minimum rely on better-auth defaults (auth.instance.ts:174-176 sets only cookiePrefix; client-side min 8 only); no sweeping contract test or lint that every resolver resolves scope from session; scanners cannot block merges on this plan"
+          "evidence": "Audit exit 0 (Security 34441002645 green), CodeQL green, Gitleaks green; request-level hardening tests landed (#368: server.hardening.test.ts:93-171; content-type at the service layer storage.lifecycle.test.ts:130-158); tenancy: 36 requireOrganizationScope router calls, adapters filter scope.organizationId, runtime-proven by the isolation e2e; minimumReleaseAge gate for human installs; frozen lockfile in every CI install; digest-pinned bases with Trivy CRITICAL gate + SBOM; compose images now under the docker-compose ecosystem (dependabot.yml:161) though still tag-pinned (docker-compose.yml:3,19,31); SECURITY.md. Observed: cookie attributes and server password minimum rely on better-auth defaults (auth.instance.ts:174-176 sets only cookiePrefix; client-side min 8 only); no sweeping contract test or lint that every resolver resolves scope from session; scanners cannot block merges without required checks"
         },
         "8": {
           "score": 8,
@@ -1187,12 +1187,12 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "red-prs-merged-without-required-checks",
-          "title": "process: pull requests with failing checks reach main because required checks are unavailable on the plan",
+          "title": "process: pull requests with failing checks reach main because required checks are not enforced",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "open",
           "issue": 325,
-          "reason": "Ruleset file and merge_group triggers ready; apply at go-public"
+          "reason": "Ruleset file and merge_group triggers ready; import the ruleset"
         },
         {
           "slug": "desktop-build-hash-omits-web",
@@ -1339,20 +1339,20 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Last run 2026-09-08 at 5f6f91f; next scheduled Fri 2026-09-11 is also the first desktop build with the moved target dir"
         },
         {
-          "slug": "branch-protection-unavailable-private-plan",
-          "title": "ci: no required status checks, branch protection and rulesets unavailable on the private free plan",
+          "slug": "required-status-checks-not-enforced",
+          "title": "ci: no required status checks, the ruleset is not imported on this repository",
           "dimension": 3,
           "ladderRank": 5,
           "disposition": "observed",
           "reason": "API 403 today; ruleset file ready"
         },
         {
-          "slug": "code-scanning-disabled-private-plan",
+          "slug": "code-scanning-uploads-disabled",
           "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
           "dimension": 7,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Plan-limited; resolves at go-public"
+          "reason": "Not enabled on this repository"
         }
       ]
     }
@@ -1576,11 +1576,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | --- | ------------------------ | ----- | ------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Workspace & Boundaries   | 8.0   | `████████░░` | 0   | Server-only regex defined at packages/config/eslint/base.js:14-15 and applied in both client blocks (:95, :121), contract-tested at monorepo-alignment.test.ts:707-741; 0 deep @repo/*/src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | dist imports and every @repo/x/y subpath in use maps to a declared exports key; all 13 packages declare exports; knip exit 0; pnpm boundaries green (1137 files, 19 packages) once the pre-#365 Tauri target dir was removed; Mobile Export green on PR CI. Observed unchanged: knip.json:76-78 ignores two undeclared deps and unused zod (packages/auth/package.json:81); @repo/logger reachable from mobile by design; one @boundaries-ignore |
 | 2   | Build & Cache            | 8.0   | `████████░░` | 0   | #366 closed the test-hash gap: @repo/config#test dry-run has 561 inputs including .github/rulesets/main.json, all 7 workflow ymls, Dockerfile.api/web, MONOREPO_GUIDE.md, DESIGN_SYSTEM.md, .gitignore, root package.json and turbo.json; every root path read by packages/config/*.test.ts is hashed (0 missing); @repo/ui#test hashes DESIGN_SYSTEM.md; lists pinned at monorepo-alignment.test.ts:856-891; global hash exactly pnpm-workspace.yaml + tsconfig.base.json; .tauri-target and .claude/worktrees/ gitignored and outside every hash. Observed: @repo/desktop#build still depends only on @repo/config#build while its script builds @repo/web inline (bounded by cache:false and the bootstrap filter); no automated check that files a test reads appear in turbo inputs (the pinned list is hand-maintained)                                                                                                                                                                                                                                                                  |
-| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Held by the binding condition: rulesets/branch protection still 403 on the plan, #325 open. Topology improved: docker-cache.yml (push to main, path list equal to ci-pr's docker filter, identical SHA pins) seeded green on 003c064 and cd623ee; PR 34401778755 wall clock 5m57s (was 8m06s) with Docker Image (api) 5m43s and 16 CACHED layers, now dominated by image load + two Trivy passes + SBOM (~3m40s) after a 30s compile; codeql.yml:9 runs on merge_group and monorepo-alignment.test.ts:210-230 asserts it for every required check; deep-checks.yml:85-89 caches the moved .tauri-target. Observed: docker-cache path list equals ci-pr's by comment only; Deep Checks last ran 2026-09-08 at 5f6f91f (pre-fix red), next scheduled Fri                                                                                                                                                                                                                                                                                                                                         |
+| 3   | CI Topology & Speed      | 7.0   | `███████░░░` | 0   | Held by the binding condition: rulesets/branch protection still 403 on this repository, #325 open. Topology improved: docker-cache.yml (push to main, path list equal to ci-pr's docker filter, identical SHA pins) seeded green on 003c064 and cd623ee; PR 34401778755 wall clock 5m57s (was 8m06s) with Docker Image (api) 5m43s and 16 CACHED layers, now dominated by image load + two Trivy passes + SBOM (~3m40s) after a 30s compile; codeql.yml:9 runs on merge_group and monorepo-alignment.test.ts:210-230 asserts it for every required check; deep-checks.yml:85-89 caches the moved .tauri-target. Observed: docker-cache path list equals ci-pr's by comment only; Deep Checks last ran 2026-09-08 at 5f6f91f (pre-fix red), next scheduled Fri                                                                                                                                                                                                                                                                                                                                  |
 | 4   | Testing & Coverage       | 8.0   | `████████░░` | 0   | Coverage Threshold green on PR 34401778755: 142 test files, lines 50.15 / statements 49.49 / functions 43.42 / branches 42.67 vs floors 45/45/40/38; 152 test files on disk; apps/api/src/server.hardening.test.ts drives the real Yoga handler on an ephemeral port and asserts 400 + message for introspection, depth, and complexity with positive controls (:93-171), reading limits from resolveApiRuntimeConfig (:131,:153); storage content-type mismatch covered at storage.lifecycle.test.ts:130-158; scripts/create-package.test.mjs registered in root test (package.json:27) and Check Fast (ci-pr.yml:220). Observed: no test runs a session-scoped feature operation through the schema (todos.router.test.ts:19 calls resolvers directly); cross-organization e2e covers todos only; 6 of 11 web tests read source text, 0 render; invitation/attachment e2e still test.skip                                                                                                                                                                                                    |
 | 5   | Dependency Hygiene       | 7.0   | `███████░░░` | 0   | Binding raise condition unmet: the npm updater job is still red (34387229249) under a new mechanism: with minimumReleaseAge 4320 (pnpm-workspace.yaml:70) Dependabot's second step pnpm install --lockfile-only rejects obug@2.2.1 (12h old, locked since bf15118) because vitest/@vitest/coverage-v8 snapshot keys include the @types/node peer, so an @types/node bump re-resolves that subtree; #356 relabelled ready-for-human (pnpm 11 vs Dependabot-only cooldown). Otherwise strong: five ecosystems (dependabot.yml:10,100,121,140,161) with groups and major ignores, cargo/docker-compose/docker/github-actions jobs green on first run; every override a caret floor (pnpm-workspace.yaml:77-108), tar override gone, esbuild ^0.28.1; audit exit 0; alerts 0 high / 5 medium / 2 low; 0 open bot PRs; 28 majors behind, all covered by ignores or #287 except @clack/prompts and the deliberate mobile tailwindcss 3 line                                                                                                                                                          |
 | 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release green on cd623ee (34441002649): release/api and release/web advanced to cd623ee and the changesets action opened version PR #372 (@repo/translation 1.3.2, @repo/web 1.6.2 plus dependents); tags for 10 packages published 2026-09-09; .ai/release.util.ts:7-8,17-18 now count .npmrc and scripts/fix-esm-extensions.mjs as image inputs with spec cases (release.util.spec.ts:118,124); Dockerfiles unchanged and digest-pinned. Observed: the git path of .ai/release-apps.ts (fetch, merge-base, update-ref, push) has no test; version-PR CI runs stop at action_required until a maintainer approves them (runs 34441235642/34441235725; #317 needed a human re-run); tags publish only on the last green commit of a merge burst                                                                                                                                                                                                                                                                                                                                                |
-| 7   | Security Posture         | 8.0   | `████████░░` | 0   | Audit exit 0 (Security 34441002645 green), CodeQL green, Gitleaks green; request-level hardening tests landed (#368: server.hardening.test.ts:93-171; content-type at the service layer storage.lifecycle.test.ts:130-158); tenancy: 36 requireOrganizationScope router calls, adapters filter scope.organizationId, runtime-proven by the isolation e2e; minimumReleaseAge gate for human installs; frozen lockfile in every CI install; digest-pinned bases with Trivy CRITICAL gate + SBOM; compose images now under the docker-compose ecosystem (dependabot.yml:161) though still tag-pinned (docker-compose.yml:3,19,31); SECURITY.md. Observed: cookie attributes and server password minimum rely on better-auth defaults (auth.instance.ts:174-176 sets only cookiePrefix; client-side min 8 only); no sweeping contract test or lint that every resolver resolves scope from session; scanners cannot block merges on this plan                                                                                                                                                      |
+| 7   | Security Posture         | 8.0   | `████████░░` | 0   | Audit exit 0 (Security 34441002645 green), CodeQL green, Gitleaks green; request-level hardening tests landed (#368: server.hardening.test.ts:93-171; content-type at the service layer storage.lifecycle.test.ts:130-158); tenancy: 36 requireOrganizationScope router calls, adapters filter scope.organizationId, runtime-proven by the isolation e2e; minimumReleaseAge gate for human installs; frozen lockfile in every CI install; digest-pinned bases with Trivy CRITICAL gate + SBOM; compose images now under the docker-compose ecosystem (dependabot.yml:161) though still tag-pinned (docker-compose.yml:3,19,31); SECURITY.md. Observed: cookie attributes and server password minimum rely on better-auth defaults (auth.instance.ts:174-176 sets only cookiePrefix; client-side min 8 only); no sweeping contract test or lint that every resolver resolves scope from session; scanners cannot block merges without required checks                                                                                                                                           |
 | 8   | DX & Onboarding          | 8.0   | `████████░░` | ▲+1 | Raise condition met: bootstrap runs turbo run build --filter=!@repo/desktop (package.json:43), pinned by monorepo-alignment.test.ts:171,181-182; scripts/doctor.mjs:141-167 warns on a missing Rust toolchain and fails only with --with-desktop; the Cargo target moved to root .tauri-target (apps/desktop/src-tauri/.cargo/config.toml:7; .gitignore:20; deep-checks.yml:88) with a troubleshooting entry (docs/troubleshooting.md:102-117); create-package writes vitest.config.ts, tsconfig.build.json, .prettierignore (scripts/create-package.mjs:252-254) with scripts/create-package.test.mjs in root test and Check Fast; .ai/install.ts:243-244 accepts the pnpm run separator (install.spec.ts:14-17). Fresh-clone smoke at 4e6a8e1 with Rust off PATH: pnpm bootstrap exit 0 in 29s, pnpm check exit 0 in 49s; 36 documented pnpm commands all resolve; preflight honest (exit 1 only on the local placeholder secret); .claude/worktrees/ gitignored; type:perf label created. Observed: .vscode/launch.json:29-30 vitest debug still runs from the root without a vitest config |
 | 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor --strict exit 0 and gating every PR; MONOREPO_GUIDE.md:56-57,78,79,84 now match pnpm-workspace.yaml, apps/web and apps/mobile manifests (React 19.2, Vite 8, Expo SDK 55, better-auth 1.7), check/coverage/mobile-export rows corrected (#371); ADR 0002:27 and 0003:32 carry dated status updates; dashboard.json en/de/sr use Organization wording; REVIEW.md equals .ai/review.md bar the generated header; serena environment_setup.md matches .nvmrc and packageManager; README:79, CONTRIBUTING.md:142-148, day-one.md correct. Observed: hand-written facts are verified by hand, not by a manifest-derived test (monorepo-alignment.test.ts:420-467 pins only theme/SDL/styling/flags/catalog:mobile strings); serena task_completion_checklist.md:14 omits boundaries and knip and suggested_commands.md omits pnpm preflight; kaine-adopt-template.md:37 keeps a dead src-tauri/target glob                                                                                                                                                                                |
 
@@ -1598,7 +1598,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `codeql-missing-merge-group-trigger`                  | 3         | 1      | fixed       | #354  | ci: codeql.yml never runs on merge_group while the ruleset requires Analyze TypeScript                        |
 | `deploy-inputs-invisible-to-affected-gates`           | 6         | 1      | fixed       | #355  | release: files the api image copies are neither release:apps nor docker-filter inputs                         |
 | `dependabot-npm-updater-red-types-node`               | 5         | 1      | open        | #356  | deps: the Dependabot npm updater job ends in error on @types/node every run                                   |
-| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are unavailable on the plan     |
+| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are not enforced                |
 | `desktop-build-hash-omits-web`                        | 2         | 1      | observed    | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output     |
 | `esbuild-override-pins-advisory-floor`                | 5         | 2      | fixed       | #357  | deps: the exact esbuild override pins the version an open advisory names as vulnerable                        |
 | `cargo-deps-unaudited`                                | 5         | 2      | fixed       | #357  | deps: the Tauri Cargo graph has no bot ecosystem and no audit gate                                            |
@@ -1611,8 +1611,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                 |
 | `tenancy-enforced-by-convention`                      | 7         | 4      | observed    | —     | security: no contract test or lint guarantees every resolver resolves scope from session                      |
 | `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible           |
-| `branch-protection-unavailable-private-plan`          | 3         | 5      | observed    | —     | ci: no required status checks, branch protection and rulesets unavailable on the private free plan            |
-| `code-scanning-disabled-private-plan`                 | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                 |
+| `required-status-checks-not-enforced`                 | 3         | 5      | observed    | —     | ci: no required status checks, the ruleset is not imported on this repository                                 |
+| `code-scanning-uploads-disabled`                      | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                 |
 | `docker-cache-cold-on-every-new-branch`               | 3         | 6      | fixed       | #359  | ci: the Docker layer cache is never seeded from main, so each branch's first build runs cold                  |
 | `docker-image-job-dominated-by-scan-export`           | 3         | 6      | observed    | —     | ci: the api image job spends about 3m40s on image load, two Trivy passes, and SBOM after a 30s compile        |
 | `version-pr-ci-held-action-required`                  | 6         | 8      | observed    | —     | release: changesets version PR CI runs stop at action_required until a maintainer approves them               |
@@ -1636,15 +1636,15 @@ Binding on later runs. Each note records a judgment that should not be silently 
 ### 2026-07-28 — first baseline (`15102fc`, sequential)
 
 - **Baseline run.** Empty `runs` array before this date; all scores are initial calibration, not deltas. Mode is `sequential` (shared-context sweep, not nine parallel explorers) — compare later fan-out runs carefully.
-- **CI topology vs operator outage.** Dimension 3 scores the job DAG and gate placement (path filters, single coverage run, shared Turbo cache, e2e artifact reuse). It does **not** drop below 7 solely because GitHub Actions refuses to start jobs for an account-level block. That operational failure is tracked as finding `github-actions-jobs-not-starting`. If the outage is fixed and topology is unchanged, do not raise dim 3 above 8 without a concrete topology improvement.
+- **CI topology vs CI stoppage.** Dimension 3 scores the job DAG and gate placement (path filters, single coverage run, shared Turbo cache, e2e artifact reuse). It does **not** drop below 7 solely because GitHub Actions refuses to start jobs for a reason outside the codebase. That operational failure is tracked as finding `github-actions-jobs-not-starting`. If the stoppage is fixed and topology is unchanged, do not raise dim 3 above 8 without a concrete topology improvement.
 - **Knip is a hard gate.** `pnpm check` / `check:ci` / PR `check-fast` all run knip. A single unused dep (`@graphql-codegen/typescript`) currently fails the gate locally — dim 1 is 7 (solid mechanisms, one broken contract on main), not 9.
 - **Audit high debt.** Dim 5 is 6 because catalog discipline is strong but `pnpm audit --audit-level high` is red (25 high). Many paths are Expo CLI / vitest→vite transitive; do not treat every advisory as a direct product CVE when scoring security vs hygiene.
-- **Security app posture.** Dim 7 stays 7: CORS fail-closed, org session scope, digest-pinned images, Trivy CRITICAL hard gate, CodeQL+Gitleaks configured. Live workflow greenness is blocked by the same operator-side outage as dim 3.
+- **Security app posture.** Dim 7 stays 7: CORS fail-closed, org session scope, digest-pinned images, Trivy CRITICAL hard gate, CodeQL+Gitleaks configured. Live workflow greenness is blocked by the same CI stoppage as dim 3.
 - **Coverage mobile exclusion.** `apps/mobile/**` outside floors is intentional (measured ~3% app shell); do not ding dim 4 for that without a decision to re-include.
 
 ### 2026-08-21 — second run (`4cbdfeb`, sequential)
 
-- **Outage persists into a second run.** All workflows still fail to start (~4s); releases frozen (release/api last advanced Jul 29, main at Aug 20), five changesets unversioned, Security/CodeQL dark. Dims 3 and 6 continue to score mechanism design per the 2026-07-28 calibration; operational impact stays in finding `github-actions-jobs-not-starting`. Resolving the outage is the single highest-leverage action for this repo.
+- **Stoppage persists into a second run.** All workflows still fail to start (~4s); releases frozen (release/api last advanced Jul 29, main at Aug 20), five changesets unversioned, Security/CodeQL dark. Dims 3 and 6 continue to score mechanism design per the 2026-07-28 calibration; operational impact stays in finding `github-actions-jobs-not-starting`. Resolving the stoppage is the single highest-leverage action for this repo.
 - **Audit debt trend.** High advisories fell 25 → 19 after #285 consolidated bot bumps and added transitive security floors (`pnpm-workspace.yaml` overrides). Dim 5 stays 6 until `pnpm audit --audit-level high` exits 0; treat remaining highs as mostly transitive (vitest→vite→postcss).
 - **Knip red swapped, not cleared.** #257 (unused codegen dep) was fixed via #279, but a new unlisted-binary red (`gitleaks`) appeared. Dim 1 stays 7 under the same hard-gate logic as baseline; fix tracked as `knip-unlisted-gitleaks-binary` (#288).
 - **AI scaffolding drift cleared.** Baseline's local kaine-scorecard install drift is gone; doctor now gates drift strictly (#281). Dim 9 holds at 8 — band 9 requires a proven regression gate across agents, not just doctor greenness.
@@ -1659,7 +1659,7 @@ Binding on later runs. Each note records a judgment that should not be silently 
 
 ### 2026-09-08 — fourth run (`5f6f91f`, sequential + three explorer probes)
 
-- **Outage cleared; `github-actions-jobs-not-starting` → fixed.** Jobs execute since ~2026-09-01 (CodeQL 34126323459 green on 09-07). No push to main since 08-27, so Release is still unexercised; dim 6 holds at 8 per the 07-28 mechanism-not-operations rule.
+- **Stoppage cleared; `github-actions-jobs-not-starting` → fixed.** Jobs execute since ~2026-09-01 (CodeQL 34126323459 green on 09-07). No push to main since 08-27, so Release is still unexercised; dim 6 holds at 8 per the 07-28 mechanism-not-operations rule.
 - **Depth note.** Mode stays `sequential` (shared-context sweep), but three read-only `kaine-explorer` probes covered dims 1/2, 4/7, and 8/9. The drops in dims 2 and 8 are depth-driven discoveries that existed in earlier runs undetected; dims 1 and 5 are real regressions. Later runs must probe at least this deep before comparing deltas.
 - **Mobile export red scored under dim 1, not dim 3.** The `expo export` failure is a package export-contract defect (`@repo/storage` barrel re-exports the S3 client), so dim 1 → 7 (#305). Dim 3 keeps scoring topology, unchanged at 7. Do not raise dim 1 above 7 until a gate separates client-safe from server-only package surface.
 - **Dim 2 → 7 with reproduced cause.** `typecheck` has no dependency edge and omits shared-config inputs; a `packages/storage` source edit left web/api/mobile typecheck on cache HITs (#308). Do not raise dim 2 until invalidation is proven by a dry-run assertion or test.
@@ -1673,7 +1673,7 @@ Binding on later runs. Each note records a judgment that should not be silently 
 
 - **Raise conditions from 09-08 met and applied.** Dim 1 → 8 (#313: server-only gate in both client ESLint blocks, contract test, export proven). Dim 2 → 8 (#314: `^typecheck` edge and preset inputs, dry-run shows dependents invalidate). Dim 5 → 6 (#306 landed via #315; audit was green after #312). Dim 8 → 8 (#307: `pnpm preflight` honest, built-in-collision test).
 - **Dim 5 stays below 7.** The audit gate went red again within a day (transitive advisories that Dependabot cannot patch in pnpm). Raise to 7 only when `pnpm audit --audit-level high` is green **and** the two policy gaps are closed (#323 Node-major ignore, #324 vitest group).
-- **Dim 3 held at 7 with a new binding condition.** #318 and #320 merged with failing checks and main went red on Release, Security, and Docker images. Topology design is 8-capable; do not raise dim 3 until required checks exist (rulesets at go-public) or a merge queue is in use (#325).
+- **Dim 3 held at 7 with a new binding condition.** #318 and #320 merged with failing checks and main went red on Release, Security, and Docker images. Topology design is 8-capable; do not raise dim 3 until required checks exist (import the ruleset) or a merge queue is in use (#325).
 - **Red gate on main scored like the knip precedent.** Dim 4 holds at 7 with the vitest lockstep guard red on main (mechanism works, one broken contract on main); dim 6 holds at 8 because the release mechanism itself is proven and the block is dim 4's gate.
 - **Regression slug handled per rule.** `pnpm-audit-high-debt` was `fixed` on 09-08 and is detected again: recorded as `regression`, #258 reopened, no duplicate.
 - **Depth floor kept.** Same three explorer probes as 09-08 (dims 1/2, 4/7, 8/9); deltas are like for like. Overall 7.0 → 7.4.
@@ -1685,7 +1685,7 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Dim 5 → 7 per the 09-09 binding condition** (audit exit 0, #323 and #324 closed). Hold at 7 until the Dependabot npm updater job is green, the Cargo graph has a bot or audit gate, and security overrides are caret floors rather than exact pins.
 - **Dim 7 → 8 with cause.** The audit gate is green on a Security push run for the first time, Dependabot refreshes every pin, and tenancy is runtime-proven by the isolation e2e. Do not raise to 9 until the introspection, depth/complexity, and confirm content-type gates have request-level tests.
 - **Dim 8 → 7, depth discovery not regression.** The documented first run (`bootstrap` → `turbo run build`) compiles the Tauri app with no Rust preflight and then leaves `pnpm check` red on the gitignored target dir; `create-package` scaffolds a workspace the vitest-exclude contract test rejects. Both predate this run undetected. Raise back to 8 when both are fixed.
-- **Dim 3 held at 7 (binding).** The ruleset file shipped (#342) but cannot be applied on the plan; three more red PRs merged today. New latent condition recorded: `codeql.yml` lacks a `merge_group` trigger the ruleset's required check depends on.
+- **Dim 3 held at 7 (binding).** The ruleset file shipped (#342) but is not imported on this repository; three more red PRs merged today. New latent condition recorded: `codeql.yml` lacks a `merge_group` trigger the ruleset's required check depends on.
 - **Dims 1, 2, 6, 9 held.** Dim 2's test-inputs gap is broadened (ruleset, workflow, and Dockerfile reads are unhashed too) and filed rather than re-scored, because the PR-path gate runs vitest uncached. Dim 9's stale-fact count grew (8 guide lines, 2 ADRs) but stays observed: hand-written facts have no gate, which is the known ceiling of band 8.
 - **Overall 7.4 → 7.7.** Dims 4, 5, 7 up one each with cited causes; dim 8 down one on depth; the rest re-evidenced flat.
 
@@ -1695,6 +1695,6 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Dim 5 held at 7 — expectation tested and rejected.** #369's repo-level `minimumReleaseAge` did not turn the npm updater green; it fails on a different package now, because peer-keyed vitest snapshots re-resolve on an `@types/node` bump and any transitive younger than 3 days is refused. Raise to 8 only when the updater job is green after the policy choice on #356 (pnpm 11, or a Dependabot-only cooldown without the repo gate).
 - **Dim 3 held at 7 (binding).** Every prerequisite for applying the ruleset now exists (merge_group on CodeQL, cache seed, job-name contract); the hold lifts when required checks are in use. Speed evidence recorded: PR wall clock 8m06s → 5m57s after the cache seed; the api image job is now load/Trivy/SBOM-bound, not compile-bound.
 - **Dims 1, 2, 4, 6, 7, 9 held at 8; what 9 needs, recorded.** Dim 2: an automated inputs-versus-reads check. Dim 4: a session-scoped feature operation through the schema and a rendered web component test. Dim 6: a test of the `release:apps` git path. Dim 7: a sweeping tenancy contract or lint, explicit cookie/password config, and scanners that can block merges. Dim 9: doc facts derived from manifests by a test rather than verified by hand.
-- **Slugs closed this run:** eleven findings from the 09-09 run plus `docs-version-facts-stale` and `translation-team-language-drift` (#371) and the new `bootstrap-ai-install-separator-rejected` (#367). No new issue filed: the remaining findings are observed depth or plan-limited items.
+- **Slugs closed this run:** eleven findings from the 09-09 run plus `docs-version-facts-stale` and `translation-team-language-drift` (#371) and the new `bootstrap-ai-install-separator-rejected` (#367). No new issue filed: the remaining findings are observed depth or not-enforced items.
 - **Proofs still pending at run time:** Friday's Deep Checks (first desktop build with the moved target dir), Monday's scheduled Security and CodeQL runs, and the first weekly Dependabot pass under five ecosystems. The next run should read them before comparing.
 - **Overall 7.7 → 7.8.** One raise (dim 8); everything else re-evidenced flat.
