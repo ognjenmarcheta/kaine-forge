@@ -110,6 +110,22 @@ const dependencyClosureByApp = (
 
 export const releaseBranchName = (app: string): string => `release/${app}`;
 
+export const originSyncState = ({
+  localHead,
+  originHead,
+  headIsAncestorOfOrigin
+}: {
+  localHead: string;
+  originHead: string;
+  headIsAncestorOfOrigin: boolean;
+}): "synced" | "behind" | "diverged" => {
+  if (localHead === originHead) {
+    return "synced";
+  }
+
+  return headIsAncestorOfOrigin ? "behind" : "diverged";
+};
+
 export const discoverWorkspacePackages = (rootDir = REPO_ROOT): WorkspacePackage[] => {
   const packages: WorkspacePackage[] = [];
 
