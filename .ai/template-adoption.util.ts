@@ -328,6 +328,24 @@ const ownerReplacements = (
         ["@ognjenmarcheta", `@${config.repoOwner}`]
       ];
 
+// A generated repository is not a template. Sections that compare templates or
+// explain how to adopt one are noise there, and the identity rewrite below would
+// otherwise restate them under the adopter's own product name.
+const stripTemplateOnlyBlocks = (source: string): [string, number] => {
+  const blockPattern = /\n*<!-- TEMPLATE_ONLY_START -->\n[\s\S]*?\n<!-- TEMPLATE_ONLY_END -->\n*/g;
+  let count = 0;
+  const stripped = source.replace(blockPattern, () => {
+    count += 1;
+    return "\n\n";
+  });
+  if (count === 0) {
+    return [source, 0];
+  }
+  // One trailing newline and no blank-line runs: otherwise the adopted
+  // repository fails `pnpm format:check` before it has run anything.
+  return [`${stripped.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "")}\n`, count];
+};
+
 const replacementsForConfig = (
   config: TemplateAdoptionConfig
 ): ReadonlyArray<readonly [string, string]> => [
@@ -472,6 +490,10 @@ export const applyTemplateAdoption = (
       next = updated;
       replacements += count;
     }
+    const [strippedSource, strippedBlocks] = stripTemplateOnlyBlocks(next);
+    next = strippedSource;
+    replacements += strippedBlocks;
+
     const policy = policyForPath(path, config);
     if (policy) {
       const [updated, count] = replacePolicyBlock(next, policy);
