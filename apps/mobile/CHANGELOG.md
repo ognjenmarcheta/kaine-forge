@@ -1,5 +1,12 @@
 # @repo/mobile
 
+## 1.5.2
+
+### Patch Changes
+
+- Updated dependencies [cd623ee]
+  - @repo/translation@1.3.2
+
 ## 1.5.1
 
 ### Patch Changes
