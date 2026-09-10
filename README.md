@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="media/kaine-forge-logo.jpg" width="640" alt="Kaine Forge — an olive branch growing from an anvil" />
+  <img src="media/logo.jpg" width="640" alt="Kaine Forge logo" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml"><img alt="CI" src="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg"></a>
+  <a href="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml"><img alt="CI PR" src="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg"></a>
   <a href="AGENTS.md"><img alt="AGENTS.md" src="https://img.shields.io/badge/AGENTS.md-generated-blue"></a>
   <a href="docs/agents/day-one.md"><img alt="Agent harnesses" src="https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2"></a>
 </p>
@@ -21,7 +21,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `apps/desktop`: Tauri v2 shell around the web app.
 - `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
 - `apps/e2e`: Playwright web/API tests with accessibility coverage.
-- `packages/*`: shared auth, db, logger, config, feature flags, query helpers, storage, translation, web UI, and mobile UI packages.
+- `packages/*`: shared auth, db, email, logger, config, feature flags, persistence, query helpers, storage, todos, translation, web UI, and mobile UI packages.
 - `.ai/`: canonical agent scaffold — see [Agent-ready](#agent-ready).
 
 ## Agent-ready

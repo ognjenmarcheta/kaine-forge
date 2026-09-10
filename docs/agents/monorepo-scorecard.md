@@ -62,8 +62,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "ci-pr path filters + parallel coverage/docker/e2e shards (artifacts #145); knip+boundaries on PR (#142). Ops: all main/PR jobs since ~2026-07-27T14:06 fail to start — GitHub billing/spending limit (run 30278372014 annotation)",
-          "calibration": "Score reflects topology design, not org billing. Do not re-penalize design for account spend unless topology itself regressed."
+          "evidence": "ci-pr path filters + parallel coverage/docker/e2e shards (artifacts #145); knip+boundaries on PR (#142). Ops: all main/PR jobs since ~2026-07-27T14:06 fail to start — operator-side Actions outage (run 30278372014 annotation)",
+          "calibration": "Score reflects topology design, not the operator-side outage. Do not re-penalize design for an account-level block unless topology itself regressed."
         },
         "4": {
           "score": 7,
@@ -79,7 +79,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "7": {
           "score": 7,
-          "evidence": "CodeQL security-extended; Gitleaks; Trivy CRITICAL exit-code 1 (ci-pr.yml:430-437); CORS fail-closed apps/api/src/server.config.ts:53-56 + tests; org scope from session (context.auth-scope.ts). Gate scripts present; audit high debt + billing blocks live Security/CodeQL runs"
+          "evidence": "CodeQL security-extended; Gitleaks; Trivy CRITICAL exit-code 1 (ci-pr.yml:430-437); CORS fail-closed apps/api/src/server.config.ts:53-56 + tests; org scope from session (context.auth-scope.ts). Gate scripts present; audit high debt + the outage blocks live Security/CodeQL runs"
         },
         "8": {
           "score": 8,
@@ -100,12 +100,12 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "issue": 257
         },
         {
-          "slug": "github-actions-billing-blocked",
-          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "slug": "github-actions-jobs-not-starting",
+          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
-          "reason": "Human declined filing; account billing/spending limit is operator-owned, not a code issue"
+          "reason": "Not filed: the outage is operator-owned, not a code issue"
         },
         {
           "slug": "pnpm-audit-high-debt",
@@ -150,8 +150,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; billing blocker persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)",
-          "calibration": "Per 2026-07-28 note: scores topology design, not account billing. Impact escalated since baseline — releases frozen ~3 weeks."
+          "evidence": "Topology unchanged; the outage persists: run 32381948978 annotation confirms jobs fail to start (~4s) across Release/Security/CodeQL/PR workflows (2026-08-20)",
+          "calibration": "Per 2026-07-28 note: scores topology design, not the operator-side outage. Impact escalated since baseline — releases frozen ~3 weeks."
         },
         "4": {
           "score": 7,
@@ -163,11 +163,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream billing impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned"
+          "evidence": "Mechanism intact: origin/release/api + release/web exist, release.yml gates, Dockerfile.* digest-pinned; downstream outage impact: release branches stale since Jul 29 vs main Aug 20, five changesets unversioned"
         },
         "7": {
           "score": 7,
-          "evidence": "Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs billing-blocked"
+          "evidence": "Gitleaks action SHA-pinned (security.yml:54), CodeQL v4 SHA-pinned (codeql.yml:36,52); SECURITY.md + kaine-secret-scan skill added (#286); audit debt down 25→19; live Security/CodeQL runs blocked by the outage"
         },
         "8": {
           "score": 8,
@@ -180,8 +180,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
       },
       "findings": [
         {
-          "slug": "github-actions-billing-blocked",
-          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "slug": "github-actions-jobs-not-starting",
+          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
@@ -222,8 +222,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; billing persists: all workflows on the #292 merge failed to start in ~4-5s (runs 32470963xxx, 2026-08-21T10:04Z)",
-          "calibration": "Per 2026-07-28 note: scores topology design, not account billing."
+          "evidence": "Topology unchanged; the outage persists: all workflows on the #292 merge failed to start in ~4-5s (runs 32470963xxx, 2026-08-21T10:04Z)",
+          "calibration": "Per 2026-07-28 note: scores topology design, not the operator-side outage."
         },
         "4": {
           "score": 7,
@@ -235,11 +235,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact; release/api frozen at Jul 29 vs main Aug 21, six pending changesets — downstream billing impact scored per calibration"
+          "evidence": "Mechanism intact; release/api frozen at Jul 29 vs main Aug 21, six pending changesets — downstream outage impact scored per calibration"
         },
         "7": {
           "score": 7,
-          "evidence": "Gitleaks/CodeQL SHA-pinned unchanged; Security+CodeQL dark (billing); audit debt unchanged at 19 high"
+          "evidence": "Gitleaks/CodeQL SHA-pinned unchanged; Security+CodeQL dark (outage); audit debt unchanged at 19 high"
         },
         "8": {
           "score": 8,
@@ -252,8 +252,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
       },
       "findings": [
         {
-          "slug": "github-actions-billing-blocked",
-          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "slug": "github-actions-jobs-not-starting",
+          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "observed",
@@ -294,8 +294,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "3": {
           "score": 7,
-          "evidence": "Topology unchanged; billing cleared ~2026-09-01 (CodeQL 34126323459 green, Deep Checks executes); last green PR wall-clock ~4 min (30267187333: Check Fast 52s, Coverage 2m09s, e2e shards ~1m40s); mobile export gate runs twice weekly only; branch protection/required checks unavailable on private free plan",
-          "calibration": "Per 2026-07-28 note: scores topology design. Billing resolved; the mobile export red is an export-contract defect scored under dim 1."
+          "evidence": "Topology unchanged; outage cleared ~2026-09-01 (CodeQL 34126323459 green, Deep Checks executes); last green PR wall-clock ~4 min (30267187333: Check Fast 52s, Coverage 2m09s, e2e shards ~1m40s); mobile export gate runs twice weekly only; branch protection/required checks unavailable on private free plan",
+          "calibration": "Per 2026-07-28 note: scores topology design. Outage resolved; the mobile export red is an export-contract defect scored under dim 1."
         },
         "4": {
           "score": 7,
@@ -307,7 +307,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "6": {
           "score": 8,
-          "evidence": "Mechanism intact (release.yml gates, digest-pinned Dockerfiles, changesets config); release/api 04df1c8 and release/web d05bc9a frozen at 07-29 vs main 08-27, 6 changesets pending; billing cleared but no push since — next merge or workflow_dispatch exercises the path"
+          "evidence": "Mechanism intact (release.yml gates, digest-pinned Dockerfiles, changesets config); release/api 04df1c8 and release/web d05bc9a frozen at 07-29 vs main 08-27, 6 changesets pending; outage cleared but no push since — next merge or workflow_dispatch exercises the path"
         },
         "7": {
           "score": 7,
@@ -319,7 +319,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "9": {
           "score": 8,
-          "evidence": "ai:doctor zero drift across 5 installs; 15 skills valid; 9 ADRs; REVIEW 9 headings; serena memories verified accurate against scripts/.nvmrc/workspace; stale claims MONOREPO_GUIDE.md:57 + kaine-triage-deps.md:9-43 (Renovate) and CONTRIBUTING.md:142 (required checks) fold into #306; strict drift gate not yet proven in CI since billing"
+          "evidence": "ai:doctor zero drift across 5 installs; 15 skills valid; 9 ADRs; REVIEW 9 headings; serena memories verified accurate against scripts/.nvmrc/workspace; stale claims MONOREPO_GUIDE.md:57 + kaine-triage-deps.md:9-43 (Renovate) and CONTRIBUTING.md:142 (required checks) fold into #306; strict drift gate not yet proven in CI since the outage"
         }
       },
       "findings": [
@@ -348,12 +348,12 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "issue": 307
         },
         {
-          "slug": "github-actions-billing-blocked",
-          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "slug": "github-actions-jobs-not-starting",
+          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "fixed",
-          "reason": "Jobs execute since ~2026-09-01 (CodeQL 34126323459 green 09-07); operator resolved billing. Release still unexercised: no push to main since 08-27"
+          "reason": "Jobs execute since ~2026-09-01 (CodeQL 34126323459 green 09-07); operator resolved the outage. Release still unexercised: no push to main since 08-27"
         },
         {
           "slug": "renovate-inert-digest-refresh-absent",
@@ -402,7 +402,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 6,
           "ladderRank": 4,
           "disposition": "observed",
-          "reason": "Mechanism intact; resolves on the next push to main or a Release workflow_dispatch now that billing is cleared"
+          "reason": "Mechanism intact; resolves on the next push to main or a Release workflow_dispatch now that the outage is cleared"
         },
         {
           "slug": "branch-protection-unavailable-private-plan",
@@ -496,7 +496,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         "9": {
           "score": 8,
-          "evidence": "ai:doctor --strict zero drift and proven on every PR since billing cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift"
+          "evidence": "ai:doctor --strict zero drift and proven on every PR since the outage cleared; Renovate/required-checks claims corrected (#315); serena memories verified against scripts, .nvmrc, workspace; 15 skills, 9 ADRs, REVIEW 9 headings. Open: Dockerfile.*:3 still say Renovate bumps digests; MONOREPO_GUIDE.md lists Vite 7, Expo SDK 54, react@19.1.0 against vite 8 / SDK 55 / react 19.2 pins; dashboard.json Teams/squads drift"
         }
       },
       "findings": [
@@ -584,8 +584,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Both branches advanced to 369f4d6 on 2026-09-08 by the Release workflow"
         },
         {
-          "slug": "github-actions-billing-blocked",
-          "title": "ci: GitHub Actions jobs fail to start due to account billing or spending limit",
+          "slug": "github-actions-jobs-not-starting",
+          "title": "ci: GitHub Actions jobs fail to start (operator-side outage)",
           "dimension": 3,
           "ladderRank": 1,
           "disposition": "fixed",
@@ -1636,15 +1636,15 @@ Binding on later runs. Each note records a judgment that should not be silently 
 ### 2026-07-28 — first baseline (`15102fc`, sequential)
 
 - **Baseline run.** Empty `runs` array before this date; all scores are initial calibration, not deltas. Mode is `sequential` (shared-context sweep, not nine parallel explorers) — compare later fan-out runs carefully.
-- **CI topology vs billing.** Dimension 3 scores the job DAG and gate placement (path filters, single coverage run, shared Turbo cache, e2e artifact reuse). It does **not** drop below 7 solely because GitHub Actions refuses to start jobs for account billing/spending limits. That operational failure is tracked as finding `github-actions-billing-blocked`. If billing is fixed and topology is unchanged, do not raise dim 3 above 8 without a concrete topology improvement.
+- **CI topology vs operator outage.** Dimension 3 scores the job DAG and gate placement (path filters, single coverage run, shared Turbo cache, e2e artifact reuse). It does **not** drop below 7 solely because GitHub Actions refuses to start jobs for an account-level block. That operational failure is tracked as finding `github-actions-jobs-not-starting`. If the outage is fixed and topology is unchanged, do not raise dim 3 above 8 without a concrete topology improvement.
 - **Knip is a hard gate.** `pnpm check` / `check:ci` / PR `check-fast` all run knip. A single unused dep (`@graphql-codegen/typescript`) currently fails the gate locally — dim 1 is 7 (solid mechanisms, one broken contract on main), not 9.
 - **Audit high debt.** Dim 5 is 6 because catalog discipline is strong but `pnpm audit --audit-level high` is red (25 high). Many paths are Expo CLI / vitest→vite transitive; do not treat every advisory as a direct product CVE when scoring security vs hygiene.
-- **Security app posture.** Dim 7 stays 7: CORS fail-closed, org session scope, digest-pinned images, Trivy CRITICAL hard gate, CodeQL+Gitleaks configured. Live workflow greenness is blocked by the same billing issue as dim 3.
+- **Security app posture.** Dim 7 stays 7: CORS fail-closed, org session scope, digest-pinned images, Trivy CRITICAL hard gate, CodeQL+Gitleaks configured. Live workflow greenness is blocked by the same operator-side outage as dim 3.
 - **Coverage mobile exclusion.** `apps/mobile/**` outside floors is intentional (measured ~3% app shell); do not ding dim 4 for that without a decision to re-include.
 
 ### 2026-08-21 — second run (`4cbdfeb`, sequential)
 
-- **Billing blocker persists into a second run.** All workflows still fail to start (~4s); releases frozen (release/api last advanced Jul 29, main at Aug 20), five changesets unversioned, Security/CodeQL dark. Dims 3 and 6 continue to score mechanism design per the 2026-07-28 calibration; operational impact stays in finding `github-actions-billing-blocked`. Resolving billing is the single highest-leverage action for this repo.
+- **Outage persists into a second run.** All workflows still fail to start (~4s); releases frozen (release/api last advanced Jul 29, main at Aug 20), five changesets unversioned, Security/CodeQL dark. Dims 3 and 6 continue to score mechanism design per the 2026-07-28 calibration; operational impact stays in finding `github-actions-jobs-not-starting`. Resolving the outage is the single highest-leverage action for this repo.
 - **Audit debt trend.** High advisories fell 25 → 19 after #285 consolidated bot bumps and added transitive security floors (`pnpm-workspace.yaml` overrides). Dim 5 stays 6 until `pnpm audit --audit-level high` exits 0; treat remaining highs as mostly transitive (vitest→vite→postcss).
 - **Knip red swapped, not cleared.** #257 (unused codegen dep) was fixed via #279, but a new unlisted-binary red (`gitleaks`) appeared. Dim 1 stays 7 under the same hard-gate logic as baseline; fix tracked as `knip-unlisted-gitleaks-binary` (#288).
 - **AI scaffolding drift cleared.** Baseline's local kaine-scorecard install drift is gone; doctor now gates drift strictly (#281). Dim 9 holds at 8 — band 9 requires a proven regression gate across agents, not just doctor greenness.
@@ -1659,7 +1659,7 @@ Binding on later runs. Each note records a judgment that should not be silently 
 
 ### 2026-09-08 — fourth run (`5f6f91f`, sequential + three explorer probes)
 
-- **Billing cleared; `github-actions-billing-blocked` → fixed.** Jobs execute since ~2026-09-01 (CodeQL 34126323459 green on 09-07). No push to main since 08-27, so Release is still unexercised; dim 6 holds at 8 per the 07-28 mechanism-not-billing rule.
+- **Outage cleared; `github-actions-jobs-not-starting` → fixed.** Jobs execute since ~2026-09-01 (CodeQL 34126323459 green on 09-07). No push to main since 08-27, so Release is still unexercised; dim 6 holds at 8 per the 07-28 mechanism-not-operations rule.
 - **Depth note.** Mode stays `sequential` (shared-context sweep), but three read-only `kaine-explorer` probes covered dims 1/2, 4/7, and 8/9. The drops in dims 2 and 8 are depth-driven discoveries that existed in earlier runs undetected; dims 1 and 5 are real regressions. Later runs must probe at least this deep before comparing deltas.
 - **Mobile export red scored under dim 1, not dim 3.** The `expo export` failure is a package export-contract defect (`@repo/storage` barrel re-exports the S3 client), so dim 1 → 7 (#305). Dim 3 keeps scoring topology, unchanged at 7. Do not raise dim 1 above 7 until a gate separates client-safe from server-only package surface.
 - **Dim 2 → 7 with reproduced cause.** `typecheck` has no dependency edge and omits shared-config inputs; a `packages/storage` source edit left web/api/mobile typecheck on cache HITs (#308). Do not raise dim 2 until invalidation is proven by a dry-run assertion or test.

@@ -1,7 +1,8 @@
 # Code owners for Kaine Forge.
 # GitHub requests a review from the owner(s) of every changed path.
-# Template note: replace @ognjenmarcheta with your team handles on adoption
-# (owners must have write access, or the entry is ignored).
+# Template note: `pnpm template:adopt` rewrites the owner handle when `repoOwner`
+# is set; otherwise replace @ognjenmarcheta with your team handles. Owners must
+# have write access, or the entry is ignored.
 # Docs: https://docs.github.com/articles/about-code-owners
 
 # Default owner for everything not matched below
