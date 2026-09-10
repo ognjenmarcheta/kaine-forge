@@ -107,6 +107,17 @@ const promptString = async (
   return result;
 };
 
+const promptOptionalString = async (message: string, placeholder: string): Promise<string> => {
+  const result = await text({ message, placeholder, defaultValue: "" });
+
+  if (isCancel(result)) {
+    cancel("Cancelled.");
+    process.exit(0);
+  }
+
+  return result.trim();
+};
+
 const defaultDesktopIdentifier = (productName: string): string => {
   const slug = slugify(productName);
   const parts = slug.split("-").filter(Boolean);
@@ -127,6 +138,7 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
 
   const packageName = await promptString("Root package name", initial.packageName);
   const repoSlug = await promptString("Repository slug", initial.repoSlug);
+  const repoOwner = await promptOptionalString("GitHub owner (user or org), optional", "acme");
   const desktopIdentifier = await promptString(
     "Desktop reverse-DNS identifier",
     initial.desktopIdentifier
@@ -144,6 +156,7 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
     productName,
     packageName,
     repoSlug,
+    ...(repoOwner ? { repoOwner } : {}),
     desktopIdentifier,
     compatibilityPolicy,
     designCompatibilityPolicy
@@ -175,6 +188,7 @@ const fileExtension = (path: string): string => {
 
 const isTextFile = (path: string): boolean =>
   path === ".env.example" ||
+  path === ".github/CODEOWNERS" ||
   path === "Dockerfile.api" ||
   path === "Dockerfile.web" ||
   textFileExtensions.has(fileExtension(path));
@@ -217,6 +231,7 @@ const printConfig = (config: TemplateAdoptionConfig): void => {
     productName: config.productName,
     packageName: config.packageName,
     repoSlug: config.repoSlug,
+    ...(config.repoOwner ? { repoOwner: config.repoOwner } : {}),
     dockerImagePrefix: config.dockerImagePrefix,
     s3Bucket: config.s3Bucket,
     webTitle: config.webTitle,

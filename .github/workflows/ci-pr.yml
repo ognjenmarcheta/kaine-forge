@@ -452,7 +452,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          tags: kaine-forge-${{ matrix.app }}:ci
+          tags: local/${{ matrix.app }}:ci
           load: true
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
@@ -463,7 +463,7 @@ jobs:
       - name: Scan ${{ matrix.app }} image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: kaine-forge-${{ matrix.app }}:ci
+          image-ref: local/${{ matrix.app }}:ci
           format: sarif
           output: trivy-${{ matrix.app }}.sarif
           severity: CRITICAL,HIGH
@@ -486,7 +486,7 @@ jobs:
       - name: Fail on fixable CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: kaine-forge-${{ matrix.app }}:ci
+          image-ref: local/${{ matrix.app }}:ci
           format: table
           severity: CRITICAL
           ignore-unfixed: true
@@ -495,7 +495,7 @@ jobs:
       - name: Generate SBOM for ${{ matrix.app }}
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
-          image: kaine-forge-${{ matrix.app }}:ci
+          image: local/${{ matrix.app }}:ci
           format: spdx-json
           artifact-name: sbom-${{ matrix.app }}.spdx.json
           output-file: sbom-${{ matrix.app }}.spdx.json

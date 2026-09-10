@@ -74,6 +74,13 @@ describe("parseTemplateAdoptionConfig", () => {
         desktopIdentifier: "not valid"
       })
     ).toThrow(/packageName/);
+    expect(() =>
+      parseTemplateAdoptionConfig({
+        productName: "Acme Ops",
+        desktopIdentifier: "com.acme.ops.desktop",
+        repoOwner: "not valid"
+      })
+    ).toThrow(/repoOwner/);
   });
 });
 
@@ -179,6 +186,35 @@ describe("applyTemplateAdoption", () => {
     );
   });
 
+  it("rewrites the GitHub owner when repoOwner is set", () => {
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Ops",
+      repoOwner: "acme",
+      desktopIdentifier: "com.acme.ops.desktop"
+    });
+    const files = new Map<string, string>([
+      ["README.md", "https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml\n"],
+      [".ai/guide.md", "Issues are tracked in `ognjenmarcheta/kaine-forge`.\n"],
+      [".github/CODEOWNERS", "* @ognjenmarcheta\n"]
+    ]);
+
+    const result = applyTemplateAdoption(files, config);
+
+    expect(result.files.get("README.md")).toContain(
+      "github.com/acme/acme-ops/actions/workflows/ci-pr.yml"
+    );
+    expect(result.files.get(".ai/guide.md")).toContain("acme/acme-ops");
+    expect(result.files.get(".github/CODEOWNERS")).toBe("* @acme\n");
+  });
+
+  it("reports owner leftovers in check mode", () => {
+    const references = activeTemplateReferences(
+      new Map<string, string>([["README.md", "https://github.com/ognjenmarcheta/acme-ops\n"]])
+    );
+
+    expect(references).toEqual([{ path: "README.md", line: 1, match: "ognjenmarcheta" }]);
+  });
+
   it("reports active template references for check mode", () => {
     const references = activeTemplateReferences(
       new Map<string, string>([
@@ -246,6 +282,9 @@ describe("applyTemplateAdoption", () => {
     expect(adoptionTargets).toContain("docs/agents/issue-tracker.md");
     expect(adoptionTargets).toContain(".ai/hooks/session-start.mjs");
     expect(adoptionTargets).toContain(".ai/agents/kaine-explorer.md");
+    expect(adoptionTargets).toContain(".claude/settings.json");
+    expect(adoptionTargets).toContain(".github/CODEOWNERS");
+    expect(adoptionTargets).toContain(".github/ISSUE_TEMPLATE/config.yml");
     expect(adoptionTargets).not.toContain("REVIEW.md");
     expect(adoptionTargets).not.toContain("pnpm-lock.yaml");
     expect(adoptionTargets).not.toContain("packages/ui/src/example.ts");
