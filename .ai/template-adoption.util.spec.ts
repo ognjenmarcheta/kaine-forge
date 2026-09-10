@@ -85,6 +85,92 @@ describe("parseTemplateAdoptionConfig", () => {
 });
 
 describe("applyTemplateAdoption", () => {
+  it("empties the scorecard ledger so adopters do not inherit template run history", () => {
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Ops",
+      desktopIdentifier: "com.acme.ops.desktop",
+      compatibilityPolicy: "Acme supports the current public API for one major version.",
+      designCompatibilityPolicy: "Acme records visual breaking changes in release notes."
+    });
+    const ledger = [
+      "# Monorepo Health Scorecard",
+      "",
+      "## Band descriptors",
+      "",
+      "| Band | Meaning |",
+      "",
+      "<!-- scorecard:data:start -->",
+      "",
+      "```json",
+      JSON.stringify(
+        {
+          schema: 1,
+          runs: [
+            {
+              date: "2026-07-28",
+              commit: "15102fc",
+              overall: 7.3,
+              findings: [{ slug: "some-finding", issue: 325 }]
+            }
+          ],
+          authoredFlows: [{ id: "release-deploy", title: "Release and deploy" }]
+        },
+        null,
+        2
+      ),
+      "```",
+      "",
+      "<!-- scorecard:data:end -->",
+      "",
+      "<!-- scorecard:generated:start -->",
+      "",
+      "### Run history",
+      "",
+      "| 2026-07-28 | `15102fc` | 7.3 |",
+      "",
+      "<!-- scorecard:generated:end -->",
+      "",
+      "## Calibration notes",
+      "",
+      "Binding on later runs.",
+      "",
+      "### 2026-07-28 — first baseline (`15102fc`, sequential)",
+      "",
+      "- **Baseline run.** Do not re-litigate.",
+      ""
+    ].join("\n");
+
+    const result = applyTemplateAdoption(
+      new Map<string, string>([["docs/agents/monorepo-scorecard.md", ledger]]),
+      config
+    );
+    const next = result.files.get("docs/agents/monorepo-scorecard.md") ?? "";
+
+    // The adopter keeps the reusable scaffolding.
+    expect(next).toContain("## Band descriptors");
+    expect(next).toContain("## Calibration notes");
+    expect(next).toContain("Binding on later runs.");
+
+    // And inherits none of the template's own history.
+    expect(next).toContain('"runs": []');
+    expect(next).not.toContain("15102fc");
+    expect(next).not.toContain("325");
+    expect(next).not.toContain("### 2026-07-28");
+    expect(next).toContain("_No runs recorded yet.");
+
+    // authoredFlows describes template architecture, not history, so the
+    // renderer still has the flows it requires.
+    expect(next).toContain('"authoredFlows"');
+    expect(next).toContain("release-deploy");
+
+    // A trailing blank line would fail format:check in the adopted repository.
+    expect(next.endsWith("\n")).toBe(true);
+    expect(next.endsWith("\n\n")).toBe(false);
+    expect(result.changedFiles.map((file) => file.path)).toContain(
+      "docs/agents/monorepo-scorecard.md"
+    );
+  });
+
   it("rewrites only allowlisted active identity surfaces", () => {
     const config = deriveTemplateAdoptionConfig({
       productName: "Acme Ops",

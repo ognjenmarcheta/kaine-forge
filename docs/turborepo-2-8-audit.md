@@ -1,7 +1,7 @@
 # Turborepo Cache & CI Performance Budget
 
 - Last updated: 2026-07-23
-- Turbo: `^2.8.10` (see root `package.json`)
+- Turbo when this audit was written: `^2.8.10`. See root `package.json` for the current pin.
 - Source notes: https://turborepo.dev/blog/2-8
 
 ## Feature adoption

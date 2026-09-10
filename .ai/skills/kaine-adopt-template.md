@@ -35,11 +35,11 @@ Use this skill when turning this template repository into a downstream product r
      --glob '!**/CHANGELOG.md' \
      --glob '!**/graphql/generated/**' \
      --glob '!apps/desktop/src-tauri/target/**' \
-     --glob '!pnpm-lock.yaml' \
-     --glob '!docs/superpowers/**'
+     --glob '!pnpm-lock.yaml'
    ```
 
 8. Replace `media/logo.jpg` with your own logo. Adoption already rewrites the README image alt text.
+9. Adoption empties `docs/agents/monorepo-scorecard.md` of the template's own run history and keeps the band descriptors, dimensions, and calibration heading. Record your first run with the `kaine-scorecard` skill.
 
 ## Config Shape
 

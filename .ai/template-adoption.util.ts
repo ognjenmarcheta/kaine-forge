@@ -116,7 +116,8 @@ export const adoptionTargets = [
   "docs/agents/domain.md",
   "docs/agents/issue-tracker.md",
   "docs/troubleshooting.md",
-  "docs/adr/0009-domain-knowledge-as-agent-infra.md"
+  "docs/adr/0009-domain-knowledge-as-agent-infra.md",
+  "docs/agents/monorepo-scorecard.md"
 ] as const;
 
 const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
@@ -351,6 +352,65 @@ const replacementsForConfig = (
   ["kaine-forge", config.repoSlug]
 ];
 
+const SCORECARD_LEDGER_PATH = "docs/agents/monorepo-scorecard.md";
+
+// Without this a generated repository inherits the template's own health
+// history: dated runs, scores, and finding issue numbers that resolve to
+// unrelated issues in the adopter's own tracker. Band descriptors, dimensions,
+// and the "how to read it" preamble are the reusable part and stay.
+const resetScorecardLedger = (source: string): [string, number] => {
+  const between = (open: string, close: string, replacement: string, input: string): string => {
+    const start = input.indexOf(open);
+    const end = input.indexOf(close, start + open.length);
+    if (start === -1 || end === -1) {
+      return input;
+    }
+    return `${input.slice(0, start + open.length)}${replacement}${input.slice(end)}`;
+  };
+
+  const emptyRuns = (json: string): string => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      return json;
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return json;
+    }
+    // `authoredFlows` describes the template's architecture, not its history,
+    // so it stays. `runs` is the part that is specific to this repository.
+    return JSON.stringify({ ...parsed, runs: [] }, null, 2);
+  };
+
+  const dataOpen = "<!-- scorecard:data:start -->\n\n```json\n";
+  const dataStart = source.indexOf(dataOpen);
+  const dataEnd = dataStart === -1 ? -1 : source.indexOf("\n```", dataStart + dataOpen.length);
+  let next = source;
+  if (dataStart !== -1 && dataEnd !== -1) {
+    const json = source.slice(dataStart + dataOpen.length, dataEnd);
+    next = between(dataOpen, "\n```", emptyRuns(json), source);
+  }
+  next = between(
+    "<!-- scorecard:generated:start -->\n",
+    "\n<!-- scorecard:generated:end -->",
+    "\n_No runs recorded yet. Run the `kaine-scorecard` skill, then `pnpm scorecard`._",
+    next
+  );
+
+  const notes = next.indexOf("\n## Calibration notes\n");
+  if (notes !== -1) {
+    const firstRunNote = next.indexOf("\n### ", notes);
+    if (firstRunNote !== -1) {
+      // Exactly one trailing newline: a blank line here fails `pnpm format:check`
+      // in the adopted repository before it has run anything.
+      next = `${next.slice(0, firstRunNote).replace(/\s+$/, "")}\n`;
+    }
+  }
+
+  return [next, next === source ? 0 : 1];
+};
+
 const policyForPath = (path: string, config: TemplateAdoptionConfig): string | null => {
   if (path === "MONOREPO_GUIDE.md") {
     return config.compatibilityPolicy;
@@ -407,6 +467,11 @@ export const applyTemplateAdoption = (
 
     let next = source;
     let replacements = 0;
+    if (path === SCORECARD_LEDGER_PATH) {
+      const [updated, count] = resetScorecardLedger(next);
+      next = updated;
+      replacements += count;
+    }
     const policy = policyForPath(path, config);
     if (policy) {
       const [updated, count] = replacePolicyBlock(next, policy);
