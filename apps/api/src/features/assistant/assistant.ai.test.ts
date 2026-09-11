@@ -22,6 +22,7 @@ function createAdapter(
     getConversationById: vi.fn(async () => ({ id: "conv-1" })),
     isConfigured: () => true,
     listMessages: vi.fn(async () => [{ content: "Add buy milk", role: "user" as const }]),
+    reportAgentFailure: vi.fn(),
     runAgent: vi.fn(async () => ({
       reply: "Created a todo to buy milk and marked it done.",
       toolActions: [
@@ -127,5 +128,12 @@ describe("createAssistantAiWorkflow", () => {
 
     expect(adapter.appendMessage).toHaveBeenCalledTimes(1);
     expect(adapter.touchConversation).not.toHaveBeenCalled();
+    // The degraded payload above is unchanged; what was missing is any record
+    // of why, so a failed assistant turn left nothing behind.
+    expect(adapter.reportAgentFailure).toHaveBeenCalledTimes(1);
+    expect(adapter.reportAgentFailure).toHaveBeenCalledWith({
+      conversationId: "conv-1",
+      err: new Error("model exploded")
+    });
   });
 });

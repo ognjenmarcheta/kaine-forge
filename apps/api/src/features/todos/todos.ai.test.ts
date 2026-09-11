@@ -33,7 +33,8 @@ describe("createTodoAiWorkflow", () => {
       generateTodoDrafts,
       isConfigured: () => false,
       maxGeneratedTodos: 3,
-      publishTodoEvent: vi.fn()
+      publishTodoEvent: vi.fn(),
+      reportGenerationFailure: vi.fn()
     });
 
     await expect(workflow.generateTodos(scope, { prompt: "Plan launch tasks" })).resolves.toEqual({
@@ -75,7 +76,8 @@ describe("createTodoAiWorkflow", () => {
       ]),
       isConfigured: () => true,
       maxGeneratedTodos: 2,
-      publishTodoEvent
+      publishTodoEvent,
+      reportGenerationFailure: vi.fn()
     });
 
     await expect(
@@ -95,5 +97,29 @@ describe("createTodoAiWorkflow", () => {
     });
     expect(publishTodoEvent).toHaveBeenNthCalledWith(1, "todo:created", firstTodo);
     expect(publishTodoEvent).toHaveBeenNthCalledWith(2, "todo:created", secondTodo);
+  });
+
+  it("reports the failure instead of swallowing it when generation throws", () => {
+    const reportGenerationFailure = vi.fn();
+    const publishTodoEvent = vi.fn();
+    const workflow = createTodoAiWorkflow({
+      createTodo: vi.fn(),
+      generateTodoDrafts: vi.fn(async () => {
+        throw new Error("provider refused");
+      }),
+      isConfigured: () => true,
+      maxGeneratedTodos: 3,
+      publishTodoEvent,
+      reportGenerationFailure
+    });
+
+    return expect(workflow.generateTodos(scope, { prompt: "Plan launch" }))
+      .resolves.toEqual({ message: "AI_GENERATION_FAILED", status: "FAILED", todos: [] })
+      .then(() => {
+        expect(reportGenerationFailure).toHaveBeenCalledWith({
+          err: new Error("provider refused")
+        });
+        expect(publishTodoEvent).not.toHaveBeenCalled();
+      });
   });
 });

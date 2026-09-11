@@ -35,6 +35,8 @@ export interface TodoAiWorkflowAdapter {
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
+  /** Object-wrapped so a later field is not a call-site break. */
+  reportGenerationFailure: (input: { err: unknown }) => void;
 }
 
 function normalizeGeneratedTodo(draft: CreateTodoInput): {
@@ -84,7 +86,9 @@ export function createTodoAiWorkflow(adapter: TodoAiWorkflowAdapter) {
           status: createdTodos.length > 0 ? "CREATED" : "FAILED",
           todos: createdTodos
         };
-      } catch {
+      } catch (err) {
+        adapter.reportGenerationFailure({ err });
+
         return {
           message: "AI_GENERATION_FAILED",
           status: "FAILED",
