@@ -53,6 +53,7 @@
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
+    "harness:eval": "tsx .ai/harness-eval.ts",
     "scorecard": "tsx .ai/scorecard-render.ts",
     "tokens:mobile": "node scripts/sync-mobile-design-tokens.mjs",
     "tokens:mobile:check": "node scripts/sync-mobile-design-tokens.mjs --check",
