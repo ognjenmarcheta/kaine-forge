@@ -39,7 +39,7 @@ test("registers a new account, signs out, and signs back in", async ({ page }) =
   await expect(page).toHaveURL(/\/dashboard$/);
 });
 
-test("creates, completes, and deletes a todo", async ({ page }) => {
+test("creates, edits, completes, and deletes a todo", async ({ page }) => {
   const todoTitle = `E2E todo ${Date.now().toString(36)}`;
 
   await signIn(page);
@@ -57,11 +57,19 @@ test("creates, completes, and deletes a todo", async ({ page }) => {
   await expect(todoCheckbox).toHaveCount(1);
   await expect(todoCheckbox).not.toBeChecked();
 
+  const row = page.getByRole("listitem").filter({ has: todoCheckbox });
+  await row.getByRole("button", { name: "Edit", exact: true }).click();
+  const editDialog = page.getByRole("dialog", { name: "Edit todo", exact: true });
+  await editDialog.getByLabel(TODOS_DESCRIPTION_LABEL).fill("Updated description");
+  await editDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(row.getByText("Updated description", { exact: true })).toBeVisible();
+
   // Complete, then prove the server persisted it (not just optimistic UI).
   await todoCheckbox.click();
   await expect(todoCheckbox).toBeChecked();
   await page.reload();
   await expect(page.getByRole("checkbox", { name: todoTitle })).toBeChecked();
+  await expect(row.getByText("Updated description", { exact: true })).toBeVisible();
 
   // Delete through the row action plus the confirm dialog.
   await page

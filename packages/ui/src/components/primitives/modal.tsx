@@ -1,5 +1,5 @@
 import { Dialog } from "radix-ui";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { Button } from "./button";
 import { cn } from "../../lib/cn";
@@ -77,6 +77,7 @@ export function Modal({
   size = "md",
   title
 }: ModalProps) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   const resolvedCloseButtonLabel = closeButtonLabel ?? "Close";
 
   return (
@@ -85,6 +86,16 @@ export function Modal({
         <Dialog.Overlay className="ui-modal__overlay" />
         <Dialog.Content
           aria-label={title}
+          onOpenAutoFocus={() => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            if (returnFocus.current?.isConnected) {
+              event.preventDefault();
+              returnFocus.current.focus();
+            }
+          }}
           className={cn("ui-modal__content", resolveModalSizeClass(size))}
           onEscapeKeyDown={(event) => {
             if (!closeOnEscape) {

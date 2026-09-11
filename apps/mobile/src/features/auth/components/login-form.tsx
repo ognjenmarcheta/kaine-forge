@@ -12,9 +12,10 @@ import {
 } from "@repo/mobile-ui";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 
 import { ScreenContainer } from "../../../components/screen-container";
+import { ThemeOptions } from "../../../components/theme-options";
 import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
 import { signInWithSocialRequest } from "../../../lib/auth-api";
@@ -70,61 +71,75 @@ export function LoginForm() {
   }
 
   return (
-    <ScreenContainer>
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>{t("auth.login.title")}</CardTitle>
-          <CardDescription>{t("auth.login.subtitle")}</CardDescription>
-        </CardHeader>
+    <ScreenContainer includeTopInset>
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <ThemeOptions />
+          <Card className="mt-4 border-0">
+            <CardHeader>
+              <CardTitle>{t("auth.login.title")}</CardTitle>
+              <CardDescription>{t("auth.login.subtitle")}</CardDescription>
+            </CardHeader>
 
-        <CardContent className="gap-3">
-          <Input
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            placeholder={t("auth.form.emailPlaceholder")}
-            value={email}
-            onChangeText={setEmail}
-          />
-          <Input
-            autoComplete="password"
-            placeholder={t("auth.form.passwordPlaceholder")}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          {error ? <Text className="text-sm text-ds-text-danger">{error}</Text> : null}
-          <Button
-            disabled={isSubmitting}
-            onPress={() => {
-              void onSubmit();
-            }}
-          >
-            {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
-          </Button>
-          {AUTH_CONFIG.socialProviders.map((provider) => (
-            <Button
-              key={provider}
-              appearance="secondary"
-              disabled={isSubmitting}
-              onPress={() => {
-                onSocialPress(provider);
-              }}
-            >
-              {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
-            </Button>
-          ))}
-        </CardContent>
+            <CardContent className="gap-3">
+              <Text variant="label">{t("common.emailLabel")}</Text>
+              <Input
+                accessibilityLabel={t("common.emailLabel")}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                placeholder={t("auth.form.emailPlaceholder")}
+                value={email}
+                onChangeText={setEmail}
+              />
+              <Text variant="label">{t("common.passwordLabel")}</Text>
+              <Input
+                accessibilityLabel={t("common.passwordLabel")}
+                autoComplete="password"
+                placeholder={t("auth.form.passwordPlaceholder")}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+              {error ? <Text className="text-sm text-ds-text-danger">{error}</Text> : null}
+              <Button
+                disabled={isSubmitting}
+                onPress={() => {
+                  void onSubmit();
+                }}
+              >
+                {isSubmitting ? t("common.loadingShort") : t("auth.login.title")}
+              </Button>
+              {AUTH_CONFIG.socialProviders.map((provider) => (
+                <Button
+                  key={provider}
+                  appearance="secondary"
+                  disabled={isSubmitting}
+                  onPress={() => {
+                    onSocialPress(provider);
+                  }}
+                >
+                  {t(SOCIAL_PROVIDER_LABEL_KEYS[provider])}
+                </Button>
+              ))}
+            </CardContent>
 
-        <View className="mt-4 flex-row items-center justify-center gap-1">
-          <Text variant="caption">{t("auth.login.noAccount")}</Text>
-          <Link href="/signup" asChild>
-            <Pressable>
-              <Text className="text-sm font-semibold text-ds-link">{t("auth.signup.title")}</Text>
-            </Pressable>
-          </Link>
-        </View>
-      </Card>
+            <View className="mt-4 flex-row items-center justify-center gap-1">
+              <Text variant="caption">{t("auth.login.noAccount")}</Text>
+              <Link href="/signup" asChild>
+                <Pressable className="min-h-12 justify-center">
+                  <Text className="text-sm font-semibold text-ds-link">
+                    {t("auth.signup.title")}
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }

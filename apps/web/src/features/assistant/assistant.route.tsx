@@ -1,4 +1,13 @@
 import { createActiveOrganizationQueryKey } from "@repo/query";
+import {
+  Button,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger
+} from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -7,6 +16,8 @@ import type { AssistantMessageDeltaData, ChatMessage } from "./assistant.type";
 import { AssistantComposer } from "./components/assistant-composer";
 import { AssistantMessageList } from "./components/assistant-message-list";
 import { ConversationList } from "./components/conversation-list";
+import { ConfirmDialog } from "../../components/confirm-dialog";
+import { LoadingRows } from "../../components/loading-rows";
 import {
   useDeleteConversationMutation,
   useGetConversationQuery,
@@ -31,6 +42,8 @@ export function AssistantRoute() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const streamingIdRef = useRef<string | null>(null);
   const streamingConversationIdRef = useRef<string | null>(null);
   const populatedRef = useRef<string | null>(null);
@@ -147,12 +160,14 @@ export function AssistantRoute() {
   function openConversation(id: string) {
     if (id === activeConversationId) return;
     populatedRef.current = null;
+    setMessages([]);
     setActiveConversationId(id);
   }
 
   async function handleDeleteConversation(id: string) {
     try {
       await deleteConversationMutation.mutateAsync({ id });
+      setDeletingConversationId(null);
       await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
       if (id === activeConversationId) {
         startNewChat();
@@ -220,6 +235,7 @@ export function AssistantRoute() {
       }
 
       dropStreamingMessage();
+      setInput((current) => current || message);
       toast.error(
         payload.status === "AI_NOT_CONFIGURED"
           ? t("assistant.ai.notConfigured")
@@ -227,6 +243,7 @@ export function AssistantRoute() {
       );
     } catch {
       dropStreamingMessage();
+      setInput((current) => current || message);
       toast.error(t("assistant.ai.failed"));
     }
   }
@@ -235,28 +252,71 @@ export function AssistantRoute() {
     Boolean(activeConversationId) && historyQuery.status === "pending" && messages.length === 0;
 
   return (
-    <section className="grid gap-[var(--ds-space-200)]">
-      <header>
-        <h1>{t("assistant.title")}</h1>
-        <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("assistant.description")}</p>
+    <section className="ui-assistant">
+      <header className="ui-page-header">
+        <div>
+          <h1>{t("assistant.title")}</h1>
+          <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("assistant.description")}</p>
+        </div>
+        <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <SheetTrigger asChild>
+            <Button appearance="subtle" className="ui-assistant__history-trigger">
+              {t("assistant.conversations")}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" closeLabel={t("common.close")}>
+            <SheetHeader>
+              <SheetTitle>{t("assistant.conversations")}</SheetTitle>
+              <SheetDescription>{t("assistant.description")}</SheetDescription>
+            </SheetHeader>
+            <div className="overflow-auto p-[var(--ds-space-200)]">
+              <ConversationList
+                activeId={activeConversationId}
+                conversations={conversations}
+                isLoading={conversationsQuery.isPending}
+                isError={conversationsQuery.isError}
+                onRetry={() => void conversationsQuery.refetch()}
+                onDelete={setDeletingConversationId}
+                onNew={() => {
+                  startNewChat();
+                  setIsHistoryOpen(false);
+                }}
+                onSelect={(id) => {
+                  openConversation(id);
+                  setIsHistoryOpen(false);
+                }}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </header>
 
-      <div className="flex gap-[var(--ds-space-200)]">
-        <aside className="w-[240px] shrink-0 rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
+      <div className="ui-assistant__body">
+        <aside className="ui-assistant__history">
           <ConversationList
             activeId={activeConversationId}
             conversations={conversations}
-            onDelete={(id) => {
-              void handleDeleteConversation(id);
-            }}
+            isLoading={conversationsQuery.isPending}
+            isError={conversationsQuery.isError}
+            onRetry={() => void conversationsQuery.refetch()}
+            onDelete={setDeletingConversationId}
             onNew={startNewChat}
             onSelect={openConversation}
           />
         </aside>
 
-        <section className="flex flex-1 flex-col gap-[var(--ds-space-200)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
+        <section className="ui-assistant__chat">
           {isHistoryLoading ? (
-            <p className="text-[color:var(--ds-text-subtle)]">{t("assistant.historyLoading")}</p>
+            <div className="flex-1">
+              <LoadingRows label={t("assistant.historyLoading")} />
+            </div>
+          ) : activeConversationId && historyQuery.isError ? (
+            <div role="alert" className="flex-1">
+              <p>{t("error.generic")}</p>
+              <Button appearance="subtle" onClick={() => void historyQuery.refetch()}>
+                {t("common.retry")}
+              </Button>
+            </div>
           ) : (
             <AssistantMessageList
               assistantLabel={t("assistant.roleAssistant")}
@@ -278,6 +338,18 @@ export function AssistantRoute() {
           />
         </section>
       </div>
+      <ConfirmDialog
+        isOpen={Boolean(deletingConversationId)}
+        title={t("assistant.deleteChat")}
+        message={t("assistant.deleteConfirmMessage")}
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("button.delete")}
+        isConfirming={deleteConversationMutation.isPending}
+        onCancel={() => setDeletingConversationId(null)}
+        onConfirm={() => {
+          if (deletingConversationId) void handleDeleteConversation(deletingConversationId);
+        }}
+      />
     </section>
   );
 }

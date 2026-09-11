@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Checkbox, Text } from "@repo/mobile-ui";
+import { Badge, Button, Checkbox, Text } from "@repo/mobile-ui";
 import { Pressable, View } from "react-native";
 
 import { TodoAttachments } from "./todo-attachments";
@@ -23,11 +23,20 @@ export function TodoItemCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="p-3">
-      <View className="flex-row items-start justify-between gap-3">
+    <View className="border-b border-ds-border py-4">
+      <View className="gap-3">
         <View className="flex-row flex-1 items-start gap-3">
-          <Checkbox checked={item.completed} onCheckedChange={() => onToggle(item)} />
-          <Pressable className="flex-1" onPress={() => onToggle(item)}>
+          <Checkbox
+            accessibilityLabel={item.title}
+            checked={item.completed}
+            onCheckedChange={() => onToggle(item)}
+          />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: item.completed }}
+            className="min-h-12 flex-1"
+            onPress={() => onToggle(item)}
+          >
             <Text className="font-medium text-ds-text">{item.title}</Text>
             {item.description ? (
               <Text className="mt-1 text-sm text-ds-text-subtle">{item.description}</Text>
@@ -52,6 +61,6 @@ export function TodoItemCard({
         todoId={item.id}
         onChanged={onAttachmentChanged}
       />
-    </Card>
+    </View>
   );
 }

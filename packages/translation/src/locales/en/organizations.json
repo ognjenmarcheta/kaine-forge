@@ -5,5 +5,6 @@
   "organizations.members.error": "Members could not be loaded.",
   "organizations.members.loading": "Loading members...",
   "organizations.members.title": "Members",
-  "organizations.name": "Organization name"
+  "organizations.name": "Organization name",
+  "organizations.members.mobilePlaceholder": "Member management is available in the web app."
 }

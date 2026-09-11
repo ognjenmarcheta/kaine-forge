@@ -1,21 +1,30 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
 
-const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "dashboard-overview.tsx");
-const source = readFileSync(sourcePath, "utf8");
+import { DashboardOverview } from "./dashboard-overview";
 
-describe("DashboardOverview implementation contract", () => {
-  it("uses shared Card primitives from @repo/ui", () => {
-    expect(source).toContain('from "@repo/ui"');
-    expect(source).toContain("Card");
-    expect(source).toContain("CardHeader");
-    expect(source).toContain("CardTitle");
-    expect(source).toContain("CardDescription");
-  });
+const scope = vi.hoisted(() => ({ organizationsVisible: true }));
+vi.mock("../../../hooks/use-organization", () => ({
+  useOrganization: () => ({
+    ...scope,
+    activeOrganizationId: "one",
+    organizations: [{ id: "one", name: "Example organization" }]
+  })
+}));
+vi.mock("../../../hooks/use-translation", () => ({
+  useTranslation: () => ({ t: (key: string) => key })
+}));
 
-  it("does not render manual article cards", () => {
-    expect(source).not.toContain("<article");
+describe("dashboard navigation", () => {
+  it.each([true, false])("exposes supported workflows with organizations visible=%s", (visible) => {
+    scope.organizationsVisible = visible;
+    const markup = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(DashboardOverview))
+    );
+    for (const path of ["todos", "notes", "assistant"]) expect(markup).toContain(`href="/${path}"`);
+    expect(markup.includes('href="/members"')).toBe(visible);
+    expect(markup.includes("Example organization")).toBe(visible);
   });
 });

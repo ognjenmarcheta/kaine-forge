@@ -1,4 +1,5 @@
 {
+  "todos.attachments.error.downloadFailed": "Anhang konnte nicht geöffnet werden",
   "todos.title": "Aufgaben",
   "todos.create": "Neue Aufgabe",
   "todos.loading": "Aufgaben werden geladen...",
@@ -20,7 +21,7 @@
   "todos.ai.notConfigured": "KI ist noch nicht eingerichtet.",
   "todos.ai.failed": "KI konnte keine Aufgaben erstellen.",
   "todos.ai.promptRequired": "Gib zuerst einen Prompt ein.",
-  "todos.examples.title": "Formular modal beispiele",
+  "todos.examples.title": "Beispiele",
   "todos.examples.description": "Wiederverwendbare modal formulare mit TanStack Form.",
   "todos.examples.simple.open": "Einfaches modal offnen",
   "todos.examples.simple.modalTitle": "Schnell aufgabe erstellen",

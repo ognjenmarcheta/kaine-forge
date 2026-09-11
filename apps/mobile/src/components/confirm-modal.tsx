@@ -33,7 +33,12 @@ export function ConfirmModal({
   onCancel
 }: ConfirmModalProps) {
   return (
-    <Dialog isOpen={isOpen} onClose={onCancel}>
+    <Dialog
+      isOpen={isOpen}
+      onClose={() => {
+        if (!isConfirming) onCancel();
+      }}
+    >
       <DialogOverlay>
         <DialogContent>
           <DialogHeader>
@@ -53,7 +58,9 @@ export function ConfirmModal({
               appearance="danger"
               disabled={isConfirming}
               spacing="compact"
-              onPress={onConfirm}
+              onPress={() => {
+                if (!isConfirming) onConfirm();
+              }}
             >
               {isConfirming ? confirmingLabel : confirmLabel}
             </Button>

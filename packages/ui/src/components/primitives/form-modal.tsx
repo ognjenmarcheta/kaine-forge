@@ -46,12 +46,17 @@ export function FormModal({
   return (
     <Modal
       {...(closeButtonLabel ? { closeButtonLabel } : {})}
-      {...(closeOnEscape !== undefined ? { closeOnEscape } : {})}
-      {...(closeOnOverlayClick !== undefined ? { closeOnOverlayClick } : {})}
+      closeOnEscape={!isSubmitting && (closeOnEscape ?? true)}
+      closeOnOverlayClick={!isSubmitting && (closeOnOverlayClick ?? true)}
       {...(description ? { description } : {})}
       footer={
         <div className="ui-modal__actions">
-          <Button appearance="subtle" type="button" onClick={() => onOpenChange(false)}>
+          <Button
+            disabled={isSubmitting}
+            appearance="subtle"
+            type="button"
+            onClick={() => onOpenChange(false)}
+          >
             {cancelLabel}
           </Button>
           <Button disabled={isSubmitting} form={formId} type="submit">
@@ -59,9 +64,11 @@ export function FormModal({
           </Button>
         </div>
       }
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!isSubmitting) onOpenChange(nextOpen);
+      }}
       open={open}
-      {...(showCloseButton !== undefined ? { showCloseButton } : {})}
+      showCloseButton={!isSubmitting && (showCloseButton ?? true)}
       {...(size ? { size } : {})}
       title={title}
     >
@@ -70,10 +77,16 @@ export function FormModal({
         id={formId}
         onSubmit={(event) => {
           event.preventDefault();
-          void onSubmit(event);
+          if (!isSubmitting) void onSubmit(event);
         }}
       >
-        {children}
+        <fieldset
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+          className="m-0 min-w-0 border-0 p-0 grid gap-[var(--ds-space-200)]"
+        >
+          {children}
+        </fieldset>
       </form>
     </Modal>
   );

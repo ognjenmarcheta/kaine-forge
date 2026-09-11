@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { Checkbox } from "./checkbox";
 import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from "./field";
@@ -75,10 +75,12 @@ export function ConfigFormModal({
     }
   });
 
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
       form.reset(mergedDefaults);
     }
+    wasOpen.current = open;
   }, [form, mergedDefaults, open]);
 
   return (

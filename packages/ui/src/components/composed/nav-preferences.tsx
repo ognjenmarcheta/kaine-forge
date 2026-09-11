@@ -18,7 +18,7 @@ export function NavPreferences({
 }: NavPreferencesProps) {
   if (layout === "inline-icons") {
     return (
-      <div className="flex items-center justify-start gap-[var(--ds-space-100)] px-[var(--ds-space-050)]">
+      <div className="flex items-center justify-start gap-[var(--ds-space-100)] px-[var(--ds-space-050)] group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:px-0">
         <ShellSelectControl className="size-8" display="icon" icon="language" {...language} />
         <ShellSelectControl className="size-8" display="icon" icon="theme" {...theme} />
       </div>

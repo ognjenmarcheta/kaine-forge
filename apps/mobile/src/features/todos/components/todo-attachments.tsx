@@ -2,7 +2,7 @@ import { Button, Separator, Text } from "@repo/mobile-ui";
 import { formatAttachmentSize } from "@repo/todos";
 import * as DocumentPicker from "expo-document-picker";
 import { useState } from "react";
-import { Linking, Pressable, View } from "react-native";
+import { Linking, View } from "react-native";
 
 import { ConfirmModal } from "../../../components/confirm-modal";
 import { useDeleteMobileFileMutation } from "../../../graphql/generated/react-query";
@@ -73,8 +73,14 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
     }
   }
 
-  async function handleDownload(url: string) {
-    await Linking.openURL(url);
+  async function handleDownload(file: Attachment) {
+    if (!file.downloadUrl) return;
+    setError(null);
+    try {
+      await Linking.openURL(file.downloadUrl);
+    } catch {
+      setError(t("todos.attachments.error.downloadFailed"));
+    }
   }
 
   const isUploading =
@@ -103,13 +109,14 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
         </View>
       </View>
 
-      {error ? <Text className="mt-1 text-xs text-ds-text-danger">{error}</Text> : null}
+      {error ? (
+        <Text accessibilityRole="alert" className="mt-1 text-xs text-ds-text-danger">
+          {error}
+        </Text>
+      ) : null}
 
       {attachments.map((file) => (
-        <View
-          key={file.id}
-          className="mt-1 flex-row items-center justify-between rounded-md bg-ds-surface-sunken px-2 py-1"
-        >
+        <View key={file.id} className="mt-1 gap-2 rounded-md bg-ds-surface-sunken px-2 py-2">
           <View className="flex-1 flex-row items-center gap-2 overflow-hidden">
             <Text className="shrink text-xs text-ds-text" numberOfLines={1}>
               {file.originalName}
@@ -120,17 +127,24 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
           </View>
           <View className="flex-row gap-2">
             {file.downloadUrl ? (
-              <Pressable
+              <Button
+                appearance="ghost"
+                spacing="compact"
                 onPress={() => {
-                  void handleDownload(file.downloadUrl!);
+                  void handleDownload(file);
                 }}
               >
-                <Text className="text-xs text-ds-link">{t("todos.attachments.download")}</Text>
-              </Pressable>
+                {t("todos.attachments.download")}
+              </Button>
             ) : null}
-            <Pressable onPress={() => setDeletingFileId(file.id)}>
-              <Text className="text-xs text-ds-text-subtle">{t("todos.attachments.delete")}</Text>
-            </Pressable>
+            <Button
+              appearance="ghost"
+              spacing="compact"
+              disabled={deleteFileMutation.isPending}
+              onPress={() => setDeletingFileId(file.id)}
+            >
+              {t("todos.attachments.delete")}
+            </Button>
           </View>
         </View>
       ))}

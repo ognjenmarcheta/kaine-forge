@@ -2,6 +2,10 @@ import { createActiveOrganizationQueryKey } from "@repo/query";
 import { createTodoClientWorkflow } from "@repo/todos";
 import {
   Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
   Checkbox,
   ConfigFormModal,
   Field,
@@ -15,7 +19,7 @@ import {
   type SimpleFormValues
 } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { TodoCreateDialog } from "./components/todo-create-dialog";
@@ -24,6 +28,7 @@ import { TodoList } from "./components/todo-list";
 import { TODOS_CONFIG } from "./todos.config";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { ConfirmDialog } from "../../components/confirm-dialog";
+import { LoadingRows } from "../../components/loading-rows";
 import {
   useCreateTodoMutation,
   useDeleteTodoMutation,
@@ -63,6 +68,7 @@ export function TodosRoute() {
   const [isSimpleExampleSubmitting, setIsSimpleExampleSubmitting] = useState(false);
   const [isAdvancedExampleOpen, setIsAdvancedExampleOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [isAiOpen, setIsAiOpen] = useState(false);
 
   const listVariables = useMemo(
     () => ({
@@ -149,21 +155,28 @@ export function TodosRoute() {
   const advancedExampleForm = useUiForm({
     defaultValues: advancedDefaultValues,
     onSubmit: async ({ value }) => {
-      await createTodoFromDraft(
-        {
-          description: value.description,
-          title: value.title
-        },
-        value.markCompleted
-      );
-      setIsAdvancedExampleOpen(false);
+      try {
+        setActionError(null);
+        await createTodoFromDraft(
+          {
+            description: value.description,
+            title: value.title
+          },
+          value.markCompleted
+        );
+        setIsAdvancedExampleOpen(false);
+      } catch {
+        setActionError(t("error.generic"));
+      }
     }
   });
 
+  const wasAdvancedOpen = useRef(false);
   useEffect(() => {
-    if (isAdvancedExampleOpen) {
+    if (isAdvancedExampleOpen && !wasAdvancedOpen.current) {
       advancedExampleForm.reset();
     }
+    wasAdvancedOpen.current = isAdvancedExampleOpen;
   }, [advancedExampleForm, isAdvancedExampleOpen]);
 
   const invalidateTodos = useCallback(async () => {
@@ -238,8 +251,9 @@ export function TodosRoute() {
   async function handleCreate(draft: TodoDraft) {
     try {
       await createTodoFromDraft(draft, false);
-    } catch {
+    } catch (error) {
       setActionError(t("error.generic"));
+      throw error;
     }
   }
 
@@ -256,8 +270,9 @@ export function TodosRoute() {
         id: editingTodo.id
       });
       setEditingTodo(null);
-    } catch {
+    } catch (error) {
       setActionError(t("error.generic"));
+      throw error;
     }
   }
 
@@ -297,6 +312,7 @@ export function TodosRoute() {
 
     const prompt = aiPrompt.trim();
 
+    if (generateTodosMutation.isPending) return;
     if (prompt.length === 0) {
       toast.error(t("todos.ai.promptRequired"));
       return;
@@ -318,6 +334,7 @@ export function TodosRoute() {
       if (result.generateTodos.status === "CREATED") {
         await invalidateTodos();
         setAiPrompt("");
+        setIsAiOpen(false);
         toast.success(t("todos.ai.created"));
         return;
       }
@@ -334,60 +351,65 @@ export function TodosRoute() {
 
   return (
     <section className="grid gap-[var(--ds-space-200)]">
-      <header className="flex items-center justify-between gap-[var(--ds-space-150)]">
+      <header className="ui-page-header">
         <div>
           <h1>{t("todos.title")}</h1>
           <p className="text-[color:var(--ds-text-subtle)]">{completionSummary}</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
+        <div className="ui-toolbar">
+          <Button onClick={() => setIsCreateOpen(true)}>{t("todos.create")}</Button>
+          <Button appearance="subtle" onClick={() => setIsAiOpen(true)}>
+            {t("todos.ai.title")}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button appearance="ghost">{t("todos.examples.title")}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setIsSimpleExampleOpen(true)}>
+                {t("todos.examples.simple.open")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setIsAdvancedExampleOpen(true)}>
+                {t("todos.examples.advanced.open")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
-      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
-        <div>
-          <h2>{t("todos.ai.title")}</h2>
-          <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.ai.description")}</p>
-        </div>
-        <form
-          className="flex flex-col gap-[var(--ds-space-150)]"
-          onSubmit={(event) => void handleGenerateTodos(event)}
-        >
-          <Field>
-            <FieldLabel htmlFor="todos-ai-prompt">{t("todos.ai.promptLabel")}</FieldLabel>
-            <Textarea
-              id="todos-ai-prompt"
-              placeholder={t("todos.ai.promptPlaceholder")}
-              value={aiPrompt}
-              onChange={(event) => setAiPrompt(event.target.value)}
-            />
-          </Field>
-          <div>
-            <Button disabled={generateTodosMutation.status === "pending"} type="submit">
-              {generateTodosMutation.status === "pending"
-                ? t("todos.ai.generating")
-                : t("todos.ai.submit")}
-            </Button>
-          </div>
-        </form>
-      </section>
+      <FormModal
+        open={isAiOpen}
+        onOpenChange={setIsAiOpen}
+        title={t("todos.ai.title")}
+        description={t("todos.ai.description")}
+        closeButtonLabel={t("common.close")}
+        cancelLabel={t("button.cancel")}
+        isSubmitting={generateTodosMutation.isPending}
+        submitLabel={t("todos.ai.submit")}
+        submittingLabel={t("todos.ai.generating")}
+        onSubmit={handleGenerateTodos}
+      >
+        <Field>
+          <FieldLabel htmlFor="todos-ai-prompt">{t("todos.ai.promptLabel")}</FieldLabel>
+          <Textarea
+            id="todos-ai-prompt"
+            placeholder={t("todos.ai.promptPlaceholder")}
+            value={aiPrompt}
+            onChange={(event) => setAiPrompt(event.target.value)}
+          />
+        </Field>
+      </FormModal>
 
-      <section className="flex flex-col gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)]">
-        <h2>{t("todos.examples.title")}</h2>
-        <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("todos.examples.description")}</p>
-        <div className="flex flex-wrap gap-[var(--ds-space-150)]">
-          <Button appearance="subtle" type="button" onClick={() => setIsSimpleExampleOpen(true)}>
-            {t("todos.examples.simple.open")}
-          </Button>
-          <Button appearance="subtle" type="button" onClick={() => setIsAdvancedExampleOpen(true)}>
-            {t("todos.examples.advanced.open")}
+      {isLoading ? <LoadingRows label={t("todos.loading")} /> : null}
+      {error ? (
+        <div role="alert" className="ui-toolbar">
+          <FieldError>{error}</FieldError>
+          <Button appearance="subtle" onClick={() => void todosQuery.refetch()}>
+            {t("common.retry")}
           </Button>
         </div>
-      </section>
-
-      {isLoading ? (
-        <p className="text-[color:var(--ds-text-subtle)]">{t("todos.loading")}</p>
       ) : null}
-      {error ? <FieldError>{error}</FieldError> : null}
-      {!isLoading ? (
+      {!isLoading && !todosQuery.error ? (
         <TodoList
           items={todos}
           onAttachmentChanged={() => {
@@ -431,6 +453,7 @@ export function TodosRoute() {
         }}
         description={t("todos.examples.simple.descriptionText")}
         fields={simpleExampleFields}
+        formError={actionError}
         isSubmitting={isSimpleExampleSubmitting}
         open={isSimpleExampleOpen}
         submitLabel={t("todos.examples.simple.submit")}
@@ -476,6 +499,7 @@ export function TodosRoute() {
         }}
         onSubmit={() => advancedExampleForm.handleSubmit()}
       >
+        {actionError ? <FieldError>{actionError}</FieldError> : null}
         <advancedExampleForm.Field
           name="title"
           validators={{

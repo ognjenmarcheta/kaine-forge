@@ -20,11 +20,11 @@ export function TodoList({
   const { t } = useTranslation();
 
   if (items.length === 0) {
-    return <p className="text-[color:var(--ds-text-subtle)]">{t("todos.empty")}</p>;
+    return <p className="ui-empty-state">{t("todos.empty")}</p>;
   }
 
   return (
-    <ul className="m-0 grid list-none gap-[var(--ds-space-100)] p-0">
+    <ul className="ui-work-list">
       {items.map((item) => (
         <TodoItemRow
           key={item.id}

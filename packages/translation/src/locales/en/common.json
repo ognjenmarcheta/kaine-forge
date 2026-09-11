@@ -18,5 +18,6 @@
   "connection.connected": "Connected",
   "connection.connecting": "Connecting...",
   "connection.disconnected": "Disconnected",
-  "connection.reconnecting": "Reconnecting..."
+  "connection.reconnecting": "Reconnecting...",
+  "common.retry": "Try again"
 }

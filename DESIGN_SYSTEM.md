@@ -222,6 +222,14 @@ Surface and shadow levels must match.
 
 Do not pair `surface-raised` with `shadow-overlay` or default surface with raised shadow unless a documented component token says so.
 
+### Motion contract
+
+Use CSS on web/desktop and Reanimated on native. Do not add an animation framework. Canonical duration tokens are `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms). Use small opacity/transform transitions, respect reduced motion, and never delay navigation. Theme changes are immediate and preserve drafts, focus, and scroll.
+
+### Workflow visual direction
+
+Use neutral white and charcoal surfaces with restrained blue primary actions. Keep the system font stack and 4–8px control radii. Use aligned rows and dividers for work lists. The dashboard links to existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
+
 ## 8. Theming
 
 The current template supports light, dark, and system preference behavior. Theme switching is done by setting `data-theme` at the app root and resolving tokens through CSS custom properties.
@@ -266,7 +274,7 @@ Composed component rules:
 
 ### Token pipeline (single source of truth)
 
-Canonical functional and structural tokens live in `packages/ui/src/styles/globals.css` (with web contract tests). Mobile does **not** hand-maintain a second hex palette.
+Canonical functional and structural tokens live in `packages/ui/src/styles/globals.css` (with web contract tests). Mobile does **not** hand-maintain a second hex palette. The same generator emits `packages/mobile-ui/src/lib/design-tokens.ts` for native navigation colors and motion durations; consume its public `@repo/mobile-ui` exports for APIs that require concrete runtime values.
 
 Pipeline:
 

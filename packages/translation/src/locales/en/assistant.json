@@ -15,5 +15,7 @@
   "assistant.roleAssistant": "Assistant",
   "assistant.toolActions": "Actions taken",
   "assistant.ai.notConfigured": "The AI assistant is not configured.",
-  "assistant.ai.failed": "The assistant could not complete your request."
+  "assistant.ai.failed": "The assistant could not complete your request.",
+  "assistant.conversations": "Conversations",
+  "assistant.deleteConfirmMessage": "Delete this conversation and its messages?"
 }

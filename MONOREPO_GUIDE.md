@@ -262,14 +262,16 @@ pnpm release:apps --apps all
 
 Web/desktop shell:
 
-- Header: logo, optional org switcher, language switcher, theme control, user menu.
-- Sidebar: dashboard, todos, and members when `ORGANIZATIONS_VISIBLE` is enabled.
-- Main content renders the active route.
+- Header: stable sidebar trigger and route breadcrumbs.
+- Sidebar: optional Organization switcher above dashboard, todos, notes, assistant, and members navigation. Organization controls and members are gated by `ORGANIZATIONS_VISIBLE`.
+- Language, theme, and user controls sit below navigation. Preferences stack in the collapsed icon rail. Below 768px, navigation uses a drawer.
+- Main content renders the active route, keyed by Active Organization. Theme and language changes preserve route drafts; successful Organization switches reset scoped route state.
 
 Mobile shell:
 
 - Expo Router owns file-based routing.
 - Drawer navigation replaces the web sidebar.
+- The drawer holds explicit theme/language choices and logout. Organization switching is above navigation when enabled; native Todo state resets on Active Organization changes.
 - Mobile screens reuse shared auth/data/translation packages and `@repo/mobile-ui` primitives.
 
 ## 13. State Management

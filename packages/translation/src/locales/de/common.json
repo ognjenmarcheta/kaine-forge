@@ -18,5 +18,6 @@
   "connection.connected": "Verbunden",
   "connection.connecting": "Verbindung wird hergestellt...",
   "connection.disconnected": "Getrennt",
-  "connection.reconnecting": "Erneut verbinden..."
+  "connection.reconnecting": "Erneut verbinden...",
+  "common.retry": "Erneut versuchen"
 }

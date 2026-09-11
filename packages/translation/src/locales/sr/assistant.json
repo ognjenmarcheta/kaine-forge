@@ -15,5 +15,7 @@
   "assistant.roleAssistant": "Asistent",
   "assistant.toolActions": "Preduzete radnje",
   "assistant.ai.notConfigured": "AI asistent nije konfigurisan.",
-  "assistant.ai.failed": "Asistent nije mogao da izvrši tvoj zahtev."
+  "assistant.ai.failed": "Asistent nije mogao da izvrši tvoj zahtev.",
+  "assistant.conversations": "Razgovori",
+  "assistant.deleteConfirmMessage": "Obrisati ovaj razgovor i njegove poruke?"
 }
