@@ -16,6 +16,7 @@
     "build": "turbo run build",
     "build:core": "turbo run build --filter=@repo/api --filter=@repo/web",
     "check": "pnpm run format:check && pnpm run lint && pnpm run boundaries && pnpm run typecheck && pnpm run test && pnpm run knip",
+    "check:affected": "turbo run format:check lint typecheck test --filter=...[origin/main] --continue && pnpm run ai:lint && pnpm run ai:typecheck && pnpm run ai:test && node -e \"console.log('check:affected skipped boundaries and knip (whole-graph) - run pnpm check before opening a PR')\"",
     "check:ci": "pnpm run check",
     "format": "turbo run format --continue",
     "format:check": "turbo run format:check --continue",

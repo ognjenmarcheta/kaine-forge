@@ -37,6 +37,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Run all dev tasks: `pnpm dev`
 - Generate GraphQL artifacts: `pnpm generate`
 - Run full check: `pnpm check`
+- Run only what your branch touched: `pnpm check:affected` (omits `boundaries` and `knip`, which are whole-graph)
 - Format check: `pnpm format:check`
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
@@ -104,7 +105,7 @@ The ladder runs after you understand the problem, not instead of it: read the ta
 ### Stop Conditions
 
 - If the same failing command is rerun twice in one session without a new hypothesis, stop. Capture the root cause and change strategy (different command, smaller repro, or ask).
-- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): scoped workspace checks for package work, `pnpm check` for broader changes.
+- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): `pnpm check:affected` while iterating, `pnpm check` before a PR.
 
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 

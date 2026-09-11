@@ -14,6 +14,24 @@ When a skill mentions a role, such as "apply the AFK-ready triage label", use th
 
 Edit the right-hand column to match whatever vocabulary this repo actually uses if labels change later.
 
+## What `ready-for-agent` requires
+
+`ready-for-agent` says "fully specified". An issue is fully specified when it
+carries all six of these. Missing any one makes it `needs-info`, not
+`ready-for-agent`.
+
+1. **One named outcome**, stated as observable behaviour rather than a task.
+2. **At least one acceptance criterion** the agent can check without asking a
+   human.
+3. **Scope**: the workspaces or paths in play, or an explicit "unknown —
+   investigate first".
+4. **A validation tier** from `docs/agents/day-one.md` §5, so the agent knows
+   which checks close the loop.
+5. **Evidence**: a `path:line`, command output, or a reproduction. The same bar
+   `kaine-scorecard` applies before it files anything.
+6. **Anything deliberately out of scope**, named — so the agent does not widen
+   the change to be helpful.
+
 ## Bootstrapping the labels
 
 GitHub labels are repository state, not files, so a repo generated from this template starts without them. Create the set once per repository:
