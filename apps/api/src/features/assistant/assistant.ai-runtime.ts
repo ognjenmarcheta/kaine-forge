@@ -5,7 +5,8 @@ import { isStepCount, streamText, type ModelMessage, type StepResult, type ToolS
 
 import { createAssistantTools } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
-import type { AssistantMessageDeltaPayload, PubSubEventMap } from "../../pubsub";
+import type { ApiWorkflows } from "../../context.workflows";
+import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
 const DEFAULT_AI_ASSISTANT_MODELS = {
   deepseek: "deepseek-chat",
@@ -64,15 +65,10 @@ export interface RunAgentResult {
 
 export interface AssistantAiRuntimeDeps {
   publishAssistantDelta: (payload: AssistantMessageDeltaPayload) => void;
-  publishNoteEvent: <TEventName extends keyof PubSubEventMap>(
-    eventName: TEventName,
-    ...payload: PubSubEventMap[TEventName]
-  ) => void;
-  publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
-    eventName: TEventName,
-    ...payload: PubSubEventMap[TEventName]
-  ) => void;
   recordModelCall: (telemetry: AssistantModelCallTelemetry) => void;
+  // The workflows publish their own events, so the runtime no longer forwards
+  // publishers for todos and notes (issue #393).
+  workflows: Pick<ApiWorkflows, "note" | "todo">;
 }
 
 function getEnvValue(name: string): string | null {
@@ -151,9 +147,8 @@ function flattenSteps<TTools extends ToolSet>(
 
 export function createAssistantAiRuntime({
   publishAssistantDelta,
-  publishNoteEvent,
-  publishTodoEvent,
-  recordModelCall
+  recordModelCall,
+  workflows
 }: AssistantAiRuntimeDeps) {
   return {
     isConfigured: () => Boolean(resolveAiAssistantConfig().apiKey),
@@ -174,7 +169,11 @@ export function createAssistantAiRuntime({
         model,
         instructions: ASSISTANT_SYSTEM_PROMPT,
         messages: toModelMessages(messages),
-        tools: createAssistantTools({ publishNoteEvent, publishTodoEvent, scope }),
+        tools: createAssistantTools({
+          noteWorkflow: workflows.note,
+          scope,
+          todoWorkflow: workflows.todo
+        }),
         stopWhen: isStepCount(MAX_ASSISTANT_STEPS)
       });
 

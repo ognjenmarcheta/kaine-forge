@@ -1,24 +1,17 @@
 import { pipe } from "graphql-yoga";
 
-import {
-  createTodo,
-  deleteTodo,
-  getTodoById,
-  listTodosByScope,
-  toggleTodo,
-  updateTodo
-} from "./todos.adapter";
+// createTodo here feeds createTodoAiWorkflow, which normalizes through the
+// same todos.util helpers the workflow uses, so the AI path is not a guard
+// bypass. Every other write goes through ctx.workflows.todo.
+import { createTodo, getTodoById, listTodosByScope } from "./todos.adapter";
 import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
 import { createTodoAiRuntime } from "./todos.ai-runtime";
 import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
 import { coercePagination } from "./todos.util";
-import { createTodoWorkflow } from "./todos.workflow";
 import type { ApiContext } from "../../context";
 import { errorReporter, formatLoggableError } from "../../observability";
 import { filterByOrganization } from "../../pubsub";
-import { createAttachmentLifecycle } from "../storage/attachment.lifecycle";
-import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
 
 type TodosQueryArgs = { limit?: number; offset?: number };
 type TodoByIdArgs = { id: string };
@@ -26,29 +19,6 @@ type CreateTodoArgs = { input: CreateTodoInput };
 type GenerateTodosArgs = { input: GenerateTodosInput };
 type UpdateTodoArgs = { id: string; input: UpdateTodoInput };
 type ResolverContext = ApiContext;
-
-function createTodoWorkflowForContext(ctx: ResolverContext) {
-  const attachmentLifecycle = createAttachmentLifecycle({
-    deleteFilesByEntity,
-    listFiles
-  });
-
-  return createTodoWorkflow({
-    createTodo,
-    deleteTodo,
-    deleteTodoAttachments: async (scope, id) => {
-      await attachmentLifecycle.deleteTodoAttachments(scope, id);
-    },
-    publishTodoEvent: (eventName, ...payload) => {
-      ctx.pubsub.publish(eventName, ...payload);
-    },
-    toggleTodo,
-    updateTodo,
-    warnTodoAttachmentCleanupFailed: ({ err, todoId }) => {
-      ctx.logger.warn({ err, todoId }, "failed to soft-delete todo attachments");
-    }
-  });
-}
 
 function createTodoAiWorkflowForContext(ctx: ResolverContext) {
   const aiRuntime = createTodoAiRuntime({
@@ -100,7 +70,7 @@ export const todosResolvers = {
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).createTodo(scope, args.input);
+      return ctx.workflows.todo.createTodo(scope, args.input);
     },
     async generateTodos(_parent: unknown, args: GenerateTodosArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
@@ -108,15 +78,15 @@ export const todosResolvers = {
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).updateTodo(scope, args.id, args.input);
+      return ctx.workflows.todo.updateTodo(scope, args.id, args.input);
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).deleteTodo(scope, args.id);
+      return ctx.workflows.todo.deleteTodo(scope, args.id);
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createTodoWorkflowForContext(ctx).toggleTodo(scope, args.id);
+      return ctx.workflows.todo.toggleTodo(scope, args.id);
     }
   },
   Subscription: {

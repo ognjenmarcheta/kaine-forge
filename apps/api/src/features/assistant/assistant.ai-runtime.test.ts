@@ -87,11 +87,20 @@ const scope = {
   userId: "user-1"
 };
 
+const workflows = {
+  note: { createNote: vi.fn(), deleteNote: vi.fn(), updateNote: vi.fn() },
+  todo: {
+    createTodo: vi.fn(),
+    deleteTodo: vi.fn(),
+    toggleTodo: vi.fn(),
+    updateTodo: vi.fn()
+  }
+};
+
 const deps = () => ({
   publishAssistantDelta: vi.fn(),
-  publishNoteEvent: vi.fn(),
-  publishTodoEvent: vi.fn(),
-  recordModelCall: vi.fn()
+  recordModelCall: vi.fn(),
+  workflows
 });
 
 const runInput = {
@@ -213,14 +222,14 @@ describe("createAssistantAiRuntime", () => {
       expect(instructions).toContain("Do not use markdown");
     });
 
-    it("forwards the injected publishers and scope to the tool factory", async () => {
+    it("forwards the workflows and scope to the tool factory", async () => {
       const injected = deps();
       await createAssistantAiRuntime(injected).runAgent(runInput);
 
       expect(createAssistantTools).toHaveBeenCalledWith({
-        publishNoteEvent: injected.publishNoteEvent,
-        publishTodoEvent: injected.publishTodoEvent,
-        scope
+        noteWorkflow: injected.workflows.note,
+        scope,
+        todoWorkflow: injected.workflows.todo
       });
       expect(aiSdkMocks.streamText.mock.calls[0]?.[0]).toMatchObject({ tools: toolSet });
     });

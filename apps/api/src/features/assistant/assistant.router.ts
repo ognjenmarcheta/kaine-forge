@@ -27,15 +27,10 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     publishAssistantDelta: (payload) => {
       ctx.pubsub.publish("assistant:delta", payload);
     },
-    publishTodoEvent: (eventName, ...payload) => {
-      ctx.pubsub.publish(eventName, ...payload);
-    },
-    publishNoteEvent: (eventName, ...payload) => {
-      ctx.pubsub.publish(eventName, ...payload);
-    },
     recordModelCall: (telemetry) => {
       ctx.logger.info(telemetry, "assistant model call");
-    }
+    },
+    workflows: ctx.workflows
   });
 
   return createAssistantAiWorkflow({
