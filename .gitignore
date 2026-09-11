@@ -34,6 +34,7 @@ apps/e2e/test-results/
 # Agent worktrees: knip scans them and `git add -A` would sweep them in.
 .claude/worktrees/
 .codex/config.toml
+.cursor/hooks.json
 .cursor/mcp.json
 .cursor/rules/
 .cursor/skills/

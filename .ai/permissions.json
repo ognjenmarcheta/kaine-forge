@@ -19,16 +19,14 @@
       "id": "release-apps",
       "decision": "deny",
       "command": "pnpm release:apps",
-      "reason": "Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main.",
-      "instead": "let the Release workflow run it after merge"
+      "reason": "Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main after merge."
     },
     {
       "id": "git-no-verify",
       "decision": "deny",
       "command": "git",
       "flag": "--no-verify",
-      "reason": "Bypasses commitlint, the AI-attribution gate, and the pre-push typecheck.",
-      "instead": "fix the hook failure"
+      "reason": "Bypasses commitlint, the AI-attribution gate, and the pre-push typecheck. Fix the hook failure instead of skipping it."
     },
     {
       "id": "db-seed",

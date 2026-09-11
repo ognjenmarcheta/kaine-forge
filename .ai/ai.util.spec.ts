@@ -1050,6 +1050,12 @@ describe("renderGuardedCommandsSection", () => {
     // The enforcement asymmetry is stated rather than left to be discovered.
     expect(section).toContain("degrades to an advisory");
   });
+
+  it("emits no markdown table, which prettier would realign into permanent drift", () => {
+    // Regression: a generated table in AGENTS.md is reformatted by lint-staged
+    // on commit, so ai:doctor --strict then reports drift on every run.
+    expect(renderGuardedCommandsSection(readPermissionsSource())).not.toMatch(/^\|/m);
+  });
 });
 
 describe("renderGrokPreToolUseHook", () => {

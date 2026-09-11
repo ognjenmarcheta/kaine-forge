@@ -732,10 +732,13 @@ export const claudePermissionEntries = (rules: GuardRule[]): { ask: string[]; de
  * drift from the enforced half because pnpm ai:doctor --strict gates AGENTS.md.
  */
 export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
+  // A bullet list, not a table: prettier realigns markdown tables, so a
+  // generated table would drift from its committed form on every commit. The
+  // Generated Skills Index above uses bullets for the same reason.
   const rows = rules.map((rule) => {
     const target = rule.flag ? `${rule.command} ... ${rule.flag}` : rule.command;
     const guidance = rule.instead ? `${rule.reason} Use \`${rule.instead}\` instead.` : rule.reason;
-    return `| \`${target}\` | ${rule.decision} | ${guidance} |`;
+    return `- **${rule.decision}** \`${target}\` — ${guidance}`;
   });
 
   return [
@@ -746,8 +749,6 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
     "verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier",
     "as the guarantee.",
     "",
-    "| Command | Verdict | Why |",
-    "| --- | --- | --- |",
     ...rows
   ].join("\n");
 };
