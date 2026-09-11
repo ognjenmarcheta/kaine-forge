@@ -189,6 +189,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 Use skills when they match the task:
 
 - `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
+- `kaine-create-feature`: scaffold an organization-scoped CRUD feature slice and wire it into every registration point.
 - `kaine-encode-knowledge`: promote repeated review/agent failures into durable infra (lint, test, REVIEW, skill, CONTEXT).
 - `kaine-sync-docs`: reinstall and verify AI assistant files.
 - `kaine-test`: plan or write tests for a specified system under test.
@@ -229,6 +230,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 ## Generated Skills Index
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
+- `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
 - `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
