@@ -13,11 +13,21 @@ facts.
 
 ## How a run works
 
-Agents read `AGENTS.md`. So arm A is a clean `git worktree` at the commit under
-test, and arm B is a second worktree at the same commit with the one section
-under test stripped from the generated `AGENTS.md`. The tracked repo is never
-modified. Both arms get the identical task prompt, `n = 3` each, and the
-verdicts and metrics are recorded below by hand with a transcript citation.
+Both arms get the identical task prompt, `n = 3` each, and the verdicts and
+metrics are recorded below by hand with a transcript citation. What differs
+between the arms is one rule, removed from the one surface the trial agent
+actually reads.
+
+That surface is **not** `AGENTS.md`. Probes on 2026-09-11 established that a
+`kaine-implementer` subagent receives its own definition file and not the
+project instructions, and that the definition is read once at session start. So
+a rule in an agent definition is measured across two sessions with
+`pnpm ai:install` between them, and a rule that lives only in `.ai/guide.md` or
+`.ai/review.md` is measured by carrying it into the task prompt, the way
+`AGENTS.md` already requires for subagents. Each run below names its
+construction, because the two are not comparable. The `kaine-harness-eval` skill
+holds the protocol and the sentinel probe that verifies an arm before it is paid
+for.
 
 ## What it can and cannot tell you
 
