@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-export const buttonVariants = cva("min-h-10 flex-row items-center justify-center rounded-md", {
+export const buttonVariants = cva("min-h-12 flex-row items-center justify-center rounded-md", {
   variants: {
     appearance: {
       default: "bg-ds-bg-brand-bold active:bg-ds-bg-brand-bold-pressed",

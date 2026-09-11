@@ -5,9 +5,13 @@
   "dashboard.cards.flow.title": "Tok",
   "dashboard.cards.workload.description": "Prati aktivan rad i tempo.",
   "dashboard.cards.workload.title": "Opterecenje",
-  "dashboard.summary": "Operativni pregled za vas licni radni prostor.",
+  "dashboard.summary": "Izaberi sledeći korak. Tvoj rad ostaje u tvojoj organizaciji.",
   "dashboard.title": "Pregled",
-  "dashboard.subtitle": "Pregled radnog prostora na svim platformama",
+  "dashboard.subtitle": "Jasno mesto za početak dana.",
   "dashboard.signedInAs": "Prijavljeni korisnik",
-  "dashboard.unknownUser": "Nepoznat korisnik"
+  "dashboard.unknownUser": "Nepoznat korisnik",
+  "dashboard.todosDescription": "Kreiraj, organizuj i završi svoje obaveze.",
+  "dashboard.notesDescription": "Zabeleži ideje i poveži ih sa svojim radom.",
+  "dashboard.assistantDescription": "Nastavi razgovor ili započni novi.",
+  "dashboard.membersDescription": "Pogledaj članove svoje organizacije."
 }

@@ -1,26 +1,34 @@
 import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
+import { Button } from "@repo/ui";
 import { useQuery } from "@tanstack/react-query";
+import { Navigate } from "react-router-dom";
 
+import { LoadingRows } from "../../components/loading-rows";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { listOrganizationMembersRequest } from "../../lib/auth-api";
 
 export function OrganizationsRoute() {
   const { t } = useTranslation();
-  const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
+  const {
+    activeOrganizationId,
+    isLoading: isOrganizationLoading,
+    organizationsVisible
+  } = useOrganization();
   const membersQuery = useQuery({
     queryKey: createActiveOrganizationQueryKey(
       queryKeys.organizationMembersScope(),
       activeOrganizationId
     ),
     queryFn: listOrganizationMembersRequest,
-    enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
+    enabled: organizationsVisible && Boolean(activeOrganizationId) && !isOrganizationLoading
   });
 
   const members = membersQuery.data?.members ?? [];
+  if (!organizationsVisible) return <Navigate replace to="/dashboard" />;
 
   return (
-    <section className="grid gap-[var(--ds-space-200)] p-[var(--ds-space-300)]">
+    <section className="grid gap-[var(--ds-space-200)]">
       <header>
         <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
           {t("organizations.members.title")}
@@ -31,14 +39,15 @@ export function OrganizationsRoute() {
       </header>
 
       {membersQuery.status === "pending" || isOrganizationLoading ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.members.loading")}
-        </p>
+        <LoadingRows label={t("organizations.members.loading")} />
       ) : null}
 
       {membersQuery.status === "error" ? (
-        <p className="text-body text-[color:var(--ds-text-danger)]">
-          {t("organizations.members.error")}
+        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+          {t("organizations.members.error")}{" "}
+          <Button appearance="subtle" onClick={() => void membersQuery.refetch()}>
+            {t("common.retry")}
+          </Button>
         </p>
       ) : null}
 
@@ -49,12 +58,9 @@ export function OrganizationsRoute() {
       ) : null}
 
       {members.length > 0 ? (
-        <div className="grid gap-[var(--ds-space-100)]">
+        <div className="ui-work-list">
           {members.map((member) => (
-            <article
-              key={member.id}
-              className="rounded-[var(--ds-radius-200)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-200)] shadow-raised"
-            >
+            <article key={member.id} className="ui-work-row">
               <div className="flex flex-wrap items-start justify-between gap-[var(--ds-space-150)]">
                 <div>
                   <h2 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">

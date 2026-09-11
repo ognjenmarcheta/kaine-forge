@@ -30,6 +30,7 @@ catalog:
   # Web Tailwind v4 (keep @tailwindcss/vite on the same minor line)
   tailwindcss: "^4.3.3"
   # Tooling
+  jsdom: "^30.0.1"
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps);
   # monorepo-alignment pins the lockstep and Dependabot groups them (#324).

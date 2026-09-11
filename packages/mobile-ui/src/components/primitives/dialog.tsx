@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Text } from "./text";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { cn } from "../../lib/cn";
 
 interface DialogContextValue {
@@ -26,9 +27,15 @@ export interface DialogProps {
 }
 
 export function Dialog({ animationType = "fade", children, isOpen, onClose }: DialogProps) {
+  const reducedMotion = useReducedMotion();
   return (
     <DialogContext.Provider value={{ onClose }}>
-      <Modal animationType={animationType} transparent visible={isOpen} onRequestClose={onClose}>
+      <Modal
+        animationType={reducedMotion ? "none" : animationType}
+        transparent
+        visible={isOpen}
+        onRequestClose={onClose}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
@@ -60,7 +67,7 @@ export function DialogOverlay({
         }
       }}
     >
-      <Pressable>{children}</Pressable>
+      <Pressable className="w-full max-h-full">{children}</Pressable>
     </Pressable>
   );
 }
@@ -76,6 +83,7 @@ export function DialogContent({
 }) {
   return (
     <View
+      accessibilityViewIsModal
       className={cn(
         "bg-ds-surface p-5",
         position === "bottom" ? "w-full rounded-t-md" : "w-full max-w-md rounded-md",

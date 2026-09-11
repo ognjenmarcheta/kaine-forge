@@ -1,4 +1,4 @@
-import { Button, Text } from "@repo/mobile-ui";
+import { Button, Skeleton, Text } from "@repo/mobile-ui";
 import { createActiveOrganizationQueryKey } from "@repo/query";
 import { createTodoClientWorkflow } from "@repo/todos";
 import { useQueryClient } from "@tanstack/react-query";
@@ -125,8 +125,9 @@ export function TodosRoute() {
       await todoWorkflow.create({
         draft
       });
-    } catch {
+    } catch (error) {
       setActionError(t("error.generic"));
+      throw error;
     }
   }
 
@@ -143,8 +144,9 @@ export function TodosRoute() {
         id: editingTodo.id
       });
       setEditingTodo(null);
-    } catch {
+    } catch (error) {
       setActionError(t("error.generic"));
+      throw error;
     }
   }
 
@@ -194,9 +196,28 @@ export function TodosRoute() {
         </Button>
       </View>
 
-      {error ? <Text className="mb-2 text-sm text-ds-text-danger">{error}</Text> : null}
-      {isLoading ? <Text className="text-sm text-ds-text-subtle">{t("todos.loading")}</Text> : null}
-      {!isLoading ? (
+      {error ? (
+        <View className="gap-2">
+          <Text accessibilityRole="alert" className="text-sm text-ds-text-danger">
+            {error}
+          </Text>
+          <Button appearance="secondary" onPress={() => void todosQuery.refetch()}>
+            {t("common.retry")}
+          </Button>
+        </View>
+      ) : null}
+      {isLoading ? (
+        <View
+          accessibilityLabel={t("todos.loading")}
+          accessibilityState={{ busy: true }}
+          className="gap-4"
+        >
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </View>
+      ) : null}
+      {!isLoading && !todosQuery.error ? (
         <TodoList
           items={todos}
           onAttachmentChanged={() => {

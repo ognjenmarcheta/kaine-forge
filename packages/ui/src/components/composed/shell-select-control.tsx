@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "../primitives/dropdown-menu";
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../primitives/sidebar";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "../primitives/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../primitives/tooltip";
 
 export interface ShellSelectControlOption {
@@ -98,6 +98,8 @@ export function ShellSelectControl({
   placeholder,
   value
 }: ShellSelectControlProps) {
+  const { isMobile, state } = useSidebar();
+  const isCollapsed = state === "collapsed" && !isMobile;
   const isIconDisplay = display === "icon";
   const iconNode = resolveShellIcon(icon);
   const selectedOption = options.find((option) => option.value === value);
@@ -107,16 +109,15 @@ export function ShellSelectControl({
       aria-label={ariaLabel ?? label}
       className={cn(
         "data-[state=open]:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:text-[color:var(--ds-text)]",
-        isIconDisplay && "size-8 justify-center p-0",
+        isIconDisplay &&
+          "size-8 justify-center p-0 bg-[var(--ds-background-neutral)] text-[color:var(--ds-text-subtle)]",
         className
       )}
       disabled={disabled}
       size={isIconDisplay ? "default" : "lg"}
     >
       {isIconDisplay ? (
-        <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
-          {iconNode}
-        </div>
+        iconNode
       ) : (
         <>
           <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
@@ -147,13 +148,14 @@ export function ShellSelectControl({
           {isIconDisplay ? (
             <Tooltip>
               <TooltipTrigger asChild>{triggerNode}</TooltipTrigger>
-              <TooltipContent side="top">{label}</TooltipContent>
+              <TooltipContent side={isCollapsed ? "right" : "top"}>{label}</TooltipContent>
             </Tooltip>
           ) : (
             triggerNode
           )}
           <DropdownMenuContent
             align="start"
+            side={isCollapsed ? "right" : "bottom"}
             className="w-(--radix-dropdown-menu-trigger-width) min-w-[12rem]"
           >
             {options.map((option) => (

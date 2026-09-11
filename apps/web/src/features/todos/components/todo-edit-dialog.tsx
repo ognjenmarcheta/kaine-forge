@@ -14,6 +14,7 @@ interface TodoEditDialogProps {
 export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDialogProps) {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fields = useMemo<SimpleFieldConfig[]>(
     () => [
@@ -40,6 +41,7 @@ export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDial
         title: todo?.title ?? ""
       }}
       fields={fields}
+      formError={error}
       isSubmitting={isSubmitting}
       open={isOpen && Boolean(todo)}
       submitLabel={t("button.save")}
@@ -55,11 +57,14 @@ export function TodoEditDialog({ isOpen, onClose, onSubmit, todo }: TodoEditDial
 
         try {
           setIsSubmitting(true);
+          setError(null);
           await onSubmit({
             description,
             title
           });
           onClose();
+        } catch {
+          setError(t("error.generic"));
         } finally {
           setIsSubmitting(false);
         }

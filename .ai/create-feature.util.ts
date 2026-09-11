@@ -1848,15 +1848,15 @@ const wireWebRouter = (source: string, names: FeatureNames): string => {
   next = insertBefore(
     path,
     next,
-    "    const currentRouteKey = isBreadcrumbRoute(location.pathname)",
-    `    const ${activeConst} =\n      location.pathname === "/${names.pluralKebab}" ||\n      location.pathname.startsWith("/${names.pluralKebab}/");\n`
+    "  const currentRouteKey = isBreadcrumbRoute(location.pathname)",
+    `  const ${activeConst} =\n    location.pathname === "/${names.pluralKebab}" ||\n      location.pathname.startsWith("/${names.pluralKebab}/");\n`
   );
 
   // The organizationsVisible spread stays last in the nav list.
   next = insertBefore(
     path,
     next,
-    "                  ...(organizationsVisible",
+    "                ...(organizationsVisible",
     `                  {\n                    href: "/${names.pluralKebab}",\n                    isActive: ${activeConst},\n                    title: t("navigation.${names.pluralKebab}")\n                  },\n`
   );
 

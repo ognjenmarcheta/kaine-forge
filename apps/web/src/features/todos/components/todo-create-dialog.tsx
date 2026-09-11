@@ -13,6 +13,7 @@ interface TodoCreateDialogProps {
 export function TodoCreateDialog({ isOpen, onClose, onSubmit }: TodoCreateDialogProps) {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fields = useMemo<SimpleFieldConfig[]>(
     () => [
@@ -39,6 +40,7 @@ export function TodoCreateDialog({ isOpen, onClose, onSubmit }: TodoCreateDialog
         title: ""
       }}
       fields={fields}
+      formError={error}
       isSubmitting={isSubmitting}
       open={isOpen}
       submitLabel={t("todos.create")}
@@ -54,11 +56,14 @@ export function TodoCreateDialog({ isOpen, onClose, onSubmit }: TodoCreateDialog
 
         try {
           setIsSubmitting(true);
+          setError(null);
           await onSubmit({
             description,
             title
           });
           onClose();
+        } catch {
+          setError(t("error.generic"));
         } finally {
           setIsSubmitting(false);
         }

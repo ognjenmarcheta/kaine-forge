@@ -15,5 +15,7 @@
   "assistant.roleAssistant": "Assistent",
   "assistant.toolActions": "Ausgeführte Aktionen",
   "assistant.ai.notConfigured": "Der KI-Assistent ist nicht konfiguriert.",
-  "assistant.ai.failed": "Der Assistent konnte deine Anfrage nicht abschließen."
+  "assistant.ai.failed": "Der Assistent konnte deine Anfrage nicht abschließen.",
+  "assistant.conversations": "Gespräche",
+  "assistant.deleteConfirmMessage": "Dieses Gespräch und seine Nachrichten löschen?"
 }

@@ -1,4 +1,5 @@
 {
+  "notes.checklistTitleLabel": "Checklist item",
   "notes.title": "Notes",
   "notes.create": "New note",
   "notes.empty": "No notes yet.",
@@ -12,5 +13,8 @@
   "notes.addTodo": "Add",
   "notes.addTodoPlaceholder": "Add a checklist item",
   "notes.notFound": "Note not found.",
-  "notes.loading": "Loading…"
+  "notes.loading": "Loading…",
+  "notes.saved": "Saved",
+  "notes.saving": "Saving…",
+  "notes.back": "Back to Notes"
 }

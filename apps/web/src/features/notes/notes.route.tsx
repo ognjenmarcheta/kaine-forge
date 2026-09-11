@@ -1,11 +1,12 @@
 import { createActiveOrganizationQueryKey } from "@repo/query";
-import { Button, FieldError, Input } from "@repo/ui";
+import { Button, Field, FieldLabel, FieldError, Input } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { NOTES_CONFIG } from "./notes.config";
 import { ConfirmDialog } from "../../components/confirm-dialog";
+import { LoadingRows } from "../../components/loading-rows";
 import {
   useCreateNoteMutation,
   useDeleteNoteMutation,
@@ -23,6 +24,13 @@ export function NotesRoute() {
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const isCurrentScope = useRef(true);
+  useEffect(() => {
+    isCurrentScope.current = true;
+    return () => {
+      isCurrentScope.current = false;
+    };
+  }, []);
 
   const [newTitle, setNewTitle] = useState("");
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
@@ -67,18 +75,26 @@ export function NotesRoute() {
 
   const notes = useMemo(() => notesQuery.data?.notes ?? [], [notesQuery.data]);
 
+  const [actionError, setActionError] = useState(false);
+
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const title = newTitle.trim();
 
-    if (title.length === 0) {
+    if (createMutation.isPending || title.length === 0) {
       return;
     }
 
-    const result = await createMutation.mutateAsync({ input: { title } });
-    setNewTitle("");
-    void navigate(`/notes/${result.createNote.id}`);
+    try {
+      setActionError(false);
+      const result = await createMutation.mutateAsync({ input: { title } });
+      if (!isCurrentScope.current) return;
+      setNewTitle("");
+      void navigate(`/notes/${result.createNote.id}`);
+    } catch {
+      setActionError(true);
+    }
   }
 
   async function confirmDelete() {
@@ -86,13 +102,18 @@ export function NotesRoute() {
       return;
     }
 
-    await deleteMutation.mutateAsync({ id: deletingNoteId });
-    setDeletingNoteId(null);
-    await queryClient.invalidateQueries({ queryKey: notesQueryKey });
+    try {
+      setActionError(false);
+      await deleteMutation.mutateAsync({ id: deletingNoteId });
+      setDeletingNoteId(null);
+      await queryClient.invalidateQueries({ queryKey: notesQueryKey });
+    } catch {
+      setActionError(true);
+    }
   }
 
   const isLoading = isOrganizationLoading || notesQuery.status === "pending";
-  const error = notesQuery.error ? t("error.generic") : null;
+  const error = notesQuery.error || actionError ? t("error.generic") : null;
 
   return (
     <section className="grid gap-[var(--ds-space-200)]">
@@ -100,37 +121,45 @@ export function NotesRoute() {
         <h1>{t("notes.title")}</h1>
       </header>
 
-      <form
-        className="flex items-center gap-[var(--ds-space-100)]"
-        onSubmit={(event) => void handleCreate(event)}
-      >
-        <Input
-          placeholder={t("notes.titleLabel")}
-          value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
-        />
+      <form className="ui-toolbar" onSubmit={(event) => void handleCreate(event)}>
+        <Field className="min-w-0 flex-1">
+          <FieldLabel htmlFor="new-note-title">{t("notes.titleLabel")}</FieldLabel>
+          <Input
+            id="new-note-title"
+            disabled={createMutation.isPending}
+            aria-label={t("notes.titleLabel")}
+            placeholder={t("notes.titleLabel")}
+            value={newTitle}
+            onChange={(event) => setNewTitle(event.target.value)}
+          />
+        </Field>
         <Button disabled={createMutation.status === "pending"} type="submit">
           {t("notes.create")}
         </Button>
       </form>
 
-      {isLoading ? (
-        <p className="text-[color:var(--ds-text-subtle)]">{t("notes.loading")}</p>
+      {isLoading ? <LoadingRows label={t("notes.loading")} /> : null}
+      {error ? (
+        <div role="alert" className="ui-toolbar">
+          <FieldError>{error}</FieldError>
+          <Button appearance="subtle" onClick={() => void notesQuery.refetch()}>
+            {t("common.retry")}
+          </Button>
+        </div>
       ) : null}
-      {error ? <FieldError>{error}</FieldError> : null}
 
       {!isLoading && notes.length === 0 ? (
         <p className="text-[color:var(--ds-text-subtle)]">{t("notes.empty")}</p>
       ) : null}
 
       {!isLoading && notes.length > 0 ? (
-        <ul className="flex flex-col gap-[var(--ds-space-100)]">
+        <ul className="ui-work-list">
           {notes.map((note) => {
             const preview = (note.body ?? "").split("\n")[0] ?? "";
 
             return (
               <li key={note.id}>
-                <div className="flex items-center justify-between gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-150)]">
+                <div className="ui-work-row flex items-center justify-between gap-[var(--ds-space-150)]">
                   <NavLink
                     className="flex min-w-0 flex-1 flex-col gap-[var(--ds-space-050)]"
                     to={`/notes/${note.id}`}

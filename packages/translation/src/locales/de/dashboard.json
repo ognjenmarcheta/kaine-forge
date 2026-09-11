@@ -5,9 +5,13 @@
   "dashboard.cards.flow.title": "Fluss",
   "dashboard.cards.workload.description": "Verfolge aktive Arbeit und Geschwindigkeit.",
   "dashboard.cards.workload.title": "Auslastung",
-  "dashboard.summary": "Operative Ubersicht fur deinen personlichen Arbeitsbereich.",
+  "dashboard.summary": "Wähle deinen nächsten Schritt. Deine Arbeit bleibt in deiner Organisation.",
   "dashboard.title": "Ubersicht",
-  "dashboard.subtitle": "Plattformubergreifende Arbeitsbereichsansicht",
+  "dashboard.subtitle": "Ein klarer Start in deinen Tag.",
   "dashboard.signedInAs": "Angemeldet als",
-  "dashboard.unknownUser": "Unbekannter Benutzer"
+  "dashboard.unknownUser": "Unbekannter Benutzer",
+  "dashboard.todosDescription": "Erstelle, organisiere und erledige deine Todos.",
+  "dashboard.notesDescription": "Halte Ideen fest und verbinde sie mit deiner Arbeit.",
+  "dashboard.assistantDescription": "Setze ein Gespräch fort oder beginne ein neues.",
+  "dashboard.membersDescription": "Sieh die Personen in deiner Organisation."
 }

@@ -28,7 +28,7 @@ export function TodoList({
 
   return (
     <FlatList
-      contentContainerStyle={{ gap: 10 }}
+      keyboardShouldPersistTaps="handled"
       data={items}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (

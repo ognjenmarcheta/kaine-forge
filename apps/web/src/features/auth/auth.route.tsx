@@ -4,6 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import { LoginForm } from "./components/login-form";
 import { SignupForm } from "./components/signup-form";
+import { ThemeSelect } from "../../components/theme-select";
 import { useAuth } from "../../hooks/use-auth";
 import { useTranslation } from "../../hooks/use-translation";
 
@@ -37,6 +38,9 @@ export function AuthRoute() {
 
   return (
     <AuthLayout subtitle={copy[mode].subtitle} title={copy[mode].title}>
+      <div className="mb-[var(--ds-space-300)]">
+        <ThemeSelect />
+      </div>
       <div className="mb-[var(--ds-space-150)] grid grid-cols-2 gap-[var(--ds-space-100)]">
         <Button
           appearance={mode === "login" ? "default" : "subtle"}

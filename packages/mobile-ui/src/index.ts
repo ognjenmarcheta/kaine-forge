@@ -12,3 +12,6 @@ export * from "./components/primitives/skeleton";
 export * from "./components/primitives/text";
 export * from "./lib/cn";
 export * from "./lib/variants";
+
+export { nativeThemeTokens, motionDurations } from "./lib/design-tokens";
+export { useReducedMotion } from "./hooks/use-reduced-motion";

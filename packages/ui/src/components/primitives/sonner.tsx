@@ -1,5 +1,7 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+import { cn } from "../../lib/cn";
+
 export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
   return (
     <Sonner
@@ -17,7 +19,7 @@ export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
           ...toastOptions?.classNames
         }
       }}
-      {...(className ? { className } : {})}
+      className={cn("ui-toaster", className)}
       {...props}
     />
   );

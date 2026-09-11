@@ -1,4 +1,5 @@
 {
+  "notes.checklistTitleLabel": "Stavka kontrolne liste",
   "notes.title": "Beleške",
   "notes.create": "Nova beleška",
   "notes.empty": "Još nema beleški.",
@@ -12,5 +13,8 @@
   "notes.addTodo": "Dodaj",
   "notes.addTodoPlaceholder": "Dodaj stavku liste",
   "notes.notFound": "Beleška nije pronađena.",
-  "notes.loading": "Učitavanje…"
+  "notes.loading": "Učitavanje…",
+  "notes.saved": "Sačuvano",
+  "notes.saving": "Čuvanje…",
+  "notes.back": "Nazad na beleške"
 }

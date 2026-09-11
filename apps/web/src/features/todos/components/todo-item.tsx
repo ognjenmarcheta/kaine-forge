@@ -22,7 +22,7 @@ export function TodoItemRow({
   const { t } = useTranslation();
 
   return (
-    <li className="grid grid-cols-1 items-center gap-[var(--ds-space-150)] rounded-[var(--ds-radius-200)] border border-[var(--ds-border)] bg-[var(--ds-surface)] px-[var(--ds-space-150)] py-[calc(var(--ds-space-100)+var(--ds-space-025))] md:grid-cols-[minmax(240px,_1fr)_minmax(120px,_1fr)_auto]">
+    <li className="ui-work-row grid grid-cols-1 items-start gap-[var(--ds-space-150)] md:grid-cols-[minmax(0,_1fr)_minmax(0,_1fr)_auto]">
       <label className="flex items-center gap-[var(--ds-space-100)]">
         <Checkbox
           aria-label={item.title}
@@ -57,13 +57,17 @@ export function TodoItemRow({
           {t("button.delete")}
         </Button>
       </div>
-      <div className="md:col-span-3">
+      <details className="md:col-span-3">
+        <summary className="cursor-pointer text-[color:var(--ds-text-subtle)]">
+          {t("todos.attachments.title")}{" "}
+          <span className="ml-[var(--ds-space-100)]">{item.attachments.length}</span>
+        </summary>
         <TodoAttachments
           attachments={item.attachments}
           todoId={item.id}
           onChanged={onAttachmentChanged}
         />
-      </div>
+      </details>
     </li>
   );
 }

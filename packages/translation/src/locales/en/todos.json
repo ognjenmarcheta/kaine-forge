@@ -1,4 +1,5 @@
 {
+  "todos.attachments.error.downloadFailed": "Failed to open attachment",
   "todos.title": "Todos",
   "todos.create": "New todo",
   "todos.loading": "Loading todos...",
@@ -20,7 +21,7 @@
   "todos.ai.notConfigured": "AI is not set up yet.",
   "todos.ai.failed": "AI could not create todos.",
   "todos.ai.promptRequired": "Enter a prompt first.",
-  "todos.examples.title": "Form modal examples",
+  "todos.examples.title": "Examples",
   "todos.examples.description": "Reusable modal forms powered by TanStack Form.",
   "todos.examples.simple.open": "Open simple modal",
   "todos.examples.simple.modalTitle": "Quick create todo",

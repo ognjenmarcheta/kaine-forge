@@ -1,6 +1,11 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   AppSidebar,
+  LayoutDashboard,
+  ListTodo,
+  NotebookPen,
+  MessageSquare,
+  Users,
   AppLayout,
   Breadcrumbs,
   NavMain,
@@ -47,6 +52,7 @@ function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_
 }
 
 function ShellLayout() {
+  const location = useLocation();
   const { isLoading, logout, session } = useAuth();
   const {
     activeOrganizationId,
@@ -75,179 +81,181 @@ function ShellLayout() {
 
   const currentSession = session;
 
-  function ShellBody() {
-    const location = useLocation();
-    const isDashboardActive = location.pathname === "/dashboard";
-    const isMembersActive = location.pathname === "/members";
-    const isTodosActive = location.pathname === "/todos";
-    const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
-    const isAssistantActive = location.pathname === "/assistant";
-    const currentRouteKey = isBreadcrumbRoute(location.pathname)
-      ? ROUTE_TO_BREADCRUMB[location.pathname]
+  const isDashboardActive = location.pathname === "/dashboard";
+  const isMembersActive = location.pathname === "/members";
+  const isTodosActive = location.pathname === "/todos";
+  const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
+  const isAssistantActive = location.pathname === "/assistant";
+  const currentRouteKey = isBreadcrumbRoute(location.pathname)
+    ? ROUTE_TO_BREADCRUMB[location.pathname]
+    : isNotesActive
+      ? "navigation.notes"
       : "navigation.dashboard";
-    const organizationOptions =
-      organizations.length > 0
-        ? organizations.map((organization) => ({
-            name: organization.name,
+  const organizationOptions =
+    organizations.length > 0
+      ? organizations.map((organization) => ({
+          name: organization.name,
+          subtitle: t("navigation.organization"),
+          value: organization.id
+        }))
+      : [
+          {
+            disabled: true,
+            name:
+              isOrganizationLoading && !hasError
+                ? t("navigation.organizationLoading")
+                : t("navigation.organizationUnavailable"),
             subtitle: t("navigation.organization"),
-            value: organization.id
-          }))
-        : [
-            {
-              disabled: true,
-              name:
-                isOrganizationLoading && !hasError
-                  ? t("navigation.organizationLoading")
-                  : t("navigation.organizationUnavailable"),
-              subtitle: t("navigation.organization"),
-              value: "organization-placeholder"
-            }
-          ];
-    const activeOrganizationValue =
-      activeOrganizationId ?? organizations[0]?.id ?? organizationOptions[0]?.value;
-    const breadcrumbItems = [
-      {
-        href: "/dashboard",
-        label: t("common.appName")
-      },
-      {
-        label: t(currentRouteKey)
-      }
-    ];
+            value: "organization-placeholder"
+          }
+        ];
+  const activeOrganizationValue =
+    activeOrganizationId ?? organizations[0]?.id ?? organizationOptions[0]?.value;
+  const breadcrumbItems = [
+    {
+      href: "/dashboard",
+      label: t("common.appName")
+    },
+    {
+      label: t(currentRouteKey)
+    }
+  ];
 
-    return (
-      <AppLayout
-        header={
-          <header className="flex h-16 shrink-0 items-center gap-[var(--ds-space-100)] border-b border-[var(--ds-border)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
-              <SidebarTrigger className="-ml-1" label={t("navigation.toggleSidebar")} />
-              <Separator
-                orientation="vertical"
-                className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
-              />
-              <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
-            </div>
-          </header>
-        }
-        main={
-          <SidebarInset className="ui-app-shell__content">
-            <Outlet />
-          </SidebarInset>
-        }
-        sidebar={
-          <AppSidebar
-            mobileSheetCloseLabel={t("common.close")}
-            mobileSheetDescription={t("navigation.mobileSidebarDescription")}
-            mobileSheetTitle={t("navigation.sidebarTitle")}
-            navMain={
-              <NavMain
-                groupLabel={t("common.appName")}
-                items={[
-                  {
-                    href: "/dashboard",
-                    isActive: isDashboardActive,
-                    title: t("navigation.dashboard")
-                  },
-                  {
-                    href: "/todos",
-                    isActive: isTodosActive,
-                    title: t("navigation.todos")
-                  },
-                  {
-                    href: "/notes",
-                    isActive: isNotesActive,
-                    title: t("navigation.notes")
-                  },
-                  {
-                    href: "/assistant",
-                    isActive: isAssistantActive,
-                    title: t("navigation.assistant")
-                  },
-                  ...(organizationsVisible
-                    ? [
-                        {
-                          href: "/members",
-                          isActive: isMembersActive,
-                          title: t("navigation.members")
-                        }
-                      ]
-                    : [])
-                ]}
-                renderLink={(item, content) => <NavLink to={item.href ?? "#"}>{content}</NavLink>}
-              />
-            }
-            navPreferences={
-              <NavPreferences
-                groupLabel={t("navigation.settings")}
-                layout="inline-icons"
-                language={{
-                  label: t("navigation.language"),
-                  onValueChange: (value) => {
-                    void setLanguage(value);
-                  },
-                  options: SUPPORTED_LANGUAGES.map((value) => ({
-                    label: value.toUpperCase(),
-                    value
-                  })),
-                  value: language
+  const layout = (
+    <AppLayout
+      header={
+        <header className="ui-app-shell__header">
+          <div className="flex items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
+            <SidebarTrigger className="-ml-1" label={t("navigation.toggleSidebar")} />
+            <Separator
+              orientation="vertical"
+              className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
+            />
+            <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
+          </div>
+        </header>
+      }
+      main={
+        <SidebarInset className="ui-app-shell__content">
+          <Outlet key={activeOrganizationId} />
+        </SidebarInset>
+      }
+      sidebar={
+        <AppSidebar
+          mobileSheetCloseLabel={t("common.close")}
+          mobileSheetDescription={t("navigation.mobileSidebarDescription")}
+          mobileSheetTitle={t("navigation.sidebarTitle")}
+          navMain={
+            <NavMain
+              groupLabel={t("common.appName")}
+              items={[
+                {
+                  href: "/dashboard",
+                  icon: LayoutDashboard,
+                  isActive: isDashboardActive,
+                  title: t("navigation.dashboard")
+                },
+                {
+                  href: "/todos",
+                  icon: ListTodo,
+                  isActive: isTodosActive,
+                  title: t("navigation.todos")
+                },
+                {
+                  href: "/notes",
+                  icon: NotebookPen,
+                  isActive: isNotesActive,
+                  title: t("navigation.notes")
+                },
+                {
+                  href: "/assistant",
+                  icon: MessageSquare,
+                  isActive: isAssistantActive,
+                  title: t("navigation.assistant")
+                },
+                ...(organizationsVisible
+                  ? [
+                      {
+                        href: "/members",
+                        icon: Users,
+                        isActive: isMembersActive,
+                        title: t("navigation.members")
+                      }
+                    ]
+                  : [])
+              ]}
+              renderLink={(item, content) => <NavLink to={item.href ?? "#"}>{content}</NavLink>}
+            />
+          }
+          navPreferences={
+            <NavPreferences
+              groupLabel={t("navigation.settings")}
+              layout="inline-icons"
+              language={{
+                label: t("navigation.language"),
+                onValueChange: (value) => {
+                  void setLanguage(value);
+                },
+                options: SUPPORTED_LANGUAGES.map((value) => ({
+                  label: value.toUpperCase(),
+                  value
+                })),
+                value: language
+              }}
+              theme={{
+                label: t("navigation.theme"),
+                onValueChange: (value) => {
+                  if (value === "dark" || value === "light" || value === "system") {
+                    setThemeMode(value);
+                  }
+                },
+                options: THEME_OPTIONS.map((themeOption) => ({
+                  label: t(themeOption.labelKey),
+                  value: themeOption.value
+                })),
+                value: themeMode
+              }}
+            />
+          }
+          railLabel={t("navigation.toggleSidebar")}
+          organizationSwitcher={
+            organizationsVisible ? (
+              <OrganizationSwitcher
+                actionItem={{
+                  label: t("navigation.organizationCreate"),
+                  onSelect: () => setIsCreateOrganizationOpen(true)
                 }}
-                theme={{
-                  label: t("navigation.theme"),
-                  onValueChange: (value) => {
-                    if (value === "dark" || value === "light" || value === "system") {
-                      setThemeMode(value);
-                    }
-                  },
-                  options: THEME_OPTIONS.map((themeOption) => ({
-                    label: t(themeOption.labelKey),
-                    value: themeOption.value
-                  })),
-                  value: themeMode
-                }}
-              />
-            }
-            railLabel={t("navigation.toggleSidebar")}
-            organizationSwitcher={
-              organizationsVisible ? (
-                <OrganizationSwitcher
-                  actionItem={{
-                    label: t("navigation.organizationCreate"),
-                    onSelect: () => setIsCreateOrganizationOpen(true)
-                  }}
-                  className="w-full min-w-0 max-w-none"
-                  label={t("navigation.organization")}
-                  onValueChange={(value) => {
-                    if (value !== "organization-placeholder") {
-                      void setActiveOrganization(value);
-                    }
-                  }}
-                  organizations={organizationOptions}
-                  {...(activeOrganizationValue ? { value: activeOrganizationValue } : {})}
-                />
-              ) : null
-            }
-            user={
-              <NavUser
                 className="w-full min-w-0 max-w-none"
-                logoutLabel={t("auth.logout")}
-                onLogout={() => void logout()}
-                user={{
-                  email: currentSession.user.email,
-                  name: currentSession.user.name
+                label={t("navigation.organization")}
+                onValueChange={(value) => {
+                  if (value !== "organization-placeholder") {
+                    void setActiveOrganization(value);
+                  }
                 }}
+                organizations={organizationOptions}
+                {...(activeOrganizationValue ? { value: activeOrganizationValue } : {})}
               />
-            }
-          />
-        }
-      />
-    );
-  }
+            ) : null
+          }
+          user={
+            <NavUser
+              className="w-full min-w-0 max-w-none"
+              logoutLabel={t("auth.logout")}
+              onLogout={() => void logout()}
+              user={{
+                email: currentSession.user.email,
+                name: currentSession.user.name
+              }}
+            />
+          }
+        />
+      }
+    />
+  );
 
   return (
     <>
-      <SidebarProvider defaultOpen>
-        <ShellBody />
-      </SidebarProvider>
+      <SidebarProvider defaultOpen>{layout}</SidebarProvider>
       <OrganizationCreateDialog
         isOpen={isCreateOrganizationOpen}
         onClose={() => setIsCreateOrganizationOpen(false)}

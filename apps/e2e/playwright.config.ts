@@ -39,6 +39,8 @@ export default defineConfig({
         "pnpm --filter @repo/api exec node --import tsx src/index.ts",
       env: {
         API_PORT: "4010",
+        // UI flows share one loopback IP. Rate-limit behavior has dedicated API tests.
+        API_RATE_LIMIT_MAX: "1000",
         BETTER_AUTH_URL: "http://127.0.0.1:4010",
         API_CORS_ORIGINS: "http://127.0.0.1:3010"
       },

@@ -5,5 +5,6 @@
   "organizations.members.error": "Članovi nisu mogli da se učitaju.",
   "organizations.members.loading": "Učitavanje članova...",
   "organizations.members.title": "Članovi",
-  "organizations.name": "Naziv organizacije"
+  "organizations.name": "Naziv organizacije",
+  "organizations.members.mobilePlaceholder": "Upravljanje članovima je dostupno u veb aplikaciji."
 }

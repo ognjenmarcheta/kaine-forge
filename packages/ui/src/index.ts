@@ -52,3 +52,12 @@ export * from "./lib/cn";
 export * from "./lib/forms/simple-form-config";
 export * from "./lib/forms/use-ui-form";
 export * from "./lib/variants";
+
+export {
+  ArrowRight,
+  LayoutDashboard,
+  ListTodo,
+  NotebookPen,
+  MessageSquare,
+  Users
+} from "lucide-react";

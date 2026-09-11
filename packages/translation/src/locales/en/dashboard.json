@@ -5,9 +5,13 @@
   "dashboard.cards.flow.title": "Flow",
   "dashboard.cards.workload.description": "Track active work and velocity.",
   "dashboard.cards.workload.title": "Workload",
-  "dashboard.summary": "Operational summary for your personal workspace.",
+  "dashboard.summary": "Choose where to start. Your work stays in your organization.",
   "dashboard.title": "Overview",
-  "dashboard.subtitle": "Cross-platform workspace snapshot",
+  "dashboard.subtitle": "A clear place to start your day.",
   "dashboard.signedInAs": "Signed in as",
-  "dashboard.unknownUser": "Unknown user"
+  "dashboard.unknownUser": "Unknown user",
+  "dashboard.todosDescription": "Create, organize, and complete your Todos.",
+  "dashboard.notesDescription": "Capture ideas and connect them to your work.",
+  "dashboard.assistantDescription": "Continue a conversation or start something new.",
+  "dashboard.membersDescription": "See the people in your organization."
 }

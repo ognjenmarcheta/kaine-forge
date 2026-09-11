@@ -1,6 +1,7 @@
 import { Button } from "@repo/ui";
 import { type MouseEvent } from "react";
 
+import { LoadingRows } from "../../../components/loading-rows";
 import { useTranslation } from "../../../hooks/use-translation";
 
 interface ConversationSummary {
@@ -12,6 +13,9 @@ interface ConversationSummary {
 interface ConversationListProps {
   activeId: string | null;
   conversations: ConversationSummary[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
   onDelete: (id: string) => void;
   onNew: () => void;
   onSelect: (id: string) => void;
@@ -20,6 +24,9 @@ interface ConversationListProps {
 export function ConversationList({
   activeId,
   conversations,
+  isLoading,
+  isError,
+  onRetry,
   onDelete,
   onNew,
   onSelect
@@ -36,6 +43,15 @@ export function ConversationList({
       <Button type="button" onClick={onNew}>
         {t("assistant.newChat")}
       </Button>
+      {isLoading ? <LoadingRows label={t("common.loading")} /> : null}
+      {isError ? (
+        <div role="alert">
+          <p>{t("error.generic")}</p>
+          <Button appearance="subtle" onClick={onRetry}>
+            {t("common.retry")}
+          </Button>
+        </div>
+      ) : null}
       <ul className="flex flex-col gap-[var(--ds-space-050)]">
         {conversations.map((conversation) => {
           const isActive = conversation.id === activeId;
@@ -43,9 +59,10 @@ export function ConversationList({
             <li key={conversation.id} className="flex items-center gap-[var(--ds-space-050)]">
               <Button
                 appearance="subtle"
-                className={`flex-1 justify-start truncate text-left ${
+                aria-pressed={isActive}
+                className={`min-w-0 flex-1 justify-start truncate text-left ${
                   isActive
-                    ? "bg-[var(--ds-surface-hovered)] text-[color:var(--ds-text)]"
+                    ? "bg-[var(--ds-background-selected)] text-[color:var(--ds-text)]"
                     : "text-[color:var(--ds-text-subtle)]"
                 }`}
                 type="button"

@@ -2,6 +2,7 @@ import { type LucideIcon } from "lucide-react";
 import * as React from "react";
 
 import {
+  useSidebar,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -24,6 +25,7 @@ export interface NavMainProps {
 }
 
 export function NavMain({ groupLabel, items, renderLink }: NavMainProps) {
+  const { setOpenMobile } = useSidebar();
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
@@ -40,6 +42,10 @@ export function NavMain({ groupLabel, items, renderLink }: NavMainProps) {
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
+                  onClick={(event) => {
+                    if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)
+                      setOpenMobile(false);
+                  }}
                   asChild
                   tooltip={item.title}
                   {...(item.isActive !== undefined ? { isActive: item.isActive } : {})}

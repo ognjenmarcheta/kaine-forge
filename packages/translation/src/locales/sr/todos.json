@@ -1,4 +1,5 @@
 {
+  "todos.attachments.error.downloadFailed": "Otvaranje priloga nije uspelo",
   "todos.title": "Zadaci",
   "todos.create": "Novi zadatak",
   "todos.loading": "Ucitam zadatke...",
@@ -20,7 +21,7 @@
   "todos.ai.notConfigured": "AI jos nije podesen.",
   "todos.ai.failed": "AI nije mogao da kreira zadatke.",
   "todos.ai.promptRequired": "Prvo unesite prompt.",
-  "todos.examples.title": "Primeri modal formi",
+  "todos.examples.title": "Primeri",
   "todos.examples.description": "Visekratne modal forme uz TanStack Form.",
   "todos.examples.simple.open": "Otvori jednostavan modal",
   "todos.examples.simple.modalTitle": "Brzo kreiranje zadatka",

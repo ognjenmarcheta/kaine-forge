@@ -19,6 +19,7 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [isHydrating, setIsHydrating] = useState(() => !useThemeStore.persist.hasHydrated());
+  const [hasAppliedTheme, setHasAppliedTheme] = useState(false);
   const themeMode = useThemeStore((state) => state.themeMode);
   const setThemeMode = useThemeStore((state) => state.setThemeMode);
   const systemTheme = useSystemColorScheme() === "dark" ? "dark" : "light";
@@ -43,16 +44,17 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }
 
     setColorScheme(resolvedTheme);
+    setHasAppliedTheme(true);
   }, [isHydrating, resolvedTheme, setColorScheme]);
 
   const value = useMemo(
     () => ({
-      isHydrating,
+      isHydrating: isHydrating || !hasAppliedTheme,
       resolvedTheme,
       setThemeMode,
       themeMode
     }),
-    [isHydrating, resolvedTheme, setThemeMode, themeMode]
+    [hasAppliedTheme, isHydrating, resolvedTheme, setThemeMode, themeMode]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

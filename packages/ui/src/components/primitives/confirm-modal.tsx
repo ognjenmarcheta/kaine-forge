@@ -39,22 +39,27 @@ export function ConfirmModal({
         {
           appearance: "subtle",
           label: cancelLabel,
+          disabled: isConfirming,
           onClick: () => onOpenChange(false)
         },
         {
           appearance: "danger",
           label: confirmLabel,
           loading: isConfirming,
-          onClick: onConfirm
+          onClick: () => {
+            if (!isConfirming) onConfirm();
+          }
         }
       ]}
       {...(closeButtonLabel ? { closeButtonLabel } : {})}
-      {...(closeOnEscape !== undefined ? { closeOnEscape } : {})}
-      {...(closeOnOverlayClick !== undefined ? { closeOnOverlayClick } : {})}
+      closeOnEscape={!isConfirming && (closeOnEscape ?? true)}
+      closeOnOverlayClick={!isConfirming && (closeOnOverlayClick ?? true)}
       {...(description ? { description } : {})}
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!isConfirming) onOpenChange(nextOpen);
+      }}
       open={open}
-      {...(showCloseButton !== undefined ? { showCloseButton } : {})}
+      showCloseButton={!isConfirming && (showCloseButton ?? true)}
       {...(size ? { size } : {})}
       title={title}
     />

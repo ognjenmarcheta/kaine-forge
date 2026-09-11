@@ -2,7 +2,8 @@
   "extends": "../../packages/config/typescript/tsconfig.node.json",
   "compilerOptions": {
     "types": ["node", "@playwright/test"],
-    "noEmit": true
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["./**/*.ts"]
 }

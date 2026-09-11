@@ -64,6 +64,7 @@
     "@repo/config": "workspace:*",
     "@types/react": "catalog:mobile",
     "@types/react-dom": "catalog:mobile",
+    "jsdom": "catalog:",
     "react-dom": "catalog:mobile",
     "tailwindcss": "catalog:mobile",
     "vitest": "catalog:"
