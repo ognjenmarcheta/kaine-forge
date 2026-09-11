@@ -32,6 +32,7 @@ import {
   renderClaudeSkill,
   renderCodexSkill,
   renderCursorSkill,
+  renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
   renderGrokSkill,
   renderOpencodeSkill,
@@ -183,7 +184,9 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
       label: ".claude/settings.json",
       path: join(REPO_ROOT, ".claude", "settings.json"),
       content: renderClaudeSettings(),
-      tracked: false
+      // Tracked: this file now carries the guarded-command policy, so drift is
+      // a security regression rather than a local-setup nuisance.
+      tracked: true
     }
   ];
 
@@ -266,12 +269,16 @@ const computeHookDrift = (): FileDrift[] => {
     existsSync(join(REPO_ROOT, ".grok", "skills")) ||
     existsSync(join(REPO_ROOT, ".grok", "config.toml"));
   if (grokInstalled) {
-    const hookPath = join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json");
-    const expected = renderGrokSessionStartHook();
-    if (!existsSync(hookPath)) {
-      drift.push({ label: ".grok/hooks/kaine-session-start.json", status: "missing" });
-    } else if (readFileSync(hookPath, "utf8") !== expected) {
-      drift.push({ label: ".grok/hooks/kaine-session-start.json", status: "stale" });
+    for (const hook of [
+      { name: "kaine-session-start.json", content: renderGrokSessionStartHook() },
+      { name: "kaine-pre-tool-use.json", content: renderGrokPreToolUseHook() }
+    ]) {
+      const hookPath = join(REPO_ROOT, ".grok", "hooks", hook.name);
+      if (!existsSync(hookPath)) {
+        drift.push({ label: `.grok/hooks/${hook.name}`, status: "missing" });
+      } else if (readFileSync(hookPath, "utf8") !== hook.content) {
+        drift.push({ label: `.grok/hooks/${hook.name}`, status: "stale" });
+      }
     }
   }
 

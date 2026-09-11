@@ -9,6 +9,7 @@
         ".ai/release-apps.ts",
         ".ai/scorecard-render.ts",
         ".ai/template-adoption.ts",
+        ".ai/hooks/pre-tool-use.mjs",
         ".ai/hooks/session-start.mjs",
         ".ai/**/*.spec.ts",
         "scripts/*.mjs",

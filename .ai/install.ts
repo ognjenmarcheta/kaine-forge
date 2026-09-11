@@ -37,6 +37,7 @@ import {
   renderCursorSkill,
   renderGrokAgentDefinition,
   renderGrokConfig,
+  renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
   renderGrokSkill,
   renderMcpJson,
@@ -518,6 +519,11 @@ const installAgent = (
     writeGenerated(
       join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json"),
       renderGrokSessionStartHook(),
+      results
+    );
+    writeGenerated(
+      join(REPO_ROOT, ".grok", "hooks", "kaine-pre-tool-use.json"),
+      renderGrokPreToolUseHook(),
       results
     );
 
