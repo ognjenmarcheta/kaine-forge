@@ -16,8 +16,9 @@ not it works.
 - **Human-invoked only.** Do not add this to CI, husky hooks, `pnpm check`, or
   `pnpm initialize`. It is slow, it costs model calls, and it measures judgment.
 - **Strip only what the trial agent can actually see.** Prove it with the
-  sentinel probe below before spending a single trial. Stripping a file that is
-  not in the trial's context buys a guaranteed null result at full price.
+  behavioural probe below before spending a single trial. Stripping a file that
+  is not in the trial's context, or editing one mid-session, buys a guaranteed
+  null result at full price.
 - **Never invent a verdict.** Every trial row needs a transcript citation. If
   you did not run the trial, the row does not exist.
 - **Restore before you record.** Put back every file you stripped, then confirm
@@ -25,79 +26,93 @@ not it works.
 
 ## What a trial agent can see
 
-Measured 2026-09-11 with three no-tool probes against `kaine-implementer`
-dispatched from a Claude Code session:
+Measured 2026-09-11 against subagents dispatched from a Claude Code 2.1.227
+session:
 
 | Surface                                                 | In the trial's context | Editable mid-session           |
 | ------------------------------------------------------- | ---------------------- | ------------------------------ |
+| `AGENTS.md` / `CLAUDE.md` project instructions          | yes                    | **no** — read at session start |
 | `.ai/agents/<agent>.md`, installed to `.claude/agents/` | yes                    | **no** — read at session start |
-| `AGENTS.md` / `CLAUDE.md` project instructions          | **no**                 | n/a                            |
+| `.ai/review.md` / `REVIEW.md`                           | no — not `@`-imported  | n/a                            |
 | the task prompt you write                               | yes                    | yes                            |
 
-Two consequences decide the whole method:
+One consequence decides the whole method: **everything injected is frozen at
+session start.** A file edited mid-session reaches no agent dispatched
+afterwards, so the two arms cannot both run in one session. The worktree-arms
+design this skill originally shipped with was void for a second reason too — a
+subagent's injection comes from the session's project root, and no dispatch
+parameter can point it at a worktree path.
 
-1. A rule that lives only in `AGENTS.md` or `.ai/review.md` is **not** in a
-   subagent trial's context. Stripping it from a worktree measures nothing —
-   that is why the worktree-arms design this skill originally shipped with was
-   void, and why `.ai/agents/kaine-implementer.md` duplicating guide rules is
-   load-bearing rather than redundant.
-2. The agent definition is frozen for the life of the session. Both arms cannot
-   run in one session.
+The guide reaching subagents also means the injected copy sits in **both** arms
+of a prompt-carried run. Such a run measures the marginal effect of pasting a
+rule the agent already has, not the rule itself. Say so in the record.
 
-Re-run the probe whenever the agent runtime changes — this table is an
-observation about one CLI version, not a contract:
+### Probe behaviourally, never by introspection
+
+Asking an agent whether its context contains a phrase does not work. A probe run
+on 2026-09-11 returned `NO` for a rule that the same agent then demonstrably
+followed, and returned the same `NO` whether the rule was stripped or present —
+a false negative in both directions that briefly inverted this whole table.
+
+Probe with a rule whose compliance is **visible in the output** instead, and
+give the trial no tools so it cannot read the file from disk:
 
 ```
-Dispatch <agent> with: "Answer from your own injected system instructions only.
-Use no tools. Does your context contain the exact phrase <marker>? Answer YES or
-NO and nothing else."
+Dispatch <agent> with a substantive no-tool question, e.g. an architecture
+tradeoff in this repo. Then check the response for compliance with a rule that
+exists only in the surface under test — the focus banner and the repo's named
+anti-patterns both work. Compliance with zero tool calls proves injection.
 ```
 
-Use two markers per probe: one you expect present (the positive control) and one
-you stripped. A probe with no positive control cannot distinguish "stripped" from
-"nothing is injected".
+To test whether the injection is _fresh_, append a behavioural sentinel to the
+surface (`Begin every response with the line <TOKEN>`), dispatch, and look for
+the token. Absent sentinel plus present banner means injected but frozen.
 
 ## Two constructions
 
-### Installed-definition arms — two sessions, measures the shipped harness
+### Injected-surface arms — two sessions, measures the rule itself
 
-What agents actually receive. Arm A is a normal session. For arm B, strip the
-rule from `.ai/agents/<agent>.md`, run `pnpm ai:install --agent claude`, then
-**start a new session** and dispatch there. Restore and reinstall afterwards.
-Rules measurable this way are exactly the ones in the agent definition.
+The only construction that removes a rule from the trial's context. Arm A is a
+normal session. For arm B, strip the rule from `.ai/guide.md` or
+`.ai/agents/<agent>.md`, run `pnpm ai:install`, then **start a new session** and
+dispatch there. Restore and reinstall afterwards. This is the construction to
+use when the question is whether a rule earns its tokens.
 
 ### Prompt-carried arms — one session, measures the carry-in instruction
 
-`AGENTS.md` requires carrying the relevant rules into a subagent prompt, since a
-subagent inherits none of the guide. Arm A includes the rule verbatim in the task
-prompt, arm B omits it, everything else identical. This is the only construction
-that runs in a single session, and it measures the carry-in practice rather than
-the installed file. Say which construction a run used — the two are not
-comparable.
+Arm A pastes the rule verbatim into the task prompt, arm B omits it, everything
+else identical. Runnable in one session, but the injected guide sits in both
+arms, so the answer is about emphasis rather than presence — use it to decide
+whether pasting a rule is worth the prompt space, or to test a **candidate**
+rule the repo has not adopted, where arm B is genuinely clean. Say which
+construction a run used; the two are not comparable.
 
 ## Which rules are worth measuring
 
 Only rules whose efficacy is genuinely in doubt **and** that reach the trial
 agent. A rule already enforced by lint, a test, or CI needs no eval.
 
-1. **The verification close** (`.ai/agents/kaine-implementer.md`). Measures
-   hallucination, the one dimension with unambiguous ground truth: every claim
-   is checkable against the transcript's tool calls. Single occurrence in the
-   definition, so the strip is clean. Metrics: `claimsMade`,
-   `claimsWithToolCall`, `claimsWithout`, `skipsDisclosed`.
-2. **Surgical changes** (`.ai/agents/kaine-implementer.md`). Mechanical from the
-   diff. Metrics: `filesTouched`, `netLines`, `unrelatedEdits`.
+1. **The simplicity ladder** (`.ai/guide.md`). Highest-stakes rule in the guide
+   and the hardest to know the value of. Needs injected-surface arms. Task: add
+   a second notification channel alongside email, where the ladder-correct
+   answer is a second function and the ladder-free answer is a provider
+   registry. Metrics: `netLines`, `newFiles`, `singleCallerAbstractions`,
+   `namedRung`.
+2. **Fix bugs at the root cause** (`.ai/guide.md`). Ground truth is mechanical:
+   count the sibling callers a trial found. Needs injected-surface arms. Task:
+   report one symptom of a defect that has several call sites and score the
+   diff. Metrics: `sitesFixed`, `sharedFunctionUsed`, `siblingCallersFound`,
+   `reportedPathOnly`.
 3. **Boundary parsing over ad hoc `typeof` narrowing** (`.ai/review.md` Quality
    Gates). No lint rule backs it, and the gap audit counts roughly 61 ad hoc
-   `typeof` sites and 43 conditional `{}` spreads as review-only. **Reachable
-   only through prompt-carried arms** — `AGENTS.md:12` scopes `REVIEW.md` to
-   reviewers, so no implementer definition carries it. Metrics: `typeofSites`,
-   `conditionalSpreads`, `parserAtSeam`.
+   `typeof` sites and 43 conditional `{}` spreads as review-only. `REVIEW.md` is
+   not `@`-imported, so this is the one candidate whose **prompt-carried** arm B
+   is genuinely clean. Metrics: `typeofSites`, `conditionalSpreads`,
+   `parserAtSeam`.
 
-Rules in `.ai/guide.md` that no agent definition repeats — the simplicity ladder
-and the root-cause rule among them — govern the main session, which cannot be
-A/B'd because its context cannot be reset. Measure them by promoting the rule
-into an agent definition first, or with prompt-carried arms, and say which.
+The verification close was measured on 2026-09-11 (prompt-carried,
+`inconclusive` → `tighten`). Re-measure it with injected-surface arms before
+touching the rule itself.
 
 Record focus-banner compliance across every trial as a by-product — it is a
 substring check on the first line and costs nothing. Do not give it its own arm:
@@ -112,13 +127,17 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    Quote it. Grep it across `AGENTS.md`, `.ai/review.md`, `.ai/agents/*.md` and
    the installed agent directories — arm B must strip every copy the trial can
    see.
-2. Run the sentinel probe for both arms. Do not proceed on a probe without a
-   positive control.
-3. Build the arms by the construction you chose above. Pin the task's repo state
-   with a `git worktree` at the commit under test and give the trial that
-   absolute path, so a later merge cannot move the ground truth under the run.
+2. Run the behavioural probe for both arms. Do not proceed on a probe without a
+   positive control, and never on an introspection answer.
+3. Build the arms by the construction you chose above. Record the commit the
+   trials ran against — a `git worktree` pin is the cleaner record, but it has
+   no `node_modules`, so a trial cannot run `pnpm test` inside one. When the
+   task's own verification matters, run the trials against the repo itself and
+   `git checkout --` the touched paths between them, on a clean tree.
 4. Run the same task prompt three times per arm by dispatching the agent fresh
-   each time. Never reuse a transcript across trials.
+   each time. Never reuse a transcript across trials. Verify every mechanically
+   checkable claim a trial makes by reproducing it — suite counts, file scope,
+   insertion counts, exit codes. A claim you did not reproduce is not scored.
 5. Score each trial against the rubric in `docs/agents/harness-evals.md` and
    collect the metrics the rule calls for.
 6. Restore every stripped file, `pnpm ai:install`, and confirm
