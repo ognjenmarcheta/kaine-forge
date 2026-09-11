@@ -1,5 +1,21 @@
 # @repo/api
 
+## 1.7.0
+
+### Minor Changes
+
+- 6df23ad: Validate the AI provider and model environment variables. `AI_ASSISTANT_PROVIDER` and `AI_ASSISTANT_MODEL` were read by the assistant runtime but declared nowhere, and `AI_TODO_PROVIDER` accepted any string — so a misspelled provider silently fell back to OpenAI. Both provider variables are now an enum that is trimmed and lowercased before matching, so a typo fails at startup with the variable named. Blank still means unset, which keeps a fresh clone bootable.
+
+  Breaking for any deployment currently setting a provider value that is not exactly `openai` or `deepseek`: the API now exits at startup instead of quietly using OpenAI.
+
+### Patch Changes
+
+- 6df23ad: Record AI failures and model-call usage. Both AI workflows previously ended in a bare `catch` that returned a degraded status with no log and no trace, so a provider outage, an expired key and a bug in our own persistence were indistinguishable. The degraded response is unchanged; the reason is now logged and sent to the error reporter.
+
+  Each model call also emits one structured line with provider, model, input/output/total tokens, duration, and — for the assistant — step and tool-call counts. Metadata only: no prompt, message, reply, tool payload or cost figure. Errors are logged under an `error` key rather than `err`, because pino's default serializer would otherwise copy the AI SDK's request body, which holds the prompt and the whole conversation, onto the record.
+
+- abb5b14: Prove organization scoping by executing GraphQL operations over real HTTP against an in-process Postgres (PGlite), covering the list query, the point read, a cross-organization update, the batched todos DataLoader, the membership gate, and the unauthenticated path.
+
 ## 1.6.4
 
 ### Patch Changes
