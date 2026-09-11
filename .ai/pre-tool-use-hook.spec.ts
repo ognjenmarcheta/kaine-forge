@@ -99,6 +99,13 @@ describe("matchGuardedCommand", () => {
     expect(matchGuardedCommand("pnpm lint && pnpm db:push", rules)?.id).toBe("db-push");
   });
 
+  it("applies the same policy to pnpm run aliases without blocking validated local commands", () => {
+    expect(matchGuardedCommand("pnpm run db:push", rules)?.decision).toBe("deny");
+    expect(matchGuardedCommand("pnpm run release:apps --dry-run", rules)?.decision).toBe("deny");
+    expect(matchGuardedCommand("pnpm run db:push:local", rules)).toBeNull();
+    expect(matchGuardedCommand("pnpm run db:prepare:local", rules)).toBeNull();
+  });
+
   it("prefers deny over ask when both could match", () => {
     expect(matchGuardedCommand("pnpm db:seed && pnpm db:push", rules)?.decision).toBe("deny");
   });
@@ -146,9 +153,13 @@ describe("pre-tool-use hook", () => {
   });
 
   it("emits the Codex verdict shape", () => {
-    const output: unknown = JSON.parse(runHook("pnpm db:push", "codex").stdout);
+    const result = runHook("pnpm db:push", "codex");
+    expect(result.status).toBe(0);
+    const output: unknown = JSON.parse(result.stdout);
 
-    expect(output).toMatchObject({ decision: "block" });
+    expect(output).toMatchObject({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny" }
+    });
   });
 
   it("emits the Grok verdict shape", () => {

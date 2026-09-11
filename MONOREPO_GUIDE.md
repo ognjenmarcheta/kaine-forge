@@ -240,7 +240,7 @@ docker build -f Dockerfile.web -t kaine-forge-web .
 docker run --rm -p 3000:3000 -e API_BACKEND_URL=http://host.docker.internal:4000 kaine-forge-web
 ```
 
-Initialize all deployable app branches intentionally with:
+A human operator can initialize all deployable app branches intentionally with:
 
 ```bash
 pnpm release:apps --apps all
@@ -352,7 +352,7 @@ pnpm --filter @repo/mobile-ui typecheck
 - PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
 - Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
-- After deployable app changes land on `main`, run `pnpm release:apps` so only affected `release/<app>` branches redeploy.
+- After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.
 
 Before finishing a substantial task, run the narrowest useful workspace checks plus the relevant root gates.
 
@@ -410,7 +410,7 @@ Pick the reference feature that matches your scope: clone `notes` for a plain or
 pnpm create:feature <singular> --plural <plural> --write
 ```
 
-That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. The generator never writes `pnpm db:push` or a migration for you.
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. The generator never writes `pnpm db:push:local` or a migration for you.
 
 Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 
@@ -448,3 +448,9 @@ Organization-scoped client query keys come from `createActiveOrganizationQueryKe
 - `SECURITY.md`: security reporting and hardening.
 - `docs/README.md`: documentation index.
 - `docs/adr/`: accepted architecture decisions.
+
+## 22. Local database and release commands
+
+Local bootstrap and end-to-end preparation require `ALLOW_LOCAL_DB_PUSH=true` in the untracked `.env`. The template defaults to false. `pnpm db:prepare:local` validates the target, creates the database if needed, pushes the schema, and seeds local fixtures. `pnpm db:push:local` only pushes the schema. Both accept PostgreSQL on `localhost`, `127.0.0.1`, or `::1`; they reject production mode, system databases, URL query overrides, and extra arguments. Destructive Drizzle prompts are not automatically accepted. Shared and deployed databases use reviewed migrations. Existing `.env` files and database contents are not reset by setup.
+
+The Release workflow owns deployment branch updates. Manual `pnpm release:apps` commands, including `--dry-run`, are human operations and remain blocked for agents.

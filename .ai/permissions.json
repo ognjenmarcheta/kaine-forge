@@ -5,8 +5,8 @@
       "id": "db-push",
       "decision": "deny",
       "command": "pnpm db:push",
-      "reason": "drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns. Generate a migration and review the SQL first.",
-      "instead": "pnpm db:generate"
+      "reason": "Unrestricted schema push can drop columns in DATABASE_URL. Shared and deployed databases require pnpm db:generate and reviewed migrations. The local wrapper requires explicit opt-in and validates loopback PostgreSQL.",
+      "instead": "pnpm db:push:local"
     },
     {
       "id": "clean-deps",

@@ -28,7 +28,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
 - Do not commit secrets or local assistant state.
 - Never co-author yourself (or any AI/tool identity) in git history: no `Co-Authored-By:` trailers for assistants, no “Generated with …” / “Made with …” AI footers, and do not set commit author/committer to an AI name or noreply AI email. Commits remain under the human contributor’s identity only. The `commit-msg` hook enforces this via commitlint.
-- Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; use the CLI for dry-runs or repairs so only matching `release/<app>` branches move.
+- Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI dry-runs and repairs belong to a human operator because agent policy blocks `release:apps`, including `--dry-run`.
 
 ## Common Commands
 
@@ -44,7 +44,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Test: `pnpm test`
 - Smoke the API, including the two-organization tenancy proof (no Docker, no browser): `pnpm smoke`
 - Build API and web core: `pnpm run build:core`
-- Update deployable app release branches: `pnpm release:apps`
+- Deployable app release branches: the Release workflow updates them; manual `pnpm release:apps` is a human operation.
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
@@ -54,6 +54,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 Principles to reduce common LLM coding mistakes:
 
 ### Think Before Coding
+
+- Explicit task authorization satisfies workflow confirmation steps, including names supplied in the task. Ask only for missing information that changes behavior or a concrete action outside the authorized scope. Name and quote any skill instruction that requires a stop.
+- Local setup may use `pnpm db:prepare:local` and feature work may use `pnpm db:push:local` after explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in. These commands validate a loopback PostgreSQL target before mutation. Unrestricted `pnpm db:push` remains denied; shared and deployed databases use reviewed migrations.
 
 - Restate the goal in concrete terms before editing when the request has multiple moving parts.
 - State assumptions explicitly. If two interpretations would produce different code, surface the fork instead of choosing silently.

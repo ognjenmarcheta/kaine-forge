@@ -299,6 +299,19 @@ describe("applyCreateFeature", () => {
     expect(result.createdPaths).toEqual([...buildFeatureFiles(names).keys()]);
   });
 
+  it("wires LF and CRLF sources equivalently while preserving each source's line endings", () => {
+    const lf = new Map(
+      [...readWiringTargets()].map(([path, text]) => [path, text.replace(/\r\n/g, "\n")])
+    );
+    const crlf = new Map([...lf].map(([path, text]) => [path, text.replace(/\n/g, "\r\n")]));
+    const expected = applyCreateFeature(lf, names);
+    const actual = applyCreateFeature(crlf, names);
+    for (const path of wiringTargets) {
+      expect(actual.files.get(path)?.replace(/\r\n/g, "\n")).toBe(expected.files.get(path));
+      expect(actual.files.get(path)).toContain("\r\n");
+    }
+  });
+
   it("registers the feature everywhere the runtime reads it from", () => {
     const { files } = applyCreateFeature(readWiringTargets(), names);
     const read = (path: string): string => files.get(path) ?? "";

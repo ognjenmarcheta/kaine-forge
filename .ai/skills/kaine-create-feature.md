@@ -12,7 +12,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
 ## Workflow
 
-1. Agree the names with the user before writing anything. The singular drives the GraphQL type and event names; the plural drives the table, folder, route, and translation namespace. Both must be lowercase kebab-case, and they must differ.
+1. Use names already supplied or approved by the user; ask only when the task leaves names ambiguous. The singular drives the GraphQL type and event names; the plural drives the table, folder, route, and translation namespace. Both must be lowercase kebab-case, and they must differ.
 
 2. Preview first. This writes nothing:
 
@@ -54,7 +54,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    pnpm check
    ```
 
-   Then `pnpm db:push` and `pnpm test:e2e` when a database is available.
+   Then `pnpm db:push:local` and `pnpm test:e2e` for explicitly opted-in local PostgreSQL (`ALLOW_LOCAL_DB_PUSH=true`). Shared and deployed databases use reviewed migrations.
 
 ## Rules the generated slice already satisfies
 

@@ -4,6 +4,8 @@ This ramp is for engineers and non-engineers contributing with a coding agent wh
 
 ## 1. Install assistant files
 
+For first-time local app setup, run `pnpm env:ensure`, set `ALLOW_LOCAL_DB_PUSH=true` in `.env`, then use `pnpm quick-setup`. Keep the opt-in off for shared databases.
+
 ```bash
 pnpm ai:install
 # optional: target a harness explicitly
@@ -95,3 +97,9 @@ Do not only re-prompt. Run **`kaine-encode-knowledge`** so the rule becomes REVI
 ## 8. What this ramp is not
 
 Encoded context multiplies agents and people; it does not remove the need for judgment, security care, or running the checks above.
+
+## Local database and release commands
+
+Use `pnpm db:prepare:local` for local setup and `pnpm db:push:local` for local schema changes, with explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in. Shared databases use reviewed migrations. See [local database rules](../../MONOREPO_GUIDE.md#22-local-database-and-release-commands).
+
+The Release workflow updates deployment branches. Manual `pnpm release:apps` commands, including dry-runs, are human-only.

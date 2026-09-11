@@ -36,7 +36,12 @@ export default defineConfig({
       command:
         // API_CORS_ORIGINS feeds better-auth's trustedOrigins; the browser hits
         // the API through the Vite proxy, so its Origin header is the web origin.
-        "API_PORT=4010 BETTER_AUTH_URL=http://127.0.0.1:4010 API_CORS_ORIGINS=http://127.0.0.1:3010 pnpm --filter @repo/api exec node --import tsx src/index.ts",
+        "pnpm --filter @repo/api exec node --import tsx src/index.ts",
+      env: {
+        API_PORT: "4010",
+        BETTER_AUTH_URL: "http://127.0.0.1:4010",
+        API_CORS_ORIGINS: "http://127.0.0.1:3010"
+      },
       cwd: repoRoot,
       url: "http://127.0.0.1:4010/api/auth/get-session",
       reuseExistingServer: true,
@@ -47,7 +52,11 @@ export default defineConfig({
         // The repo .env pins VITE_GRAPHQL_URL to the dev API (port 4000), which
         // would bypass the Vite proxy in the browser. e2e must stay same-origin,
         // so force the relative /graphql endpoint; process env outranks .env.
-        "VITE_API_PROXY_TARGET=http://127.0.0.1:4010 VITE_GRAPHQL_URL=/graphql pnpm --filter @repo/web exec vite --host 127.0.0.1 --port 3010 --strictPort",
+        "pnpm --filter @repo/web exec vite --host 127.0.0.1 --port 3010 --strictPort",
+      env: {
+        VITE_API_PROXY_TARGET: "http://127.0.0.1:4010",
+        VITE_GRAPHQL_URL: "/graphql"
+      },
       cwd: repoRoot,
       url: "http://127.0.0.1:3010/auth",
       reuseExistingServer: true,

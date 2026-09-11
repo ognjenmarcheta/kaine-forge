@@ -2,13 +2,17 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { pnpmInvocation } from "../scripts/pnpm.util.mjs";
+
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
-const runInstall = (args: readonly string[]) =>
-  spawnSync("pnpm", ["exec", "tsx", ".ai/install.ts", ...args], {
+const runInstall = (args: readonly string[]) => {
+  const invocation = pnpmInvocation(["exec", "tsx", ".ai/install.ts", ...args]);
+  return spawnSync(invocation.command, invocation.args, {
     cwd: repoRoot,
     encoding: "utf8"
   });
+};
 
 describe("install CLI argument parsing", () => {
   it("accepts the pnpm run separator before its flags (issue #367)", () => {

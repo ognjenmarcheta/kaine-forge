@@ -15,6 +15,7 @@ import {
   wiringTargets,
   type FeatureNames
 } from "./create-feature.util";
+import { pnpmInvocation } from "../scripts/pnpm.util.mjs";
 
 const usage = `Usage:
   pnpm create:feature <singular-kebab> [options]
@@ -59,7 +60,8 @@ const writeFiles = (paths: readonly string[], files: ReadonlyMap<string, string>
 };
 
 const run = (command: string, args: string[]): void => {
-  execFileSync(command, args, { cwd: REPO_ROOT, stdio: "inherit" });
+  const invocation = command === "pnpm" ? pnpmInvocation(args) : { command, args };
+  execFileSync(invocation.command, invocation.args, { cwd: REPO_ROOT, stdio: "inherit" });
 };
 
 // Formatting and import ordering are eslint's and prettier's job, not the
@@ -89,7 +91,7 @@ const nextSteps = (names: FeatureNames): string => `Next steps:
   2. Match apps/api/src/features/${names.pluralKebab}/${names.pluralKebab}.{schema,type,util}.ts and
      apps/web/src/graphql/operations/${names.pluralKebab}.graphql to those columns, then: pnpm generate
   3. pnpm db:generate   # writes a new packages/db/drizzle/*.sql - review it before committing
-  4. pnpm db:push       # touches your live database
+  4. pnpm db:push:local # requires ALLOW_LOCAL_DB_PUSH=true and local PostgreSQL
   5. Translate packages/translation/src/locales/{de,sr}/${names.pluralKebab}.json and the
      navigation.${names.pluralKebab} keys - they currently hold English copy (issue #382).
   6. pnpm check

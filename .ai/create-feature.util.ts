@@ -1333,7 +1333,9 @@ export const applyCreateFeature = (
     if (source === undefined) {
       throw new CreateFeatureError(path, `${path}: wiring target is missing from the repository`);
     }
-    const updated = wireTarget(path, source, names);
+    const normalized = source.replace(/\r\n/g, "\n");
+    const wired = wireTarget(path, normalized, names);
+    const updated = source.includes("\r\n") ? wired.replace(/\n/g, "\r\n") : wired;
     if (updated === source) {
       throw new CreateFeatureError(path, `${path}: wiring made no change`);
     }

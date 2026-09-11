@@ -6,6 +6,7 @@ import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
 import {
   type Agent,
+  generatedTextEqual,
   checkSerenaProjectSemantics,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
@@ -136,7 +137,7 @@ const computeSkillDrift = (skills: Skill[]): AgentDrift[] => {
         missing.push(skill.name);
         continue;
       }
-      if (readFileSync(filePath, "utf8") !== render(skill)) {
+      if (!generatedTextEqual(readFileSync(filePath, "utf8"), render(skill))) {
         stale.push(skill.name);
       }
     }
@@ -195,7 +196,7 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
       drift.push({ label: file.label, status: "missing", tracked: file.tracked });
       continue;
     }
-    if (readFileSync(file.path, "utf8") !== file.content) {
+    if (!generatedTextEqual(readFileSync(file.path, "utf8"), file.content)) {
       drift.push({ label: file.label, status: "stale", tracked: file.tracked });
     }
   }
@@ -204,7 +205,7 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
     const content = renderReviewDoc(readFileSync(REVIEW_SRC, "utf8"));
     if (!existsSync(REVIEW_OUT)) {
       drift.push({ label: "REVIEW.md", status: "missing", tracked: true });
-    } else if (readFileSync(REVIEW_OUT, "utf8") !== content) {
+    } else if (!generatedTextEqual(readFileSync(REVIEW_OUT, "utf8"), content)) {
       drift.push({ label: "REVIEW.md", status: "stale", tracked: true });
     }
   }
@@ -240,7 +241,7 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
       );
       if (!existsSync(filePath)) {
         drift.push({ label: `.serena/memories/${fileName}`, status: "missing", tracked: true });
-      } else if (readFileSync(filePath, "utf8") !== content) {
+      } else if (!generatedTextEqual(readFileSync(filePath, "utf8"), content)) {
         drift.push({ label: `.serena/memories/${fileName}`, status: "stale", tracked: true });
       }
     }
@@ -258,7 +259,7 @@ const computeHookDrift = (): FileDrift[] => {
     if (
       !content.includes("[[hooks.SessionStart]]") ||
       !content.includes(".ai/hooks/session-start.mjs") ||
-      !content.includes("hooks = true") ||
+      !content.includes("\nhooks = true") ||
       content.includes("codex_hooks = true")
     ) {
       drift.push({ label: ".codex/config.toml hooks", status: "stale" });
@@ -276,7 +277,7 @@ const computeHookDrift = (): FileDrift[] => {
       const hookPath = join(REPO_ROOT, ".grok", "hooks", hook.name);
       if (!existsSync(hookPath)) {
         drift.push({ label: `.grok/hooks/${hook.name}`, status: "missing" });
-      } else if (readFileSync(hookPath, "utf8") !== hook.content) {
+      } else if (!generatedTextEqual(readFileSync(hookPath, "utf8"), hook.content)) {
         drift.push({ label: `.grok/hooks/${hook.name}`, status: "stale" });
       }
     }

@@ -76,5 +76,5 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Assistant guidance edited only under `.ai/`; then `pnpm ai:install` and `pnpm ai:doctor` (`MONOREPO_GUIDE.md` §18).
 - [ ] Generated agent files (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.serena/*`, local skill installs) not hand-edited.
 - [ ] Commit messages and PR bodies have no AI self-attribution (`Co-Authored-By` for assistants, “Generated with …” AI footers, AI as author/committer); commitlint blocks this on commit (`.ai/guide.md`).
-- [ ] Deployable app changes on `main` consider `pnpm release:apps` / Dockerfile contracts.
+- [ ] Deployable app changes respect Dockerfile contracts and the Release workflow. Manual `pnpm release:apps` commands, including dry-runs, are human-only.
 - [ ] Domain review rejections or repeated agent mistakes are promoted via `kaine-encode-knowledge` (lint/test/REVIEW/skill/CONTEXT) rather than one-off re-prompts only.
