@@ -15,6 +15,7 @@ import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import type { AssistantToolAction, SendMessageInput } from "./assistant.type";
 import { coerceMessagesPagination } from "./assistant.util";
 import type { ApiContext } from "../../context";
+import { errorReporter, formatLoggableError } from "../../observability";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
 type ResolverContext = ApiContext;
@@ -31,6 +32,9 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     },
     publishNoteEvent: (eventName, ...payload) => {
       ctx.pubsub.publish(eventName, ...payload);
+    },
+    recordModelCall: (telemetry) => {
+      ctx.logger.info(telemetry, "assistant model call");
     }
   });
 
@@ -50,6 +54,15 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
         content: message.content,
         role: message.role === "assistant" ? "assistant" : "user"
       }));
+    },
+    reportAgentFailure: ({ conversationId, err }) => {
+      // `error`, not `err`: pino's default err serializer would copy the AI
+      // SDK's requestBodyValues, which holds the prompt and the conversation.
+      ctx.logger.error(
+        { conversationId, error: formatLoggableError(err) },
+        "assistant message failed"
+      );
+      errorReporter.captureException(err, { conversationId, feature: "assistant" });
     },
     runAgent: aiRuntime.runAgent,
     touchConversation

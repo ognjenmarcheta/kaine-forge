@@ -40,6 +40,43 @@ describe("validateApiEnv", () => {
     expect(env.LOG_LEVEL).toBe("debug");
   });
 
+  it("accepts both AI providers for either feature", () => {
+    const env = validateApiEnv({
+      ...validEnv,
+      AI_TODO_PROVIDER: "deepseek",
+      AI_ASSISTANT_PROVIDER: "openai",
+      AI_ASSISTANT_MODEL: "o4-mini"
+    });
+    expect(env.AI_TODO_PROVIDER).toBe("deepseek");
+    expect(env.AI_ASSISTANT_PROVIDER).toBe("openai");
+    expect(env.AI_ASSISTANT_MODEL).toBe("o4-mini");
+  });
+
+  it("treats a blank AI provider as unset", () => {
+    // .env.example ships these blank and ensure-env.mjs copies it verbatim, so a
+    // bare enum here would break pnpm bootstrap on a fresh clone.
+    const env = validateApiEnv({ ...validEnv, AI_TODO_PROVIDER: "", AI_ASSISTANT_PROVIDER: "" });
+    expect(env.AI_TODO_PROVIDER).toBeUndefined();
+    expect(env.AI_ASSISTANT_PROVIDER).toBeUndefined();
+  });
+
+  it("normalizes AI provider casing and surrounding space", () => {
+    // The runtimes lowercase before matching, so the validator must not be
+    // stricter than the value they would honour.
+    expect(validateApiEnv({ ...validEnv, AI_TODO_PROVIDER: "  OpenAI " }).AI_TODO_PROVIDER).toBe(
+      "openai"
+    );
+  });
+
+  it("rejects a misspelled AI provider instead of falling back", () => {
+    expect(() => validateApiEnv({ ...validEnv, AI_TODO_PROVIDER: "opena1" })).toThrow(
+      /AI_TODO_PROVIDER/
+    );
+    expect(() => validateApiEnv({ ...validEnv, AI_ASSISTANT_PROVIDER: "openal" })).toThrow(
+      /AI_ASSISTANT_PROVIDER/
+    );
+  });
+
   it("accepts optional social provider credentials", () => {
     const env = validateApiEnv({
       ...validEnv,

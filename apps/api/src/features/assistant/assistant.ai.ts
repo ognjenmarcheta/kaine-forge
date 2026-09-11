@@ -31,6 +31,11 @@ export interface AssistantAiWorkflowAdapter {
     scope: AuthenticatedOrganizationScope,
     conversationId: string
   ) => Promise<ConversationMessage[]>;
+  /**
+   * The sendMessage catch covers the model call and the writes around it. A
+   * degraded reply is the right response, but the reason must not vanish.
+   */
+  reportAgentFailure: (input: { conversationId: string; err: unknown }) => void;
   runAgent: (input: {
     conversationId: string;
     messages: ConversationMessage[];
@@ -113,7 +118,9 @@ export function createAssistantAiWorkflow(adapter: AssistantAiWorkflowAdapter) {
           status: "REPLIED",
           toolActions
         };
-      } catch {
+      } catch (err) {
+        adapter.reportAgentFailure({ conversationId, err });
+
         return {
           conversationId,
           message: "AI_GENERATION_FAILED",

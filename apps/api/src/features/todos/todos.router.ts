@@ -15,6 +15,7 @@ import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
 import { coercePagination } from "./todos.util";
 import { createTodoWorkflow } from "./todos.workflow";
 import type { ApiContext } from "../../context";
+import { errorReporter, formatLoggableError } from "../../observability";
 import { filterByOrganization } from "../../pubsub";
 import { createAttachmentLifecycle } from "../storage/attachment.lifecycle";
 import { deleteFilesByEntity, listFiles } from "../storage/storage.adapter";
@@ -50,7 +51,11 @@ function createTodoWorkflowForContext(ctx: ResolverContext) {
 }
 
 function createTodoAiWorkflowForContext(ctx: ResolverContext) {
-  const aiRuntime = createTodoAiRuntime();
+  const aiRuntime = createTodoAiRuntime({
+    recordModelCall: (telemetry) => {
+      ctx.logger.info(telemetry, "todo generation model call");
+    }
+  });
 
   return createTodoAiWorkflow({
     createTodo,
@@ -59,6 +64,12 @@ function createTodoAiWorkflowForContext(ctx: ResolverContext) {
     maxGeneratedTodos: aiRuntime.maxGeneratedTodos,
     publishTodoEvent: (eventName, ...payload) => {
       ctx.pubsub.publish(eventName, ...payload);
+    },
+    reportGenerationFailure: ({ err }) => {
+      // `error`, not `err`: see observability.ts — the AI SDK's error carries
+      // the outgoing request body.
+      ctx.logger.error({ error: formatLoggableError(err) }, "todo generation failed");
+      errorReporter.captureException(err, { feature: "todos-ai" });
     }
   });
 }

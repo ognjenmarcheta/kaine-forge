@@ -22,7 +22,8 @@ const aiSdkMocks = vi.hoisted(() => {
             title: "Generated todo"
           }
         ]
-      }
+      },
+      usage: { inputTokens: 80, outputTokens: 30, totalTokens: 110 }
     })),
     objectOutput: vi.fn((config: unknown) => config),
     openAiModel
@@ -55,7 +56,7 @@ describe("createTodoAiRuntime", () => {
   it("uses OpenAI by default", async () => {
     vi.stubEnv("OPENAI_API_KEY", "openai-key");
 
-    const runtime = createTodoAiRuntime();
+    const runtime = createTodoAiRuntime({ recordModelCall: vi.fn() });
 
     expect(runtime.isConfigured()).toBe(true);
     await expect(runtime.generateTodoDrafts({ prompt: "Plan launch" })).resolves.toEqual([
@@ -82,7 +83,7 @@ describe("createTodoAiRuntime", () => {
     vi.stubEnv("AI_TODO_PROVIDER", "deepseek");
     vi.stubEnv("DEEPSEEK_API_KEY", "deepseek-key");
 
-    const runtime = createTodoAiRuntime();
+    const runtime = createTodoAiRuntime({ recordModelCall: vi.fn() });
 
     expect(runtime.isConfigured()).toBe(true);
     await runtime.generateTodoDrafts({ prompt: "Plan launch" });
@@ -95,7 +96,7 @@ describe("createTodoAiRuntime", () => {
     vi.stubEnv("AI_TODO_PROVIDER", "deepseek");
     vi.stubEnv("OPENAI_API_KEY", "openai-key");
 
-    const runtime = createTodoAiRuntime();
+    const runtime = createTodoAiRuntime({ recordModelCall: vi.fn() });
 
     expect(runtime.isConfigured()).toBe(false);
     await expect(runtime.generateTodoDrafts({ prompt: "Plan launch" })).resolves.toEqual([]);
@@ -109,7 +110,7 @@ describe("createTodoAiRuntime", () => {
     vi.stubEnv("AI_TODO_PROVIDER", "deepseek");
     vi.stubEnv("DEEPSEEK_API_KEY", "deepseek-key");
 
-    const runtime = createTodoAiRuntime();
+    const runtime = createTodoAiRuntime({ recordModelCall: vi.fn() });
 
     await runtime.generateTodoDrafts({ prompt: "Plan launch" });
     expect(aiSdkMocks.deepseekModel).toHaveBeenCalledWith("deepseek-reasoner");
@@ -119,12 +120,37 @@ describe("createTodoAiRuntime", () => {
     vi.stubEnv("AI_TODO_PROVIDER", "unknown-provider");
     vi.stubEnv("OPENAI_API_KEY", "openai-key");
 
-    const runtime = createTodoAiRuntime();
+    const runtime = createTodoAiRuntime({ recordModelCall: vi.fn() });
 
     expect(runtime.isConfigured()).toBe(true);
     await runtime.generateTodoDrafts({ prompt: "Plan launch" });
     expect(aiSdkMocks.createOpenAI).toHaveBeenCalledWith({ apiKey: "openai-key" });
     expect(aiSdkMocks.openAiModel).toHaveBeenCalledWith("gpt-4.1-mini");
     expect(aiSdkMocks.createDeepSeek).not.toHaveBeenCalled();
+  });
+
+  it("records provider, model, tokens and duration for each call", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "openai-key");
+    const recordModelCall = vi.fn();
+
+    await createTodoAiRuntime({ recordModelCall }).generateTodoDrafts({ prompt: "Plan launch" });
+
+    expect(recordModelCall).toHaveBeenCalledTimes(1);
+    expect(recordModelCall).toHaveBeenCalledWith({
+      durationMs: expect.any(Number),
+      inputTokens: 80,
+      model: "gpt-4.1-mini",
+      outputTokens: 30,
+      provider: "openai",
+      totalTokens: 110
+    });
+  });
+
+  it("records nothing when the provider is not configured", async () => {
+    const recordModelCall = vi.fn();
+
+    await createTodoAiRuntime({ recordModelCall }).generateTodoDrafts({ prompt: "Plan launch" });
+
+    expect(recordModelCall).not.toHaveBeenCalled();
   });
 });
