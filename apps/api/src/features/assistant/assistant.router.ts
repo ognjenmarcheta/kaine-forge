@@ -32,6 +32,9 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     },
     publishNoteEvent: (eventName, ...payload) => {
       ctx.pubsub.publish(eventName, ...payload);
+    },
+    recordModelCall: (telemetry) => {
+      ctx.logger.info(telemetry, "assistant model call");
     }
   });
 

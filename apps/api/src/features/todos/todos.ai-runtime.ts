@@ -11,7 +11,26 @@ const DEFAULT_AI_TODO_MODELS = {
 } as const;
 const MAX_GENERATED_TODOS = 5;
 
-type AiTodoProvider = keyof typeof DEFAULT_AI_TODO_MODELS;
+export type AiTodoProvider = keyof typeof DEFAULT_AI_TODO_MODELS;
+
+/**
+ * Metadata about one model call. Same rule as the assistant's: numbers and
+ * enumerated config values only, nothing derived from the prompt or the
+ * generated todos. No steps or toolCalls — generateText with no tools is always
+ * one step and zero calls, and a constant in every record is noise.
+ */
+export interface TodoModelCallTelemetry {
+  durationMs: number;
+  inputTokens: number | undefined;
+  model: string;
+  outputTokens: number | undefined;
+  provider: AiTodoProvider;
+  totalTokens: number | undefined;
+}
+
+export interface TodoAiRuntimeDeps {
+  recordModelCall: (telemetry: TodoModelCallTelemetry) => void;
+}
 
 const generatedTodosSchema = z.object({
   todos: z
@@ -53,7 +72,7 @@ function resolveAiTodoConfig() {
   };
 }
 
-export function createTodoAiRuntime() {
+export function createTodoAiRuntime({ recordModelCall }: TodoAiRuntimeDeps) {
   return {
     isConfigured: () => Boolean(resolveAiTodoConfig().apiKey),
     maxGeneratedTodos: MAX_GENERATED_TODOS,
@@ -68,6 +87,7 @@ export function createTodoAiRuntime() {
         config.provider === "deepseek"
           ? createDeepSeek({ apiKey: config.apiKey })(config.model)
           : createOpenAI({ apiKey: config.apiKey })(config.model);
+      const startedAt = Date.now();
       const result = await generateText({
         model,
         output: Output.object({
@@ -76,6 +96,15 @@ export function createTodoAiRuntime() {
         instructions:
           "You generate concise todo lists. Return one to five actionable todos. Keep titles short and descriptions useful. Do not include markdown.",
         prompt: input.prompt
+      });
+
+      recordModelCall({
+        durationMs: Date.now() - startedAt,
+        inputTokens: result.usage.inputTokens,
+        model: config.model,
+        outputTokens: result.usage.outputTokens,
+        provider: config.provider,
+        totalTokens: result.usage.totalTokens
       });
 
       return result.output.todos;

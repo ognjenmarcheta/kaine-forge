@@ -20,7 +20,28 @@ const ASSISTANT_SYSTEM_PROMPT =
   "After acting, reply concisely in plain text describing what you did. Do not use markdown. " +
   "You can also create and update notes, and a note can hold a checklist of todos. Use listNotes to find a note's id before updating it or adding todos to it.";
 
-type AiAssistantProvider = keyof typeof DEFAULT_AI_ASSISTANT_MODELS;
+export type AiAssistantProvider = keyof typeof DEFAULT_AI_ASSISTANT_MODELS;
+
+/**
+ * Metadata about one model call. Numbers, enumerated config values and opaque
+ * identifiers only — nothing derived from the model's input or output, so no
+ * prompt, message, reply, delta, tool input or tool output. No cost either: a
+ * hardcoded price table rots, and tokens times a price the operator knows is a
+ * spreadsheet. assistant.ai-runtime.test.ts locks this key set.
+ */
+export interface AssistantModelCallTelemetry {
+  conversationId: string;
+  durationMs: number;
+  /** Undefined rather than 0 when the provider reports no count: a missing
+   * number is not the same claim as a zero one. */
+  inputTokens: number | undefined;
+  model: string;
+  outputTokens: number | undefined;
+  provider: AiAssistantProvider;
+  steps: number;
+  toolCalls: number;
+  totalTokens: number | undefined;
+}
 
 export interface RunAgentInput {
   conversationId: string;
@@ -51,6 +72,7 @@ export interface AssistantAiRuntimeDeps {
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
+  recordModelCall: (telemetry: AssistantModelCallTelemetry) => void;
 }
 
 function getEnvValue(name: string): string | null {
@@ -130,7 +152,8 @@ function flattenSteps<TTools extends ToolSet>(
 export function createAssistantAiRuntime({
   publishAssistantDelta,
   publishNoteEvent,
-  publishTodoEvent
+  publishTodoEvent,
+  recordModelCall
 }: AssistantAiRuntimeDeps) {
   return {
     isConfigured: () => Boolean(resolveAiAssistantConfig().apiKey),
@@ -146,6 +169,7 @@ export function createAssistantAiRuntime({
           ? createDeepSeek({ apiKey: config.apiKey })(config.model)
           : createOpenAI({ apiKey: config.apiKey })(config.model);
 
+      const startedAt = Date.now();
       const result = streamText({
         model,
         instructions: ASSISTANT_SYSTEM_PROMPT,
@@ -165,10 +189,24 @@ export function createAssistantAiRuntime({
         }
       }
 
-      return {
-        reply: await result.text,
-        toolActions: flattenSteps(await result.steps)
-      };
+      // All three settle once the stream has drained, so reading usage costs
+      // nothing beyond the two awaits this already did.
+      const [reply, steps, usage] = await Promise.all([result.text, result.steps, result.usage]);
+      const toolActions = flattenSteps(steps);
+
+      recordModelCall({
+        conversationId,
+        durationMs: Date.now() - startedAt,
+        inputTokens: usage.inputTokens,
+        model: config.model,
+        outputTokens: usage.outputTokens,
+        provider: config.provider,
+        steps: steps.length,
+        toolCalls: toolActions.length,
+        totalTokens: usage.totalTokens
+      });
+
+      return { reply, toolActions };
     }
   };
 }

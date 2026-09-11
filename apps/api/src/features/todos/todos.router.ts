@@ -51,7 +51,11 @@ function createTodoWorkflowForContext(ctx: ResolverContext) {
 }
 
 function createTodoAiWorkflowForContext(ctx: ResolverContext) {
-  const aiRuntime = createTodoAiRuntime();
+  const aiRuntime = createTodoAiRuntime({
+    recordModelCall: (telemetry) => {
+      ctx.logger.info(telemetry, "todo generation model call");
+    }
+  });
 
   return createTodoAiWorkflow({
     createTodo,

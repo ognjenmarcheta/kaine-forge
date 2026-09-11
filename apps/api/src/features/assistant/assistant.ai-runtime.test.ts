@@ -14,6 +14,11 @@ interface StreamTextResult {
   steps: Promise<unknown[]>;
   text: Promise<string>;
   textStream: AsyncGenerator<string>;
+  usage: Promise<{
+    inputTokens: number | undefined;
+    outputTokens: number | undefined;
+    totalTokens: number | undefined;
+  }>;
 }
 
 const aiSdkMocks = vi.hoisted(() => {
@@ -54,7 +59,8 @@ const aiSdkMocks = vi.hoisted(() => {
         yield "Created";
         yield "";
         yield " it.";
-      })()
+      })(),
+      usage: Promise.resolve({ inputTokens: 120, outputTokens: 45, totalTokens: 165 })
     }))
   };
 });
@@ -84,7 +90,8 @@ const scope = {
 const deps = () => ({
   publishAssistantDelta: vi.fn(),
   publishNoteEvent: vi.fn(),
-  publishTodoEvent: vi.fn()
+  publishTodoEvent: vi.fn(),
+  recordModelCall: vi.fn()
 });
 
 const runInput = {
@@ -281,6 +288,78 @@ describe("createAssistantAiRuntime", () => {
         // No matching result: output is null rather than undefined.
         { tool: "toggleTodo", input: { id: "todo-1" }, output: null }
       ]);
+    });
+  });
+
+  describe("telemetry", () => {
+    beforeEach(() => {
+      vi.stubEnv("OPENAI_API_KEY", "openai-key");
+    });
+
+    it("records provider, model, tokens, duration and shape once per call", async () => {
+      const injected = deps();
+      await createAssistantAiRuntime(injected).runAgent(runInput);
+
+      expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
+      expect(injected.recordModelCall).toHaveBeenCalledWith({
+        conversationId: "conv-1",
+        durationMs: expect.any(Number),
+        inputTokens: 120,
+        model: "gpt-4.1-mini",
+        outputTokens: 45,
+        provider: "openai",
+        steps: 2,
+        toolCalls: 3,
+        totalTokens: 165
+      });
+    });
+
+    it("carries only metadata, never anything derived from the model", () => {
+      // The leak rule as a test rather than a comment: adding `messages` or
+      // `reply` to the telemetry object fails here.
+      const injected = deps();
+
+      return createAssistantAiRuntime(injected)
+        .runAgent(runInput)
+        .then(() => {
+          const telemetry = injected.recordModelCall.mock.calls[0]?.[0] as Record<string, unknown>;
+
+          expect(Object.keys(telemetry).sort()).toEqual([
+            "conversationId",
+            "durationMs",
+            "inputTokens",
+            "model",
+            "outputTokens",
+            "provider",
+            "steps",
+            "toolCalls",
+            "totalTokens"
+          ]);
+        });
+    });
+
+    it("passes through undefined token counts rather than claiming zero", async () => {
+      aiSdkMocks.streamText.mockImplementationOnce(() => ({
+        steps: Promise.resolve(aiSdkMocks.steps),
+        text: Promise.resolve("Created it."),
+        textStream: (async function* () {
+          yield "Created it.";
+        })(),
+        usage: Promise.resolve({
+          inputTokens: undefined,
+          outputTokens: undefined,
+          totalTokens: undefined
+        })
+      }));
+      const injected = deps();
+
+      const result = await createAssistantAiRuntime(injected).runAgent(runInput);
+
+      expect(injected.recordModelCall).toHaveBeenCalledWith(
+        expect.objectContaining({ inputTokens: undefined, totalTokens: undefined })
+      );
+      // The reply path is unaffected by a provider that reports no usage.
+      expect(result.reply).toBe("Created it.");
     });
   });
 });
