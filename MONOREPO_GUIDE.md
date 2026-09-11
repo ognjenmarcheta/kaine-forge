@@ -169,37 +169,39 @@ Server-side environment variables use plain names. Vite client variables use `VI
 
 Important runtime variables:
 
-| Variable                                                           | Purpose                                                                 |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| `DATABASE_URL`                                                     | Postgres connection string                                              |
-| `BETTER_AUTH_SECRET`                                               | auth secret (≥32 chars in production; reject placeholders)              |
-| `BETTER_AUTH_URL`                                                  | public auth/API base URL                                                |
-| `EMAIL_PROVIDER`                                                   | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)       |
-| `AUTH_REQUIRE_EMAIL_VERIFICATION`                                  | soft verification flag (does not gate login; see ADR 0007)              |
-| `GITHUB_*` / `GOOGLE_*`                                            | optional OAuth; each provider needs both id and secret                  |
-| `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated)                                       |
-| `API_HOST`                                                         | optional API listen host, for example `0.0.0.0` for LAN testing         |
-| `API_PORT`                                                         | API port, default `4000`                                                |
-| `API_URL`                                                          | API URL for server/runtime references                                   |
-| `API_RUN_MIGRATIONS`                                               | optional startup migrations; defaults to true only in production        |
-| `API_CORS_ORIGINS`                                                 | browser/API origin allowlist; **required in production**                |
-| `API_GRAPHQL_MAX_DEPTH`                                            | GraphQL depth limit (default 8)                                         |
-| `API_GRAPHQL_MAX_COMPLEXITY`                                       | GraphQL field-selection complexity cap (default 200)                    |
-| `API_GRAPHQL_INTROSPECTION`                                        | force introspection; default off in production                          |
-| `API_RATE_LIMIT_*`                                                 | in-memory rate limit for `/api/auth/*` and `/graphql`                   |
-| `API_TRUST_PROXY`                                                  | set `true` only behind a trusted reverse proxy                          |
-| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*`               | org UI visibility flags                                                 |
-| `AI_TODO_PROVIDER`                                                 | optional AI todo provider, `openai` or `deepseek`; defaults to `openai` |
-| `AI_TODO_MODEL`                                                    | optional model override for the selected AI todo provider               |
-| `OPENAI_API_KEY`                                                   | required for AI todos when `AI_TODO_PROVIDER` is `openai`               |
-| `DEEPSEEK_API_KEY`                                                 | required for AI todos when `AI_TODO_PROVIDER` is `deepseek`             |
-| `VITE_API_PROXY_TARGET`                                            | Vite dev proxy target for `/api` and `/graphql`                         |
-| `VITE_API_URL`                                                     | web API base URL                                                        |
-| `VITE_GRAPHQL_URL`                                                 | web GraphQL URL                                                         |
-| `EXPO_PUBLIC_API_URL`                                              | mobile API base URL                                                     |
-| `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                      |
-| `S3_*`                                                             | S3-compatible storage settings                                          |
-| `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                |
+| Variable                                                           | Purpose                                                                                                                |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                     | Postgres connection string                                                                                             |
+| `BETTER_AUTH_SECRET`                                               | auth secret (≥32 chars in production; reject placeholders)                                                             |
+| `BETTER_AUTH_URL`                                                  | public auth/API base URL                                                                                               |
+| `EMAIL_PROVIDER`                                                   | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)                                                      |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION`                                  | soft verification flag (does not gate login; see ADR 0007)                                                             |
+| `GITHUB_*` / `GOOGLE_*`                                            | optional OAuth; each provider needs both id and secret                                                                 |
+| `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated)                                                                                      |
+| `API_HOST`                                                         | optional API listen host, for example `0.0.0.0` for LAN testing                                                        |
+| `API_PORT`                                                         | API port, default `4000`                                                                                               |
+| `API_URL`                                                          | API URL for server/runtime references                                                                                  |
+| `API_RUN_MIGRATIONS`                                               | optional startup migrations; defaults to true only in production                                                       |
+| `API_CORS_ORIGINS`                                                 | browser/API origin allowlist; **required in production**                                                               |
+| `API_GRAPHQL_MAX_DEPTH`                                            | GraphQL depth limit (default 8)                                                                                        |
+| `API_GRAPHQL_MAX_COMPLEXITY`                                       | GraphQL field-selection complexity cap (default 200)                                                                   |
+| `API_GRAPHQL_INTROSPECTION`                                        | force introspection; default off in production                                                                         |
+| `API_RATE_LIMIT_*`                                                 | in-memory rate limit for `/api/auth/*` and `/graphql`                                                                  |
+| `API_TRUST_PROXY`                                                  | set `true` only behind a trusted reverse proxy                                                                         |
+| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*`               | org UI visibility flags                                                                                                |
+| `AI_TODO_PROVIDER`                                                 | optional AI todo provider; must be exactly `openai` or `deepseek`, any other value fails startup; defaults to `openai` |
+| `AI_TODO_MODEL`                                                    | optional model override for the selected AI todo provider                                                              |
+| `AI_ASSISTANT_PROVIDER`                                            | optional assistant provider; same allowed values, falls back to `AI_TODO_PROVIDER`                                     |
+| `AI_ASSISTANT_MODEL`                                               | optional model override for the assistant; falls back to `AI_TODO_MODEL` when the providers match                      |
+| `OPENAI_API_KEY`                                                   | required for AI todos when `AI_TODO_PROVIDER` is `openai`                                                              |
+| `DEEPSEEK_API_KEY`                                                 | required for AI todos when `AI_TODO_PROVIDER` is `deepseek`                                                            |
+| `VITE_API_PROXY_TARGET`                                            | Vite dev proxy target for `/api` and `/graphql`                                                                        |
+| `VITE_API_URL`                                                     | web API base URL                                                                                                       |
+| `VITE_GRAPHQL_URL`                                                 | web GraphQL URL                                                                                                        |
+| `EXPO_PUBLIC_API_URL`                                              | mobile API base URL                                                                                                    |
+| `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                                                                     |
+| `S3_*`                                                             | S3-compatible storage settings                                                                                         |
+| `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
 

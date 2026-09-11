@@ -2,6 +2,16 @@ import { z } from "zod";
 
 const blankAsUnset = (value: unknown): unknown => (value === "" ? undefined : value);
 
+// Both AI runtimes trim and lowercase before matching a provider
+// (assistant.ai-runtime.ts normalizeProvider, todos.ai-runtime.ts getAiTodoProvider),
+// so validation accepts exactly the casing they honour and rejects a typo at boot
+// instead of silently falling back to openai. The preprocessor is load-bearing:
+// scripts/ensure-env.mjs copies .env.example verbatim, and these ship blank.
+const aiProviderSchema = z.preprocess(
+  (value) => (typeof value === "string" ? blankAsUnset(value.trim().toLowerCase()) : value),
+  z.enum(["deepseek", "openai"]).optional()
+);
+
 const apiEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "is required"),
@@ -32,8 +42,12 @@ const apiEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   LOG_LEVEL: z.string().optional(),
   ORGANIZATIONS_VISIBLE: z.string().optional(),
-  AI_TODO_PROVIDER: z.string().optional(),
+  AI_TODO_PROVIDER: aiProviderSchema,
   AI_TODO_MODEL: z.string().optional(),
+  AI_ASSISTANT_PROVIDER: aiProviderSchema,
+  // Not an enum: model ids churn weekly and the provider SDK rejects an unknown
+  // one at call time with a clearer message than a stale allowlist would.
+  AI_ASSISTANT_MODEL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().optional(),
