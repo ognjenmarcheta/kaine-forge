@@ -125,17 +125,20 @@ export function missingTrackerLabels(labelerLabels, trackerLabels) {
 const DAY_MS = 86_400_000;
 
 /**
- * Whole days elapsed since the coverage summary was written.
+ * Whole days elapsed since a file was written.
  * @param {number} mtimeMs
  * @param {number} nowMs
  * @returns {number}
  */
-export function coverageSummaryAgeDays(mtimeMs, nowMs) {
+export function fileAgeDays(mtimeMs, nowMs) {
   return Math.floor((nowMs - mtimeMs) / DAY_MS);
 }
 
 /** Coverage evidence older than this is flagged as stale (informational). */
 export const COVERAGE_MAX_AGE_DAYS = 14;
+
+/** Knowledge-graph artifacts older than this are flagged as stale (informational). */
+export const GRAPHIFY_MAX_AGE_DAYS = 14;
 
 /**
  * Rust is only needed for desktop/Tauri work (README prerequisites), so a
@@ -468,7 +471,7 @@ function checkCoverageFreshness() {
       detail: "absent (run `pnpm coverage` when you need floor evidence)"
     };
   }
-  const ageDays = coverageSummaryAgeDays(statSync(summaryPath).mtimeMs, Date.now());
+  const ageDays = fileAgeDays(statSync(summaryPath).mtimeMs, Date.now());
   if (ageDays > COVERAGE_MAX_AGE_DAYS) {
     return {
       ok: true,
@@ -477,6 +480,32 @@ function checkCoverageFreshness() {
     };
   }
   return { ok: true, name: "Coverage data", detail: `${ageDays} days old` };
+}
+
+/**
+ * A stale knowledge graph answers architecture questions confidently and
+ * wrongly, and nothing else in the repo signals its age. Informational only,
+ * like coverage above — never a bootstrap failure.
+ * @returns {CheckResult}
+ */
+function checkGraphifyFreshness() {
+  const graphPath = join(repoRoot, "graphify-out", "graph.json");
+  if (!existsSync(graphPath)) {
+    return {
+      ok: true,
+      name: "Knowledge graph",
+      detail: "absent (run `pnpm graph` when you need it)"
+    };
+  }
+  const ageDays = fileAgeDays(statSync(graphPath).mtimeMs, Date.now());
+  if (ageDays > GRAPHIFY_MAX_AGE_DAYS) {
+    return {
+      ok: true,
+      name: "Knowledge graph",
+      detail: `${ageDays} days old (> ${GRAPHIFY_MAX_AGE_DAYS}) — run \`pnpm graph:update\` before trusting graph answers`
+    };
+  }
+  return { ok: true, name: "Knowledge graph", detail: `${ageDays} days old` };
 }
 
 function printResult(result) {
@@ -503,6 +532,7 @@ async function main() {
   results.push(checkEnv());
   results.push(checkTrackerLabels());
   results.push(checkCoverageFreshness());
+  results.push(checkGraphifyFreshness());
   if (withDb) {
     results.push(await checkPostgres());
   }

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   checkSerenaProjectSemantics,
+  claudePermissionEntries,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   lintAgentDefinitionsDir,
@@ -18,19 +19,24 @@ import {
   parseSkillFile,
   publicMcpServer,
   referencedEnvVars,
+  readPermissionsSource,
   renderAgentDoc,
   renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
   renderClaudeSkill,
   renderCodexConfig,
+  renderCursorHooks,
   renderCursorRulesFile,
   renderCursorSkill,
   renderGrokConfig,
+  renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
   renderGrokSkill,
+  renderGuardedCommandsSection,
   renderMcpJson,
   renderOpencodeConfig,
+  renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
@@ -1005,5 +1011,85 @@ describe("missingEnvVarsForMcpServers", () => {
     );
 
     expect(missing).toEqual(["SKIPPED_TOKEN"]);
+  });
+});
+
+describe("claudePermissionEntries", () => {
+  it("emits the exact and trailing-argument forms for command-only rules", () => {
+    const entries = claudePermissionEntries([
+      { id: "a", decision: "deny", command: "pnpm db:push", reason: "r" },
+      { id: "b", decision: "ask", command: "gh pr merge", reason: "r" }
+    ]);
+
+    // Both forms: a pnpm script name contains a colon, which makes the `:*`
+    // wildcard form ambiguous.
+    expect(entries.deny).toEqual(["Bash(pnpm db:push)", "Bash(pnpm db:push *)"]);
+    expect(entries.ask).toEqual(["Bash(gh pr merge)", "Bash(gh pr merge *)"]);
+  });
+
+  it("omits flag rules, which the Bash matcher cannot express", () => {
+    const entries = claudePermissionEntries([
+      { id: "c", decision: "deny", command: "git", flag: "--no-verify", reason: "r" }
+    ]);
+
+    expect(entries.deny).toEqual([]);
+    expect(entries.ask).toEqual([]);
+  });
+});
+
+describe("renderGuardedCommandsSection", () => {
+  it("documents every rule, including the flag rules enforcement omits", () => {
+    const rules = readPermissionsSource();
+    const section = renderGuardedCommandsSection(rules);
+
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) {
+      expect(section, rule.id).toContain(rule.command);
+      expect(section, rule.id).toContain(rule.reason);
+    }
+    // The enforcement asymmetry is stated rather than left to be discovered.
+    expect(section).toContain("degrades to an advisory");
+  });
+
+  it("emits no markdown table, which prettier would realign into permanent drift", () => {
+    // Regression: a generated table in AGENTS.md is reformatted by lint-staged
+    // on commit, so ai:doctor --strict then reports drift on every run.
+    expect(renderGuardedCommandsSection(readPermissionsSource())).not.toMatch(/^\|/m);
+  });
+});
+
+describe("renderGrokPreToolUseHook", () => {
+  it("registers a PascalCase PreToolUse command hook", () => {
+    const parsed = JSON.parse(renderGrokPreToolUseHook()) as {
+      hooks: { PreToolUse: Array<{ matcher: string; hooks: Array<{ command: string }> }> };
+    };
+
+    expect(parsed.hooks.PreToolUse[0]?.matcher).toBe(".*");
+    expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("pre-tool-use.mjs");
+    expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("--agent grok");
+  });
+});
+
+describe("renderCursorHooks", () => {
+  it("registers the shell event, not a PreToolUse block Cursor would ignore", () => {
+    const parsed = JSON.parse(renderCursorHooks()) as {
+      hooks: Array<{ event: string; command: string }>;
+    };
+
+    expect(parsed.hooks[0]?.event).toBe("beforeShellExecution");
+    expect(parsed.hooks[0]?.command).toContain("--agent cursor");
+  });
+});
+
+describe("renderOpencodeGuardrailPlugin", () => {
+  it("listens on tool.execute.before and reuses the shared matcher", () => {
+    const plugin = renderOpencodeGuardrailPlugin();
+
+    // OpenCode ignores JSON hooks entirely, so the plugin API is the only path.
+    expect(plugin).toContain('events.on("tool.execute.before"');
+    expect(plugin).toContain("ctx.reject(");
+    expect(plugin).toContain('from "../../.ai/hooks/guarded-command.mjs"');
+    // ctx.reject is binary, so only deny is enforceable there.
+    expect(plugin).toContain('rule.decision === "deny"');
   });
 });

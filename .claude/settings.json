@@ -1,5 +1,39 @@
 {
+  "permissions": {
+    "ask": [
+      "Bash(pnpm db:seed)",
+      "Bash(pnpm db:seed *)",
+      "Bash(pnpm db:migrate)",
+      "Bash(pnpm db:migrate *)",
+      "Bash(pnpm reinstall-deps)",
+      "Bash(pnpm reinstall-deps *)",
+      "Bash(git reset --hard)",
+      "Bash(git reset --hard *)",
+      "Bash(gh pr merge)",
+      "Bash(gh pr merge *)"
+    ],
+    "deny": [
+      "Bash(pnpm db:push)",
+      "Bash(pnpm db:push *)",
+      "Bash(pnpm clean-deps)",
+      "Bash(pnpm clean-deps *)",
+      "Bash(pnpm release:apps)",
+      "Bash(pnpm release:apps *)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.ai/hooks/pre-tool-use.mjs\" --agent claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

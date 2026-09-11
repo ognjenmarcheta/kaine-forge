@@ -37,10 +37,12 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Run all dev tasks: `pnpm dev`
 - Generate GraphQL artifacts: `pnpm generate`
 - Run full check: `pnpm check`
+- Run only what your branch touched: `pnpm check:affected` (omits `boundaries` and `knip`, which are whole-graph)
 - Format check: `pnpm format:check`
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
+- Smoke the API, including the two-organization tenancy proof (no Docker, no browser): `pnpm smoke`
 - Build API and web core: `pnpm run build:core`
 - Update deployable app release branches: `pnpm release:apps`
 - Install local AI assistant files: `pnpm ai:install`
@@ -103,7 +105,7 @@ The ladder runs after you understand the problem, not instead of it: read the ta
 ### Stop Conditions
 
 - If the same failing command is rerun twice in one session without a new hypothesis, stop. Capture the root cause and change strategy (different command, smaller repro, or ask).
-- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): scoped workspace checks for package work, `pnpm check` for broader changes.
+- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): `pnpm check:affected` while iterating, `pnpm check` before a PR.
 
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -203,6 +205,7 @@ Use skills when they match the task:
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
 - `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
+- `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
 - `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
@@ -234,6 +237,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
+- `kaine-harness-eval`: Measure whether a specific guide or review rule actually changes agent output, and record the verdict in the harness-eval ledger.
 - `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
@@ -245,3 +249,22 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
 - `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 - `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
+
+## Guarded Commands
+
+Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is
+blocked on every agent that honours a blocking hook. `ask` is only a real
+verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier
+as the guarantee.
+
+- **deny** `pnpm db:push` — drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns. Generate a migration and review the SQL first. Use `pnpm db:generate` instead.
+- **deny** `pnpm clean-deps` — Removes every node_modules directory in the tree. Use `pnpm clean` instead.
+- **deny** `pnpm release:apps` — Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main after merge.
+- **deny** `git ... --no-verify` — Bypasses commitlint, the AI-attribution gate, and the pre-push typecheck. Fix the hook failure instead of skipping it.
+- **ask** `pnpm db:seed` — Rewrites the seed user's credential row in whatever DATABASE_URL points at.
+- **ask** `pnpm db:migrate` — Applies migrations to whatever DATABASE_URL points at.
+- **ask** `pnpm reinstall-deps` — Wraps clean-deps and reinstalls the whole workspace.
+- **ask** `git push ... --force` — Destructive on a shared branch. kaine-rebase needs it, so it asks rather than denies. --force-with-lease is unaffected.
+- **ask** `git push ... -f` — Short form of --force.
+- **ask** `git reset --hard` — Discards uncommitted work irrecoverably.
+- **ask** `gh pr merge` — kaine-open-pr creates drafts; merging is a human decision.

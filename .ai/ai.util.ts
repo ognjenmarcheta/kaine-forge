@@ -9,6 +9,7 @@ export const GUIDE_SRC = join(AI_DIR, "guide.md");
 export const SKILLS_SRC_DIR = join(AI_DIR, "skills");
 export const AGENTS_SRC_DIR = join(AI_DIR, "agents");
 export const MCP_SRC = join(AI_DIR, "mcp.json");
+export const PERMISSIONS_SRC = join(AI_DIR, "permissions.json");
 export const MCP_ENV_EXAMPLE_SRC = join(AI_DIR, "mcp.env.example");
 export const MCP_JSON_EXAMPLE_SRC = join(AI_DIR, "mcp.json.example");
 export const CURSOR_RULES_SRC = join(AI_DIR, "cursor-rules.md");
@@ -86,6 +87,15 @@ export interface AgentDefinitionDrift {
   missing: string[];
   stale: string[];
   orphan: string[];
+}
+
+export interface GuardRule {
+  id: string;
+  decision: "deny" | "ask";
+  command: string;
+  flag?: string;
+  reason: string;
+  instead?: string;
 }
 
 export interface McpServer {
@@ -674,6 +684,75 @@ export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 export const readMcpSource = (): McpSource =>
   JSON.parse(readFileSync(MCP_SRC, "utf8")) as McpSource;
 
+const isGuardRule = (value: unknown): value is GuardRule =>
+  isRecord(value) &&
+  typeof value["id"] === "string" &&
+  (value["decision"] === "deny" || value["decision"] === "ask") &&
+  typeof value["command"] === "string" &&
+  value["command"].trim() !== "" &&
+  typeof value["reason"] === "string" &&
+  (value["flag"] === undefined || typeof value["flag"] === "string") &&
+  (value["instead"] === undefined || typeof value["instead"] === "string");
+
+/**
+ * Parses the guarded-command policy at the trust boundary and drops anything
+ * that does not satisfy GuardRule, so a malformed entry weakens the guard
+ * rather than reaching a consumer as an unchecked shape. `pnpm ai:test`
+ * asserts the committed file loses no rules to this filter.
+ */
+export const readPermissionsSource = (): GuardRule[] => {
+  const parsed: unknown = JSON.parse(readFileSync(PERMISSIONS_SRC, "utf8"));
+
+  if (!isRecord(parsed) || !Array.isArray(parsed["rules"])) {
+    return [];
+  }
+
+  return parsed["rules"].filter(isGuardRule);
+};
+
+/**
+ * Claude permission strings for the rules its matcher can express. Rules
+ * carrying a `flag` emit nothing: Bash permission rules match command text
+ * linearly and cannot constrain a flag by name, so those are hook-only. pnpm
+ * script names contain colons, which makes the `:*` wildcard ambiguous, so the
+ * exact and trailing-argument forms are emitted as a pair instead.
+ */
+export const claudePermissionEntries = (rules: GuardRule[]): { ask: string[]; deny: string[] } => {
+  const entriesFor = (decision: GuardRule["decision"]): string[] =>
+    rules
+      .filter((rule) => rule.decision === decision && rule.flag === undefined)
+      .flatMap((rule) => [`Bash(${rule.command})`, `Bash(${rule.command} *)`]);
+
+  return { ask: entriesFor("ask"), deny: entriesFor("deny") };
+};
+
+/**
+ * The human-readable half of the policy. Reaches every agent through AGENTS.md,
+ * including the ones whose config carries no permissions primitive, and cannot
+ * drift from the enforced half because pnpm ai:doctor --strict gates AGENTS.md.
+ */
+export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
+  // A bullet list, not a table: prettier realigns markdown tables, so a
+  // generated table would drift from its committed form on every commit. The
+  // Generated Skills Index above uses bullets for the same reason.
+  const rows = rules.map((rule) => {
+    const target = rule.flag ? `${rule.command} ... ${rule.flag}` : rule.command;
+    const guidance = rule.instead ? `${rule.reason} Use \`${rule.instead}\` instead.` : rule.reason;
+    return `- **${rule.decision}** \`${target}\` — ${guidance}`;
+  });
+
+  return [
+    "## Guarded Commands",
+    "",
+    "Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is",
+    "blocked on every agent that honours a blocking hook. `ask` is only a real",
+    "verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier",
+    "as the guarantee.",
+    "",
+    ...rows
+  ].join("\n");
+};
+
 export const readPersonalMcpSource = (): McpSource => {
   if (!existsSync(LOCAL_MCP_SRC)) {
     return { mcpServers: {} };
@@ -750,17 +829,43 @@ const buildSkillsIndex = (skills: Skill[]): string =>
   skills.map((skill) => `- \`${skill.name}\`: ${skill.description}`).join("\n");
 
 export const renderAgentDoc = (guide: string, skills: Skill[]): string =>
-  `${guide.trim()}\n\n## Generated Skills Index\n\n${buildSkillsIndex(skills)}\n`;
+  `${guide.trim()}\n\n## Generated Skills Index\n\n${buildSkillsIndex(skills)}\n\n${renderGuardedCommandsSection(
+    readPermissionsSource()
+  )}\n`;
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
 
 const AI_CONTEXT_HOOK_COMMAND =
   'node "$(git rev-parse --show-toplevel)/.ai/hooks/session-start.mjs"';
 
-export const renderClaudeSettings = (): string =>
-  `${JSON.stringify(
+const PRE_TOOL_USE_HOOK_COMMAND =
+  'node "$(git rev-parse --show-toplevel)/.ai/hooks/pre-tool-use.mjs"';
+
+/** Short: the hook only reads and matches against a small JSON file. */
+const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
+
+export const renderClaudeSettings = (): string => {
+  const permissions = claudePermissionEntries(readPermissionsSource());
+
+  return `${JSON.stringify(
     {
+      // deny is evaluated before allow and rules merge across settings files by
+      // type, so these survive a broader allow in an untracked
+      // .claude/settings.local.json.
+      permissions: { ask: permissions.ask, deny: permissions.deny },
       hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              {
+                type: "command",
+                command: `${PRE_TOOL_USE_HOOK_COMMAND} --agent claude`,
+                timeout: PRE_TOOL_USE_TIMEOUT_SECONDS
+              }
+            ]
+          }
+        ],
         SessionStart: [
           {
             hooks: [
@@ -787,6 +892,7 @@ export const renderClaudeSettings = (): string =>
     null,
     2
   )}\n`;
+};
 
 export const renderClaudeSkill = (skill: Skill): string =>
   `---\n${skill.frontmatterRaw}\n---\n${HTML_HEADER}\n\n${skill.body}`;
@@ -1019,6 +1125,15 @@ export const renderCodexConfig = (source: McpSource): string => {
     `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
     'statusMessage = "Loading Kaine Forge AI context"',
     "",
+    // Codex fires PreToolUse for the Bash tool only, which is the whole policy.
+    "[[hooks.PreToolUse]]",
+    'matcher = "^Bash$"',
+    "",
+    "[[hooks.PreToolUse.hooks]]",
+    'type = "command"',
+    `command = ${JSON.stringify(`${PRE_TOOL_USE_HOOK_COMMAND} --agent codex`)}`,
+    `timeout = ${String(PRE_TOOL_USE_TIMEOUT_SECONDS)}`,
+    "",
     ...renderMcpServersToml(source)
   ];
 
@@ -1054,6 +1169,93 @@ export const renderGrokSessionStartHook = (): string =>
     null,
     2
   )}\n`;
+
+/** Grok Build reads hook files from `.grok/hooks/`; it accepts the Claude JSON shape. */
+export const renderGrokPreToolUseHook = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: ".*",
+            hooks: [
+              {
+                type: "command",
+                command: `${PRE_TOOL_USE_HOOK_COMMAND} --agent grok`,
+                timeout: PRE_TOOL_USE_TIMEOUT_SECONDS
+              }
+            ]
+          }
+        ]
+      }
+    },
+    null,
+    2
+  )}\n`;
+
+/**
+ * Cursor splits pre-execution into granular events; `beforeShellExecution` is
+ * the shell one. Its config lives in `.cursor/hooks.json` and its verdict is a
+ * boolean `allow`, with no exit-code fallback.
+ */
+export const renderCursorHooks = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: [
+        {
+          event: "beforeShellExecution",
+          command: `${PRE_TOOL_USE_HOOK_COMMAND} --agent cursor`,
+          timeout: PRE_TOOL_USE_TIMEOUT_SECONDS * 1000
+        }
+      ]
+    },
+    null,
+    2
+  )}\n`;
+
+/**
+ * OpenCode has no JSON hook format; a `PreToolUse` block there is silently
+ * ignored. Its equivalent is a plugin listening on `tool.execute.before`, so
+ * this renders one that reuses the shared matcher rather than restating the
+ * policy. The community compatibility wrapper is deliberately avoided: a
+ * third-party dependency inside the guardrail is a worse trade than 20 lines.
+ */
+export const renderOpencodeGuardrailPlugin = (): string =>
+  `// ${GEN_NOTICE}
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { guardedCommandMessage, matchGuardedCommand } from "../../.ai/hooks/guarded-command.mjs";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+const readRules = () => {
+  try {
+    const parsed = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
+    return Array.isArray(parsed.rules) ? parsed.rules : [];
+  } catch {
+    // Fail open, like the hook: a broken policy must not block every command.
+    return [];
+  }
+};
+
+export default {
+  name: "kaine-guardrail",
+  setup(events) {
+    events.on("tool.execute.before", (ctx) => {
+      if (ctx.toolName !== "bash" || typeof ctx.args?.command !== "string") {
+        return;
+      }
+      const rule = matchGuardedCommand(ctx.args.command, readRules());
+      // ctx.reject is binary, so only the deny tier is enforceable here.
+      if (rule && rule.decision === "deny") {
+        ctx.reject(guardedCommandMessage(rule));
+      }
+    });
+  }
+};
+`;
 
 export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};

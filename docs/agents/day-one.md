@@ -46,16 +46,52 @@ Product-specific skills: see `docs/agents/skill-authoring.md`.
 
 ## 5. Validation tiers
 
-| Change type                | Minimum checks                                                                             |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| Docs / `.ai/` only         | `pnpm ai:doctor`, `pnpm format:check`                                                      |
-| Package/app code           | `pnpm check` (or focused workspace test + typecheck); `pnpm build:core` if API/web runtime |
-| User-visible web/API flows | add `pnpm test:e2e` when appropriate                                                       |
+| Change type                   | Minimum checks                                                           |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| Docs / `.ai/` only            | `pnpm ai:doctor`, `pnpm format:check`                                    |
+| Package/app code, iterating   | `pnpm check:affected` (skips `boundaries` and `knip` — both whole-graph) |
+| Package/app code, before a PR | `pnpm check`; `pnpm build:core` if API/web runtime                       |
+| User-visible web/API flows    | add `pnpm test:e2e` when appropriate                                     |
 
-## 6. When review bounces for "how we do things"
+## 6. Poke the running stack
+
+Tests prove shape; this proves data. Bring the stack up, then sign in and run a
+real query.
+
+```bash
+pnpm quick-setup   # docker compose up -d --wait && pnpm initialize
+```
+
+The seed identity lives in `packages/db/src/seed/users.seed.ts` and is created
+by `pnpm db:seed`:
+
+- email `test@test.test`
+- password `ChangeMe123!`
+
+These are **local fixtures only**. Never seed them into a shared or deployed
+environment.
+
+The API listens on `4000` and the web dev server on `3000`. better-auth returns
+its token in the `set-auth-token` response header, so one sign-in gives you a
+bearer token for GraphQL:
+
+```bash
+TOKEN=$(curl -sS -D - -o /dev/null   -X POST http://localhost:4000/api/auth/sign-in/email   -H 'content-type: application/json'   -d '{"email":"test@test.test","password":"ChangeMe123!"}'   | tr -d '\r' | awk -F': ' '/^set-auth-token:/ {print $2}')
+
+curl -sS -X POST http://localhost:4000/graphql   -H 'content-type: application/json'   -H "authorization: Bearer $TOKEN"   -d '{"query":"{ notes { id title } }"}'
+```
+
+GraphiQL is served at `http://localhost:4000/graphql` in a browser. It carries
+no session of its own, so either sign in at `http://localhost:3000` first or
+paste the bearer header into its Headers tab.
+
+To prove organization scoping without any of this running, use `pnpm smoke` —
+it executes the two-organization tenancy proof in process.
+
+## 7. When review bounces for "how we do things"
 
 Do not only re-prompt. Run **`kaine-encode-knowledge`** so the rule becomes REVIEW/skill/test/CONTEXT for the next contributor.
 
-## 7. What this ramp is not
+## 8. What this ramp is not
 
 Encoded context multiplies agents and people; it does not remove the need for judgment, security care, or running the checks above.

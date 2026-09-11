@@ -16,3 +16,31 @@ body:
       description: What should change, and where (workspace, package, docs)?
     validations:
       required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this to be done? One checkable statement per line.
+      placeholder: "- Running X produces Y\n- pnpm check stays green"
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Workspace or paths in scope
+      placeholder: e.g. apps/web, packages/ui, .ai/ tooling, or "unknown - investigate first"
+  - type: dropdown
+    id: validation-tier
+    attributes:
+      label: Validation tier
+      description: Which checks close the loop? See docs/agents/day-one.md section 5.
+      options:
+        - "Docs / .ai only — pnpm ai:doctor, pnpm format:check"
+        - "Package/app code — pnpm check (plus pnpm build:core for API/web runtime)"
+        - "User-visible web/API flow — also pnpm test:e2e"
+        - "Unsure"
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Anything an agent should deliberately not change.

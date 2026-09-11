@@ -37,10 +37,12 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Run all dev tasks: `pnpm dev`
 - Generate GraphQL artifacts: `pnpm generate`
 - Run full check: `pnpm check`
+- Run only what your branch touched: `pnpm check:affected` (omits `boundaries` and `knip`, which are whole-graph)
 - Format check: `pnpm format:check`
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
+- Smoke the API, including the two-organization tenancy proof (no Docker, no browser): `pnpm smoke`
 - Build API and web core: `pnpm run build:core`
 - Update deployable app release branches: `pnpm release:apps`
 - Install local AI assistant files: `pnpm ai:install`
@@ -103,7 +105,7 @@ The ladder runs after you understand the problem, not instead of it: read the ta
 ### Stop Conditions
 
 - If the same failing command is rerun twice in one session without a new hypothesis, stop. Capture the root cause and change strategy (different command, smaller repro, or ask).
-- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): scoped workspace checks for package work, `pnpm check` for broader changes.
+- Do not push or mark a PR ready for review while required gates are red. Use the day-one validation tiers (`docs/agents/day-one.md`): `pnpm check:affected` while iterating, `pnpm check` before a PR.
 
 These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -203,6 +205,7 @@ Use skills when they match the task:
 - `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
 - `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
+- `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
 - `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
