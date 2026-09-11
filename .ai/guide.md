@@ -189,6 +189,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 Use skills when they match the task:
 
 - `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
+- `kaine-create-feature`: scaffold an organization-scoped CRUD feature slice and wire it into every registration point.
 - `kaine-encode-knowledge`: promote repeated review/agent failures into durable infra (lint, test, REVIEW, skill, CONTEXT).
 - `kaine-sync-docs`: reinstall and verify AI assistant files.
 - `kaine-test`: plan or write tests for a specified system under test.

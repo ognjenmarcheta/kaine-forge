@@ -3,6 +3,7 @@
   "workspaces": {
     ".": {
       "entry": [
+        ".ai/create-feature.ts",
         ".ai/doctor.ts",
         ".ai/install.ts",
         ".ai/release-apps.ts",

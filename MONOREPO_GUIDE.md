@@ -327,6 +327,7 @@ Root commands:
 | `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui` |
 | `pnpm test:e2e`       | Playwright web/API suite                                                                                    |
 | `pnpm generate`       | GraphQL codegen                                                                                             |
+| `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                    |
 | `pnpm create:package` | scaffold a new `@repo/*` package                                                                            |
 | `pnpm db:*`           | database lifecycle commands                                                                                 |
 | `pnpm ai:install`     | install shared assistant files locally                                                                      |
@@ -402,6 +403,14 @@ Graphify is optional per-developer tooling: `pnpm graph` writes a queryable code
 Pick the reference feature that matches your scope: clone `notes` for a plain organization-scoped CRUD slice (API + web), and `todos` only when you need its full stack (AI generation, attachments, subscriptions) including mobile.
 
 **Platform default:** API + web. Mobile is a **subset** of the template product surface — see `CONTEXT.md` **Template platform surfaces**. Do not add mobile GraphQL operations or screens unless the task requires mobile or you are extending the mobile-supported set (auth, dashboard, todos).
+
+```bash
+pnpm create:feature <singular> --plural <plural> --write
+```
+
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. The generator never writes `pnpm db:push` or a migration for you.
+
+Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 
 1. Add Drizzle schema, validators, and inferred types in `packages/db`.
 2. Add translation namespace entries for each supported language.

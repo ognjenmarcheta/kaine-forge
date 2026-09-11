@@ -42,6 +42,7 @@
     "quick-setup": "docker compose up -d --wait && pnpm run initialize",
     "bootstrap": "pnpm run preflight && pnpm run env:ensure && pnpm install && pnpm run ai:install -- --non-interactive && turbo run build --filter=!@repo/desktop && pnpm run db:generate && pnpm run db:ensure && pnpm run db:push && pnpm run db:seed",
     "initialize": "pnpm run bootstrap && pnpm run dev",
+    "create:feature": "tsx .ai/create-feature.ts",
     "create:package": "node scripts/create-package.mjs",
     "ai:doctor": "tsx .ai/doctor.ts",
     "ai:install": "tsx .ai/install.ts",
