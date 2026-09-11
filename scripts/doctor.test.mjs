@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  coverageSummaryAgeDays,
+  fileAgeDays,
   labelerLabelNames,
   missingEnvKeys,
   missingTrackerLabels,
@@ -81,16 +81,16 @@ describe("missingTrackerLabels", () => {
   });
 });
 
-describe("coverageSummaryAgeDays", () => {
+describe("fileAgeDays", () => {
   it("computes whole days elapsed", () => {
     const now = Date.UTC(2026, 7, 21);
-    assert.equal(coverageSummaryAgeDays(now - 3 * 86_400_000, now), 3);
+    assert.equal(fileAgeDays(now - 3 * 86_400_000, now), 3);
   });
 
   it("floors partial days", () => {
     const now = Date.UTC(2026, 7, 21);
     const before = now - (13 * 86_400_000 + 3_600_000);
-    assert.equal(coverageSummaryAgeDays(before, now), 13);
+    assert.equal(fileAgeDays(before, now), 13);
   });
 });
 
