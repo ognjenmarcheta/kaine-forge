@@ -10,6 +10,8 @@ import { createConnection } from "node:net";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
+import { pnpmInvocation } from "./pnpm.util.mjs";
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TROUBLESHOOTING = "docs/troubleshooting.md";
 
@@ -243,7 +245,8 @@ function checkNode() {
 function checkPnpm() {
   const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
   const field = pkg.packageManager ?? "pnpm@10.29.3";
-  const probe = runQuiet("pnpm", ["--version"]);
+  const invocation = pnpmInvocation(["--version"]);
+  const probe = runQuiet(invocation.command, invocation.args);
   if (probe.error || probe.status !== 0) {
     return {
       ok: false,

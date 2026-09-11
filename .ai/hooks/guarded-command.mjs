@@ -72,7 +72,9 @@ export function matchGuardedCommand(command, rules) {
     return null;
   }
 
-  const segments = splitShellSegments(command);
+  const segments = splitShellSegments(command).map((segment) =>
+    segment.replace(/^pnpm\s+run\s+/, "pnpm ")
+  );
 
   for (const decision of GUARD_DECISIONS) {
     for (const rule of rules) {

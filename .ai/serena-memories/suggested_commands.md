@@ -12,9 +12,9 @@
 - E2E: `pnpm test:e2e`
 - Full check: `pnpm check`
 - Build API and web: `pnpm run build:core`
-- Update deployable app release branches: `pnpm release:apps`
+- Release branches: updated by the Release workflow; manual `pnpm release:apps` (including dry-runs) is human-only.
 - DB generate: `pnpm db:generate`
-- DB push: `pnpm db:push`
+- Local DB push: `pnpm db:push:local` with explicit `ALLOW_LOCAL_DB_PUSH=true`; shared/deployed DBs use reviewed migrations.
 - DB migrate: `pnpm db:migrate`
 - DB seed: `pnpm db:seed`
 - Install AI files: `pnpm ai:install`

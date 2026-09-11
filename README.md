@@ -63,19 +63,15 @@ Other templates fit other shapes better:
 ## Quickstart
 
 ```bash
-cp .env.example .env
-docker compose up -d --wait
-pnpm install
-pnpm db:generate
-pnpm db:ensure
-pnpm db:push
-pnpm db:seed
-pnpm dev
+pnpm install --frozen-lockfile
+pnpm env:ensure
+# Set ALLOW_LOCAL_DB_PUSH=true in .env for your local PostgreSQL database.
+pnpm quick-setup
 ```
 
 Scope commands from the repo root with `pnpm --filter <workspace> <script>` (for example `pnpm --filter @repo/api test`).
 
-### One-command bootstrap
+### Bootstrap after local opt-in
 
 ```bash
 pnpm quick-setup
@@ -126,3 +122,9 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
+
+## Local database and release commands
+
+Use `pnpm db:prepare:local` for local setup and `pnpm db:push:local` for local schema changes, with explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in. Shared databases use reviewed migrations. See [local database rules](MONOREPO_GUIDE.md#22-local-database-and-release-commands).
+
+The Release workflow updates deployment branches. Manual `pnpm release:apps` commands, including dry-runs, are human-only.

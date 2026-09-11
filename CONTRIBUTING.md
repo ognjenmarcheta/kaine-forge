@@ -14,19 +14,15 @@ Thanks for improving Kaine Forge. This repository is a template, so changes shou
 ## Setup
 
 ```bash
-cp .env.example .env
-docker compose up -d --wait
-pnpm install
-pnpm db:generate
-pnpm db:ensure
-pnpm db:push
-pnpm db:seed
-pnpm dev
+pnpm install --frozen-lockfile
+pnpm env:ensure
+# Set ALLOW_LOCAL_DB_PUSH=true in .env for your local PostgreSQL database.
+pnpm quick-setup
 ```
 
 If setup fails (port conflicts, `INVALID_ORIGIN` on sign-in, codegen format noise, Docker not running), see [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
-For a full bootstrap (requires running Docker services):
+For bootstrap without development servers, after the same local opt-in:
 
 ```bash
 docker compose up -d --wait
@@ -233,3 +229,9 @@ Default security coverage does **not** require GitHub Advanced Security (GHAS):
 - Without Code Scanning (private repo, no GHAS): **Gitleaks** (secrets), **Trivy** (container CRITICAL fail), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
 
 Private repos with GHAS: enable Code scanning under repository security settings, then set **Settings → Secrets and variables → Actions → Variables → `ENABLE_GITHUB_CODE_SCANNING=true`**.
+
+## Local database and release commands
+
+Use `pnpm db:prepare:local` for local setup and `pnpm db:push:local` for local schema changes, with explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in. Shared databases use reviewed migrations. See [local database rules](MONOREPO_GUIDE.md#22-local-database-and-release-commands).
+
+The Release workflow updates deployment branches. Manual `pnpm release:apps` commands, including dry-runs, are human-only.

@@ -3,6 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 
+export const generatedTextEqual = (actual: string, expected: string): boolean =>
+  actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
+
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const AI_DIR = join(REPO_ROOT, ".ai");
 export const GUIDE_SRC = join(AI_DIR, "guide.md");
@@ -457,7 +460,9 @@ export const computeAgentDefinitionDrift = (
       missing.push(definition.name);
       continue;
     }
-    if (readFileSync(filePath, "utf8") !== renderClaudeAgentDefinition(definition)) {
+    if (
+      !generatedTextEqual(readFileSync(filePath, "utf8"), renderClaudeAgentDefinition(definition))
+    ) {
       stale.push(definition.name);
     }
   }
@@ -1282,7 +1287,7 @@ export const writeGenerated = (
   results: WriteResult[]
 ): void => {
   const existing = existsSync(filePath) ? readFileSync(filePath, "utf8") : null;
-  if (existing === newContent) {
+  if (existing !== null && generatedTextEqual(existing, newContent)) {
     results.push({ file: filePath, status: "unchanged" });
     return;
   }

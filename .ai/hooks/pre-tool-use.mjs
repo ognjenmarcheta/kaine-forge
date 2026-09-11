@@ -46,13 +46,10 @@ const readRules = () => {
   return source.rules;
 };
 
-// Claude, Codex and Grok all treat exit 2 as a hard stop and feed stderr back
-// to the model, so the exit code carries a deny even if a dialect drifts. The
-// JSON only improves the message.
+// Codex uses a structured deny with exit 0: Windows shell wrappers can remap
+// exit 2 to exit 1, which Codex treats as a hook error rather than a denial.
+// Claude and Grok retain their exit-code fallback.
 const denyPayload = (message) => {
-  if (agent === "codex") {
-    return { decision: "block", reason: message };
-  }
   if (agent === "grok") {
     return { decision: "deny", reason: message };
   }
@@ -100,7 +97,7 @@ const main = async () => {
   if (rule.decision === "deny") {
     process.stdout.write(`${JSON.stringify(denyPayload(message))}\n`);
     process.stderr.write(`Blocked by .ai/permissions.json (${rule.id}): ${message}\n`);
-    process.exitCode = 2;
+    process.exitCode = agent === "codex" ? 0 : 2;
     return;
   }
 
