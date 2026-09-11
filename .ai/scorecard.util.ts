@@ -19,7 +19,8 @@ export const DIMENSIONS = [
   "Release & Deploy",
   "Security Posture",
   "DX & Onboarding",
-  "Docs & Agent Scaffolding"
+  "Docs & Agent Scaffolding",
+  "AI & Agent Quality"
 ] as const;
 
 const DISPOSITIONS = ["open", "fixed", "wontfix", "observed", "regression"] as const;
@@ -540,14 +541,17 @@ export const renderLedgerMarkdown = (data: LedgerData): string => {
   const history = [
     "### Run history",
     "",
-    "| Date | Commit | Mode | Agent | Overall | Findings filed |",
-    "| ---- | ------ | ---- | ----- | ------- | -------------- |",
+    "| Date | Commit | Mode | Agent | Overall | Dims | Findings filed |",
+    "| ---- | ------ | ---- | ----- | ------- | ---- | -------------- |",
     ...runs
       .slice()
       .reverse()
       .map((run) => {
         const filed = run.findings.filter((finding) => typeof finding.issue === "number").length;
-        return `| ${run.date} | \`${run.commit.slice(0, 7)}\` | ${run.mode} | ${run.agent} | **${run.overall}** | ${filed} |`;
+        const scored = Object.values(run.dimensions).filter(
+          (dimension) => dimension.score !== null
+        ).length;
+        return `| ${run.date} | \`${run.commit.slice(0, 7)}\` | ${run.mode} | ${run.agent} | **${run.overall}** | ${scored} | ${filed} |`;
       })
   ];
 

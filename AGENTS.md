@@ -206,7 +206,7 @@ Use skills when they match the task:
 - `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
 - `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
-- `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
+- `kaine-scorecard`: score monorepo health on ten dimensions, render the dashboard, and file evidence-verified must-fixes.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
@@ -242,7 +242,7 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
-- `kaine-scorecard`: Scan the monorepo, score it on nine health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
+- `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
