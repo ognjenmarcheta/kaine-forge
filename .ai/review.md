@@ -14,6 +14,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 - [ ] Organization-scoped data uses **Authenticated Organization Scope** / active organization from session — never a client-supplied organization id for scoped reads/writes (`CONTEXT.md`, `MONOREPO_GUIDE.md`).
 - [ ] Authorization and membership checks remain correct for the touched paths.
+- [ ] A new organization-scoped resolver is proved by a two-organization test that executes it (`apps/api/src/features/notes/notes.tenancy.test.ts`), not only by mocking the adapter.
 - [ ] No secrets, tokens, or `.ai.local/` material committed; MCP config uses placeholders only (`SECURITY.md`, `.ai/guide.md`).
 - [ ] CORS / trusted origins and cookie/session assumptions stay consistent with `@repo/auth` (ADR 0008).
 - [ ] File/attachment access remains organization-scoped when relevant.

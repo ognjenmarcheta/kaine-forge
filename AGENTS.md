@@ -41,6 +41,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
+- Smoke the API, including the two-organization tenancy proof (no Docker, no browser): `pnpm smoke`
 - Build API and web core: `pnpm run build:core`
 - Update deployable app release branches: `pnpm release:apps`
 - Install local AI assistant files: `pnpm ai:install`
