@@ -1,12 +1,12 @@
 ---
 name: kaine-scorecard
-description: Scan the monorepo, score it on nine health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
+description: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 argument-hint: optional dimension to focus, or "file" to open issues
 ---
 
 # Monorepo Health Scorecard
 
-**North star:** Score the repo on nine dimensions where every number traces to a command output or a `path:line`. Calibrate against the previous run before grading. File only evidence-verified must-fixes.
+**North star:** Score the repo on ten dimensions where every number traces to a command output or a `path:line`. Calibrate against the previous run before grading. File only evidence-verified must-fixes.
 
 Use this skill to assess and track repo-level health — workspace, build, CI, testing, dependency, release, security, DX, and scaffolding quality. Not for reviewing a diff, branch, or PR (`kaine-review`), and not for disposing findings that already live in an issue (`kaine-triage-issue`).
 
@@ -14,26 +14,27 @@ The ledger `docs/agents/monorepo-scorecard.md` is the source of truth for scores
 
 ## Rubric
 
-Nine dimensions, scored 0-10. Each needs a machine feed **and** judgment. Band descriptors live in the ledger — apply them verbatim, never invent intermediate definitions.
+Ten dimensions, scored 0-10. Each needs a machine feed **and** judgment. Band descriptors live in the ledger — apply them verbatim, never invent intermediate definitions.
 
-| #   | Dimension                | Primary evidence                                                               |
-| --- | ------------------------ | ------------------------------------------------------------------------------ |
-| 1   | Workspace & Boundaries   | `pnpm-workspace.yaml`, package `exports`, `pnpm boundaries`, `pnpm knip`       |
-| 2   | Build & Cache            | `turbo.json` `dependsOn`/`inputs`/`outputs`, global hash surface               |
-| 3   | CI Topology & Speed      | job DAG and gates across `.github/workflows/*`, `gh run` timings               |
-| 4   | Testing & Coverage       | `vitest.coverage.config.ts` floors vs measured, excluded workspaces            |
-| 5   | Dependency Hygiene       | catalog usage and drift, `pnpm audit`, Dependabot state (npm, actions, docker) |
-| 6   | Release & Deploy         | `.changeset/`, `pnpm release:status`, `release/<app>` branches, `Dockerfile.*` |
-| 7   | Security Posture         | CodeQL, Trivy, secret scan, auth/tenancy/CORS gates, base-image pinning        |
-| 8   | DX & Onboarding          | `pnpm preflight`, `quick-setup`/`bootstrap`, editor config, script honesty     |
-| 9   | Docs & Agent Scaffolding | `pnpm ai:doctor`, CONTEXT/ADR/REVIEW coverage, Serena memory accuracy          |
+| #   | Dimension                | Primary evidence                                                                |
+| --- | ------------------------ | ------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | `pnpm-workspace.yaml`, package `exports`, `pnpm boundaries`, `pnpm knip`        |
+| 2   | Build & Cache            | `turbo.json` `dependsOn`/`inputs`/`outputs`, global hash surface                |
+| 3   | CI Topology & Speed      | job DAG and gates across `.github/workflows/*`, `gh run` timings                |
+| 4   | Testing & Coverage       | `vitest.coverage.config.ts` floors vs measured, excluded workspaces             |
+| 5   | Dependency Hygiene       | catalog usage and drift, `pnpm audit`, Dependabot state (npm, actions, docker)  |
+| 6   | Release & Deploy         | `.changeset/`, `pnpm release:status`, `release/<app>` branches, `Dockerfile.*`  |
+| 7   | Security Posture         | CodeQL, Trivy, secret scan, auth/tenancy/CORS gates, base-image pinning         |
+| 8   | DX & Onboarding          | `pnpm preflight`, `quick-setup`/`bootstrap`, editor config, script honesty      |
+| 9   | Docs & Agent Scaffolding | `pnpm ai:doctor`, CONTEXT/ADR/REVIEW coverage, Serena memory accuracy           |
+| 10  | AI & Agent Quality       | golden-set coverage, eval ledger runs, model-behaviour assertions, AI telemetry |
 
 `REVIEW.md` governs diffs; this rubric governs the repo. REVIEW violations feed dimensions 1, 7, and 9.
 
 ## Run
 
 1. **Read the ledger.** Previous per-dimension scores, their evidence lines, the band descriptors, and every calibration note. Grading before reading these is the failure this ledger exists to prevent.
-2. **Sweep once, in shared context.** `turbo.json`, `pnpm-workspace.yaml`, every `package.json`, the workflows, `knip.json`, `vitest.coverage.config.ts`, `.changeset/`, `Dockerfile.*`. Run `pnpm ai:doctor`. Read the last main CI result via `gh run list`/`gh run view` rather than re-running `pnpm coverage` or `test:e2e` locally. Read `coverage/coverage-summary.json` if present. Run one `gh issue list --state all --limit 100 --json number,title,state`.
+2. **Sweep once, in shared context.** `turbo.json`, `pnpm-workspace.yaml`, every `package.json`, the workflows, `knip.json`, `vitest.coverage.config.ts`, `.changeset/`, `Dockerfile.*`. Run `pnpm ai:doctor`. Read the last main CI result via `gh run list`/`gh run view` rather than re-running `pnpm coverage` or `test:e2e` locally. Read `coverage/coverage-summary.json` if present. Run one `gh issue list --state all --limit 100 --json number,title,state`. For dimension 10 read `apps/api/src/features/assistant/assistant.eval.data.ts` against `createAssistantTools`, the `harness-eval:data` run array in `docs/agents/harness-evals.md`, and `apps/api/src/features/assistant/assistant.ai-runtime.test.ts`.
 3. **Fan out.** Dispatch one `kaine-explorer` per dimension, each handed the sweep digest, its band descriptors, and its previous score and evidence. Where subagents are unavailable, scan sequentially and record `mode: sequential` — never silently mix depths.
 4. **Score.** Apply the bands. A dimension moving more than 1 point must cite a concrete cause (merged PR, closed issue, new gate) **or** be recorded as an explicit recalibration with a reason, which becomes binding on later runs.
 5. **Render.** Update the ledger's `scorecard:data` JSON block, then `pnpm scorecard`. Report in chat with bar gauges and deltas; point at `scorecard-out/index.html` for the diagrams.

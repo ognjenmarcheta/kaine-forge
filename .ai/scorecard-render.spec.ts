@@ -267,6 +267,8 @@ describe("renderLedgerMarkdown", () => {
     expect(markdown).toContain("### Latest scorecard");
     expect(markdown).toContain("Workspace & Boundaries");
     expect(markdown).toContain("unscored");
+    expect(markdown).toContain("| 10 | AI & Agent Quality | unscored |");
+    expect(markdown).toContain("| **8.2** | 1 | 1 |");
     expect(markdown).toContain("`ci-duplicate-test-run`");
     expect(markdown).toContain("#143");
   });

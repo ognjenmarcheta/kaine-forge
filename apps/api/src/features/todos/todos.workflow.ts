@@ -12,7 +12,9 @@ type TodoEventPayload =
 export interface TodoWorkflowAdapter {
   createTodo: (
     scope: AuthenticatedOrganizationScope,
-    input: { description: string | null; title: string }
+    // Required, not optional: the workflow always resolves it to a concrete
+    // value, so the adapter never has to guess.
+    input: { description: string | null; noteId: string | null; title: string }
   ) => Promise<TodoEventPayload>;
   deleteTodo: (scope: AuthenticatedOrganizationScope, id: string) => Promise<boolean>;
   deleteTodoAttachments: (scope: AuthenticatedOrganizationScope, id: string) => Promise<void>;
@@ -37,7 +39,8 @@ export function createTodoWorkflow(adapter: TodoWorkflowAdapter) {
     ): Promise<TodoEventPayload> {
       const result = await adapter.createTodo(scope, {
         title: ensureTodoTitle(input.title),
-        description: parseOptionalDescription(input.description ?? null)
+        description: parseOptionalDescription(input.description ?? null),
+        noteId: input.noteId ?? null
       });
 
       adapter.publishTodoEvent("todo:created", result);

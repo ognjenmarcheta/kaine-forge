@@ -9,6 +9,7 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { resolveApiAuthIdentity } from "./context.auth-scope";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
+import { createApiWorkflows, type ApiWorkflows } from "./context.workflows";
 import { pubsub } from "./pubsub";
 
 export interface ApiContext {
@@ -19,6 +20,7 @@ export interface ApiContext {
   organizationScope: AuthenticatedOrganizationScope | null;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
   loaders: ApiLoaders;
+  workflows: ApiWorkflows;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
   pubsub: typeof pubsub;
@@ -47,6 +49,12 @@ export async function createContextFromHeaders(
     organizationScope: identity.organizationScope,
     requireOrganizationScope: identity.requireOrganizationScope,
     loaders: createApiLoaders(identity.requireOrganizationScope),
+    workflows: createApiWorkflows({
+      logger: contextLogger,
+      publish: (eventName, ...payload) => {
+        pubsub.publish(eventName, ...payload);
+      }
+    }),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub

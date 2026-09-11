@@ -17,6 +17,7 @@ vi.mock("../storage/storage.adapter", () => ({
 
 import * as todosAdapter from "./todos.adapter";
 import { todosResolvers } from "./todos.router";
+import { createTodoWorkflow } from "./todos.workflow";
 import type { PubSubEventMap } from "../../pubsub";
 
 describe("todos.router", () => {
@@ -35,9 +36,25 @@ describe("todos.router", () => {
     user: session.user,
     userId: "user-1"
   };
+  // A real workflow over the mocked adapters, matching what context.ts now
+  // builds. The resolvers delegate to it, so the normalization assertions below
+  // still reach todosAdapter and still mean what they meant before.
   const ctx = {
     pubsub: testPubsub,
-    requireOrganizationScope: () => authenticatedScope
+    requireOrganizationScope: () => authenticatedScope,
+    workflows: {
+      todo: createTodoWorkflow({
+        createTodo: todosAdapter.createTodo,
+        deleteTodo: todosAdapter.deleteTodo,
+        deleteTodoAttachments: vi.fn(async () => undefined),
+        publishTodoEvent: (eventName, ...payload) => {
+          testPubsub.publish(eventName, ...payload);
+        },
+        toggleTodo: todosAdapter.toggleTodo,
+        updateTodo: todosAdapter.updateTodo,
+        warnTodoAttachmentCleanupFailed: vi.fn()
+      })
+    }
   };
 
   beforeEach(() => {
@@ -81,6 +98,7 @@ describe("todos.router", () => {
 
     expect(todosAdapter.createTodo).toHaveBeenCalledWith(authenticatedScope, {
       description: "new description",
+      noteId: null,
       title: "New Todo"
     });
   });

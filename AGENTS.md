@@ -157,7 +157,7 @@ Example: 🧭 **Kaine Forge** — wiring password-reset emails · packages/auth 
 
 Prefer the `kaine-*` subagent types — `kaine-implementer` for changes, `kaine-explorer` for read-only research — they carry these rules in their own system prompt. When you must use a built-in `general-purpose` agent, paste the relevant Working Rules into its prompt.
 
-A spawned subagent inherits none of this guide automatically — it sees only its task prompt. When you dispatch one for substantive work, carry the relevant parts in:
+A spawned subagent does receive this guide — `CLAUDE.md` imports it, and the `2026-09-11` harness-eval run confirmed the behaviour: `general-purpose` trials produced the focus banner and the repo's own anti-pattern language with zero tool calls, so they could not have read it from disk. The injection is frozen at session start, so an edit made mid-session reaches no agent dispatched afterwards. What carrying rules into the prompt buys is emphasis, not presence: with the verification close pasted in, 3 of 3 trials produced a red-green proof against 1 of 3 without it. Carry the relevant parts in for that reason:
 
 - Include the **Working Rules** that bear on its task (package boundaries, no `any`, token-only styling, organization-scoped data, i18n, generated GraphQL) — the subset that applies, not the whole guide.
 - Require the same focus banner and verification close in its response, so drift is visible in subagent output too.
@@ -206,7 +206,7 @@ Use skills when they match the task:
 - `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
 - `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
 - `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
-- `kaine-scorecard`: score monorepo health on nine dimensions, render the dashboard, and file evidence-verified must-fixes.
+- `kaine-scorecard`: score monorepo health on ten dimensions, render the dashboard, and file evidence-verified must-fixes.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
@@ -237,12 +237,12 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 - `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
-- `kaine-harness-eval`: Measure whether a specific guide or review rule actually changes agent output, and record the verdict in the harness-eval ledger.
+- `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
 - `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
-- `kaine-scorecard`: Scan the monorepo, score it on nine health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
+- `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.

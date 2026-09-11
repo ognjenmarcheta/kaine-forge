@@ -47,6 +47,7 @@ describe("createTodoWorkflow", () => {
 
     expect(createTodo).toHaveBeenCalledWith(scope, {
       description: "details",
+      noteId: null,
       title: "New Todo"
     });
     expect(publishTodoEvent).toHaveBeenCalledWith("todo:created", todo);

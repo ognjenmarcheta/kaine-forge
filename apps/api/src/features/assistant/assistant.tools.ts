@@ -2,49 +2,45 @@ import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 
-import type { PubSubEventMap } from "../../pubsub";
-import {
-  createNote as createNoteRow,
-  listNotesByScope,
-  updateNote as updateNoteRow
-} from "../notes/notes.adapter";
-import type { NotePatch } from "../notes/notes.type";
-import {
-  createTodo,
-  deleteTodo,
-  listTodosByScope,
-  toggleTodo,
-  updateTodo
-} from "../todos/todos.adapter";
-import type { TodoPatch } from "../todos/todos.type";
+import type { ApiWorkflows } from "../../context.workflows";
+import { listNotesByScope } from "../notes/notes.adapter";
+import { listTodosByScope } from "../todos/todos.adapter";
 
+// Model-chosen writes go through the same workflows the GraphQL resolvers use,
+// so they get attachment cleanup on delete and title normalization on create and
+// update. Calling todos.adapter directly here is what made a model-initiated
+// delete orphan its attachment rows (issue #393). Reads stay on the adapters:
+// they have no guard to bypass, and routing them through the context would drag
+// @repo/db into assistant.router.test.ts, which deliberately loads none.
 export interface AssistantToolDeps {
-  publishNoteEvent: <TEventName extends keyof PubSubEventMap>(
-    eventName: TEventName,
-    ...payload: PubSubEventMap[TEventName]
-  ) => void;
-  publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
-    eventName: TEventName,
-    ...payload: PubSubEventMap[TEventName]
-  ) => void;
+  noteWorkflow: Pick<ApiWorkflows["note"], "createNote" | "updateNote">;
   scope: AuthenticatedOrganizationScope;
+  todoWorkflow: Pick<
+    ApiWorkflows["todo"],
+    "createTodo" | "deleteTodo" | "toggleTodo" | "updateTodo"
+  >;
 }
 
+// Trimmed before length is checked, so "   " is rejected at the tool boundary
+// rather than reaching the workflow. The workflow's ensureTodoTitle is still the
+// guarantee; this only gives the model a faster, clearer failure.
+const todoTitleSchema = z.string().trim().min(1).max(255);
+const noteTitleSchema = z.string().trim().min(1).max(255);
+
 export function createAssistantTools({
-  publishNoteEvent,
-  publishTodoEvent,
-  scope
+  noteWorkflow,
+  scope,
+  todoWorkflow
 }: AssistantToolDeps): ToolSet {
   return {
     createTodo: tool({
       description: "Create a new todo for the user.",
       inputSchema: z.object({
-        title: z.string().min(1).max(255),
+        title: todoTitleSchema,
         description: z.string().nullable()
       }),
       execute: async ({ title, description }) => {
-        const todo = await createTodo(scope, { title, description });
-        publishTodoEvent("todo:created", todo);
+        const todo = await todoWorkflow.createTodo(scope, { title, description });
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -66,8 +62,7 @@ export function createAssistantTools({
       description: "Toggle a todo's completion state by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const todo = await toggleTodo(scope, id);
-        publishTodoEvent("todo:toggled", todo);
+        const todo = await todoWorkflow.toggleTodo(scope, id);
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -75,22 +70,14 @@ export function createAssistantTools({
       description: "Update a todo's title and/or description by id.",
       inputSchema: z.object({
         id: z.string().uuid(),
-        title: z.string().min(1).max(255).optional(),
+        title: todoTitleSchema.optional(),
         description: z.string().nullable().optional()
       }),
       execute: async ({ id, title, description }) => {
-        const patch: TodoPatch = {};
-
-        if (title !== undefined) {
-          patch.title = title;
-        }
-
-        if (description !== undefined) {
-          patch.description = description;
-        }
-
-        const todo = await updateTodo(scope, id, patch);
-        publishTodoEvent("todo:updated", todo);
+        const todo = await todoWorkflow.updateTodo(scope, id, {
+          ...(title === undefined ? {} : { title }),
+          ...(description === undefined ? {} : { description })
+        });
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -98,35 +85,30 @@ export function createAssistantTools({
       description: "Delete a todo by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const deleted = await deleteTodo(scope, id);
-
-        if (deleted) {
-          publishTodoEvent("todo:deleted", { id, organizationId: scope.organizationId });
-        }
-
+        const deleted = await todoWorkflow.deleteTodo(scope, id);
         return { id, deleted };
       }
     }),
     createNote: tool({
       description: "Create a note with an optional body and an optional checklist of todos.",
       inputSchema: z.object({
-        title: z.string().min(1).max(255),
+        title: noteTitleSchema,
         body: z.string().nullable().optional(),
-        todoTitles: z.array(z.string().min(1).max(255)).optional()
+        todoTitles: z.array(todoTitleSchema).optional()
       }),
       execute: async ({ title, body, todoTitles }) => {
-        const note = await createNoteRow(scope, { title, body: body ?? null });
-        publishNoteEvent("note:created", note);
+        const note = await noteWorkflow.createNote(scope, { title, body: body ?? null });
         const created: { id: string; title: string }[] = [];
+
         for (const todoTitle of todoTitles ?? []) {
-          const todo = await createTodo(scope, {
+          const todo = await todoWorkflow.createTodo(scope, {
             title: todoTitle,
             description: null,
             noteId: note.id
           });
-          publishTodoEvent("todo:created", todo);
           created.push({ id: todo.id, title: todo.title });
         }
+
         return { id: note.id, title: note.title, todos: created };
       }
     }),
@@ -142,24 +124,22 @@ export function createAssistantTools({
       description: "Update a note's title and/or body by id.",
       inputSchema: z.object({
         id: z.string().uuid(),
-        title: z.string().min(1).max(255).optional(),
+        title: noteTitleSchema.optional(),
         body: z.string().nullable().optional()
       }),
       execute: async ({ id, title, body }) => {
-        const patch: NotePatch = {};
-        if (title !== undefined) patch.title = title;
-        if (body !== undefined) patch.body = body;
-        const note = await updateNoteRow(scope, id, patch);
-        publishNoteEvent("note:updated", note);
+        const note = await noteWorkflow.updateNote(scope, id, {
+          ...(title === undefined ? {} : { title }),
+          ...(body === undefined ? {} : { body })
+        });
         return { id: note.id, title: note.title };
       }
     }),
     addTodoToNote: tool({
       description: "Add a todo to an existing note by note id.",
-      inputSchema: z.object({ noteId: z.string().uuid(), title: z.string().min(1).max(255) }),
+      inputSchema: z.object({ noteId: z.string().uuid(), title: todoTitleSchema }),
       execute: async ({ noteId, title }) => {
-        const todo = await createTodo(scope, { title, description: null, noteId });
-        publishTodoEvent("todo:created", todo);
+        const todo = await todoWorkflow.createTodo(scope, { title, description: null, noteId });
         return { id: todo.id, title: todo.title, noteId };
       }
     })
