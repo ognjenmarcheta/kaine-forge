@@ -26,6 +26,7 @@ import {
   renderClaudeSettings,
   renderClaudeSkill,
   renderCodexConfig,
+  renderCursorHooks,
   renderCursorRulesFile,
   renderCursorSkill,
   renderGrokConfig,
@@ -35,6 +36,7 @@ import {
   renderGuardedCommandsSection,
   renderMcpJson,
   renderOpencodeConfig,
+  renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
@@ -1059,5 +1061,29 @@ describe("renderGrokPreToolUseHook", () => {
     expect(parsed.hooks.PreToolUse[0]?.matcher).toBe(".*");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("pre-tool-use.mjs");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("--agent grok");
+  });
+});
+
+describe("renderCursorHooks", () => {
+  it("registers the shell event, not a PreToolUse block Cursor would ignore", () => {
+    const parsed = JSON.parse(renderCursorHooks()) as {
+      hooks: Array<{ event: string; command: string }>;
+    };
+
+    expect(parsed.hooks[0]?.event).toBe("beforeShellExecution");
+    expect(parsed.hooks[0]?.command).toContain("--agent cursor");
+  });
+});
+
+describe("renderOpencodeGuardrailPlugin", () => {
+  it("listens on tool.execute.before and reuses the shared matcher", () => {
+    const plugin = renderOpencodeGuardrailPlugin();
+
+    // OpenCode ignores JSON hooks entirely, so the plugin API is the only path.
+    expect(plugin).toContain('events.on("tool.execute.before"');
+    expect(plugin).toContain("ctx.reject(");
+    expect(plugin).toContain('from "../../.ai/hooks/guarded-command.mjs"');
+    // ctx.reject is binary, so only deny is enforceable there.
+    expect(plugin).toContain('rule.decision === "deny"');
   });
 });

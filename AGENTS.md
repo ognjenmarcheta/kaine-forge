@@ -255,16 +255,16 @@ blocked on every agent that honours a blocking hook. `ask` is only a real
 verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier
 as the guarantee.
 
-| Command                | Verdict | Why                                                                                                                                                      |
-| ---------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:push`         | deny    | drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns. Use `pnpm db:generate, review the SQL, then pnpm db:migrate` instead. |
-| `pnpm clean-deps`      | deny    | Removes every node_modules directory in the tree. Use `pnpm clean` instead.                                                                              |
-| `pnpm release:apps`    | deny    | Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main. Use `let CI run it after merge` instead.                   |
-| `git ... --no-verify`  | deny    | Bypasses commitlint, the AI-attribution gate, and the pre-push typecheck. Use `fix the hook failure` instead.                                            |
-| `pnpm db:seed`         | ask     | Rewrites the seed user's credential row in whatever DATABASE_URL points at.                                                                              |
-| `pnpm db:migrate`      | ask     | Applies migrations to whatever DATABASE_URL points at.                                                                                                   |
-| `pnpm reinstall-deps`  | ask     | Wraps clean-deps and reinstalls the whole workspace.                                                                                                     |
-| `git push ... --force` | ask     | Destructive on a shared branch. kaine-rebase needs it, so it asks rather than denies. --force-with-lease is unaffected.                                  |
-| `git push ... -f`      | ask     | Short form of --force.                                                                                                                                   |
-| `git reset --hard`     | ask     | Discards uncommitted work irrecoverably.                                                                                                                 |
-| `gh pr merge`          | ask     | kaine-open-pr creates drafts; merging is a human decision.                                                                                               |
+| Command                | Verdict | Why                                                                                                                                                               |
+| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:push`         | deny    | drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns. Generate a migration and review the SQL first. Use `pnpm db:generate` instead. |
+| `pnpm clean-deps`      | deny    | Removes every node_modules directory in the tree. Use `pnpm clean` instead.                                                                                       |
+| `pnpm release:apps`    | deny    | Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main. Use `let the Release workflow run it after merge` instead.          |
+| `git ... --no-verify`  | deny    | Bypasses commitlint, the AI-attribution gate, and the pre-push typecheck. Use `fix the hook failure` instead.                                                     |
+| `pnpm db:seed`         | ask     | Rewrites the seed user's credential row in whatever DATABASE_URL points at.                                                                                       |
+| `pnpm db:migrate`      | ask     | Applies migrations to whatever DATABASE_URL points at.                                                                                                            |
+| `pnpm reinstall-deps`  | ask     | Wraps clean-deps and reinstalls the whole workspace.                                                                                                              |
+| `git push ... --force` | ask     | Destructive on a shared branch. kaine-rebase needs it, so it asks rather than denies. --force-with-lease is unaffected.                                           |
+| `git push ... -f`      | ask     | Short form of --force.                                                                                                                                            |
+| `git reset --hard`     | ask     | Discards uncommitted work irrecoverably.                                                                                                                          |
+| `gh pr merge`          | ask     | kaine-open-pr creates drafts; merging is a human decision.                                                                                                        |

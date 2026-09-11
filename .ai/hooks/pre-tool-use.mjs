@@ -56,6 +56,11 @@ const denyPayload = (message) => {
   if (agent === "grok") {
     return { decision: "deny", reason: message };
   }
+  // Cursor's beforeShellExecution verdict is a boolean allow, and it honours no
+  // exit-code fallback, so this shape is the only thing that blocks there.
+  if (agent === "cursor") {
+    return { allow: false, reason: message };
+  }
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -65,13 +70,27 @@ const denyPayload = (message) => {
   };
 };
 
+// PreToolUse sends { tool_name, tool_input: { command } }; Cursor's
+// beforeShellExecution is its own event and carries the command at the top
+// level. Accept either rather than assuming one shape at a trust boundary.
+const proposedCommand = (input) => {
+  if (typeof input.command === "string") {
+    return input.command;
+  }
+  if (input.tool_name === "Bash" && typeof input.tool_input?.command === "string") {
+    return input.tool_input.command;
+  }
+  return null;
+};
+
 const main = async () => {
   const input = await readStdinJson();
-  if (input.tool_name !== "Bash" || typeof input.tool_input?.command !== "string") {
+  const command = proposedCommand(input);
+  if (command === null) {
     return;
   }
 
-  const rule = matchGuardedCommand(input.tool_input.command, readRules());
+  const rule = matchGuardedCommand(command, readRules());
   if (!rule) {
     return;
   }

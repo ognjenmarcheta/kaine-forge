@@ -5,8 +5,8 @@
       "id": "db-push",
       "decision": "deny",
       "command": "pnpm db:push",
-      "reason": "drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns.",
-      "instead": "pnpm db:generate, review the SQL, then pnpm db:migrate"
+      "reason": "drizzle-kit push diffs the schema straight into DATABASE_URL and can drop columns. Generate a migration and review the SQL first.",
+      "instead": "pnpm db:generate"
     },
     {
       "id": "clean-deps",
@@ -20,7 +20,7 @@
       "decision": "deny",
       "command": "pnpm release:apps",
       "reason": "Moves release/<app> branches, which triggers deploys. The Release workflow owns this on main.",
-      "instead": "let CI run it after merge"
+      "instead": "let the Release workflow run it after merge"
     },
     {
       "id": "git-no-verify",

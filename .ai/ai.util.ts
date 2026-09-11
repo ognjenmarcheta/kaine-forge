@@ -1192,6 +1192,70 @@ export const renderGrokPreToolUseHook = (): string =>
     2
   )}\n`;
 
+/**
+ * Cursor splits pre-execution into granular events; `beforeShellExecution` is
+ * the shell one. Its config lives in `.cursor/hooks.json` and its verdict is a
+ * boolean `allow`, with no exit-code fallback.
+ */
+export const renderCursorHooks = (): string =>
+  `${JSON.stringify(
+    {
+      hooks: [
+        {
+          event: "beforeShellExecution",
+          command: `${PRE_TOOL_USE_HOOK_COMMAND} --agent cursor`,
+          timeout: PRE_TOOL_USE_TIMEOUT_SECONDS * 1000
+        }
+      ]
+    },
+    null,
+    2
+  )}\n`;
+
+/**
+ * OpenCode has no JSON hook format; a `PreToolUse` block there is silently
+ * ignored. Its equivalent is a plugin listening on `tool.execute.before`, so
+ * this renders one that reuses the shared matcher rather than restating the
+ * policy. The community compatibility wrapper is deliberately avoided: a
+ * third-party dependency inside the guardrail is a worse trade than 20 lines.
+ */
+export const renderOpencodeGuardrailPlugin = (): string =>
+  `// ${GEN_NOTICE}
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { guardedCommandMessage, matchGuardedCommand } from "../../.ai/hooks/guarded-command.mjs";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+const readRules = () => {
+  try {
+    const parsed = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
+    return Array.isArray(parsed.rules) ? parsed.rules : [];
+  } catch {
+    // Fail open, like the hook: a broken policy must not block every command.
+    return [];
+  }
+};
+
+export default {
+  name: "kaine-guardrail",
+  setup(events) {
+    events.on("tool.execute.before", (ctx) => {
+      if (ctx.toolName !== "bash" || typeof ctx.args?.command !== "string") {
+        return;
+      }
+      const rule = matchGuardedCommand(ctx.args.command, readRules());
+      // ctx.reject is binary, so only the deny tier is enforceable here.
+      if (rule && rule.decision === "deny") {
+        ctx.reject(guardedCommandMessage(rule));
+      }
+    });
+  }
+};
+`;
+
 export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};
 

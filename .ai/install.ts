@@ -33,6 +33,7 @@ import {
   renderClaudeSkill,
   renderCodexConfig,
   renderCodexSkill,
+  renderCursorHooks,
   renderCursorRulesFile,
   renderCursorSkill,
   renderGrokAgentDefinition,
@@ -42,6 +43,7 @@ import {
   renderGrokSkill,
   renderMcpJson,
   renderOpencodeConfig,
+  renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
@@ -495,6 +497,7 @@ const installAgent = (
   }
   if (agent === "cursor") {
     writeGenerated(join(REPO_ROOT, ".cursor", "mcp.json"), renderMcpJson(resolved.source), results);
+    writeGenerated(join(REPO_ROOT, ".cursor", "hooks.json"), renderCursorHooks(), results);
     if (existsSync(CURSOR_RULES_SRC)) {
       writeGenerated(
         join(REPO_ROOT, ".cursor", "rules", "kaine-rules.mdc"),
@@ -507,6 +510,11 @@ const installAgent = (
     writeGenerated(
       join(REPO_ROOT, "opencode.json"),
       renderOpencodeConfig(resolved.source),
+      results
+    );
+    writeGenerated(
+      join(REPO_ROOT, ".opencode", "plugin", "kaine-guardrail.ts"),
+      renderOpencodeGuardrailPlugin(),
       results
     );
   }

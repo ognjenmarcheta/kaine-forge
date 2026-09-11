@@ -31,7 +31,8 @@ The committed AI setup is split into shared canonical sources and local install 
 | `.opencode/skills/kaine-<name>/SKILL.md`                          | Installed OpenCode skills.                                                   |
 | `.mcp.json`                                                       | Installed Claude MCP config.                                                 |
 | `.codex/config.toml`                                              | Installed Codex MCP, SessionStart and PreToolUse hook config.                |
-| `.cursor/mcp.json`, `.cursor/rules/`                              | Installed Cursor config.                                                     |
+| `.cursor/mcp.json`, `.cursor/rules/`, `.cursor/hooks.json`        | Installed Cursor config, rules and shell guardrail.                          |
+| `.opencode/plugin/kaine-guardrail.ts`                             | Installed OpenCode guardrail plugin.                                         |
 | `opencode.json`                                                   | Installed OpenCode MCP config.                                               |
 | `.ai.local/mcp.env`                                               | Personal env-var values for `${VAR}` substitution.                           |
 | `.ai.local/mcp.json`                                              | Personal MCP servers, merged into every per-tool config.                     |
@@ -80,16 +81,25 @@ run. `pnpm ai:install` fans it out three ways:
   `.claude/settings.local.json`.
 - **Codex and Grok** get the same hook through their own config. Codex fires
   `PreToolUse` for the Bash tool only, which is the whole policy anyway.
-- **Cursor and OpenCode** currently get the policy as documentation only, in the
-  generated AGENTS.md **Guarded Commands** table. Their hook wiring is a
-  follow-up.
+- **Cursor** gets `.cursor/hooks.json` on its `beforeShellExecution` event,
+  which is the granular equivalent of a shell `PreToolUse`.
+- **OpenCode** has no JSON hook format — a `PreToolUse` block there is silently
+  ignored — so it gets a `.opencode/plugin/kaine-guardrail.ts` plugin on
+  `tool.execute.before`. It imports the same matcher rather than restating the
+  policy.
+
+Every target also sees the generated AGENTS.md **Guarded Commands** table, which
+is the human-readable contract and the fallback for anyone who has not run
+`pnpm ai:install` for their agent.
 
 Two tiers, and the difference matters:
 
-- `deny` is blocked wherever the hook runs. Exit code 2 carries the block even if
-  an agent's JSON verdict dialect changes, so this tier is the guarantee.
-- `ask` is only a real verdict on Claude; everywhere else it degrades to an
-  advisory on stderr. That is deliberate — `git push --force` is on the ask list
+- `deny` is blocked wherever the hook runs. On Claude, Codex and Grok exit code 2
+  carries the block even if a JSON verdict dialect changes. Cursor and OpenCode
+  honour no exit code, so their payload shapes are the only mechanism there.
+- `ask` is only a real verdict on Claude. Cursor's `allow` is boolean, OpenCode's
+  `ctx.reject()` is binary, and Codex and Grok are block-or-nothing, so
+  everywhere else it degrades to an advisory on stderr. That is deliberate — `git push --force` is on the ask list
   and `kaine-rebase` needs it — but it means **anything irreversible belongs in
   `deny`**.
 
