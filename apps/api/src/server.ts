@@ -1,6 +1,6 @@
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
-import { createErrorReporter, type Logger } from "@repo/logger";
+import { type Logger } from "@repo/logger";
 import { toNodeHandler } from "better-auth/node";
 import { useServer } from "graphql-ws/use/ws";
 import { createYoga, type YogaInitialContext } from "graphql-yoga";
@@ -17,6 +17,7 @@ import {
   resolveRateLimitKey,
   type RateLimitConfig
 } from "./middleware/rate-limit.middleware";
+import { errorReporter } from "./observability";
 import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
 import { createGraphQlLimitsPlugin, resolveApiRuntimeConfig } from "./server.config";
@@ -78,7 +79,6 @@ export function createApiServer({
   const runtimeConfig = resolveApiRuntimeConfig(process.env);
   const rateLimiter = createRateLimiter(rateLimitConfig);
   // No-op unless OBSERVABILITY_ENABLED / SENTRY_DSN / OTEL endpoint is configured.
-  const errorReporter = createErrorReporter();
   // Dev/test may omit the allowlist (Yoga reflects any origin). Production
   // fails earlier in resolveApiRuntimeConfig when API_CORS_ORIGINS is empty.
   const cors =
