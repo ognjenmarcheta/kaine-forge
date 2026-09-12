@@ -66,6 +66,7 @@ jobs:
         run: |
           cat << 'EOF' > .env
           DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
+          ALLOW_LOCAL_DB_PUSH=true
           BETTER_AUTH_SECRET=ci-release-secret
           BETTER_AUTH_URL=http://localhost:4000
           API_PORT=4000
