@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -750,8 +750,8 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
     "## Guarded Commands",
     "",
     "Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is",
-    "blocked on every agent that honours a blocking hook. `ask` is only a real",
-    "verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier",
+    "blocked on every agent that honours a blocking hook. `ask` is a real",
+    "verdict on Claude and Cursor and degrades to an advisory elsewhere, so treat the deny tier",
     "as the guarantee.",
     "",
     ...rows
@@ -1200,19 +1200,21 @@ export const renderGrokPreToolUseHook = (): string =>
 
 /**
  * Cursor splits pre-execution into granular events; `beforeShellExecution` is
- * the shell one. Its config lives in `.cursor/hooks.json` and its verdict is a
- * boolean `allow`, with no exit-code fallback.
+ * the shell one. Project hooks run from the project root on every platform.
+ * Contract: https://cursor.com/docs/hooks
  */
 export const renderCursorHooks = (): string =>
   `${JSON.stringify(
     {
-      hooks: [
-        {
-          event: "beforeShellExecution",
-          command: `${PRE_TOOL_USE_HOOK_COMMAND} --agent cursor`,
-          timeout: PRE_TOOL_USE_TIMEOUT_SECONDS * 1000
-        }
-      ]
+      version: 1,
+      hooks: {
+        beforeShellExecution: [
+          {
+            command: "node .ai/hooks/pre-tool-use.mjs --agent cursor",
+            timeout: PRE_TOOL_USE_TIMEOUT_SECONDS
+          }
+        ]
+      }
     },
     null,
     2
@@ -1232,35 +1234,63 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { guardedCommandMessage, matchGuardedCommand } from "../../.ai/hooks/guarded-command.mjs";
+import type { GuardedCommandRule } from "../../.ai/hooks/guarded-command.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const readRules = () => {
   try {
-    const parsed = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
-    return Array.isArray(parsed.rules) ? parsed.rules : [];
+    const parsed: unknown = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
+    if (!parsed || typeof parsed !== "object" || !("rules" in parsed) || !Array.isArray(parsed.rules)) {
+      return [];
+    }
+    return parsed.rules.filter((rule: unknown): rule is GuardedCommandRule =>
+      rule !== null && typeof rule === "object" &&
+      "id" in rule && typeof rule.id === "string" &&
+      "decision" in rule && (rule.decision === "deny" || rule.decision === "ask") &&
+      "command" in rule && typeof rule.command === "string" &&
+      "reason" in rule && typeof rule.reason === "string" &&
+      (!("flag" in rule) || typeof rule.flag === "string") &&
+      (!("instead" in rule) || typeof rule.instead === "string")
+    );
   } catch {
     // Fail open, like the hook: a broken policy must not block every command.
     return [];
   }
 };
 
-export default {
-  name: "kaine-guardrail",
-  setup(events) {
-    events.on("tool.execute.before", (ctx) => {
-      if (ctx.toolName !== "bash" || typeof ctx.args?.command !== "string") {
+// Contract: https://opencode.ai/docs/plugins/
+export const KaineGuardrail = async () => ({
+    "tool.execute.before": async (
+      input: { tool: string },
+      output: { args: { command?: unknown } }
+    ) => {
+      if (input.tool !== "bash" || typeof output.args.command !== "string") {
         return;
       }
-      const rule = matchGuardedCommand(ctx.args.command, readRules());
-      // ctx.reject is binary, so only the deny tier is enforceable here.
+      const rule = matchGuardedCommand(output.args.command, readRules());
+      // This callback blocks by throwing; ask rules retain the advisory policy.
       if (rule && rule.decision === "deny") {
-        ctx.reject(guardedCommandMessage(rule));
+        throw new Error(guardedCommandMessage(rule));
       }
-    });
-  }
-};
+      if (rule) {
+        console.warn(guardedCommandMessage(rule));
+      }
+    }
+});
 `;
+
+export const removeLegacyOpencodeGuardrail = (repoRoot: string): boolean => {
+  const legacy = join(repoRoot, ".opencode", "plugin", "kaine-guardrail.ts");
+  if (
+    !existsSync(legacy) ||
+    readFileSync(legacy, "utf8").split(/\r?\n/, 1)[0] !== `// ${GEN_NOTICE}`
+  ) {
+    return false;
+  }
+  rmSync(legacy);
+  return true;
+};
 
 export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};

@@ -94,7 +94,7 @@ vi.mock("@repo/auth/server", () => ({
 }));
 
 const { createApiServer } = await import("../../server");
-const { membersTable, notesTable, organizationsTable, todosTable, usersTable } =
+const { filesTable, membersTable, notesTable, organizationsTable, todosTable, usersTable } =
   await import("@repo/db/schema");
 
 interface Fixture {
@@ -280,5 +280,62 @@ describe("notes tenancy", () => {
 
     expect(result.errors?.[0]?.message).toBe("authentication required");
     expect(notesOf(result)).toEqual([]);
+  });
+});
+
+describe("attachment deletion SQL", () => {
+  it("soft-deletes only live files of the requested entity in the active organization", async () => {
+    const { deleteFilesByEntity } = await import("../storage/storage.adapter");
+    const oldTimestamp = new Date("2020-01-01T00:00:00.000Z");
+    const common = {
+      bucket: "test-attachments",
+      originalName: "attachment.txt",
+      mimeType: "text/plain",
+      sizeBytes: 1,
+      uploadedBy: fixture.userId,
+      organizationId: fixture.orgA,
+      entityType: "todo",
+      entityId: fixture.todoA,
+      updatedAt: oldTimestamp
+    };
+    const seeded = await testDb
+      .insert(filesTable)
+      .values([
+        { ...common, key: "target-pending", status: "pending" },
+        { ...common, key: "target-uploaded", status: "uploaded" },
+        // Same entity identifiers are needed to exercise the organization predicate itself.
+        { ...common, key: "other-organization", status: "uploaded", organizationId: fixture.orgB },
+        { ...common, key: "other-entity", status: "uploaded", entityId: fixture.noteA },
+        { ...common, key: "other-type", status: "uploaded", entityType: "note" },
+        { ...common, key: "already-deleted", status: "deleted" }
+      ])
+      .returning();
+
+    const scope = {
+      organizationId: fixture.orgA,
+      userId: fixture.userId,
+      user: {
+        id: fixture.userId,
+        email: "tenant@example.test",
+        emailVerified: true,
+        name: "Tenant User"
+      }
+    };
+    const deleted = await deleteFilesByEntity(scope, "todo", fixture.todoA);
+    expect(deleted.map((file) => file.key).sort()).toEqual(["target-pending", "target-uploaded"]);
+
+    const after = await testDb.select().from(filesTable);
+    for (const before of seeded) {
+      const row = after.find((file) => file.id === before.id);
+      expect(row).toBeDefined();
+      if (before.key.startsWith("target-")) {
+        expect(row?.status).toBe("deleted");
+        expect(row?.updatedAt.getTime()).toBeGreaterThan(oldTimestamp.getTime());
+      } else {
+        expect(row).toEqual(before);
+      }
+    }
+    expect(await deleteFilesByEntity(scope, "todo", fixture.todoA)).toEqual([]);
+    expect(await testDb.select().from(filesTable)).toEqual(after);
   });
 });

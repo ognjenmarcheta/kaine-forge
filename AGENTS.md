@@ -256,8 +256,8 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 ## Guarded Commands
 
 Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is
-blocked on every agent that honours a blocking hook. `ask` is only a real
-verdict on Claude and degrades to an advisory elsewhere, so treat the deny tier
+blocked on every agent that honours a blocking hook. `ask` is a real
+verdict on Claude and Cursor and degrades to an advisory elsewhere, so treat the deny tier
 as the guarantee.
 
 - **deny** `pnpm db:push` — Unrestricted schema push can drop columns in DATABASE_URL. Shared and deployed databases require pnpm db:generate and reviewed migrations. The local wrapper requires explicit opt-in and validates loopback PostgreSQL. Use `pnpm db:push:local` instead.

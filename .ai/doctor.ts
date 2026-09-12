@@ -33,6 +33,8 @@ import {
   renderClaudeSkill,
   renderCodexSkill,
   renderCursorSkill,
+  renderCursorHooks,
+  renderOpencodeGuardrailPlugin,
   renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
   renderGrokSkill,
@@ -46,6 +48,7 @@ import {
   shouldFailDoctor,
   type Skill
 } from "./ai.util";
+import { checkGuardContracts } from "./guard-check.util";
 
 interface EnvRequirement {
   name: string;
@@ -252,6 +255,18 @@ const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
 
 const computeHookDrift = (): FileDrift[] => {
   const drift: FileDrift[] = [];
+  for (const [directory, path, expected] of [
+    [".cursor", ".cursor/hooks.json", renderCursorHooks()],
+    [".opencode", ".opencode/plugins/kaine-guardrail.ts", renderOpencodeGuardrailPlugin()]
+  ] as const) {
+    if (!existsSync(join(REPO_ROOT, directory))) continue;
+    const absolute = join(REPO_ROOT, path);
+    if (!existsSync(absolute)) {
+      drift.push({ label: path, status: "missing" });
+    } else if (!generatedTextEqual(readFileSync(absolute, "utf8"), expected)) {
+      drift.push({ label: path, status: "stale" });
+    }
+  }
   const codexConfig = join(REPO_ROOT, ".codex", "config.toml");
 
   if (existsSync(codexConfig)) {
@@ -293,6 +308,7 @@ const printLintIssue = (issue: LintIssue): void => {
 
 const main = (): void => {
   const strict = process.argv.includes("--strict");
+  const guardErrors = checkGuardContracts();
   const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
@@ -317,6 +333,10 @@ const main = (): void => {
     value === "yes" ? chalk.green("✓") : chalk.gray("✗");
 
   console.log(chalk.cyan("🩺 AI tooling doctor"));
+  console.log();
+  console.log(chalk.bold("Guard contracts (automated; not live agent verification)"));
+  for (const error of guardErrors) console.log(`  ${chalk.red("✗")}  ${error}`);
+  if (guardErrors.length === 0) console.log(`  ${chalk.green("✓")}  all five agent contracts pass`);
   console.log();
 
   console.log(chalk.bold("Shared docs"));
@@ -524,8 +544,14 @@ const main = (): void => {
     )
   );
 
-  if (shouldFailDoctor({ lintErrorCount: lintErrors.length, strictDriftCount, strict })) {
-    if (lintErrors.length === 0) {
+  if (
+    shouldFailDoctor({
+      lintErrorCount: lintErrors.length + guardErrors.length,
+      strictDriftCount,
+      strict
+    })
+  ) {
+    if (lintErrors.length === 0 && guardErrors.length === 0) {
       console.log(
         chalk.red("✗ committed AI docs drifted and --strict is set (run: pnpm ai:install)")
       );

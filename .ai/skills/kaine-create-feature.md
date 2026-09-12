@@ -46,7 +46,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
    Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one.
 
-6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. They ship English copy; `locale-consistency.test.ts` compares keys, not values, so nothing else will catch it (issue #382).
+6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
 7. Verify, in this order:
 
