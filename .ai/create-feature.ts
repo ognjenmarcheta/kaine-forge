@@ -93,7 +93,7 @@ const nextSteps = (names: FeatureNames): string => `Next steps:
   3. pnpm db:generate   # writes a new packages/db/drizzle/*.sql - review it before committing
   4. pnpm db:push:local # requires ALLOW_LOCAL_DB_PUSH=true and local PostgreSQL
   5. Translate packages/translation/src/locales/{de,sr}/${names.pluralKebab}.json and the
-     navigation.${names.pluralKebab} keys - they currently hold English copy (issue #382).
+     navigation.${names.pluralKebab} keys - English-identical values fail pnpm check.
   6. pnpm check
   7. pnpm test:e2e
 `;

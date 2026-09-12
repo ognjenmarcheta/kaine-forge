@@ -974,9 +974,8 @@ describe("${names.pluralKebab}.router", () => {
 });
 `;
 
-// All three locales ship the English copy: locale-consistency.test.ts compares
-// keys, not values, so nothing catches an untranslated string. Tracked as a
-// named ceiling rather than a "for now" comment.
+// English placeholders preserve the key shape. The locale value gate rejects
+// de/sr copies until the contributor translates them, including navigation.
 const localeFile = (names: FeatureNames): string => {
   const sentence = `${names.singularWords.charAt(0).toUpperCase()}${names.singularWords.slice(1)}`;
   return `${JSON.stringify(

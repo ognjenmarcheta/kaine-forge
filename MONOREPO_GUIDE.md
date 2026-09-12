@@ -412,7 +412,7 @@ Pick the reference feature that matches your scope: clone `notes` for a plain or
 pnpm create:feature <singular> --plural <plural> --write
 ```
 
-That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. The generator never writes `pnpm db:push:local` or a migration for you.
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
 
 Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 
