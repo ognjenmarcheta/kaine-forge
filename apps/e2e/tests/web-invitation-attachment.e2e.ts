@@ -32,7 +32,7 @@ test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
   const row = page.getByRole("listitem").filter({
     has: page.getByRole("checkbox", { name: title, exact: true })
   });
-  await row.locator("summary").click();
+  await row.getByRole("button", { name: /^Attachments/ }).click();
   await row.locator('input[type="file"]').setInputFiles({
     name: "redesign-check.txt",
     mimeType: "text/plain",

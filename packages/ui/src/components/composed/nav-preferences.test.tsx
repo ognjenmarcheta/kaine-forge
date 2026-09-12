@@ -52,7 +52,7 @@ describe("nav-preferences", () => {
       </SidebarProvider>
     );
 
-    expect(markup).toContain("justify-start");
+    expect(markup).toContain("ui-sidebar-preferences");
     expect(markup.match(/data-slot="tooltip-trigger"/g)?.length).toBe(2);
     expect(markup.match(/data-sidebar="menu-button"/g)?.length).toBe(2);
   });

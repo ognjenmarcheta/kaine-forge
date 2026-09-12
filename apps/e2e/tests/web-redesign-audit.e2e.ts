@@ -141,13 +141,13 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   const composer = page.locator("#assistant-message");
   await composer.fill("Organization draft");
   await page.getByRole("button", { name: "Theme", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Dark", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(composer).toHaveValue("Organization draft");
   await page.getByRole("button", { name: "Language", exact: true }).click();
-  await page.getByRole("menuitem", { name: "DE", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
   await expect(composer).toHaveValue("Organization draft");
   await page.getByRole("button", { name: "Sprache", exact: true }).click();
-  await page.getByRole("menuitem", { name: "EN", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "English", exact: true }).click();
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Thinking…", exact: true })).toBeDisabled();
   await composer.fill("Another Organization draft");

@@ -226,9 +226,19 @@ Do not pair `surface-raised` with `shadow-overlay` or default surface with raise
 
 Use CSS on web/desktop and Reanimated on native. Do not add an animation framework. Canonical duration tokens are `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms). Use small opacity/transform transitions, respect reduced motion, and never delay navigation. Theme changes are immediate and preserve drafts, focus, and scroll.
 
+- Use `--ds-motion-easing` for calm transitions without bounce. Sidebar rail and spacer resize together while labels fade; interrupted width transitions reverse from the current geometry. Footer preferences stay in fixed vertical slots above a stable-height profile row.
+- Sheets enter and exit fully from their declared edge. Backdrops fade. Dialogs combine opacity with `--ds-motion-distance-dialog` (8px); anchored menus/tooltips use `--ds-motion-distance-menu` (4px). Preserve positioning transforms. Radix owns exit presence and focus restoration.
+- Attachment disclosures interpolate intrinsic content height with CSS grid. Keep their upload controls mounted; closed content is inert and becomes hidden after collapse. Do not animate message streams, list staggering, or route entry.
+- Enabled buttons use `--ds-motion-distance-press` (2px) for press feedback. Native buttons move their content inside a stable touch target and preserve caller styles and refs. Focus indicators remain immediate.
+- Native dialogs use Reanimated timing with generated durations/easing/distances. Keep content mounted through exit, cancel interrupted animations, and ignore stale exit completions after reopening. Existing explicit `animationType="none"` disables motion; `slide` retains a full-height slide.
+- Follow device reduced motion, including runtime changes. Remove motion immediately rather than adding an app override. The native drawer keeps its clamped gesture animation, with a pnpm patch replacing its explicit reduced-motion opt-out in both source and compiled module. Remove that patch when the upstream package honors the system preference itself.
+- Test intermediate browser geometry and entry/exit lifetimes, not only final screenshots. Keep short motion recordings for review. Bundle exports cannot verify physical-device motion or accessibility.
+
 ### Workflow visual direction
 
 Use neutral white and charcoal surfaces with restrained blue primary actions. Keep the system font stack and 4–8px control radii. Use aligned rows and dividers for work lists. The dashboard links to existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
+
+Web/desktop sidebar preferences use two neutral, labeled footer rows: Language, then Theme, with muted current values. Collapsing keeps both controls mounted in the same vertical positions and shows icon tooltips with their current values. Expanded menus open upward; collapsed menus open to the right, with viewport collision handling. Use native language names and radio selection semantics. The responsive web drawer keeps full labels and 48px control heights. `ShellSelectControl` supports an optional `compact` display and `NavPreferences` supports a `footer` layout; existing defaults remain available.
 
 ## 8. Theming
 

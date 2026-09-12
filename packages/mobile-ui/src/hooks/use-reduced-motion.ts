@@ -5,14 +5,18 @@ export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(true);
   useEffect(() => {
     let active = true;
+    let changed = false;
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((value) => {
-        if (active) setReduced(value);
+        if (active && !changed) setReduced(value);
       })
       .catch(() => {
         /* Keep motion disabled if the preference is unavailable. */
       });
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", (value) => {
+      changed = true;
+      setReduced(value);
+    });
     return () => {
       active = false;
       subscription.remove();

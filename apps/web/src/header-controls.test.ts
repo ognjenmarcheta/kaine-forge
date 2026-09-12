@@ -15,7 +15,7 @@ describe("app shell header controls contract", () => {
     expect(source).toContain("NavUser");
     expect(source).toContain("Breadcrumbs");
     expect(source).toContain("navigation.settings");
-    expect(source).toContain('layout="inline-icons"');
+    expect(source).toContain('layout="footer"');
   });
 
   it("keeps legacy selector/menu wrappers out of the shell", () => {

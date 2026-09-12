@@ -6,15 +6,21 @@ import {
   Platform,
   Pressable,
   View,
+  useWindowDimensions,
   type ModalProps
 } from "react-native";
+import Animated, { useAnimatedStyle, type SharedValue } from "react-native-reanimated";
 
 import { Text } from "./text";
+import { useMotionPresence } from "../../hooks/use-motion-presence";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { cn } from "../../lib/cn";
+import { motionDistances } from "../../lib/design-tokens";
 
 interface DialogContextValue {
   onClose: () => void;
+  progress: SharedValue<number>;
+  distance: number;
 }
 
 const DialogContext = createContext<DialogContextValue | null>(null);
@@ -28,19 +34,32 @@ export interface DialogProps {
 
 export function Dialog({ animationType = "fade", children, isOpen, onClose }: DialogProps) {
   const reducedMotion = useReducedMotion();
+  const { height } = useWindowDimensions();
+  const immediate = reducedMotion || animationType === "none";
+  const { visible, progress } = useMotionPresence(isOpen, immediate);
+  const distance = immediate ? 0 : animationType === "slide" ? height : motionDistances.dialog;
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   return (
-    <DialogContext.Provider value={{ onClose }}>
+    <DialogContext.Provider value={{ onClose, progress, distance }}>
       <Modal
-        animationType={reducedMotion ? "none" : animationType}
+        animationType="none"
         transparent
-        visible={isOpen}
-        onRequestClose={onClose}
+        visible={visible}
+        onRequestClose={() => {
+          if (isOpen) onClose();
+        }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          {children}
+          <Animated.View
+            className="flex-1"
+            style={animatedStyle}
+            pointerEvents={isOpen ? "auto" : "none"}
+          >
+            {children}
+          </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
     </DialogContext.Provider>
@@ -81,8 +100,13 @@ export function DialogContent({
   className?: string;
   position?: "bottom" | "center";
 }) {
+  const ctx = useContext(DialogContext);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - (ctx?.progress.value ?? 1)) * (ctx?.distance ?? 0) }]
+  }));
   return (
-    <View
+    <Animated.View
+      style={animatedStyle}
       accessibilityViewIsModal
       className={cn(
         "bg-ds-surface p-5",
@@ -91,7 +115,7 @@ export function DialogContent({
       )}
     >
       {children}
-    </View>
+    </Animated.View>
   );
 }
 

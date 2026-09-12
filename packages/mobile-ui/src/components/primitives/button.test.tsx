@@ -1,9 +1,39 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createRef } from "react";
+import type { View } from "react-native";
 import { describe, expect, it, vi } from "vitest";
 
 import { Button } from "./button";
+import { motionTest } from "../../test/reanimated.stub";
 
 describe("Button", () => {
+  it("preserves refs and press callbacks while animating feedback only for enabled controls", async () => {
+    const onPressIn = vi.fn();
+    const onPressOut = vi.fn();
+    const ref = createRef<View>();
+    const { rerender } = render(
+      <Button ref={ref} onPressIn={onPressIn} onPressOut={onPressOut}>
+        Save
+      </Button>
+    );
+    expect(ref.current).not.toBeNull();
+    await waitFor(() => {
+      fireEvent.pointerDown(screen.getByRole("button"));
+      expect(motionTest.calls.at(-1)?.target).toBe(2);
+    });
+    fireEvent.pointerUp(screen.getByRole("button"));
+    expect(motionTest.calls.at(-1)?.target).toBe(0);
+    expect(onPressIn).toHaveBeenCalled();
+    expect(onPressOut).toHaveBeenCalledOnce();
+    rerender(
+      <Button disabled onPressIn={onPressIn}>
+        Save
+      </Button>
+    );
+    const calls = motionTest.calls.length;
+    fireEvent.pointerDown(screen.getByRole("button"));
+    expect(motionTest.calls).toHaveLength(calls);
+  });
   it("renders string children as styled button text", () => {
     render(<Button onPress={() => undefined}>Save</Button>);
 

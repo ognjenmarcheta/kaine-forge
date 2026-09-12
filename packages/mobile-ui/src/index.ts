@@ -13,5 +13,10 @@ export * from "./components/primitives/text";
 export * from "./lib/cn";
 export * from "./lib/variants";
 
-export { nativeThemeTokens, motionDurations } from "./lib/design-tokens";
+export {
+  nativeThemeTokens,
+  motionDurations,
+  motionEasing,
+  motionDistances
+} from "./lib/design-tokens";
 export { useReducedMotion } from "./hooks/use-reduced-motion";

@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Development-only Playwright fixture. Vite builds index.html only. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import {
+        Sheet,
+        SheetTrigger,
+        SheetContent,
+        SheetTitle,
+        SheetDescription,
+        Button
+      } from "@repo/ui";
+      import { t } from "@repo/translation";
+      import "@repo/ui/styles/globals.css";
+      const h = React.createElement;
+      const side = new URLSearchParams(location.search).get("side") || "left";
+      createRoot(document.getElementById("root")).render(
+        h(
+          Sheet,
+          null,
+          h(SheetTrigger, { asChild: true }, h(Button, null, t("button.edit"))),
+          h(
+            SheetContent,
+            { side, closeLabel: t("common.close") },
+            h(SheetTitle, null, t("common.appName")),
+            h(SheetDescription, null, t("common.appName"))
+          )
+        )
+      );
+    </script>
+  </body>
+</html>

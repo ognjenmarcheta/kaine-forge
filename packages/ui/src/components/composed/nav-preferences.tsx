@@ -5,7 +5,7 @@ type BaseControlProps = Omit<ShellSelectControlProps, "className" | "display" | 
 
 export interface NavPreferencesProps {
   groupLabel?: string;
-  layout?: "inline-icons" | "stack";
+  layout?: "inline-icons" | "stack" | "footer";
   language: BaseControlProps;
   theme: BaseControlProps;
 }
@@ -16,9 +16,18 @@ export function NavPreferences({
   layout = "stack",
   theme
 }: NavPreferencesProps) {
+  if (layout === "footer") {
+    return (
+      <div className="ui-sidebar-preferences-footer" role="group" aria-label={groupLabel}>
+        <ShellSelectControl display="compact" icon="language" {...language} />
+        <ShellSelectControl display="compact" icon="theme" {...theme} />
+      </div>
+    );
+  }
+
   if (layout === "inline-icons") {
     return (
-      <div className="flex items-center justify-start gap-[var(--ds-space-100)] px-[var(--ds-space-050)] group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:px-0">
+      <div className="ui-sidebar-preferences">
         <ShellSelectControl className="size-8" display="icon" icon="language" {...language} />
         <ShellSelectControl className="size-8" display="icon" icon="theme" {...theme} />
       </div>

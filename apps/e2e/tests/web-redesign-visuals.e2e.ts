@@ -101,7 +101,10 @@ for (const theme of ["light", "dark"] as const) {
     await page.mouse.move(800, 500);
     await page.screenshot({ path: testInfo.outputPath(`collapsed-${theme}.png`) });
     await page.setViewportSize({ width: 360, height: 900 });
-    await page.locator("summary").first().click();
+    await page
+      .getByRole("button", { name: /^Attachments/ })
+      .first()
+      .click();
     await expect(page.getByText("design-checklist.txt", { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`phone-${theme}.png`), fullPage: true });
     await page.getByRole("button", { name: "AI todo generator", exact: true }).click();
