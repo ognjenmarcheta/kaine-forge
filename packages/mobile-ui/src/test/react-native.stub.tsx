@@ -19,6 +19,8 @@ interface StubBaseProps {
 type PressableStubProps = StubBaseProps & {
   disabled?: boolean | null;
   onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
 };
 
 export const Pressable = forwardRef<HTMLButtonElement, PressableStubProps>(
@@ -31,6 +33,8 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableStubProps>(
       className,
       disabled,
       onPress,
+      onPressIn,
+      onPressOut,
       testID
     },
     ref
@@ -44,6 +48,12 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableStubProps>(
       disabled={disabled === true}
       role={accessibilityRole}
       type="button"
+      onPointerDown={() => {
+        if (disabled !== true) onPressIn?.();
+      }}
+      onPointerUp={() => {
+        if (disabled !== true) onPressOut?.();
+      }}
       onClick={() => {
         // Mirrors React Native Pressable: presses are ignored while disabled.
         if (disabled !== true) {
@@ -95,3 +105,15 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputStubProps>(
   )
 );
 TextInput.displayName = "TextInput";
+
+export const AccessibilityInfo = {
+  isReduceMotionEnabled: () => Promise.resolve(false),
+  addEventListener: () => ({ remove: () => {} })
+};
+export const Keyboard = { isVisible: () => false, dismiss: () => {} };
+export const Platform = { OS: "ios" };
+export const useWindowDimensions = () => ({ width: 360, height: 800 });
+export const KeyboardAvoidingView = View;
+export function Modal({ children, visible }: StubBaseProps & { visible: boolean }) {
+  return visible ? <div role="dialog">{children}</div> : null;
+}

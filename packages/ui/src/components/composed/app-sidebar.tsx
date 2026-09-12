@@ -47,7 +47,7 @@ export function AppSidebar({
       <SidebarContent>{navMain}</SidebarContent>
       <SidebarFooter>
         {navPreferences}
-        {user}
+        {user ? <div className="ui-sidebar-user">{user}</div> : null}
       </SidebarFooter>
       <SidebarRail {...(resolvedRailLabel ? { label: resolvedRailLabel } : {})} />
     </Sidebar>

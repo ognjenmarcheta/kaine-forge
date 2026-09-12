@@ -28,7 +28,12 @@ type AvatarProps = React.HTMLAttributes<HTMLSpanElement> & {
 
 const Avatar = React.forwardRef<HTMLSpanElement, AvatarProps>(
   ({ className, size, ...props }, ref) => (
-    <span ref={ref} className={cn(avatarVariants({ size }), className)} {...props} />
+    <span
+      data-slot="avatar"
+      ref={ref}
+      className={cn(avatarVariants({ size }), className)}
+      {...props}
+    />
   )
 );
 Avatar.displayName = "Avatar";

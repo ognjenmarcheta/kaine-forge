@@ -190,14 +190,14 @@ function ShellLayout() {
           navPreferences={
             <NavPreferences
               groupLabel={t("navigation.settings")}
-              layout="inline-icons"
+              layout="footer"
               language={{
                 label: t("navigation.language"),
                 onValueChange: (value) => {
                   void setLanguage(value);
                 },
                 options: SUPPORTED_LANGUAGES.map((value) => ({
-                  label: value.toUpperCase(),
+                  label: t(`navigation.languageName.${value}`),
                   value
                 })),
                 value: language

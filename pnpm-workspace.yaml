@@ -116,3 +116,7 @@ auditConfig:
     # no fixed release exists. Drop both when Expo ships a metro with image-size >2.0.2.
     - GHSA-5p2g-fcmc-qvqq
     - GHSA-w3rx-r6r6-pgpr
+
+# Respect the device preference in the installed native drawer (source and module).
+patchedDependencies:
+  react-native-drawer-layout@4.2.9: patches/react-native-drawer-layout@4.2.9.patch

@@ -23,6 +23,18 @@ beforeEach(() => {
 });
 
 describe("native reduced motion", () => {
+  it("does not overwrite a live change with a late initial read", async () => {
+    let resolvePreference: (value: boolean) => void = () => {};
+    native.read.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePreference = resolve;
+      })
+    );
+    const { result } = renderHook(useReducedMotion);
+    act(() => native.subscribe.mock.calls[0]?.[1](true));
+    await act(async () => resolvePreference(false));
+    expect(result.current).toBe(true);
+  });
   it("starts without motion, reads the preference, follows updates, and unsubscribes", async () => {
     native.read.mockResolvedValue(false);
     const { result, unmount } = renderHook(useReducedMotion);

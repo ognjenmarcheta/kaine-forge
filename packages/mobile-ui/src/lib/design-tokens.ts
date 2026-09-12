@@ -25,3 +25,7 @@ export const motionDurations = {
   overlay: 180,
   drawer: 220
 };
+
+export const motionEasing = [0.2, 0, 0, 1] as const;
+
+export const motionDistances = { dialog: 8, menu: 4, press: 2 };

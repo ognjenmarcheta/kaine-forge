@@ -211,6 +211,24 @@ const nativeTokensSource =
     null,
     2
   ) +
+  ";\n\n" +
+  "export const motionEasing = " +
+  JSON.stringify(
+    rootVars
+      .get("--ds-motion-easing")
+      .match(/[\d.]+/g)
+      .map(Number)
+  ) +
+  " as const;\n\n" +
+  "export const motionDistances = " +
+  JSON.stringify(
+    Object.fromEntries(
+      ["dialog", "menu", "press"].map((name) => [
+        name,
+        Number.parseInt(rootVars.get("--ds-motion-distance-" + name), 10)
+      ])
+    )
+  ) +
   ";\n";
 
 const nativeTokens = await format(nativeTokensSource, {

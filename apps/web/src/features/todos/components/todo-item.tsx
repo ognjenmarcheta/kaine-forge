@@ -1,4 +1,12 @@
-import { Button, Checkbox } from "@repo/ui";
+import {
+  Button,
+  Checkbox,
+  ChevronRight,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@repo/ui";
+import { useState } from "react";
 
 import { TodoAttachments } from "./todo-attachments";
 import { useTranslation } from "../../../hooks/use-translation";
@@ -20,6 +28,7 @@ export function TodoItemRow({
   onToggle
 }: TodoItemProps) {
   const { t } = useTranslation();
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
 
   return (
     <li className="ui-work-row grid grid-cols-1 items-start gap-[var(--ds-space-150)] md:grid-cols-[minmax(0,_1fr)_minmax(0,_1fr)_auto]">
@@ -57,17 +66,24 @@ export function TodoItemRow({
           {t("button.delete")}
         </Button>
       </div>
-      <details className="md:col-span-3">
-        <summary className="cursor-pointer text-[color:var(--ds-text-subtle)]">
+      <Collapsible
+        open={attachmentsOpen}
+        onOpenChange={setAttachmentsOpen}
+        className="md:col-span-3"
+      >
+        <CollapsibleTrigger className="ui-disclosure-trigger">
+          <ChevronRight aria-hidden className="size-4" />
           {t("todos.attachments.title")}{" "}
           <span className="ml-[var(--ds-space-100)]">{item.attachments.length}</span>
-        </summary>
-        <TodoAttachments
-          attachments={item.attachments}
-          todoId={item.id}
-          onChanged={onAttachmentChanged}
-        />
-      </details>
+        </CollapsibleTrigger>
+        <CollapsibleContent forceMount inert={!attachmentsOpen}>
+          <TodoAttachments
+            attachments={item.attachments}
+            todoId={item.id}
+            onChanged={onAttachmentChanged}
+          />
+        </CollapsibleContent>
+      </Collapsible>
     </li>
   );
 }

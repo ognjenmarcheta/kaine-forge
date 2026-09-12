@@ -27,7 +27,8 @@
   "peerDependencies": {
     "nativewind": "^4.0.0",
     "react": "^19.0.0",
-    "react-native": ">=0.81.0"
+    "react-native": ">=0.81.0",
+    "react-native-reanimated": "^4.2.1"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",

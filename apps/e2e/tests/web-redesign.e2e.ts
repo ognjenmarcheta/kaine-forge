@@ -14,13 +14,25 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
     await page.setViewportSize({ width, height: 900 });
     await trigger.click();
     await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible();
+    await expect(sidebar.locator('.ui-sidebar-user [data-slot="avatar"]')).toHaveCSS(
+      "opacity",
+      "1"
+    );
     for (const mode of ["Light", "Dark"]) {
       for (const control of [language, theme]) {
+        await expect(control).toHaveCSS("width", "32px");
         const railBox = await sidebar.boundingBox();
         const controlBox = await control.boundingBox();
         if (!railBox || !controlBox) throw new Error("Sidebar controls must be visible");
         expect(controlBox.x).toBeGreaterThanOrEqual(railBox.x);
         expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(railBox.x + railBox.width);
+        const icon = control.locator(":scope > svg").first();
+        await expect(icon).toHaveCSS("opacity", "1");
+        const iconBox = await icon.boundingBox();
+        if (!iconBox) throw new Error("Preference icon must remain visible");
+        expect(iconBox.width).toBeGreaterThan(0);
+        expect(iconBox.x).toBeGreaterThanOrEqual(controlBox.x);
+        expect(iconBox.x + iconBox.width).toBeLessThanOrEqual(controlBox.x + controlBox.width);
         await control.click();
         const menu = page.getByRole("menu");
         await expect(menu).toBeVisible();
@@ -35,7 +47,7 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
       if (!languageBox || !themeBox) throw new Error("Preference controls must be visible");
       expect(themeBox.y).toBeGreaterThanOrEqual(languageBox.y + languageBox.height);
       await theme.click();
-      await page.getByRole("menuitem", { name: mode, exact: true }).click();
+      await page.getByRole("menuitemradio", { name: mode, exact: true }).click();
       await expect(page.locator("html")).toHaveAttribute("data-theme", mode.toLowerCase());
       await page.screenshot({ path: testInfo.outputPath(`sidebar-${width}-${mode}.png`) });
     }
@@ -45,7 +57,7 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
       .poll(async () => {
         const languageBox = await language.boundingBox();
         const themeBox = await theme.boundingBox();
-        return languageBox && themeBox ? languageBox.y - themeBox.y : null;
+        return languageBox && themeBox ? languageBox.x - themeBox.x : null;
       })
       .toBe(0);
   }
@@ -93,7 +105,7 @@ test("Note drafts survive theme changes and failed saves", async ({ page }) => {
   await expect(page).toHaveURL(/\/notes\/.+/);
   await page.locator("#note-body").fill("Unsaved work");
   await page.getByRole("button", { name: "Theme", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Dark", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
   await page.route("**/graphql", async (route) => {
     if (route.request().postData()?.includes("mutation UpdateNote")) {
