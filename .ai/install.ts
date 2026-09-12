@@ -44,6 +44,7 @@ import {
   renderMcpJson,
   renderOpencodeConfig,
   renderOpencodeGuardrailPlugin,
+  removeLegacyOpencodeGuardrail,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
@@ -513,10 +514,11 @@ const installAgent = (
       results
     );
     writeGenerated(
-      join(REPO_ROOT, ".opencode", "plugin", "kaine-guardrail.ts"),
+      join(REPO_ROOT, ".opencode", "plugins", "kaine-guardrail.ts"),
       renderOpencodeGuardrailPlugin(),
       results
     );
+    removeLegacyOpencodeGuardrail(REPO_ROOT);
   }
   if (agent === "grok") {
     writeGenerated(

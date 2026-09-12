@@ -58,8 +58,8 @@ describe("permissions policy", () => {
   });
 
   it("keeps every irreversible command on the deny tier", () => {
-    // ask is only a real verdict on Claude, so anything that cannot be undone
-    // has to be a deny or it is unguarded on four of five agents.
+    // ask is only enforced on Claude and Cursor, so irreversible commands
+    // must be denied rather than relying on the advisory in other agents.
     const denied = rules.filter((rule) => rule.decision === "deny").map((rule) => rule.id);
 
     expect(denied).toEqual(["db-push", "clean-deps", "release-apps", "git-no-verify"]);
@@ -136,6 +136,20 @@ describe("matchGuardedCommand", () => {
 });
 
 describe("pre-tool-use hook", () => {
+  it.each(["deny", "ask"])("emits Cursor's %s verdict for its native payload", (permission) => {
+    const command = permission === "deny" ? "pnpm db:push" : "git push --force origin main";
+    const result = spawnSync(process.execPath, [hookScript, "--agent", "cursor"], {
+      input: JSON.stringify({ command, cwd: process.cwd() }),
+      encoding: "utf8"
+    });
+    expect(result.status).toBe(permission === "deny" ? 2 : 0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      permission,
+      user_message: expect.any(String),
+      agent_message: expect.any(String)
+    });
+  });
+
   it("blocks a denied command with exit 2 and a reason on stderr", () => {
     const result = runHook("pnpm db:push");
 

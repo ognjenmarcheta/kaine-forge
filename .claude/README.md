@@ -32,7 +32,7 @@ The committed AI setup is split into shared canonical sources and local install 
 | `.mcp.json`                                                       | Installed Claude MCP config.                                                 |
 | `.codex/config.toml`                                              | Installed Codex MCP, SessionStart and PreToolUse hook config.                |
 | `.cursor/mcp.json`, `.cursor/rules/`, `.cursor/hooks.json`        | Installed Cursor config, rules and shell guardrail.                          |
-| `.opencode/plugin/kaine-guardrail.ts`                             | Installed OpenCode guardrail plugin.                                         |
+| `.opencode/plugins/kaine-guardrail.ts`                            | Installed OpenCode guardrail plugin.                                         |
 | `opencode.json`                                                   | Installed OpenCode MCP config.                                               |
 | `.ai.local/mcp.env`                                               | Personal env-var values for `${VAR}` substitution.                           |
 | `.ai.local/mcp.json`                                              | Personal MCP servers, merged into every per-tool config.                     |
@@ -84,7 +84,7 @@ run. `pnpm ai:install` fans it out three ways:
 - **Cursor** gets `.cursor/hooks.json` on its `beforeShellExecution` event,
   which is the granular equivalent of a shell `PreToolUse`.
 - **OpenCode** has no JSON hook format — a `PreToolUse` block there is silently
-  ignored — so it gets a `.opencode/plugin/kaine-guardrail.ts` plugin on
+  ignored — so it gets a `.opencode/plugins/kaine-guardrail.ts` plugin on
   `tool.execute.before`. It imports the same matcher rather than restating the
   policy.
 
@@ -94,18 +94,27 @@ is the human-readable contract and the fallback for anyone who has not run
 
 Two tiers, and the difference matters:
 
-- `deny` is blocked wherever the hook runs. On Claude, Codex and Grok exit code 2
-  carries the block even if a JSON verdict dialect changes. Cursor and OpenCode
-  honour no exit code, so their payload shapes are the only mechanism there.
-- `ask` is only a real verdict on Claude. Cursor's `allow` is boolean, OpenCode's
-  `ctx.reject()` is binary, and Codex and Grok are block-or-nothing, so
-  everywhere else it degrades to an advisory on stderr. That is deliberate — `git push --force` is on the ask list
+- `deny` is blocked wherever the hook runs. Claude, Grok, and Cursor use exit
+  code 2 as well as structured output. Codex uses a structured denial with exit
+  0 because Windows wrappers can remap exit 2 into a hook error. OpenCode blocks
+  by throwing from its `tool.execute.before` callback.
+- `ask` is a real verdict on Claude and Cursor. OpenCode's callback blocks by
+  throwing, and the Codex and Grok integrations have no ask verdict, so
+  these three emit an advisory. That is deliberate — `git push --force` is on the ask list
   and `kaine-rebase` needs it — but it means **anything irreversible belongs in
   `deny`**.
 
 The hook fails open. A missing or malformed policy file warns and exits 0 rather
-than blocking every shell call; `pnpm ai:test` validates the file so that
-failure mode stays visible.
+than blocking every shell call. `pnpm ai:doctor` executes known-deny, ask, and
+allowed inputs against all five generated contracts and fails on a mismatch.
+The proposed commands are test data; they are never executed. Doctor also warns
+about missing or stale hooks in optional Cursor and OpenCode installations.
+
+The contracts follow [Cursor hooks](https://cursor.com/docs/hooks) and
+[OpenCode plugins](https://opencode.ai/docs/plugins/). These automated checks do
+not prove a host loads its integration. Record live verification separately;
+Cursor, OpenCode, and Grok remain pending. A live check must use harmless stub
+commands in an isolated fixture, with no real database or remote push target.
 
 `.claude/settings.json` is drift-gated: `pnpm ai:doctor --strict` fails in CI and
 on `pre-push` if it no longer matches the generated output, because it now

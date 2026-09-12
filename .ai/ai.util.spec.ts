@@ -1072,12 +1072,17 @@ describe("renderGrokPreToolUseHook", () => {
 
 describe("renderCursorHooks", () => {
   it("registers the shell event, not a PreToolUse block Cursor would ignore", () => {
-    const parsed = JSON.parse(renderCursorHooks()) as {
-      hooks: Array<{ event: string; command: string }>;
-    };
-
-    expect(parsed.hooks[0]?.event).toBe("beforeShellExecution");
-    expect(parsed.hooks[0]?.command).toContain("--agent cursor");
+    expect(JSON.parse(renderCursorHooks())).toEqual({
+      version: 1,
+      hooks: {
+        beforeShellExecution: [
+          {
+            command: "node .ai/hooks/pre-tool-use.mjs --agent cursor",
+            timeout: 10
+          }
+        ]
+      }
+    });
   });
 });
 
@@ -1086,10 +1091,10 @@ describe("renderOpencodeGuardrailPlugin", () => {
     const plugin = renderOpencodeGuardrailPlugin();
 
     // OpenCode ignores JSON hooks entirely, so the plugin API is the only path.
-    expect(plugin).toContain('events.on("tool.execute.before"');
-    expect(plugin).toContain("ctx.reject(");
+    expect(plugin).toContain('"tool.execute.before":');
+    expect(plugin).toContain("throw new Error(");
     expect(plugin).toContain('from "../../.ai/hooks/guarded-command.mjs"');
-    // ctx.reject is binary, so only deny is enforceable there.
+    // The callback blocks by throwing; ask remains an advisory.
     expect(plugin).toContain('rule.decision === "deny"');
   });
 });

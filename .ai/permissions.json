@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical guarded-command policy. Rendered into per-agent hook configs and the AGENTS.md Guarded commands table by pnpm ai:install. `command` prefix-matches a shell segment; `flag` must appear as a whitespace-delimited token in that segment. `deny` is enforced on every agent that honours a blocking hook; `ask` is only a three-state verdict on Claude and degrades to an advisory elsewhere, so anything irreversible belongs in `deny`.",
+  "$comment": "Canonical guarded-command policy. Rendered into per-agent hook configs and the AGENTS.md Guarded commands table by pnpm ai:install. `command` prefix-matches a shell segment; `flag` must appear as a whitespace-delimited token in that segment. `deny` is enforced on every agent that honours a blocking hook; `ask` is a three-state verdict on Claude and Cursor and degrades to an advisory elsewhere, so anything irreversible belongs in `deny`.",
   "rules": [
     {
       "id": "db-push",

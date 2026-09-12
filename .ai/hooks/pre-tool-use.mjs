@@ -53,10 +53,8 @@ const denyPayload = (message) => {
   if (agent === "grok") {
     return { decision: "deny", reason: message };
   }
-  // Cursor's beforeShellExecution verdict is a boolean allow, and it honours no
-  // exit-code fallback, so this shape is the only thing that blocks there.
   if (agent === "cursor") {
-    return { allow: false, reason: message };
+    return { permission: "deny", user_message: message, agent_message: message };
   }
   return {
     hookSpecificOutput: {
@@ -101,9 +99,16 @@ const main = async () => {
     return;
   }
 
-  // Only Claude has a three-state verdict. Everywhere else this degrades to an
+  // Claude and Cursor have a three-state verdict. Elsewhere this degrades to an
   // advisory rather than a block, deliberately: `git push --force` is on the ask
   // list and kaine-rebase needs it.
+  if (agent === "cursor") {
+    process.stdout.write(
+      `${JSON.stringify({ permission: "ask", user_message: message, agent_message: message })}\n`
+    );
+    return;
+  }
+
   if (agent === "claude") {
     process.stdout.write(
       `${JSON.stringify({
