@@ -1,5 +1,32 @@
 # @repo/web
 
+## 1.7.0
+
+### Minor Changes
+
+- 99a5fc9: Redesign existing client workflows with neutral light and dark themes, consistent motion, responsive navigation, and clearer form feedback. Preserve drafts during preference changes and failed submissions.
+
+  Reset route state when the Active Organization changes, prevent pending forms from being edited or dismissed, and improve checklist and Attachment controls. Keep collapsed sidebar preferences contained and long menus scrollable.
+
+- 6907d18: Refresh Notes with a responsive list and editor, full Organization-scoped title/body search, pagination, explicit saving, protected per-note drafts, and clearer checklist feedback. Preserve newer edits during saves and prevent accidental draft loss during navigation and Organization changes.
+- db46fcf: Refresh Todos with inline creation, searchable status views, pagination, protected drafts, and clearer action and attachment feedback. Keep text edits separate from completion changes across web and mobile, and preserve Organization scoping.
+- 4143c11: Refresh the AI Assistant with a responsive conversation workspace, a growing keyboard-accessible composer, per-conversation drafts, and readable Todo and Note results. Keep replies attached to their originating conversation during navigation and preserve prompts after failures.
+
+### Patch Changes
+
+- 28ab725: Add consistent entry and exit motion to drawers, dialogs, menus, tooltips, and Attachment disclosures. Smooth sidebar collapse and preference placement, preserve upload and form state, and respect device reduced motion. Share generated motion easing and distances with native controls and keep interrupted native dialog exits safe.
+
+  Add stable, labeled Language and Theme footer rows with current values, native language names, and accessible radio menus. Keep their vertical positions fixed during collapse and preserve menu focus, drafts, and saved preferences.
+
+- Updated dependencies [99a5fc9]
+- Updated dependencies [28ab725]
+- Updated dependencies [6907d18]
+- Updated dependencies [db46fcf]
+- Updated dependencies [4143c11]
+  - @repo/ui@1.3.0
+  - @repo/translation@1.4.0
+  - @repo/todos@1.1.0
+
 ## 1.6.2
 
 ### Patch Changes

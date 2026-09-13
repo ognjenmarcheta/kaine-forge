@@ -1,5 +1,11 @@
 # @repo/todos
 
+## 1.1.0
+
+### Minor Changes
+
+- db46fcf: Refresh Todos with inline creation, searchable status views, pagination, protected drafts, and clearer action and attachment feedback. Keep text edits separate from completion changes across web and mobile, and preserve Organization scoping.
+
 ## 1.0.4
 
 ### Patch Changes

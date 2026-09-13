@@ -1,5 +1,17 @@
 # @repo/mobile-ui
 
+## 1.1.0
+
+### Minor Changes
+
+- 99a5fc9: Redesign existing client workflows with neutral light and dark themes, consistent motion, responsive navigation, and clearer form feedback. Preserve drafts during preference changes and failed submissions.
+
+  Reset route state when the Active Organization changes, prevent pending forms from being edited or dismissed, and improve checklist and Attachment controls. Keep collapsed sidebar preferences contained and long menus scrollable.
+
+- 28ab725: Add consistent entry and exit motion to drawers, dialogs, menus, tooltips, and Attachment disclosures. Smooth sidebar collapse and preference placement, preserve upload and form state, and respect device reduced motion. Share generated motion easing and distances with native controls and keep interrupted native dialog exits safe.
+
+  Add stable, labeled Language and Theme footer rows with current values, native language names, and accessible radio menus. Keep their vertical positions fixed during collapse and preserve menu focus, drafts, and saved preferences.
+
 ## 1.0.4
 
 ### Patch Changes

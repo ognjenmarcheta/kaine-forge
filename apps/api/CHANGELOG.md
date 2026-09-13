@@ -1,5 +1,22 @@
 # @repo/api
 
+## 1.8.0
+
+### Minor Changes
+
+- 6907d18: Refresh Notes with a responsive list and editor, full Organization-scoped title/body search, pagination, explicit saving, protected per-note drafts, and clearer checklist feedback. Preserve newer edits during saves and prevent accidental draft loss during navigation and Organization changes.
+- db46fcf: Refresh Todos with inline creation, searchable status views, pagination, protected drafts, and clearer action and attachment feedback. Keep text edits separate from completion changes across web and mobile, and preserve Organization scoping.
+
+### Patch Changes
+
+- a948c89: Add manually invoked assistant evaluations with isolated synthetic data, stored-state scoring and human review. Emit sanitized terminal telemetry for assistant and Todo generation runs, including failure and cancellation.
+- Updated dependencies [99a5fc9]
+- Updated dependencies [28ab725]
+- Updated dependencies [6907d18]
+- Updated dependencies [db46fcf]
+- Updated dependencies [4143c11]
+  - @repo/translation@1.4.0
+
 ## 1.7.1
 
 ### Patch Changes
