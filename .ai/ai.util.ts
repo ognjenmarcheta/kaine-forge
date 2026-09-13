@@ -481,7 +481,7 @@ export const computeAgentDefinitionDrift = (
   return { missing, stale, orphan };
 };
 
-const GUIDE_SKILL_LIST_HEADER = "Use skills when they match the task:";
+export const GUIDE_SKILL_INDEX_MARKER = "<!-- kaine:skills-index -->";
 
 export const lintReviewSource = (
   content: string | null,
@@ -642,42 +642,24 @@ export const lintDomainKnowledgeInfra = (): LintIssue[] => {
 };
 
 export const lintGuideSkillList = (guideContent: string, skillNames: string[]): LintIssue[] => {
-  if (!guideContent.includes(GUIDE_SKILL_LIST_HEADER)) {
-    return [
-      {
-        file: GUIDE_SRC,
-        level: "error",
-        message: `guide is missing the '${GUIDE_SKILL_LIST_HEADER}' skill list`
-      }
-    ];
-  }
-
   const issues: LintIssue[] = [];
-  const listedNames = new Set(
-    Array.from(guideContent.matchAll(/^- `(kaine-[a-z0-9-]+)`:/gm), (match) => match[1]!)
-  );
-
-  for (const name of skillNames) {
-    if (!listedNames.has(name)) {
-      issues.push({
-        file: GUIDE_SRC,
-        level: "error",
-        message: `skill '${name}' exists in .ai/skills but is missing from the guide skill list`
-      });
-    }
-  }
-
-  const knownNames = new Set(skillNames);
-  for (const name of listedNames) {
-    if (!knownNames.has(name)) {
-      issues.push({
-        file: GUIDE_SRC,
-        level: "error",
-        message: `guide skill list mentions '${name}' but .ai/skills/${name}.md does not exist`
-      });
-    }
-  }
-
+  if (guideContent.split(GUIDE_SKILL_INDEX_MARKER).length !== 2)
+    issues.push({
+      file: GUIDE_SRC,
+      level: "error",
+      message: "guide must contain exactly one generated skill index marker"
+    });
+  if (
+    /^- `kaine-[a-z0-9-]+`:/m.test(guideContent) ||
+    guideContent.includes("## Generated Skills Index")
+  )
+    issues.push({
+      file: GUIDE_SRC,
+      level: "error",
+      message: "guide must not contain a second or manually maintained skill index"
+    });
+  if (new Set(skillNames).size !== skillNames.length)
+    issues.push({ file: GUIDE_SRC, level: "error", message: "skill names must be unique" });
   return issues;
 };
 
@@ -833,10 +815,14 @@ export const mcpEnvValue = (name: string, localEnv: Record<string, string>): str
 const buildSkillsIndex = (skills: Skill[]): string =>
   skills.map((skill) => `- \`${skill.name}\`: ${skill.description}`).join("\n");
 
-export const renderAgentDoc = (guide: string, skills: Skill[]): string =>
-  `${guide.trim()}\n\n## Generated Skills Index\n\n${buildSkillsIndex(skills)}\n\n${renderGuardedCommandsSection(
-    readPermissionsSource()
-  )}\n`;
+export const renderAgentDoc = (guide: string, skills: Skill[]): string => {
+  const issues = lintGuideSkillList(
+    guide,
+    skills.map((skill) => skill.name)
+  );
+  if (issues.length) throw new Error(issues.map((issue) => issue.message).join("; "));
+  return `${guide.trim().replace(GUIDE_SKILL_INDEX_MARKER, buildSkillsIndex(skills))}\n\n${renderGuardedCommandsSection(readPermissionsSource())}\n`;
+};
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
 

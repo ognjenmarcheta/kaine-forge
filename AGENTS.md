@@ -193,23 +193,23 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 
 Use skills when they match the task:
 
-- `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
-- `kaine-create-feature`: scaffold an organization-scoped CRUD feature slice and wire it into every registration point.
-- `kaine-encode-knowledge`: promote repeated review/agent failures into durable infra (lint, test, REVIEW, skill, CONTEXT).
-- `kaine-sync-docs`: reinstall and verify AI assistant files.
-- `kaine-test`: plan or write tests for a specified system under test.
-- `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.
-- `kaine-release-apps`: update per-app deploy branches after merge to `main`.
-- `kaine-rebase`: safely rebase a feature branch onto `main`.
-- `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
-- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
-- `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
-- `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
-- `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
-- `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
-- `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
-- `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
-- `kaine-scorecard`: score monorepo health on ten dimensions, render the dashboard, and file evidence-verified must-fixes.
+- `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
+- `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
+- `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
+- `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
+- `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
+- `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
+- `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
+- `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
+- `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
+- `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
+- `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
+- `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
+- `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
+- `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
+- `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
+- `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
+- `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
@@ -232,26 +232,6 @@ Triage uses the canonical skill triage labels. See `docs/agents/triage-labels.md
 ### Domain docs
 
 This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.
-
-## Generated Skills Index
-
-- `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
-- `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
-- `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
-- `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
-- `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
-- `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
-- `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
-- `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
-- `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
-- `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
-- `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
-- `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
-- `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
-- `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
-- `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
-- `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
-- `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
 
 ## Guarded Commands
 

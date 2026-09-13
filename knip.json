@@ -3,6 +3,11 @@
   "workspaces": {
     ".": {
       "entry": [
+        ".ai/agent-run.ts",
+        ".ai/context-audit.ts",
+        ".ai/harness-benchmark.ts",
+        ".ai/run-report.ts",
+        ".ai/sandbox-probe.mjs",
         ".ai/create-feature.ts",
         ".ai/doctor.ts",
         ".ai/harness-eval.ts",
@@ -20,7 +25,14 @@
       "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"]
     },
     "apps/api": {
-      "entry": ["src/index.ts", "src/schema/generate-schema.ts", "**/*.test.ts"]
+      "entry": [
+        "src/index.ts",
+        "src/schema/generate-schema.ts",
+        "**/*.test.ts",
+        "src/features/assistant/assistant.eval.cli.ts",
+        "src/features/assistant/assistant.eval.live.ts",
+        "vitest.eval.config.ts"
+      ]
     },
     "apps/web": {
       "entry": ["src/main.tsx", "vite.config.ts", "vitest.config.ts", "**/*.test.{ts,tsx}"]
@@ -80,7 +92,7 @@
     "expo-system-ui",
     "zod"
   ],
-  "ignoreBinaries": ["graphify", "gitleaks"],
+  "ignoreBinaries": ["graphify", "gitleaks", "codex"],
   "metro": false,
   "rules": {
     "exports": "off",

@@ -66,42 +66,19 @@ const baseFrontmatter = (extra: string): string =>
   ["---", "name: kaine-foo", "description: Does foo.", extra, "---", "", "Body."].join("\n");
 
 describe("lintGuideSkillList", () => {
-  const guide = [
-    "# Guide",
-    "",
-    "Use skills when they match the task:",
-    "",
-    "- `kaine-alpha`: does alpha things.",
-    "- `kaine-beta`: does beta things.",
-    "",
-    "Downstream products can add more skills."
-  ].join("\n");
-
-  it("passes when the guide list matches the skills on disk", () => {
-    expect(lintGuideSkillList(guide, ["kaine-alpha", "kaine-beta"])).toEqual([]);
+  const guide = "# Guide\nUse skills when they match the task:\n<!-- kaine:skills-index -->";
+  it("discovers new skills without manually editing the guide", () => {
+    expect(lintGuideSkillList(guide, ["kaine-alpha", "kaine-beta", "kaine-new"])).toEqual([]);
   });
-
-  it("reports skills on disk that are missing from the guide list", () => {
-    const issues = lintGuideSkillList(guide, ["kaine-alpha", "kaine-beta", "kaine-gamma"]);
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0]?.level).toBe("error");
-    expect(issues[0]?.message).toContain("kaine-gamma");
+  it("rejects missing and duplicate placeholders and duplicate metadata", () => {
+    expect(lintGuideSkillList("# Guide", [])).toHaveLength(1);
+    expect(lintGuideSkillList(guide + "\n<!-- kaine:skills-index -->", [])).toHaveLength(1);
+    expect(lintGuideSkillList(guide, ["kaine-alpha", "kaine-alpha"])).toHaveLength(1);
   });
-
-  it("reports guide entries with no matching skill file", () => {
-    const issues = lintGuideSkillList(guide, ["kaine-alpha"]);
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0]?.level).toBe("error");
-    expect(issues[0]?.message).toContain("kaine-beta");
-  });
-
-  it("errors when the guide skill list section is missing entirely", () => {
-    const issues = lintGuideSkillList("# Guide with no skill list", ["kaine-alpha"]);
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0]?.level).toBe("error");
+  it("rejects a second manual index", () => {
+    expect(
+      lintGuideSkillList(guide + "\n- `kaine-alpha`: description", ["kaine-alpha"])
+    ).toHaveLength(1);
   });
 });
 
@@ -242,12 +219,15 @@ describe("renderCursorRulesFile", () => {
 });
 
 describe("renderAgentDoc", () => {
-  it("appends the skill index to the guide", () => {
-    const output = renderAgentDoc("# Guide\n\nHello.", [
+  it("fills the existing skill index location once and preserves surrounding rules", () => {
+    const output = renderAgentDoc("# Guide\n\nHello.\n<!-- kaine:skills-index -->\nKeep rules.", [
       parseSkillFile("kaine-foo", "---\nname: kaine-foo\ndescription: Does foo.\n---\n\nBody.")
     ]);
     expect(output).toContain("# Guide");
-    expect(output).toContain("## Generated Skills Index");
+    expect(output).not.toContain("## Generated Skills Index");
+    expect(output.match(/- `kaine-foo`:/g)).toHaveLength(1);
+    expect(output).toContain("Keep rules.");
+    expect(output).toContain("## Guarded Commands");
     expect(output).toContain("- `kaine-foo`: Does foo.");
   });
 

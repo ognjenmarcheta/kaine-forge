@@ -8,6 +8,7 @@
     "tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo"
   },
   "exclude": [
+    "src/**/*.eval.*",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/*.spec.ts",

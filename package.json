@@ -47,6 +47,7 @@
     "create:feature": "tsx .ai/create-feature.ts",
     "create:package": "node scripts/create-package.mjs",
     "ai:doctor": "tsx .ai/doctor.ts",
+    "ai:context": "tsx .ai/context-audit.ts",
     "ai:install": "tsx .ai/install.ts",
     "ai:lint": "eslint .ai/*.ts",
     "ai:test": "vitest run --config .ai/vitest.config.ts",
@@ -54,6 +55,12 @@
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
     "harness:eval": "tsx .ai/harness-eval.ts",
+    "eval:assistant": "pnpm --filter @repo/api eval:assistant",
+    "eval:assistant:review": "pnpm --filter @repo/api eval:assistant review",
+    "agent:run": "tsx .ai/agent-run.ts",
+    "agent:report": "tsx .ai/run-report.ts",
+    "agent:outcome": "tsx .ai/run-report.ts outcome",
+    "harness:benchmark": "tsx .ai/harness-benchmark.ts",
     "scorecard": "tsx .ai/scorecard-render.ts",
     "tokens:mobile": "node scripts/sync-mobile-design-tokens.mjs",
     "tokens:mobile:check": "node scripts/sync-mobile-design-tokens.mjs --check",
@@ -95,12 +102,14 @@
     "eslint": "^9.35.0",
     "husky": "^9.1.7",
     "knip": "^6.34.0",
+    "smol-toml": "1.8.0",
     "lint-staged": "^17.5.0",
     "prettier": "catalog:",
     "tsx": "^4.23.13",
     "turbo": "^2.10.12",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "yaml": "^2.8.3"
+    "yaml": "^2.8.3",
+    "zod": "catalog:"
   }
 }
