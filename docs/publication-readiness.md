@@ -5,7 +5,8 @@ Audit date: 2026-09-13. Audited base revision: `a948c89`.
 **Status: public. Owner-controlled merging and required checks are active and
 verified.** The owner approved publication after merging PR #412. The live
 verification PR #416 is closed without merging. The first full CI run exposed an
-API unit-test isolation failure; the follow-up fix and full validation are tracked
+API unit-test isolation failure. Follow-up validation also found a browser test
+that assumed a pre-existing Todo. Both test fixes and full validation are tracked
 in the PR carrying this report update. Committing ruleset files alone does not
 enable protection; the remote rules below were applied and read back.
 
@@ -182,6 +183,10 @@ allow the public fork-approval setting. Both settings are now applied and verifi
   gate failed. The test now mocks its unused default adapters instead of loading
   the real database. With no database URL, the scoped test changes from an import
   failure to three passes; all 222 API tests pass. Runtime source is unchanged.
+- Follow-up browser validation exposed an attachment-motion test that assumed a
+  Todo already existed. The CI trace showed an empty list. A fresh local database
+  reproduced the failure; the test passes after creating and selecting its own
+  Todo. Animation and mounted-control assertions remain unchanged.
 - [Verification PR #416](https://github.com/ognjenmarcheta/kaine-forge/pull/416):
   the [intentional title failure](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34777986569)
   failed the required gate and disabled the owner's merge button. After title
@@ -201,7 +206,7 @@ allow the public fork-approval setting. Both settings are now applied and verifi
 - Final local checks and PR evidence are recorded in the preparation PR.
 - Hosted PR, CodeQL, Security, blocked/allowed merge controls, anonymous access,
   and private security-reporting controls are verified above. Full CI on the
-  unit-test fix remains a separate follow-up before its owner merge.
+  test fixes remains a separate follow-up before their owner merge.
 
 The Windows sandbox loopback limitation, first live assistant baseline, and
 moderate/low dependency triage remain separate follow-ups.
