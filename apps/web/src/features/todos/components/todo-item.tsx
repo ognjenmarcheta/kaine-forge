@@ -4,83 +4,139 @@ import {
   ChevronRight,
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger
+  CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  Ellipsis
 } from "@repo/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { TodoAttachments } from "./todo-attachments";
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
 
-interface TodoItemProps {
+export interface TodoItemProps {
   item: TodoItem;
-  onAttachmentChanged: () => void;
-  onDelete: (id: string) => void;
+  busy: boolean;
+  uploadBusy: boolean;
+  error?: string | undefined;
   onEdit: (item: TodoItem) => void;
+  onDelete: (id: string) => void;
   onToggle: (item: TodoItem) => void;
+  onUpload: (file: File, item: TodoItem) => void;
+  onDeleteAttachment: (todoId: string, fileId: string) => void;
+  onRefresh: () => void;
 }
-
 export function TodoItemRow({
   item,
-  onAttachmentChanged,
-  onDelete,
+  busy,
+  uploadBusy,
+  error,
   onEdit,
-  onToggle
+  onDelete,
+  onToggle,
+  onUpload,
+  onDeleteAttachment,
+  onRefresh
 }: TodoItemProps) {
-  const { t } = useTranslation();
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-
+  const { t, language } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const selected = useRef<"edit" | "delete" | null>(null);
   return (
-    <li className="ui-work-row grid grid-cols-1 items-start gap-[var(--ds-space-150)] md:grid-cols-[minmax(0,_1fr)_minmax(0,_1fr)_auto]">
-      <label className="flex items-center gap-[var(--ds-space-100)]">
-        <Checkbox
-          aria-label={item.title}
-          checked={item.completed}
-          onCheckedChange={() => {
-            onToggle(item);
-          }}
-        />
-        <span
-          className={
-            item.completed
-              ? "text-[color:var(--ds-text-subtle)] line-through"
-              : "text-[color:var(--ds-text)]"
-          }
-        >
-          {item.title}
-        </span>
-      </label>
-      <p className="m-0 text-[color:var(--ds-text-subtle)]">
-        {item.description || t("common.notAvailable")}
-      </p>
-      <div className="flex gap-[var(--ds-space-100)]">
-        <Button appearance="subtle" spacing="compact" type="button" onClick={() => onEdit(item)}>
-          {t("button.edit")}
-        </Button>
-        <Button
-          appearance="danger"
-          spacing="compact"
-          type="button"
-          onClick={() => onDelete(item.id)}
-        >
-          {t("button.delete")}
-        </Button>
+    <li className="ui-work-row ui-todos__row" data-todo-id={item.id}>
+      <div className="ui-todos__row-main">
+        <label className="ui-todos__check" htmlFor={`todo-check-${item.id}`}>
+          <Checkbox
+            id={`todo-check-${item.id}`}
+            aria-label={item.title}
+            checked={item.completed}
+            disabled={busy}
+            onCheckedChange={() => onToggle(item)}
+          />
+        </label>
+        <div className="ui-todos__text">
+          <Button
+            appearance="link"
+            type="button"
+            className="ui-todos__title"
+            data-completed={item.completed}
+            disabled={busy}
+            onClick={() => onEdit(item)}
+          >
+            {item.title}
+          </Button>
+          {item.description ? <p className="ui-todos__preview">{item.description}</p> : null}
+          <small>
+            {t("todos.updated").replace(
+              "{date}",
+              new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(
+                new Date(item.updatedAt)
+              )
+            )}
+          </small>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              appearance="ghost"
+              disabled={busy}
+              aria-label={t("todos.rowActions").replace("{title}", item.title)}
+            >
+              <Ellipsis aria-hidden className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onCloseAutoFocus={() => {
+              const action = selected.current;
+              selected.current = null;
+              if (action)
+                requestAnimationFrame(() => {
+                  if (action === "edit") onEdit(item);
+                  else onDelete(item.id);
+                });
+            }}
+          >
+            <DropdownMenuItem
+              onSelect={() => {
+                selected.current = "edit";
+              }}
+            >
+              {t("button.edit")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                selected.current = "delete";
+              }}
+            >
+              {t("button.delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <Collapsible
-        open={attachmentsOpen}
-        onOpenChange={setAttachmentsOpen}
-        className="md:col-span-3"
-      >
+      {busy ? <p role="status">{t("todos.saving")}</p> : null}
+      {error ? (
+        <div role="alert">
+          <p>{t(error)}</p>
+          <Button appearance="subtle" onClick={onRefresh}>
+            {t("todos.refresh")}
+          </Button>
+        </div>
+      ) : null}
+      <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="ui-disclosure-trigger">
           <ChevronRight aria-hidden className="size-4" />
-          {t("todos.attachments.title")}{" "}
-          <span className="ml-[var(--ds-space-100)]">{item.attachments.length}</span>
+          {t("todos.attachments.title")} <span>{item.attachments.length}</span>
         </CollapsibleTrigger>
-        <CollapsibleContent forceMount inert={!attachmentsOpen}>
+        <CollapsibleContent forceMount inert={!open}>
           <TodoAttachments
-            attachments={item.attachments}
-            todoId={item.id}
-            onChanged={onAttachmentChanged}
+            item={item}
+            busy={busy}
+            uploadBusy={uploadBusy}
+            onUpload={onUpload}
+            onDelete={onDeleteAttachment}
           />
         </CollapsibleContent>
       </Collapsible>

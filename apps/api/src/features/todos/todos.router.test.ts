@@ -66,10 +66,14 @@ describe("todos.router", () => {
 
     await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, ctx as never);
 
-    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(authenticatedScope, {
-      limit: 100,
-      offset: 0
-    });
+    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(
+      authenticatedScope,
+      {
+        limit: 100,
+        offset: 0
+      },
+      { limit: 9_999, offset: -12 }
+    );
   });
 
   it("creates todo using normalized input", async () => {

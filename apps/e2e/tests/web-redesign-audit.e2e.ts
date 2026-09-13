@@ -25,7 +25,7 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
 }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
-  await page.getByRole("button", { name: "New todo", exact: true }).click();
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
   await dialog.getByLabel("Title", { exact: true }).fill("Pending draft");
   let release: () => void = () => {};
@@ -38,19 +38,19 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
       await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
     } else await route.continue();
   });
-  await dialog.getByRole("button", { name: "New todo", exact: true }).click();
+  await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "New todo", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Close", exact: true }).last()).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(1);
   await page.keyboard.press("Escape");
   await page.mouse.click(5, 5);
   await expect(dialog).toBeVisible();
   release();
-  await expect(dialog.getByText("Something went wrong", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeEnabled();
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Pending draft");
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
   await expect(dialog).toHaveCount(0);
 });
 

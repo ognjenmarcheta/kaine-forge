@@ -13,7 +13,12 @@ import type { ApiContext } from "../../context";
 import { errorReporter, formatLoggableError } from "../../observability";
 import { filterByOrganization } from "../../pubsub";
 
-type TodosQueryArgs = { limit?: number; offset?: number };
+type TodosQueryArgs = {
+  limit?: number;
+  offset?: number;
+  search?: string | null;
+  completed?: boolean | null;
+};
 type TodoByIdArgs = { id: string };
 type CreateTodoArgs = { input: CreateTodoInput };
 type GenerateTodosArgs = { input: GenerateTodosInput };
@@ -60,7 +65,7 @@ export const todosResolvers = {
       const scope = ctx.requireOrganizationScope();
       const pagination = coercePagination(args, TODOS_CONFIG.pagination);
 
-      return listTodosByScope(scope, pagination);
+      return listTodosByScope(scope, pagination, args);
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();

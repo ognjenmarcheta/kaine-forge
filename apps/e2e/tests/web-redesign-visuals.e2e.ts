@@ -81,9 +81,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.screenshot({ path: testInfo.outputPath(`loading-${theme}.png`) });
     state = "error";
     release();
-    await expect(
-      page.getByRole("alert").getByText("Something went wrong", { exact: true })
-    ).toBeVisible();
+    await expect(page.getByRole("alert").getByText(/Could not load Todos/)).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`error-${theme}.png`) });
     state = "empty";
     await page.getByRole("button", { name: "Try again", exact: true }).click();
@@ -105,9 +103,10 @@ for (const theme of ["light", "dark"] as const) {
       .getByRole("button", { name: /^Attachments/ })
       .first()
       .click();
-    await expect(page.getByText("design-checklist.txt", { exact: true })).toBeVisible();
+    await expect(page.getByText("design-checklist.txt", { exact: false })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`phone-${theme}.png`), fullPage: true });
-    await page.getByRole("button", { name: "AI todo generator", exact: true }).click();
+    await page.getByRole("button", { name: "More actions", exact: true }).click();
+    await page.getByRole("menuitem", { name: "AI todo generator", exact: true }).click();
     const ai = page.getByRole("dialog", { name: "AI todo generator", exact: true });
     await ai.getByLabel("Prompt", { exact: true }).fill("Prepare a release checklist");
     await ai.getByRole("button", { name: "Generate todos", exact: true }).click();
@@ -131,12 +130,12 @@ for (const theme of ["light", "dark"] as const) {
         submit: "Create planned todo"
       }
     ]) {
-      await page.getByRole("button", { name: "Examples", exact: true }).click();
+      await page.getByRole("button", { name: "More actions", exact: true }).click();
       await page.getByRole("menuitem", { name: example.menu, exact: true }).click();
       const dialog = page.getByRole("dialog", { name: example.title, exact: true });
       await dialog.getByLabel(example.input, { exact: true }).fill("Keep example draft");
       await dialog.getByRole("button", { name: example.submit, exact: true }).click();
-      await expect(dialog.getByText("Something went wrong", { exact: true })).toBeVisible();
+      await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
       await expect(dialog.getByLabel(example.input, { exact: true })).toHaveValue(
         "Keep example draft"
       );
@@ -148,6 +147,10 @@ for (const theme of ["light", "dark"] as const) {
       ).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`${example.title}-${theme}.png`) });
       await page.keyboard.press("Escape");
+      await page
+        .getByRole("dialog", { name: "Discard changes?" })
+        .getByRole("button", { name: "Discard changes", exact: true })
+        .click();
     }
   });
 }

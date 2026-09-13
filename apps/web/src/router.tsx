@@ -20,13 +20,13 @@ import {
 import { useState } from "react";
 import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "react-router-dom";
 
+import {
+  WorkspaceNavigationProvider,
+  useWorkspaceNavigation
+} from "./components/workspace-navigation.provider";
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
-import {
-  NotesNavigationProvider,
-  useNotesNavigation
-} from "./features/notes/notes-navigation.provider";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
@@ -56,14 +56,14 @@ function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_
 
 function ShellLayout() {
   return (
-    <NotesNavigationProvider>
+    <WorkspaceNavigationProvider>
       <ShellContent />
-    </NotesNavigationProvider>
+    </WorkspaceNavigationProvider>
   );
 }
 
 function ShellContent() {
-  const { requestLeave } = useNotesNavigation();
+  const { requestLeave } = useWorkspaceNavigation();
   const location = useLocation();
   const { isLoading, logout, session } = useAuth();
   const {

@@ -33,17 +33,11 @@ describe("todo workflow", () => {
 
   it("normalizes update payloads without dropping explicit empty descriptions", () => {
     expect(
-      toTodoUpdatePayload(
-        {
-          description: "   ",
-          title: "  Edited  "
-        },
-        {
-          completed: true
-        }
-      )
+      toTodoUpdatePayload({
+        description: "   ",
+        title: "  Edited  "
+      })
     ).toEqual({
-      completed: true,
       description: null,
       title: "Edited"
     });
@@ -145,7 +139,6 @@ describe("todo workflow", () => {
     );
     await expect(
       workflow.update({
-        current: { completed: false },
         draft: {
           description: "",
           title: "New Todo"
@@ -175,7 +168,6 @@ describe("todo workflow", () => {
     });
     await expect(
       workflow.update({
-        current: { completed: false },
         draft: { description: "  details  ", title: "  Edited  " },
         id: "todo-1"
       })
@@ -184,7 +176,6 @@ describe("todo workflow", () => {
     expect(deleteTodo).toHaveBeenCalledWith("todo-1");
     expect(toggleTodo).toHaveBeenCalledWith("todo-1");
     expect(updateTodo).toHaveBeenCalledWith("todo-1", {
-      completed: false,
       description: "details",
       title: "Edited"
     });

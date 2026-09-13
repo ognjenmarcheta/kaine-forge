@@ -40,7 +40,7 @@ export const todosTypeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    todos(limit: Int, offset: Int): [Todo!]!
+    todos(limit: Int, offset: Int, search: String, completed: Boolean): [Todo!]!
     todo(id: ID!): Todo
   }
 

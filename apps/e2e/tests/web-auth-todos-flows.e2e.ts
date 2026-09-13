@@ -47,18 +47,18 @@ test("creates, edits, completes, and deletes a todo", async ({ page }) => {
   await expect(page).toHaveURL(/\/todos$/);
 
   // Create.
-  await page.getByRole("button", { name: TODOS_CREATE_NAME }).click();
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
   const createDialog = page.getByRole("dialog", { name: TODOS_CREATE_NAME });
   await createDialog.getByLabel(TODOS_TITLE_LABEL).fill(todoTitle);
   await createDialog.getByLabel(TODOS_DESCRIPTION_LABEL).fill("Created by the behavioral e2e spec");
-  await createDialog.getByRole("button", { name: TODOS_CREATE_NAME }).click();
+  await createDialog.getByRole("button", { name: "Add Todo", exact: true }).click();
 
   const todoCheckbox = page.getByRole("checkbox", { name: todoTitle });
   await expect(todoCheckbox).toHaveCount(1);
   await expect(todoCheckbox).not.toBeChecked();
 
   const row = page.getByRole("listitem").filter({ has: todoCheckbox });
-  await row.getByRole("button", { name: "Edit", exact: true }).click();
+  await row.getByRole("button", { name: todoTitle, exact: true }).click();
   const editDialog = page.getByRole("dialog", { name: "Edit todo", exact: true });
   await editDialog.getByLabel(TODOS_DESCRIPTION_LABEL).fill("Updated description");
   await editDialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -75,8 +75,9 @@ test("creates, edits, completes, and deletes a todo", async ({ page }) => {
   await page
     .getByRole("listitem")
     .filter({ has: page.getByRole("checkbox", { name: todoTitle }) })
-    .getByRole("button", { name: BUTTON_DELETE_NAME })
+    .getByRole("button", { name: "Actions for " + todoTitle })
     .click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   const confirmDialog = page.getByRole("dialog", { name: TODOS_DELETE_CONFIRM_NAME });
   await confirmDialog.getByRole("button", { name: BUTTON_DELETE_NAME }).click();
 

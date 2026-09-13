@@ -4,7 +4,7 @@ type Query {
   currentOrganization: Organization
   members: [OrganizationMember!]!
   invitations: [OrganizationInvitation!]!
-  todos(limit: Int, offset: Int): [Todo!]!
+  todos(limit: Int, offset: Int, search: String, completed: Boolean): [Todo!]!
   todo(id: ID!): Todo
   notes(limit: Int, offset: Int, search: String): [Note!]!
   note(id: ID!): Note
