@@ -1,38 +1,20 @@
-import { TodoItemRow } from "./todo-item";
-import { useTranslation } from "../../../hooks/use-translation";
+import { TodoItemRow, type TodoItemProps } from "./todo-item";
 import type { TodoItem } from "../todos.type";
-
-interface TodoListProps {
+interface TodoListProps extends Omit<TodoItemProps, "item" | "busy" | "error"> {
   items: TodoItem[];
-  onAttachmentChanged: () => void;
-  onDelete: (id: string) => void;
-  onEdit: (item: TodoItem) => void;
-  onToggle: (item: TodoItem) => void;
+  pending: string[];
+  errors: Record<string, string>;
 }
-
-export function TodoList({
-  items,
-  onAttachmentChanged,
-  onDelete,
-  onEdit,
-  onToggle
-}: TodoListProps) {
-  const { t } = useTranslation();
-
-  if (items.length === 0) {
-    return <p className="ui-empty-state">{t("todos.empty")}</p>;
-  }
-
+export function TodoList({ items, pending, errors, ...actions }: TodoListProps) {
   return (
     <ul className="ui-work-list">
       {items.map((item) => (
         <TodoItemRow
           key={item.id}
           item={item}
-          onAttachmentChanged={onAttachmentChanged}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onToggle={onToggle}
+          busy={pending.includes(item.id)}
+          error={errors[item.id]}
+          {...actions}
         />
       ))}
     </ul>

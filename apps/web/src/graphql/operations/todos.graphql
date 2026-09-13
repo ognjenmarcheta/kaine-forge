@@ -1,5 +1,5 @@
-query GetTodos($limit: Int, $offset: Int) {
-  todos(limit: $limit, offset: $offset) {
+query GetTodos($limit: Int, $offset: Int, $search: String, $completed: Boolean) {
+  todos(limit: $limit, offset: $offset, search: $search, completed: $completed) {
     id
     title
     description
@@ -13,6 +13,24 @@ query GetTodos($limit: Int, $offset: Int) {
     }
     createdAt
     updatedAt
+  }
+}
+
+query GetTodo($id: ID!) {
+  todo(id: $id) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
   }
 }
 

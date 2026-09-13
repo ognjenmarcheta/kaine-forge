@@ -260,6 +260,8 @@ export type DeleteFileMutation = { deleteFile: boolean };
 export type GetTodosQueryVariables = Exact<{
   limit?: number | null | undefined;
   offset?: number | null | undefined;
+  search?: string | null | undefined;
+  completed?: boolean | null | undefined;
 }>;
 
 export type GetTodosQuery = {
@@ -278,6 +280,28 @@ export type GetTodosQuery = {
       downloadUrl: string | null;
     }>;
   }>;
+};
+
+export type GetTodoQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+export type GetTodoQuery = {
+  todo: {
+    id: string;
+    title: string;
+    description: string | null;
+    completed: boolean;
+    createdAt: string;
+    updatedAt: string;
+    attachments: Array<{
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl: string | null;
+    }>;
+  } | null;
 };
 
 export type CreateTodoMutationVariables = Exact<{
@@ -961,8 +985,8 @@ export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
 useDeleteFileMutation.getKey = () => ["DeleteFile"];
 
 export const GetTodosDocument = new TypedDocumentString(`
-    query GetTodos($limit: Int, $offset: Int) {
-  todos(limit: $limit, offset: $offset) {
+    query GetTodos($limit: Int, $offset: Int, $search: String, $completed: Boolean) {
+  todos(limit: $limit, offset: $offset, search: $search, completed: $completed) {
     id
     title
     description
@@ -998,6 +1022,44 @@ export const useGetTodosQuery = <TData = GetTodosQuery, TError = unknown>(
 
 useGetTodosQuery.getKey = (variables?: GetTodosQueryVariables) =>
   variables === undefined ? ["GetTodos"] : ["GetTodos", variables];
+
+export const GetTodoDocument = new TypedDocumentString(`
+    query GetTodo($id: ID!) {
+  todo(id: $id) {
+    id
+    title
+    description
+    completed
+    createdAt
+    updatedAt
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+      downloadUrl
+    }
+  }
+}
+    `);
+
+export const useGetTodoQuery = <TData = GetTodoQuery, TError = unknown>(
+  variables: GetTodoQueryVariables,
+  options?: Omit<UseQueryOptions<GetTodoQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetTodoQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetTodoQuery, TError, TData>({
+    queryKey: ["GetTodo", variables],
+    queryFn: useGraphqlFetcher<GetTodoQuery, GetTodoQueryVariables>(GetTodoDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useGetTodoQuery.getKey = (variables: GetTodoQueryVariables) => ["GetTodo", variables];
 
 export const CreateTodoDocument = new TypedDocumentString(`
     mutation CreateTodo($input: CreateTodoInput!) {

@@ -139,7 +139,6 @@ export function TodosRoute() {
     try {
       setActionError(null);
       await todoWorkflow.update({
-        current: editingTodo,
         draft,
         id: editingTodo.id
       });

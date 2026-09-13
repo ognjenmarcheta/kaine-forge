@@ -25,6 +25,7 @@ export interface ModalProps {
   description?: string;
   footer?: ReactNode;
   hideFooter?: boolean;
+  onCloseAutoFocus?: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   showCloseButton?: boolean;
@@ -71,6 +72,7 @@ export function Modal({
   description,
   footer,
   hideFooter = false,
+  onCloseAutoFocus,
   onOpenChange,
   open,
   showCloseButton = true,
@@ -91,6 +93,8 @@ export function Modal({
               document.activeElement instanceof HTMLElement ? document.activeElement : null;
           }}
           onCloseAutoFocus={(event) => {
+            onCloseAutoFocus?.(event);
+            if (event.defaultPrevented) return;
             if (returnFocus.current?.isConnected) {
               event.preventDefault();
               returnFocus.current.focus();

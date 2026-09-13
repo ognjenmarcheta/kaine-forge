@@ -14,11 +14,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, useBlocker, useNavigate, useParams } from "react-router-dom";
 
 import { NoteEditor } from "./note-detail.route";
-import { useNotesNavigation } from "./notes-navigation.provider";
 import { useNotes } from "./notes.hook";
 import { isNoteDirty } from "./notes.util";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import { LoadingRows } from "../../components/loading-rows";
+import { useWorkspaceNavigation } from "../../components/workspace-navigation.provider";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 
@@ -45,7 +45,7 @@ function NotesWorkspace({
   const notes = useNotes(organizationId, enabled, selected);
   const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const { setProtection } = useNotesNavigation();
+  const { setProtection } = useWorkspaceNavigation();
   const [checklistPending, setChecklistPending] = useState(0);
   const onChecklistPending = useCallback(
     (value: boolean) => setChecklistPending((count) => count + (value ? 1 : -1)),

@@ -1,18 +1,31 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { db, notesTable, todosTable, type Todo } from "@repo/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import type { Pagination, TodoPatch } from "./todos.type";
 
 export async function listTodosByScope(
   scope: AuthenticatedOrganizationScope,
-  pagination: Pagination
+  pagination: Pagination,
+  filters: { search?: string | null; completed?: boolean | null } = {}
 ): Promise<Todo[]> {
+  const phrase = filters.search?.trim();
+  const pattern = phrase ? `%${phrase.replace(/[\\%_]/g, "\\$&")}%` : undefined;
   return db
     .select()
     .from(todosTable)
-    .where(and(eq(todosTable.organizationId, scope.organizationId)))
-    .orderBy(desc(todosTable.createdAt))
+    .where(
+      and(
+        eq(todosTable.organizationId, scope.organizationId),
+        pattern === undefined
+          ? undefined
+          : or(ilike(todosTable.title, pattern), ilike(todosTable.description, pattern)),
+        typeof filters.completed === "boolean"
+          ? eq(todosTable.completed, filters.completed)
+          : undefined
+      )
+    )
+    .orderBy(desc(todosTable.createdAt), desc(todosTable.id))
     .limit(pagination.limit)
     .offset(pagination.offset);
 }

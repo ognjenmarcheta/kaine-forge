@@ -25,10 +25,10 @@ test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
   const title = `Attachment ${Date.now()}`;
-  await page.getByRole("button", { name: "New todo", exact: true }).click();
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
   await dialog.getByLabel("Title", { exact: true }).fill(title);
-  await dialog.getByRole("button", { name: "New todo", exact: true }).click();
+  await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
   const row = page.getByRole("listitem").filter({
     has: page.getByRole("checkbox", { name: title, exact: true })
   });
@@ -38,7 +38,7 @@ test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
     mimeType: "text/plain",
     buffer: Buffer.from("Attachment round trip")
   });
-  await expect(row.getByText("redesign-check.txt", { exact: true })).toBeVisible();
+  await expect(row.getByText("redesign-check.txt", { exact: false })).toBeVisible();
   const downloadUrl = await row
     .getByRole("link", { name: "Download", exact: true })
     .getAttribute("href");
@@ -51,8 +51,9 @@ test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
     .getByRole("dialog", { name: "Remove attachment", exact: true })
     .getByRole("button", { name: "Remove", exact: true })
     .click();
-  await expect(row.getByText("redesign-check.txt", { exact: true })).toHaveCount(0);
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(row.getByText("redesign-check.txt", { exact: false })).toHaveCount(0);
+  await row.getByRole("button", { name: "Actions for " + title, exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Delete todo", exact: true })
     .getByRole("button", { name: "Delete", exact: true })

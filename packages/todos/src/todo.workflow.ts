@@ -3,18 +3,12 @@ export interface TodoDraft {
   title: string;
 }
 
-export interface TodoCompletionState {
-  completed: boolean;
-}
-
 export interface TodoCreatePayload {
   description: string | null;
   title: string;
 }
 
-export interface TodoUpdatePayload extends TodoCreatePayload {
-  completed: boolean;
-}
+export type TodoUpdatePayload = TodoCreatePayload;
 
 export interface TodoClientWorkflowAdapter<TTodo> {
   createTodo?: (payload: TodoCreatePayload) => Promise<TTodo>;
@@ -30,7 +24,6 @@ interface CreateTodoWorkflowInput {
 }
 
 interface UpdateTodoWorkflowInput {
-  current: TodoCompletionState;
   draft: TodoDraft;
   id: string;
 }
@@ -51,14 +44,8 @@ export function toTodoCreatePayload(draft: TodoDraft): TodoCreatePayload {
   };
 }
 
-export function toTodoUpdatePayload(
-  draft: TodoDraft,
-  current: TodoCompletionState
-): TodoUpdatePayload {
-  return {
-    ...toTodoCreatePayload(draft),
-    completed: current.completed
-  };
+export function toTodoUpdatePayload(draft: TodoDraft): TodoUpdatePayload {
+  return toTodoCreatePayload(draft);
 }
 
 export function formatAttachmentSize(bytes: number): string {
@@ -138,10 +125,7 @@ export function createTodoClientWorkflow<TTodo>(adapter: TodoClientWorkflowAdapt
         throw new Error("update Todo adapter required");
       }
 
-      const result = await adapter.updateTodo(
-        input.id,
-        toTodoUpdatePayload(input.draft, input.current)
-      );
+      const result = await adapter.updateTodo(input.id, toTodoUpdatePayload(input.draft));
       await invalidateActiveOrganizationTodos();
       return result;
     }

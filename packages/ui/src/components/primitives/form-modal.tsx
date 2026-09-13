@@ -22,6 +22,7 @@ export interface FormModalProps extends Pick<
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   submittingLabel?: string;
   submitLabel: string;
+  submitDisabled?: boolean;
 }
 
 export function FormModal({
@@ -39,6 +40,7 @@ export function FormModal({
   size,
   submittingLabel,
   submitLabel,
+  submitDisabled = false,
   title
 }: FormModalProps) {
   const formId = useId();
@@ -59,7 +61,7 @@ export function FormModal({
           >
             {cancelLabel}
           </Button>
-          <Button disabled={isSubmitting} form={formId} type="submit">
+          <Button disabled={isSubmitting || submitDisabled} form={formId} type="submit">
             {isSubmitting ? (submittingLabel ?? submitLabel) : submitLabel}
           </Button>
         </div>
@@ -77,7 +79,7 @@ export function FormModal({
         id={formId}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!isSubmitting) void onSubmit(event);
+          if (!isSubmitting && !submitDisabled) void onSubmit(event);
         }}
       >
         <fieldset

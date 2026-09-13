@@ -259,6 +259,8 @@ export type DeleteFileMutation = { deleteFile: boolean };
 export type GetTodosQueryVariables = Exact<{
   limit?: number | null | undefined;
   offset?: number | null | undefined;
+  search?: string | null | undefined;
+  completed?: boolean | null | undefined;
 }>;
 
 export type GetTodosQuery = {
@@ -277,6 +279,28 @@ export type GetTodosQuery = {
       downloadUrl: string | null;
     }>;
   }>;
+};
+
+export type GetTodoQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+export type GetTodoQuery = {
+  todo: {
+    id: string;
+    title: string;
+    description: string | null;
+    completed: boolean;
+    createdAt: unknown;
+    updatedAt: unknown;
+    attachments: Array<{
+      id: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      downloadUrl: string | null;
+    }>;
+  } | null;
 };
 
 export type CreateTodoMutationVariables = Exact<{
@@ -1332,6 +1356,16 @@ export const GetTodosDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "search" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "completed" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } }
         }
       ],
       selectionSet: {
@@ -1350,6 +1384,16 @@ export const GetTodosDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "offset" },
                 value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "search" },
+                value: { kind: "Variable", name: { kind: "Name", value: "search" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "completed" },
+                value: { kind: "Variable", name: { kind: "Name", value: "completed" } }
               }
             ],
             selectionSet: {
@@ -1383,6 +1427,67 @@ export const GetTodosDocument = {
     }
   ]
 } as unknown as DocumentNode<GetTodosQuery, GetTodosQueryVariables>;
+export const GetTodoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetTodo" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todo" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "attachments" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetTodoQuery, GetTodoQueryVariables>;
 export const CreateTodoDocument = {
   kind: "Document",
   definitions: [

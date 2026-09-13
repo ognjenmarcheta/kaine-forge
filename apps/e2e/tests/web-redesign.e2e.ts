@@ -78,7 +78,7 @@ test("theme follows system changes and persists an explicit choice", async ({ pa
 test("failed Todo submission preserves the open form and its draft", async ({ page }) => {
   await signIn(page);
   await page.goto("/todos");
-  await page.getByRole("button", { name: "New todo", exact: true }).click();
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
   await dialog.getByLabel("Title", { exact: true }).fill("Retain this draft");
   await dialog.getByLabel("Description", { exact: true }).fill("Even after a failed request");
@@ -87,14 +87,14 @@ test("failed Todo submission preserves the open form and its draft", async ({ pa
       await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
     } else await route.continue();
   });
-  await dialog.getByRole("button", { name: "New todo", exact: true }).click();
-  await expect(dialog.getByText("Something went wrong", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
+  await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Retain this draft");
   await expect(dialog.getByLabel("Description", { exact: true })).toHaveValue(
     "Even after a failed request"
   );
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "New todo", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Add details", exact: true })).toBeFocused();
 });
 
 test("Note drafts survive theme changes and failed saves", async ({ page }) => {

@@ -122,7 +122,7 @@ test("dialog exits and live reduced motion settle correctly", async ({ page }) =
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
-  const trigger = page.getByRole("button", { name: "New todo", exact: true });
+  const trigger = page.getByRole("button", { name: "Add details", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog");
   expect((await midpoint(dialog)).opacity).toBeLessThan(1);
@@ -130,13 +130,13 @@ test("dialog exits and live reduced motion settle correctly", async ({ page }) =
   await dialog.getByLabel("Title", { exact: true }).fill("Motion draft");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Motion draft");
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await trigger.click();
   await finish(dialog);
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
   expect((await midpoint(dialog)).opacity).toBeLessThan(1);
   await finish(dialog);
   await expect(dialog).toHaveCount(0);
@@ -244,10 +244,10 @@ test.describe("motion review captures", () => {
       await page.getByRole("button", { name: "Sprache", exact: true }).click();
       await page.getByRole("menuitemradio", { name: "English", exact: true }).click();
       await page.getByRole("link", { name: "Todos", exact: true }).click();
-      await page.getByRole("button", { name: "New todo", exact: true }).click();
+      await page.getByRole("button", { name: "Add details", exact: true }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Motion preview");
-      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
       await expect(dialog).toHaveCount(0);
     });
   }

@@ -42,7 +42,7 @@ vi.mock("@repo/db", () => ({
 }));
 
 vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...args: unknown[]) => args),
+  and: vi.fn((...args: unknown[]) => args.filter((arg) => arg !== undefined)),
   desc: vi.fn((col: unknown) => col),
   eq: vi.fn((a: unknown, b: unknown) => [a, b]),
   inArray: vi.fn((a: unknown, b: unknown) => [a, b])
