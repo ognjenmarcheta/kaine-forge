@@ -1,5 +1,5 @@
 import { createLogger } from "@repo/logger";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const holder = vi.hoisted(() => ({
   database: null as ReturnType<typeof createEvalDatabase> | null
@@ -24,6 +24,12 @@ import { createAssistantTools } from "./assistant.tools";
 import { createApiWorkflows } from "../../context.workflows";
 import { createNote, deleteNote, getNoteById } from "../notes/notes.adapter";
 
+// PGlite cold startup can exceed the test timeout on shared CI runners.
+beforeEach(async () => {
+  holder.database = createEvalDatabase();
+  await holder.database.client.waitReady;
+}, 30_000);
+
 afterEach(async () => {
   await holder.database?.client.close();
   holder.database = null;
@@ -33,7 +39,7 @@ describe("evaluation fixture with production tools and workflows", () => {
   it("allows owner Note deletion and preserves the full foreign Note after denied deletion", async () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-note-update");
     if (!evaluation) throw new Error("Missing case");
-    holder.database = createEvalDatabase();
+    if (!holder.database) throw new Error("Uninitialized evaluation database");
     const fixture = await seedEvalFixture(holder.database, evaluation);
     const foreign = fixture.ids["foreignNote"];
     if (!foreign) throw new Error("Missing foreign Note");
@@ -47,7 +53,7 @@ describe("evaluation fixture with production tools and workflows", () => {
   it("creates the expected row through the real tool and preserves foreign data", async () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "create-simple");
     if (!evaluation) throw new Error("Missing case");
-    holder.database = createEvalDatabase();
+    if (!holder.database) throw new Error("Uninitialized evaluation database");
     const fixture = await seedEvalFixture(holder.database, evaluation);
     const tools = createAssistantTools({
       scope: fixture.scope,
@@ -73,7 +79,7 @@ describe("evaluation fixture with production tools and workflows", () => {
   it("rejects foreign writes using actual adapters and retains full protected rows", async () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-todo-delete");
     if (!evaluation) throw new Error("Missing case");
-    holder.database = createEvalDatabase();
+    if (!holder.database) throw new Error("Uninitialized evaluation database");
     const fixture = await seedEvalFixture(holder.database, evaluation);
     const workflows = createApiWorkflows({
       logger: createLogger({ name: "eval", level: "silent" }),
