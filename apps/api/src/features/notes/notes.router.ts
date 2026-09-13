@@ -8,7 +8,7 @@ import { filterByOrganization } from "../../pubsub";
 import type { CreateTodoInput } from "../todos/todos.type";
 
 type ResolverContext = ApiContext;
-type NotesQueryArgs = { limit?: number; offset?: number };
+type NotesQueryArgs = { limit?: number; offset?: number; search?: string | null };
 type NoteByIdArgs = { id: string };
 type CreateNoteArgs = { input: CreateNoteInput };
 type UpdateNoteArgs = { id: string; input: UpdateNoteInput };
@@ -24,7 +24,7 @@ export const notesResolvers = {
   Query: {
     async notes(_parent: unknown, args: NotesQueryArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return listNotesByScope(scope, coercePagination(args));
+      return listNotesByScope(scope, coercePagination(args), args.search ?? undefined);
     },
     async note(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();

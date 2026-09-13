@@ -6,7 +6,7 @@ type Query {
   invitations: [OrganizationInvitation!]!
   todos(limit: Int, offset: Int): [Todo!]!
   todo(id: ID!): Todo
-  notes(limit: Int, offset: Int): [Note!]!
+  notes(limit: Int, offset: Int, search: String): [Note!]!
   note(id: ID!): Note
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput): [FileInfo!]!

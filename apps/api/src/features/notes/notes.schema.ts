@@ -25,7 +25,7 @@ export const notesTypeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    notes(limit: Int, offset: Int): [Note!]!
+    notes(limit: Int, offset: Int, search: String): [Note!]!
     note(id: ID!): Note
   }
 

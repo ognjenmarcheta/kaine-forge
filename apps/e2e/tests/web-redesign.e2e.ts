@@ -100,8 +100,10 @@ test("failed Todo submission preserves the open form and its draft", async ({ pa
 test("Note drafts survive theme changes and failed saves", async ({ page }) => {
   await signIn(page);
   await page.goto("/notes");
-  await page.getByRole("textbox", { name: "Title", exact: true }).fill(`Redesign ${Date.now()}`);
   await page.getByRole("button", { name: "New note", exact: true }).click();
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill(`Redesign ${Date.now()}`);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).not.toHaveURL(/\/notes\/new$/);
   await expect(page).toHaveURL(/\/notes\/.+/);
   await page.locator("#note-body").fill("Unsaved work");
   await page.getByRole("button", { name: "Theme", exact: true }).click();
@@ -113,7 +115,7 @@ test("Note drafts survive theme changes and failed saves", async ({ page }) => {
     } else await route.continue();
   });
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Something went wrong", { exact: true })).toBeVisible();
+  await expect(page.getByText("The save could not be confirmed.", { exact: false })).toBeVisible();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
   await page.unroute("**/graphql");
   await page.getByRole("button", { name: "Save", exact: true }).click();

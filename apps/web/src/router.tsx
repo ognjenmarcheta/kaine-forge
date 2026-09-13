@@ -23,7 +23,10 @@ import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "rea
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
-import { NoteDetailRoute } from "./features/notes/note-detail.route";
+import {
+  NotesNavigationProvider,
+  useNotesNavigation
+} from "./features/notes/notes-navigation.provider";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
@@ -52,6 +55,15 @@ function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_
 }
 
 function ShellLayout() {
+  return (
+    <NotesNavigationProvider>
+      <ShellContent />
+    </NotesNavigationProvider>
+  );
+}
+
+function ShellContent() {
+  const { requestLeave } = useNotesNavigation();
   const location = useLocation();
   const { isLoading, logout, session } = useAuth();
   const {
@@ -223,13 +235,13 @@ function ShellLayout() {
               <OrganizationSwitcher
                 actionItem={{
                   label: t("navigation.organizationCreate"),
-                  onSelect: () => setIsCreateOrganizationOpen(true)
+                  onSelect: () => requestLeave(() => setIsCreateOrganizationOpen(true))
                 }}
                 className="w-full min-w-0 max-w-none"
                 label={t("navigation.organization")}
                 onValueChange={(value) => {
                   if (value !== "organization-placeholder") {
-                    void setActiveOrganization(value);
+                    requestLeave(() => void setActiveOrganization(value));
                   }
                 }}
                 organizations={organizationOptions}
@@ -241,7 +253,7 @@ function ShellLayout() {
             <NavUser
               className="w-full min-w-0 max-w-none"
               logoutLabel={t("auth.logout")}
-              onLogout={() => void logout()}
+              onLogout={() => requestLeave(() => void logout())}
               user={{
                 email: currentSession.user.email,
                 name: currentSession.user.name
@@ -284,11 +296,7 @@ export const appRouter = createBrowserRouter([
       },
       {
         element: <NotesRoute />,
-        path: "notes"
-      },
-      {
-        element: <NoteDetailRoute />,
-        path: "notes/:id"
+        path: "notes/:id?"
       },
       {
         element: <AssistantRoute />,
