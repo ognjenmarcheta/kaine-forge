@@ -1,5 +1,14 @@
 # @repo/e2e
 
+## 1.1.2
+
+### Patch Changes
+
+- 6907d18: Refresh Notes with a responsive list and editor, full Organization-scoped title/body search, pagination, explicit saving, protected per-note drafts, and clearer checklist feedback. Preserve newer edits during saves and prevent accidental draft loss during navigation and Organization changes.
+- db46fcf: Refresh Todos with inline creation, searchable status views, pagination, protected drafts, and clearer action and attachment feedback. Keep text edits separate from completion changes across web and mobile, and preserve Organization scoping.
+- 4143c11: Refresh the AI Assistant with a responsive conversation workspace, a growing keyboard-accessible composer, per-conversation drafts, and readable Todo and Note results. Keep replies attached to their originating conversation during navigation and preserve prompts after failures.
+- c67b66a: Start Playwright servers with explicit environment maps so the same test commands work on Windows and Unix.
+
 ## 1.1.1
 
 ### Patch Changes
