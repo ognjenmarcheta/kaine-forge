@@ -2,9 +2,9 @@
 
 Snapshot of template rules that are encoded as docs/REVIEW/skills but not fully machine-checked.
 Update when a gap is closed or a new proven failure mode appears.
-Last reviewed: 2026-09-11 (guarded-command policy + harness-eval ledger).
+Last reviewed: 2026-09-12 (manual evaluations, local reports, sandbox preflight and context measurements).
 
-This audit is documentation only. It does not invent new linters; candidate checks are notes for when a failure mode is proven and automation is justified.
+This audit records evidence and residual gaps. Candidate checks remain proposals unless an executable check is named.
 
 | Gap                                                      | Encoded today                                                                                                                                                                                                              | Residual risk                                                                                                                                   | Candidate future check                                                                                                                                                                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -19,6 +19,52 @@ This audit is documentation only. It does not invent new linters; candidate chec
 | Guide/skill efficacy unmeasured                          | `pnpm ai:doctor` lints structure (headings, skill list sync, prefixes); content ships untested                                                                                                                             | A guide rule can be a behavioral no-op — present in the prompt but not changing agent output                                                    | `kaine-harness-eval` + ledger `docs/agents/harness-evals.md` — human-invoked A/B against a stripped `AGENTS.md`, scoped to rules whose efficacy is in doubt                                                                                                   |
 
 ## Closed by this work
+
+- Assistant case execution and stored-state grading: `pnpm eval:assistant`; human response review remains required. See [manual tooling](agent-engineering.md).
+- Terminal model-run accounting and offline log summaries: success, failure and cancellation are explicit. Real usage baselines remain pending.
+- Duplicate skill inventory: one generated index occupies the existing guide location. Installer and doctor reject missing/duplicate markers and stale output.
+- Native sandbox dispatch is guarded by positive and negative probes. **Boundary certification remains open:** the native Windows path passes filesystem controls but permits loopback networking; the runner fails closed.
+
+## Context audit — 2026-09-12
+
+Reproduce with `pnpm ai:context --revision <before-revision>` and `pnpm ai:context`.
+Before measurements use revision `0999c4a5875116a4a896124668da477a8d8090a8`. Counts normalize CRLF to LF,
+count Unicode characters, and split words on whitespace. They are **not model
+tokens** or a measured session context size. The inventory lists ownership,
+loading mechanism and duplication for every source, agent definition and skill.
+Invisible host, tool, plugin and personal instructions are excluded.
+
+| Material                    | Loading / owner                                            | Before words / characters | After words / characters |
+| --------------------------- | ---------------------------------------------------------- | ------------------------: | -----------------------: |
+| `.ai/guide.md`              | Canonical generator input; on demand                       |            2,913 / 19,678 |           2,673 / 17,876 |
+| `AGENTS.md`                 | Generated repository instruction injection, host dependent |            3,506 / 23,889 |           3,259 / 22,031 |
+| `CLAUDE.md`                 | Generated import of AGENTS; no second guide copy           |                    1 / 11 |                   1 / 11 |
+| Cursor rule source          | Canonical `.ai`; always-applied on Cursor                  |               253 / 1,735 |              253 / 1,735 |
+| Explorer definition         | Canonical `.ai`; selected dispatch                         |               147 / 1,023 |              147 / 1,023 |
+| Implementer definition      | Canonical `.ai`; selected dispatch                         |               280 / 1,935 |              280 / 1,935 |
+| 17 skill frontmatter blocks | Canonical `.ai`; discovery metadata                        |               501 / 3,800 |              501 / 3,800 |
+| `MONOREPO_GUIDE.md`         | Repository; required code-task reading                     |            3,779 / 35,036 |           3,779 / 35,036 |
+| `CONTEXT.md`                | Repository; domain-task reading                            |               670 / 4,942 |              670 / 4,942 |
+| `REVIEW.md`                 | Generated `.ai/review.md`; review reading                  |               986 / 6,745 |              986 / 6,745 |
+| `DESIGN_SYSTEM.md`          | Repository; UI-task reading                                |            2,734 / 21,007 |           2,734 / 21,007 |
+| Day-one guide               | Repository; onboarding reading                             |               626 / 4,986 |              626 / 4,986 |
+| Domain guide                | Repository; domain-layout reading                          |               195 / 1,313 |              195 / 1,313 |
+
+The confirmed duplicate was the manually maintained skill list plus the appended
+generated index. Descriptions now come from skill metadata at the first location.
+The generated guide loses 247 words and 1,858 characters. All behavior rules and
+the generated guarded-command section remain. No model latency, cost or quality
+improvement is inferred from this reduction.
+
+Further candidates require evidence: skill metadata appears in host discovery and
+the guide; agent definitions repeat selected task rules for emphasis; required
+reading repeats some tenancy and typing rules. These are not removed. Different
+hosts load these sources differently, and the existing A/B ledger does not prove
+that removing the overlap improves results. Full skill bodies remain on demand;
+the inventory reports their individual sizes without adding them to an injected
+context total.
+
+## Earlier closures
 
 - Missing shared REVIEW contract → `.ai/review.md` + install/doctor (`REVIEW.md`)
 - Missing promotion ladder → `kaine-encode-knowledge`

@@ -29,6 +29,9 @@ export default defineConfig({
       // `coverage.all` behavior the floors were calibrated against).
       include: ["apps/api/src/**", "apps/desktop/src/**", "apps/web/src/**", "packages/*/src/**"],
       exclude: [
+        "**/*.eval.live.ts",
+        "**/*.eval.cli.ts",
+        "**/*.eval.fixture.ts",
         ".prettierrc.cjs",
         "**/*.test.*",
         "**/*.spec.*",

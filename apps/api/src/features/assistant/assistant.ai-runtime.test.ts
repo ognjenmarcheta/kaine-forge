@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Only the fields these tests read. Typing the mock's parameter is what makes
 // streamText.mock.calls indexable, and removes the need for a cast.
 interface StreamTextCall {
+  abortSignal?: AbortSignal;
+  onError: (event: { error: Error }) => void;
   instructions: string;
   messages: Array<{ content: string; role: string }>;
   model: { model: string; provider: string };
@@ -305,12 +307,98 @@ describe("createAssistantAiRuntime", () => {
       vi.stubEnv("OPENAI_API_KEY", "openai-key");
     });
 
+    it("aborts a timed out stream, forwards evaluation limits and emits one cancellation", async () => {
+      const original = aiSdkMocks.streamText.getMockImplementation();
+      if (!original) throw new Error("Missing mock");
+      aiSdkMocks.streamText.mockImplementationOnce((options) => ({
+        ...original(options),
+        textStream: (async function* () {
+          yield "partial";
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          options.abortSignal?.throwIfAborted();
+        })()
+      }));
+      const injected = deps();
+      const execution = {
+        abortSignal: AbortSignal.timeout(5),
+        maxOutputTokens: 2048,
+        maxRetries: 0
+      };
+      await expect(
+        createAssistantAiRuntime(injected).runAgent({ ...runInput, execution })
+      ).rejects.toThrow("timeout");
+      expect(aiSdkMocks.streamText).toHaveBeenLastCalledWith(expect.objectContaining(execution));
+      expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
+      expect(injected.recordModelCall).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "cancelled", failureCategory: "timeout" })
+      );
+    });
+
+    it("reports a thrown provider failure exactly once without leaking the error", async () => {
+      aiSdkMocks.streamText.mockImplementationOnce(() => {
+        throw new Error("secret-provider-payload");
+      });
+      const injected = deps();
+      await expect(createAssistantAiRuntime(injected).runAgent(runInput)).rejects.toThrow(
+        "Assistant model run failed (provider)"
+      );
+      expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
+      expect(injected.recordModelCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "failure",
+          failureCategory: "provider",
+          totalTokens: undefined
+        })
+      );
+      expect(JSON.stringify(injected.recordModelCall.mock.calls)).not.toContain(
+        "secret-provider-payload"
+      );
+    });
+
+    it("does not accept an SDK stream error as a successful reply", async () => {
+      const original = aiSdkMocks.streamText.getMockImplementation();
+      if (!original) throw new Error("Missing mock");
+      aiSdkMocks.streamText.mockImplementationOnce((options) => {
+        options.onError({ error: new Error("provider request headers") });
+        return original(options);
+      });
+      const injected = deps();
+      await expect(createAssistantAiRuntime(injected).runAgent(runInput)).rejects.toThrow(
+        "Assistant model run failed (provider)"
+      );
+      expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
+      expect(injected.recordModelCall).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "failure" })
+      );
+    });
+
+    it("classifies an aborted execution separately", async () => {
+      const injected = deps();
+      await expect(
+        createAssistantAiRuntime(injected).runAgent({
+          ...runInput,
+          execution: {
+            abortSignal: AbortSignal.abort(),
+            maxOutputTokens: 2048,
+            maxRetries: 0
+          }
+        })
+      ).rejects.toThrow();
+      expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
+      expect(injected.recordModelCall).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "cancelled", failureCategory: "aborted" })
+      );
+    });
+
     it("records provider, model, tokens, duration and shape once per call", async () => {
       const injected = deps();
       await createAssistantAiRuntime(injected).runAgent(runInput);
 
       expect(injected.recordModelCall).toHaveBeenCalledTimes(1);
       expect(injected.recordModelCall).toHaveBeenCalledWith({
+        runId: expect.any(String),
+        status: "success",
+        failureCategory: null,
         conversationId: "conv-1",
         durationMs: expect.any(Number),
         inputTokens: 120,
@@ -336,10 +424,13 @@ describe("createAssistantAiRuntime", () => {
           expect(Object.keys(telemetry).sort()).toEqual([
             "conversationId",
             "durationMs",
+            "failureCategory",
             "inputTokens",
             "model",
             "outputTokens",
             "provider",
+            "runId",
+            "status",
             "steps",
             "toolCalls",
             "totalTokens"

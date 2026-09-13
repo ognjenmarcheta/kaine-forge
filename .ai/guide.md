@@ -193,23 +193,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 
 Use skills when they match the task:
 
-- `kaine-adopt-template`: replace template identity with downstream project identity via the adoption CLI.
-- `kaine-create-feature`: scaffold an organization-scoped CRUD feature slice and wire it into every registration point.
-- `kaine-encode-knowledge`: promote repeated review/agent failures into durable infra (lint, test, REVIEW, skill, CONTEXT).
-- `kaine-sync-docs`: reinstall and verify AI assistant files.
-- `kaine-test`: plan or write tests for a specified system under test.
-- `kaine-open-pr`: prepare a draft PR with repo checks and template expectations.
-- `kaine-release-apps`: update per-app deploy branches after merge to `main`.
-- `kaine-rebase`: safely rebase a feature branch onto `main`.
-- `kaine-fix-ci`: investigate and fix failing CI from logs and local reproduction.
-- `kaine-review`: perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
-- `kaine-secret-scan`: run a full-history gitleaks secret scan and triage findings before history becomes more visible.
-- `kaine-simplify`: review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform, or shrink.
-- `kaine-triage-issue`: verify each finding in a GitHub issue against current code; fix or triage only still-valid items with minimal changes.
-- `kaine-triage-deps`: triage open Dependabot PRs—merge safe bumps, recreate conflicts, close unsafe one-offs, track intentional upgrades.
-- `kaine-graph`: build and query the Graphify codebase knowledge graph for architecture and impact questions.
-- `kaine-harness-eval`: measure whether a specific guide or review rule changes agent output, and record the verdict.
-- `kaine-scorecard`: score monorepo health on ten dimensions, render the dashboard, and file evidence-verified must-fixes.
+<!-- kaine:skills-index -->
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 

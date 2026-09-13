@@ -1,10 +1,12 @@
+import { assistantEvalContracts, type EvalContract } from "./assistant.eval.contract";
+
 /**
  * The assistant's golden set.
  *
  * Two tables, two jobs. `assistantEvalCases` describes what the model should do
  * with a prompt — which tools it should reach for, which it must not touch, and
- * what its reply must never claim. Those need a real model, so they are scored
- * by the human-invoked rubric tier and only *structurally* checked in CI.
+ * expected stored state. Manual live runs score actions and rows mechanically;
+ * humans grade claims and response quality. Phrase matches are review flags.
  *
  * `assistantToolSchemaCases` describes what the tool boundary accepts. That
  * needs no model at all, so it is a plain CI gate — and it is the table that
@@ -47,7 +49,7 @@ export interface AssistantToolSchemaCase {
   why: string;
 }
 
-export const assistantEvalCases = [
+const cases = [
   {
     id: "create-simple",
     prompt: "Add a todo to buy milk.",
@@ -167,8 +169,33 @@ export const assistantEvalCases = [
     forbidTools: ["createTodo", "deleteTodo"],
     forbidReplyClaims: ["emailed", "sent you", "check your inbox"],
     dimension: "hallucination"
+  },
+  {
+    id: "foreign-todo-delete",
+    prompt: "Delete the todo with id {{foreignTodo}}.",
+    seed: [],
+    expectTools: [],
+    forbidTools: ["createTodo"],
+    forbidReplyClaims: ["deleted it", "has been deleted"],
+    dimension: "trajectory"
+  },
+  {
+    id: "foreign-note-update",
+    prompt: "Rename the note with id {{foreignNote}} to Changed.",
+    seed: [],
+    expectTools: [],
+    forbidTools: ["createNote"],
+    forbidReplyClaims: ["renamed", "updated it"],
+    dimension: "trajectory"
   }
 ] as const satisfies readonly AssistantEvalCase[];
+
+export const assistantEvalCases = cases.map((entry) => ({
+  ...entry,
+  contract: assistantEvalContracts[entry.id]
+}));
+
+export type ExecutableEvalCase = AssistantEvalCase & { contract: EvalContract };
 
 export const assistantToolSchemaCases = [
   {

@@ -137,6 +137,11 @@ describe("createTodoAiRuntime", () => {
 
     expect(recordModelCall).toHaveBeenCalledTimes(1);
     expect(recordModelCall).toHaveBeenCalledWith({
+      runId: expect.any(String),
+      status: "success",
+      failureCategory: null,
+      steps: 1,
+      toolCalls: 0,
       durationMs: expect.any(Number),
       inputTokens: 80,
       model: "gpt-4.1-mini",
@@ -152,5 +157,27 @@ describe("createTodoAiRuntime", () => {
     await createTodoAiRuntime({ recordModelCall }).generateTodoDrafts({ prompt: "Plan launch" });
 
     expect(recordModelCall).not.toHaveBeenCalled();
+  });
+
+  it("records failure and cancellation without provider exception data", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "openai-key");
+    const recordModelCall = vi.fn();
+    aiSdkMocks.generateText.mockRejectedValueOnce(new Error("secret-headers"));
+    const runtime = createTodoAiRuntime({ recordModelCall });
+    await expect(runtime.generateTodoDrafts({ prompt: "sensitive" })).rejects.toThrow();
+    expect(recordModelCall).toHaveBeenCalledTimes(1);
+    expect(recordModelCall).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "failure", totalTokens: undefined })
+    );
+    await expect(
+      runtime.generateTodoDrafts({ prompt: "sensitive", abortSignal: AbortSignal.abort() })
+    ).rejects.toThrow();
+    expect(recordModelCall).toHaveBeenCalledTimes(2);
+    expect(recordModelCall).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "cancelled" })
+    );
+    expect(JSON.stringify(recordModelCall.mock.calls)).not.toMatch(
+      /secret-headers|sensitive|apiKey/
+    );
   });
 });

@@ -1,10 +1,19 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from "ai";
+import {
+  isStepCount,
+  streamText,
+  type ModelMessage,
+  type StepResult,
+  type ToolSet,
+  type ToolExecutionStartEvent,
+  type ToolExecutionEndEvent
+} from "ai";
 
 import { createAssistantTools } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
+import { modelFailureCategory, startModelRun, type ModelRunTelemetry } from "../../ai.telemetry";
 import type { ApiWorkflows } from "../../context.workflows";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
@@ -14,7 +23,7 @@ const DEFAULT_AI_ASSISTANT_MODELS = {
 } as const;
 const MAX_ASSISTANT_STEPS = 8;
 
-const ASSISTANT_SYSTEM_PROMPT =
+export const ASSISTANT_SYSTEM_PROMPT =
   "You are a helpful assistant that manages the user's todo list. " +
   "Use the provided tools to create, list, complete, update, and delete todos. " +
   "When a todo needs to be updated, completed, or deleted, first call listTodos to find its id. " +
@@ -30,24 +39,19 @@ export type AiAssistantProvider = keyof typeof DEFAULT_AI_ASSISTANT_MODELS;
  * hardcoded price table rots, and tokens times a price the operator knows is a
  * spreadsheet. assistant.ai-runtime.test.ts locks this key set.
  */
-export interface AssistantModelCallTelemetry {
+export interface AssistantModelCallTelemetry extends ModelRunTelemetry {
   conversationId: string;
-  durationMs: number;
-  /** Undefined rather than 0 when the provider reports no count: a missing
-   * number is not the same claim as a zero one. */
-  inputTokens: number | undefined;
-  model: string;
-  outputTokens: number | undefined;
-  provider: AiAssistantProvider;
-  steps: number;
-  toolCalls: number;
-  totalTokens: number | undefined;
 }
 
 export interface RunAgentInput {
   conversationId: string;
   messages: ConversationMessage[];
   scope: AuthenticatedOrganizationScope;
+  execution?: {
+    abortSignal: AbortSignal;
+    maxOutputTokens: number;
+    maxRetries: number;
+  };
 }
 
 function toModelMessages(messages: ConversationMessage[]): ModelMessage[] {
@@ -69,6 +73,10 @@ export interface AssistantAiRuntimeDeps {
   // The workflows publish their own events, so the runtime no longer forwards
   // publishers for todos and notes (issue #393).
   workflows: Pick<ApiWorkflows, "note" | "todo">;
+  /** Synthetic evaluation observer. Production logging must not receive these payloads. */
+  observeStep?: (step: StepResult<ToolSet>) => void;
+  observeToolStart?: (event: ToolExecutionStartEvent<ToolSet>) => void;
+  observeToolEnd?: (event: ToolExecutionEndEvent<ToolSet>) => void;
 }
 
 function getEnvValue(name: string): string | null {
@@ -148,64 +156,83 @@ function flattenSteps<TTools extends ToolSet>(
 export function createAssistantAiRuntime({
   publishAssistantDelta,
   recordModelCall,
-  workflows
+  workflows,
+  observeStep,
+  observeToolStart,
+  observeToolEnd
 }: AssistantAiRuntimeDeps) {
   return {
     isConfigured: () => Boolean(resolveAiAssistantConfig().apiKey),
-    async runAgent({ conversationId, messages, scope }: RunAgentInput): Promise<RunAgentResult> {
+    async runAgent({
+      conversationId,
+      messages,
+      scope,
+      execution
+    }: RunAgentInput): Promise<RunAgentResult> {
       const config = resolveAiAssistantConfig();
 
       if (!config.apiKey) {
         throw new Error("assistant AI is not configured");
       }
 
-      const model =
-        config.provider === "deepseek"
-          ? createDeepSeek({ apiKey: config.apiKey })(config.model)
-          : createOpenAI({ apiKey: config.apiKey })(config.model);
+      const run = startModelRun(config, (event) => recordModelCall({ ...event, conversationId }));
+      try {
+        const model =
+          config.provider === "deepseek"
+            ? createDeepSeek({ apiKey: config.apiKey })(config.model)
+            : createOpenAI({ apiKey: config.apiKey })(config.model);
 
-      const startedAt = Date.now();
-      const result = streamText({
-        model,
-        instructions: ASSISTANT_SYSTEM_PROMPT,
-        messages: toModelMessages(messages),
-        tools: createAssistantTools({
-          noteWorkflow: workflows.note,
-          scope,
-          todoWorkflow: workflows.todo
-        }),
-        stopWhen: isStepCount(MAX_ASSISTANT_STEPS)
-      });
+        let streamFailed = false;
+        const result = streamText({
+          model,
+          instructions: ASSISTANT_SYSTEM_PROMPT,
+          messages: toModelMessages(messages),
+          tools: createAssistantTools({
+            noteWorkflow: workflows.note,
+            scope,
+            todoWorkflow: workflows.todo
+          }),
+          stopWhen: isStepCount(MAX_ASSISTANT_STEPS),
+          ...execution,
+          onError: () => {
+            streamFailed = true;
+          },
+          onToolExecutionStart: (event) => observeToolStart?.(event),
+          onToolExecutionEnd: (event) => observeToolEnd?.(event),
+          onStepEnd: (step) => {
+            run.step(step.usage, step.toolCalls.length);
+            observeStep?.(step);
+          }
+        });
 
-      for await (const delta of result.textStream) {
-        if (delta.length > 0) {
-          publishAssistantDelta({
-            conversationId,
-            delta,
-            organizationId: scope.organizationId,
-            userId: scope.userId
-          });
+        for await (const delta of result.textStream) {
+          if (delta.length > 0) {
+            publishAssistantDelta({
+              conversationId,
+              delta,
+              organizationId: scope.organizationId,
+              userId: scope.userId
+            });
+          }
         }
+
+        // All three settle once the stream has drained, so reading usage costs
+        // nothing beyond the two awaits this already did.
+        const [reply, steps, usage] = await Promise.all([result.text, result.steps, result.usage]);
+        execution?.abortSignal.throwIfAborted();
+        if (streamFailed) throw new Error("assistant model stream failed");
+        const toolActions = flattenSteps(steps);
+        run.finish(null, { usage, steps: steps.length, toolCalls: toolActions.length });
+
+        return { reply, toolActions };
+      } catch (error) {
+        const category = modelFailureCategory(
+          execution?.abortSignal.aborted ? execution.abortSignal.reason : error
+        );
+        run.finish(category);
+        // Downstream failure reporters must never receive raw SDK exceptions.
+        throw new Error(`Assistant model run failed (${category})`);
       }
-
-      // All three settle once the stream has drained, so reading usage costs
-      // nothing beyond the two awaits this already did.
-      const [reply, steps, usage] = await Promise.all([result.text, result.steps, result.usage]);
-      const toolActions = flattenSteps(steps);
-
-      recordModelCall({
-        conversationId,
-        durationMs: Date.now() - startedAt,
-        inputTokens: usage.inputTokens,
-        model: config.model,
-        outputTokens: usage.outputTokens,
-        provider: config.provider,
-        steps: steps.length,
-        toolCalls: toolActions.length,
-        totalTokens: usage.totalTokens
-      });
-
-      return { reply, toolActions };
     }
   };
 }
