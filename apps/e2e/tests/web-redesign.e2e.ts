@@ -122,7 +122,7 @@ test("Note drafts survive theme changes and failed saves", async ({ page }) => {
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
 });
 
-test("failed Assistant requests restore the composer draft", async ({ page }) => {
+test("failed Assistant requests retain a prompt for explicit reuse", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
   await page.route("**/graphql", async (route) => {
@@ -132,6 +132,8 @@ test("failed Assistant requests restore the composer draft", async ({ page }) =>
   });
   await page.getByRole("textbox", { name: "Message", exact: true }).fill("Keep my request");
   await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText("The assistant could not complete your request.")).toBeVisible();
+  await page.getByRole("button", { name: "Use this prompt", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(
     "Keep my request"
   );
@@ -141,6 +143,7 @@ test("failed Assistant requests restore the composer draft", async ({ page }) =>
 test("Assistant history retries and preserves the reader's scroll position", async ({ page }) => {
   await signIn(page);
   let historyAvailable = false;
+  let replies = 0;
   await page.route("**/graphql", async (route) => {
     const query = route.request().postData() ?? "";
     if (query.includes("query GetConversations(")) {
@@ -162,11 +165,14 @@ test("Assistant history retries and preserves the reader's scroll position", asy
         json: historyAvailable
           ? {
               data: {
-                assistantMessages: Array.from({ length: 30 }, (_, index) => ({
+                assistantMessages: Array.from({ length: 30 + replies }, (_, index) => ({
                   id: String(index),
                   conversationId: "history-check",
                   role: "assistant",
-                  content: `History message ${index}\n${"A line of conversation.\n".repeat(6)}`,
+                  content:
+                    index < 30
+                      ? `History message ${index}\n${"A line of conversation.\n".repeat(6)}`
+                      : "New reply",
                   createdAt: new Date().toISOString(),
                   toolActions: []
                 }))
@@ -175,6 +181,7 @@ test("Assistant history retries and preserves the reader's scroll position", asy
           : { errors: [{ message: "Unavailable" }] }
       });
     } else if (query.includes("mutation SendMessage")) {
+      replies += 1;
       await route.fulfill({
         json: {
           data: {
@@ -191,7 +198,7 @@ test("Assistant history retries and preserves the reader's scroll position", asy
     } else await route.continue();
   });
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
-  await page.getByRole("button", { name: "History check", exact: true }).click();
+  await page.getByRole("button", { name: /^History check/ }).click();
   const retry = page.getByRole("button", { name: "Try again", exact: true });
   await expect(retry).toBeVisible();
   historyAvailable = true;
@@ -248,19 +255,17 @@ test("deleting a conversation requires confirmation", async ({ page }) => {
     } else await route.continue();
   });
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
-  await page.getByRole("button", { name: "Delete chat", exact: true }).click();
+  await page.getByRole("button", { name: "Conversation options: Review conversation" }).click();
+  await page.getByRole("menuitem", { name: "Delete chat", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Delete chat", exact: true });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(deleted).toBe(false);
-  await expect(
-    page.getByRole("button", { name: "Review conversation", exact: true })
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Delete chat", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Review conversation/ })).toBeVisible();
+  await page.getByRole("button", { name: "Conversation options: Review conversation" }).click();
+  await page.getByRole("menuitem", { name: "Delete chat", exact: true }).click();
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Review conversation", exact: true })).toHaveCount(
-    0
-  );
+  await expect(page.getByRole("button", { name: /^Review conversation/ })).toHaveCount(0);
   expect(deleted).toBe(true);
 });
 

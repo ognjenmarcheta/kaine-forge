@@ -1,41 +1,64 @@
-import { Button, Field, FieldLabel, Textarea } from "@repo/ui";
-import { type FormEvent } from "react";
+import { Button, FieldLabel, Textarea } from "@repo/ui";
+import { useLayoutEffect, type RefObject } from "react";
+
+import { useTranslation } from "../../../hooks/use-translation";
 
 interface AssistantComposerProps {
-  inputLabel: string;
-  isPending: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  placeholder: string;
-  sendLabel: string;
-  sendingLabel: string;
+  formRef: RefObject<HTMLFormElement | null>;
+  canSend: boolean;
   value: string;
   onChange: (value: string) => void;
+  onSubmit: () => void;
 }
 
 export function AssistantComposer({
-  inputLabel,
-  isPending,
+  formRef,
+  canSend,
+  value,
   onChange,
-  onSubmit,
-  placeholder,
-  sendLabel,
-  sendingLabel,
-  value
+  onSubmit
 }: AssistantComposerProps) {
+  const { t } = useTranslation();
+  useLayoutEffect(() => {
+    const textarea = formRef.current?.querySelector("textarea");
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight.toString()}px`;
+  }, [value, formRef]);
+
   return (
-    <form className="flex flex-col gap-[var(--ds-space-150)]" onSubmit={onSubmit}>
-      <Field>
-        <FieldLabel htmlFor="assistant-message">{inputLabel}</FieldLabel>
-        <Textarea
-          id="assistant-message"
-          placeholder={placeholder}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </Field>
-      <div>
-        <Button disabled={isPending} type="submit">
-          {isPending ? sendingLabel : sendLabel}
+    <form
+      ref={formRef}
+      className="ui-assistant__composer"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSend && value.trim()) onSubmit();
+      }}
+    >
+      <FieldLabel htmlFor="assistant-message">{t("assistant.inputLabel")}</FieldLabel>
+      <Textarea
+        id="assistant-message"
+        rows={2}
+        placeholder={t("assistant.placeholder")}
+        aria-describedby="assistant-keyboard-hint"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing &&
+            event.keyCode !== 229
+          ) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
+      />
+      <div className="ui-assistant__composer-footer">
+        <span id="assistant-keyboard-hint">{t("assistant.keyboardHint")}</span>
+        <Button disabled={!canSend || !value.trim()} type="submit">
+          {t("assistant.send")}
         </Button>
       </div>
     </form>
