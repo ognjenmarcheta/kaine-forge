@@ -1,6 +1,12 @@
 <p align="center">
+  <img src="media/project-banner.png" width="800" alt="Kaine Forge — full-stack TypeScript for humans and agents" />
+</p>
+
+<!--
+<p align="center">
   <img src="media/logo.jpg" width="640" alt="Kaine Forge logo" />
 </p>
+-->
 
 <p align="center">
   <a href="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml"><img alt="CI PR" src="https://github.com/ognjenmarcheta/kaine-forge/actions/workflows/ci-pr.yml/badge.svg"></a>
@@ -128,7 +134,3 @@ MIT — see [`LICENSE`](LICENSE).
 Use `pnpm db:prepare:local` for local setup and `pnpm db:push:local` for local schema changes, with explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in. Shared databases use reviewed migrations. See [local database rules](MONOREPO_GUIDE.md#22-local-database-and-release-commands).
 
 The Release workflow updates deployment branches. Manual `pnpm release:apps` commands, including dry-runs, are human-only.
-
-<p align="center">
-  <img src="media/project-banner.png" width="800" alt="Kaine Forge — full-stack TypeScript for humans and agents" />
-</p>
