@@ -148,8 +148,13 @@ test("Attachment disclosure interpolates and keeps its mounted upload control", 
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
-  const trigger = page.getByRole("button", { name: /^Attachments/ }).first();
-  const row = page.getByRole("listitem").filter({ has: trigger }).first();
+  const title = `Attachment motion ${crypto.randomUUID()}`;
+  await page.getByRole("textbox", { name: "What needs to be done?", exact: true }).fill(title);
+  await page.getByRole("button", { name: "Add Todo", exact: true }).click();
+  const row = page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("button", { name: title, exact: true }) });
+  const trigger = row.getByRole("button", { name: /^Attachments/ });
   const content = row.locator(".ui-collapsible");
   const fileInput = content.locator('input[type="file"]');
   await expect(content).toHaveAttribute("inert", "");

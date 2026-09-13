@@ -144,7 +144,7 @@ describe("PR Quality Gate", () => {
     assert.equal(owner.enforcement, "active");
     assert.deepEqual(owner.conditions, ruleset.conditions);
     assert.deepEqual(owner.bypass_actors, [
-      { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "pull_request" }
+      { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "exempt" }
     ]);
     assert.deepEqual(owner.rules, [
       { type: "update", parameters: { update_allows_fetch_and_merge: false } }

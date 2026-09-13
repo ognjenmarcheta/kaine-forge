@@ -2,10 +2,13 @@
 
 Audit date: 2026-09-13. Audited base revision: `a948c89`.
 
-**Status: preparation for owner review. The repository is still private. Live
-protection and hosted CI acceptance are not complete.** Issue #325 stays open
-until the transition checks below pass. Files in `.github/rulesets/` describe the
-intended settings; committing them does not enable GitHub protection.
+**Status: public. Owner-controlled merging and required checks are active and
+verified.** The owner approved publication after merging PR #412. The live
+verification PR #416 is closed without merging. The first full CI run exposed an
+API unit-test isolation failure. Follow-up validation also found a browser test
+that assumed a pre-existing Todo. Both test fixes and full validation are tracked
+in the PR carrying this report update. Committing ruleset files alone does not
+enable protection; the remote rules below were applied and read back.
 
 ## Publication audit
 
@@ -77,28 +80,32 @@ These credentials must not be used for unattended merging or approval.
 
 ## Exact target settings
 
-| Setting                           | Required value                                                                                                            |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Visibility                        | Public, only after the owner approves this report and transition                                                          |
-| Human merge authority             | Owner remains the sole administrator; outside contributors use forks                                                      |
-| Quality ruleset                   | Active `.github/rulesets/main.json`, default branch, no bypass actors                                                     |
-| Owner update ruleset              | Active `.github/rulesets/main-owner.json`; restrict updates; only repository administrator role 5 may update through a PR |
-| Required checks                   | `PR Quality Gate` and `Analyze TypeScript`, both bound to GitHub Actions integration 15368                                |
-| Branch freshness                  | Strict: branch must be up to date                                                                                         |
-| PR reviews                        | Zero additional approvals; resolve all review conversations; owner's final manual merge supplies approval                 |
-| Merge method                      | Squash through a PR, including owner and version PRs                                                                      |
-| Force pushes / branch deletion    | Blocked, including for administrators                                                                                     |
-| Automatic merge / merge queue     | Disabled / no queue rule                                                                                                  |
-| Default Actions token             | Read-only; already changed and verified                                                                                   |
-| Actions create/approve setting    | Enabled so Release can create version PRs; no workflow automatically approves or merges                                   |
-| Explicit workflow write scopes    | Preserve release and labeling scopes, and security-result uploads; fork PRs receive no repository secrets or write token  |
-| External fork workflow approval   | All external contributors (`all_external_contributors`)                                                                   |
-| Secret scanning / push protection | Enable available public-repository features; inspect resulting alerts                                                     |
-| Private vulnerability reporting   | Enabled, with the private report option verified                                                                          |
+| Setting                           | Required value                                                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Visibility                        | Public; owner approved the transition on 2026-09-13                                                                        |
+| Human merge authority             | Owner remains the sole administrator; outside contributors use forks                                                       |
+| Quality ruleset                   | Active `.github/rulesets/main.json`, default branch, no bypass actors                                                      |
+| Owner update ruleset              | Active `.github/rulesets/main-owner.json`; restrict updates; only repository administrator role 5 is exempt from this rule |
+| Required checks                   | `PR Quality Gate` and `Analyze TypeScript`, both bound to GitHub Actions integration 15368                                 |
+| Branch freshness                  | Strict: branch must be up to date                                                                                          |
+| PR reviews                        | Zero additional approvals; resolve all review conversations; owner's final manual merge supplies approval                  |
+| Merge method                      | Squash through a PR, including owner and version PRs                                                                       |
+| Force pushes / branch deletion    | Blocked, including for administrators                                                                                      |
+| Automatic merge / merge queue     | Disabled / no queue rule                                                                                                   |
+| Default Actions token             | Read-only; already changed and verified                                                                                    |
+| Actions create/approve setting    | Enabled so Release can create version PRs; no workflow automatically approves or merges                                    |
+| Explicit workflow write scopes    | Preserve release and labeling scopes, and security-result uploads; fork PRs receive no repository secrets or write token   |
+| External fork workflow approval   | All external contributors (`all_external_contributors`)                                                                    |
+| Secret scanning / push protection | Enable available public-repository features; inspect resulting alerts                                                      |
+| Private vulnerability reporting   | Enabled, with the private report option verified                                                                           |
 
-The two rulesets are cumulative. The owner update rule's PR-only exception grants
-the owner permission to update `main`; it does not bypass the separate quality
-ruleset. Installed apps receive no exception. Administrators can still administer
+The two rulesets are cumulative. The owner update rule exempts only the sole
+administrator from its update restriction. The separate quality ruleset still
+requires a PR and passing checks, with no bypass actors. Installed apps receive
+no exception. The `exempt` mode is deliberate: `pull_request` and `always` modes
+left the owner's normal merge button blocked behind a bypass checkbox in the
+live test. The exemption fixes that UI behavior without exempting the owner
+from the quality rules. Administrators can still administer
 the settings themselves, so keep that permission restricted to the owner.
 See GitHub's [ruleset behavior](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
 and [available rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
@@ -116,7 +123,8 @@ and GitHub's [workflow trigger rules](https://docs.github.com/en/actions/how-tos
 
 ## Approved-transition procedure
 
-These steps are pending. This document is not approval to change visibility.
+The owner approved this procedure on 2026-09-13. Current execution evidence is
+recorded below; a future visibility change needs its own approval.
 
 1. Finish preparation checks and open an unmerged preparation PR. Present this
    report and both ruleset files to the owner. Resolve new audit findings first.
@@ -144,9 +152,50 @@ These steps are pending. This document is not approval to change visibility.
    owner merge can trigger the normal Release workflow; it is outside the
    no-release publication verification above.
 
-Rulesets currently return HTTP 403 on this private repository's plan. Public fork
-approval settings are also unavailable while it is private. These are pending
-transition actions, not protections already verified in production.
+Before publication, the private plan returned HTTP 403 for rulesets and did not
+allow the public fork-approval setting. Both settings are now applied and verified.
+
+## Transition evidence (2026-09-13)
+
+- Refreshed history scan: 499 reachable commits, no findings. Refreshed discussion
+  and Actions scan: six updated issue/PR records, five comments, 36 additional run
+  archives, and no new artifacts; no findings. Earlier audit limits still apply.
+- Actions were disabled during the visibility and protection changes, then
+  restored. Anonymous repository API and security page requests return HTTP 200.
+  The public security page includes the private Report a vulnerability option.
+- [Quality ruleset 12994169](https://github.com/ognjenmarcheta/kaine-forge/rules/12994169):
+  required PR, strict checks, resolved conversations, no force pushes or deletion,
+  no bypass actors. Owner API response: `current_user_can_bypass=never`.
+- [Owner update ruleset 23204248](https://github.com/ognjenmarcheta/kaine-forge/rules/23204248):
+  only repository administrator role 5 is exempt from the update restriction.
+  The owner remains the sole administrator. The six retained app grants are unchanged.
+- Actions default token is read-only, auto-merge is off, no merge queue is configured,
+  and fork approval is `all_external_contributors`. Secret scanning, push protection,
+  and private vulnerability reporting report enabled. The secret-alert list is empty.
+- [Security run](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34777939637)
+  and [CodeQL run](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34777938752)
+  passed on `db46fcf`. CodeQL uploaded 15 existing-code alerts for review. A passing
+  analysis job is not a verdict that these alerts are harmless; none was dismissed.
+- [Full CI run](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34777937812)
+  passed coverage, mobile checks/export, and both Docker builds. Check Fast failed
+  because `context.loaders.test.ts` imported production adapters without a database
+  URL. Build Core and E2E correctly skipped behind that failure, and the aggregate
+  gate failed. The test now mocks its unused default adapters instead of loading
+  the real database. With no database URL, the scoped test changes from an import
+  failure to three passes; all 222 API tests pass. Runtime source is unchanged.
+- Follow-up browser validation exposed an attachment-motion test that assumed a
+  Todo already existed. The CI trace showed an empty list. A fresh local database
+  reproduced the failure; the test passes after creating and selecting its own
+  Todo. Animation and mounted-control assertions remain unchanged.
+- [Verification PR #416](https://github.com/ognjenmarcheta/kaine-forge/pull/416):
+  the [intentional title failure](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34777986569)
+  failed the required gate and disabled the owner's merge button. After title
+  correction, [CI PR](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34778104843)
+  and [CodeQL](https://github.com/ognjenmarcheta/kaine-forge/actions/runs/34778104805)
+  passed. GitHub reported `mergeStateStatus=CLEAN` and enabled the normal Squash
+  and merge button without a bypass checkbox. The PR was closed with `mergedAt=null`.
+- No agent merge, automatic approval, Release dispatch, deployment operation,
+  history rewrite, or artifact deletion occurred during the transition.
 
 ## Acceptance record
 
@@ -155,8 +204,9 @@ transition actions, not protections already verified in production.
 - Guarded-command tests cover manual merge, auto-merge, administrator merge, and
   approval commands. AI outputs are regenerated from canonical sources.
 - Final local checks and PR evidence are recorded in the preparation PR.
-- Hosted PR, CodeQL, Security, blocked/allowed merge verification, anonymous access,
-  and security-reporting verification remain pending publication approval.
+- Hosted PR, CodeQL, Security, blocked/allowed merge controls, anonymous access,
+  and private security-reporting controls are verified above. Full CI on the
+  test fixes remains a separate follow-up before their owner merge.
 
 The Windows sandbox loopback limitation, first live assistant baseline, and
 moderate/low dependency triage remain separate follow-ups.

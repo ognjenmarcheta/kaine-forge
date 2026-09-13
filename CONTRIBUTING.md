@@ -174,10 +174,12 @@ gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
 gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main-owner.json
 ```
 
-The owner-only ruleset permits only the repository administrator to update the
-default branch through a PR. Keep the owner as the only administrator. Its
-PR-only exception grants permission to merge, not permission to ignore checks:
-the separate quality ruleset has no bypass actors. Apps can retain access to
+The owner-only ruleset exempts only the repository administrator from its update
+restriction. Keep the owner as the only administrator. This exception applies
+only to that restriction: the separate quality ruleset has no bypass actors and
+still requires a PR and passing checks. Use an `exempt` exception on the update
+rule so the owner can use the normal merge button without a bypass checkbox.
+Apps can retain access to
 feature branches without receiving permission to merge into `main`. GitHub cannot
 distinguish the owner from automation using the owner's personal credentials.
 
