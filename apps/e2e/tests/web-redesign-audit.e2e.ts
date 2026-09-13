@@ -57,8 +57,10 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
 test("Note checklist retries additions and confirms pending deletions", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Notes", exact: true }).click();
-  await page.getByRole("textbox", { name: "Title", exact: true }).fill(`Checklist ${Date.now()}`);
   await page.getByRole("button", { name: "New note", exact: true }).click();
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill(`Checklist ${Date.now()}`);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).not.toHaveURL(/\/notes\/new$/);
   const title = `Checklist item ${Date.now()}`;
   const input = page.getByRole("textbox", { name: "Checklist item", exact: true });
   await input.fill(title);
@@ -68,7 +70,9 @@ test("Note checklist retries additions and confirms pending deletions", async ({
     } else await route.continue();
   });
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByText("Something went wrong", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("The checklist item could not be added.", { exact: false })
+  ).toBeVisible();
   await expect(input).toHaveValue(title);
   await page.unroute("**/graphql");
   await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -77,11 +81,11 @@ test("Note checklist retries additions and confirms pending deletions", async ({
   await checkbox.click();
   await expect(checkbox).toBeChecked();
   const row = page.getByRole("listitem").filter({ has: checkbox });
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await row.getByRole("button", { name: "Delete Todo", exact: true }).click();
   const confirm = page.getByRole("dialog", { name: "Delete todo", exact: true });
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(checkbox).toBeVisible();
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await row.getByRole("button", { name: "Delete Todo", exact: true }).click();
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -182,18 +186,20 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
       noteDelivered = true;
     } else await route.continue();
   });
+  await page.getByRole("button", { name: "New note", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Title", exact: true })
     .fill("Previous Organization note");
-  await page.getByRole("button", { name: "New note", exact: true }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(() => noteSaved).toBe(true);
   await switcher.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
-  await expect(switcher).toContainText(name);
+  await expect(page.getByRole("dialog", { name: "Leave unsaved drafts?" })).toBeVisible();
+  await expect(page.locator('button[aria-label="Organization"]')).toContainText("Personal");
   releaseNote();
   await expect.poll(() => noteDelivered).toBe(true);
-  await expect(page).toHaveURL(/\/notes$/);
-  await expect(page.getByRole("textbox", { name: "Title", exact: true })).toHaveValue("");
+  await expect(switcher).toContainText(name);
+  await expect(page.locator('input[value="Previous Organization note"]')).toHaveCount(0);
   await switcher.click();
   await page.getByRole("menuitem", { name: "Personal", exact: true }).click();
   await expect(switcher).toContainText("Personal");

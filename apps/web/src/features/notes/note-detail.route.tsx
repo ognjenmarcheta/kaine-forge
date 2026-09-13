@@ -1,190 +1,251 @@
-import { createActiveOrganizationQueryKey } from "@repo/query";
-import { Button, Field, FieldError, FieldLabel, Input, Textarea } from "@repo/ui";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { Button, Field, FieldLabel, FieldError, Input, Textarea } from "@repo/ui";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { NavLink } from "react-router-dom";
 
 import { NoteChecklist } from "./components/note-checklist";
+import type { useNotes } from "./notes.hook";
+import { canSaveNote, isNoteDirty, NEW_NOTE } from "./notes.util";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 import { LoadingRows } from "../../components/loading-rows";
-import { useGetNoteQuery, useUpdateNoteMutation } from "../../graphql/generated/react-query";
-import { useOrganization } from "../../hooks/use-organization";
-import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
 
-export function NoteDetailRoute() {
-  const { id } = useParams();
-  const { activeOrganizationId } = useOrganization();
-  return <NoteEditor key={activeOrganizationId + ":" + id} />;
+interface NoteEditorProps {
+  selected: string;
+  notes: ReturnType<typeof useNotes>;
+  onChecklistPending: (pending: boolean) => void;
 }
 
-function NoteEditor() {
-  const { t } = useTranslation();
-  const { id } = useParams();
-  const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
-  const queryClient = useQueryClient();
-
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const dirty = useRef(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
-
-  const noteQueryKey = useMemo(
-    () =>
-      createActiveOrganizationQueryKey(
-        useGetNoteQuery.getKey({ id: id ?? "" }),
-        activeOrganizationId
-      ),
-    [activeOrganizationId, id]
-  );
-
-  const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
-
-  const noteQuery = useGetNoteQuery(
-    { id: id ?? "" },
-    {
-      queryKey: noteQueryKey,
-      enabled: Boolean(id) && subscriptionEnabled
-    }
-  );
-
-  const note = noteQuery.data?.note;
-
-  const updateMutation = useUpdateNoteMutation();
-
+export function NoteEditor({ selected, notes, onChecklistPending }: NoteEditorProps) {
+  const { t, language } = useTranslation();
+  const { draft, detail } = notes;
+  const form = useRef<HTMLFormElement>(null);
+  const [reload, setReload] = useState(false);
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const hasDraft = Boolean(draft);
   useEffect(() => {
-    if (note && !dirty.current) {
-      setTitle(note.title);
-      setBody(note.body ?? "");
-    }
-  }, [note]);
+    if (hasDraft) form.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [selected, hasDraft]);
+  useLayoutEffect(() => {
+    const textarea = form.current?.querySelector("textarea");
+    if (!textarea) return;
+    const resize = () => {
+      const scroll = textarea.closest(".ui-notes__document-scroll");
+      const top = scroll?.scrollTop ?? 0;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight + textarea.offsetHeight - textarea.clientHeight}px`;
+      if (scroll) scroll.scrollTop = top;
+    };
+    resize();
+    const container = textarea.parentElement;
+    let width = container?.getBoundingClientRect().width;
+    let frame = 0;
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (nextWidth !== width) {
+        width = nextWidth;
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(resize);
+      }
+    });
+    if (container) observer.observe(container);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [draft?.body, language]);
+  useEffect(() => {
+    const save = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s" &&
+        !event.isComposing &&
+        event.keyCode !== 229
+      ) {
+        event.preventDefault();
+        if (draft && canSaveNote(draft)) void notes.save(selected);
+      }
+    };
+    window.addEventListener("keydown", save);
+    return () => window.removeEventListener("keydown", save);
+  }, [draft, notes, selected]);
 
-  useSubscription({
-    query: "subscription { noteUpdated { id } }",
-    enabled: Boolean(id) && subscriptionEnabled,
-    invalidateKeys: [noteQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { todoCreated { id } }",
-    enabled: Boolean(id) && subscriptionEnabled,
-    invalidateKeys: [noteQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { todoUpdated { id } }",
-    enabled: Boolean(id) && subscriptionEnabled,
-    invalidateKeys: [noteQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { todoDeleted { id } }",
-    enabled: Boolean(id) && subscriptionEnabled,
-    invalidateKeys: [noteQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { todoToggled { id } }",
-    enabled: Boolean(id) && subscriptionEnabled,
-    invalidateKeys: [noteQueryKey]
-  });
-
-  const isLoading = isOrganizationLoading || noteQuery.status === "pending";
-
-  async function handleSave() {
-    if (!note) {
-      return;
-    }
-
-    try {
-      setSaveStatus("idle");
-      await updateMutation.mutateAsync({ id: note.id, input: { body, title } });
-      dirty.current = false;
-      setSaveStatus("saved");
-      await queryClient.invalidateQueries({ queryKey: noteQueryKey });
-    } catch {
-      setSaveStatus("error");
-    }
-  }
-
-  if (isLoading) {
-    return <LoadingRows label={t("notes.loading")} />;
-  }
-
-  if (noteQuery.isError) {
+  const back = (
+    <NavLink className="ui-notes__back" to="/notes">
+      {t("notes.back")}
+    </NavLink>
+  );
+  if (!draft)
     return (
-      <div role="alert">
-        <FieldError>{t("error.generic")}</FieldError>
-        <Button onClick={() => void noteQuery.refetch()}>{t("common.retry")}</Button>
+      <div className="ui-notes__document">
+        {back}
+        {detail.isError ? (
+          <div role="alert">
+            <p>{t("notes.loadFailed")}</p>
+            <Button onClick={() => void detail.refetch()}>{t("common.retry")}</Button>
+          </div>
+        ) : selected !== NEW_NOTE && detail.isSuccess ? (
+          <p>{t("notes.notFound")}</p>
+        ) : (
+          <LoadingRows label={t("notes.loading")} />
+        )}
       </div>
     );
-  }
-
-  if (!note) {
-    return <p className="text-[color:var(--ds-text-subtle)]">{t("notes.notFound")}</p>;
-  }
-
-  const currentNote = note;
+  const invalid = draft.title.trim().length === 0 || draft.title.trim().length > 255;
+  const showTitleError = invalid && (titleTouched || draft.title.length > 0);
+  const status =
+    draft.status === "saving"
+      ? "notes.saving"
+      : isNoteDirty(draft)
+        ? "notes.unsaved"
+        : draft.serverId
+          ? "notes.saved"
+          : "notes.newDraft";
+  const saved = detail.data?.note;
+  const updatedLabel = `${t("notes.updated")}: `;
+  const progressLabel = saved
+    ? ` · ${saved.todos.filter((todo) => todo.completed).length}/${saved.todos.length} ${t("notes.completed")}`
+    : "";
 
   return (
-    <section className="ui-note-editor grid gap-[var(--ds-space-300)]">
-      <NavLink className="text-[color:var(--ds-link)]" to="/notes">
-        {t("notes.back")}
-      </NavLink>
-      <h1>{t("navigation.notes")}</h1>
-      <div className="flex flex-col gap-[var(--ds-space-150)]">
-        <Field>
-          <FieldLabel htmlFor="note-title">{t("notes.titleLabel")}</FieldLabel>
-          <Input
-            id="note-title"
-            value={title}
-            disabled={updateMutation.isPending}
-            onChange={(event) => {
-              dirty.current = true;
-              setSaveStatus("idle");
-              setTitle(event.target.value);
-            }}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="note-body">{t("notes.bodyLabel")}</FieldLabel>
-          <Textarea
-            id="note-body"
-            value={body}
-            disabled={updateMutation.isPending}
-            onChange={(event) => {
-              dirty.current = true;
-              setSaveStatus("idle");
-              setBody(event.target.value);
-            }}
-          />
-        </Field>
-        <div>
-          <Button
-            disabled={updateMutation.status === "pending"}
-            type="button"
-            onClick={() => {
-              void handleSave();
+    <>
+      <header className="ui-notes__editor-header">
+        {back}
+        <span role="status" className="ui-notes__meta">
+          {t(status)}
+        </span>
+        <Button type="submit" form="note-form" disabled={!canSaveNote(draft)}>
+          {t("notes.save")}
+        </Button>
+      </header>
+      <div className="ui-notes__document-scroll">
+        <div className="ui-notes__document">
+          <form
+            id="note-form"
+            ref={form}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void notes.save(selected);
             }}
           >
-            {updateMutation.isPending ? t("notes.saving") : t("notes.save")}
-          </Button>
+            {draft.status === "error" ? (
+              <div role="alert" className="ui-notes__notice">
+                <FieldError>
+                  {t(draft.serverId ? "notes.saveFailed" : "notes.createFailed")}
+                </FieldError>
+              </div>
+            ) : null}
+            {detail.isError ? (
+              <div role="alert" className="ui-notes__notice">
+                <p>{t("notes.loadFailed")}</p>
+                <Button type="button" onClick={() => void detail.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              </div>
+            ) : null}
+            {draft.deleted ? (
+              <div className="ui-notes__notice" role="alert">
+                <p>{t("notes.deletedExternally")}</p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (!navigator.clipboard) {
+                      setCopyStatus("error");
+                      return;
+                    }
+                    void navigator.clipboard.writeText(`${draft.title}\n\n${draft.body}`).then(
+                      () => setCopyStatus("copied"),
+                      () => setCopyStatus("error")
+                    );
+                  }}
+                >
+                  {t("notes.copyDraft")}
+                </Button>
+                <span role="status">
+                  {copyStatus === "idle"
+                    ? null
+                    : t(copyStatus === "copied" ? "notes.copied" : "notes.copyFailed")}
+                </span>
+              </div>
+            ) : notes.externalChange ? (
+              <div className="ui-notes__notice" role="status">
+                <p>{t("notes.updatedExternally")}</p>
+                <Button type="button" appearance="subtle" onClick={() => setReload(true)}>
+                  {t("notes.loadLatest")}
+                </Button>
+              </div>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="note-title">{t("notes.titleLabel")}</FieldLabel>
+              <Input
+                id="note-title"
+                className="ui-notes__title"
+                value={draft.title}
+                aria-invalid={showTitleError}
+                aria-describedby={showTitleError ? "note-title-error" : undefined}
+                onBlur={() => setTitleTouched(true)}
+                onChange={(event) => {
+                  setTitleTouched(true);
+                  notes.edit(selected, "title", event.target.value);
+                }}
+              />
+              {showTitleError ? (
+                <FieldError id="note-title-error">{t("notes.titleValidation")}</FieldError>
+              ) : null}
+            </Field>
+            {saved ? (
+              <p className="ui-notes__meta">
+                {updatedLabel}
+                <time dateTime={saved.updatedAt}>
+                  {new Intl.DateTimeFormat(language, {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                  }).format(new Date(saved.updatedAt))}
+                </time>
+              </p>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="note-body">{t("notes.bodyLabel")}</FieldLabel>
+              <Textarea
+                id="note-body"
+                value={draft.body}
+                onChange={(event) => notes.edit(selected, "body", event.target.value)}
+              />
+            </Field>
+            <p className="ui-notes__meta">{t("notes.saveHint")}</p>
+          </form>
+          <section className="ui-notes__checklist" aria-label={t("notes.checklist")}>
+            <h2>
+              {t("notes.checklist")}
+              {saved ? <span className="ui-notes__meta">{progressLabel}</span> : null}
+            </h2>
+            <p className="ui-notes__meta">{t("notes.checklistHelp")}</p>
+            {saved && !draft.deleted ? (
+              <NoteChecklist
+                key={saved.id}
+                noteId={saved.id}
+                todos={saved.todos}
+                onChanged={() => void notes.refresh()}
+                onPendingChange={onChecklistPending}
+              />
+            ) : (
+              <p>{t(draft.deleted ? "notes.notFound" : "notes.saveForChecklist")}</p>
+            )}
+          </section>
         </div>
       </div>
-
-      <div aria-live="polite">
-        {saveStatus === "saved" ? t("notes.saved") : null}
-        {saveStatus === "error" ? <FieldError>{t("error.generic")}</FieldError> : null}
-      </div>
-      <section className="flex flex-col gap-[var(--ds-space-150)]">
-        <h2>{t("notes.checklist")}</h2>
-        <NoteChecklist
-          noteId={currentNote.id}
-          todos={currentNote.todos}
-          onChanged={() => {
-            void queryClient.invalidateQueries({ queryKey: noteQueryKey });
-          }}
-        />
-      </section>
-    </section>
+      <ConfirmDialog
+        isOpen={reload}
+        title={t("notes.loadLatest")}
+        message={t("notes.reloadWarning")}
+        confirmLabel={t("notes.loadLatest")}
+        cancelLabel={t("notes.keepEditing")}
+        onCancel={() => setReload(false)}
+        onConfirm={() => {
+          notes.loadLatest();
+          setReload(false);
+        }}
+      />
+    </>
   );
 }

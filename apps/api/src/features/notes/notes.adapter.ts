@@ -1,18 +1,28 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { db, notesTable, type Note } from "@repo/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 
 import type { NotePatch, Pagination } from "./notes.type";
 
 export async function listNotesByScope(
   scope: AuthenticatedOrganizationScope,
-  pagination: Pagination
+  pagination: Pagination,
+  search?: string
 ): Promise<Note[]> {
+  const phrase = search?.trim();
+  const pattern = phrase ? `%${phrase.replace(/[\\%_]/g, "\\$&")}%` : undefined;
   return db
     .select()
     .from(notesTable)
-    .where(and(eq(notesTable.organizationId, scope.organizationId)))
-    .orderBy(desc(notesTable.createdAt))
+    .where(
+      and(
+        eq(notesTable.organizationId, scope.organizationId),
+        pattern === undefined
+          ? undefined
+          : or(ilike(notesTable.title, pattern), ilike(notesTable.body, pattern))
+      )
+    )
+    .orderBy(desc(notesTable.createdAt), desc(notesTable.id))
     .limit(pagination.limit)
     .offset(pagination.offset);
 }

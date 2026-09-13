@@ -4,7 +4,6 @@ import { signIn } from "./helpers/auth";
 
 const NOTES_NAV = /^(Notes|navigation\.notes)$/;
 const NOTES_CREATE = /^(New note|notes\.create)$/;
-const NOTES_TITLE_PLACEHOLDER = /^(Title|notes\.titleLabel)$/;
 
 test("creates a note and lists it", async ({ page }) => {
   const noteTitle = `E2E note ${Date.now().toString(36)}`;
@@ -13,10 +12,12 @@ test("creates a note and lists it", async ({ page }) => {
   await page.getByRole("link", { name: NOTES_NAV }).click();
   await expect(page).toHaveURL(/\/notes$/);
 
-  await page.getByPlaceholder(NOTES_TITLE_PLACEHOLDER).fill(noteTitle);
   await page.getByRole("button", { name: NOTES_CREATE }).click();
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill(noteTitle);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).not.toHaveURL(/\/notes\/new$/);
 
-  // create navigates to detail
+  // The saved note has a reloadable detail URL.
   await expect(page).toHaveURL(/\/notes\/.+/);
 
   await page.getByRole("link", { name: NOTES_NAV }).click();

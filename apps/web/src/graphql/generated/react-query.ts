@@ -117,6 +117,7 @@ export type HealthQuery = { health: string };
 export type GetNotesQueryVariables = Exact<{
   limit?: number | null | undefined;
   offset?: number | null | undefined;
+  search?: string | null | undefined;
 }>;
 
 export type GetNotesQuery = {
@@ -614,8 +615,8 @@ useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
 
 export const GetNotesDocument = new TypedDocumentString(`
-    query GetNotes($limit: Int, $offset: Int) {
-  notes(limit: $limit, offset: $offset) {
+    query GetNotes($limit: Int, $offset: Int, $search: String) {
+  notes(limit: $limit, offset: $offset, search: $search) {
     id
     title
     body

@@ -223,6 +223,73 @@ afterAll(async () => {
 });
 
 describe("notes tenancy", () => {
+  it("searches saved titles and bodies literally across pages within the Active Organization", async () => {
+    const { inArray } = await import("drizzle-orm");
+    const stamp = new Date("2025-01-01T00:00:00Z");
+    const inserted = await testDb
+      .insert(notesTable)
+      .values([
+        ...Array.from({ length: 52 }, (_, index) => ({
+          title: `Search fixture ${index}`,
+          body: index === 0 ? "Budget 100%_done \\ archive" : "ordinary text",
+          organizationId: fixture.orgA,
+          userId: fixture.userId,
+          createdAt: stamp
+        })),
+        {
+          title: "Foreign Search fixture",
+          body: "Budget 100%_done \\ archive",
+          organizationId: fixture.orgB,
+          userId: fixture.userId,
+          createdAt: stamp
+        }
+      ])
+      .returning();
+    try {
+      const first = await runAs(
+        fixture.orgA,
+        '{ notes(search: "  SEARCH FIXTURE  ", limit: 50) { id } }'
+      );
+      const second = await runAs(
+        fixture.orgA,
+        '{ notes(search: "search fixture", limit: 50, offset: 50) { id } }'
+      );
+      expect(first.errors).toBeUndefined();
+      expect(second.errors).toBeUndefined();
+      const ids = [...notesOf(first), ...notesOf(second)].map((note) => note.id);
+      const expected = inserted
+        .filter((note) => note.organizationId === fixture.orgA)
+        .map((note) => note.id)
+        .sort()
+        .reverse();
+      expect(ids).toEqual(expected);
+      expect(notesOf(second)).toHaveLength(2);
+      for (const phrase of ["bUdGeT", "%_", "\\"]) {
+        const response = await runAs(
+          fixture.orgA,
+          `{ notes(search: ${JSON.stringify(phrase)}) { id } }`
+        );
+        expect(response.errors).toBeUndefined();
+        expect(notesOf(response).map((note) => note.id)).toEqual([inserted[0]?.id]);
+      }
+      const missing = await runAs(
+        fixture.orgA,
+        '{ notes(search: "Foreign Search fixture") { id } }'
+      );
+      expect(notesOf(missing)).toEqual([]);
+      const empty = await runAs(fixture.orgA, '{ notes(search: "   ", limit: 100) { id } }');
+      const all = await runAs(fixture.orgA, "{ notes(limit: 100) { id } }");
+      expect(notesOf(empty)).toEqual(notesOf(all));
+    } finally {
+      await testDb.delete(notesTable).where(
+        inArray(
+          notesTable.id,
+          inserted.map((note) => note.id)
+        )
+      );
+    }
+  });
+
   it("lists only the active organization's notes", async () => {
     const result = await runAs(fixture.orgA, "{ notes { id title } }");
     const ids = notesOf(result).map((note) => note.id);

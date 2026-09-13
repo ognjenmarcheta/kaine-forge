@@ -14,9 +14,10 @@ interface NoteChecklistProps {
   noteId: string;
   todos: NoteTodo[];
   onChanged: () => void;
+  onPendingChange: (pending: boolean) => void;
 }
 
-export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) {
+export function NoteChecklist({ noteId, onChanged, onPendingChange, todos }: NoteChecklistProps) {
   const { t } = useTranslation();
   const [newTodoTitle, setNewTodoTitle] = useState("");
   const inputId = useId();
@@ -31,23 +32,29 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
   async function handleToggle(id: string) {
     if (isPending) return;
     setError(null);
+    onPendingChange(true);
     try {
       await toggleMutation.mutateAsync({ id });
       onChanged();
     } catch {
-      setError(t("error.generic"));
+      setError(t("notes.toggleFailed"));
+    } finally {
+      onPendingChange(false);
     }
   }
 
   async function handleDelete(id: string) {
     if (isPending) return;
     setError(null);
+    onPendingChange(true);
     try {
       await deleteMutation.mutateAsync({ id });
       setDeletingId(null);
       onChanged();
     } catch {
-      setError(t("error.generic"));
+      setError(t("notes.checklistDeleteFailed"));
+    } finally {
+      onPendingChange(false);
     }
   }
 
@@ -61,12 +68,15 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
     }
 
     setError(null);
+    onPendingChange(true);
     try {
       await addMutation.mutateAsync({ input: { title }, noteId });
       setNewTodoTitle("");
       onChanged();
     } catch {
-      setError(t("error.generic"));
+      setError(t("notes.addFailed"));
+    } finally {
+      onPendingChange(false);
     }
   }
 
@@ -88,7 +98,7 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
                   void handleToggle(todo.id);
                 }}
               />
-              <span className={`flex-1 ${titleClassName}`}>{todo.title}</span>
+              <span className={`min-w-0 flex-1 break-words ${titleClassName}`}>{todo.title}</span>
               <Button
                 disabled={isPending}
                 appearance="subtle"
@@ -98,7 +108,7 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
                   setDeletingId(todo.id);
                 }}
               >
-                {t("notes.delete")}
+                {t("notes.deleteTodo")}
               </Button>
             </li>
           );
@@ -118,7 +128,7 @@ export function NoteChecklist({ noteId, onChanged, todos }: NoteChecklistProps) 
             onChange={(event) => setNewTodoTitle(event.target.value)}
           />
         </Field>
-        <Button disabled={isPending} type="submit">
+        <Button disabled={isPending || newTodoTitle.trim().length === 0} type="submit">
           {t("notes.addTodo")}
         </Button>
       </form>

@@ -1,5 +1,5 @@
-query GetNotes($limit: Int, $offset: Int) {
-  notes(limit: $limit, offset: $offset) {
+query GetNotes($limit: Int, $offset: Int, $search: String) {
+  notes(limit: $limit, offset: $offset, search: $search) {
     id
     title
     body

@@ -116,6 +116,7 @@ export type HealthQuery = { health: string };
 export type GetNotesQueryVariables = Exact<{
   limit?: number | null | undefined;
   offset?: number | null | undefined;
+  search?: string | null | undefined;
 }>;
 
 export type GetNotesQuery = {
@@ -713,6 +714,11 @@ export const GetNotesDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "search" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -731,6 +737,11 @@ export const GetNotesDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "offset" },
                 value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "search" },
+                value: { kind: "Variable", name: { kind: "Name", value: "search" } }
               }
             ],
             selectionSet: {
