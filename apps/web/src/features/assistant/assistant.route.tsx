@@ -1,4 +1,3 @@
-import { createActiveOrganizationQueryKey } from "@repo/query";
 import {
   Button,
   Sheet,
@@ -9,254 +8,99 @@ import {
   SheetTrigger
 } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { AssistantMessageDeltaData, ChatMessage } from "./assistant.type";
+import { NEW_CHAT, TEMP_CHAT_PREFIX } from "./assistant.definition";
+import { useAssistant } from "./assistant.hook";
 import { AssistantComposer } from "./components/assistant-composer";
 import { AssistantMessageList } from "./components/assistant-message-list";
 import { ConversationList } from "./components/conversation-list";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import { LoadingRows } from "../../components/loading-rows";
-import {
-  useDeleteConversationMutation,
-  useGetConversationQuery,
-  useGetConversationsQuery,
-  useSendMessageMutation
-} from "../../graphql/generated/react-query";
+import { useDeleteConversationMutation } from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
-import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
-import { queryRuntime } from "../../lib/query-runtime";
-
-queryRuntime.registerOrgScopedOperation(
-  "assistant.web.conversations",
-  useGetConversationsQuery.getKey()
-);
 
 export function AssistantRoute() {
+  const { activeOrganizationId, isLoading } = useOrganization();
+  return (
+    <AssistantWorkspace
+      key={activeOrganizationId ?? NEW_CHAT}
+      organizationId={activeOrganizationId}
+      enabled={Boolean(activeOrganizationId) && !isLoading}
+    />
+  );
+}
+
+function AssistantWorkspace({
+  organizationId,
+  enabled
+}: {
+  organizationId: string | null;
+  enabled: boolean;
+}) {
   const { t } = useTranslation();
-  const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
-  const queryClient = useQueryClient();
-
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  const assistant = useAssistant(organizationId, enabled);
+  const client = useQueryClient();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
-  const streamingIdRef = useRef<string | null>(null);
-  const streamingConversationIdRef = useRef<string | null>(null);
-  const populatedRef = useRef<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deletion = useDeleteConversationMutation();
+  const composer = useRef<HTMLFormElement>(null);
+  const conversations = [
+    ...assistant.temporaryConversations,
+    ...(assistant.conversationsQuery.data?.conversations ?? [])
+  ];
+  const title =
+    conversations.find((item) => item.id === assistant.activeKey)?.title ?? t("assistant.newChat");
+  const streaming = assistant.messages.find((message) => message.streaming);
+  const status = streaming
+    ? t(streaming.content ? "assistant.responding" : "assistant.sending")
+    : "";
 
-  const sendMessageMutation = useSendMessageMutation();
-  const deleteConversationMutation = useDeleteConversationMutation();
-
-  const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
-
-  const conversationsVariables = useMemo(() => ({ limit: 50, offset: 0 }), []);
-  const conversationsQueryKey = useMemo(
-    () =>
-      createActiveOrganizationQueryKey(
-        useGetConversationsQuery.getKey(conversationsVariables),
-        activeOrganizationId
-      ),
-    [activeOrganizationId, conversationsVariables]
-  );
-  const conversationsQuery = useGetConversationsQuery(conversationsVariables, {
-    enabled: subscriptionEnabled,
-    queryKey: conversationsQueryKey
-  });
-  const conversations = conversationsQuery.data?.conversations ?? [];
-
-  const historyVariables = useMemo(
-    () => ({ conversationId: activeConversationId ?? "", limit: 100 }),
-    [activeConversationId]
-  );
-  const historyQueryKey = useMemo(
-    () =>
-      createActiveOrganizationQueryKey(
-        useGetConversationQuery.getKey(historyVariables),
-        activeOrganizationId
-      ),
-    [activeOrganizationId, historyVariables]
-  );
-  const historyQuery = useGetConversationQuery(historyVariables, {
-    enabled: Boolean(activeConversationId) && subscriptionEnabled,
-    queryKey: historyQueryKey
-  });
-
-  useEffect(() => {
-    if (!activeConversationId) return;
-    if (populatedRef.current === activeConversationId) return;
-    const rows = historyQuery.data?.assistantMessages;
-    if (!rows) return;
-    populatedRef.current = activeConversationId;
-    setMessages(
-      rows.map((row): ChatMessage => {
-        const role = row.role === "assistant" ? "assistant" : "user";
-        if (role === "assistant") {
-          return {
-            content: row.content,
-            id: row.id,
-            role,
-            toolActions: row.toolActions.map((action) => ({
-              output: action.output ?? null,
-              tool: action.tool
-            }))
-          };
-        }
-        return { content: row.content, id: row.id, role };
-      })
-    );
-  }, [activeConversationId, historyQuery.data]);
-
-  const handleDelta = useCallback((data: AssistantMessageDeltaData) => {
-    const pid = streamingIdRef.current;
-    const delta = data.assistantMessageDelta.delta;
-
-    if (!pid || delta.length === 0) {
-      return;
-    }
-
-    // Ignore deltas from a different conversation (e.g. a still-streaming send
-    // the user navigated away from). A null ref means a brand-new chat whose
-    // conversation id isn't known until the reply returns — accept those.
-    const streamConversationId = streamingConversationIdRef.current;
-    if (
-      streamConversationId !== null &&
-      data.assistantMessageDelta.conversationId !== streamConversationId
-    ) {
-      return;
-    }
-
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === pid ? { ...message, content: message.content + delta } : message
-      )
-    );
-  }, []);
-
-  useSubscription<AssistantMessageDeltaData>({
-    enabled: subscriptionEnabled,
-    onData: handleDelta,
-    query: "subscription { assistantMessageDelta { conversationId delta } }"
-  });
-
-  function dropStreamingMessage() {
-    const pid = streamingIdRef.current;
-    streamingIdRef.current = null;
-
-    if (pid) {
-      setMessages((current) => current.filter((message) => message.id !== pid));
-    }
+  function usePrompt(prompt: string) {
+    assistant.setDraft(prompt);
+    composer.current?.querySelector("textarea")?.focus();
   }
 
-  function startNewChat() {
-    populatedRef.current = "new";
-    setActiveConversationId(null);
-    setMessages([]);
-  }
-
-  function openConversation(id: string) {
-    if (id === activeConversationId) return;
-    populatedRef.current = null;
-    setMessages([]);
-    setActiveConversationId(id);
-  }
-
-  async function handleDeleteConversation(id: string) {
+  async function deleteConversation() {
+    if (!deletingId || deletingId === assistant.pendingKey) return;
     try {
-      await deleteConversationMutation.mutateAsync({ id });
-      setDeletingConversationId(null);
-      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
-      if (id === activeConversationId) {
-        startNewChat();
-      }
+      if (!deletingId.startsWith(TEMP_CHAT_PREFIX)) await deletion.mutateAsync({ id: deletingId });
+      assistant.forget(deletingId);
+      setDeletingId(null);
+      await client.invalidateQueries({ queryKey: assistant.conversationsKey });
     } catch {
       toast.error(t("error.generic"));
     }
   }
 
-  async function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const message = input.trim();
-
-    if (message.length === 0) {
-      return;
-    }
-
-    const placeholderId = crypto.randomUUID();
-    streamingIdRef.current = placeholderId;
-    streamingConversationIdRef.current = activeConversationId;
-    setMessages((current) => [
-      ...current,
-      { content: message, id: crypto.randomUUID(), role: "user" },
-      { content: "", id: placeholderId, role: "assistant", streaming: true }
-    ]);
-    setInput("");
-
-    try {
-      const result = await sendMessageMutation.mutateAsync({
-        input: {
-          message,
-          ...(activeConversationId ? { conversationId: activeConversationId } : {})
-        }
-      });
-
-      const payload = result.sendMessage;
-
-      if (payload.status === "REPLIED" && payload.reply) {
-        streamingIdRef.current = null;
-        const toolActions = payload.toolActions.map((action) => ({
-          output: action.output ?? null,
-          tool: action.tool
-        }));
-        setMessages((current) =>
-          current.map((current_message) =>
-            current_message.id === placeholderId
-              ? {
-                  ...current_message,
-                  content: payload.reply ?? current_message.content,
-                  streaming: false,
-                  toolActions,
-                  toolCount: payload.toolActions.length
-                }
-              : current_message
-          )
-        );
-
-        if (!activeConversationId) {
-          populatedRef.current = payload.conversationId;
-          setActiveConversationId(payload.conversationId);
-        }
-        await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
-        return;
-      }
-
-      dropStreamingMessage();
-      setInput((current) => current || message);
-      toast.error(
-        payload.status === "AI_NOT_CONFIGURED"
-          ? t("assistant.ai.notConfigured")
-          : t("assistant.ai.failed")
-      );
-    } catch {
-      dropStreamingMessage();
-      setInput((current) => current || message);
-      toast.error(t("assistant.ai.failed"));
-    }
-  }
-
-  const isHistoryLoading =
-    Boolean(activeConversationId) && historyQuery.status === "pending" && messages.length === 0;
+  const history = (
+    <ConversationList
+      activeId={assistant.activeKey}
+      conversations={conversations}
+      pendingId={assistant.pendingKey}
+      isLoading={assistant.conversationsQuery.isPending}
+      isError={assistant.conversationsQuery.isError}
+      onRetry={() => void assistant.conversationsQuery.refetch()}
+      onDelete={setDeletingId}
+      onNew={() => {
+        assistant.setActiveKey(NEW_CHAT);
+        setIsHistoryOpen(false);
+      }}
+      onSelect={(id) => {
+        assistant.setActiveKey(id);
+        setIsHistoryOpen(false);
+      }}
+    />
+  );
 
   return (
     <section className="ui-assistant">
       <header className="ui-page-header">
         <div>
           <h1>{t("assistant.title")}</h1>
-          <p className="m-0 text-[color:var(--ds-text-subtle)]">{t("assistant.description")}</p>
+          <p className="ui-assistant__subtitle">{t("assistant.description")}</p>
         </div>
         <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
           <SheetTrigger asChild>
@@ -267,88 +111,78 @@ export function AssistantRoute() {
           <SheetContent side="left" closeLabel={t("common.close")}>
             <SheetHeader>
               <SheetTitle>{t("assistant.conversations")}</SheetTitle>
-              <SheetDescription>{t("assistant.description")}</SheetDescription>
+              <SheetDescription>{t("assistant.historyDescription")}</SheetDescription>
             </SheetHeader>
-            <div className="overflow-auto p-[var(--ds-space-200)]">
-              <ConversationList
-                activeId={activeConversationId}
-                conversations={conversations}
-                isLoading={conversationsQuery.isPending}
-                isError={conversationsQuery.isError}
-                onRetry={() => void conversationsQuery.refetch()}
-                onDelete={setDeletingConversationId}
-                onNew={() => {
-                  startNewChat();
-                  setIsHistoryOpen(false);
-                }}
-                onSelect={(id) => {
-                  openConversation(id);
-                  setIsHistoryOpen(false);
-                }}
-              />
-            </div>
+            <div className="ui-assistant__sheet-history">{history}</div>
           </SheetContent>
         </Sheet>
       </header>
-
       <div className="ui-assistant__body">
-        <aside className="ui-assistant__history">
-          <ConversationList
-            activeId={activeConversationId}
-            conversations={conversations}
-            isLoading={conversationsQuery.isPending}
-            isError={conversationsQuery.isError}
-            onRetry={() => void conversationsQuery.refetch()}
-            onDelete={setDeletingConversationId}
-            onNew={startNewChat}
-            onSelect={openConversation}
-          />
+        <aside className="ui-assistant__history" aria-label={t("assistant.conversations")}>
+          {history}
         </aside>
-
-        <section className="ui-assistant__chat">
-          {isHistoryLoading ? (
-            <div className="flex-1">
+        <section className="ui-assistant__chat" aria-label={t("assistant.currentChat")}>
+          <header className="ui-assistant__chat-header">
+            <h2 title={title}>{title}</h2>
+            <span role="status" className="ui-assistant__status">
+              {status}
+            </span>
+          </header>
+          {assistant.pendingKey && assistant.pendingKey !== assistant.activeKey ? (
+            <div className="ui-assistant__pending">
+              <span>{t("assistant.replyElsewhere")}</span>
+              <Button
+                appearance="subtle"
+                onClick={() => assistant.setActiveKey(assistant.pendingKey ?? NEW_CHAT)}
+              >
+                {t("assistant.returnToConversation")}
+              </Button>
+            </div>
+          ) : null}
+          {assistant.isHistoryLoading ? (
+            <div className="ui-assistant__feedback">
               <LoadingRows label={t("assistant.historyLoading")} />
             </div>
-          ) : activeConversationId && historyQuery.isError ? (
-            <div role="alert" className="flex-1">
+          ) : assistant.isHistoryError && assistant.messages.length === 0 ? (
+            <div role="alert" className="ui-assistant__feedback">
               <p>{t("error.generic")}</p>
-              <Button appearance="subtle" onClick={() => void historyQuery.refetch()}>
+              <Button appearance="subtle" onClick={() => void assistant.historyQuery.refetch()}>
                 {t("common.retry")}
               </Button>
             </div>
           ) : (
             <AssistantMessageList
-              assistantLabel={t("assistant.roleAssistant")}
-              emptyState={t("assistant.emptyState")}
-              messages={messages}
-              toolActionsLabel={t("assistant.toolActions")}
-              userLabel={t("assistant.roleUser")}
+              key={assistant.activeKey}
+              messages={assistant.messages}
+              onUsePrompt={usePrompt}
             />
           )}
+          {assistant.isHistoryError && assistant.messages.length > 0 ? (
+            <div className="ui-assistant__pending" role="alert">
+              <span>{t("assistant.historyFailed")}</span>
+              <Button appearance="subtle" onClick={() => void assistant.historyQuery.refetch()}>
+                {t("common.retry")}
+              </Button>
+            </div>
+          ) : null}
           <AssistantComposer
-            inputLabel={t("assistant.inputLabel")}
-            isPending={sendMessageMutation.status === "pending"}
-            placeholder={t("assistant.placeholder")}
-            sendLabel={t("assistant.send")}
-            sendingLabel={t("assistant.sending")}
-            value={input}
-            onChange={setInput}
-            onSubmit={(event) => void handleSend(event)}
+            formRef={composer}
+            value={assistant.draft}
+            onChange={assistant.setDraft}
+            canSend={assistant.canSend}
+            onSubmit={() => void assistant.send()}
           />
         </section>
       </div>
       <ConfirmDialog
-        isOpen={Boolean(deletingConversationId)}
+        isOpen={Boolean(deletingId)}
         title={t("assistant.deleteChat")}
         message={t("assistant.deleteConfirmMessage")}
         cancelLabel={t("button.cancel")}
         confirmLabel={t("button.delete")}
-        isConfirming={deleteConversationMutation.isPending}
-        onCancel={() => setDeletingConversationId(null)}
-        onConfirm={() => {
-          if (deletingConversationId) void handleDeleteConversation(deletingConversationId);
-        }}
+        isConfirming={deletion.isPending}
+        onCancel={() => setDeletingId(null)}
+        onConfirm={() => void deleteConversation()}
       />
     </section>
   );

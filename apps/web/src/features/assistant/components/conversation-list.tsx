@@ -1,5 +1,11 @@
-import { Button } from "@repo/ui";
-import { type MouseEvent } from "react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Ellipsis
+} from "@repo/ui";
 
 import { LoadingRows } from "../../../components/loading-rows";
 import { useTranslation } from "../../../hooks/use-translation";
@@ -9,9 +15,9 @@ interface ConversationSummary {
   title?: string | null;
   updatedAt: string;
 }
-
 interface ConversationListProps {
-  activeId: string | null;
+  activeId: string;
+  pendingId: string | null;
   conversations: ConversationSummary[];
   isLoading: boolean;
   isError: boolean;
@@ -23,6 +29,7 @@ interface ConversationListProps {
 
 export function ConversationList({
   activeId,
+  pendingId,
   conversations,
   isLoading,
   isError,
@@ -31,56 +38,81 @@ export function ConversationList({
   onNew,
   onSelect
 }: ConversationListProps) {
-  const { t } = useTranslation();
-
-  function handleDelete(event: MouseEvent<HTMLButtonElement>, id: string) {
-    event.stopPropagation();
-    onDelete(id);
-  }
-
+  const { t, language } = useTranslation();
+  const dateFormat = new Intl.DateTimeFormat(language, { month: "short", day: "numeric" });
   return (
-    <div className="flex flex-col gap-[var(--ds-space-150)]">
-      <Button type="button" onClick={onNew}>
-        {t("assistant.newChat")}
-      </Button>
-      {isLoading ? <LoadingRows label={t("common.loading")} /> : null}
-      {isError ? (
-        <div role="alert">
-          <p>{t("error.generic")}</p>
-          <Button appearance="subtle" onClick={onRetry}>
-            {t("common.retry")}
-          </Button>
-        </div>
-      ) : null}
-      <ul className="flex flex-col gap-[var(--ds-space-050)]">
-        {conversations.map((conversation) => {
-          const isActive = conversation.id === activeId;
-          return (
-            <li key={conversation.id} className="flex items-center gap-[var(--ds-space-050)]">
-              <Button
-                appearance="subtle"
-                aria-pressed={isActive}
-                className={`min-w-0 flex-1 justify-start truncate text-left ${
-                  isActive
-                    ? "bg-[var(--ds-background-selected)] text-[color:var(--ds-text)]"
-                    : "text-[color:var(--ds-text-subtle)]"
-                }`}
-                type="button"
-                onClick={() => onSelect(conversation.id)}
+    <div className="ui-assistant__conversation-list">
+      <div className="ui-assistant__history-heading">
+        <h2>{t("assistant.conversations")}</h2>
+        <Button type="button" onClick={onNew}>
+          {t("assistant.newChat")}
+        </Button>
+      </div>
+      <div className="ui-assistant__conversation-scroll">
+        {isLoading ? <LoadingRows label={t("common.loading")} /> : null}
+        {isError ? (
+          <div role="alert">
+            <p>{t("error.generic")}</p>
+            <Button appearance="subtle" onClick={onRetry}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        ) : null}
+        {!isLoading && !isError && conversations.length === 0 ? (
+          <p className="ui-assistant__subtitle">{t("assistant.noConversations")}</p>
+        ) : null}
+        <ul className="ui-assistant__conversation-rows">
+          {conversations.map((conversation) => {
+            const title = conversation.title ?? t("assistant.untitled");
+            const date = new Date(conversation.updatedAt);
+            return (
+              <li
+                key={conversation.id}
+                className="ui-assistant__conversation-row"
+                data-active={conversation.id === activeId}
               >
-                {conversation.title ?? t("assistant.untitled")}
-              </Button>
-              <Button
-                appearance="subtle"
-                type="button"
-                onClick={(event) => handleDelete(event, conversation.id)}
-              >
-                {t("assistant.deleteChat")}
-              </Button>
-            </li>
-          );
-        })}
-      </ul>
+                <Button
+                  appearance="subtle"
+                  aria-pressed={conversation.id === activeId}
+                  className="ui-assistant__conversation-select"
+                  type="button"
+                  onClick={() => onSelect(conversation.id)}
+                >
+                  <span className="ui-assistant__conversation-title" title={title}>
+                    {title}
+                  </span>
+                  <span className="ui-assistant__conversation-date">
+                    {conversation.id === pendingId ? (
+                      t("assistant.responding")
+                    ) : Number.isNaN(date.getTime()) ? null : (
+                      <time dateTime={date.toISOString()}>{dateFormat.format(date)}</time>
+                    )}
+                  </span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      appearance="subtle"
+                      aria-label={`${t("assistant.conversationMenu")}: ${title}`}
+                    >
+                      <Ellipsis aria-hidden="true" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      destructive
+                      disabled={conversation.id === pendingId}
+                      onSelect={() => onDelete(conversation.id)}
+                    >
+                      {t("assistant.deleteChat")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }

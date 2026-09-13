@@ -3,7 +3,8 @@ export interface ChatMessage {
   id: string;
   role: "assistant" | "user";
   streaming?: boolean;
-  toolCount?: number;
+  error?: "notConfigured" | "failed";
+  prompt?: string;
   toolActions?: { output: string | null; tool: string }[];
 }
 

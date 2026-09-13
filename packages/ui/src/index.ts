@@ -55,6 +55,7 @@ export * from "./lib/variants";
 
 export {
   ArrowRight,
+  Ellipsis,
   ChevronRight,
   LayoutDashboard,
   ListTodo,

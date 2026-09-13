@@ -149,7 +149,8 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await page.getByRole("button", { name: "Sprache", exact: true }).click();
   await page.getByRole("menuitemradio", { name: "English", exact: true }).click();
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Thinking…", exact: true })).toBeDisabled();
+  await expect(page.locator(".ui-assistant__status")).toHaveText("Thinking…");
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
   await composer.fill("Another Organization draft");
   await switcher.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
@@ -158,6 +159,7 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await expect(page.getByText("Organization draft", { exact: true })).toHaveCount(0);
   release();
   await expect.poll(() => replyDelivered).toBe(true);
+  await composer.fill("Current Organization draft");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await expect(page.getByText("Previous Organization reply", { exact: true })).toHaveCount(0);
   await switcher.click();
