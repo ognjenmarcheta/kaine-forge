@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createApiLoaders } from "./context.loaders";
 
+// These unit tests inject their adapters. Do not initialize the production DB
+// through the default adapters when the test module is imported.
+vi.mock("./features/storage/storage.adapter", () => ({ listFilesByEntityIds: vi.fn() }));
+vi.mock("./features/todos/todos.adapter", () => ({ listTodosByNoteIds: vi.fn() }));
+
 describe("context.loaders", () => {
   const scope = {
     organizationId: "org-1",
