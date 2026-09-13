@@ -26,7 +26,7 @@
     "typecheck:exports:run": "pnpm --filter @repo/api exec tsc -p tsconfig.build.json --noEmit && pnpm --filter @repo/web exec tsc -p tsconfig.exports-check.json --noEmit",
     "typecheck:exports": "pnpm exec turbo run build --filter=\"./packages/*\" && pnpm run typecheck:exports:run",
     "smoke": "turbo run test --filter=@repo/api",
-    "test": "turbo run test --continue && pnpm run ai:test && node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs",
+    "test": "turbo run test --continue && pnpm run ai:test && node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs",
     "test:watch": "turbo run test:watch --continue=always",
     "coverage": "vitest run --config vitest.coverage.config.ts",
     "test:e2e": "pnpm run db:prepare:local && pnpm --filter @repo/e2e run test:e2e",

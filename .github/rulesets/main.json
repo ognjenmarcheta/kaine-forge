@@ -1,5 +1,5 @@
 {
-  "name": "main: required checks and merge queue",
+  "name": "main: owner-controlled merging and required checks",
   "target": "branch",
   "enforcement": "active",
   "bypass_actors": [],
@@ -29,31 +29,9 @@
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "Changeset Required" },
-          { "context": "Check Fast" },
-          { "context": "Coverage Threshold" },
-          { "context": "Build Core Apps" },
-          { "context": "Docker Image (api)" },
-          { "context": "Docker Image (web)" },
-          { "context": "E2E Web/API (shard 1/2)" },
-          { "context": "E2E Web/API (shard 2/2)" },
-          { "context": "Mobile Typecheck" },
-          { "context": "Mobile Export Validation" },
-          { "context": "GraphQL Schema Compatibility" },
-          { "context": "Analyze TypeScript" }
+          { "context": "PR Quality Gate", "integration_id": 15368 },
+          { "context": "Analyze TypeScript", "integration_id": 15368 }
         ]
-      }
-    },
-    {
-      "type": "merge_queue",
-      "parameters": {
-        "merge_method": "SQUASH",
-        "grouping_strategy": "ALLGREEN",
-        "max_entries_to_build": 5,
-        "max_entries_to_merge": 5,
-        "min_entries_to_merge": 1,
-        "min_entries_to_merge_wait_minutes": 5,
-        "check_response_timeout_minutes": 60
       }
     }
   ]

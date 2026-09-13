@@ -349,6 +349,8 @@ pnpm --filter @repo/mobile-ui typecheck
 
 ## 17. Quality Gates
 
+- Only the repository owner merges into `main`, manually through a PR after required checks pass. Agents and bots never merge, approve on the owner's behalf, enable automatic merging, or bypass protection. See `CONTRIBUTING.md` for the sole-maintainer approval workflow.
+- Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/publication-readiness.md` records whether the remote settings are active and verified.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
 - PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).

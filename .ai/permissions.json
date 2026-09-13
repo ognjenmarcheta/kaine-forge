@@ -68,9 +68,16 @@
     },
     {
       "id": "gh-pr-merge",
-      "decision": "ask",
+      "decision": "deny",
       "command": "gh pr merge",
-      "reason": "kaine-open-pr creates drafts; merging is a human decision."
+      "reason": "Only the repository owner merges manually. Agents may create PRs but must not merge them or enable automatic merging."
+    },
+    {
+      "id": "gh-pr-approve",
+      "decision": "deny",
+      "command": "gh pr review",
+      "flag": "--approve",
+      "reason": "The repository owner reviews and approves contributions. Agents must not approve on the owner's behalf."
     }
   ]
 }

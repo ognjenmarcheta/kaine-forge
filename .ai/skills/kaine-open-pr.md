@@ -38,3 +38,5 @@ Use `.github/pull_request_template.md` as the shape. Include:
 - Notes about migrations, environment variables, or generated files.
 
 Open as draft unless the user explicitly asks for ready-for-review.
+
+Stop at the PR handoff. Only the repository owner performs the final merge manually after required checks pass. Do not merge, approve on the owner's behalf, enable automatic merging, or bypass protection through CLI, API, or browser actions.

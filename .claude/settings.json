@@ -8,9 +8,7 @@
       "Bash(pnpm reinstall-deps)",
       "Bash(pnpm reinstall-deps *)",
       "Bash(git reset --hard)",
-      "Bash(git reset --hard *)",
-      "Bash(gh pr merge)",
-      "Bash(gh pr merge *)"
+      "Bash(git reset --hard *)"
     ],
     "deny": [
       "Bash(pnpm db:push)",
@@ -18,7 +16,9 @@
       "Bash(pnpm clean-deps)",
       "Bash(pnpm clean-deps *)",
       "Bash(pnpm release:apps)",
-      "Bash(pnpm release:apps *)"
+      "Bash(pnpm release:apps *)",
+      "Bash(gh pr merge)",
+      "Bash(gh pr merge *)"
     ]
   },
   "hooks": {
