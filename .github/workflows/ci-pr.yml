@@ -217,7 +217,7 @@ jobs:
             pnpm run ai:test
             # scripts/* tests are not under vitest.coverage.config.ts projects.
             # Keep this list aligned with the root "test" script.
-            node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs
+            node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs
           else
             echo "Non-PR event: running full quality gates (includes ai:*)"
             pnpm run format:check
@@ -642,3 +642,33 @@ jobs:
           name: playwright-report
           path: apps/e2e/playwright-report
           retention-days: 7
+
+  pr-quality-gate:
+    name: PR Quality Gate
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - detect-paths
+      - changeset-required
+      - dependency-review
+      - check-fast
+      - coverage
+      - mobile-typecheck
+      - mobile-export
+      - graphql-schema
+      - build-core
+      - docker-images
+      - e2e-web-api
+      - e2e-report
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify required job results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
+          CODE_SCANNING_ENABLED: ${{ vars.ENABLE_GITHUB_CODE_SCANNING }}
+        run: node scripts/pr-quality-gate.mjs

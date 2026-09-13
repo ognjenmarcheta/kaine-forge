@@ -27,6 +27,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
 - Do not commit secrets or local assistant state.
+- Only the repository owner may merge into `main`, manually after required checks pass. Agents and bots may propose changes and create PRs, but must not merge, approve PRs on the owner's behalf, enable automatic merging, or bypass branch protection through CLI, API, or browser actions.
 - Never co-author yourself (or any AI/tool identity) in git history: no `Co-Authored-By:` trailers for assistants, no “Generated with …” / “Made with …” AI footers, and do not set commit author/committer to an AI name or noreply AI email. Commits remain under the human contributor’s identity only. The `commit-msg` hook enforces this via commitlint.
 - Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI dry-runs and repairs belong to a human operator because agent policy blocks `release:apps`, including `--dry-run`.
 

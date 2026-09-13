@@ -11,6 +11,32 @@ Thanks for improving Kaine Forge. This repository is a template, so changes shou
 - Use `pnpm --filter <workspace> <script>` for scoped commands.
 - Keep changes surgical and reviewable.
 
+## Pull requests and owner approval
+
+Outside contributors submit pull requests from forks. Only the repository owner
+merges into `main`, manually after required checks pass. This includes release
+version PRs. Agents and bots may prepare changes and open PRs; they must not merge,
+approve on the owner's behalf, enable automatic merging, or bypass protection.
+
+The owner's manual merge is the final approval. An additional approving reviewer
+is not required while there is one maintainer, and GitHub does not allow authors
+to approve their own PRs. Resolve review conversations and update the branch before
+merging. The required checks are **PR Quality Gate** and **Analyze TypeScript**.
+The aggregate gate accepts only successful jobs or skips justified by the change's
+paths and workflow event. These requirements also apply to the owner.
+
+Fork workflows require the owner's approval before execution. Do not give fork
+workflows repository secrets or write tokens. The repository defaults to read-only
+workflow tokens; release and labeling jobs declare their limited write permissions.
+
+Version PRs opened using `GITHUB_TOKEN` do not trigger PR workflows automatically.
+The owner can close and reopen the version PR in GitHub to trigger checks. Do not
+merge until the required checks pass. A separately configured `RELEASE_PR_TOKEN`
+also supports triggering CI; no such credential is required for local setup.
+
+Publication settings and verification evidence are tracked in
+[public repository readiness](docs/publication-readiness.md).
+
 ## Setup
 
 ```bash
@@ -98,7 +124,7 @@ After adoption: rotate secrets, rewrite `.env.example` defaults, review remainin
 Repository settings the template cannot carry over (GitHub copies files, not settings):
 
 - Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, or the Release workflow cannot open version pull requests.
-- Import the branch ruleset: `gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json`.
+- Import both branch rulesets from `.github/rulesets/main.json` and `.github/rulesets/main-owner.json`, after confirming the owner is the only repository administrator.
 - Optional: set the remote Turbo cache secret `TURBO_TOKEN` and variable `TURBO_TEAM` (see [CI speed](#ci-speed-maintainers)).
 
 ## AI Assistant Files
@@ -141,13 +167,21 @@ Create release metadata:
 pnpm changeset
 ```
 
-CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required until the ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, merge queue) is imported, so until then a red check blocks a merge only if the person merging treats it as blocking. Import it once per repository (public repositories, or GitHub Pro and up):
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required until the ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, no bypass actors or merge queue) is imported. The owner remains the only account with merge authority. Import it once per repository (public repositories, or GitHub Pro and up); update the existing ruleset by ID instead of creating a duplicate:
 
 ```bash
 gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
+gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main-owner.json
 ```
 
-A contract test keeps the ruleset's check names aligned with the workflow job names.
+The owner-only ruleset permits only the repository administrator to update the
+default branch through a PR. Keep the owner as the only administrator. Its
+PR-only exception grants permission to merge, not permission to ignore checks:
+the separate quality ruleset has no bypass actors. Apps can retain access to
+feature branches without receiving permission to merge into `main`. GitHub cannot
+distinguish the owner from automation using the owner's personal credentials.
+
+Contract tests keep the required check names and the two rulesets aligned.
 
 ## Validation Expectations
 

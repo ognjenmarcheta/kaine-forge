@@ -62,7 +62,24 @@ describe("permissions policy", () => {
     // must be denied rather than relying on the advisory in other agents.
     const denied = rules.filter((rule) => rule.decision === "deny").map((rule) => rule.id);
 
-    expect(denied).toEqual(["db-push", "clean-deps", "release-apps", "git-no-verify"]);
+    expect(denied).toEqual([
+      "db-push",
+      "clean-deps",
+      "release-apps",
+      "git-no-verify",
+      "gh-pr-merge",
+      "gh-pr-approve"
+    ]);
+  });
+
+  it.each([
+    "gh pr merge 123",
+    "gh pr merge 123 --auto",
+    "gh pr merge 123 --admin",
+    "gh pr review 123 --approve"
+  ])("blocks agent merging through %s", (command) => {
+    expect(matchGuardedCommand(command, rules)?.decision).toBe("deny");
+    expect(runHook(command).status).toBe(2);
   });
 });
 

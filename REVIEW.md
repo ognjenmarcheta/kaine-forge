@@ -75,6 +75,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 ## Template & AI Hygiene
 
+- [ ] Only the repository owner merges into `main`, manually after required checks pass. Agents and bots must not merge, approve on the owner's behalf, enable automatic merging, or bypass protection.
 - [ ] Assistant guidance edited only under `.ai/`; then `pnpm ai:install` and `pnpm ai:doctor` (`MONOREPO_GUIDE.md` §18).
 - [ ] Generated agent files (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.serena/*`, local skill installs) not hand-edited.
 - [ ] Commit messages and PR bodies have no AI self-attribution (`Co-Authored-By` for assistants, “Generated with …” AI footers, AI as author/committer); commitlint blocks this on commit (`.ai/guide.md`).

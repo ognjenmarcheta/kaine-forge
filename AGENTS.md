@@ -27,6 +27,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
 - Do not commit secrets or local assistant state.
+- Only the repository owner may merge into `main`, manually after required checks pass. Agents and bots may propose changes and create PRs, but must not merge, approve PRs on the owner's behalf, enable automatic merging, or bypass branch protection through CLI, API, or browser actions.
 - Never co-author yourself (or any AI/tool identity) in git history: no `Co-Authored-By:` trailers for assistants, no “Generated with …” / “Made with …” AI footers, and do not set commit author/committer to an AI name or noreply AI email. Commits remain under the human contributor’s identity only. The `commit-msg` hook enforces this via commitlint.
 - Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI dry-runs and repairs belong to a human operator because agent policy blocks `release:apps`, including `--dry-run`.
 
@@ -208,7 +209,7 @@ Use skills when they match the task:
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
-- `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—merge safe bumps, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
+- `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—prepare safe bumps for owner review, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 - `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
@@ -250,4 +251,5 @@ as the guarantee.
 - **ask** `git push ... --force` — Destructive on a shared branch. kaine-rebase needs it, so it asks rather than denies. --force-with-lease is unaffected.
 - **ask** `git push ... -f` — Short form of --force.
 - **ask** `git reset --hard` — Discards uncommitted work irrecoverably.
-- **ask** `gh pr merge` — kaine-open-pr creates drafts; merging is a human decision.
+- **deny** `gh pr merge` — Only the repository owner merges manually. Agents may create PRs but must not merge them or enable automatic merging.
+- **deny** `gh pr review ... --approve` — The repository owner reviews and approves contributions. Agents must not approve on the owner's behalf.
