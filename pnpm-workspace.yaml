@@ -8,7 +8,7 @@ packages:
 catalog:
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.3"
-  "@better-auth/expo": "1.7.3"
+  "@better-auth/expo": "1.7.4"
   dotenv: "^17.4.2"
   drizzle-orm: "^0.45.2"
   graphql: "^16.14.2"
@@ -41,7 +41,7 @@ catalog:
   "@vitest/coverage-v8": "4.1.11"
   "@vitest/ui": "4.1.11"
   prettier: "^3.9.6"
-  "@types/node": "^24.3.0"
+  "@types/node": "^24.13.4"
 
 catalogs:
   # Expo SDK / React Native singleton graph — pin exactly; freezes paths (issue #198).
