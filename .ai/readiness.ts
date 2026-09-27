@@ -171,7 +171,7 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
   const serena = inspectSerenaPrompt(
     REPO_ROOT,
     agent === "claude" && selection?.mcps.includes("serena") && servers.serena
-      ? source.mcpServers.serena
+      ? servers.serena
       : undefined
   );
   return {

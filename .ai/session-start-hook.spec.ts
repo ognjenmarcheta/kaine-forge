@@ -92,6 +92,16 @@ describe("session-start hook", () => {
       writeFile(
         repo,
         ".mcp.json",
+        JSON.stringify({
+          mcpServers: { serena: { ...server, args: [...(server.args ?? []), "--changed"] } }
+        })
+      );
+      const changedLaunch = runHook(repo, "claude").stdout;
+      expect(changedLaunch).not.toContain("Synthetic cached prompt");
+      expect(changedLaunch).toContain("--prepare-serena");
+      writeFile(
+        repo,
+        ".mcp.json",
         JSON.stringify({ mcpServers: { serena: { ...server, disabled: true } } })
       );
       expect(runHook(repo, "claude").stdout).not.toMatch(
