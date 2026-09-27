@@ -7,6 +7,8 @@ alwaysApply: true
 
 This is the canonical source for Cursor rules. Edit here, then run `pnpm ai:install`.
 
+For each request, follow `AGENTS.md` → **AI Skills** for skill selection and **Domain Knowledge as Infrastructure** for recurring-work proposals. Use the generated skill index there; read only selected skills before applying them.
+
 Before code changes:
 
 - Read `MONOREPO_GUIDE.md`.

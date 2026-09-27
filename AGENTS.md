@@ -180,6 +180,7 @@ End substantive work by stating what you actually verified, not by asserting suc
 
 - Prefer encoding a class of mistake once (lint, test, REVIEW checklist, skill, CONTEXT) over re-fixing the same failure in every PR or agent session.
 - After a domain or template review rejection that will recur, use `kaine-encode-knowledge` to promote the lesson into durable infrastructure.
+- Also notice repeated successful workflows and corrections. Use `kaine-encode-knowledge` to assess available evidence and propose a reusable procedure. Check existing skills first, continue the requested task, and wait for authorization before creating or expanding a proposed skill. Do not repeat a declined suggestion without new evidence in context.
 - Shared review contract lives in `REVIEW.md`, generated from `.ai/review.md` — edit the canonical source, then reinstall.
 - Put product workflows in skills; use `kaine-*` for template-wide workflows. See `docs/agents/skill-authoring.md` for when and how to add skills.
 - Prefer hard automation (lint, CI, tests) when a rule is proven; checklists and tests remain valid until automation is justified.
@@ -193,11 +194,24 @@ Codex, Claude, and Grok Build `SessionStart` hooks inject compact repo context a
 
 Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and leaves your personal copies alone.
 
-Use skills when they match the task:
+### Skill selection for each request
+
+- Before task-specific work, assess the available Kaine skill names and descriptions. Honor explicitly requested skills; otherwise select the smallest set that matches the actual workflow.
+- Read selected skill instructions before applying them. Reuse instructions already loaded unless they changed. Load supporting references only as needed.
+- If the skill index is missing or incomplete, inspect frontmatter metadata in canonical `.ai/skills/*.md`. Do not read every skill body or maintain a second index.
+- Briefly name selected skills when starting substantive work. Simple replies and requests with no matching skill need no skill announcement.
+- Reassess when the task changes, including transitions from implementation to review or PR preparation.
+- Follow existing authorization boundaries. Selecting a skill does not expand the user's request.
+
+Selection uses each agent's native discovery and model judgment. These instructions do not guarantee compliance on every request.
+
+### Available skills
+
+This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
-- `kaine-encode-knowledge`: Promote a repeated review rejection or agent mistake into durable infrastructure (lint, test, REVIEW, skill, CONTEXT, or docs) so the class of issue stops being one-off busywork.
+- `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
 - `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
