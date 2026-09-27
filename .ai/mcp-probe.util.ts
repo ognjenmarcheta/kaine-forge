@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { controllerEnvironment } from "./agent-run.util";
 import { type McpServer, type McpSource } from "./ai.util";
+import { stopProcessTree, type CleanupStatus } from "./process-cleanup.util";
 
 export function validateMcpPins(source: McpSource): string[] {
   const problems: string[] = [];
@@ -22,33 +23,18 @@ export function validateMcpPins(source: McpSource): string[] {
   return problems;
 }
 
-export async function stopProcessTree(child: ChildProcess): Promise<void> {
-  if (!child.pid) return;
-  if (process.platform === "win32") {
-    await new Promise<void>((resolve) => {
-      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-        windowsHide: true,
-        stdio: "ignore"
-      });
-      const timer = setTimeout(() => {
-        killer.kill();
-        child.kill();
-        resolve();
-      }, 2000);
-      const finish = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      killer.once("error", finish);
-      killer.once("close", finish);
-    });
-  } else {
-    try {
-      process.kill(-child.pid, "SIGKILL");
-    } catch {
-      child.kill("SIGKILL");
-    }
+/** Generated hook definitions are repository-owned; personal hooks are not inspected. */
+export function validateHookPins(definitions: string[]): string[] {
+  const problems: string[] = [];
+  for (const definition of definitions) {
+    for (const match of definition.matchAll(/git\+[^\s"'\\]+/g))
+      if (!/@[a-f0-9]{40}$/.test(match[0]))
+        problems.push("Hook: pin the Git dependency to a commit");
+    for (const match of definition.matchAll(/\bnpx\s+(?:-y\s+|--yes\s+)?([^\s"'\\]+)/g))
+      if (!/@\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(match[1] ?? ""))
+        problems.push("Hook: pin the npm package to an exact version");
   }
+  return problems;
 }
 
 function launchCommand(server: McpServer) {
@@ -77,8 +63,9 @@ const initializeResponse = z.object({
 export async function probeMcp(
   server: McpServer,
   timeoutMs = 10_000
-): Promise<{ status: "passed" | "failed"; reason: string }> {
+): Promise<{ status: "passed" | "failed"; reason: string; cleanup: CleanupStatus }> {
   let child: ChildProcess | undefined;
+  let outcome: { status: "passed" | "failed"; reason: string };
   try {
     const launch = launchCommand(server);
     child = spawn(launch.command, launch.args, {
@@ -88,7 +75,7 @@ export async function probeMcp(
       detached: process.platform !== "win32"
     });
     const processChild = child;
-    return await new Promise((resolve) => {
+    outcome = await new Promise((resolve) => {
       let settled = false;
       let buffer = "";
       const finish = (status: "passed" | "failed", reason: string) => {
@@ -128,8 +115,10 @@ export async function probeMcp(
       );
     });
   } catch {
-    return { status: "failed", reason: "Process could not start" };
-  } finally {
-    if (child) await stopProcessTree(child);
+    outcome = { status: "failed", reason: "Process could not start" };
   }
+  const cleanup = child ? await stopProcessTree(child) : "not-started";
+  return cleanup === "failed" || (outcome.status === "passed" && cleanup !== "passed")
+    ? { status: "failed", reason: `${outcome.reason}; process cleanup failed`, cleanup }
+    : { ...outcome, cleanup };
 }

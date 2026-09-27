@@ -860,15 +860,6 @@ export const renderClaudeSettings = (): string => {
         ],
         SessionStart: [
           {
-            hooks: [
-              {
-                type: "command",
-                command:
-                  "uvx --from git+https://github.com/oraios/serena serena prompts print-cc-system-prompt-override || echo 'warning: serena prompt unavailable, run pnpm ai:doctor'"
-              }
-            ]
-          },
-          {
             matcher: "startup|resume",
             hooks: [
               {

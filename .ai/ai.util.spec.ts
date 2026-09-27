@@ -602,7 +602,7 @@ describe("renderGrokSkill", () => {
 });
 
 describe("renderClaudeSettings", () => {
-  it("installs Serena and AI context SessionStart hooks", () => {
+  it("installs only local AI context SessionStart hooks", () => {
     const settings = JSON.parse(renderClaudeSettings()) as {
       hooks: {
         SessionStart: Array<{
@@ -612,11 +612,9 @@ describe("renderClaudeSettings", () => {
       };
     };
 
-    expect(settings.hooks.SessionStart).toHaveLength(2);
-    expect(settings.hooks.SessionStart[0]?.hooks[0]?.command).toContain(
-      "serena prompts print-cc-system-prompt-override"
-    );
-    expect(settings.hooks.SessionStart[1]).toEqual({
+    expect(settings.hooks.SessionStart).toHaveLength(1);
+    expect(JSON.stringify(settings)).not.toMatch(/uvx|git\+|npx/);
+    expect(settings.hooks.SessionStart[0]).toEqual({
       matcher: "startup|resume",
       hooks: [
         {

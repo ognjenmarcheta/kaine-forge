@@ -2,6 +2,15 @@ import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
 type ConfigValue = z.infer<ReturnType<typeof z.json>>;
+const legacySerenaHook = {
+  hooks: [
+    {
+      type: "command",
+      command:
+        "uvx --from git+https://github.com/oraios/serena serena prompts print-cc-system-prompt-override || echo 'warning: serena prompt unavailable, run pnpm ai:doctor'"
+    }
+  ]
+};
 const objectSchema = z.record(z.string(), z.json());
 const isObject = (value: ConfigValue): value is Record<string, ConfigValue> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -56,6 +65,7 @@ export function mergeInstalledConfig(
           ...before.filter(
             (entry) =>
               !JSON.stringify(entry).includes(".ai/hooks/") &&
+              JSON.stringify(entry) !== JSON.stringify(legacySerenaHook) &&
               !value.some((expected) => JSON.stringify(expected) === JSON.stringify(entry))
           ),
           ...value

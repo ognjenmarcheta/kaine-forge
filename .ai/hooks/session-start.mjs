@@ -90,7 +90,8 @@ const aiHealth = (repoRoot, hookAgent) => {
         "--agent",
         hookAgent,
         "--local",
-        "--json"
+        "--json",
+        "--startup-context"
       ],
       {
         cwd: repoRoot,
@@ -131,6 +132,13 @@ const main = async () => {
     "- Runtime verification: MCP and sandbox not verified at startup"
   ];
 
+  if (
+    agent === "claude" &&
+    health.serenaPrompt &&
+    !["ready", "disabled"].includes(health.serenaPrompt)
+  )
+    lines.push("- Serena prompt unavailable; run pnpm ai:install --agent claude --prepare-serena");
+  if (health.startupContext) lines.push(health.startupContext);
   if (issues.length > 0) {
     lines.push(`- Warning: ${issues.join("; ")}`);
     lines.push(

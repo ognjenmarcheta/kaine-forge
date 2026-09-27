@@ -11,6 +11,7 @@ import {
   discoverAgentDefinitions,
   discoverSkills,
   mergeMcpSources,
+  mcpEnvValue,
   readMcpSource,
   readPersonalMcpSource,
   readLocalMcpEnv,
@@ -26,6 +27,7 @@ import {
   SKILL_DIRS
 } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
+import { inspectSerenaPrompt } from "./serena-prompt.util";
 
 const serverSchema = z.object({
   command: z.string().optional(),
@@ -86,7 +88,7 @@ export function installedServers(agent: Agent, root = REPO_ROOT, includeDisabled
   );
 }
 
-export function inspectInstallation(agent: Agent) {
+export function inspectInstallation(agent: Agent, includeContext = false) {
   const problems: string[] = [];
   const skills = discoverSkills();
   const selection = readInstallSelection(agent);
@@ -140,6 +142,14 @@ export function inspectInstallation(agent: Agent) {
       problems.push(`Missing selected MCP: ${name}`);
   const source = mergeMcpSources(readMcpSource(), readPersonalMcpSource()).source;
   const localEnv = readLocalMcpEnv();
+  for (const skill of skills.filter((entry) => selection?.skills.includes(entry.name))) {
+    const missing = skill.requiresEnv.filter((name) => mcpEnvValue(name, localEnv) === undefined);
+    if (missing.length) problems.push(`${skill.name}: missing ${missing.join(", ")}`);
+  }
+  for (const name of selection?.schemaVersion === 2 ? selection.ownedMcps : []) {
+    if (!source.mcpServers[name] && name in installedServers(agent, REPO_ROOT, true))
+      problems.push(`${name}: removed team MCP remains installed; rerun ai:install`);
+  }
   for (const [name, server] of Object.entries(servers)) {
     if (!commandExists(server.command)) problems.push(`${name}: missing executable`);
     const canonical = source.mcpServers[name];
@@ -158,7 +168,15 @@ export function inspectInstallation(agent: Agent) {
     }
   }
   problems.push(...validateMcpPins(readMcpSource()));
+  const serena = inspectSerenaPrompt(
+    REPO_ROOT,
+    agent === "claude" && selection?.mcps.includes("serena") && servers.serena
+      ? source.mcpServers.serena
+      : undefined
+  );
   return {
+    serenaPrompt: serena.status,
+    ...(includeContext && serena.status === "ready" ? { startupContext: serena.prompt } : {}),
     schemaVersion: 1,
     agent,
     installation: problems.length ? "needs-attention" : "ready",
@@ -177,12 +195,13 @@ export async function runReadinessCommand() {
         local: { type: "boolean" },
         json: { type: "boolean" },
         strict: { type: "boolean" },
-        "probe-mcp": { type: "boolean" }
+        "probe-mcp": { type: "boolean" },
+        "startup-context": { type: "boolean" }
       }
     });
     json = values.json ?? false;
     const agent = agentSchema.parse(values.agent);
-    const report = inspectInstallation(agent);
+    const report = inspectInstallation(agent, values["startup-context"]);
     const probes = [];
     if (values["probe-mcp"]) {
       for (const [name, server] of Object.entries(installedServers(agent)))

@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   mkdirSync,
@@ -12,6 +13,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { readMcpSource } from "./ai.util";
 
 const hookScript = join(process.cwd(), ".ai", "hooks", "session-start.mjs");
 
@@ -54,6 +57,59 @@ const runHook = (cwd: string, agent: "codex" | "claude" | "grok") =>
   });
 
 describe("session-start hook", () => {
+  it("emits only current selected Serena cache content without a Serena startup command", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      execFileSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          ".ai/install.ts",
+          "--agent",
+          "claude",
+          "--mcp",
+          "serena",
+          "--non-interactive"
+        ],
+        { cwd: repo, stdio: "pipe" }
+      );
+      expect(runHook(repo, "claude").stdout).toContain("--prepare-serena");
+      const server = readMcpSource().mcpServers.serena;
+      if (!server) throw new Error("Missing Serena definition");
+      const fingerprint = createHash("sha256")
+        .update(JSON.stringify([server.command, server.args ?? []]))
+        .digest("hex");
+      writeFile(
+        repo,
+        ".ai.local/serena/claude-prompt.json",
+        JSON.stringify({ schemaVersion: 1, fingerprint, prompt: "Synthetic cached prompt" })
+      );
+      expect(runHook(repo, "claude").stdout).toContain("Synthetic cached prompt");
+      const settings = readFileSync(join(repo, ".claude/settings.json"), "utf8");
+      expect(settings).not.toMatch(/uvx|npx|git\+/);
+      writeFile(
+        repo,
+        ".mcp.json",
+        JSON.stringify({ mcpServers: { serena: { ...server, disabled: true } } })
+      );
+      expect(runHook(repo, "claude").stdout).not.toMatch(
+        /Synthetic cached prompt|--prepare-serena/
+      );
+      writeFile(repo, ".mcp.json", JSON.stringify({ mcpServers: { serena: server } }));
+      writeFile(
+        repo,
+        ".ai.local/serena/claude-prompt.json",
+        JSON.stringify({ schemaVersion: 1, fingerprint: "old", prompt: "Synthetic cached prompt" })
+      );
+      const stale = runHook(repo, "claude").stdout;
+      expect(stale).not.toContain("Synthetic cached prompt");
+      expect(stale).toContain("--prepare-serena");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
   it("prints compact repo context when the AI install is healthy", () => {
     const repo = makeRepo();
     try {

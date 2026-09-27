@@ -122,7 +122,7 @@ it("initializes a synthetic MCP without tool calls and terminates its process", 
         },
         1000
       )
-    ).toEqual({ status: "failed", reason: "Invalid protocol output" });
+    ).toEqual({ status: "failed", reason: "Invalid protocol output", cleanup: "passed" });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

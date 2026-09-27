@@ -59,13 +59,21 @@ import {
   type WriteResult
 } from "./ai.util";
 import { mergeInstalledConfig } from "./install-config.util";
-import { readInstallSelection, writeInstallSelection } from "./install-state.util";
+import {
+  chooseInstallSelection,
+  managedMcpOwnership,
+  readInstallSelection,
+  writeInstallSelection
+} from "./install-state.util";
+import { installedServers } from "./readiness";
+import { prepareSerenaPrompt } from "./serena-prompt.util";
 
 interface InstallOptions {
   agents: Agent[];
   skills: string[];
   mcps: string[];
   nonInteractive: boolean;
+  prepareSerena: boolean;
   exactMcpSelection?: boolean;
   exactSkillSelection?: boolean;
 }
@@ -73,7 +81,7 @@ interface InstallOptions {
 let localMcpEnv: Record<string, string> = {};
 
 const usage = `Usage:
-  pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive]
+  pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena]
 
 Without selection flags and on a TTY, prompts interactively.
 Otherwise defaults to: --agent claude --agent codex, all default skills, all default-eligible MCPs.
@@ -243,6 +251,7 @@ const parseArgs = (): InstallOptions => {
   const skills: string[] = [];
   const mcps: string[] = [];
   let nonInteractive = false;
+  let prepareSerena = false;
 
   const args = process.argv.slice(2);
   for (let index = 0; index < args.length; index += 1) {
@@ -256,6 +265,10 @@ const parseArgs = (): InstallOptions => {
     if (arg === "--help" || arg === "-h") {
       console.log(usage);
       process.exit(0);
+    }
+    if (arg === "--prepare-serena") {
+      prepareSerena = true;
+      continue;
     }
     if (arg === "--non-interactive" || arg === "--no-interactive") {
       nonInteractive = true;
@@ -301,14 +314,15 @@ const parseArgs = (): InstallOptions => {
     agents: [...new Set(agents)],
     skills,
     mcps,
-    nonInteractive
+    nonInteractive,
+    prepareSerena
   };
 };
 
 const selectSkills = (
   options: InstallOptions,
   allSkills: Skill[]
-): { skills: Skill[]; envSkipped: string[] } => {
+): { skills: Skill[]; requested: Skill[]; envSkipped: string[] } => {
   const selected = new Set(options.skills);
   const knownNames = new Set(allSkills.map((skill) => skill.name));
   const unknown = [...selected].filter((name) => name !== "all" && !knownNames.has(name));
@@ -347,7 +361,7 @@ const selectSkills = (
     skills.push(skill);
   }
 
-  return { skills, envSkipped };
+  return { skills, requested: candidates, envSkipped };
 };
 
 const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void => {
@@ -406,17 +420,19 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
 const installAgent = (
   agent: Agent,
   skills: Skill[],
+  requestedSkills: Skill[],
   agentDefinitions: AgentDefinition[],
   options: InstallOptions,
   mergedMcp: McpSource,
   personalMcpNames: Set<string>,
+  managedMcps: string[],
   results: WriteResult[],
   removedSkills: string[]
 ): string[] => {
   const skippedMcps: string[] = [];
   const skillsDir = SKILL_DIRS[agent];
   const expected = new Set(
-    skills.filter((skill) => skill.agents.includes(agent)).map((skill) => skill.name)
+    requestedSkills.filter((skill) => skill.agents.includes(agent)).map((skill) => skill.name)
   );
 
   for (const skill of skills) {
@@ -472,7 +488,7 @@ const installAgent = (
             readFileSync(file, "utf8"),
             content,
             file.endsWith(".toml"),
-            Object.keys(mergedMcp.mcpServers)
+            managedMcps
           )
         : content;
     writeGenerated(file, updated, output);
@@ -579,9 +595,10 @@ const installAgent = (
   }
 
   writeInstallSelection(agent, {
-    schemaVersion: 1,
+    schemaVersion: 2,
     skills: [...expected],
-    mcps: [...Object.keys(resolved.source.mcpServers), ...resolved.skipped]
+    mcps: [...Object.keys(resolved.source.mcpServers), ...resolved.skipped],
+    ownedMcps: Object.keys(resolved.source.mcpServers).filter((name) => managedMcps.includes(name))
   });
   return skippedMcps;
 };
@@ -607,6 +624,8 @@ const main = async (): Promise<void> => {
   } else if (options.agents.length === 0) {
     options.agents = ["claude", "codex"];
   }
+  if (options.prepareSerena && !options.agents.includes("claude"))
+    throw new Error("--prepare-serena requires --agent claude");
 
   const didCreateLocalMcpEnv = ensureLocalMcpEnv();
   localMcpEnv = readLocalMcpEnv();
@@ -635,26 +654,27 @@ const main = async (): Promise<void> => {
 
   for (const agent of options.agents) {
     const previous = readInstallSelection(agent);
-    const preservedMcps =
-      !interactive &&
-      options.mcps.length === 0 &&
-      (previous !== null ||
-        existsSync(
-          join(
-            REPO_ROOT,
-            agent === "codex"
-              ? ".codex/config.toml"
-              : agent === "claude"
-                ? ".mcp.json"
-                : agent === "grok"
-                  ? ".grok/config.toml"
-                  : agent === "cursor"
-                    ? ".cursor/mcp.json"
-                    : "opencode.json"
+    const installedMcps = [...installedMcpsForAgent(agent)];
+    const teamNames = Object.keys(teamMcp.mcpServers);
+    const detectedMcps = installedMcps.filter((name) => teamNames.includes(name));
+    const mcpChoice = chooseInstallSelection({
+      explicit: options.mcps,
+      recorded: previous?.mcps,
+      detected: detectedMcps,
+      defaults: teamNames.filter((name) => teamMcp.mcpServers[name]?.default !== false),
+      interactive
+    });
+    if (previous?.schemaVersion !== 2) {
+      const ambiguous = installedMcps.filter(
+        (name) => !teamNames.includes(name) && !merged.personalNames.has(name)
+      );
+      if (ambiguous.length)
+        console.log(
+          chalk.yellow(
+            `Preserved MCPs with unknown ownership: ${ambiguous.join(", ")}. Define personal entries in .ai.local/mcp.json.`
           )
-        ))
-        ? (previous?.mcps ?? [...installedMcpsForAgent(agent)])
-        : options.mcps;
+        );
+    }
     const skillDirectory = join(REPO_ROOT, SKILL_DIRS[agent]);
     const installedSkills = existsSync(skillDirectory)
       ? readdirSync(skillDirectory, { withFileTypes: true })
@@ -666,24 +686,30 @@ const main = async (): Promise<void> => {
           )
           .map((entry) => entry.name)
       : undefined;
-    const preservedSkills = options.skills.length
-      ? options.skills
-      : (previous?.skills ?? installedSkills ?? []);
+    const skillChoice = chooseInstallSelection({
+      explicit: options.skills,
+      recorded: previous?.skills,
+      detected: installedSkills ?? [],
+      defaults: allSkills.filter((skill) => skill.isDefault).map((skill) => skill.name)
+    });
     const agentOptions = {
       ...options,
-      skills: preservedSkills,
-      exactSkillSelection: previous !== null || installedSkills !== undefined,
-      mcps: preservedMcps,
-      exactMcpSelection: previous !== null || preservedMcps !== options.mcps
+      skills: skillChoice.names,
+      exactSkillSelection: skillChoice.exact,
+      mcps: mcpChoice.names,
+      exactMcpSelection: mcpChoice.exact
     };
-    const { skills } = selectSkills(agentOptions, allSkills);
+    const { skills, requested, envSkipped: agentSkipped } = selectSkills(agentOptions, allSkills);
+    envSkipped.push(...agentSkipped);
     for (const skipped of installAgent(
       agent,
       skills,
+      requested,
       agentDefinitions,
       agentOptions,
       merged.source,
       merged.personalNames,
+      managedMcpOwnership(previous, teamNames, merged.personalNames),
       results,
       removedSkills
     )) {
@@ -699,6 +725,12 @@ const main = async (): Promise<void> => {
     console.log();
   }
 
+  if (options.prepareSerena) {
+    const server = installedServers("claude").serena;
+    if (!server) throw new Error("Select and enable Serena before preparing its prompt");
+    await prepareSerenaPrompt(REPO_ROOT, server);
+    console.log("Prepared pinned Serena prompt for local startup.");
+  }
   const changed = results.filter((result) => result.status !== "unchanged");
   if (changed.length === 0) {
     console.log(chalk.green(`✓ All ${results.length} local file(s) already up-to-date.`));

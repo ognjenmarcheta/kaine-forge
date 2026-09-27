@@ -92,7 +92,7 @@
     "expo-system-ui",
     "zod"
   ],
-  "ignoreBinaries": ["graphify", "gitleaks", "codex"],
+  "ignoreBinaries": ["graphify", "gitleaks", "codex", "uvx"],
   "metro": false,
   "rules": {
     "exports": "off",
