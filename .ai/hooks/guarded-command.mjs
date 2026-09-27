@@ -97,7 +97,7 @@ function scanCommands(command, shell) {
     } else if (char === "'" || char === '"') {
       quote = char;
       started = true;
-    } else if (char === ";" || char === "|" || char === "\n" || (char === "&" && next === "&")) {
+    } else if (char === ";" || char === "|" || char === "\n" || char === "&") {
       flushSegment(index);
       if (next === char && (char === "|" || char === "&")) index++;
       start = index + 1;

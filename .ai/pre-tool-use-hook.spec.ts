@@ -132,8 +132,34 @@ describe("matchGuardedCommand", () => {
   });
 
   it("splits on every shell separator", () => {
-    expect(splitShellSegments("a && b || c ; d | e\nf")).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(splitShellSegments("a && b || c ; d | e\nf & g")).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g"
+    ]);
     expect(splitShellSegments("run <<EOF\nb\nEOF\nc")).toEqual(["run <<EOF", "c"]);
+  });
+
+  it.each(["echo ready & pnpm db:push", "echo ready&pnpm db:push", "pnpm db:seed & pnpm db:push"])(
+    "denies a guarded command after a background separator: %s",
+    (command) => {
+      expect(matchGuardedCommand(command, rules)?.id).toBe("db-push");
+      expect(runHook(command).status).toBe(2);
+    }
+  );
+
+  it.each([
+    'echo "ready & pnpm db:push"',
+    "echo 'ready & pnpm db:push'",
+    "echo ready \\& pnpm db:push"
+  ])("keeps quoted or escaped ampersands as data: %s", (command) => {
+    expect(splitShellSegments(command)).toEqual([command]);
+    expect(matchGuardedCommand(command, rules)).toBeNull();
+    expect(runHook(command).status).toBe(0);
   });
 
   it("ignores heredoc bodies, which are data rather than commands", () => {
