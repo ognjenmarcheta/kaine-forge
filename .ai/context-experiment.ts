@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { discoverSkills, readGuideSource, renderAgentDoc, REPO_ROOT } from "./ai.util";
+import { applySnapshot, collectSnapshot } from "./context-snapshot.util";
 import { fingerprintInstructions } from "./run-fingerprint.util";
 
 export function reducedGuide(source: string) {
@@ -32,21 +33,15 @@ export function prepareContextExperiment() {
   )
     .split("\0")
     .filter(Boolean);
-  if (files.some((file) => !existsSync(path.join(REPO_ROOT, file))))
-    throw new Error("Commit or restore deleted tracked files before preparing a context snapshot");
+  const snapshot = collectSnapshot(REPO_ROOT, files);
+  for (const file of [".ai/guide.md", "AGENTS.md"]) {
+    if (snapshot.entries.find((entry) => entry.file === file)?.type !== "file")
+      throw new Error(`Context experiment requires a regular instruction file: ${file}`);
+  }
   const source = readGuideSource();
   const candidate = reducedGuide(source);
   if (source === candidate)
     throw new Error("Context experiment anchors changed; review the candidate");
-  const snapshotHash = createHash("sha256");
-  const contents = files
-    .filter((file) => existsSync(path.join(REPO_ROOT, file)))
-    .sort()
-    .map((file) => {
-      const content = readFileSync(path.join(REPO_ROOT, file));
-      snapshotHash.update(file).update("\0").update(content).update("\0");
-      return { file, content };
-    });
   mkdirSync(directory, { recursive: true });
   const arms = [];
   for (const arm of ["baseline", "candidate"]) {
@@ -55,11 +50,7 @@ export function prepareContextExperiment() {
       stdio: "pipe"
     });
     execFileSync("git", ["checkout", "--detach", revision], { cwd: checkout, stdio: "pipe" });
-    for (const { file, content } of contents) {
-      const target = path.join(checkout, file);
-      mkdirSync(path.dirname(target), { recursive: true });
-      writeFileSync(target, content);
-    }
+    applySnapshot(checkout, snapshot.entries);
     const guide = arm === "candidate" ? candidate : source;
     writeFileSync(path.join(checkout, ".ai/guide.md"), guide);
     writeFileSync(path.join(checkout, "AGENTS.md"), renderAgentDoc(guide, discoverSkills()));
@@ -73,7 +64,7 @@ export function prepareContextExperiment() {
   const manifest = {
     schemaVersion: 1,
     revision,
-    snapshotHash: snapshotHash.digest("hex"),
+    snapshotHash: snapshot.hash,
     snapshot: "working-tree overlay on recorded HEAD",
     status: "prepared-not-run",
     modelPerformanceEvidence: false,
