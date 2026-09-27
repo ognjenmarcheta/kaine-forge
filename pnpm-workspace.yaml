@@ -73,6 +73,8 @@ minimumReleaseAge: 4320 # minutes
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
 # (optional better-auth peers + transitive CLI deps otherwise pin older releases).
 overrides:
+  # Metro 0.83.7 is patched below for image-size v2's buffer/file APIs (#287).
+  "metro@0.83.7>image-size": "2.0.4"
   # minimatch: transitive vulnerability floor. Caret, not an exact pin — the old
   # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
   minimatch: "^10.2.3"
@@ -108,15 +110,8 @@ overrides:
   expo-linking: "~55.0.16"
   "@expo/metro-runtime": "~55.0.12"
 
-# pnpm audit ignores. Only for advisories with no patched release. Each entry
-# names the path and the condition that removes it.
-auditConfig:
-  ignoreGhsas:
-    # image-size <=2.0.2 (every published version) via expo>@expo/metro>metro;
-    # no fixed release exists. Drop both when Expo ships a metro with image-size >2.0.2.
-    - GHSA-5p2g-fcmc-qvqq
-    - GHSA-w3rx-r6r6-pgpr
-
 # Respect the device preference in the installed native drawer (source and module).
 patchedDependencies:
+  # Remove with the override when upstream Metro supports image-size >=2.0.3.
+  metro@0.83.7: patches/metro@0.83.7.patch
   react-native-drawer-layout@4.2.9: patches/react-native-drawer-layout@4.2.9.patch
