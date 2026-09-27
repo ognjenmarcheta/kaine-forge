@@ -146,14 +146,18 @@ it("records asynchronous startup failure when no process was created", async () 
   });
 });
 
-it("bounds an exit without a close event even when the runtime timeout is longer", async () => {
+it("reports a drain failure without discarding verified cleanup after exit", async () => {
   const f = fixture();
   mocks.cleanup.mockResolvedValue("passed");
   const result = f.run();
   f.child.exitCode = 0;
   f.child.emit("exit", 0);
   await vi.advanceTimersByTimeAsync(5000);
-  expect(await result).toMatchObject({ termination: "failed", cleanup: "failed" });
+  expect(await result).toMatchObject({
+    termination: "failed",
+    cleanup: "passed",
+    failure: "Model output did not close before finalization deadline"
+  });
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -165,10 +169,48 @@ it.each(["pending-cleanup", "missing-close"])("bounds %s to five seconds", async
   const result = f.run();
   process.emit("SIGINT");
   await vi.advanceTimersByTimeAsync(5000);
-  expect(await result).toMatchObject({ termination: "cancelled", cleanup: "failed" });
+  expect(await result).toMatchObject({
+    termination: "cancelled",
+    cleanup: scenario === "missing-close" ? "passed" : "failed",
+    failure:
+      scenario === "missing-close"
+        ? "Model output did not close before finalization deadline"
+        : "process cleanup failed"
+  });
   expect(f.child.unref).toHaveBeenCalled();
   expect(f.child.stdout.destroyed).toBe(true);
   expect([process.listenerCount("SIGINT"), process.listenerCount("SIGTERM")]).toEqual(f.signals);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each(["timeout", "stream-error"])("preserves %s when draining times out", async (trigger) => {
+  const f = fixture();
+  mocks.cleanup.mockResolvedValue("passed");
+  const result = f.run();
+  if (trigger === "timeout") await vi.advanceTimersByTimeAsync(1000);
+  else f.child.stdout.emit("error", new Error("private"));
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(await result).toMatchObject({
+    termination: trigger === "timeout" ? "timeout" : "failed",
+    cleanup: "passed",
+    failure:
+      (trigger === "stream-error" ? "Model stream failed; " : "") +
+      "Model output did not close before finalization deadline"
+  });
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("accepts close before the finalization deadline after cleanup passes", async () => {
+  const f = fixture();
+  mocks.cleanup.mockResolvedValue("passed");
+  const result = f.run();
+  f.child.exitCode = 0;
+  f.child.emit("exit", 0);
+  await vi.advanceTimersByTimeAsync(4999);
+  f.child.stdout.write("final output");
+  f.child.emit("close", 0);
+  expect(await result).toEqual({ termination: "completed", exitCode: 0, cleanup: "passed" });
+  expect(f.stdout).toHaveBeenCalledWith(Buffer.from("final output"));
   expect(vi.getTimerCount()).toBe(0);
 });
 

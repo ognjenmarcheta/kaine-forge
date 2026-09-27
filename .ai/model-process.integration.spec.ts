@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
 import { runModelProcess } from "./model-process.util";
+import { createFixturePidReader } from "./process-fixture.util";
 
 it.each([0, 7])("drains real output and verifies cleanup after exit %s", async (code) => {
   const output: string[] = [];
@@ -26,6 +27,7 @@ it.each([0, 7])("drains real output and verifies cleanup after exit %s", async (
 
 it("terminates a real model stand-in and its child on timeout", async () => {
   let descendant = 0;
+  const readPid = createFixturePidReader();
   try {
     const result = await runModelProcess({
       command: process.execPath,
@@ -37,7 +39,7 @@ it("terminates a real model stand-in and its child on timeout", async () => {
       prompt: "",
       timeoutMs: 1000,
       stdout: (chunk) => {
-        descendant = Number(chunk.toString().trim());
+        descendant = readPid(chunk) ?? 0;
       },
       stderr: () => {}
     });

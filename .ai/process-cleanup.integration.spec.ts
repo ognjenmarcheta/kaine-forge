@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { expect, it } from "vitest";
 
 import { stopProcessTree } from "./process-cleanup.util";
+import { createFixturePidReader } from "./process-fixture.util";
 
 it.each([0, 7])(
   "verifies one-shot shutdown with exit %s after output pipes drain",
@@ -46,12 +47,29 @@ it("terminates a synthetic server and its child", async () => {
   let descendant = 0;
   try {
     descendant = await new Promise<number>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Synthetic server did not start")), 3000);
-      child.once("error", reject);
-      child.stdout.once("data", (chunk: Buffer) => {
+      const readPid = createFixturePidReader();
+      const dispose = () => {
         clearTimeout(timer);
-        resolve(Number(chunk.toString().trim()));
-      });
+        child.removeListener("error", onError);
+        child.stdout.removeListener("data", onData);
+      };
+      const onError = (error: Error) => {
+        dispose();
+        reject(error);
+      };
+      const onData = (chunk: Buffer) => {
+        try {
+          const pid = readPid(chunk);
+          if (pid === undefined) return;
+          dispose();
+          resolve(pid);
+        } catch {
+          onError(new Error("Synthetic process emitted an invalid PID"));
+        }
+      };
+      const timer = setTimeout(() => onError(new Error("Synthetic server did not start")), 3000);
+      child.once("error", onError);
+      child.stdout.on("data", onData);
     });
     expect(descendant).toBeGreaterThan(0);
     expect(await stopProcessTree(child)).toBe("passed");

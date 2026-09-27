@@ -42,6 +42,7 @@ export function runModelProcess(input: {
     let closed = false;
     let termination: ProcessResult["termination"] = "completed";
     let failure: string | undefined;
+    let cleanupResult: CleanupStatus | undefined;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let drainTimer: ReturnType<typeof setTimeout> | undefined;
     let finishDrain: (() => void) | undefined;
@@ -68,7 +69,10 @@ export function runModelProcess(input: {
       processChild.stderr.destroy();
       processChild.unref();
       if (cleanup === "failed") failure = `${failure ? `${failure}; ` : ""}process cleanup failed`;
-      if (termination === "completed" && (processChild.exitCode !== 0 || cleanup !== "passed"))
+      if (
+        termination === "completed" &&
+        (processChild.exitCode !== 0 || cleanup !== "passed" || failure)
+      )
         termination = "failed";
       resolve({
         termination,
@@ -84,7 +88,12 @@ export function runModelProcess(input: {
       if (stopping) return;
       stopping = true;
       clearTimeout(timer);
-      deadline = setTimeout(() => complete("failed"), 5000);
+      deadline = setTimeout(() => {
+        if (cleanupResult === "passed" && !closed) {
+          failure = `${failure ? `${failure}; ` : ""}Model output did not close before finalization deadline`;
+        }
+        complete(cleanupResult ?? "failed");
+      }, 5000);
       void (async () => {
         // An exit event can precede drained output. Allow at most one second,
         // leaving four seconds for the shared cleanup helper within our deadline.
@@ -98,7 +107,9 @@ export function runModelProcess(input: {
         if (settled) return;
         const cleanup = await stopProcessTree(processChild);
         if (settled) return;
+        cleanupResult = cleanup;
         if (cleanup === "passed" && !closed) {
+          // The shared deadline also bounds this drain and preserves verified cleanup.
           await new Promise<void>((done) => {
             finishDrain = done;
           });

@@ -250,9 +250,12 @@ alive; releasing handles is not proof that it stopped.
 
 New coding reports include `cleanup`: `passed`, `failed`, or `not-started`.
 Model execution is `completed` only after a successful exit, a completed model
-event, no failed model event, and verified cleanup. Timeout and cancellation keep
+event, no failed model event, closed output streams, and verified cleanup. Timeout and cancellation keep
 their original termination reason when cleanup also fails. Diagnostics retain
 the execution failure alongside the cleanup failure without raw server output.
+If process cleanup passes but output does not close before the finalization deadline,
+the report retains `cleanup: passed` and records a separate output-closure failure.
+The run remains unsuccessful; timeout and cancellation keep their original reason.
 Probe-only reports use `not-started` for the model process. Legacy reports remain
 readable; `pnpm agent:report` counts absent fields as `missingCleanup` and failed
 cleanup separately as `cleanupFailures`, including within comparison groups.
@@ -262,15 +265,22 @@ resources; this prevents parallel file execution from exhausting their existing
 deadlines. No automatic retries or production timeout increases are used.
 Synthetic lifecycle tests cover termination races, missing close events, stream
 errors and cleanup failure; real Node stand-ins verify output draining, nonzero
-exit and child-process shutdown. These checks make no model calls and do not
+exit and child-process shutdown. Both descendant-PID readers share a complete-line
+parser; split output cannot produce a partial PID for fallback termination. Parser
+tests reject invalid PIDs and keep subsequent output from replacing the first PID.
+These checks make no model calls and do not
 certify sandbox enforcement or agent performance. The native network-denial
 blocker above remains unresolved.
 
-Local lifecycle verification: three consecutive default `pnpm ai:test` runs each
+Initial lifecycle verification: three consecutive default `pnpm ai:test` runs each
 passed 336 tests across 29 files, with one POSIX-only skip on Windows. `pnpm check`,
 strict doctor and both local agent readiness checks passed. `pnpm ai:install`
 confirmed all 50 installed files were current. No live model or native sandbox
 probe was run for this change; the boundary result above is the prior observation.
+
+CodeRabbit follow-up (2026-09-28): 46 focused tests passed. `pnpm check` passed,
+including 352 AI tests across 30 files and one POSIX-only skip on Windows.
+Installation, strict doctor and both local readiness checks also passed.
 
 ## Reproducible coding benchmarks
 

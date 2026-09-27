@@ -2,7 +2,7 @@
 
 Snapshot of template rules that are encoded as docs/REVIEW/skills but not fully machine-checked.
 Update when a gap is closed or a new proven failure mode appears.
-Last reviewed: 2026-09-27 (model-run finalization, cleanup reporting and subprocess test reliability).
+Last reviewed: 2026-09-28 (CodeRabbit follow-up: PID parsing and output-closure reporting).
 
 This audit records evidence and residual gaps. Candidate checks remain proposals unless an executable check is named.
 
@@ -37,12 +37,20 @@ checks. One finalization path handles exit, startup failure, stream failure,
 timeout and cancellation within five seconds. Failed cleanup cannot produce a
 completed model run; reports retain both the original failure and cleanup status.
 Releasing controller handles after the deadline does not certify process exit.
+Verified cleanup remains `passed` when output closure times out; a separate failure
+prevents successful completion without inflating cleanup-failure counts. Both
+synthetic descendant readers buffer a complete line and validate the PID before
+fallback termination. Regression checks cover fragmented and invalid PID output,
+late stream closure, original failure preservation, and nonzero CLI completion.
 Synthetic tests verify overlapping signals, missing close events, denied dispatch
 and nonzero CLI status on cleanup failure. Real Node stand-ins exercise child
 termination without model calls. `pnpm ai:test` uses one worker to avoid the
 observed parallel subprocess timeouts; production deadlines remain unchanged.
 Three consecutive Windows runs passed 336 tests with one POSIX-only skip;
 `pnpm check`, strict doctor and Codex/Claude local readiness also passed.
+The 2026-09-28 CodeRabbit follow-up passed 46 focused tests and `pnpm check`,
+including 352 AI tests and one POSIX-only skip. Installation, strict doctor and
+both local readiness checks passed again.
 
 ## Earlier tooling closures
 
