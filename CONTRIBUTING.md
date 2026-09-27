@@ -11,6 +11,25 @@ Thanks for improving Kaine Forge. This repository is a template, so changes shou
 - Use `pnpm --filter <workspace> <script>` for scoped commands.
 - Keep changes surgical and reviewable.
 
+## Branch names
+
+New work branches created by people or agents use `KAINE-<issue-number>-<type>-<description>`.
+When the task has no GitHub issue, use `KAINE-<type>-<description>`.
+
+- Keep the literal `KAINE` prefix uppercase.
+- Use the real issue number when the task has one. Do not create an issue just to name a branch.
+- Use a Conventional Commit type: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, or `revert`.
+- Keep the type and description lowercase. Use a short description with hyphens between words.
+- Do not use agent names, personal prefixes, spaces, or slashes.
+
+Examples: `KAINE-287-fix-metro-image-size`, `KAINE-427-chore-clack-prompts`, and `KAINE-docs-pr-ci-badge`.
+
+For a new task, fetch `origin` and create the branch from current `origin/main` in a suitable checkout.
+Continue an existing task branch when appropriate, preserving uncommitted work.
+Existing branches keep their names. Automation-owned branches such as `dependabot/*`,
+`changeset-release/*`, and `release/<app>` keep their established names.
+This standard is enforced through contributor and agent guidance; there is no branch-name CI gate.
+
 ## Pull requests and owner approval
 
 Outside contributors submit pull requests from forks. Only the repository owner

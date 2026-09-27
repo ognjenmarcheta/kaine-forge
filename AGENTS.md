@@ -15,6 +15,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 ## Working Rules
 
 - Work from the repo root unless a command explicitly needs a workspace directory.
+- Name new work branches `KAINE-<issue-number>-<type>-<description>`, or `KAINE-<type>-<description>` when no GitHub issue exists. Keep `KAINE` uppercase; use a Conventional Commit type and a short lowercase, hyphen-separated description. Use a real issue number when available; do not create an issue just for naming. No agent names, personal prefixes, spaces, or slashes. Preserve existing branch names and automation-owned `dependabot/*`, `changeset-release/*`, and `release/<app>` names. Follow `CONTRIBUTING.md` Branch names and `kaine-open-pr` for the full workflow.
 - Use `pnpm --filter <workspace> <script>` for scoped commands, for example `pnpm --filter @repo/api test`.
 - Keep changes surgical. Avoid broad refactors unless the task explicitly asks for them.
 - Prefer tests that prove the requested behavior over snapshot churn or unrelated coverage.
@@ -200,7 +201,7 @@ Use skills when they match the task:
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
 - `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
-- `kaine-open-pr`: Prepare a draft pull request using Kaine Forge checks, changeset rules, and GitHub flow.
+- `kaine-open-pr`: Create a task branch or prepare a draft pull request using Kaine Forge branch naming, checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
