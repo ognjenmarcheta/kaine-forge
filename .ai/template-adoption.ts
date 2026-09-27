@@ -92,7 +92,7 @@ const promptString = async (
     ...(initialValue ? { initialValue } : {}),
     ...(placeholder ? { placeholder } : {}),
     validate(value) {
-      if (!value.trim()) {
+      if (!value?.trim()) {
         return "Value is required.";
       }
       return undefined;
