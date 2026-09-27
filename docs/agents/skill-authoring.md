@@ -137,6 +137,36 @@ not depend on installing or invoking them:
 - [Matt Pocock's historical request-refactor-plan](https://github.com/mattpocock/skills/blob/e7f0b58a4b8ad0764d9478b069fe6e48b99c320f/request-refactor-plan/SKILL.md): scope, decisions, behavioral testing and safe incremental changes. This skill is absent from the current source tree reviewed for this change.
 - [Matt Pocock's grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) and [to-spec](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/to-spec/SKILL.md): discover facts before asking for decisions, and reuse established context.
 
+## Implementation-summary skill acceptance
+
+`kaine-summarize-work` owns implementation handoffs, including partial or blocked
+work and PR delivery. The canonical guide routes these handoffs to the skill.
+Technical results, links, verification, and limitations precede the final **In plain
+language** section. That ending explains the practical outcome and any necessary
+next step without expanding the task.
+
+The following are manual acceptance scenarios, not executed model trials:
+
+| Scenario                                                                | Expected behavior                                                                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Completed implementation; no user action needed                         | Preserve technical evidence. Explain the practical benefit and state that no user action is needed only when supported.              |
+| PR created; checks or review remain pending                             | Distinguish implementation from merge and deployment. Name the pending check or review and who owns the next step.                   |
+| Partial or blocked implementation                                       | Identify what is complete, what remains, and the blocker. Explain the necessary next step and its owner without claiming completion. |
+| Tests pass but live behavior was not tested                             | Retain the coverage limitation in plain language; do not turn test success into a live-enforcement claim.                            |
+| “Shorten this implementation summary”                                   | Keep a proportionate plain-language ending and material limitations. Introduce no new promises.                                      |
+| Explicit invocation                                                     | Load the skill and summarize the supplied implementation evidence without inventing missing results.                                 |
+| Standalone investigation, review, ordinary question, or progress update | Do not automatically apply this skill or force an implementation handoff.                                                            |
+| Implementation plan                                                     | Use `kaine-write-plan`; keep its own plain-language ending.                                                                          |
+| Authorized implementation still has feasible work remaining             | Continue the work. Do not use the summary workflow as a reason to stop early or request repeated approval.                           |
+
+Review example summaries against these criteria for accuracy, understandable
+outcomes, and clear ownership of next steps. Record any observed agent behavior
+separately. Installation, doctor, formatting, and repository checks validate
+metadata and generated files; they do not prove universal instruction-following.
+Do not add tests that merely search for the ending's heading.
+
+The writing guidance follows the [National Archives plain-language principles](https://www.archives.gov/open/plain-writing/10-principles.html): lead with the main point, use familiar words, and keep sentences focused. The skill has no external runtime dependency.
+
 ## Related
 
 - Day-one ramp: `docs/agents/day-one.md`
