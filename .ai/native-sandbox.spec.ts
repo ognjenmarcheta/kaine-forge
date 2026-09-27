@@ -3,7 +3,8 @@ import { PassThrough } from "node:stream";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
 
-const mocks = vi.hoisted(() => ({ spawn: vi.fn() }));
+const mocks = vi.hoisted(() => ({ spawn: vi.fn(), cleanup: vi.fn(async () => "passed") }));
+vi.mock("./process-cleanup.util", () => ({ stopProcessTree: mocks.cleanup }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 
 import { runNativeProbe } from "./native-sandbox";
@@ -75,7 +76,7 @@ it("checks strong Windows readiness before a command and explicitly selects the 
       timeoutMs: 30000
     }
   });
-  expect(fake.child.kill).toHaveBeenCalledTimes(1);
+  expect(mocks.cleanup).toHaveBeenCalledWith(fake.child);
 });
 
 it("does not execute a command when administrator setup is missing", async () => {
@@ -89,7 +90,7 @@ it("does not execute a command when administrator setup is missing", async () =>
     })
   ).rejects.toThrow("administrator-assisted");
   expect(fake.requests.some((request) => request.method === "command/exec")).toBe(false);
-  expect(fake.child.kill).toHaveBeenCalledTimes(1);
+  expect(mocks.cleanup).toHaveBeenCalledWith(fake.child);
 });
 
 it("fails when the native command fails even after successful readiness", async () => {
@@ -102,4 +103,17 @@ it("fails when the native command fails even after successful readiness", async 
       command: ["node", "probe"]
     })
   ).rejects.toThrow("Native probe command failed");
+});
+
+it("rejects an otherwise successful preflight when cleanup fails", async () => {
+  server("ready");
+  mocks.cleanup.mockResolvedValueOnce("failed");
+  await expect(
+    runNativeProbe({
+      config: [],
+      workspace: "C:/repo",
+      profileName: "test",
+      command: ["node", "probe"]
+    })
+  ).rejects.toThrow("cleanup failed");
 });

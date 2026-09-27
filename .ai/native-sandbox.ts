@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { z } from "zod";
 
 import { controllerEnvironment } from "./agent-run.util";
+import { stopProcessTree } from "./process-cleanup.util";
 
 const responseSchema = z.object({
   id: z.number().optional(),
@@ -62,13 +63,17 @@ export async function runNativeProbe(input: {
       ...controllerEnvironment(process.env, false),
       KAINE_PROBE_SECRET: "synthetic-controller-only"
     },
-    stdio: ["pipe", "pipe", "pipe"]
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    detached: process.platform !== "win32"
   });
   let buffer = "";
   const send = (message: z.infer<ReturnType<typeof z.json>>) =>
     child.stdin.write(`${JSON.stringify(message)}\n`);
+  let failure: Error | undefined;
+  let output = "";
   try {
-    return await new Promise<string>((resolve, reject) => {
+    output = await new Promise<string>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("Native sandbox preflight timed out")),
         35_000
@@ -91,7 +96,7 @@ export async function runNativeProbe(input: {
           try {
             const response = responseSchema.parse(JSON.parse(line));
             if (response.error) {
-              finish(new Error(`Native sandbox preflight rejected: ${response.error.message}`));
+              finish(new Error("Native sandbox preflight rejected"));
               return;
             }
             if (response.id === 1) {
@@ -135,9 +140,7 @@ export async function runNativeProbe(input: {
             if (response.id === 3) {
               const result = commandResultSchema.parse(response.result);
               finish(
-                result.exitCode === 0
-                  ? null
-                  : new Error(`Native probe command failed: ${result.stderr.slice(0, 1200)}`),
+                result.exitCode === 0 ? null : new Error("Native probe command failed"),
                 result.stdout
               );
             }
@@ -155,8 +158,11 @@ export async function runNativeProbe(input: {
         }
       });
     });
-  } finally {
-    child.stdin.end();
-    child.kill();
+  } catch (error) {
+    failure = error instanceof Error ? error : new Error("Native preflight failed");
   }
+  if ((await stopProcessTree(child)) !== "passed")
+    throw new Error(`${failure?.message ?? "Native preflight completed"}; process cleanup failed`);
+  if (failure) throw failure;
+  return output;
 }

@@ -28,7 +28,16 @@ fails readiness even if timestamps stay unchanged. The installer records selecte
 skill/MCP names in gitignored `.ai.local/installations/<agent>.json`, without
 credentials. Reinstallation preserves subsets, personal settings, hooks and
 unmanaged MCPs. Explicit `--skill`/`--mcp` changes the selection; new installs retain
-existing defaults. Malformed configuration fails verification.
+existing defaults. Empty directories and personal-only configuration receive defaults.
+Interactive MCP installation retains team defaults when no optional server is chosen.
+Noninteractive regeneration preserves recorded empty selections and legacy managed subsets.
+Malformed configuration fails verification.
+
+Metadata version 2 separates requested names from `ownedMcps`. Missing skill prerequisites
+remain visible in readiness; they do not erase the selection or remove an installed skill.
+Removed canonical MCPs are deleted only when ownership is known. Explicit personal overrides
+remain personal. Version 1 metadata migrates on installation; ambiguous legacy names are
+preserved with a warning. Metadata contains no credentials.
 
 `--strict` retains the CI contract: tracked drift and canonical policy errors fail;
 absent local-only integrations remain advisory. Local checks fail for missing/stale
@@ -38,11 +47,14 @@ Missing dependencies or failed inspection produce `not-verified` and a recovery
 command. Startup never certifies MCP connectivity or sandbox enforcement.
 
 `--probe-mcp` sends initialize/initialized only. Each stdio server has a bounded
-10-second startup and process-tree cleanup. Raw server output and environment
+10-second startup and process-tree cleanup. Results include a separate `cleanup` status.
+Cleanup launch errors, nonzero termination, timeout or an unconfirmed exit prevent a pass.
+Initialization and cleanup failures are retained together. Raw server output and environment
 values are not printed. This proves initialization, not tool behavior. Other
 transports have no passing startup claim. Probes stay out of hooks and ordinary CI.
 
-`validateMcpPins` runs in doctor and AI tests. Updates follow the existing
+`validateMcpPins` runs in doctor and AI tests. Guard checks also validate dependency pins
+in repository-owned hook launch definitions. Updates follow the existing
 [dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
 
 | Server     | Exact launch dependency                               | Verification on 2026-09-27                          |
@@ -57,9 +69,22 @@ transports have no passing startup claim. Probes stay out of hooks and ordinary 
 Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
 process from the persisted Windows PATH makes both local readiness checks pass.
 Existing app/terminal processes may need a restart to inherit PATH changes.
-Serena's first cold initialization exceeded the 10-second limit. Preparing the
-same pinned environment with `uvx --from <pinned-git-source> serena --help`, then
-retrying the unchanged bounded probe, passed. No server was deselected.
+Serena's first cold initialization exceeded the 10-second limit. Explicit preparation
+now uses `pnpm ai:install --agent claude --prepare-serena`. It derives the Git commit from
+the selected launch configuration, rejects unsupported overrides, and bounds preparation
+to 60 seconds and 64 KiB of combined output. Successful prompts are saved atomically in
+`.ai.local/serena/`; failed preparation retains the previous cache.
+
+Claude startup uses the existing bounded local inspector. It launches no Serena process
+and performs no download. It emits cached content only when Serena is selected, enabled,
+and its command/arguments fingerprint matches. Otherwise it prints a recovery command.
+`serenaPrompt` reports availability separately from installation and runtime results.
+Installation removes only the exact former repository-generated Serena hook; personal
+hooks remain. The current pinned prompt prepared successfully on this host.
+
+The canonical explorer has a `Read`, `Grep`, `Glob` allowlist. Shell, MCP, editing and
+delegation checks return to the parent. Tests verify the rendered Claude definition.
+No live session has certified explorer permissions; other harnesses need their own proof.
 
 ## Assistant evaluations
 
@@ -175,6 +200,12 @@ environment and Git-file denial, local-state denial, outside reads/writes, child
 environment isolation and network denial. A host listener
 provides a positive network control. Failed or inconclusive controls stop dispatch. Live dispatch requires both read and edit modes to pass in the same invocation. Probe
 results alone do not claim verified task success.
+
+The controller reads its probe source once, compares workspace dependencies, and executes
+the captured source through Node module-evaluation arguments without a shell. The tool
+fingerprint includes the bytes executed. Replacing the workspace probe after comparison
+cannot change that command. Native preflight and MCP probes share bounded process-tree
+cleanup; native preflight rejects completion when cleanup is unsuccessful.
 
 **Local verification on 2026-09-27:** `codex-cli 0.154.0` reports the elevated
 Windows sandbox as ready. Native app-server `command/exec` receives an explicit
@@ -315,7 +346,11 @@ pnpm harness:context --prepare
 The inventory identifies duplicates, historical explanations and reading rules.
 Preparation creates baseline/candidate checkouts in `.ai.local/context-experiments/`
 from the same HEAD plus current nonignored working files. A snapshot hash records
-the overlay. The candidate routes architecture reading by task and replaces one
+relative paths, entry types, modes, file bytes and stored symlink targets. Collection uses
+`lstat`; overlays recreate links without following them and reject unsafe destination
+ancestors. Unsupported entries or host link permissions produce an actionable error.
+POSIX executable modes and relative/dangling links run in Linux CI; that test is explicitly
+skipped on Windows. The candidate routes architecture reading by task and replaces one
 historical subagent explanation with a ledger reference. Essential constraints
 remain. Production `.ai/guide.md` and `AGENTS.md` are unchanged.
 
@@ -342,7 +377,7 @@ are required only when application runtime code changes.
 ### Rollout verification — 2026-09-27
 
 - `pnpm install --frozen-lockfile`: completed without lockfile changes; corrected stale local Metro/image-size dependencies.
-- `pnpm check`: passed (format, lint, boundaries, typecheck, tests and Knip). AI suite: 283 tests across 20 files. Native script suite: 70 passing. Regression checks cover preserved OpenCode activation settings and protected candidate paths with Windows separators and case variants.
+- `pnpm check`: passed before this hardening follow-up (283 AI tests). Fresh hardening validation is recorded below and in PR #437.
 - `pnpm ai:install` and `pnpm ai:doctor --strict`: regenerated selected outputs; no drift.
 - Codex and Claude local readiness: passed after refreshing the Windows PATH for `uvx 0.12.19`.
 - Explicit MCP initialization: filesystem, Context7, Playwright and Serena passed. Serena required preparing its pinned environment before the bounded retry.
@@ -352,3 +387,27 @@ are required only when application runtime code changes.
 
 Raw diagnostics and reports stay in `.ai.local/`. No new live baseline or causal
 verdict was recorded. No merge or deployment was performed.
+
+### PR #437 review hardening
+
+| Finding                                                       | Fix and regression evidence                                                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| CodeRabbit `4116776057`: overlay loses modes/links            | `context-snapshot.spec.ts`: bytes, executable modes, relative/dangling links, fingerprints and unsafe destinations |
+| CodeRabbit `4116776059`: first install skips defaults         | `install-hardening.spec.ts`: empty and personal-only installation, explicit/recorded/legacy selection precedence   |
+| CodeRabbit `4116776065`: interactive empty optional selection | Shared selection helper retains defaults despite previous metadata; regression covers this branch                  |
+| Summary: deleted team MCP remains installed                   | Version 2 ownership revokes removed definitions; tests preserve personal overrides and ambiguous legacy entries    |
+| Summary: missing skill prerequisite erases selection          | Requested names survive prerequisite loss; regression restores installation and checks readiness failure           |
+
+Additional offline tests cover stale Serena caches, preparation failures and limits,
+personal hook preservation, explorer tool definitions, trusted probe execution after
+workspace tampering, denied dispatch, and failed cleanup. They establish tooling behavior,
+not agent quality or live permission enforcement. CodeRabbit's advisory docstring percentage
+does not add a repository requirement; its separate lint sandbox does not justify dependency changes.
+
+Fresh local verification: `pnpm check` passed, including 313 AI tests across 27 files
+and 70 native script tests. One POSIX mode/link test is explicitly skipped on Windows
+and runs in Linux CI. Strict doctor, both local readiness checks, pinned Serena prompt
+preparation and all four selected MCP initialization/cleanup probes pass. Context
+experiment preparation succeeds with the new snapshot format. Read/edit native probes
+still fail only `networkDenied`; model dispatch remains blocked. Knip lists `uvx` as
+an external host tool alongside `codex`; no package dependency was added.

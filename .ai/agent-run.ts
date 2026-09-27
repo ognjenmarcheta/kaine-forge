@@ -84,6 +84,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
   save();
   const markers: string[] = [];
   try {
+    const probeSource = readFileSync(path.join(import.meta.dirname, "sandbox-probe.mjs"), "utf8");
     assertSupportedSandbox(process.platform, cliVersion);
     projectConfigRestrictions(workspace);
     for (const relative of [
@@ -95,10 +96,12 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
     ]) {
       if (
         readFileSync(path.join(workspace, relative), "utf8").replaceAll("\r\n", "\n") !==
-        readFileSync(path.resolve(import.meta.dirname, "..", relative), "utf8").replaceAll(
-          "\r\n",
-          "\n"
-        )
+        (relative === ".ai/sandbox-probe.mjs"
+          ? probeSource.replaceAll("\r\n", "\n")
+          : readFileSync(path.resolve(import.meta.dirname, "..", relative), "utf8").replaceAll(
+              "\r\n",
+              "\n"
+            ))
       )
         throw new Error(`Untrusted runner dependency: ${relative}`);
     }
@@ -148,7 +151,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
     );
     for (const file of [
       ".ai/native-sandbox.ts",
-      ".ai/sandbox-probe.mjs",
+      ".ai/process-cleanup.util.ts",
       ".ai/permissions.json",
       ".ai/hooks/pre-tool-use.mjs",
       ".ai/hooks/guarded-command.mjs"
@@ -161,7 +164,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
             "\n"
           )
         );
-    run.toolHash = toolsHash.digest("hex");
+    run.toolHash = toolsHash.update(probeSource).digest("hex");
     save();
     const listener = net.createServer((socket) => socket.end());
     await new Promise<void>((resolve, reject) => {
@@ -180,9 +183,6 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
         });
         socket.once("error", reject);
       });
-      const probeScript = path.join(workspace, ".ai", "sandbox-probe.mjs");
-      if (!existsSync(probeScript))
-        throw new Error("Workspace must contain the Kaine sandbox probe");
       const modes = options["probe-only"] ? [options.mode] : (["read", "edit"] as const);
       for (const mode of modes) {
         const probeConfig = sandboxConfig({
@@ -203,7 +203,11 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
           profileName,
           command: [
             process.execPath,
-            probeScript,
+            "--input-type=module",
+            "--eval",
+            probeSource,
+            "--",
+            "kaine-boundary-probe",
             readable,
             `${readable}.write`,
             protectedFile,

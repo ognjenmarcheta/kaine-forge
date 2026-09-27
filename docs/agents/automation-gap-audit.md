@@ -2,7 +2,7 @@
 
 Snapshot of template rules that are encoded as docs/REVIEW/skills but not fully machine-checked.
 Update when a gap is closed or a new proven failure mode appears.
-Last reviewed: 2026-09-27 (content readiness, pinned MCPs, offline fixtures, comparable reports and sandbox diagnostics).
+Last reviewed: 2026-09-27 (installation ownership, cached Serena startup, faithful context snapshots, trusted probes and checked process cleanup).
 
 This audit records evidence and residual gaps. Candidate checks remain proposals unless an executable check is named.
 
@@ -36,6 +36,23 @@ No paid model call, automatic model CI run, merge or deployment belongs to this 
 - Terminal model-run accounting and offline log summaries: success, failure and cancellation are explicit. Real usage baselines remain pending.
 - Duplicate skill inventory: one generated index occupies the existing guide location. Installer and doctor reject missing/duplicate markers and stale output.
 - Native sandbox dispatch is guarded by positive and negative probes. **Boundary certification remains open:** the native Windows path passes filesystem controls but permits loopback networking; the runner fails closed.
+
+## PR #437 hardening — 2026-09-27
+
+PR #437 hardening adds requested-selection/ownership metadata with legacy migration.
+Installer regressions cover empty and personal-only installs, recorded empty selections,
+optional selections, missing prerequisites and removed definitions. Ambiguous legacy MCPs
+remain preserved for review. Session startup reads a selected, enabled, current Serena cache;
+only explicit `--prepare-serena` runs its pinned dependency, with time/output limits.
+Prompt availability is separate from installation readiness and runtime certification.
+
+The explorer's rendered tool list is restricted to `Read`, `Grep`, `Glob`; live enforcement
+has not been certified. Snapshot tests cover content, modes and symlink targets on POSIX;
+Windows skips the POSIX-specific case. Trusted-probe tests replace workspace source after
+comparison and verify captured controller code still executes. Cleanup tests cover launch
+errors, nonzero termination, timeout, normal termination and a synthetic child process.
+Both native sandbox modes still fail network denial. No paid evaluation or context adoption
+is authorized by these offline results.
 
 ## Context audit — 2026-09-12
 
