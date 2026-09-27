@@ -41,6 +41,7 @@ describe("guard contract self-check", () => {
         );
       }
       expect(checkGuardContracts(root)).toEqual([
+        expect.stringContaining("claude PowerShell configuration and denial"),
         expect.stringContaining("claude pnpm db:push"),
         expect.stringContaining("codex pnpm db:push")
       ]);

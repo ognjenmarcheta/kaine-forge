@@ -5,8 +5,6 @@
 /** Deny is evaluated before ask, so the stronger verdict always wins. */
 export const GUARD_DECISIONS = ["deny", "ask"];
 
-const SEGMENT_SEPARATORS = /&&|\|\||[;|\n]/;
-
 const HEREDOC_START = /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/;
 
 /**
@@ -48,33 +46,137 @@ export function stripHeredocBodies(command) {
  * @returns {string[]}
  */
 export function splitShellSegments(command) {
-  return stripHeredocBodies(command)
-    .split(SEGMENT_SEPARATORS)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
+  return scanCommands(stripHeredocBodies(command), "bash").map((segment) => segment.source);
 }
 
-// Word-boundary prefix match: `git` must not match `github-cli`.
-const startsWithCommand = (segment, command) =>
-  segment === command || segment.startsWith(`${command} `);
+/** Tokenize literal commands only; this deliberately does not evaluate shell expressions.
+ * @param {string} command
+ * @param {"bash" | "powershell"} shell
+ * @returns {{source: string, tokens: string[]}[]}
+ */
+function scanCommands(command, shell) {
+  const segments = [];
+  let tokens = [];
+  let token = "";
+  let started = false;
+  let quote = "";
+  let start = 0;
+  const flushToken = () => {
+    if (started) tokens.push(token);
+    token = "";
+    started = false;
+  };
+  const flushSegment = (end) => {
+    flushToken();
+    const source = command.slice(start, end).trim();
+    if (source) segments.push({ source, tokens });
+    tokens = [];
+  };
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index];
+    const next = command[index + 1];
+    const escape = shell === "powershell" ? "`" : "\\";
+    if (
+      char === escape &&
+      quote !== "'" &&
+      next !== undefined &&
+      (shell === "powershell" || quote !== '"' || '$`"\\\n'.includes(next))
+    ) {
+      if (next !== "\n") {
+        token += next;
+        started = true;
+      }
+      index++;
+    } else if (quote) {
+      if (char === quote) {
+        if (shell === "powershell" && quote === "'" && next === "'") {
+          token += "'";
+          index++;
+        } else quote = "";
+      } else token += char;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      started = true;
+    } else if (char === ";" || char === "|" || char === "\n" || char === "&") {
+      flushSegment(index);
+      if (next === char && (char === "|" || char === "&")) index++;
+      start = index + 1;
+    } else if (/\s/.test(char)) flushToken();
+    else {
+      token += char;
+      started = true;
+    }
+  }
+  flushSegment(command.length);
+  return segments;
+}
 
-// Token-exact, which is what keeps --force-with-lease out of the --force rule
-// without needing an exception list.
-const hasFlag = (segment, flag) => segment.split(/\s+/).includes(flag);
+/** @param {string[]} tokens @returns {string[]} */
+function normalizeCommand(tokens) {
+  const [executable, ...args] = tokens;
+  if (executable !== "pnpm" && executable !== "git") return tokens;
+  const valued = executable === "pnpm" ? ["--filter", "-C", "--dir"] : ["-C"];
+  let index = 0;
+  while (index < args.length) {
+    if (valued.includes(args[index]) && args[index + 1] !== undefined) index += 2;
+    else if (executable === "pnpm" && /^(--filter|--dir)=/.test(args[index])) index++;
+    else break;
+  }
+  if (executable === "pnpm" && args[index] === "run") index++;
+  return [executable, ...args.slice(index)];
+}
+
+/** Command-specific option values are data even when they spell a guarded flag.
+ * @param {string[]} tokens @param {string} flag @returns {boolean}
+ */
+function hasFlag(tokens, flag) {
+  const valued =
+    tokens[0] === "git" && tokens[1] === "commit"
+      ? [
+          "-m",
+          "--message",
+          "-F",
+          "--file",
+          "-C",
+          "--reuse-message",
+          "-c",
+          "--reedit-message",
+          "--author",
+          "--date",
+          "-t",
+          "--template",
+          "--cleanup",
+          "--trailer",
+          "--pathspec-from-file",
+          "--fixup",
+          "--squash"
+        ]
+      : tokens[0] === "gh" && tokens[1] === "pr" && tokens[2] === "review"
+        ? ["-b", "--body", "-F", "--body-file", "-R", "--repo"]
+        : [];
+  for (let index = 1; index < tokens.length; index++) {
+    if (tokens[index] === "--") break;
+    if (valued.includes(tokens[index])) index++;
+    else if (tokens[index] === flag) return true;
+  }
+  return false;
+}
 
 /**
  * @param {string} command Full command line as the agent proposed it.
  * @param {ReadonlyArray<{ id: string, decision: string, command: string, flag?: string, reason: string, instead?: string }>} rules
+ * @param {"bash" | "powershell"} [shell]
  * @returns {{ id: string, decision: string, command: string, flag?: string, reason: string, instead?: string } | null}
  */
-export function matchGuardedCommand(command, rules) {
+export function matchGuardedCommand(command, rules, shell = "bash") {
   if (typeof command !== "string" || command.trim() === "") {
     return null;
   }
 
-  const segments = splitShellSegments(command).map((segment) =>
-    segment.replace(/^pnpm\s+run\s+/, "pnpm ")
-  );
+  const segments = scanCommands(
+    shell === "bash" ? stripHeredocBodies(command) : command,
+    shell
+  ).map((segment) => normalizeCommand(segment.tokens));
 
   for (const decision of GUARD_DECISIONS) {
     for (const rule of rules) {
@@ -82,7 +184,7 @@ export function matchGuardedCommand(command, rules) {
         continue;
       }
       for (const segment of segments) {
-        if (!startsWithCommand(segment, rule.command)) {
+        if (!rule.command.split(/\s+/).every((word, index) => segment[index] === word)) {
           continue;
         }
         if (rule.flag !== undefined && !hasFlag(segment, rule.flag)) {

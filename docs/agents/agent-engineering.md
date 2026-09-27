@@ -239,6 +239,44 @@ configuration hash, duration, available usage, command outcomes, exit code and
 termination reason. Add `--save-transcript` to retain raw JSONL locally. Treat raw
 transcripts as sensitive for real work. Normal runs do not save them.
 
+## Command guard coverage and hook ownership
+
+The shared command matcher inspects literal commands; it never runs the proposed
+command. It splits chains outside quotes, recognizes quoted argument tokens and
+preserves the existing simple Bash heredoc-body exclusion. Leading pnpm `--filter`,
+`-C` and `--dir` options are supported, including `--filter=value` and `--dir=value`,
+before either a script name or `run <script>`. Leading Git `-C <directory>` options
+are supported too. Known Git commit message/metadata options and GitHub review
+body options consume their argument as data. Quoting an actual flag does not hide
+it; tokens after `--` are not flags. `--force-with-lease` and validated local database
+commands retain their existing treatment. Deny still takes precedence over ask.
+
+Claude's generated hook matches Bash and PowerShell. PowerShell command events use
+backtick escapes and doubled single quotes; Bash uses shell backslash escapes.
+Tests supply synthetic events only. They do not establish that every installed
+harness/version delivers those events or enforces the returned decision.
+
+This is a guardrail, not a shell interpreter or sandbox. Dynamic commands,
+substitutions, arbitrary wrappers, aliases, script contents, PowerShell here-strings
+and general shell grammar are outside its coverage. Invalid or unreadable policy
+retains the existing fail-open behavior: warn and skip the hook. Doctor validates
+the canonical policy. The independent isolation gates remain required for live dispatch.
+
+Installation recognizes owned hooks by exact event, group settings and handler
+definitions, ignoring object-key order. An explicit legacy catalogue migrates the
+old Claude Bash group and exact Serena prompt hook. Personal handlers in a recognized
+group keep their order. Modified or unrecognized hooks survive; references to managed
+paths can produce a manual-review warning, but never establish ownership. The warning
+omits raw commands and settings. Installation and readiness share this comparison;
+reinstallation is idempotent. Future managed-hook changes must retain their replaced
+definition in the legacy catalogue when migration is needed.
+
+Verification on 2026-09-28: 172 focused tests passed. `pnpm check` passed with
+381 AI tests and one POSIX-only skip on Windows. A second installation changed
+no files; strict doctor and Codex/Claude local readiness passed. Command regressions
+and personal-hook regressions failed before their fixes. No model calls or live
+PowerShell enforcement trials were run.
+
 ## Model-process completion and cleanup
 
 `pnpm agent:run` uses the shared process-tree cleanup helper for the model process

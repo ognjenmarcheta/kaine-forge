@@ -72,7 +72,10 @@ const proposedCommand = (input) => {
   if (typeof input.command === "string") {
     return input.command;
   }
-  if (input.tool_name === "Bash" && typeof input.tool_input?.command === "string") {
+  if (
+    (input.tool_name === "Bash" || (agent === "claude" && input.tool_name === "PowerShell")) &&
+    typeof input.tool_input?.command === "string"
+  ) {
     return input.tool_input.command;
   }
   return null;
@@ -85,7 +88,11 @@ const main = async () => {
     return;
   }
 
-  const rule = matchGuardedCommand(command, readRules());
+  const rule = matchGuardedCommand(
+    command,
+    readRules(),
+    input.tool_name === "PowerShell" ? "powershell" : "bash"
+  );
   if (!rule) {
     return;
   }

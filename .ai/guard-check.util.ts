@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { z } from "zod";
 
 import {
   renderClaudeSettings,
@@ -50,6 +51,37 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
         ]
       }
     });
+  });
+
+  check("claude PowerShell configuration and denial", () => {
+    const settings = z
+      .object({
+        hooks: z.object({
+          PreToolUse: z.array(z.object({ matcher: z.string() }))
+        })
+      })
+      .parse(JSON.parse(renderClaudeSettings()));
+    assert.equal(settings.hooks.PreToolUse[0]?.matcher, "^(Bash|PowerShell)$");
+    const result = spawnSync(
+      process.execPath,
+      [join(repoRoot, ".ai/hooks/pre-tool-use.mjs"), "--agent", "claude"],
+      {
+        input: JSON.stringify({
+          tool_name: "PowerShell",
+          tool_input: { command: "pnpm --dir . db:push" }
+        }),
+        encoding: "utf8",
+        timeout: 10_000
+      }
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 2);
+    z.object({
+      hookSpecificOutput: z.object({
+        hookEventName: z.literal("PreToolUse"),
+        permissionDecision: z.literal("deny")
+      })
+    }).parse(JSON.parse(result.stdout));
   });
 
   for (const agent of ["claude", "codex", "grok", "cursor"]) {

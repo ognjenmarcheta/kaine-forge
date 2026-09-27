@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
@@ -15,12 +16,71 @@ const objectSchema = z.record(z.string(), z.json());
 const isObject = (value: ConfigValue): value is Record<string, ConfigValue> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+// Exact historical output only. Changes to current generated hooks must retain
+// the replaced definition here if installation needs to migrate it.
+const legacyHooks: Record<string, ConfigValue[]> = {
+  SessionStart: [legacySerenaHook],
+  PreToolUse: [
+    {
+      matcher: "Bash",
+      hooks: [
+        {
+          type: "command",
+          command:
+            'node "$(git rev-parse --show-toplevel)/.ai/hooks/pre-tool-use.mjs" --agent claude',
+          timeout: 10
+        }
+      ]
+    }
+  ]
+};
+
+function preservePersonalHooks(
+  event: string,
+  before: ConfigValue[],
+  generated: ConfigValue[],
+  warn?: (message: string) => void
+): ConfigValue[] {
+  const known = [...generated, ...(legacyHooks[event] ?? [])];
+  const attributes = (group: Record<string, ConfigValue>) =>
+    Object.fromEntries(Object.entries(group).filter(([key]) => key !== "hooks"));
+  return before.flatMap((entry, index) => {
+    if (known.some((definition) => isDeepStrictEqual(entry, definition))) return [];
+    let preserved = entry;
+    if (isObject(entry) && Array.isArray(entry.hooks)) {
+      const ownedHandlers = known.flatMap((definition) =>
+        isObject(definition) &&
+        Array.isArray(definition.hooks) &&
+        isDeepStrictEqual(attributes(entry), attributes(definition))
+          ? definition.hooks
+          : []
+      );
+      const remaining = entry.hooks.filter(
+        (handler) => !ownedHandlers.some((owned) => isDeepStrictEqual(handler, owned))
+      );
+      if (remaining.length !== entry.hooks.length) {
+        if (!remaining.length) return [];
+        preserved = { ...entry, hooks: remaining };
+      }
+    }
+    const text = JSON.stringify(preserved);
+    if (
+      text.includes(".ai/hooks/") ||
+      text.includes("serena prompts print-cc-system-prompt-override")
+    ) {
+      warn?.(`Preserved unrecognized hook in ${event}[${index}]; review ownership manually.`);
+    }
+    return [preserved];
+  });
+}
+
 /** Preserve personal settings; regenerate repository-owned hook entries and selected MCPs. */
 export function mergeInstalledConfig(
   previous: string,
   generated: string,
   toml: boolean,
-  managedMcps: string[]
+  managedMcps: string[],
+  warn?: (message: string) => void
 ): string {
   const decode = (content: string) =>
     objectSchema.parse(toml ? parse(content) : JSON.parse(content));
@@ -61,15 +121,7 @@ export function mergeInstalledConfig(
           )
         };
       } else if (Array.isArray(value) && Array.isArray(before) && parent === "hooks") {
-        result[key] = [
-          ...before.filter(
-            (entry) =>
-              !JSON.stringify(entry).includes(".ai/hooks/") &&
-              JSON.stringify(entry) !== JSON.stringify(legacySerenaHook) &&
-              !value.some((expected) => JSON.stringify(expected) === JSON.stringify(entry))
-          ),
-          ...value
-        ];
+        result[key] = [...preservePersonalHooks(key, before, value, warn), ...value];
       } else if (isObject(value) && before && isObject(before))
         result[key] = merge(before, value, key);
       else result[key] = value;
@@ -87,18 +139,9 @@ export function managedConfigMatches(previous: string, generated: string, toml =
   try {
     const decode = (content: string) =>
       objectSchema.parse(toml ? parse(content) : JSON.parse(content));
-    const canonicalize = (value: ConfigValue): string => {
-      if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
-      if (isObject(value))
-        return `{${Object.keys(value)
-          .sort()
-          .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key] ?? null)}`)
-          .join(",")}}`;
-      return JSON.stringify(value);
-    };
-    return (
-      canonicalize(decode(previous)) ===
-      canonicalize(decode(mergeInstalledConfig(previous, generated, toml, [])))
+    return isDeepStrictEqual(
+      decode(previous),
+      decode(mergeInstalledConfig(previous, generated, toml, []))
     );
   } catch {
     return false;

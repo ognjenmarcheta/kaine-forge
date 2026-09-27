@@ -255,10 +255,11 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 
 ## Guarded Commands
 
-Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is
-blocked on every agent that honours a blocking hook. `ask` is a real
-verdict on Claude and Cursor and degrades to an advisory elsewhere, so treat the deny tier
-as the guarantee.
+The hook `.ai/hooks/pre-tool-use.mjs` applies `.ai/permissions.json` to supported
+literal command forms. `deny` blocks matched calls on agents that honour the hook.
+`ask` is a real verdict on Claude and Cursor and degrades to an advisory elsewhere.
+Hooks are guardrails, not a complete security boundary. Supported syntax and
+failure behavior are documented in `docs/agents/agent-engineering.md`.
 
 - **deny** `pnpm db:push` — Unrestricted schema push can drop columns in DATABASE_URL. Shared and deployed databases require pnpm db:generate and reviewed migrations. The local wrapper requires explicit opt-in and validates loopback PostgreSQL. Use `pnpm db:push:local` instead.
 - **deny** `pnpm clean-deps` — Removes every node_modules directory in the tree. Use `pnpm clean` instead.

@@ -2,7 +2,7 @@
 
 Snapshot of template rules that are encoded as docs/REVIEW/skills but not fully machine-checked.
 Update when a gap is closed or a new proven failure mode appears.
-Last reviewed: 2026-09-28 (CodeRabbit follow-up: PID parsing and output-closure reporting).
+Last reviewed: 2026-09-28 (literal command guards and personal-hook preservation).
 
 This audit records evidence and residual gaps. Candidate checks remain proposals unless an executable check is named.
 
@@ -53,6 +53,21 @@ including 352 AI tests and one POSIX-only skip. Installation, strict doctor and
 both local readiness checks passed again.
 
 ## Earlier tooling closures
+
+- Shared command matching recognizes quoted arguments, supported pnpm selector/directory
+  options and Git directory options. Tests include harmless quoted text and real quoted
+  flags. The existing policy decisions remain unchanged. Claude PowerShell coverage is
+  a synthetic hook-contract check, not live enforcement certification.
+- Hook installation replaces exact known definitions and preserves personal handlers,
+  including references to `.ai/hooks/`. Ambiguous definitions remain with a warning.
+  JSON/TOML regeneration and readiness share ownership logic and idempotency checks.
+- Residual command-guard gaps: dynamic shell syntax, arbitrary wrappers and script
+  contents are unsupported. Invalid policy still warns and fails open. Hook results
+  do not replace the existing isolation probes or resolve their network-denial blocker.
+
+Verification for these two fixes: 172 focused tests and `pnpm check` passed;
+the AI suite passed 381 tests with one POSIX-only skip on Windows. Reinstallation
+was unchanged; strict doctor and both local readiness checks passed.
 
 - Assistant case execution and stored-state grading: `pnpm eval:assistant`; human response review remains required. See [manual tooling](agent-engineering.md).
 - Terminal model-run accounting and offline log summaries: success, failure and cancellation are explicit. Real usage baselines remain pending.
