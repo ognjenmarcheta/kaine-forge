@@ -75,11 +75,23 @@ it.each([false, true])(
         path.join(root, ".mcp.json"),
         JSON.stringify({ mcpServers: personal ? { personal: { command: "local" } } : {} })
       );
+      const personalHook = {
+        matcher: "Bash",
+        hooks: [{ type: "command", command: "node tools/personal.mjs --watch .ai/hooks/" }]
+      };
+      if (personal)
+        writeFileSync(
+          path.join(root, ".claude/settings.json"),
+          JSON.stringify({ hooks: { PreToolUse: [personalHook] } })
+        );
       writeFileSync(
         path.join(root, ".ai/skills/kaine-env-control.md"),
         "---\nname: kaine-env-control\ndescription: Synthetic environment control.\nrequires-env: [KAINE_TEST_SKILL_TOKEN]\n---\nControl\n"
       );
       install({ ...process.env, KAINE_TEST_SKILL_TOKEN: "" });
+      const settingsPath = path.join(root, ".claude/settings.json");
+      const firstSettings = readFileSync(settingsPath, "utf8");
+      if (personal) expect(JSON.parse(firstSettings).hooks.PreToolUse).toContainEqual(personalHook);
       const first = readInstallSelection("claude", root);
       expect(first?.schemaVersion).toBe(2);
       expect(first?.skills).toContain("kaine-test");
@@ -88,6 +100,7 @@ it.each([false, true])(
       const skill = path.join(root, ".claude/skills/kaine-env-control/SKILL.md");
       expect(existsSync(skill)).toBe(false);
       install({ ...process.env, KAINE_TEST_SKILL_TOKEN: "synthetic" });
+      expect(readFileSync(settingsPath, "utf8")).toBe(firstSettings);
       expect(existsSync(skill)).toBe(true);
       install({ ...process.env, KAINE_TEST_SKILL_TOKEN: "" });
       expect(existsSync(skill)).toBe(true);

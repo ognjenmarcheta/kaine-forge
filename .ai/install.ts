@@ -488,7 +488,8 @@ const installAgent = (
             readFileSync(file, "utf8"),
             content,
             file.endsWith(".toml"),
-            managedMcps
+            managedMcps,
+            (message) => console.warn(chalk.yellow(`${relative(REPO_ROOT, file)}: ${message}`))
           )
         : content;
     writeGenerated(file, updated, output);

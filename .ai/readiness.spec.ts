@@ -56,6 +56,7 @@ it("preserves personal settings, hooks and unmanaged MCPs during regeneration", 
     hooks: {
       SessionStart: [
         { hooks: [{ command: "personal" }] },
+        { hooks: [{ command: "node .ai/hooks/old.mjs" }] },
         { hooks: [{ command: "node .ai/hooks/session-start.mjs" }] }
       ]
     },
