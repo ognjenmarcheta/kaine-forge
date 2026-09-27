@@ -196,6 +196,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 
 ### Skill selection for each request
 
+- When the harness indicates Plan mode, or the user asks you to write or revise an implementation plan, read and apply `kaine-write-plan`. Every completed plan must end with its “In plain language” section.
 - Before task-specific work, assess the available Kaine skill names and descriptions. Honor explicitly requested skills; otherwise select the smallest set that matches the actual workflow.
 - Read selected skill instructions before applying them. Reuse instructions already loaded unless they changed. Load supporting references only as needed.
 - If the skill index is missing or incomplete, inspect frontmatter metadata in canonical `.ai/skills/*.md`. Do not read every skill body or maintain a second index.
@@ -226,6 +227,7 @@ This index is generated from canonical skill metadata:
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
 - `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—prepare safe bumps for owner review, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 - `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
+- `kaine-write-plan`: Write or revise implementation plans in Plan mode or when the user asks for a plan, always ending with a plain-language explanation for a nontechnical reader.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
