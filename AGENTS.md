@@ -170,7 +170,7 @@ A spawned subagent does receive this guide — `CLAUDE.md` imports it, and the `
 
 ### Verification Before Completion
 
-End substantive work by stating what you actually verified, not by asserting success:
+In the final response for substantive work, state what you actually verified, not just an assertion of success. For implementation handoffs, put this evidence before the final **In plain language** section:
 
 - Name the checks you ran and their result — e.g. "ran `pnpm check` — green", "`pnpm --filter @repo/auth test` — 93 passing", or the exact command and output you relied on.
 - If a check was skipped or could not run, say so and why. Never claim done, fixed, or passing without evidence.
@@ -197,6 +197,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 ### Skill selection for each request
 
 - When the harness indicates Plan mode, or the user asks you to write or revise an implementation plan, read and apply `kaine-write-plan`. Every completed plan must end with its “In plain language” section.
+- Before the final handoff for completed, partial, or blocked implementation of code, configuration, or documentation, read and apply `kaine-summarize-work`. Apply it to PR delivery and revisions or shortened implementation summaries too. End with its **In plain language** section after technical results and verification. Standalone investigations, reviews, ordinary questions, and progress updates do not automatically trigger it; plans use `kaine-write-plan`.
 - Before task-specific work, assess the available Kaine skill names and descriptions. Honor explicitly requested skills; otherwise select the smallest set that matches the actual workflow.
 - Read selected skill instructions before applying them. Reuse instructions already loaded unless they changed. Load supporting references only as needed.
 - If the skill index is missing or incomplete, inspect frontmatter metadata in canonical `.ai/skills/*.md`. Do not read every skill body or maintain a second index.
@@ -223,6 +224,7 @@ This index is generated from canonical skill metadata:
 - `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
+- `kaine-summarize-work`: Write or revise implementation handoffs for completed, partial, or blocked code, configuration, and documentation changes, ending with a plain-language explanation of results and next steps.
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.
 - `kaine-test`: Write or verify tests for a specified system under test using Kaine Forge conventions.
 - `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—prepare safe bumps for owner review, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
