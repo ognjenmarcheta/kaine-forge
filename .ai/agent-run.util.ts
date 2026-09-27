@@ -14,6 +14,9 @@ export function parseAgentRunOptions(args: string[]) {
       workspace: { type: "string", default: process.cwd() },
       "prompt-file": { type: "string" },
       model: { type: "string" },
+      harness: { type: "string", default: "codex" },
+      case: { type: "string" },
+      reasoning: { type: "string" },
       mode: { type: "string", default: "read" },
       timeout: { type: "string", default: "1800" },
       "save-transcript": { type: "boolean", default: false },
@@ -23,6 +26,9 @@ export function parseAgentRunOptions(args: string[]) {
   return z
     .object({
       workspace: z.string().min(1),
+      harness: z.literal("codex"),
+      case: z.string().min(1).optional(),
+      reasoning: z.enum(["low", "medium", "high", "xhigh"]).optional(),
       "prompt-file": z.string().min(1).optional(),
       model: z.string().trim().min(1).optional(),
       mode: z.enum(["read", "edit"]),
@@ -199,3 +205,15 @@ export const probeResultSchema = z.object({
   outsideWriteDenied: z.literal(true),
   networkDenied: z.literal(true)
 });
+
+export const isolationObservationSchema = probeResultSchema.extend({
+  networkEvidence: z.literal("denied")
+});
+export function requireIsolation(
+  modes: Partial<Record<"read" | "edit", z.infer<ReturnType<typeof z.json>>>>
+) {
+  for (const mode of ["read", "edit"] as const) {
+    if (!isolationObservationSchema.safeParse(modes[mode]).success)
+      throw new Error(`Sandbox ${mode} boundary is not certified; dispatch denied`);
+  }
+}

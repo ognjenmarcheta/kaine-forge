@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -19,16 +28,22 @@ const writeFile = (repo: string, path: string, content = "x\n"): void => {
 };
 
 const makeHealthyAiInstall = (repo: string): void => {
-  writeFile(repo, ".ai/guide.md");
-  writeFile(repo, ".ai/skills/kaine-test.md");
-  writeFile(repo, "AGENTS.md");
-  writeFile(repo, "CLAUDE.md");
-  writeFile(repo, ".codex/config.toml");
-  writeFile(repo, ".agents/skills/kaine-test/SKILL.md");
-  writeFile(repo, ".mcp.json");
-  writeFile(repo, ".claude/skills/kaine-test/SKILL.md");
-  writeFile(repo, ".grok/config.toml");
-  writeFile(repo, ".grok/skills/kaine-test/SKILL.md");
+  cpSync(join(process.cwd(), ".ai"), join(repo, ".ai"), { recursive: true });
+  symlinkSync(join(process.cwd(), "node_modules"), join(repo, "node_modules"), "junction");
+  execFileSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      ".ai/install.ts",
+      "--agent",
+      "codex,claude,grok",
+      "--mcp",
+      "filesystem",
+      "--non-interactive"
+    ],
+    { cwd: repo, stdio: "pipe" }
+  );
 };
 
 const runHook = (cwd: string, agent: "codex" | "claude" | "grok") =>
@@ -48,7 +63,7 @@ describe("session-start hook", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("Kaine Forge AI context");
       expect(result.stdout).toContain("Branch: main");
-      expect(result.stdout).toContain("AI setup: healthy");
+      expect(result.stdout).toContain("AI installation: ready");
       expect(result.stdout).not.toContain("pnpm ai:install");
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -64,9 +79,8 @@ describe("session-start hook", () => {
       const result = runHook(repo, "codex");
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI setup: needs attention");
-      expect(result.stdout).toContain("Missing Codex config");
-      expect(result.stdout).toContain("Missing Codex skills");
+      expect(result.stdout).toContain("AI installation: not-verified");
+      expect(result.stdout).toContain("not verified at startup");
       expect(result.stdout).toContain("pnpm ai:install --agent codex");
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -82,9 +96,8 @@ describe("session-start hook", () => {
       const result = runHook(repo, "claude");
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI setup: needs attention");
-      expect(result.stdout).toContain("Missing Claude MCP config");
-      expect(result.stdout).toContain("Missing Claude skills");
+      expect(result.stdout).toContain("AI installation: not-verified");
+      expect(result.stdout).toContain("not verified at startup");
       expect(result.stdout).toContain("pnpm ai:install --agent claude");
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -100,9 +113,8 @@ describe("session-start hook", () => {
       const result = runHook(repo, "grok");
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI setup: needs attention");
-      expect(result.stdout).toContain("Missing Grok config");
-      expect(result.stdout).toContain("Missing Grok skills");
+      expect(result.stdout).toContain("AI installation: not-verified");
+      expect(result.stdout).toContain("not verified at startup");
       expect(result.stdout).toContain("pnpm ai:install --agent grok");
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -116,27 +128,34 @@ describe("session-start hook", () => {
       const result = runHook(repo, "grok");
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI setup: healthy");
+      expect(result.stdout).toContain("AI installation: ready");
       expect(result.stdout).not.toContain("pnpm ai:install");
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
   });
 
-  it("warns when canonical AI sources are newer than generated docs", () => {
+  it("detects changed canonical content even with unchanged timestamps", () => {
     const repo = makeRepo();
     try {
       makeHealthyAiInstall(repo);
-      const older = new Date("2024-01-01T00:00:00.000Z");
-      const newer = new Date("2024-01-02T00:00:00.000Z");
-      utimesSync(join(repo, "AGENTS.md"), older, older);
-      utimesSync(join(repo, "CLAUDE.md"), older, older);
-      utimesSync(join(repo, ".ai", "guide.md"), newer, newer);
+      const file = join(repo, ".ai/skills/kaine-test.md");
+      const content = readFileSync(file, "utf8");
+      writeFileSync(file, `${content}\nChanged verification requirement.\n`);
+      const same = new Date("2024-01-01T00:00:00.000Z");
+      utimesSync(file, same, same);
+      utimesSync(join(repo, ".agents/skills/kaine-test/SKILL.md"), same, same);
 
       const result = runHook(repo, "codex");
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("Generated AI docs may be stale");
+      expect(result.stdout).toContain("Stale skill: kaine-test");
+      execFileSync(
+        process.execPath,
+        ["--import", "tsx", ".ai/install.ts", "--agent", "codex", "--non-interactive"],
+        { cwd: repo, stdio: "pipe" }
+      );
+      expect(runHook(repo, "codex").stdout).toContain("AI installation: ready");
       expect(result.stdout).toContain("pnpm ai:install --agent codex");
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -155,4 +174,27 @@ describe("session-start hook", () => {
       rmSync(cwd, { recursive: true, force: true });
     }
   });
+});
+
+it("keeps explicit skill/MCP subsets across unflagged regeneration", () => {
+  const repo = makeRepo();
+  try {
+    makeHealthyAiInstall(repo);
+    const install = (args: string[]) =>
+      execFileSync(
+        process.execPath,
+        ["--import", "tsx", ".ai/install.ts", "--agent", "codex", "--non-interactive", ...args],
+        { cwd: repo, stdio: "pipe" }
+      );
+    install(["--skill", "kaine-test", "--mcp", "filesystem"]);
+    rmSync(join(repo, ".codex/config.toml"));
+    install([]);
+    const selection = JSON.parse(
+      readFileSync(join(repo, ".ai.local/installations/codex.json"), "utf8")
+    );
+    expect(selection).toMatchObject({ skills: ["kaine-test"], mcps: ["filesystem"] });
+    expect(runHook(repo, "codex").stdout).toContain("AI installation: ready");
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
 });

@@ -2,21 +2,21 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@2026.8.31", "."]
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
+      "args": ["-y", "@upstash/context7-mcp@4.1.1"]
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "args": ["-y", "@playwright/mcp@0.0.82"]
     },
     "serena": {
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/oraios/serena",
+        "git+https://github.com/oraios/serena@7a2968335f2198b966864de1ce3655c8e485a653",
         "serena",
         "start-mcp-server",
         "--context",
@@ -29,7 +29,7 @@
     },
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "firecrawl-mcp"],
+      "args": ["-y", "firecrawl-mcp@3.25.5"],
       "default": false,
       "env": {
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"

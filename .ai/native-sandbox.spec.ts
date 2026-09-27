@@ -31,7 +31,15 @@ function server(status: "ready" | "notConfigured", exitCode = 0) {
         ? {}
         : request.id === 2
           ? { status }
-          : { exitCode, stdout: "proof", stderr: "synthetic failure" };
+          : request.id === 4
+            ? {
+                config: {
+                  default_permissions: "test",
+                  windows: { sandbox: "elevated" },
+                  permissions: { test: { network: { enabled: false } } }
+                }
+              }
+            : { exitCode, stdout: "proof", stderr: "synthetic failure" };
     child.stdout.write(`${JSON.stringify({ id: request.id, result })}\n`);
   });
   mocks.spawn.mockReturnValue(child);
@@ -40,14 +48,23 @@ function server(status: "ready" | "notConfigured", exitCode = 0) {
 
 it("checks strong Windows readiness before a command and explicitly selects the same profile", async () => {
   const fake = server("ready");
+  const onConfiguration = vi.fn();
   expect(
     await runNativeProbe({
       config: [],
       workspace: "C:/repo",
       profileName: "test",
+      onConfiguration,
       command: ["node", "probe"]
     })
   ).toBe("proof");
+  expect(onConfiguration).toHaveBeenCalledWith(
+    expect.objectContaining({
+      defaultPermissions: "test",
+      windowsSandbox: "elevated",
+      selectedProfile: { filesystem: null, network: { enabled: false } }
+    })
+  );
   expect(fake.requests.at(-1)).toEqual({
     id: 3,
     method: "command/exec",

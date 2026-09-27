@@ -122,6 +122,7 @@ export interface MergedMcpSource {
 export interface ResolveInstallMcpSourceOptions {
   agent: Agent;
   mcps: string[];
+  exactSelection?: boolean;
   personalNames: Set<string>;
   localEnv: Record<string, string>;
 }
@@ -1019,7 +1020,7 @@ export const resolveInstallMcpSource = (
   options: ResolveInstallMcpSourceOptions
 ): ResolvedInstallMcpSource => {
   const selected = new Set(options.mcps);
-  const includeAll = selected.has("all") || selected.size === 0;
+  const includeAll = selected.has("all") || (selected.size === 0 && !options.exactSelection);
   const mcpServers: Record<string, McpServer> = {};
   const skipped: string[] = [];
 

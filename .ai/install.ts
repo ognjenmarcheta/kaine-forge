@@ -58,12 +58,16 @@ import {
   writeGenerated,
   type WriteResult
 } from "./ai.util";
+import { mergeInstalledConfig } from "./install-config.util";
+import { readInstallSelection, writeInstallSelection } from "./install-state.util";
 
 interface InstallOptions {
   agents: Agent[];
   skills: string[];
   mcps: string[];
   nonInteractive: boolean;
+  exactMcpSelection?: boolean;
+  exactSkillSelection?: boolean;
 }
 
 let localMcpEnv: Record<string, string> = {};
@@ -318,7 +322,7 @@ const selectSkills = (
   let candidates: Skill[];
   if (selected.has("all")) {
     candidates = allSkills;
-  } else if (selected.size === 0) {
+  } else if (selected.size === 0 && !options.exactSkillSelection) {
     candidates = allSkills.filter((skill) => skill.isDefault);
   } else {
     candidates = allSkills.filter((skill) => selected.has(skill.name));
@@ -454,14 +458,28 @@ const installAgent = (
   const resolved = resolveInstallMcpSource(mergedMcp, {
     agent,
     mcps: options.mcps,
+    exactSelection: options.exactMcpSelection ?? false,
     personalNames: personalMcpNames,
     localEnv: localMcpEnv
   });
   skippedMcps.push(...resolved.skipped);
 
+  const writeConfig = (file: string, content: string, output: WriteResult[]) => {
+    const isConfig = file.endsWith(".json") || file.endsWith(".toml");
+    const updated =
+      isConfig && existsSync(file)
+        ? mergeInstalledConfig(
+            readFileSync(file, "utf8"),
+            content,
+            file.endsWith(".toml"),
+            Object.keys(mergedMcp.mcpServers)
+          )
+        : content;
+    writeGenerated(file, updated, output);
+  };
   if (agent === "claude") {
-    writeGenerated(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
-    writeGenerated(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
+    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
+    writeConfig(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
 
     const agentsDirAbs = join(REPO_ROOT, ".claude", "agents");
     const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
@@ -490,17 +508,17 @@ const installAgent = (
     }
   }
   if (agent === "codex") {
-    writeGenerated(
+    writeConfig(
       join(REPO_ROOT, ".codex", "config.toml"),
       renderCodexConfig(resolved.source),
       results
     );
   }
   if (agent === "cursor") {
-    writeGenerated(join(REPO_ROOT, ".cursor", "mcp.json"), renderMcpJson(resolved.source), results);
-    writeGenerated(join(REPO_ROOT, ".cursor", "hooks.json"), renderCursorHooks(), results);
+    writeConfig(join(REPO_ROOT, ".cursor", "mcp.json"), renderMcpJson(resolved.source), results);
+    writeConfig(join(REPO_ROOT, ".cursor", "hooks.json"), renderCursorHooks(), results);
     if (existsSync(CURSOR_RULES_SRC)) {
-      writeGenerated(
+      writeConfig(
         join(REPO_ROOT, ".cursor", "rules", "kaine-rules.mdc"),
         renderCursorRulesFile(readFileSync(CURSOR_RULES_SRC, "utf8")),
         results
@@ -508,12 +526,8 @@ const installAgent = (
     }
   }
   if (agent === "opencode") {
-    writeGenerated(
-      join(REPO_ROOT, "opencode.json"),
-      renderOpencodeConfig(resolved.source),
-      results
-    );
-    writeGenerated(
+    writeConfig(join(REPO_ROOT, "opencode.json"), renderOpencodeConfig(resolved.source), results);
+    writeConfig(
       join(REPO_ROOT, ".opencode", "plugins", "kaine-guardrail.ts"),
       renderOpencodeGuardrailPlugin(),
       results
@@ -521,17 +535,17 @@ const installAgent = (
     removeLegacyOpencodeGuardrail(REPO_ROOT);
   }
   if (agent === "grok") {
-    writeGenerated(
+    writeConfig(
       join(REPO_ROOT, ".grok", "config.toml"),
       renderGrokConfig(resolved.source),
       results
     );
-    writeGenerated(
+    writeConfig(
       join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json"),
       renderGrokSessionStartHook(),
       results
     );
-    writeGenerated(
+    writeConfig(
       join(REPO_ROOT, ".grok", "hooks", "kaine-pre-tool-use.json"),
       renderGrokPreToolUseHook(),
       results
@@ -564,6 +578,11 @@ const installAgent = (
     }
   }
 
+  writeInstallSelection(agent, {
+    schemaVersion: 1,
+    skills: [...expected],
+    mcps: [...Object.keys(resolved.source.mcpServers), ...resolved.skipped]
+  });
   return skippedMcps;
 };
 
@@ -607,7 +626,7 @@ const main = async (): Promise<void> => {
     );
   }
 
-  const { skills, envSkipped } = selectSkills(options, allSkills);
+  const { envSkipped } = selectSkills(options, allSkills);
   const results: WriteResult[] = [];
   const removedSkills: string[] = [];
   const skippedMcps = new Set<string>();
@@ -615,11 +634,54 @@ const main = async (): Promise<void> => {
   writeSharedOutputs(allSkills, results);
 
   for (const agent of options.agents) {
+    const previous = readInstallSelection(agent);
+    const preservedMcps =
+      !interactive &&
+      options.mcps.length === 0 &&
+      (previous !== null ||
+        existsSync(
+          join(
+            REPO_ROOT,
+            agent === "codex"
+              ? ".codex/config.toml"
+              : agent === "claude"
+                ? ".mcp.json"
+                : agent === "grok"
+                  ? ".grok/config.toml"
+                  : agent === "cursor"
+                    ? ".cursor/mcp.json"
+                    : "opencode.json"
+          )
+        ))
+        ? (previous?.mcps ?? [...installedMcpsForAgent(agent)])
+        : options.mcps;
+    const skillDirectory = join(REPO_ROOT, SKILL_DIRS[agent]);
+    const installedSkills = existsSync(skillDirectory)
+      ? readdirSync(skillDirectory, { withFileTypes: true })
+          .filter(
+            (entry) =>
+              entry.isDirectory() &&
+              entry.name.startsWith(KAINE_PREFIX) &&
+              allSkills.some((skill) => skill.name === entry.name)
+          )
+          .map((entry) => entry.name)
+      : undefined;
+    const preservedSkills = options.skills.length
+      ? options.skills
+      : (previous?.skills ?? installedSkills ?? []);
+    const agentOptions = {
+      ...options,
+      skills: preservedSkills,
+      exactSkillSelection: previous !== null || installedSkills !== undefined,
+      mcps: preservedMcps,
+      exactMcpSelection: previous !== null || preservedMcps !== options.mcps
+    };
+    const { skills } = selectSkills(agentOptions, allSkills);
     for (const skipped of installAgent(
       agent,
       skills,
       agentDefinitions,
-      options,
+      agentOptions,
       merged.source,
       merged.personalNames,
       results,

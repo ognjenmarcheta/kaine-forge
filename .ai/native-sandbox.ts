@@ -14,12 +14,47 @@ const commandResultSchema = z.object({
   stderr: z.string()
 });
 
+export function inspectEffectivePermissions(
+  config: z.infer<ReturnType<typeof z.json>>,
+  profileName: string
+) {
+  const selected = z
+    .object({
+      default_permissions: z.string().nullable().optional(),
+      approval_policy: z.json().optional(),
+      sandbox_mode: z.string().nullable().optional(),
+      windows: z.object({ sandbox: z.string().optional() }).optional(),
+      permissions: z
+        .record(
+          z.string(),
+          z.object({
+            filesystem: z.json().optional(),
+            network: z.object({ enabled: z.boolean().optional() }).optional()
+          })
+        )
+        .optional()
+    })
+    .parse(config);
+  return {
+    source: "config/read",
+    defaultPermissions: selected.default_permissions ?? null,
+    approvalPolicy: selected.approval_policy ?? null,
+    legacySandboxMode: selected.sandbox_mode ?? null,
+    windowsSandbox: selected.windows?.sandbox ?? null,
+    selectedProfile: {
+      filesystem: selected.permissions?.[profileName]?.filesystem ?? null,
+      network: { enabled: selected.permissions?.[profileName]?.network?.enabled ?? null }
+    }
+  };
+}
+
 /** command/exec uses the native elevated path; the Windows `sandbox` debug CLI uses a restricted token. */
 export async function runNativeProbe(input: {
   config: string[];
   workspace: string;
   profileName: string;
   command: string[];
+  onConfiguration?: (config: ReturnType<typeof inspectEffectivePermissions>) => void;
 }): Promise<string> {
   const child = spawn("codex", ["app-server", "--strict-config", ...input.config], {
     cwd: input.workspace,
@@ -61,6 +96,17 @@ export async function runNativeProbe(input: {
             }
             if (response.id === 1) {
               send({ method: "initialized" });
+              send({
+                id: 4,
+                method: "config/read",
+                params: { cwd: input.workspace, includeLayers: false }
+              });
+            }
+            if (response.id === 4) {
+              const effective = z.object({ config: z.json() }).parse(response.result);
+              input.onConfiguration?.(
+                inspectEffectivePermissions(effective.config, input.profileName)
+              );
               send({ id: 2, method: "windowsSandbox/readiness", params: {} });
             }
             if (response.id === 2) {

@@ -60,6 +60,7 @@
     "agent:run": "tsx .ai/agent-run.ts",
     "agent:report": "tsx .ai/run-report.ts",
     "agent:outcome": "tsx .ai/run-report.ts outcome",
+    "harness:context": "tsx .ai/context-experiment.ts",
     "harness:benchmark": "tsx .ai/harness-benchmark.ts",
     "scorecard": "tsx .ai/scorecard-render.ts",
     "tokens:mobile": "node scripts/sync-mobile-design-tokens.mjs",
