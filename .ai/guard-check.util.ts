@@ -5,7 +5,16 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { renderCursorHooks, renderOpencodeGuardrailPlugin, REPO_ROOT } from "./ai.util";
+import {
+  renderClaudeSettings,
+  renderCodexConfig,
+  renderCursorHooks,
+  renderGrokSessionStartHook,
+  renderGrokPreToolUseHook,
+  renderOpencodeGuardrailPlugin,
+  REPO_ROOT
+} from "./ai.util";
+import { validateHookPins } from "./mcp-probe.util";
 
 // These are hook inputs only. No proposed shell command is ever executed.
 const commands = [
@@ -16,7 +25,14 @@ const commands = [
 ];
 
 export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
-  const errors: string[] = [];
+  const errors = validateHookPins([
+    renderClaudeSettings(),
+    renderCodexConfig({ mcpServers: {} }),
+    renderCursorHooks(),
+    renderGrokSessionStartHook(),
+    renderGrokPreToolUseHook(),
+    renderOpencodeGuardrailPlugin()
+  ]);
   const check = (label: string, run: () => void): void => {
     try {
       run();

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { z } from "zod";
 
 import { controllerEnvironment } from "./agent-run.util";
+import { stopProcessTree } from "./process-cleanup.util";
 
 const responseSchema = z.object({
   id: z.number().optional(),
@@ -14,12 +15,47 @@ const commandResultSchema = z.object({
   stderr: z.string()
 });
 
+export function inspectEffectivePermissions(
+  config: z.infer<ReturnType<typeof z.json>>,
+  profileName: string
+) {
+  const selected = z
+    .object({
+      default_permissions: z.string().nullable().optional(),
+      approval_policy: z.json().optional(),
+      sandbox_mode: z.string().nullable().optional(),
+      windows: z.object({ sandbox: z.string().optional() }).optional(),
+      permissions: z
+        .record(
+          z.string(),
+          z.object({
+            filesystem: z.json().optional(),
+            network: z.object({ enabled: z.boolean().optional() }).optional()
+          })
+        )
+        .optional()
+    })
+    .parse(config);
+  return {
+    source: "config/read",
+    defaultPermissions: selected.default_permissions ?? null,
+    approvalPolicy: selected.approval_policy ?? null,
+    legacySandboxMode: selected.sandbox_mode ?? null,
+    windowsSandbox: selected.windows?.sandbox ?? null,
+    selectedProfile: {
+      filesystem: selected.permissions?.[profileName]?.filesystem ?? null,
+      network: { enabled: selected.permissions?.[profileName]?.network?.enabled ?? null }
+    }
+  };
+}
+
 /** command/exec uses the native elevated path; the Windows `sandbox` debug CLI uses a restricted token. */
 export async function runNativeProbe(input: {
   config: string[];
   workspace: string;
   profileName: string;
   command: string[];
+  onConfiguration?: (config: ReturnType<typeof inspectEffectivePermissions>) => void;
 }): Promise<string> {
   const child = spawn("codex", ["app-server", "--strict-config", ...input.config], {
     cwd: input.workspace,
@@ -27,13 +63,17 @@ export async function runNativeProbe(input: {
       ...controllerEnvironment(process.env, false),
       KAINE_PROBE_SECRET: "synthetic-controller-only"
     },
-    stdio: ["pipe", "pipe", "pipe"]
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    detached: process.platform !== "win32"
   });
   let buffer = "";
   const send = (message: z.infer<ReturnType<typeof z.json>>) =>
     child.stdin.write(`${JSON.stringify(message)}\n`);
+  let failure: Error | undefined;
+  let output = "";
   try {
-    return await new Promise<string>((resolve, reject) => {
+    output = await new Promise<string>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("Native sandbox preflight timed out")),
         35_000
@@ -56,11 +96,22 @@ export async function runNativeProbe(input: {
           try {
             const response = responseSchema.parse(JSON.parse(line));
             if (response.error) {
-              finish(new Error(`Native sandbox preflight rejected: ${response.error.message}`));
+              finish(new Error("Native sandbox preflight rejected"));
               return;
             }
             if (response.id === 1) {
               send({ method: "initialized" });
+              send({
+                id: 4,
+                method: "config/read",
+                params: { cwd: input.workspace, includeLayers: false }
+              });
+            }
+            if (response.id === 4) {
+              const effective = z.object({ config: z.json() }).parse(response.result);
+              input.onConfiguration?.(
+                inspectEffectivePermissions(effective.config, input.profileName)
+              );
               send({ id: 2, method: "windowsSandbox/readiness", params: {} });
             }
             if (response.id === 2) {
@@ -89,9 +140,7 @@ export async function runNativeProbe(input: {
             if (response.id === 3) {
               const result = commandResultSchema.parse(response.result);
               finish(
-                result.exitCode === 0
-                  ? null
-                  : new Error(`Native probe command failed: ${result.stderr.slice(0, 1200)}`),
+                result.exitCode === 0 ? null : new Error("Native probe command failed"),
                 result.stdout
               );
             }
@@ -109,8 +158,11 @@ export async function runNativeProbe(input: {
         }
       });
     });
-  } finally {
-    child.stdin.end();
-    child.kill();
+  } catch (error) {
+    failure = error instanceof Error ? error : new Error("Native preflight failed");
   }
+  if ((await stopProcessTree(child)) !== "passed")
+    throw new Error(`${failure?.message ?? "Native preflight completed"}; process cleanup failed`);
+  if (failure) throw failure;
+  return output;
 }

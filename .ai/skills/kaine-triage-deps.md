@@ -43,6 +43,17 @@ Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/
 3. Optionally harden the Dependabot `ignore` list or `groups` so frozen graphs stop reopening (the mobile freeze list lives in `.github/dependabot.yml`).
 4. **Authority:** close superseded or unsafe PRs only when the user asked to resolve or clear the queue. Otherwise list recommended dispositions. Only the owner performs the final merge manually after required checks pass. Never merge, approve on the owner's behalf, enable auto-merge, or bypass protection.
 
+## Repository MCP launch dependencies
+
+The npm/Git launch pins in `.ai/mcp.json` do not use the workspace lockfile.
+For an update, inspect the upstream release or commit and runtime requirements.
+Keep an exact npm version or full Git commit. Preserve default selections and
+personal configuration. Run `pnpm ai:test`, `pnpm ai:install`, and
+`pnpm ai:doctor --strict`. Run the opt-in
+`pnpm ai:doctor --agent <agent> --local --probe-mcp --json` to check initialization;
+it does not invoke application tools. Record unavailable prerequisites separately
+from regressions. Keep network probes and model calls out of ordinary CI.
+
 ## Output
 
 For each PR: `status` (`ready-for-owner` / `recreated` / `closed` / `left-open`) + one-line reason.

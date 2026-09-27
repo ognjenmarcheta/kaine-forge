@@ -2,7 +2,6 @@
 
 import { Buffer } from "node:buffer";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
 
@@ -30,7 +29,9 @@ const execGit = (cwd, gitArgs) =>
   execFileSync("git", gitArgs, {
     cwd,
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"]
+    stdio: ["ignore", "pipe", "ignore"],
+    timeout: 2000,
+    windowsHide: true
   }).trim();
 
 const findGitRoot = (cwd) => {
@@ -78,88 +79,38 @@ const worktreeSummary = (repoRoot) => {
   return parts.join(", ");
 };
 
-const listFiles = (dir) => {
-  if (!existsSync(dir)) {
-    return [];
-  }
-
-  const files = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const file = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listFiles(file));
-    } else if (entry.isFile()) {
-      files.push(file);
-    }
-  }
-  return files;
-};
-
-const newestMtime = (paths) => {
-  let newest = 0;
-  for (const path of paths) {
-    if (!existsSync(path)) {
-      continue;
-    }
-    const stat = statSync(path);
-    if (stat.isDirectory()) {
-      newest = Math.max(newest, newestMtime(listFiles(path)));
-    } else {
-      newest = Math.max(newest, stat.mtimeMs);
-    }
-  }
-  return newest;
-};
-
-const oldestMtime = (paths) => {
-  const mtimes = paths.filter((path) => existsSync(path)).map((path) => statSync(path).mtimeMs);
-  return mtimes.length === 0 ? 0 : Math.min(...mtimes);
-};
-
 const aiHealth = (repoRoot, hookAgent) => {
-  const issues = [];
-  const sharedGenerated = [join(repoRoot, "AGENTS.md"), join(repoRoot, "CLAUDE.md")];
-  for (const file of sharedGenerated) {
-    if (!existsSync(file)) {
-      issues.push(`Missing ${basename(file)}`);
+  try {
+    const output = execFileSync(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        join(repoRoot, ".ai/readiness.ts"),
+        "--agent",
+        hookAgent,
+        "--local",
+        "--json",
+        "--startup-context"
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 4000,
+        stdio: ["ignore", "pipe", "ignore"],
+        windowsHide: true
+      }
+    );
+    return JSON.parse(output);
+  } catch (error) {
+    try {
+      const report = JSON.parse(String(error.stdout));
+      if (Array.isArray(report.problems)) return report;
+    } catch {
+      /* Missing dependencies and timeouts are unverified, never healthy. */
     }
+    return { installation: "not-verified", problems: ["Installation inspection unavailable"] };
   }
-
-  if (hookAgent === "claude") {
-    if (!existsSync(join(repoRoot, ".mcp.json"))) {
-      issues.push("Missing Claude MCP config");
-    }
-    if (!existsSync(join(repoRoot, ".claude", "skills"))) {
-      issues.push("Missing Claude skills");
-    }
-  } else if (hookAgent === "grok") {
-    if (!existsSync(join(repoRoot, ".grok", "config.toml"))) {
-      issues.push("Missing Grok config");
-    }
-    if (!existsSync(join(repoRoot, ".grok", "skills"))) {
-      issues.push("Missing Grok skills");
-    }
-  } else {
-    if (!existsSync(join(repoRoot, ".codex", "config.toml"))) {
-      issues.push("Missing Codex config");
-    }
-    if (!existsSync(join(repoRoot, ".agents", "skills"))) {
-      issues.push("Missing Codex skills");
-    }
-  }
-
-  const canonicalNewest = newestMtime([
-    join(repoRoot, ".ai", "guide.md"),
-    join(repoRoot, ".ai", "skills"),
-    join(repoRoot, ".ai", "mcp.json"),
-    join(repoRoot, ".ai", "cursor-rules.md")
-  ]);
-  const generatedAgentDoc = oldestMtime([join(repoRoot, "AGENTS.md")]);
-  if (canonicalNewest > 0 && generatedAgentDoc > 0 && canonicalNewest > generatedAgentDoc) {
-    issues.push("Generated AI docs may be stale");
-  }
-
-  return issues;
 };
 
 const main = async () => {
@@ -170,18 +121,29 @@ const main = async () => {
     return;
   }
 
-  const issues = aiHealth(repoRoot, agent);
+  const health = aiHealth(repoRoot, agent);
+  const issues = health.problems;
   const lines = [
     "Kaine Forge AI context",
     `- Repo: ${basename(repoRoot)}`,
     `- Branch: ${currentBranch(repoRoot)}`,
     `- Worktree: ${worktreeSummary(repoRoot)}`,
-    `- AI setup: ${issues.length === 0 ? "healthy" : "needs attention"}`
+    `- AI installation: ${health.installation}`,
+    "- Runtime verification: MCP and sandbox not verified at startup"
   ];
 
+  if (
+    agent === "claude" &&
+    health.serenaPrompt &&
+    !["ready", "disabled"].includes(health.serenaPrompt)
+  )
+    lines.push("- Serena prompt unavailable; run pnpm ai:install --agent claude --prepare-serena");
+  if (health.startupContext) lines.push(health.startupContext);
   if (issues.length > 0) {
     lines.push(`- Warning: ${issues.join("; ")}`);
-    lines.push(`- Run: pnpm ai:install --agent ${agent} && pnpm ai:doctor`);
+    lines.push(
+      `- Run: pnpm ai:install --agent ${agent} && pnpm ai:doctor --agent ${agent} --local --json`
+    );
   }
 
   process.stdout.write(`${lines.join("\n")}\n`);

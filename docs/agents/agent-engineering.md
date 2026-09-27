@@ -1,9 +1,90 @@
 # Manual evaluations, local reports, and sandboxed trials
 
 These tools are opt-in. Ordinary tests, builds and CI never dispatch a model.
-Review the four changes in this order: assistant evaluation files; terminal telemetry
-and local reports/fixtures; the native sandbox runner; the generated guide index.
-The application schema, public GraphQL API, deployment and model selection remain unchanged.
+Implementation status (2026-09-27): readiness inspection, MCP pins, explicit startup
+probes, offline fixtures, comparable reports and context snapshots are available.
+Isolation certification and live comparisons remain blocked or pending.
+No paid model calls are part of this implementation or ordinary CI.
+
+The workflow follows the emphasis on verified outcomes and focused context in
+[Codex learning resources](https://developers.openai.com/learn/codex) and
+[Claude Code best practices](https://code.claude.com/docs/en/best-practices).
+The [AI engineer roadmap](https://roadmap.sh/ai-engineer) is a topic inventory;
+it is not evidence that this repository needs every listed system.
+
+## Installation readiness and MCP startup
+
+```sh
+pnpm ai:install --agent codex --agent claude --non-interactive
+pnpm ai:doctor --strict
+pnpm ai:doctor --agent codex --local --json
+pnpm ai:doctor --agent claude --local --json
+# Explicit process/network check; no model or application-tool calls:
+pnpm ai:doctor --agent codex --local --probe-mcp --json
+```
+
+Doctor and SessionStart share content-based inspection. A canonical skill edit
+fails readiness even if timestamps stay unchanged. The installer records selected
+skill/MCP names in gitignored `.ai.local/installations/<agent>.json`, without
+credentials. Reinstallation preserves subsets, personal settings, hooks and
+unmanaged MCPs. Explicit `--skill`/`--mcp` changes the selection; new installs retain
+existing defaults. Empty directories and personal-only configuration receive defaults.
+Interactive MCP installation retains team defaults when no optional server is chosen.
+Noninteractive regeneration preserves recorded empty selections and legacy managed subsets.
+Malformed configuration fails verification.
+
+Metadata version 2 separates requested names from `ownedMcps`. Missing skill prerequisites
+remain visible in readiness; they do not erase the selection or remove an installed skill.
+Removed canonical MCPs are deleted only when ownership is known. Explicit personal overrides
+remain personal. Version 1 metadata migrates on installation; ambiguous legacy names are
+preserved with a warning. Metadata contains no credentials.
+
+`--strict` retains the CI contract: tracked drift and canonical policy errors fail;
+absent local-only integrations remain advisory. Local checks fail for missing/stale
+selected artifacts and missing enabled-server prerequisites. Unselected optional
+integrations do not fail them. Startup inspection has a four-second timeout.
+Missing dependencies or failed inspection produce `not-verified` and a recovery
+command. Startup never certifies MCP connectivity or sandbox enforcement.
+
+`--probe-mcp` sends initialize/initialized only. Each stdio server has a bounded
+10-second startup and process-tree cleanup. Results include a separate `cleanup` status.
+Cleanup launch errors, nonzero termination, timeout or an unconfirmed exit prevent a pass.
+Initialization and cleanup failures are retained together. Raw server output and environment
+values are not printed. This proves initialization, not tool behavior. Other
+transports have no passing startup claim. Probes stay out of hooks and ordinary CI.
+
+`validateMcpPins` runs in doctor and AI tests. Guard checks also validate dependency pins
+in repository-owned hook launch definitions. Updates follow the existing
+[dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
+
+| Server     | Exact launch dependency                               | Verification on 2026-09-27                          |
+| ---------- | ----------------------------------------------------- | --------------------------------------------------- |
+| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31`   | initialization passed                               |
+| context7   | `@upstash/context7-mcp@4.1.1`                         | initialization passed                               |
+| playwright | `@playwright/mcp@0.0.82`                              | initialization passed                               |
+| serena     | Git commit `7a2968335f2198b966864de1ce3655c8e485a653` | initialization passed after environment preparation |
+| firecrawl  | `firecrawl-mcp@3.25.5`                                | unselected; not probed                              |
+| graphify   | local `graphify-mcp` executable                       | optional; not probed                                |
+
+Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
+process from the persisted Windows PATH makes both local readiness checks pass.
+Existing app/terminal processes may need a restart to inherit PATH changes.
+Serena's first cold initialization exceeded the 10-second limit. Explicit preparation
+now uses `pnpm ai:install --agent claude --prepare-serena`. It derives the Git commit from
+the selected launch configuration, rejects unsupported overrides, and bounds preparation
+to 60 seconds and 64 KiB of combined output. Successful prompts are saved atomically in
+`.ai.local/serena/`; failed preparation retains the previous cache.
+
+Claude startup uses the existing bounded local inspector. It launches no Serena process
+and performs no download. It emits cached content only when Serena is selected, enabled,
+and its command/arguments fingerprint matches. Otherwise it prints a recovery command.
+`serenaPrompt` reports availability separately from installation and runtime results.
+Installation removes only the exact former repository-generated Serena hook; personal
+hooks remain. The current pinned prompt prepared successfully on this host.
+
+The canonical explorer has a `Read`, `Grep`, `Glob` allowlist. Shell, MCP, editing and
+delegation checks return to the parent. Tests verify the rendered Claude definition.
+No live session has certified explorer permissions; other harnesses need their own proof.
 
 ## Assistant evaluations
 
@@ -75,7 +156,15 @@ Log reports show terminal outcomes, median/p95 latency, available token totals a
 incomplete-usage counts. Non-model JSON lines are ignored. Repeated run IDs are
 deduplicated. Coding outcomes are `accepted`, `rework-required`, or `rejected`;
 review minutes are optional. A zero CLI exit is separate from verified task success.
-No hosted service, price table or automatic model routing is added.
+Version 2 coding reports add harness/version, case ID, reasoning when supplied,
+mode and instruction/tool fingerprints. Comparisons group matching task, revision,
+model, harness and configuration. Legacy records remain in totals but are excluded
+from groups requiring missing fields. Groups show acceptance, rework, rejection,
+incomplete counts, execution median/p95, review time and available usage.
+Missing usage and unmeasured review time stay null when no measurement exists.
+Partial totals have explicit missing counts. Tokens per accepted run requires
+complete measurements. Instruction hashes cover repository documents, canonical
+skills/definitions and installed Codex skills; hidden host context is not measured.
 
 ## Native sandbox runner
 
@@ -109,17 +198,41 @@ Approval and sandbox enforcement are never bypassed.
 Before dispatch, harmless probes check workspace reads, the expected write mode,
 environment and Git-file denial, local-state denial, outside reads/writes, child
 environment isolation and network denial. A host listener
-provides a positive network control. Any failed control stops dispatch. Probe
+provides a positive network control. Failed or inconclusive controls stop dispatch. Live dispatch requires both read and edit modes to pass in the same invocation. Probe
 results alone do not claim verified task success.
 
-**Local verification on 2026-09-12:** the stronger Windows sandbox reports
-`ready`. The runner uses the native app-server `command/exec` endpoint with an
-explicit `permissionProfile`, after a readiness check. The older `codex sandbox`
-debug path failed protected reads; it is not used by the runner. Native filesystem
-controls now pass, but the loopback network probe still succeeds despite network
-access being disabled. Preflight therefore exits nonzero before model dispatch.
-This boundary is not certified here. Resolve native network enforcement, then both
-read and edit probes must pass. Do not weaken these assertions to enable a trial.
+The controller reads its probe source once, compares workspace dependencies, and executes
+the captured source through Node module-evaluation arguments without a shell. The tool
+fingerprint includes the bytes executed. Replacing the workspace probe after comparison
+cannot change that command. Native preflight and MCP probes share bounded process-tree
+cleanup; native preflight rejects completion when cleanup is unsuccessful.
+
+**Local verification on 2026-09-27:** `codex-cli 0.154.0` reports the elevated
+Windows sandbox as ready. Native app-server `command/exec` receives an explicit
+`permissionProfile`. Effective configuration sets `windows.sandbox="elevated"`,
+`approval_policy="never"`, filesystem restrictions and `network.enabled=false`.
+Reports record normalized invocation settings, a non-secret `config/read` readback of effective permissions, and individual results.
+
+| Control                                            | Read                     | Edit                     |
+| -------------------------------------------------- | ------------------------ | ------------------------ |
+| Workspace read and expected write behavior         | pass                     | pass                     |
+| Protected state, environment file and Git reads    | pass                     | pass                     |
+| Outside read/write and child environment isolation | pass                     | pass                     |
+| Network denial against reachable loopback listener | fail: connection allowed | fail: connection allowed |
+
+The host reaches the listener before the sandbox probe. A sandbox connection is
+`allowed`; only `EACCES`/`EPERM` is `denied`. Refusal, other errors and timeouts are
+`inconclusive`. Edit mode also reads back its successful write, so unrelated IO
+errors cannot pass as expected write behavior.
+
+Reproduce with `pnpm agent:run --workspace . --probe-only --mode read` and the same
+command with `--mode edit`. Both exit nonzero before model dispatch. No repository
+invocation error was demonstrated against the current
+[permissions contract](https://learn.chatgpt.com/docs/permissions). Native network
+enforcement remains an upstream/host dependency; these observations do not isolate
+which component causes it. If readiness reports notConfigured/updateRequired,
+complete the administrator-assisted Windows setup separately. There is no
+unrestricted fallback. Recheck both modes after a CLI or host fix.
 
 Run metadata goes to `.ai.local/agent-runs/`: revision, explicit model, CLI version,
 configuration hash, duration, available usage, command outcomes, exit code and
@@ -147,7 +260,7 @@ The query fixture breaks the shared Active Organization key. The Notes fixture
 removes the deletion Organization predicate. After the trial, only the repaired
 production file is copied into the untouched verifier checkout. Candidate code
 runs under the native sandbox during verification too. Independent tests
-remain outside the agent's edit boundary. Full synthetic transcripts are retained.
+remain outside the agent's edit boundary. Raw transcripts are local and opt-in through the benchmark `--save-transcript` flag.
 Review the complete trial diff as well as the behavioral result; the verifier
 proves the targeted repair, not every possible edit. Annotate the coding outcome
 separately. These are capability benchmarks and never populate the causal A/B
@@ -156,3 +269,145 @@ guide-rule ledger.
 The first real-model assistant baseline and new coding capability measurements
 remain pending an explicit model invocation and, for coding, successful boundary
 probes. Offline checks are not model-performance evidence.
+
+## Offline workflow cases and review
+
+The two executable repair fixtures remain available. Five additional workflow
+families share definitions across Codex and Claude:
+
+| Case ID                | Variants                   | Required evidence                                                                   |
+| ---------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| `query-key`            | repair                     | Organization separation, inactive behavior, parameters and input preservation       |
+| `notes-deletion`       | repair                     | Owner deletion and full foreign-row preservation                                    |
+| `generated-crud`       | feature                    | Migration replay, generated GraphQL, translations, API CRUD, Organization isolation |
+| `skill-selection`      | review / tests / unrelated | Relevant skill reads; unrelated control loads no forced skill                       |
+| `code-review`          | seeded / clean             | Seeded defect found; clean control avoids that finding; no edits                    |
+| `interrupted-recovery` | resume                     | Checkpoint preservation and remaining query acceptance checks                       |
+| `untrusted-content`    | issue-injection            | Query repair, protected marker, authorized actions in trace                         |
+
+```sh
+pnpm harness:benchmark --prepare --case generated-crud --variant feature --harness codex
+pnpm harness:benchmark --prepare --case code-review --variant clean --harness claude
+pnpm harness:benchmark --inspect --run <uuid>
+pnpm harness:benchmark --inspect --run <uuid> --trace <local-jsonl> --evidence <review.json>
+```
+
+Preparation and listing need no model credentials. Manifests record case ID,
+variant, source revision, requested harness, artifacts, commands, rubric, seed
+hashes and evaluator fingerprint. Preparation clones HEAD. The new workflow
+preparation installs no dependencies and produces no model output. Its status is
+`offline-preparation`. Claude live dispatch is unsupported and fails explicitly.
+The new workflows support preparation, inspection and review. Live orchestration
+is rejected instead of substituting the older repair harness. The two repair
+fixtures support guarded Codex execution.
+
+Inspection reads artifacts without executing candidate code. It checks unexpected
+edits, protected files, evaluator integrity and review hashes. The CRUD presence
+check rejects missing artifacts, changed shipped SQL, journal rewrites, missing
+generated Memo contracts and untranslated placeholder locale sets. Presence does
+not prove SQL correctness or translation quality.
+
+The CRUD verifier includes evaluator-owned `apps/api/src/benchmark.crud.test.ts`.
+It uses disposable PGlite migrations and GraphQL requests to check create/list/read/
+update/delete, title bounds and unchanged foreign rows. Its offline control test
+runs against the working Notes API and a deliberately unscoped deletion. This
+validates the reusable verifier; it is not a measured generated Memo candidate.
+
+After isolation passes, keep the pristine verifier, make an execution copy, and
+copy only reviewed production candidate files with `copyCandidateFiles`. That
+helper rejects escapes, evaluator tests and configuration. Run candidate code only
+through certified sandbox execution. Run the manifest commands in that execution
+copy. Review new migration SQL/meta separately. Compare regenerated GraphQL against
+the submitted generated files, not the original pre-feature schema. Candidate
+tests alone cannot supply acceptance evidence.
+
+Review JSON contains `candidateHash` and `traceHash` from inspection, `reviewer`,
+`note`, `provenance` (`synthetic-control` or `independent-verifier`), `checks`
+(`id`, `passed`, `evidence`), `unexpectedFiles`, and `humanReview`
+(`pending`, `pass`, `fail`). Cite command logs and artifact/trace locations.
+Every required check must pass. Machine failures override review claims. Changed
+hashes invalidate review. Passing checks with pending human review return
+`review-required`. Review-attested artifact reports do not establish live agent
+provenance and set `modelPerformanceEvidence=false`.
+
+Codex/Claude synthetic trace parsers expose commands, replies and read requests.
+A skill name in a reply does not prove a skill read. A request without a result
+does not prove execution. Review correctness, skill relevance, recovery quality
+and injection resistance still require human review. Capability reports do not
+populate the causal instruction ledger automatically.
+
+## Disposable context experiment
+
+```sh
+pnpm ai:context
+pnpm harness:context --prepare
+```
+
+The inventory identifies duplicates, historical explanations and reading rules.
+Preparation creates baseline/candidate checkouts in `.ai.local/context-experiments/`
+from the same HEAD plus current nonignored working files. A snapshot hash records
+relative paths, entry types, modes, file bytes and stored symlink targets. Collection uses
+`lstat`; overlays recreate links without following them and reject unsafe destination
+ancestors. Unsupported entries or host link permissions produce an actionable error.
+POSIX executable modes and relative/dangling links run in Linux CI; that test is explicitly
+skipped on Windows. The candidate routes architecture reading by task and replaces one
+historical subagent explanation with a ledger reference. Essential constraints
+remain. Production `.ai/guide.md` and `AGENTS.md` are unchanged.
+
+Both arms record fingerprints and word counts. No model runs. Install the selected
+agent in each arm before a future trial. Verify loading with a behavioral sentinel
+in fresh top-level sessions. Use the same cases, settings, models and spending
+limit. Record live evidence in the existing [evaluation ledger](harness-evals.md).
+Fewer words alone do not justify adoption. Successful isolation checks, explicit
+models and a spending limit remain the later gate for paid baselines.
+
+## Validation and remaining gates
+
+`pnpm ai:test` covers unchanged-timestamp drift, subsets, malformed configuration,
+personal settings, MCP initialization/cleanup, denied dispatch, seeds, multi-file
+boundaries, grader controls, traces, legacy reports and missing measurements.
+`pnpm ai:lint`, `pnpm ai:typecheck`, `pnpm ai:doctor --strict` and `pnpm check`
+remain repository gates. These tests make no paid calls.
+
+Local readiness and selected MCP startup now pass. Sandbox certification still
+requires working network enforcement in both modes. Live measurements, new workflow live adapters
+and adoption of context changes remain separate follow-up work. Application builds
+are required only when application runtime code changes.
+
+### Rollout verification — 2026-09-27
+
+- `pnpm install --frozen-lockfile`: completed without lockfile changes; corrected stale local Metro/image-size dependencies.
+- `pnpm check`: passed before this hardening follow-up (283 AI tests). Fresh hardening validation is recorded below and in PR #437.
+- `pnpm ai:install` and `pnpm ai:doctor --strict`: regenerated selected outputs; no drift.
+- Codex and Claude local readiness: passed after refreshing the Windows PATH for `uvx 0.12.19`.
+- Explicit MCP initialization: filesystem, Context7, Playwright and Serena passed. Serena required preparing its pinned environment before the bounded retry.
+- Read/edit sandbox probes: failed `networkDenied`; effective permissions readback confirms network disabled. All eight filesystem/environment controls passed.
+- Offline CRUD and Claude clean-review preparation/inspection: completed; unsolved CRUD remains failing and review correctness remains pending.
+- Disposable context experiment: prepared, no trials. Canonical guide word count 2,990; candidate 2,917. These are words, not tokens or quality measurements.
+
+Raw diagnostics and reports stay in `.ai.local/`. No new live baseline or causal
+verdict was recorded. No merge or deployment was performed.
+
+### PR #437 review hardening
+
+| Finding                                                       | Fix and regression evidence                                                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| CodeRabbit `4116776057`: overlay loses modes/links            | `context-snapshot.spec.ts`: bytes, executable modes, relative/dangling links, fingerprints and unsafe destinations |
+| CodeRabbit `4116776059`: first install skips defaults         | `install-hardening.spec.ts`: empty and personal-only installation, explicit/recorded/legacy selection precedence   |
+| CodeRabbit `4116776065`: interactive empty optional selection | Shared selection helper retains defaults despite previous metadata; regression covers this branch                  |
+| Summary: deleted team MCP remains installed                   | Version 2 ownership revokes removed definitions; tests preserve personal overrides and ambiguous legacy entries    |
+| Summary: missing skill prerequisite erases selection          | Requested names survive prerequisite loss; regression restores installation and checks readiness failure           |
+
+Additional offline tests cover stale Serena caches, preparation failures and limits,
+personal hook preservation, explorer tool definitions, trusted probe execution after
+workspace tampering, denied dispatch, and failed cleanup. They establish tooling behavior,
+not agent quality or live permission enforcement. CodeRabbit's advisory docstring percentage
+does not add a repository requirement; its separate lint sandbox does not justify dependency changes.
+
+Fresh local verification: `pnpm check` passed, including 313 AI tests across 27 files
+and 70 native script tests. One POSIX mode/link test is explicitly skipped on Windows
+and runs in Linux CI. Strict doctor, both local readiness checks, pinned Serena prompt
+preparation and all four selected MCP initialization/cleanup probes pass. Context
+experiment preparation succeeds with the new snapshot format. Read/edit native probes
+still fail only `networkDenied`; model dispatch remains blocked. Knip lists `uvx` as
+an external host tool alongside `codex`; no package dependency was added.

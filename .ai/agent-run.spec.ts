@@ -11,8 +11,10 @@ import {
   parseAgentRunOptions,
   probeResultSchema,
   projectConfigRestrictions,
+  requireIsolation,
   sandboxConfig
 } from "./agent-run.util";
+import { inspectEffectivePermissions } from "./native-sandbox";
 
 describe("native sandbox contract", () => {
   it("defaults to read mode, requires a model, and rejects policy overrides", () => {
@@ -94,6 +96,21 @@ describe("native sandbox contract", () => {
       networkDenied: true
     };
     expect(probeResultSchema.safeParse(proof).success).toBe(true);
+    const certified = { ...proof, networkEvidence: "denied" };
+    expect(() => requireIsolation({ read: certified, edit: certified })).not.toThrow();
+    for (const observation of [
+      undefined,
+      { ...certified, networkEvidence: "inconclusive" },
+      { ...certified, networkEvidence: "allowed" },
+      { ...certified, allowedRead: false }
+    ]) {
+      expect(() =>
+        requireIsolation({ read: certified, ...(observation ? { edit: observation } : {}) })
+      ).toThrow("dispatch denied");
+      expect(() =>
+        requireIsolation({ edit: certified, ...(observation ? { read: observation } : {}) })
+      ).toThrow("dispatch denied");
+    }
     for (const key of Object.keys(proof))
       expect(probeResultSchema.safeParse({ ...proof, [key]: false }).success).toBe(false);
   });
@@ -109,4 +126,25 @@ describe("native sandbox contract", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+});
+
+it("records only non-secret permission fields from effective configuration", () => {
+  const observed = inspectEffectivePermissions(
+    {
+      api_key: "private",
+      shell_environment_policy: { set: { SECRET: "private" } },
+      default_permissions: "fixture",
+      windows: { sandbox: "elevated" },
+      permissions: {
+        fixture: { network: { enabled: false }, filesystem: { ":workspace_roots": "read" } }
+      }
+    },
+    "fixture"
+  );
+  expect(observed).toMatchObject({
+    defaultPermissions: "fixture",
+    windowsSandbox: "elevated",
+    selectedProfile: { network: { enabled: false } }
+  });
+  expect(JSON.stringify(observed)).not.toContain("private");
 });

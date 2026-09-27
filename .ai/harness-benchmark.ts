@@ -17,11 +17,19 @@ import { runCodingAgent } from "./agent-run";
 import { commandEnvironment, controllerEnvironment, sandboxConfig } from "./agent-run.util";
 import { REPO_ROOT } from "./ai.util";
 import { benchmarkFixtures, seedBenchmark } from "./benchmark-fixtures";
+import {
+  gradeInspectedWorkflow,
+  inspectWorkflow,
+  reviewedEvidenceSchema
+} from "./benchmark-inspect.util";
+import { prepareWorkflow } from "./benchmark-prepare.util";
+import { copyCandidateFiles, workflowCases, workflowCaseSchema } from "./benchmark-workflows.util";
 import { runNativeProbe } from "./native-sandbox";
 
 const caseSchema = z.enum(["query-key", "notes-deletion"]);
 const preparedSchema = z.object({
   schemaVersion: z.literal(1),
+  harness: z.enum(["codex", "claude"]).default("codex"),
   id: z.string().uuid(),
   case: caseSchema,
   revision: z.string(),
@@ -39,16 +47,66 @@ async function main() {
     options: {
       prepare: { type: "boolean" },
       live: { type: "boolean" },
+      inspect: { type: "boolean" },
+      evidence: { type: "string" },
+      trace: { type: "string" },
+      "save-transcript": { type: "boolean", default: false },
       case: { type: "string" },
       run: { type: "string" },
-      model: { type: "string" }
+      model: { type: "string" },
+      variant: { type: "string" },
+      harness: { type: "string", default: "codex" }
     }
   });
+  if (values.inspect) {
+    if (values.live || values.prepare)
+      throw new Error("Inspection is separate from preparation and model execution");
+    const directory = path.join(root, z.string().uuid().parse(values.run));
+    const inspection = inspectWorkflow(directory, values.trace);
+    if (values.evidence) {
+      const evidencePath = realpathSync(values.evidence);
+      const trialPath = realpathSync(path.join(directory, "trial"));
+      const relative = path.relative(trialPath, evidencePath);
+      if (!relative.startsWith("..") && !path.isAbsolute(relative))
+        throw new Error("Evidence must be evaluator-owned, outside the candidate checkout");
+      const grade = gradeInspectedWorkflow(
+        inspection,
+        reviewedEvidenceSchema.parse(JSON.parse(readFileSync(evidencePath, "utf8")))
+      );
+      writeFileSync(
+        path.join(directory, "grade.json"),
+        JSON.stringify(
+          { ...grade, candidateHash: inspection.candidateHash, traceHash: inspection.traceHash },
+          null,
+          2
+        )
+      );
+      console.log(JSON.stringify(grade, null, 2));
+      process.exitCode = grade.status === "failed" ? 1 : 0;
+    } else {
+      writeFileSync(path.join(directory, "inspection.json"), JSON.stringify(inspection, null, 2));
+      console.log(JSON.stringify(inspection, null, 2));
+    }
+    return;
+  }
+  const harness = z.enum(["codex", "claude"]).parse(values.harness);
+  if (values.live && harness !== "codex")
+    throw new Error("Claude live dispatch is unsupported; no substitute harness is used");
   if (values.prepare && values.live)
     throw new Error("Prepare dependencies separately before --live");
   if (!values.prepare && !values.live) {
     console.log(
-      `Manual capability fixtures: ${Object.keys(benchmarkFixtures).join(", ")}\nUse --prepare --case <id>, then --live --run <uuid> --model <model>.`
+      `Manual capability fixtures: ${[...Object.keys(benchmarkFixtures), ...Object.keys(workflowCases)].join(", ")}\nUse --prepare --case <id>, then --live --run <uuid> --model <model>.`
+    );
+    return;
+  }
+  const workflow = workflowCaseSchema.safeParse(values.case);
+  if (values.prepare && workflow.success) {
+    if (!values.variant)
+      throw new Error(`--variant required: ${workflowCases[workflow.data].variants.join(", ")}`);
+    const prepared = prepareWorkflow(workflow.data, values.variant, harness);
+    console.log(
+      `Prepared ${prepared.id} at ${prepared.directory}. Offline preparation only; no checks or models executed. Live workflow dispatch remains unsupported.`
     );
     return;
   }
@@ -97,7 +155,7 @@ async function main() {
         stdio: "inherit",
         timeout: 300_000
       });
-      execFileSync(command, [...prefix, "ai:install", "--agent", "codex", "--non-interactive"], {
+      execFileSync(command, [...prefix, "ai:install", "--agent", harness, "--non-interactive"], {
         cwd: checkout,
         env: controllerEnvironment(process.env, false),
         stdio: "inherit",
@@ -117,6 +175,7 @@ async function main() {
     writeFileSync(path.join(verifier, fixture.target), original);
     const prepared = preparedSchema.parse({
       schemaVersion: 1,
+      harness,
       id,
       case: name,
       revision,
@@ -134,9 +193,14 @@ async function main() {
   const id = z.string().uuid().parse(values.run);
   const model = z.string().trim().min(1).parse(values.model);
   const directory = path.join(root, id);
-  const prepared = preparedSchema.parse(
-    JSON.parse(readFileSync(path.join(directory, "prepared.json"), "utf8"))
-  );
+  const preparedInput = JSON.parse(readFileSync(path.join(directory, "prepared.json"), "utf8"));
+  if (z.object({ kind: z.literal("workflow-preparation") }).safeParse(preparedInput).success)
+    throw new Error(
+      "This workflow has offline preparation only. Live dispatch requires a certified harness and independent verifier integration."
+    );
+  const prepared = preparedSchema.parse(preparedInput);
+  if (prepared.harness !== "codex")
+    throw new Error("Prepared harness is unsupported for live execution; no substitution");
   const started = path.join(directory, "started.json");
   if (existsSync(started))
     throw new Error("Each fixture permits one fresh session. Prepare a new run for a repetition.");
@@ -150,9 +214,11 @@ async function main() {
     path.join(directory, "prompt.md"),
     "--model",
     model,
+    "--case",
+    prepared.case,
     "--mode",
     "edit",
-    "--save-transcript"
+    ...(values["save-transcript"] ? ["--save-transcript"] : [])
   ]);
   // The agent never sees or edits this checkout. Only its production repair is copied into it.
   const target = benchmarkFixtures[prepared.case].target;
@@ -161,7 +227,7 @@ async function main() {
   const relativeCandidate = path.relative(trial, candidate);
   if (relativeCandidate.startsWith("..") || path.isAbsolute(relativeCandidate))
     throw new Error("Candidate escapes its trial checkout");
-  writeFileSync(path.join(directory, "verifier", target), readFileSync(candidate));
+  copyCandidateFiles(trial, path.join(directory, "verifier"), [target]);
   // Candidate code is untrusted. The trusted preparation verifier above must never execute it.
   const verifier = path.join(directory, "verifier");
   const fixture = benchmarkFixtures[prepared.case];

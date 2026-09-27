@@ -12,7 +12,7 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 
 1. Read `.ai/guide.md`, `.ai/skills/`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/review.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/` as needed.
 2. Run `pnpm ai:install`.
-3. Run `pnpm ai:doctor`.
+3. Run `pnpm ai:doctor --strict` for tracked artifacts and `pnpm ai:doctor --agent <agent> --local --json` for each selected local agent. Local readiness checks content and prerequisites; it does not certify MCP connectivity or sandbox enforcement.
 4. If doctor reports drift, inspect the named canonical sources and rerun `pnpm ai:install`.
 5. Never edit installed assistant files directly unless the installer or doctor is the subject under test.
 
@@ -37,4 +37,4 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 - `.serena/project.yml`
 - `.serena/memories/*.md`
 
-Installed files include a notice where applicable. Personal/local assistant files in `.ai.local/` and non-prefixed skill directories must remain untouched.
+Installed files include a notice where applicable. Personal credentials and overrides in `.ai.local/` and non-prefixed skill directories must remain untouched. The installer maintains names-only selection metadata in `.ai.local/installations/`; regeneration preserves selected skills and tools.

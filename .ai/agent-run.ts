@@ -24,9 +24,11 @@ import {
   parseAgentRunOptions,
   probeResultSchema,
   projectConfigRestrictions,
+  requireIsolation,
   sandboxConfig
 } from "./agent-run.util";
 import { runNativeProbe } from "./native-sandbox";
+import { fingerprintInstructions } from "./run-fingerprint.util";
 import { codingRunSchema, usageSchema, type CodingRun } from "./run-report.util";
 
 const eventSchema = z.object({
@@ -51,7 +53,11 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
   const reportPath = path.join(output, `${runId}.json`);
   const cliVersion = execFileSync("codex", ["--version"], { encoding: "utf8" }).trim();
   const run: CodingRun = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    harness: options.harness,
+    caseId: options.case,
+    reasoning: options.reasoning,
+    mode: options.mode,
     runId,
     workspace,
     revision: execFileSync("git", ["-C", workspace, "rev-parse", "HEAD"], {
@@ -78,6 +84,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
   save();
   const markers: string[] = [];
   try {
+    const probeSource = readFileSync(path.join(import.meta.dirname, "sandbox-probe.mjs"), "utf8");
     assertSupportedSandbox(process.platform, cliVersion);
     projectConfigRestrictions(workspace);
     for (const relative of [
@@ -89,10 +96,12 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
     ]) {
       if (
         readFileSync(path.join(workspace, relative), "utf8").replaceAll("\r\n", "\n") !==
-        readFileSync(path.resolve(import.meta.dirname, "..", relative), "utf8").replaceAll(
-          "\r\n",
-          "\n"
-        )
+        (relative === ".ai/sandbox-probe.mjs"
+          ? probeSource.replaceAll("\r\n", "\n")
+          : readFileSync(path.resolve(import.meta.dirname, "..", relative), "utf8").replaceAll(
+              "\r\n",
+              "\n"
+            ))
       )
         throw new Error(`Untrusted runner dependency: ${relative}`);
     }
@@ -125,7 +134,37 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
       nodeDirectory: path.dirname(process.execPath),
       commandEnv: commandEnvironment(process.env)
     });
-    run.configurationHash = createHash("sha256").update(JSON.stringify(config)).digest("hex");
+    run.effectiveConfig = config
+      .filter((item) => item !== "-c")
+      .map((item) =>
+        item
+          .replaceAll(temporary.replaceAll("\\", "/"), "<temporary>")
+          .replaceAll(outside.replaceAll("\\", "/"), "<outside>")
+          .replaceAll(profileName, "<profile>")
+      );
+    run.configurationHash = createHash("sha256")
+      .update(JSON.stringify(run.effectiveConfig))
+      .digest("hex");
+    run.instructionHash = fingerprintInstructions(workspace);
+    const toolsHash = createHash("sha256").update(
+      JSON.stringify({ cliVersion, mcp: false, browser: false, plugins: false })
+    );
+    for (const file of [
+      ".ai/native-sandbox.ts",
+      ".ai/process-cleanup.util.ts",
+      ".ai/permissions.json",
+      ".ai/hooks/pre-tool-use.mjs",
+      ".ai/hooks/guarded-command.mjs"
+    ])
+      toolsHash
+        .update(file)
+        .update(
+          readFileSync(path.resolve(import.meta.dirname, "..", file), "utf8").replaceAll(
+            "\r\n",
+            "\n"
+          )
+        );
+    run.toolHash = toolsHash.update(probeSource).digest("hex");
     save();
     const listener = net.createServer((socket) => socket.end());
     await new Promise<void>((resolve, reject) => {
@@ -144,33 +183,57 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
         });
         socket.once("error", reject);
       });
-      const probeScript = path.join(workspace, ".ai", "sandbox-probe.mjs");
-      if (!existsSync(probeScript))
-        throw new Error("Workspace must contain the Kaine sandbox probe");
-      const stdout = await runNativeProbe({
-        config,
-        workspace,
-        profileName,
-        command: [
-          process.execPath,
-          probeScript,
-          readable,
-          `${readable}.write`,
-          protectedFile,
-          path.join(outside, "write"),
-          String(address.port),
-          options.mode,
-          environmentFile,
-          gitFile
-        ]
-      });
-      const probes = probeResultSchema.safeParse(JSON.parse(stdout.trim()));
-      run.boundaryChecks = z.record(z.string(), z.boolean()).parse(JSON.parse(stdout.trim()));
-      save();
-      if (!probes.success)
-        throw new Error(
-          `Sandbox enforcement failed: ${probes.error.issues.map((issue) => issue.path.join(".")).join(", ")}`
-        );
+      const modes = options["probe-only"] ? [options.mode] : (["read", "edit"] as const);
+      for (const mode of modes) {
+        const probeConfig = sandboxConfig({
+          profileName,
+          temporary,
+          outside,
+          mode,
+          nodeDirectory: path.dirname(process.execPath),
+          commandEnv: commandEnvironment(process.env)
+        });
+        const stdout = await runNativeProbe({
+          config: probeConfig,
+          onConfiguration: (observed) => {
+            run.observedConfig = { ...run.observedConfig, [mode]: observed };
+            save();
+          },
+          workspace,
+          profileName,
+          command: [
+            process.execPath,
+            "--input-type=module",
+            "--eval",
+            probeSource,
+            "--",
+            "kaine-boundary-probe",
+            readable,
+            `${readable}.write`,
+            protectedFile,
+            path.join(outside, "write"),
+            String(address.port),
+            mode,
+            environmentFile,
+            gitFile
+          ]
+        });
+        const probes = probeResultSchema.safeParse(JSON.parse(stdout.trim()));
+        const observation = z
+          .object({ networkEvidence: z.enum(["denied", "allowed", "inconclusive"]) })
+          .passthrough()
+          .parse(JSON.parse(stdout.trim()));
+        const { networkEvidence, ...checks } = observation;
+        run.networkEvidence = networkEvidence;
+        run.boundaryChecks = z.record(z.string(), z.boolean()).parse(checks);
+        run.isolation = { ...run.isolation, [mode]: { ...run.boundaryChecks, networkEvidence } };
+        save();
+        if (!probes.success)
+          throw new Error(
+            `Sandbox ${mode} enforcement failed: ${probes.error.issues.map((issue) => issue.path.join(".")).join(", ")}`
+          );
+      }
+      if (!options["probe-only"]) requireIsolation(run.isolation ?? {});
     } finally {
       listener.close();
     }
@@ -217,6 +280,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
         "--model",
         options.model ?? "",
         ...config,
+        ...(options.reasoning ? ["-c", `model_reasoning_effort="${options.reasoning}"`] : []),
         "-"
       ],
       { env: controllerEnvironment(process.env, true), stdio: ["pipe", "pipe", "pipe"] }
@@ -267,6 +331,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
     save();
     return { path: reportPath, run };
   } catch (error) {
+    run.failure = error instanceof Error ? error.message.split("\n")[0] : "Execution failed";
     save();
     throw error;
   } finally {

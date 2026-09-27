@@ -6,7 +6,18 @@ export const usageSchema = z.object({
   output_tokens: z.number().nonnegative().optional()
 });
 export const codingRunSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  harness: z.enum(["codex", "claude"]).optional(),
+  caseId: z.string().optional(),
+  reasoning: z.string().optional(),
+  instructionHash: z.string().optional(),
+  toolHash: z.string().optional(),
+  mode: z.enum(["read", "edit"]).optional(),
+  effectiveConfig: z.array(z.string()).optional(),
+  observedConfig: z.record(z.string(), z.json()).optional(),
+  networkEvidence: z.enum(["denied", "allowed", "inconclusive"]).optional(),
+  failure: z.string().optional(),
+  isolation: z.record(z.string(), z.json()).optional(),
   runId: z.string().uuid(),
   workspace: z.string(),
   revision: z.string(),
@@ -64,9 +75,15 @@ export function summarizeModelLogs(lines: string[]) {
     },
     latencyMs: { median: percentile(0.5), p95: percentile(0.95) },
     availableTokens: {
-      input: events.reduce((sum, entry) => sum + (entry.inputTokens ?? 0), 0),
-      output: events.reduce((sum, entry) => sum + (entry.outputTokens ?? 0), 0),
-      total: events.reduce((sum, entry) => sum + (entry.totalTokens ?? 0), 0)
+      input: events.some((entry) => entry.inputTokens !== undefined)
+        ? events.reduce((sum, entry) => sum + (entry.inputTokens ?? 0), 0)
+        : null,
+      output: events.some((entry) => entry.outputTokens !== undefined)
+        ? events.reduce((sum, entry) => sum + (entry.outputTokens ?? 0), 0)
+        : null,
+      total: events.some((entry) => entry.totalTokens !== undefined)
+        ? events.reduce((sum, entry) => sum + (entry.totalTokens ?? 0), 0)
+        : null
     },
     incompleteUsageRuns: events.filter(
       (entry) =>
@@ -77,8 +94,12 @@ export function summarizeModelLogs(lines: string[]) {
   };
 }
 
-export function summarizeCodingRuns(runs: CodingRun[]) {
+function summarizeCodingGroup(runs: CodingRun[]) {
   const reviewed = runs.filter((run) => run.outcome !== null);
+  const accepted = reviewed.filter((run) => run.outcome === "accepted");
+  const durations = runs.map((run) => run.durationMs).sort((a, b) => a - b);
+  const percentile = (fraction: number) =>
+    durations.length ? (durations[Math.ceil(durations.length * fraction) - 1] ?? null) : null;
   return {
     runs: runs.length,
     reviewed: reviewed.length,
@@ -90,9 +111,73 @@ export function summarizeCodingRuns(runs: CodingRun[]) {
       reviewed.length === 0
         ? null
         : reviewed.filter((run) => run.outcome === "accepted").length / reviewed.length,
+    incomplete: runs.filter((run) => run.termination !== "completed").length,
+    executionMs: { median: percentile(0.5), p95: percentile(0.95) },
+    tokensPerAccepted: {
+      input:
+        accepted.length && accepted.every((run) => run.usage?.input_tokens !== undefined)
+          ? accepted.reduce((sum, run) => sum + (run.usage?.input_tokens ?? 0), 0) / accepted.length
+          : null,
+      output:
+        accepted.length && accepted.every((run) => run.usage?.output_tokens !== undefined)
+          ? accepted.reduce((sum, run) => sum + (run.usage?.output_tokens ?? 0), 0) /
+            accepted.length
+          : null
+    },
+    availableTokens: {
+      input: runs.some((run) => run.usage?.input_tokens !== undefined)
+        ? runs.reduce((sum, run) => sum + (run.usage?.input_tokens ?? 0), 0)
+        : null,
+      output: runs.some((run) => run.usage?.output_tokens !== undefined)
+        ? runs.reduce((sum, run) => sum + (run.usage?.output_tokens ?? 0), 0)
+        : null
+    },
+    missingInputTokens: runs.filter((run) => run.usage?.input_tokens === undefined).length,
+    missingOutputTokens: runs.filter((run) => run.usage?.output_tokens === undefined).length,
     timeouts: runs.filter((run) => run.termination === "timeout").length,
-    reviewMinutes: reviewed.reduce((sum, run) => sum + (run.reviewMinutes ?? 0), 0),
+    reviewMinutes: reviewed.some((run) => run.reviewMinutes !== null)
+      ? reviewed.reduce((sum, run) => sum + (run.reviewMinutes ?? 0), 0)
+      : null,
     missingReviewMinutes: reviewed.filter((run) => run.reviewMinutes === null).length,
     missingUsage: runs.filter((run) => run.usage === undefined).length
+  };
+}
+
+export function summarizeCodingRuns(runs: CodingRun[]) {
+  const unique = [...new Map(runs.map((run) => [run.runId, run])).values()];
+  const groups = new Map<string, CodingRun[]>();
+  let excludedFromComparisons = 0;
+  for (const run of unique) {
+    if (!run.harness || !run.caseId || !run.instructionHash || !run.toolHash || !run.mode) {
+      excludedFromComparisons++;
+      continue;
+    }
+    const key = JSON.stringify(comparisonConfiguration(run));
+    const group = groups.get(key) ?? [];
+    group.push(run);
+    groups.set(key, group);
+  }
+  return {
+    ...summarizeCodingGroup(unique),
+    excludedFromComparisons,
+    groups: [...groups.values()].map((entries) => ({
+      configuration: entries[0] ? comparisonConfiguration(entries[0]) : null,
+      ...summarizeCodingGroup(entries)
+    }))
+  };
+}
+
+function comparisonConfiguration(run: CodingRun) {
+  return {
+    harness: run.harness,
+    caseId: run.caseId,
+    model: run.model,
+    cliVersion: run.cliVersion,
+    reasoning: run.reasoning ?? null,
+    revision: run.revision,
+    mode: run.mode,
+    configurationHash: run.configurationHash,
+    instructionHash: run.instructionHash,
+    toolHash: run.toolHash
   };
 }

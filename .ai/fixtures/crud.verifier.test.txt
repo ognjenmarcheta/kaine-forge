@@ -1,0 +1,137 @@
+import { createLogger } from "@repo/logger";
+import { createPubSub, createSchema, createYoga } from "graphql-yoga";
+import { z } from "zod";
+import { afterEach, expect, it, vi } from "vitest";
+
+// SAFETY: initialized before any resolver call; the getter rejects missing setup.
+const holder = vi.hoisted(() => ({
+  database: null as ReturnType<typeof createEvalDatabase> | null
+}));
+vi.mock("@repo/db", async () => ({
+  ...(await import("@repo/db/schema")),
+  get db() {
+    if (!holder.database) throw new Error("Uninitialized evaluator database");
+    return holder.database.db;
+  }
+}));
+vi.mock("@repo/db/client", () => {
+  throw new Error("Production PostgreSQL forbidden");
+});
+vi.mock("pg", () => {
+  throw new Error("Production PostgreSQL forbidden");
+});
+
+import { assistantEvalCases } from "./features/assistant/assistant.eval.data";
+import { createEvalDatabase, seedEvalFixture } from "./features/assistant/assistant.eval.fixture";
+import { createApiWorkflows } from "./context.workflows";
+import { __plural__Resolvers } from "./features/__plural__/__plural__.router";
+import { __plural__TypeDefs } from "./features/__plural__/__plural__.schema";
+
+afterEach(async () => {
+  await holder.database?.client.close();
+});
+
+it("replays migrations and proves API CRUD, validation and unchanged foreign rows", async () => {
+  const database = createEvalDatabase();
+  holder.database = database;
+  const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-note-update");
+  if (!evaluation) throw new Error("Missing base fixture");
+  const fixture = await seedEvalFixture(database, evaluation);
+  const foreignRows = await database.client.query("SELECT id FROM organizations WHERE id <> $1", [
+    fixture.scope.organizationId
+  ]);
+  const foreignId = foreignRows.rows[0]?.id;
+  if (typeof foreignId !== "string") throw new Error("Missing foreign Organization");
+  const schema = createSchema({
+    typeDefs: [
+      "scalar DateTime type Todo { id: ID! } input CreateTodoInput { title: String! } type Query { _control: Boolean } type Mutation { _control: Boolean } type Subscription { _control: Boolean }",
+      __plural__TypeDefs
+    ],
+    resolvers: __plural__Resolvers
+  });
+  const rowSchema = z.object({ id: z.string(), title: z.string(), body: z.string().nullable() });
+  const responseSchema = z.object({
+    errors: z.array(z.object({ message: z.string() })).optional(),
+    data: z
+      .object({
+        create__Singular__: rowSchema.optional(),
+        update__Singular__: rowSchema.optional(),
+        delete__Singular__: z.boolean().optional(),
+        __singular__: rowSchema.nullable().optional(),
+        __plural__: z.array(rowSchema).optional()
+      })
+      .nullable()
+      .optional()
+  });
+  const execute = async (
+    source: string,
+    variables: Record<string, string> = {},
+    foreign = false
+  ) => {
+    const yoga = createYoga({
+      schema,
+      logging: false,
+      context: {
+        requireOrganizationScope: () => ({
+          ...fixture.scope,
+          organizationId: foreign ? foreignId : fixture.scope.organizationId
+        }),
+        pubsub: createPubSub(),
+        workflows: createApiWorkflows({
+          logger: createLogger({ name: "verifier", level: "silent" }),
+          publish: () => {}
+        })
+      }
+    });
+    const response = await yoga.fetch(
+      new Request("http://localhost/graphql", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: source, variables })
+      })
+    );
+    return responseSchema.parse(await response.json());
+  };
+  const create =
+    "mutation($title: String!) { create__Singular__(input: {title: $title}) { id title body } }";
+  const foreign = await execute(create, { title: "Foreign control" }, true);
+  const own = await execute(create, { title: "Owner control" });
+  expect(foreign.errors).toBeUndefined();
+  expect(own.errors).toBeUndefined();
+  const ownId = own.data?.create__Singular__?.id;
+  const foreignRowId = foreign.data?.create__Singular__?.id;
+  expect(typeof ownId).toBe("string");
+  expect(typeof foreignRowId).toBe("string");
+  if (!ownId || !foreignRowId) throw new Error("Missing API row IDs");
+  const protectedRows = () =>
+    database.client.query("SELECT * FROM __plural__ WHERE organization_id = $1 ORDER BY id", [
+      foreignId
+    ]);
+  const before = await protectedRows();
+  const list = await execute("{ __plural__ { id title body } }");
+  expect(list.errors).toBeUndefined();
+  expect(list.data?.__plural__).toEqual([{ id: ownId, title: "Owner control", body: null }]);
+  const read = "query($id: ID!) { __singular__(id: $id) { id title body } }";
+  expect((await execute(read, { id: foreignRowId })).data?.__singular__).toBeNull();
+  const update =
+    'mutation($id: ID!) { update__Singular__(id: $id, input: {title: "Edited", body: "Body"}) { id title body } }';
+  expect((await execute(update, { id: ownId })).data?.update__Singular__).toEqual({
+    id: ownId,
+    title: "Edited",
+    body: "Body"
+  });
+  expect((await execute(read, { id: ownId })).data?.__singular__).toEqual({
+    id: ownId,
+    title: "Edited",
+    body: "Body"
+  });
+  expect((await execute(update, { id: foreignRowId })).errors?.length).toBeGreaterThan(0);
+  const remove = "mutation($id: ID!) { delete__Singular__(id: $id) }";
+  expect((await execute(remove, { id: foreignRowId })).data?.delete__Singular__).toBe(false);
+  expect((await protectedRows()).rows).toEqual(before.rows);
+  expect((await execute(remove, { id: ownId })).data?.delete__Singular__).toBe(true);
+  expect((await execute(read, { id: ownId })).data?.__singular__).toBeNull();
+  for (const title of ["", " ", "x".repeat(256)])
+    expect((await execute(create, { title })).errors?.length).toBeGreaterThan(0);
+  expect((await protectedRows()).rows).toEqual(before.rows);
+}, 30_000);
