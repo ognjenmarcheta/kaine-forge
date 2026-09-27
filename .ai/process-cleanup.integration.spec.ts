@@ -3,20 +3,27 @@ import { expect, it } from "vitest";
 
 import { stopProcessTree } from "./process-cleanup.util";
 
-it("verifies normal one-shot shutdown after output pipes drain", async () => {
-  const child = spawn(process.execPath, ["-e", "console.log('completed')"], {
-    detached: process.platform !== "win32",
-    windowsHide: true,
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  child.stdout.resume();
-  child.stderr.resume();
-  await new Promise<void>((resolve, reject) => {
-    child.once("error", reject);
-    child.once("close", () => resolve());
-  });
-  expect(await stopProcessTree(child)).toBe("passed");
-});
+it.each([0, 7])(
+  "verifies one-shot shutdown with exit %s after output pipes drain",
+  async (code) => {
+    const child = spawn(
+      process.execPath,
+      ["-e", `console.log('completed'); process.exitCode=${code}`],
+      {
+        detached: process.platform !== "win32",
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"]
+      }
+    );
+    child.stdout.resume();
+    child.stderr.resume();
+    await new Promise<void>((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", () => resolve());
+    });
+    expect(await stopProcessTree(child)).toBe("passed");
+  }
+);
 
 it("terminates a synthetic server and its child", async () => {
   const child = spawn(

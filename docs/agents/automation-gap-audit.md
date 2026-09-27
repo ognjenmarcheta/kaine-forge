@@ -2,7 +2,7 @@
 
 Snapshot of template rules that are encoded as docs/REVIEW/skills but not fully machine-checked.
 Update when a gap is closed or a new proven failure mode appears.
-Last reviewed: 2026-09-27 (installation ownership, cached Serena startup, faithful context snapshots, trusted probes and checked process cleanup).
+Last reviewed: 2026-09-27 (model-run finalization, cleanup reporting and subprocess test reliability).
 
 This audit records evidence and residual gaps. Candidate checks remain proposals unless an executable check is named.
 
@@ -24,11 +24,25 @@ This audit records evidence and residual gaps. Candidate checks remain proposals
 - `.ai/mcp.json` uses exact npm versions and a Serena commit. Doctor/tests validate pins. Opt-in initialization passed for filesystem, Context7, Playwright and Serena. After installing `uvx 0.12.19`, refreshing the process PATH and preparing Serena's pinned environment, both local readiness checks pass. The cold-start timeout remains enforced.
 - `pnpm agent:run --probe-only --mode read` and `--mode edit` record CLI 0.154.0, non-secret effective permissions and individual results. Filesystem/environment controls pass; loopback connections remain allowed despite `network.enabled=false`. Both fail closed. Isolation is not certified.
 - `pnpm harness:benchmark` lists seven case families. Repair cases retain independent verification. New workflows prepare common Codex/Claude artifacts, a CRUD verifier and hash-bound human review. Synthetic traces, good/bad artifacts and protected-file tests validate the offline machinery. New workflow live adapters and Claude execution remain unsupported; no other harness is substituted.
-- `pnpm agent:report` groups matching case/harness/model/configuration records, keeps legacy totals and separates missing usage/review measurements. Offline controls do not become agent-performance results.
+- `pnpm agent:report` groups matching case/harness/model/configuration records, keeps legacy totals and separates missing usage/review/cleanup measurements. `cleanupFailures` counts unsuccessful cleanup; legacy missing fields count as `missingCleanup`. Offline controls do not become agent-performance results.
 - `pnpm harness:context --prepare` creates disposable baseline/candidate snapshots. Production instructions remain unchanged. Word counts are not quality evidence.
 
 Coverage and exact commands are in the existing [agent-engineering guide](agent-engineering.md).
 No paid model call, automatic model CI run, merge or deployment belongs to this rollout.
+
+### Model-run lifecycle follow-up
+
+Model execution now shares checked process-tree cleanup with preflight and MCP
+checks. One finalization path handles exit, startup failure, stream failure,
+timeout and cancellation within five seconds. Failed cleanup cannot produce a
+completed model run; reports retain both the original failure and cleanup status.
+Releasing controller handles after the deadline does not certify process exit.
+Synthetic tests verify overlapping signals, missing close events, denied dispatch
+and nonzero CLI status on cleanup failure. Real Node stand-ins exercise child
+termination without model calls. `pnpm ai:test` uses one worker to avoid the
+observed parallel subprocess timeouts; production deadlines remain unchanged.
+Three consecutive Windows runs passed 336 tests with one POSIX-only skip;
+`pnpm check`, strict doctor and Codex/Claude local readiness also passed.
 
 ## Earlier tooling closures
 
