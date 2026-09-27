@@ -29,6 +29,7 @@ export const codingRunSchema = z.object({
   durationMs: z.number().nonnegative(),
   exitCode: z.number().int().nullable(),
   termination: z.enum(["completed", "failed", "timeout", "cancelled", "preflight-failed"]),
+  cleanup: z.enum(["passed", "failed", "not-started"]).optional(),
   usage: usageSchema.optional(),
   commands: z.array(z.object({ status: z.string(), exitCode: z.number().int().nullable() })),
   transcript: z.string().nullable(),
@@ -135,6 +136,8 @@ function summarizeCodingGroup(runs: CodingRun[]) {
     missingInputTokens: runs.filter((run) => run.usage?.input_tokens === undefined).length,
     missingOutputTokens: runs.filter((run) => run.usage?.output_tokens === undefined).length,
     timeouts: runs.filter((run) => run.termination === "timeout").length,
+    cleanupFailures: runs.filter((run) => run.cleanup === "failed").length,
+    missingCleanup: runs.filter((run) => run.cleanup === undefined).length,
     reviewMinutes: reviewed.some((run) => run.reviewMinutes !== null)
       ? reviewed.reduce((sum, run) => sum + (run.reviewMinutes ?? 0), 0)
       : null,

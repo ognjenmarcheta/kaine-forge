@@ -104,6 +104,39 @@ These are manual agent-behavior scenarios. `pnpm ai:install` and strict `pnpm ai
 
 This follows [OpenAI's skill guidance](https://learn.chatgpt.com/docs/build-skills): discover through concise metadata and load instructions selectively. Selection remains model-driven across the supported agent targets.
 
+## Planning skill acceptance
+
+`kaine-write-plan` owns implementation planning. The canonical guide explicitly
+routes Plan mode and user plan requests to it, in addition to native skill
+discovery. The skill ends every completed plan with **In plain language** so a
+nontechnical reader can assess the intended work. This is an instruction-level
+requirement, not a runtime guarantee of model compliance.
+
+The following scenarios are manual acceptance criteria, not executed model trials:
+
+| Scenario                                                                        | Expected behavior                                                                                                                |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Harness explicitly enters Plan mode; the user does not name a skill             | Read and apply `kaine-write-plan`; reuse it if already loaded. Follow active mode restrictions.                                  |
+| Outside Plan mode: “Write a plan for this feature.”                             | Use the skill and present the plan in chat with an **In plain language** ending.                                                 |
+| Explicit request: “Use kaine-write-plan.”                                       | Load the skill and apply it to the supplied task or plan.                                                                        |
+| Plan a feature or refactor                                                      | Inspect existing behavior and tests, define scope and decisions, and name verification. Refactors identify behavior to preserve. |
+| “Revise the plan” or “Make it shorter”                                          | Retain a proportionate plain-language ending that reflects the revised technical plan and adds no new promises.                  |
+| Missing repository facts                                                        | Investigate them before asking the user; ask only about consequential decisions that cannot be discovered.                       |
+| Outside Plan mode: unrelated factual question or “Implement this approved plan” | Do not start an unnecessary planning cycle. Apply the relevant workflow and existing authorization.                              |
+| Planning-only request                                                           | Do not implement code, save a plan file or publish an issue without the corresponding request and mode permission.               |
+
+Installation and doctor checks verify metadata and generated copies. They do not
+execute these scenarios or prove that every agent will select or follow the skill.
+
+### Planning sources
+
+The short repository workflow adapts ideas from these reviewed sources; it does
+not depend on installing or invoking them:
+
+- [Superpowers writing-plans](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/writing-plans/SKILL.md): verifiable stages, clear interfaces and proportionate self-review.
+- [Matt Pocock's historical request-refactor-plan](https://github.com/mattpocock/skills/blob/e7f0b58a4b8ad0764d9478b069fe6e48b99c320f/request-refactor-plan/SKILL.md): scope, decisions, behavioral testing and safe incremental changes. This skill is absent from the current source tree reviewed for this change.
+- [Matt Pocock's grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) and [to-spec](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/to-spec/SKILL.md): discover facts before asking for decisions, and reuse established context.
+
 ## Related
 
 - Day-one ramp: `docs/agents/day-one.md`

@@ -27,7 +27,7 @@ async function terminateTree(child: ChildProcess): Promise<CleanupStatus> {
   // and drained pipes; a running Windows server still requires taskkill /T below.
   if (
     process.platform === "win32" &&
-    child.exitCode === 0 &&
+    (child.exitCode !== null || child.signalCode !== null) &&
     child.stdout?.readableEnded &&
     child.stderr?.readableEnded
   ) {

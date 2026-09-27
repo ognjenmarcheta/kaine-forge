@@ -14,11 +14,13 @@ import { afterEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   probe: vi.fn(),
+  model: vi.fn(),
   dispatch: vi.fn(() => {
     throw new Error("Model dispatch prohibited in this test");
   })
 }));
 vi.mock("./native-sandbox", () => ({ runNativeProbe: mocks.probe }));
+vi.mock("./model-process.util", () => ({ runModelProcess: mocks.model }));
 vi.mock("node:child_process", async (original) => {
   const actual = await original<typeof import("node:child_process")>();
   return {
@@ -73,6 +75,7 @@ it("rejects altered workspace dependencies before any native or model command", 
     );
     expect(mocks.probe).not.toHaveBeenCalled();
     expect(mocks.dispatch).not.toHaveBeenCalled();
+    expect(mocks.model).not.toHaveBeenCalled();
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -111,7 +114,92 @@ it("executes captured controller bytes after workspace replacement and denies di
     ).rejects.toThrow("enforcement failed");
     expect(mocks.probe).toHaveBeenCalledTimes(1);
     expect(mocks.dispatch).not.toHaveBeenCalled();
+    expect(mocks.model).not.toHaveBeenCalled();
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+function passingSyntheticProbe() {
+  mocks.probe.mockResolvedValue(
+    JSON.stringify({
+      outsideReadDenied: true,
+      environmentFileDenied: true,
+      gitDenied: true,
+      environmentIsolated: true,
+      allowedRead: true,
+      expectedWrite: true,
+      protectedDenied: true,
+      outsideWriteDenied: true,
+      networkDenied: true,
+      networkEvidence: "denied"
+    })
+  );
+}
+
+it("records probe-only completion without starting a model", async () => {
+  const root = workspace();
+  try {
+    passingSyntheticProbe();
+    const result = await runCodingAgent(["--workspace", root, "--probe-only"]);
+    expect(result.run).toMatchObject({ termination: "completed", cleanup: "not-started" });
+    expect(mocks.model).not.toHaveBeenCalled();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  { cleanup: "failed", failure: "process cleanup failed" },
+  { cleanup: "passed", failure: "Model output did not close before finalization deadline" }
+])(
+  "persists $failure and exits nonzero despite a completed model event",
+  async ({ cleanup, failure }) => {
+    const root = workspace();
+    const argv = process.argv;
+    const exitCode = process.exitCode;
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      passingSyntheticProbe();
+      const prompt = path.join(root, "prompt.md");
+      writeFileSync(prompt, "synthetic; no model calls");
+      mocks.model.mockImplementation(async (input: { stdout: (chunk: Buffer) => void }) => {
+        input.stdout(Buffer.from('{"type":"turn.completed"}\n'));
+        return {
+          termination: "failed",
+          exitCode: 0,
+          cleanup,
+          failure
+        };
+      });
+      process.argv = [
+        process.execPath,
+        path.join(process.cwd(), ".ai/agent-run.ts"),
+        "--workspace",
+        root,
+        "--model",
+        "synthetic",
+        "--prompt-file",
+        prompt
+      ];
+      vi.resetModules();
+      await import("./agent-run");
+      await vi.waitFor(() => expect(log).toHaveBeenCalled());
+      expect(process.exitCode).toBe(1);
+      expect(mocks.probe).toHaveBeenCalledTimes(2);
+      expect(mocks.model).toHaveBeenCalledTimes(1);
+      const report = readdirSync(reports).find((file) => !before.has(file));
+      if (!report) throw new Error("Missing synthetic report");
+      expect(JSON.parse(readFileSync(path.join(reports, report), "utf8"))).toMatchObject({
+        termination: "failed",
+        cleanup,
+        failure
+      });
+    } finally {
+      process.argv = argv;
+      process.exitCode = exitCode;
+      log.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+);

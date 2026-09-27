@@ -65,6 +65,7 @@ describe("local outcome reports", () => {
       mode: "edit" as const,
       instructionHash: "guide",
       toolHash: "tools",
+      cleanup: "passed" as const,
       usage: { input_tokens: 10 },
       reviewMinutes: 2
     };
@@ -75,10 +76,30 @@ describe("local outcome reports", () => {
       accepted: 2,
       missingInputTokens: 1,
       missingOutputTokens: 2,
+      cleanupFailures: 0,
+      missingCleanup: 1,
       availableTokens: { input: 10, output: null }
     });
     expect(result.groups).toHaveLength(1);
-    expect(result.groups[0]).toMatchObject({ runs: 1, reviewMinutes: 2 });
+    expect(result.groups[0]).toMatchObject({ runs: 1, reviewMinutes: 2, missingCleanup: 0 });
+    const cleanupFailure = codingRunSchema.parse({
+      ...measured,
+      runId: "3f954f50-1783-41dc-b349-555667338005",
+      termination: "timeout",
+      cleanup: "failed"
+    });
+    const notStarted = codingRunSchema.parse({
+      ...measured,
+      runId: "3f954f50-1783-41dc-b349-555667338006",
+      termination: "preflight-failed",
+      cleanup: "not-started"
+    });
+    expect(summarizeCodingRuns([legacy, measured, cleanupFailure, notStarted])).toMatchObject({
+      runs: 4,
+      cleanupFailures: 1,
+      missingCleanup: 1,
+      groups: [expect.objectContaining({ runs: 3, cleanupFailures: 1, missingCleanup: 0 })]
+    });
     expect(
       summarizeCodingRuns([
         measured,

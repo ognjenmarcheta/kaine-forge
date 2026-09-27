@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendFileSync,
@@ -27,6 +27,7 @@ import {
   requireIsolation,
   sandboxConfig
 } from "./agent-run.util";
+import { runModelProcess } from "./model-process.util";
 import { runNativeProbe } from "./native-sandbox";
 import { fingerprintInstructions } from "./run-fingerprint.util";
 import { codingRunSchema, usageSchema, type CodingRun } from "./run-report.util";
@@ -70,6 +71,7 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
     durationMs: 0,
     exitCode: null,
     termination: "preflight-failed",
+    cleanup: "not-started",
     commands: [],
     transcript: null,
     outcome: null,
@@ -266,9 +268,10 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
         /* Non-JSON startup lines do not count as agent evidence. */
       }
     };
-    const child = spawn(
-      "codex",
-      [
+    run.termination = "failed";
+    const execution = await runModelProcess({
+      command: "codex",
+      args: [
         "exec",
         "--ignore-user-config",
         "--strict-config",
@@ -283,55 +286,35 @@ export async function runCodingAgent(args: string[]): Promise<{ path: string; ru
         ...(options.reasoning ? ["-c", `model_reasoning_effort="${options.reasoning}"`] : []),
         "-"
       ],
-      { env: controllerEnvironment(process.env, true), stdio: ["pipe", "pipe", "pipe"] }
-    );
-    run.termination = "failed";
-    const stop = () => {
-      if (child.pid)
-        spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-          stdio: "ignore",
-          windowsHide: true
-        });
-    };
-    const timer = setTimeout(() => {
-      run.termination = "timeout";
-      stop();
-    }, options.timeout * 1000);
-    const cancel = () => {
-      run.termination = "cancelled";
-      stop();
-    };
-    process.once("SIGINT", cancel);
-    process.once("SIGTERM", cancel);
-    child.stdout.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString("utf8");
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
-      for (const line of lines) consume(line);
+      env: controllerEnvironment(process.env, true),
+      prompt,
+      timeoutMs: options.timeout * 1000,
+      stdout: (chunk) => {
+        buffer += chunk.toString("utf8");
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+        for (const line of lines) consume(line);
+      },
+      // Raw stderr is local and opt-in, like the JSONL transcript.
+      stderr: (chunk) => {
+        if (run.transcript) appendFileSync(`${run.transcript}.stderr`, chunk);
+      }
     });
-    // Raw stderr is local and opt-in, like the JSONL transcript.
-    child.stderr.on("data", (chunk: Buffer) => {
-      if (run.transcript) appendFileSync(`${run.transcript}.stderr`, chunk);
-    });
-    child.stdin.end(prompt);
-    try {
-      run.exitCode = await new Promise<number | null>((resolve, reject) => {
-        child.once("error", reject);
-        child.once("close", resolve);
-      });
-      if (buffer.trim()) consume(buffer);
-      if (!["timeout", "cancelled"].includes(run.termination))
-        run.termination =
-          run.exitCode === 0 && completedEvent && !failedEvent ? "completed" : "failed";
-    } finally {
-      clearTimeout(timer);
-      process.removeListener("SIGINT", cancel);
-      process.removeListener("SIGTERM", cancel);
-    }
+    Object.assign(run, execution);
+    run.termination = execution.termination;
+    if (buffer.trim()) consume(buffer);
+    if (run.termination === "completed" && (!completedEvent || failedEvent))
+      run.termination = "failed";
     save();
     return { path: reportPath, run };
   } catch (error) {
-    run.failure = error instanceof Error ? error.message.split("\n")[0] : "Execution failed";
+    if (run.termination === "completed") run.termination = "failed";
+    run.failure = [
+      run.failure,
+      error instanceof Error ? error.message.split("\n")[0] : "Execution failed"
+    ]
+      .filter(Boolean)
+      .join("; ");
     save();
     throw error;
   } finally {

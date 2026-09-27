@@ -239,6 +239,49 @@ configuration hash, duration, available usage, command outcomes, exit code and
 termination reason. Add `--save-transcript` to retain raw JSONL locally. Treat raw
 transcripts as sensitive for real work. Normal runs do not save them.
 
+## Model-process completion and cleanup
+
+`pnpm agent:run` uses the shared process-tree cleanup helper for the model process
+as well as preflight. Normal exit, launch errors, stream errors, timeout and
+cancellation share one finalization path. Repeated signals do not start another
+cleanup. Finalization is bounded to five seconds; unverified shutdown records a
+failure and releases controller handles. A failed cleanup can leave a process
+alive; releasing handles is not proof that it stopped.
+
+New coding reports include `cleanup`: `passed`, `failed`, or `not-started`.
+Model execution is `completed` only after a successful exit, a completed model
+event, no failed model event, closed output streams, and verified cleanup. Timeout and cancellation keep
+their original termination reason when cleanup also fails. Diagnostics retain
+the execution failure alongside the cleanup failure without raw server output.
+If process cleanup passes but output does not close before the finalization deadline,
+the report retains `cleanup: passed` and records a separate output-closure failure.
+The run remains unsuccessful; timeout and cancellation keep their original reason.
+Probe-only reports use `not-started` for the model process. Legacy reports remain
+readable; `pnpm agent:report` counts absent fields as `missingCleanup` and failed
+cleanup separately as `cleanupFailures`, including within comparison groups.
+
+`pnpm ai:test` uses one worker on every platform. Subprocess checks share host
+resources; this prevents parallel file execution from exhausting their existing
+deadlines. No automatic retries or production timeout increases are used.
+Synthetic lifecycle tests cover termination races, missing close events, stream
+errors and cleanup failure; real Node stand-ins verify output draining, nonzero
+exit and child-process shutdown. Both descendant-PID readers share a complete-line
+parser; split output cannot produce a partial PID for fallback termination. Parser
+tests reject invalid PIDs and keep subsequent output from replacing the first PID.
+These checks make no model calls and do not
+certify sandbox enforcement or agent performance. The native network-denial
+blocker above remains unresolved.
+
+Initial lifecycle verification: three consecutive default `pnpm ai:test` runs each
+passed 336 tests across 29 files, with one POSIX-only skip on Windows. `pnpm check`,
+strict doctor and both local agent readiness checks passed. `pnpm ai:install`
+confirmed all 50 installed files were current. No live model or native sandbox
+probe was run for this change; the boundary result above is the prior observation.
+
+CodeRabbit follow-up (2026-09-28): 46 focused tests passed. `pnpm check` passed,
+including 352 AI tests across 30 files and one POSIX-only skip on Windows.
+Installation, strict doctor and both local readiness checks also passed.
+
 ## Reproducible coding benchmarks
 
 ```sh
