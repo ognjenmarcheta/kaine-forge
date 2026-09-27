@@ -17,6 +17,7 @@ export declare function stripHeredocBodies(command: string): string;
 export declare function splitShellSegments(command: string): string[];
 export declare function matchGuardedCommand<TRule extends GuardedCommandRule>(
   command: string,
-  rules: readonly TRule[]
+  rules: readonly TRule[],
+  shell?: "bash" | "powershell"
 ): TRule | null;
 export declare function guardedCommandMessage(rule: { reason: string; instead?: string }): string;

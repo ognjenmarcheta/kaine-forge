@@ -732,10 +732,11 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
   return [
     "## Guarded Commands",
     "",
-    "Enforced by `.ai/hooks/pre-tool-use.mjs` from `.ai/permissions.json`. `deny` is",
-    "blocked on every agent that honours a blocking hook. `ask` is a real",
-    "verdict on Claude and Cursor and degrades to an advisory elsewhere, so treat the deny tier",
-    "as the guarantee.",
+    "The hook `.ai/hooks/pre-tool-use.mjs` applies `.ai/permissions.json` to supported",
+    "literal command forms. `deny` blocks matched calls on agents that honour the hook.",
+    "`ask` is a real verdict on Claude and Cursor and degrades to an advisory elsewhere.",
+    "Hooks are guardrails, not a complete security boundary. Supported syntax and",
+    "failure behavior are documented in `docs/agents/agent-engineering.md`.",
     "",
     ...rows
   ].join("\n");
@@ -848,7 +849,7 @@ export const renderClaudeSettings = (): string => {
       hooks: {
         PreToolUse: [
           {
-            matcher: "Bash",
+            matcher: "^(Bash|PowerShell)$",
             hooks: [
               {
                 type: "command",
@@ -1108,7 +1109,7 @@ export const renderCodexConfig = (source: McpSource): string => {
     `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
     'statusMessage = "Loading Kaine Forge AI context"',
     "",
-    // Codex fires PreToolUse for the Bash tool only, which is the whole policy.
+    // This command policy uses Codex's canonical Bash hook name for shell tools.
     "[[hooks.PreToolUse]]",
     'matcher = "^Bash$"',
     "",

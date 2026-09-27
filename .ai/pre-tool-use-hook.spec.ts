@@ -84,6 +84,53 @@ describe("permissions policy", () => {
 });
 
 describe("matchGuardedCommand", () => {
+  it.each([
+    "pnpm --filter @repo/db db:push",
+    "pnpm --filter=@repo/db run db:push",
+    'pnpm -C "directory with spaces" run db:push',
+    "pnpm --dir=. db:push",
+    "pnpm --dir . --filter @repo/db db:push"
+  ])("denies supported pnpm invocation %s", (command) => {
+    expect(matchGuardedCommand(command, rules)?.id).toBe("db-push");
+  });
+
+  it.each(['git -C "directory with spaces" -C . push --force', 'git -C . push "--force"'])(
+    "retains the force-push decision for %s",
+    (command) => {
+      expect(matchGuardedCommand(command, rules)?.id).toBe("git-push-force");
+    }
+  );
+
+  it.each([
+    'git commit -m "document --no-verify behavior"',
+    'git commit --message "--no-verify"',
+    'git commit --message="--no-verify"',
+    'gh pr review 123 --body "--approve"',
+    'gh pr review 123 -b "example; pnpm db:push && git push --force"',
+    'echo "escaped \\"quote\\"; pnpm db:push"',
+    "git commit -- --no-verify",
+    "git -C . push --force-with-lease",
+    "pnpm --filter @repo/db run db:push:local",
+    "pnpm --dir . db:prepare:local"
+  ])("allows argument data and safe variants: %s", (command) => {
+    expect(matchGuardedCommand(command, rules)).toBeNull();
+  });
+
+  it.each([
+    'git commit -m "text" "--no-verify"',
+    'git commit -m "--no-verify" --no-verify',
+    'echo "example; pnpm test"; git commit --no-verify',
+    'echo "example | pnpm test" && git commit --no-verify'
+  ])("detects actual flags after quoted data: %s", (command) => {
+    expect(matchGuardedCommand(command, rules)?.id).toBe("git-no-verify");
+  });
+
+  it("retains actual review approval after a quoted review body", () => {
+    expect(matchGuardedCommand('gh pr review 123 -b "--approve" "--approve"', rules)?.id).toBe(
+      "gh-pr-approve"
+    );
+  });
+
   it("splits on every shell separator", () => {
     expect(splitShellSegments("a && b || c ; d | e\nf")).toEqual(["a", "b", "c", "d", "e", "f"]);
     expect(splitShellSegments("run <<EOF\nb\nEOF\nc")).toEqual(["run <<EOF", "c"]);
@@ -153,6 +200,24 @@ describe("matchGuardedCommand", () => {
 });
 
 describe("pre-tool-use hook", () => {
+  it("denies documented Claude PowerShell events", () => {
+    const result = runHook("pnpm --dir . db:push", "claude", "PowerShell");
+    expect(result.status).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: { permissionDecision: "deny" }
+    });
+  });
+
+  it("keeps escaped PowerShell quotes and separators inside argument data", () => {
+    const result = runHook(
+      'gh pr review 123 -b "quoted `"text`"; pnpm db:push"',
+      "claude",
+      "PowerShell"
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+  });
+
   it.each(["deny", "ask"])("emits Cursor's %s verdict for its native payload", (permission) => {
     const command = permission === "deny" ? "pnpm db:push" : "git push --force origin main";
     const result = spawnSync(process.execPath, [hookScript, "--agent", "cursor"], {
