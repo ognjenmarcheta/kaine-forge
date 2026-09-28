@@ -27,7 +27,7 @@
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
-    "@tanstack/react-query-devtools": "^5.103.1",
+    "@tanstack/react-query-devtools": "^5.103.2",
     "graphql": "catalog:",
     "graphql-request": "catalog:",
     "graphql-ws": "catalog:",
@@ -46,7 +46,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "catalog:",
     "tailwindcss": "catalog:",
-    "vite": "^8.3.0",
+    "vite": "^8.3.1",
     "vitest": "catalog:"
   }
 }
