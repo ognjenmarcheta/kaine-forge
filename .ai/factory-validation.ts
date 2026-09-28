@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 
 import { commandEnvironment } from "./agent-run.util";
-import { docker } from "./factory-docker";
+import { docker, withDependencyProxy } from "./factory-docker";
 import type { FactoryStore } from "./factory-store";
 import { safeDestination } from "./factory-workspace";
 import { validationCommands, type FactoryConfig, type FactoryRun } from "./factory.util";
@@ -17,7 +17,8 @@ export async function validationCommand(
   workspace: string,
   command: string[],
   network = "none",
-  dependencyStore?: string
+  dependencyStore?: string,
+  proxySocket?: string
 ) {
   store.assertActive(run.id);
   const name = `kf-${run.id}-validation`;
@@ -51,6 +52,7 @@ export async function validationCommand(
         ...(dependencyStore
           ? ["--mount", `type=bind,src=${dependencyStore},dst=/factory-store`]
           : []),
+        ...(proxySocket ? ["--mount", `type=volume,src=${proxySocket},dst=/socket,readonly`] : []),
         "--workdir",
         "/workspace",
         "--env",
@@ -109,37 +111,45 @@ export async function validateWorkspace(
 ): Promise<boolean> {
   // The network container never sees candidate source or package-manager config.
   const download = prepareDependencyDownload(workspace, store.directory);
-  if (
-    !(await validationCommand(
-      config,
-      run,
-      store,
-      download,
-      ["pnpm", "fetch", "--ignore-scripts", "--ignore-pnpmfile", "--store-dir", "/workspace/store"],
-      "bridge"
-    ))
-  )
-    return false;
-  if (
-    !(await validationCommand(
-      config,
-      run,
-      store,
-      workspace,
-      [
-        "pnpm",
-        "install",
-        "--offline",
-        "--frozen-lockfile",
-        "--ignore-scripts",
-        "--store-dir",
-        "/factory-store"
-      ],
-      "none",
-      path.join(download, "store")
-    ))
-  )
-    return false;
+  try {
+    if (
+      !(await withDependencyProxy(config, run.id, async (socket) =>
+        validationCommand(
+          config,
+          run,
+          store,
+          download,
+          ["node", "/opt/factory/factory-fetch.mjs"],
+          "none",
+          undefined,
+          socket
+        )
+      ))
+    )
+      return false;
+    if (
+      !(await validationCommand(
+        config,
+        run,
+        store,
+        workspace,
+        [
+          "pnpm",
+          "install",
+          "--offline",
+          "--frozen-lockfile",
+          "--ignore-scripts",
+          "--store-dir",
+          "/factory-store"
+        ],
+        "none",
+        path.join(download, "store")
+      ))
+    )
+      return false;
+  } finally {
+    removeDependencyDownload(download, store.directory);
+  }
   for (const command of [
     ["pnpm", "rebuild", "--recursive"],
     ["pnpm", "run", "prepare"]
@@ -194,21 +204,36 @@ export function prepareDependencyDownload(workspace: string, directory: string):
     })
     .parse(parse(lock));
   const download = mkdtempSync(path.join(directory, "download-"));
-  writeFileSync(path.join(download, "pnpm-lock.yaml"), lock);
-  writeFileSync(
-    path.join(download, "package.json"),
-    JSON.stringify({ private: true, packageManager: "pnpm@10.29.3" })
-  );
-  mkdirSync(path.join(download, "store"));
-  for (const patch of Object.values(metadata.patchedDependencies ?? {})) {
-    if (!/^patches\/[^/]+\.patch$/.test(patch.path))
-      throw new Error("Unsupported dependency patch path");
-    const content = readFileSync(safeDestination(workspace, patch.path));
-    const target = path.join(download, patch.path);
-    mkdirSync(path.dirname(target), { recursive: true });
-    writeFileSync(target, content);
+  try {
+    writeFileSync(path.join(download, "pnpm-lock.yaml"), lock);
+    writeFileSync(
+      path.join(download, "package.json"),
+      JSON.stringify({ private: true, packageManager: "pnpm@10.29.3" })
+    );
+    mkdirSync(path.join(download, "store"));
+    for (const patch of Object.values(metadata.patchedDependencies ?? {})) {
+      if (!/^patches\/[^/]+\.patch$/.test(patch.path))
+        throw new Error("Unsupported dependency patch path");
+      const content = readFileSync(safeDestination(workspace, patch.path));
+      const target = path.join(download, patch.path);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+    return download;
+  } catch (error) {
+    removeDependencyDownload(download, directory);
+    throw error;
   }
-  return download;
+}
+
+function removeDependencyDownload(download: string, directory: string): void {
+  const target = path.resolve(download);
+  if (
+    path.dirname(target) !== path.resolve(directory) ||
+    !path.basename(target).startsWith("download-")
+  )
+    throw new Error("Unsafe dependency download cleanup path");
+  rmSync(target, { recursive: true, force: true });
 }
 
 export function validationFeedback(run: FactoryRun, store: FactoryStore): string {

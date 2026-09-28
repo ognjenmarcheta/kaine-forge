@@ -102,6 +102,55 @@ export function cancelContainers(id: string): void {
     throw new Error("Run cleanup failed");
 }
 
+export async function withDependencyProxy<T>(
+  config: FactoryConfig,
+  id: string,
+  action: (socket: string) => Promise<T>
+): Promise<T> {
+  const socket = `kf-${id}-fetch-socket`;
+  const proxy = `kf-${id}-fetch-proxy`;
+  docker(["volume", "create", socket]);
+  try {
+    docker([
+      "run",
+      "-d",
+      "--name",
+      proxy,
+      "--label",
+      `kaine.factory.run=${id}`,
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--pids-limit",
+      "32",
+      "--memory",
+      "128m",
+      "--user",
+      "0",
+      "--mount",
+      `type=volume,src=${socket},dst=/socket`,
+      "--entrypoint",
+      "node",
+      config.image,
+      "/opt/factory/factory-proxy.mjs",
+      "dependencies"
+    ]);
+    docker([
+      "exec",
+      proxy,
+      "node",
+      "-e",
+      "const fs=require('fs');let n=0;const t=setInterval(()=>{if(fs.existsSync('/socket/provider.sock')){clearInterval(t);process.exit(0)}if(++n===50)process.exit(1)},100)"
+    ]);
+    return await action(socket);
+  } finally {
+    removeContainer(proxy);
+    docker(["volume", "rm", socket]);
+  }
+}
+
 async function withWorker<T>(
   config: FactoryConfig,
   provider: FactoryProvider,
@@ -229,7 +278,12 @@ export async function probeWorker(
   provider: FactoryProvider,
   id: string = randomUUID()
 ) {
-  const scripts = ["factory-worker.mjs", "factory-proxy.mjs", "factory-provider.mjs"];
+  const scripts = [
+    "factory-worker.mjs",
+    "factory-proxy.mjs",
+    "factory-provider.mjs",
+    "factory-fetch.mjs"
+  ];
   const hashes = JSON.parse(
     docker([
       "run",

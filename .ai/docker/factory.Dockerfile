@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
 RUN npm install -g playwright@1.63.0 && playwright install --with-deps chromium \
     && chmod -R a+rX /opt/playwright
-COPY .ai/docker/factory-proxy.mjs .ai/docker/factory-worker.mjs .ai/docker/factory-provider.mjs /opt/factory/
+COPY .ai/docker/factory-proxy.mjs .ai/docker/factory-worker.mjs .ai/docker/factory-provider.mjs .ai/docker/factory-fetch.mjs /opt/factory/
 ENV HOME=/tmp/home CODEX_HOME=/tmp/home/.codex CLAUDE_CONFIG_DIR=/tmp/home/.claude
 WORKDIR /tmp/work
 USER node

@@ -28,6 +28,8 @@ export function pilotFingerprint(config: FactoryConfig, root: string): string {
     }) +
       [
         "factory-docker.ts",
+        "factory-validation.ts",
+        "docker/factory-fetch.mjs",
         "factory-pilot.ts",
         "factory.util.ts",
         "docker/factory-worker.mjs",

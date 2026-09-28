@@ -120,9 +120,14 @@ events fail the run. Read-only permissions remain enabled.
 The controller applies changes in a separate clone. Dependency setup and checks
 run without provider or GitHub credentials. Dependency downloads run in a separate directory that contains only the lockfile,
 registered `patches/*.patch` files, and a controller-written package-manager pin.
-This container has network access, with lifecycle scripts and pnpm hooks disabled.
+This container has no network interface. Its only route is a dedicated proxy
+that permits HTTPS CONNECT to `registry.npmjs.org:443`. Other hosts, ports, plain
+HTTP, and redirects to other hosts are denied. Private registries and Git-hosted
+dependencies require a reviewed extension of this policy. Lifecycle scripts and
+pnpm hooks are disabled during fetch.
 It cannot read the proposed checkout or its package-manager configuration.
-Installation uses the downloaded store offline. Rebuilds, repository hooks, and
+Installation uses the downloaded store offline. Temporary download directories
+are removed after installation, failed fetches, cancellation, and preparation errors. Rebuilds, repository hooks, and
 validation have no external network. Git trusts only the mounted `/workspace` path to handle
 Windows/Linux ownership differences. Web checks use disposable loopback PostgreSQL
 and serial Playwright scenarios. Repository commit hooks run in that container.

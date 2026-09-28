@@ -50,7 +50,7 @@
     "ai:context": "tsx .ai/context-audit.ts",
     "ai:install": "tsx .ai/install.ts",
     "ai:lint": "eslint .ai/*.ts .ai/docker/*.mjs",
-    "ai:test": "vitest run --config .ai/vitest.config.ts && node --test .ai/docker/factory-provider.test.mjs",
+    "ai:test": "vitest run --config .ai/vitest.config.ts && node --test .ai/docker/factory-provider.test.mjs .ai/docker/factory-proxy.test.mjs",
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
