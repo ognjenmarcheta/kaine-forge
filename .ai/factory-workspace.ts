@@ -16,14 +16,14 @@ export function git(root: string, args: string[]): string {
 
 export function safeDestination(root: string, relative: string): string {
   safeFile(relative);
-  let current = root;
+  const base = path.resolve(root);
+  let current = base;
   for (const segment of relative.split("/")) {
     current = path.join(current, segment);
     if (lstatSync(current, { throwIfNoEntry: false })?.isSymbolicLink())
       throw new Error(`Symlink in change path: ${relative}`);
   }
-  if (!current.startsWith(`${path.resolve(root)}${path.sep}`))
-    throw new Error("Path escapes checkout");
+  if (!current.startsWith(`${base}${path.sep}`)) throw new Error("Path escapes checkout");
   return current;
 }
 

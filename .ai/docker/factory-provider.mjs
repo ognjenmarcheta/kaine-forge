@@ -1,3 +1,17 @@
+import { readFileSync } from "node:fs";
+
+export function claudeLoginChanged(file, before) {
+  try {
+    const saved = readFileSync(file, "utf8");
+    if (saved === before) return false;
+    const token = JSON.parse(saved)?.claudeAiOauth?.accessToken;
+    return typeof token === "string" && token.length > 0;
+  } catch {
+    // The CLI can replace or partially write credentials during a refresh.
+    return false;
+  }
+}
+
 // Provider transport formats differ. The controller applies the shared Zod
 // contract to the result returned by either adapter.
 export function providerFailure(text) {

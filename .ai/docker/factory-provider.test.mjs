@@ -1,7 +1,15 @@
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseProviderOutput, providerFailure, providerErrorMessage } from "./factory-provider.mjs";
+import {
+  parseProviderOutput,
+  providerFailure,
+  providerErrorMessage,
+  claudeLoginChanged
+} from "./factory-provider.mjs";
 
 test("error summaries remove tokens, URLs, email addresses, and control characters", () => {
   const message =
@@ -70,4 +78,21 @@ test("Codex tool attempts cannot be accepted as a proposal", () => {
     JSON.stringify({ type: "turn.completed" })
   ].join("\n");
   assert.throws(() => parseProviderOutput("codex", output, JSON.stringify(result)), /tool use/);
+});
+
+test("Claude login retries missing, partial and invalid credentials until a changed token is saved", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "factory-login-"));
+  const file = path.join(directory, "credentials.json");
+  const before = JSON.stringify({ claudeAiOauth: { accessToken: "old" } });
+  try {
+    assert.equal(claudeLoginChanged(file, before), false);
+    for (const value of [before, "{", "null", "{}", '{"claudeAiOauth":{"accessToken":7}}']) {
+      writeFileSync(file, value);
+      assert.equal(claudeLoginChanged(file, before), false);
+    }
+    writeFileSync(file, JSON.stringify({ claudeAiOauth: { accessToken: "new" } }));
+    assert.equal(claudeLoginChanged(file, before), true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

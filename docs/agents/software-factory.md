@@ -118,9 +118,12 @@ shell, browser, MCP, plugin, and delegation features are disabled; unexpected to
 events fail the run. Read-only permissions remain enabled.
 
 The controller applies changes in a separate clone. Dependency setup and checks
-run without provider or GitHub credentials. Dependency downloads have network
-access with lifecycle scripts disabled. Rebuilds, repository hooks, and validation
-have no external network. Git trusts only the mounted `/workspace` path to handle
+run without provider or GitHub credentials. Dependency downloads run in a separate directory that contains only the lockfile,
+registered `patches/*.patch` files, and a controller-written package-manager pin.
+This container has network access, with lifecycle scripts and pnpm hooks disabled.
+It cannot read the proposed checkout or its package-manager configuration.
+Installation uses the downloaded store offline. Rebuilds, repository hooks, and
+validation have no external network. Git trusts only the mounted `/workspace` path to handle
 Windows/Linux ownership differences. Web checks use disposable loopback PostgreSQL
 and serial Playwright scenarios. Repository commit hooks run in that container.
 The controller imports the commit, checks parent and scope, obtains independent
@@ -133,7 +136,18 @@ Retries reuse a recorded factory branch and open PR. An unrecorded remote branch
 or a branch that needs a rebase blocks work for human inspection. The controller
 never overwrites a changed remote head.
 After a crash, cancel the recorded run to stop its containers and release the stale
-lock. A live controller releases its own lock after cancellation.
+lock. One recovery receipt per run prevents concurrent cancellation from removing
+a new controller's lock. If recovery itself stops before releasing the lock,
+subsequent attempts report cleanup as unverified and preserve it for manual
+inspection. A live controller releases its own lock after cancellation.
+Cancellation stops subsequent actions. A GitHub request or push already in flight
+can finish; inspect its remote result before retrying. A candidate revision is
+saved before push, so a retry reuses the same branch and existing PR.
+
+Status comments are excluded from readiness snapshots only when their recorded
+ID and content fingerprint match. Owner edits remain requirements. Older records
+without comment receipts fail closed and can require a fresh readiness label.
+Learning includes owner feedback from both specification and implementation PRs.
 
 ## Evidence and rollout
 

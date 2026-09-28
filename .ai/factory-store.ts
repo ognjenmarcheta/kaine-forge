@@ -37,6 +37,7 @@ export class FactoryStore {
   }
   acquire(id: string): () => void {
     z.string().uuid().parse(id);
+    if (this.cancelled(id)) throw new Error("Run cancelled");
     // Never steal a stale lock. Cancel inspects and stops the recorded containers first.
     try {
       writeFileSync(this.file("active.json"), JSON.stringify({ id, pid: process.pid }), {
@@ -62,6 +63,44 @@ export class FactoryStore {
           .object({ id: z.string().uuid(), pid: z.number().int() })
           .parse(JSON.parse(readFileSync(file, "utf8")))
       : null;
+  }
+  assertActive(id: string): void {
+    if (this.cancelled(id)) throw new Error("Run cancelled");
+    const active = this.active();
+    if (active?.id !== id || active.pid !== process.pid)
+      throw new Error("Controller no longer owns the factory lock");
+  }
+  comments(issue: number): NonNullable<FactoryRun["statusComment"]>[] {
+    return this.runs()
+      .filter((run) => run.issue === issue)
+      .flatMap((run) => (run.statusComment ? [run.statusComment] : []));
+  }
+  recoverCancelled(id: string): boolean {
+    const active = this.active();
+    if (active?.id !== id || !this.cancelled(id)) return false;
+    try {
+      process.kill(active.pid, 0);
+      return false;
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
+    }
+    // Only one canceller may ever remove this dead run's lock. The receipt stays
+    // on disk so a delayed canceller cannot remove a subsequently acquired lock.
+    try {
+      writeFileSync(this.file(`${id}.recovered`), "recovered\n", { flag: "wx", mode: 0o600 });
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+        if (this.active()?.id === id)
+          throw new Error(
+            "Run recovery is already claimed; cleanup remains unverified until its lock is released"
+          );
+        return false;
+      }
+      throw error;
+    }
+    if (this.active()?.id !== id) return false;
+    rmSync(this.file("active.json"));
+    return true;
   }
   cancelled(id: string): boolean {
     return existsSync(this.file(`${z.string().uuid().parse(id)}.cancel`));

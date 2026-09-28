@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -103,7 +103,12 @@ export function currentApproval(config: FactoryConfig, number: number, store: Fa
   )
     throw new Error("Issue is not open and ready-for-agent");
   const authorization = approval(context.events, config.owner);
-  const snapshot = issueSnapshot(context.issue, context.comments, config.owner);
+  const snapshot = issueSnapshot(
+    context.issue,
+    context.comments,
+    config.owner,
+    store.comments(context.issue.number)
+  );
   const previous = store
     .runs()
     .find((run) => run.issue === number && run.authorization === authorization);
@@ -127,7 +132,12 @@ export async function runStage(
     stage === "implement"
       ? currentApproval(config, number, store)
       : { ...loadIssue(config, number), authorization: "manual", snapshot: "" };
-  const snapshot = issueSnapshot(context.issue, context.comments, config.owner);
+  const snapshot = issueSnapshot(
+    context.issue,
+    context.comments,
+    config.owner,
+    store.comments(context.issue.number)
+  );
   const ready = readiness(context.issue.body ?? "");
   if (stage === "implement" && (ready.missing.length || !ready.tier || !ready.scope.length))
     throw new Error(
@@ -164,8 +174,8 @@ export async function runStage(
     result: null,
     invocations: []
   };
-  store.save(run);
   try {
+    store.save(run);
     if (stage === "implement" || stage === "spec") {
       if (findPullRequest(config, run.branch, "all")?.state === "closed")
         throw new Error("The owner closed this factory PR; reopen it before continuing this issue");
@@ -245,7 +255,8 @@ export async function runStage(
         pr.head.sha,
         pr.base.sha,
         reviewed.summary,
-        reviewLocations(reviewed, diff)
+        reviewLocations(reviewed, diff),
+        () => store.assertActive(id)
       );
       run.result = reviewed;
       run.pr = pr.html_url;
@@ -274,12 +285,14 @@ export async function runStage(
         const labels = z
           .array(z.object({ name: z.string() }))
           .parse(githubPages(`repos/${config.repository}/labels`));
+        store.assertActive(id);
         if (!labels.some((label) => label.name === result.nextAction))
           github(`repos/${config.repository}/labels`, "POST", {
             name: result.nextAction,
             color: "d4c5f9",
             description: "Factory readiness recommendation"
           });
+        store.assertActive(id);
         github(`repos/${config.repository}/issues/${number}/labels`, "POST", {
           labels: [result.nextAction]
         });
@@ -401,10 +414,13 @@ export async function runStage(
     reviewLocations(review, diff);
     verifyAcceptance(review, stage === "spec" ? [] : ready.criteria);
     run.result = review;
-    if (store.cancelled(id)) throw new Error("Run cancelled");
+    store.assertActive(id);
     const latest =
       stage === "implement" ? currentApproval(config, number, store) : loadIssue(config, number);
-    if (issueSnapshot(latest.issue, latest.comments, config.owner) !== snapshot)
+    if (
+      issueSnapshot(latest.issue, latest.comments, config.owner, store.comments(number)) !==
+      snapshot
+    )
       throw new Error("Issue changed before publication");
     if (
       stage === "implement" &&
@@ -424,6 +440,7 @@ export async function runStage(
     run.candidate = candidate;
     store.save(run);
     // Use this trusted checkout's normal pre-push hook, never candidate-controlled hooks on the host.
+    store.assertActive(id);
     git(REPO_ROOT, ["push", "origin", `${candidate}:refs/heads/${run.branch}`]);
     const body = `${stage === "spec" ? "Related to" : "Closes"} #${number}\n\n## Summary\n${result.summary}\n\n## Why\nImplements the linked issue's approved outcome.\n\n## Scope\n${changed.map((file) => `- ${file}`).join("\n")}\n\nExclusions are recorded in the linked issue.\n\n## Risk & Impact\nOwner review is required before merge. See the exact diff and acceptance evidence below.\n\n## Validation\n${run.validation.map((check) => `- ${check.command}: ${check.passed ? "passed" : "failed (repaired before publication)"}`).join("\n")}\n\n## Release Metadata\n${changed.some((file) => file.startsWith(".changeset/")) ? "Includes a changeset." : "No changeset included; source changes remain subject to the existing CI changeset gate."}\n\n## Reviewer Focus\n${review.summary}\n\n${review.evidence.map((item) => `- ${item.criterion}: ${item.status} — ${item.detail}`).join("\n")}\n\nLocal evidence: factory run ${id}. Local files are not public artifact links.`;
     const title =
@@ -432,7 +449,9 @@ export async function runStage(
       )
         ? context.issue.title
         : `${stage === "spec" ? "docs" : "feat"}: ${context.issue.title}`;
-    const pr = publishPullRequest(config, run, title, body, metadata.default_branch);
+    const pr = publishPullRequest(config, run, title, body, metadata.default_branch, () =>
+      store.assertActive(id)
+    );
     run.pr = pr.html_url;
     run.status = "completed";
     run.detail = `Draft PR: ${pr.html_url}`;
@@ -445,14 +464,16 @@ export async function runStage(
         : "Factory failed";
     return run;
   } finally {
-    run.finishedAt = new Date().toISOString();
-    store.save(run);
     try {
-      statusComment(
-        config,
-        run,
-        `${run.status}: ${run.detail || run.result?.summary || "Stage completed"}`
-      );
+      run.finishedAt = new Date().toISOString();
+      store.save(run);
+      if (!store.cancelled(id))
+        statusComment(
+          config,
+          run,
+          `${run.status}: ${run.detail || run.result?.summary || "Stage completed"}`,
+          store
+        );
     } finally {
       release();
     }
@@ -508,7 +529,12 @@ async function watch(config: FactoryConfig, store: FactoryStore) {
             stage === "implement"
               ? currentApproval(config, issue.number, store)
               : loadIssue(config, issue.number);
-          const snapshot = issueSnapshot(context.issue, context.comments, config.owner);
+          const snapshot = issueSnapshot(
+            context.issue,
+            context.comments,
+            config.owner,
+            store.comments(context.issue.number)
+          );
           if (
             store
               .runs()
@@ -577,21 +603,18 @@ export async function factoryMain(args: string[]) {
     const id = z.string().uuid().parse(values.run);
     store.cancel(id);
     cancelContainers(id);
-    const active = store.active();
-    if (active?.id === id) {
-      try {
-        process.kill(active.pid, 0);
-        console.log("Cancellation requested; the active controller will release its lock");
-      } catch {
-        rmSync(store.file("active.json"));
-        const run = store.runs().find((entry) => entry.id === id);
-        if (run) {
-          run.status = "cancelled";
-          run.finishedAt = new Date().toISOString();
-          run.detail = "Recovered interrupted controller after container cleanup";
-          store.save(run);
-        }
+    if (store.recoverCancelled(id)) {
+      const run = store.runs().find((entry) => entry.id === id);
+      if (run) {
+        run.status = "cancelled";
+        run.finishedAt = new Date().toISOString();
+        run.detail = "Recovered interrupted controller after container cleanup";
+        store.save(run);
       }
+    } else if (store.active()?.id === id) {
+      console.log(
+        "Cancellation requested; any in-flight publication may finish, but no subsequent action will start"
+      );
     }
     return;
   }

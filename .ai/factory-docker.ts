@@ -173,7 +173,7 @@ async function withWorker<T>(
 export async function login(
   config: FactoryConfig,
   provider: FactoryProvider,
-  id = randomUUID()
+  id: string = randomUUID()
 ): Promise<void> {
   await withWorker(config, provider, id, "login", async (args) => {
     const result = spawnSync("docker", args, { stdio: "inherit", windowsHide: true });
@@ -224,7 +224,11 @@ const probeSchema = z.object({
   authenticated: z.boolean(),
   version: z.string()
 });
-export async function probeWorker(config: FactoryConfig, provider: FactoryProvider) {
+export async function probeWorker(
+  config: FactoryConfig,
+  provider: FactoryProvider,
+  id: string = randomUUID()
+) {
   const scripts = ["factory-worker.mjs", "factory-proxy.mjs", "factory-provider.mjs"];
   const hashes = JSON.parse(
     docker([
@@ -253,7 +257,7 @@ export async function probeWorker(config: FactoryConfig, provider: FactoryProvid
     throw new Error(
       "Worker image differs from canonical policy; rebuild and update the configured image ID"
     );
-  return withWorker(config, provider, randomUUID(), "probe", async (args) => {
+  return withWorker(config, provider, id, "probe", async (args) => {
     const result = spawnSync("docker", args, {
       encoding: "utf8",
       timeout: 30000,
@@ -275,14 +279,16 @@ export async function propose(
   provider = run.provider,
   model = run.model
 ) {
-  const readiness = await probeWorker(config, provider);
+  store.assertActive(run.id);
+  const readiness = await probeWorker(config, provider, run.id);
   if (!readiness.authenticated) throw new Error(`${provider} requires factory subscription login`);
-  if (store.cancelled(run.id)) throw new Error("Run cancelled");
+  store.assertActive(run.id);
   const started = Date.now();
   let cleaned = false;
   let report: CodingRun | undefined;
   try {
     return await withWorker(config, provider, run.id, "propose", async (args) => {
+      store.assertActive(run.id);
       let output = "";
       const execution = await runModelProcess({
         command: "docker",

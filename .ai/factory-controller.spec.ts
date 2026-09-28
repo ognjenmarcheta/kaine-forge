@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import {
   publishPullRequest,
   statusComment
 } from "./factory-github";
+import { runPilot } from "./factory-pilot";
 import { FactoryStore } from "./factory-store";
 import { validateWorkspace, validationCommand } from "./factory-validation";
 import { git, repositoryContext } from "./factory-workspace";
@@ -93,7 +94,9 @@ const result = (revision = "a".repeat(40)): FactoryResult => ({
 let store: FactoryStore;
 beforeEach(() => {
   vi.resetAllMocks();
-  store = new FactoryStore(mkdtempSync(path.join(tmpdir(), "kaine-factory-controller-")));
+  store = new FactoryStore(
+    path.join(mkdtempSync(path.join(tmpdir(), "kaine-factory-controller-")), "runs")
+  );
   vi.mocked(loadIssue).mockImplementation(context);
   vi.mocked(github).mockReturnValue({ default_branch: "main" });
   vi.mocked(repositoryContext).mockReturnValue({ tree: [], files: [] });
@@ -117,7 +120,7 @@ afterEach(() => {
       throw new Error("Unexpected test path");
     rmSync(dir, { recursive: true, force: true });
   }
-  rmSync(store.directory, { recursive: true, force: true });
+  rmSync(path.dirname(store.directory), { recursive: true, force: true });
 });
 
 describe("factory publication gates", () => {
@@ -274,3 +277,67 @@ describe("factory publication gates", () => {
     );
   });
 });
+
+it.each(["mkdir", "snapshot", "save"])(
+  "releases the pilot lock after a %s setup failure",
+  async (failure) => {
+    if (failure === "mkdir") writeFileSync(path.join(store.directory, "..", "pilots"), "occupied");
+    const save =
+      failure === "save"
+        ? vi.spyOn(store, "save").mockImplementation(() => {
+            throw new Error("disk full");
+          })
+        : null;
+    try {
+      await expect(
+        runPilot(
+          config,
+          store,
+          failure === "snapshot" ? "missing-root" : REPO_ROOT,
+          "codex",
+          "docs"
+        )
+      ).rejects.toThrow();
+      expect(store.active()).toBeNull();
+    } finally {
+      save?.mockRestore();
+      if (failure === "mkdir") rmSync(path.join(store.directory, "..", "pilots"));
+    }
+  }
+);
+it.each(["before push", "after push"])(
+  "stops publication when cancellation arrives %s",
+  async (when) => {
+    vi.mocked(validateWorkspace).mockResolvedValue(true);
+    vi.mocked(propose)
+      .mockResolvedValueOnce(result())
+      .mockResolvedValueOnce({
+        ...result("b".repeat(40)),
+        files: [],
+        evidence: [{ criterion: "Returns the sum", status: "passed", detail: "verified" }]
+      });
+    const original = vi.mocked(git).getMockImplementation()!;
+    vi.mocked(git).mockImplementation((root, args) => {
+      if (
+        (when === "before push" && args[0] === "ls-remote" && args[2] === "refs/heads/main") ||
+        (when === "after push" && args[0] === "push")
+      )
+        store.cancel(store.active()!.id);
+      return original(root, args);
+    });
+    vi.mocked(publishPullRequest).mockImplementation(
+      (_config, _run, _title, _body, _base, assertActive) => {
+        assertActive();
+        throw new Error("Unexpected publication");
+      }
+    );
+    const run = await runStage(config, store, 23, "implement");
+    expect(run.status).toBe("cancelled");
+    expect(run.detail).toContain("Run cancelled");
+    if (when === "before push")
+      expect(vi.mocked(git).mock.calls.some(([, args]) => args[0] === "push")).toBe(false);
+    else expect(run.candidate).toBe("b".repeat(40));
+    expect(statusComment).not.toHaveBeenCalled();
+    expect(store.active()).toBeNull();
+  }
+);

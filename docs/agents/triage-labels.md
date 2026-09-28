@@ -40,6 +40,7 @@ GitHub labels are repository state, not files, so a repo generated from this tem
 ```bash
 gh label create needs-triage --description "Maintainer needs to evaluate this issue" --color d4c5f9
 gh label create needs-info --description "Waiting on reporter for more information" --color fef2c0
+gh label create needs-spec --description "Requires a reviewed specification" --color d4c5f9
 gh label create ready-for-agent --description "Fully specified, ready for an AFK agent" --color c2e0c6
 gh label create ready-for-human --description "Requires human implementation" --color bfdadc
 ```

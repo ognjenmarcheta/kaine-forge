@@ -104,6 +104,7 @@ export const factoryRunSchema = z
     detail: z.string(),
     branch: z.string(),
     pr: z.string().nullable(),
+    statusComment: z.object({ id: z.number(), fingerprint: z.string() }).optional(),
     candidate: z
       .string()
       .regex(/^[a-f0-9]{40}$/)
@@ -134,14 +135,22 @@ export function fingerprint(value: string): string {
 export function issueSnapshot(
   issue: FactoryIssue,
   comments: z.infer<typeof commentSchema>[],
-  owner?: string
+  owner?: string,
+  receipts: NonNullable<FactoryRun["statusComment"]>[] = []
 ): string {
   return fingerprint(
     JSON.stringify({
       title: issue.title,
       body: issue.body,
       comments: comments.filter(
-        (entry) => !(entry.user.login === owner && entry.body.startsWith("<!-- kaine-factory:"))
+        (entry) =>
+          !(
+            entry.user.login.toLowerCase() === owner?.toLowerCase() &&
+            receipts.some(
+              (receipt) =>
+                receipt.id === entry.id && receipt.fingerprint === fingerprint(entry.body)
+            )
+          )
       )
     })
   );
@@ -233,9 +242,10 @@ export function validateChanges(result: FactoryResult, stage: FactoryStage, scop
         throw new Error("Specification may only write its issue document");
     } else if (
       stage !== "implement" ||
-      !scope.some(
-        (prefix) => file.path === prefix || file.path.startsWith(`${prefix.replace(/\/$/, "")}/`)
-      )
+      !scope.some((prefix) => {
+        const normalized = prefix.replace(/\/$/, "");
+        return file.path === normalized || file.path.startsWith(`${normalized}/`);
+      })
     )
       throw new Error(`Change outside approved scope: ${file.path}`);
   }

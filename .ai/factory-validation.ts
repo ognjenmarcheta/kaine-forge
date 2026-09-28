@@ -1,9 +1,12 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { parse } from "yaml";
+import { z } from "zod";
 
 import { commandEnvironment } from "./agent-run.util";
 import { docker } from "./factory-docker";
 import type { FactoryStore } from "./factory-store";
+import { safeDestination } from "./factory-workspace";
 import { validationCommands, type FactoryConfig, type FactoryRun } from "./factory.util";
 import { runModelProcess } from "./model-process.util";
 
@@ -13,9 +16,10 @@ export async function validationCommand(
   store: FactoryStore,
   workspace: string,
   command: string[],
-  network = "none"
+  network = "none",
+  dependencyStore?: string
 ) {
-  if (store.cancelled(run.id)) throw new Error("Run cancelled");
+  store.assertActive(run.id);
   const name = `kf-${run.id}-validation`;
   const artifact = `${run.id}.check-${run.validation.length}.log`;
   let output = "";
@@ -44,6 +48,9 @@ export async function validationCommand(
         "4",
         "--mount",
         `type=bind,src=${workspace},dst=/workspace`,
+        ...(dependencyStore
+          ? ["--mount", `type=bind,src=${dependencyStore},dst=/factory-store`]
+          : []),
         "--workdir",
         "/workspace",
         "--env",
@@ -100,15 +107,36 @@ export async function validateWorkspace(
   tier: string,
   files: string[]
 ): Promise<boolean> {
-  // Download dependencies without running untrusted lifecycle scripts on the network.
+  // The network container never sees candidate source or package-manager config.
+  const download = prepareDependencyDownload(workspace, store.directory);
+  if (
+    !(await validationCommand(
+      config,
+      run,
+      store,
+      download,
+      ["pnpm", "fetch", "--ignore-scripts", "--ignore-pnpmfile", "--store-dir", "/workspace/store"],
+      "bridge"
+    ))
+  )
+    return false;
   if (
     !(await validationCommand(
       config,
       run,
       store,
       workspace,
-      ["pnpm", "install", "--frozen-lockfile", "--ignore-scripts"],
-      "bridge"
+      [
+        "pnpm",
+        "install",
+        "--offline",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--store-dir",
+        "/factory-store"
+      ],
+      "none",
+      path.join(download, "store")
     ))
   )
     return false;
@@ -122,6 +150,7 @@ export async function validateWorkspace(
   const web = commands.some((command) => command.includes("playwright"));
   try {
     if (web) {
+      store.assertActive(run.id);
       docker([
         "run",
         "-d",
@@ -155,6 +184,31 @@ export async function validateWorkspace(
     if (web && docker(["ps", "-aq", "--filter", `name=^/${database}$`]))
       docker(["rm", "-f", database]);
   }
+}
+
+export function prepareDependencyDownload(workspace: string, directory: string): string {
+  const lock = readFileSync(safeDestination(workspace, "pnpm-lock.yaml"), "utf8");
+  const metadata = z
+    .object({
+      patchedDependencies: z.record(z.string(), z.object({ path: z.string() })).optional()
+    })
+    .parse(parse(lock));
+  const download = mkdtempSync(path.join(directory, "download-"));
+  writeFileSync(path.join(download, "pnpm-lock.yaml"), lock);
+  writeFileSync(
+    path.join(download, "package.json"),
+    JSON.stringify({ private: true, packageManager: "pnpm@10.29.3" })
+  );
+  mkdirSync(path.join(download, "store"));
+  for (const patch of Object.values(metadata.patchedDependencies ?? {})) {
+    if (!/^patches\/[^/]+\.patch$/.test(patch.path))
+      throw new Error("Unsupported dependency patch path");
+    const content = readFileSync(safeDestination(workspace, patch.path));
+    const target = path.join(download, patch.path);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, content);
+  }
+  return download;
 }
 
 export function validationFeedback(run: FactoryRun, store: FactoryStore): string {

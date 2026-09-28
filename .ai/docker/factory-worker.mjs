@@ -5,7 +5,12 @@ import process from "node:process";
 import console from "node:console";
 import { setInterval, clearInterval } from "node:timers";
 
-import { parseProviderOutput, providerFailure, providerErrorMessage } from "./factory-provider.mjs";
+import {
+  parseProviderOutput,
+  providerFailure,
+  providerErrorMessage,
+  claudeLoginChanged
+} from "./factory-provider.mjs";
 
 mkdirSync("/tmp/home/.codex", { recursive: true });
 mkdirSync("/tmp/home/.claude", { recursive: true });
@@ -123,9 +128,7 @@ if (operation === "login") {
   const poll =
     provider === "claude"
       ? setInterval(() => {
-          if (!existsSync(credential)) return;
-          const saved = readFileSync(credential, "utf8");
-          if (saved !== before && JSON.parse(saved).claudeAiOauth?.accessToken) {
+          if (claudeLoginChanged(credential, before)) {
             authenticated = true;
             child.kill("SIGTERM");
           }

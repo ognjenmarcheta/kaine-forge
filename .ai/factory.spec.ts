@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { workerArguments } from "./factory-docker";
 import { FactoryStore } from "./factory-store";
@@ -11,6 +11,7 @@ import {
   approval,
   factoryResultSchema,
   issueSnapshot,
+  fingerprint,
   readiness,
   safeFile,
   validateChanges,
@@ -231,4 +232,122 @@ describe("durable controller state", () => {
       state: "completed"
     });
   });
+});
+
+it("accepts a relative checkout root", () => {
+  const absolute = directory();
+  applyFiles(
+    path.relative(process.cwd(), absolute),
+    result([{ path: "file.txt", content: "valid" }])
+  );
+  expect(readFileSync(path.join(absolute, "file.txt"), "utf8")).toBe("valid");
+});
+it.each(["src/", "src/add.ts/"])("normalizes approved scope %s", (scope) => {
+  expect(() =>
+    validateChanges(result([{ path: "src/add.ts", content: "fix" }]), "implement", [scope])
+  ).not.toThrow();
+  expect(() =>
+    validateChanges(result([{ path: "src/adder.ts", content: "fix" }]), "implement", [
+      "src/add.ts/"
+    ])
+  ).toThrow();
+});
+it("includes owner requirements with factory markers and edited registered comments", () => {
+  const issue = {
+    number: 1,
+    title: "Fix",
+    body: "scope",
+    state: "open" as const,
+    updated_at: "today",
+    labels: [],
+    user: { login: "owner" }
+  };
+  const comment = {
+    id: 1,
+    body: "<!-- kaine-factory:test --> Original",
+    updated_at: "today",
+    user: { login: "owner" }
+  };
+  const receipt = { id: 1, fingerprint: fingerprint(comment.body) };
+  expect(issueSnapshot(issue, [comment], "owner")).not.toBe(issueSnapshot(issue, [], "owner"));
+  expect(issueSnapshot(issue, [comment], "owner", [receipt])).toBe(
+    issueSnapshot(issue, [], "owner")
+  );
+  expect(
+    issueSnapshot(issue, [{ ...comment, body: comment.body + " Changed requirement" }], "owner", [
+      receipt
+    ])
+  ).not.toBe(issueSnapshot(issue, [], "owner"));
+});
+it("one stale recovery cannot remove a subsequently acquired lock", () => {
+  const store = new FactoryStore(directory());
+  const old = randomUUID();
+  const next = randomUUID();
+  store.acquire(old);
+  store.cancel(old);
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+    throw Object.assign(new Error("dead"), { code: "ESRCH" });
+  });
+  try {
+    expect(store.recoverCancelled(old)).toBe(true);
+    const release = store.acquire(next);
+    expect(store.recoverCancelled(old)).toBe(false);
+    expect(store.active()?.id).toBe(next);
+    expect(() => store.acquire(old)).toThrow("cancelled");
+    release();
+  } finally {
+    kill.mockRestore();
+  }
+});
+it("another canceller holding an old observation cannot remove a new lock", () => {
+  const store = new FactoryStore(directory());
+  const old = randomUUID();
+  const next = randomUUID();
+  store.acquire(old);
+  store.cancel(old);
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+    writeFileSync(store.file(`${old}.recovered`), "recovered");
+    rmSync(store.file("active.json"));
+    store.acquire(next);
+    throw Object.assign(new Error("dead"), { code: "ESRCH" });
+  });
+  try {
+    expect(store.recoverCancelled(old)).toBe(false);
+    expect(store.active()?.id).toBe(next);
+  } finally {
+    kill.mockRestore();
+  }
+});
+it("does not recover locks on permission errors or for a live controller", () => {
+  const store = new FactoryStore(directory());
+  const id = randomUUID();
+  store.acquire(id);
+  store.cancel(id);
+  expect(store.recoverCancelled(id)).toBe(false);
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+    throw Object.assign(new Error("denied"), { code: "EPERM" });
+  });
+  try {
+    expect(() => store.recoverCancelled(id)).toThrow("denied");
+    expect(store.active()?.id).toBe(id);
+  } finally {
+    kill.mockRestore();
+  }
+});
+
+it("reports interrupted recovery without deleting an unverified lock", () => {
+  const store = new FactoryStore(directory());
+  const id = randomUUID();
+  store.acquire(id);
+  store.cancel(id);
+  writeFileSync(store.file(`${id}.recovered`), "claimed");
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+    throw Object.assign(new Error("dead"), { code: "ESRCH" });
+  });
+  try {
+    expect(() => store.recoverCancelled(id)).toThrow("cleanup remains unverified");
+    expect(store.active()?.id).toBe(id);
+  } finally {
+    kill.mockRestore();
+  }
 });

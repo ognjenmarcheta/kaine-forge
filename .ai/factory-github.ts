@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { z } from "zod";
 
 import { REPO_ROOT } from "./ai.util";
+import type { FactoryStore } from "./factory-store";
 import {
   commentSchema,
+  fingerprint,
   eventSchema,
   issueSchema,
   type FactoryConfig,
@@ -71,7 +73,12 @@ export function assertControllerIdentity(config: FactoryConfig): void {
     throw new Error("gh must authenticate as the configured repository owner");
 }
 
-export function statusComment(config: FactoryConfig, run: FactoryRun, body: string): void {
+export function statusComment(
+  config: FactoryConfig,
+  run: FactoryRun,
+  body: string,
+  store: FactoryStore
+): void {
   const endpoint = `repos/${config.repository}/issues/${run.issue}/comments`;
   const marker = `<!-- kaine-factory:${run.id} -->`;
   const existing = z
@@ -79,14 +86,20 @@ export function statusComment(config: FactoryConfig, run: FactoryRun, body: stri
     .parse(githubPages(endpoint))
     .find(
       (comment) =>
+        comment.id === run.statusComment?.id &&
         comment.user.login.toLowerCase() === config.owner.toLowerCase() &&
-        comment.body.startsWith(marker)
+        fingerprint(comment.body) === run.statusComment.fingerprint
     );
-  github(
-    existing ? `repos/${config.repository}/issues/comments/${existing.id}` : endpoint,
-    existing ? "PATCH" : "POST",
-    { body: `${marker}\n${body}` }
+  store.assertActive(run.id);
+  const posted = commentSchema.parse(
+    github(
+      existing ? `repos/${config.repository}/issues/comments/${existing.id}` : endpoint,
+      existing ? "PATCH" : "POST",
+      { body: `${marker}\n${body}` }
+    )
   );
+  run.statusComment = { id: posted.id, fingerprint: fingerprint(posted.body) };
+  store.save(run);
 }
 
 const prSchema = z.object({
@@ -114,9 +127,11 @@ export function publishPullRequest(
   run: FactoryRun,
   title: string,
   body: string,
-  base: string
+  base: string,
+  assertActive: () => void
 ) {
   const previous = findPullRequest(config, run.branch);
+  assertActive();
   const result = github(
     previous
       ? `repos/${config.repository}/pulls/${previous.number}`
@@ -133,11 +148,13 @@ export function publishReview(
   expectedHead: string,
   expectedBase: string,
   body: string,
-  comments: { path: string; line: number; side: string; body: string }[]
+  comments: { path: string; line: number; side: string; body: string }[],
+  assertActive: () => void
 ): void {
   const current = prSchema.parse(github(`repos/${config.repository}/pulls/${number}`));
   if (current.head.sha !== expectedHead || current.base.sha !== expectedBase)
     throw new Error("PR changed before review publication");
+  assertActive();
   github(`repos/${config.repository}/pulls/${number}/reviews`, "POST", {
     event: "COMMENT",
     commit_id: expectedHead,
@@ -172,15 +189,19 @@ export function monitoringSnapshot(config: FactoryConfig) {
 }
 
 export function reviewFeedback(config: FactoryConfig, issue: number) {
-  const pr = findPullRequest(config, `KAINE-${issue}-feat-factory`, "all");
-  if (!pr) return { pullRequest: null, comments: [] };
-  const comments = z
-    .array(z.object({ id: z.number(), body: z.string(), user: z.object({ login: z.string() }) }))
-    .parse(githubPages(`repos/${config.repository}/pulls/${pr.number}/comments`));
-  return {
-    pullRequest: pr.html_url,
-    comments: comments.filter(
-      (comment) => comment.user.login.toLowerCase() === config.owner.toLowerCase()
-    )
-  };
+  return ["feat-factory", "docs-spec"].flatMap((suffix) => {
+    const pr = findPullRequest(config, `KAINE-${issue}-${suffix}`, "all");
+    if (!pr) return [];
+    const comments = z
+      .array(z.object({ id: z.number(), body: z.string(), user: z.object({ login: z.string() }) }))
+      .parse(githubPages(`repos/${config.repository}/pulls/${pr.number}/comments`));
+    return [
+      {
+        pullRequest: pr.html_url,
+        comments: comments.filter(
+          (comment) => comment.user.login.toLowerCase() === config.owner.toLowerCase()
+        )
+      }
+    ];
+  });
 }

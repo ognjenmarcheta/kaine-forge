@@ -74,70 +74,78 @@ export async function runPilot(
 ) {
   const id = randomUUID();
   const release = store.acquire(id);
-  const testCase = cases[tier];
-  const workspace = path.join(store.directory, "..", "pilots", id);
-  mkdirSync(workspace, { recursive: true });
-  mkdirSync(path.join(workspace, "evidence"));
-  writeFileSync(path.join(workspace, testCase.file), testCase.before);
-  const run: FactoryRun = {
-    id,
-    issue: 1,
-    stage: "implement",
-    provider,
-    model: config.models[provider],
-    revision: "0".repeat(40),
-    authorization: "local-pilot",
-    snapshot: pilotFingerprint(config, root),
-    startedAt: new Date().toISOString(),
-    finishedAt: null,
-    status: "running",
-    detail: `Local ${tier} pilot; no GitHub writes`,
-    branch: "",
-    pr: null,
-    validation: [],
-    result: null,
-    invocations: []
-  };
-  store.save(run);
-  const check = ["node", ...(tier === "code" ? ["--input-type=module"] : []), "-e", testCase.check];
   try {
-    if (await validationCommand(config, run, store, workspace, check))
-      throw new Error("Broken pilot fixture unexpectedly passed");
-    const result = await propose(
-      config,
-      run,
-      store,
-      `Return the required structured result for issue 1, revision ${run.revision}. Fix this isolated ${tier} fixture. Return only ${testCase.file} in files, with its complete content. Do not claim to have executed tests. No tools are available. Acceptance criterion: ${testCase.criterion}\nCurrent file:\n${testCase.before}`
-    );
-    if (
-      result.issue !== 1 ||
-      result.revision !== run.revision ||
-      result.status !== "completed" ||
-      result.files.length !== 1
-    )
-      throw new Error("Pilot returned an invalid result");
-    validateChanges(result, "implement", [testCase.file]);
-    applyFiles(workspace, result);
-    if (!(await validationCommand(config, run, store, workspace, check)))
-      throw new Error("Pilot failed independent verification");
-    run.result = result;
-    run.status = "completed";
-    store.write(`pilot-${provider}-${tier}.json`, {
-      fingerprint: run.snapshot,
-      run: id,
+    const testCase = cases[tier];
+    const workspace = path.join(store.directory, "..", "pilots", id);
+    mkdirSync(workspace, { recursive: true });
+    mkdirSync(path.join(workspace, "evidence"));
+    writeFileSync(path.join(workspace, testCase.file), testCase.before);
+    const run: FactoryRun = {
+      id,
+      issue: 1,
+      stage: "implement",
       provider,
-      tier,
-      passed: true
-    });
-  } catch (error) {
-    run.status = store.cancelled(id) ? "cancelled" : "failed";
-    run.detail = error instanceof Error ? error.message : "Pilot failed";
-  } finally {
-    run.finishedAt = new Date().toISOString();
+      model: config.models[provider],
+      revision: "0".repeat(40),
+      authorization: "local-pilot",
+      snapshot: pilotFingerprint(config, root),
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      status: "running",
+      detail: `Local ${tier} pilot; no GitHub writes`,
+      branch: "",
+      pr: null,
+      validation: [],
+      result: null,
+      invocations: []
+    };
     store.save(run);
+    const check = [
+      "node",
+      ...(tier === "code" ? ["--input-type=module"] : []),
+      "-e",
+      testCase.check
+    ];
+    try {
+      if (await validationCommand(config, run, store, workspace, check))
+        throw new Error("Broken pilot fixture unexpectedly passed");
+      const result = await propose(
+        config,
+        run,
+        store,
+        `Return the required structured result for issue 1, revision ${run.revision}. Fix this isolated ${tier} fixture. Return only ${testCase.file} in files, with its complete content. Do not claim to have executed tests. No tools are available. Acceptance criterion: ${testCase.criterion}\nCurrent file:\n${testCase.before}`
+      );
+      if (
+        result.issue !== 1 ||
+        result.revision !== run.revision ||
+        result.status !== "completed" ||
+        result.files.length !== 1
+      )
+        throw new Error("Pilot returned an invalid result");
+      validateChanges(result, "implement", [testCase.file]);
+      applyFiles(workspace, result);
+      if (!(await validationCommand(config, run, store, workspace, check)))
+        throw new Error("Pilot failed independent verification");
+      run.result = result;
+      run.status = "completed";
+      store.write(`pilot-${provider}-${tier}.json`, {
+        fingerprint: run.snapshot,
+        run: id,
+        provider,
+        tier,
+        passed: true
+      });
+    } catch (error) {
+      run.status = store.cancelled(id) ? "cancelled" : "failed";
+      run.detail = error instanceof Error ? error.message : "Pilot failed";
+    } finally {
+      run.finishedAt = new Date().toISOString();
+      store.save(run);
+    }
+    return run;
+  } finally {
     release();
   }
-  return run;
 }
 
 export function requirePilots(config: FactoryConfig, store: FactoryStore, root: string): void {
