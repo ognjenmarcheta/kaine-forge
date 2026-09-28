@@ -169,20 +169,32 @@ Supported outcomes also include `rework-required` and `rejected`. A successful
 process never sets these outcomes automatically. Subscription quota remaining is
 not available from the CLI result and is not estimated.
 
-Run these local fixture pilots for each provider (`codex`, then `claude`):
+Run all six local fixture pilots in this order. Check each item only after its
+final result passes:
 
-```sh
-pnpm factory pilot --provider codex --tier docs
-pnpm factory pilot --provider codex --tier code
-pnpm factory pilot --provider codex --tier web
-```
+- [ ] `pnpm factory pilot --provider codex --tier docs`
+- [ ] `pnpm factory pilot --provider codex --tier code`
+- [ ] `pnpm factory pilot --provider codex --tier web`
+- [ ] `pnpm factory pilot --provider claude --tier docs`
+- [ ] `pnpm factory pilot --provider claude --tier code`
+- [ ] `pnpm factory pilot --provider claude --tier web`
 
-Each pilot requires a failing baseline and a passing independent check after the
-model change. The web pilot saves a screenshot, video, and trace. Pilots make no
-GitHub writes and can run while the factory is disabled. They do not prove draft
-PR delivery. Also complete an owner-approved issue through a verified draft PR.
-Confirm cancellation, evidence, and remote checks. Only then enable `watch` in
-configuration and start:
+Both providers use the same tier checks:
+
+- `docs` checks README install, start, and stop instructions.
+- `code` checks addition with positive, negative, zero, and fractional operands.
+- `web` checks counter behavior with mouse and keyboard interaction.
+
+Each pilot starts with an intentionally failing fixture. This initial failure is
+expected: each pilot requires a failing baseline and a passing independent check
+after the model change. If the final result fails, stop the checklist and inspect
+the saved evidence before retrying. The web pilot saves a screenshot, video, and
+trace. Run records and evidence remain under `.ai.local/factory/`.
+
+Pilots make no GitHub writes and can run while the factory is disabled. They do
+not prove draft PR delivery. Also complete an owner-approved issue through a
+verified draft PR. Confirm cancellation, evidence, and remote checks. Only then
+enable `watch` in configuration and start:
 
 ```sh
 pnpm factory watch
