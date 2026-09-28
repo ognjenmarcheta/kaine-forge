@@ -90,8 +90,32 @@ export const factoryResultSchema = z
 export type FactoryResult = z.infer<typeof factoryResultSchema>;
 export const factoryRunSchema = z
   .object({
+    cleanup: z
+      .object({ status: z.enum(["passed", "cleanup-unverified"]), errors: z.array(z.string()) })
+      .optional(),
+    waiting: z.string().nullable().optional(),
+    currentCommand: z
+      .object({
+        command: z.string(),
+        startedAt: z.string(),
+        lastOutputAt: z.string().nullable(),
+        artifactId: z.string()
+      })
+      .nullable()
+      .optional(),
+    controller: z
+      .object({
+        version: z.string(),
+        root: z.string(),
+        checkout: z.string(),
+        image: z.string(),
+        fingerprint: z.string()
+      })
+      .optional(),
     id: z.string().uuid(),
     issue: z.number().int().positive(),
+    actionId: z.string().uuid().optional(),
+    retryOf: z.string().uuid().optional(),
     stage: factoryStageSchema,
     provider: factoryProviderSchema,
     model: z.string(),
@@ -110,7 +134,13 @@ export const factoryRunSchema = z
       .regex(/^[a-f0-9]{40}$/)
       .optional(),
     validation: z.array(
-      z.object({ command: z.string(), passed: z.boolean(), artifact: z.string() })
+      z.object({
+        command: z.string(),
+        passed: z.boolean(),
+        artifact: z.string(),
+        startedAt: z.string().optional(),
+        finishedAt: z.string().optional()
+      })
     ),
     result: factoryResultSchema.nullable(),
     invocations: z.array(
@@ -224,6 +254,8 @@ export function safeFile(file: string): string {
   )
     throw new Error(`Protected path: ${file}`);
   if (
+    /^tooling\/factory-ui(?:\/|$)/i.test(file) ||
+    /^packages\/translation\/src\/locales\/(en|sr|de)\/factory\.json$/i.test(file) ||
     /^\.ai\/(?:factory|docker\/|permissions|hooks\/)/i.test(file) ||
     [".mcp.json", ".gitattributes", ".gitmodules"].includes(file.toLowerCase())
   )

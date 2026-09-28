@@ -53,6 +53,8 @@ describe("factory trust boundaries", () => {
     ".env",
     "src/.env.local",
     ".ai/factory.ts",
+    "tooling/factory-ui/src/factory.main.tsx",
+    "packages/translation/src/locales/en/factory.json",
     ".AI/FACTORY.ts",
     ".ai/docker/factory.Dockerfile",
     "src/con.txt",
