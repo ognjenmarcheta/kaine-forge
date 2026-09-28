@@ -336,6 +336,7 @@ Root commands:
 | `pnpm db:*`           | database lifecycle commands                                                                                 |
 | `pnpm ai:install`     | install shared assistant files locally                                                                      |
 | `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                    |
+| `pnpm factory`        | optional local software factory; disabled until configured; see `docs/agents/software-factory.md`           |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                           |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                   |
 
