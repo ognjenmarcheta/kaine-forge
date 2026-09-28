@@ -213,6 +213,30 @@ test("filters preserve focus and fixture pilots are separate", async ({ page }) 
   await page.getByRole("button", { name: "Show fixture pilots" }).click();
   await expect(page.getByText("0 results")).toBeVisible();
 });
+
+test("invalid dashboard links make no API requests or polling retries", async ({ page }) => {
+  await fixture(page);
+  await page.clock.install();
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
+  });
+  for (const search of [
+    `run=${encodeURIComponent("../../../../api/unintended")}&worktree=${worktreeId}`,
+    `run=${id}&worktree=${encodeURIComponent("../state")}`,
+    `run=${id}`,
+    `run=&worktree=${worktreeId}`
+  ]) {
+    await page.goto(`/?${search}`);
+    await expect(page.getByRole("alert")).toHaveText("Invalid dashboard link");
+    await expect(page.getByText("Loading…", { exact: false })).toHaveCount(0);
+    await page.clock.fastForward(30000);
+    expect(requests).toEqual([]);
+  }
+  await page.screenshot({ path: "test-results/factory-invalid-link.png" });
+  await page.getByRole("link", { name: "Board", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
+});
 test("run details map acceptance evidence to checks and redacted logs", async ({ page }) => {
   await fixture(page);
   await page.goto(`/?run=${id}&worktree=${worktreeId}`);
@@ -226,6 +250,36 @@ test("run details map acceptance evidence to checks and redacted logs", async ({
   await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByText("<img src=x onerror=alert(1)>", { exact: true })).toBeVisible();
   await expect(page.locator("img")).toHaveCount(0);
+});
+
+test("worktree selection and action links retain the run's worktree", async ({ page }) => {
+  const { state } = await fixture(page);
+  state.actions.push({
+    id: "00000000-0000-4000-8000-000000000047",
+    request: {
+      key: "00000000-0000-4000-8000-000000000047",
+      kind: "retry",
+      run: id,
+      worktreeId
+    },
+    state: "completed",
+    startedAt: summary.startedAt,
+    finishedAt: summary.finishedAt,
+    runId: id,
+    detail: "Retry finished"
+  });
+  await page.goto("/?view=runs");
+  const response = page.waitForResponse((value) => {
+    const url = new URL(value.url());
+    return url.pathname === "/api/state" && url.searchParams.get("worktree") === worktreeId;
+  });
+  await page.getByRole("combobox", { name: "Worktree", exact: true }).click();
+  await page.getByRole("option", { name: "KAINE-test · fixture checkout", exact: true }).click();
+  await response;
+  await page.getByRole("link", { name: "View run", exact: true }).click();
+  await expect(page).toHaveURL(`http://127.0.0.1:4178/?run=${id}&worktree=${worktreeId}`);
+  await expect(page.getByRole("heading", { name: "#23 · Implementation" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });
 test("start shows the model and GitHub writes before sending one action", async ({ page }) => {
   const { requests } = await fixture(page);

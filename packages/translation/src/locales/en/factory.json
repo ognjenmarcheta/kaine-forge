@@ -110,6 +110,7 @@
   "all": "All",
   "seconds": "seconds",
   "offline": "Dashboard offline. Work may still be running.",
+  "invalidLink": "Invalid dashboard link",
   "stale": "Stale or unverified",
   "running": "Running",
   "completed": "Completed",

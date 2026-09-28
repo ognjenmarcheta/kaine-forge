@@ -2,6 +2,30 @@ import { z } from "zod";
 
 import { actionSchema, stateSchema, type ActionRequest } from "./factory.contract";
 
+const worktreeIdSchema = z.string().regex(/^[a-f0-9]{24}$/);
+const runIdSchema = z.string().uuid();
+const locationSchema = z
+  .object({ runId: runIdSchema.nullable(), worktree: worktreeIdSchema.or(z.literal("")) })
+  .refine(({ runId, worktree }) => runId === null || worktree !== "");
+
+export function dashboardLocation(search: string) {
+  const params = new URLSearchParams(search);
+  return locationSchema.safeParse({
+    runId: params.get("run"),
+    worktree: params.get("worktree") ?? ""
+  });
+}
+export function runRequestUrl(worktree: string | undefined, run: string): string {
+  return `/api/worktrees/${encodeURIComponent(worktreeIdSchema.parse(worktree))}/runs/${encodeURIComponent(runIdSchema.parse(run))}`;
+}
+export function artifactRequestUrl(
+  worktree: string | undefined,
+  run: string,
+  artifact: string
+): string {
+  return `/api/worktrees/${encodeURIComponent(worktreeIdSchema.parse(worktree))}/artifacts/${encodeURIComponent(runIdSchema.parse(run))}/${encodeURIComponent(runIdSchema.parse(artifact))}`;
+}
+
 export async function api<T>(url: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, credentials: "same-origin" });
   const value: unknown = await response.json();

@@ -13,7 +13,14 @@ import {
 import { StrictMode, useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { act, api, bootstrap } from "./factory.api";
+import {
+  act,
+  api,
+  artifactRequestUrl,
+  bootstrap,
+  dashboardLocation,
+  runRequestUrl
+} from "./factory.api";
 import {
   detailSchema,
   logSchema,
@@ -42,7 +49,7 @@ function runLink(run: RunSummary): string {
   return `?run=${run.id}&worktree=${run.worktreeId ?? ""}`;
 }
 function artifactLink(run: RunSummary, artifact: string): string {
-  return `/api/worktrees/${run.worktreeId}/artifacts/${run.id}/${artifact}`;
+  return artifactRequestUrl(run.worktreeId, run.id, artifact);
 }
 function Status({ value }: { value: string }) {
   return (
@@ -793,8 +800,10 @@ function Details({
 function App() {
   const params = new URLSearchParams(location.search);
   const view = params.get("view") ?? "board";
-  const runId = params.get("run");
-  const [worktree, setWorktree] = useState(params.get("worktree") ?? "");
+  const link = dashboardLocation(location.search);
+  const invalidLink = !link.success;
+  const runId = link.success ? link.data.runId : null;
+  const [worktree, setWorktree] = useState(link.success ? link.data.worktree : "");
   const [state, setState] = useState<DashboardState>();
   const [run, setRun] = useState<RunDetail>();
   const [error, setError] = useState("");
@@ -826,6 +835,7 @@ function App() {
   const ask: Ask = (request) =>
     setPending({ ...request, worktreeId: request.worktreeId ?? worktree });
   useEffect(() => {
+    if (invalidLink) return;
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -839,7 +849,7 @@ function App() {
         delay =
           next.active || next.actions.some((action) => action.state === "running") ? 2000 : 10000;
         if (runId) {
-          const detail = await api(`/api/worktrees/${worktree}/runs/${runId}`, detailSchema);
+          const detail = await api(runRequestUrl(worktree, runId), detailSchema);
           if (live) setRun(detail);
         }
       } catch (failure) {
@@ -853,7 +863,7 @@ function App() {
       live = false;
       clearTimeout(timer);
     };
-  }, [query, runId, worktree]);
+  }, [query, runId, worktree, invalidLink]);
   const send = async () => {
     if (!pending || sending) return;
     setSending(true);
@@ -921,8 +931,10 @@ function App() {
           <div>
             <strong>{state?.repository ?? t("brand")}</strong>
             <small>
-              {state ? t(state.enabled ? "enabled" : "disabled") : t("loading")} {t("separator")}{" "}
-              {t("watcher")} {t(state?.watcher ?? "unavailable")}
+              {state
+                ? t(state.enabled ? "enabled" : "disabled")
+                : t(invalidLink ? "unavailable" : "loading")}{" "}
+              {t("separator")} {t("watcher")} {t(state?.watcher ?? "unavailable")}
             </small>
           </div>
           <div>
@@ -964,9 +976,9 @@ function App() {
             </Select>
           </label>
           {!worktree && <p>{t("selectWorktreeHelp")}</p>}
-          {error && (
+          {(invalidLink || error) && (
             <p role="alert" className="factory-alert">
-              {error}
+              {invalidLink ? t("invalidLink") : error}
             </p>
           )}
           {state?.github.error && (
@@ -1102,7 +1114,13 @@ function App() {
                       <div>
                         <strong>{t(action.request.kind)}</strong>
                         <small>{action.detail}</small>
-                        {action.runId && <a href={`?run=${action.runId}`}>{t("viewRun")}</a>}
+                        {action.runId && (
+                          <a
+                            href={`?run=${action.runId}&worktree=${action.request.worktreeId ?? ""}`}
+                          >
+                            {t("viewRun")}
+                          </a>
+                        )}
                       </div>
                       <Status value={action.state} />
                     </div>
@@ -1110,7 +1128,7 @@ function App() {
               </>
             )
           ) : (
-            <p>{t("loading")}</p>
+            !invalidLink && <p>{t("loading")}</p>
           )}
         </main>
       </div>

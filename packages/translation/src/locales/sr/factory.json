@@ -110,6 +110,7 @@
   "all": "Sve",
   "seconds": "sekundi",
   "offline": "Kontrolna tabla je nedostupna. Rad možda još traje.",
+  "invalidLink": "Neispravna veza ka kontrolnoj tabli",
   "stale": "Zastarelo ili neprovereno",
   "running": "U toku",
   "completed": "Završeno",
