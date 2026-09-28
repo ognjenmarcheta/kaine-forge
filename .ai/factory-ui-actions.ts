@@ -1,6 +1,6 @@
 import { actionSchema, type ActionRequest, type FactoryAction } from "@repo/factory-ui/contracts";
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
@@ -23,9 +23,25 @@ export class DashboardActions {
         action.detail = "Dashboard interrupted. Inspect and cancel its run before retrying.";
         this.save(action);
       }
+    this.pruneRefreshes();
   }
   private save(action: FactoryAction): void {
     this.store.write(`action-${action.id}.json`, z.json().parse(action));
+    if (
+      action.request.kind === "refresh" &&
+      ["completed", "failed", "interrupted"].includes(action.state)
+    )
+      this.pruneRefreshes();
+  }
+  private pruneRefreshes(): void {
+    for (const action of this.list()
+      .filter(
+        (item) =>
+          item.request.kind === "refresh" &&
+          ["completed", "failed", "interrupted"].includes(item.state)
+      )
+      .slice(10))
+      rmSync(this.store.file(`action-${action.id}.json`), { force: true });
   }
   list(): FactoryAction[] {
     return readdirSync(this.store.directory)

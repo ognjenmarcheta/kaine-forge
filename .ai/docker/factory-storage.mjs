@@ -80,29 +80,81 @@ switch (process.argv[2]) {
   case "evidence": {
     const files = [];
     let bytes = 0;
+    const warnings = new Set();
+    const recovery = "evidence/recovery.patch";
+    if (fs.existsSync(path.join(root, ".git"))) {
+      const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"])
+        .split("\0")
+        .filter(Boolean)
+        .filter(
+          (name) =>
+            !name
+              .split("/")
+              .some((part) =>
+                [
+                  "evidence",
+                  "node_modules",
+                  ".ai.local",
+                  ".cache",
+                  ".turbo",
+                  ".pnpm-store",
+                  "dist",
+                  "build",
+                  "coverage",
+                  "test-results",
+                  "playwright-report"
+                ].includes(part)
+              )
+        );
+      for (const name of untracked) {
+        const stat = fs.lstatSync(safe(name));
+        if (!stat.isFile() || stat.size > limit) throw new Error("Invalid recovery source file");
+        git(["--literal-pathspecs", "add", "--intent-to-add", "--", name]);
+      }
+      const patch = git([
+        "diff",
+        "--binary",
+        "HEAD",
+        "--",
+        ".",
+        ":(exclude)evidence",
+        ":(exclude).ai.local"
+      ]);
+      bytes = Buffer.byteLength(patch);
+      if (bytes > limit) throw new Error("Recovery patch too large");
+      fs.mkdirSync(safe("evidence"), { recursive: true });
+      fs.writeFileSync(safe(recovery), patch);
+      files.push(recovery);
+    }
     function visit(relative, depth = 0) {
       const target = safe(relative);
       if (!fs.existsSync(target)) return;
-      if (depth > 12 || files.length >= 500) throw new Error("Evidence limit exceeded");
+      if (depth > 12) {
+        warnings.add("Optional evidence truncated: depth limit exceeded");
+        return;
+      }
       for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
         const name = `${relative}/${entry.name}`;
         if (entry.isSymbolicLink()) throw new Error("Symlink evidence");
         if (entry.isDirectory()) visit(name, depth + 1);
         else if (entry.isFile() && /\.(png|jpe?g|webm|mp4|zip|html|log|txt)$/i.test(name)) {
           const size = fs.statSync(safe(name)).size;
+          if (files.length >= 500) {
+            warnings.add("Optional evidence truncated: file count limit exceeded");
+            continue;
+          }
+          if (size > limit || bytes + size > 256 * 1024 * 1024) {
+            warnings.add("Optional evidence truncated: byte limit exceeded");
+            continue;
+          }
           bytes += size;
-          if (size > limit || bytes > 256 * 1024 * 1024) throw new Error("Evidence too large");
           files.push(name);
         }
       }
     }
     for (const directory of ["evidence", "apps/e2e/test-results", "apps/e2e/playwright-report"])
       visit(directory);
-    if (fs.existsSync(path.join(root, ".git"))) {
-      fs.writeFileSync(safe("evidence/recovery.patch"), git(["diff", "--binary", "HEAD"]));
-      files.push("evidence/recovery.patch");
-    }
-    console.log(JSON.stringify(files));
+    console.log(JSON.stringify({ files, warnings: [...warnings] }));
     break;
   }
   default:

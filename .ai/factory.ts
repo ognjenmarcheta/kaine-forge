@@ -441,7 +441,7 @@ export async function runStage(
         "bundle",
         "create",
         ".ai.local/factory.bundle",
-        "HEAD"
+        `${revision}..HEAD`
       ]))
     )
       throw new Error("Could not export candidate commit");
@@ -738,9 +738,10 @@ export async function factoryMain(args: string[]) {
         /* explicit recovery below */
       }
     }
-    if (!controllerAlive && failedRun && !finishStorage(readConfig(), failedRun, store)) {
+    if (!controllerAlive && failedRun) {
+      const cleaned = finishStorage(readConfig(), failedRun, store);
       store.save(failedRun);
-      throw new Error("Storage recovery remains unverified");
+      if (!cleaned) throw new Error("Storage recovery remains unverified");
     }
     if (!controllerAlive) store.coordination?.recover(id);
     if (store.recoverCancelled(id)) {
@@ -810,13 +811,14 @@ export async function factoryMain(args: string[]) {
     const provider = factoryProviderSchema.parse(values.provider);
     const id = randomUUID();
     const release = store.acquire(id);
-    const releaseCredentials = await store.coordination?.resource(
-      `provider-${config.repository}-${provider}`,
-      id,
-      () => store.assertActive(id),
-      () => {}
-    );
+    let releaseCredentials: (() => void) | undefined;
     try {
+      releaseCredentials = await store.coordination?.resource(
+        `provider-${config.repository}-${provider}`,
+        id,
+        () => store.assertActive(id),
+        () => {}
+      );
       if (values["import-existing"]) importSubscription(config, provider);
       else await login(config, provider, id);
     } finally {

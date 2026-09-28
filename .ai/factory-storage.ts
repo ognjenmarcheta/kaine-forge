@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
@@ -95,6 +95,17 @@ export function applyCandidate(
 ): void {
   helper(config, run.id, candidateVolume(run.id), "apply", { files });
 }
+function removeSourceBundle(store: FactoryStore, id: string): void {
+  const transfer = path.join(
+    path.dirname(store.directory),
+    "transfers",
+    z.string().uuid().parse(id)
+  );
+  if (!existsSync(transfer)) return;
+  const file = path.join(transfer, "source.bundle");
+  if (existsSync(file)) unlinkSync(file);
+  rmdirSync(transfer);
+}
 export function initializeCandidate(
   config: FactoryConfig,
   run: FactoryRun,
@@ -132,22 +143,34 @@ export function initializeCandidate(
   }
   const transfer = path.join(path.dirname(store.directory), "transfers", run.id);
   mkdirSync(transfer, { recursive: true });
-  if (bundle) git(workspace, ["bundle", "create", path.join(transfer, "source.bundle"), "HEAD"]);
-  helper(
-    config,
-    run.id,
-    candidateVolume(run.id),
-    "init",
-    { bundle, revision: run.revision },
-    bundle ? transfer : undefined
-  );
-  applyCandidate(config, run, files);
-  store.write(`${run.id}.resources.json`, {
-    version: 1,
-    image: config.image,
-    volumes: [...volumes, `kf-${run.id}-socket`, `kf-${run.id}-fetch-socket`],
-    ready: true
-  });
+  let primary: { cause: unknown } | undefined;
+  try {
+    if (bundle) git(workspace, ["bundle", "create", path.join(transfer, "source.bundle"), "HEAD"]);
+    helper(
+      config,
+      run.id,
+      candidateVolume(run.id),
+      "init",
+      { bundle, revision: run.revision },
+      bundle ? transfer : undefined
+    );
+    store.write(`${run.id}.resources.json`, {
+      version: 1,
+      image: config.image,
+      volumes: [...volumes, `kf-${run.id}-socket`, `kf-${run.id}-fetch-socket`],
+      ready: true
+    });
+    applyCandidate(config, run, files);
+  } catch (error) {
+    primary = { cause: error };
+  }
+  try {
+    removeSourceBundle(store, run.id);
+  } catch (error) {
+    progress(store, run.id, "cleanup", "failed", "Source bundle cleanup failed");
+    if (!primary) throw error;
+  }
+  if (primary) throw primary.cause;
 }
 export function applyDependencyMetadata(
   config: FactoryConfig,
@@ -185,19 +208,29 @@ export function finishStorage(
 ): boolean {
   try {
     const state = resources(store, run.id);
-    if (!state) return true;
+    if (!state) {
+      cancelContainers(run.id);
+      removeSourceBundle(store, run.id);
+      run.cleanup = { status: "passed", errors: [] };
+      return true;
+    }
     if (state.image !== config.image)
       throw new Error("Recovery requires the recorded worker image");
     progress(store, run.id, "cleanup", "started");
     cancelContainers(run.id);
+    removeSourceBundle(store, run.id);
     if (state.ready && !state.exported) {
-      const files = z
-        .array(z.string())
-        .max(500)
+      const collected = z
+        .object({
+          files: z.array(z.string()).max(500),
+          warnings: z.array(z.string().max(200)).max(3)
+        })
         .parse(JSON.parse(helper(config, run.id, candidateVolume(run.id), "evidence", {})));
       const directory = path.join(path.dirname(store.directory), "artifacts", run.id);
       mkdirSync(directory, { recursive: true });
-      for (const file of files) {
+      for (const warning of collected.warnings)
+        progress(store, run.id, "cleanup", "started", warning);
+      for (const file of collected.files) {
         const target = safeDestination(directory, file);
         exportCandidateFile(config, run, file, target);
         registerArtifact(store, run.id, target);

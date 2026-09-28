@@ -153,8 +153,8 @@ main {
   background: var(--ds-background-neutral);
   padding: var(--ds-space-050) var(--ds-space-100);
   border-radius: var(--ds-radius-100);
-  font-weight: var(--ds-font-weight-semibold);
   font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
 }
 .factory-status[data-status="passed"],
 .factory-status[data-status="completed"] {

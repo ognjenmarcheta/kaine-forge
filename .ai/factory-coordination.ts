@@ -3,6 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { commonDirectory, discoverCheckouts } from "./factory-checkouts";
+import { exclusiveJson, readOptional } from "./factory-files";
 import { fingerprint, factoryRunSchema, type FactoryRun } from "./factory.util";
 
 const leaseSchema = z.object({
@@ -18,7 +19,8 @@ export class FactoryCoordination {
     mkdirSync(this.directory, { recursive: true });
   }
   private read(file: string) {
-    return leaseSchema.parse(JSON.parse(readFileSync(file, "utf8")));
+    const contents = readOptional(file);
+    return contents === null ? null : leaseSchema.parse(JSON.parse(contents));
   }
   history(): FactoryRun[] {
     return discoverCheckouts(this.root).flatMap((checkout) => {
@@ -37,19 +39,16 @@ export class FactoryCoordination {
   }
   acquire(id: string, issue: string | null): () => void {
     const mutex = path.join(this.directory, "admission.lock");
-    writeFileSync(mutex, JSON.stringify({ pid: process.pid, id, checkout: this.root }), {
-      flag: "wx"
-    });
+    exclusiveJson(mutex, { pid: process.pid, id, checkout: this.root });
     try {
       const leases = readdirSync(this.directory)
         .filter((file) => file.endsWith(".lease.json"))
-        .map((file) => this.read(path.join(this.directory, file)));
+        .flatMap((file) => this.read(path.join(this.directory, file)) ?? []);
       const legacy = discoverCheckouts(this.root).flatMap((checkout) => {
         const file = path.join(checkout.path, ".ai.local/factory/runs/active.json");
-        if (!existsSync(file)) return [];
-        const active = z
-          .object({ id: z.string().uuid() })
-          .parse(JSON.parse(readFileSync(file, "utf8")));
+        const contents = readOptional(file);
+        if (contents === null) return [];
+        const active = z.object({ id: z.string().uuid() }).parse(JSON.parse(contents));
         return leases.some((lease) => lease.id === active.id) ? [] : [active];
       });
       if (legacy.length)
@@ -60,9 +59,7 @@ export class FactoryCoordination {
       if (leases.some((lease) => lease.checkout === this.root || (issue && lease.issue === issue)))
         throw new Error("This worktree or issue already has an active run");
       const file = path.join(this.directory, `${id}.lease.json`);
-      writeFileSync(file, JSON.stringify({ id, pid: process.pid, checkout: this.root, issue }), {
-        flag: "wx"
-      });
+      exclusiveJson(file, { id, pid: process.pid, checkout: this.root, issue });
       return () => this.release(id);
     } finally {
       rmSync(mutex);
@@ -73,7 +70,7 @@ export class FactoryCoordination {
       /(?:\.lease|\.resource)\.json$/.test(file)
     )) {
       const file = path.join(this.directory, name);
-      if (this.read(file).id === id) rmSync(file);
+      if (this.read(file)?.id === id) rmSync(file, { force: true });
     }
   }
   recover(id: string): void {
@@ -100,6 +97,7 @@ export class FactoryCoordination {
     const file = path.join(this.directory, `${id}.lease.json`);
     if (!existsSync(file)) return;
     const lease = this.read(file);
+    if (!lease) return;
     if (lease.checkout !== this.root)
       throw new Error("Recover this run from its original worktree");
     try {
@@ -120,18 +118,15 @@ export class FactoryCoordination {
     while (true) {
       check();
       try {
-        writeFileSync(
-          file,
-          JSON.stringify({ id, pid: process.pid, checkout: this.root, issue: null }),
-          { flag: "wx" }
-        );
+        exclusiveJson(file, { id, pid: process.pid, checkout: this.root, issue: null });
         waiting(null);
         return () => {
-          if (existsSync(file) && this.read(file).id === id) rmSync(file);
+          if (this.read(file)?.id === id) rmSync(file, { force: true });
         };
       } catch (error) {
         if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
         const owner = this.read(file);
+        if (!owner) continue;
         try {
           process.kill(owner.pid, 0);
         } catch {

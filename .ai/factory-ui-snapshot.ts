@@ -5,7 +5,7 @@ import { z } from "zod";
 import { REPO_ROOT } from "./ai.util";
 import { currentApproval } from "./factory";
 import { docker } from "./factory-docker";
-import { githubPages, monitoringSnapshot } from "./factory-github";
+import { github, githubPages, monitoringSnapshot } from "./factory-github";
 import { pilotFingerprint, pilotTierSchema, requirePilots } from "./factory-pilot";
 import { redact } from "./factory-progress";
 import type { FactoryStore } from "./factory-store";
@@ -21,6 +21,7 @@ import {
 /** Runs in a child process; synchronous Docker/GitHub operations never block HTTP. */
 export async function refreshSnapshot(config: FactoryConfig, store: FactoryStore): Promise<void> {
   const previous = githubState(store);
+  const runs = readHistory(store).runs;
   try {
     const issues = githubPages(`repos/${config.repository}/issues?state=open`)
       .filter((value) => !z.object({ pull_request: z.json() }).safeParse(value).success)
@@ -62,17 +63,27 @@ export async function refreshSnapshot(config: FactoryConfig, store: FactoryStore
       return { number: issue.number, title: redact(issue.title), group, reason };
     });
     const pulls: Record<string, "open" | "closed" | "merged"> = {};
-    for (const value of githubPages(
-      `repos/${config.repository}/pulls?state=all&sort=updated&direction=desc`
-    )) {
+    const prefix = `https://github.com/${config.repository}/pull/`;
+    const numbers = new Set(
+      runs.flatMap((run) => {
+        if (!run.pr) return [];
+        const number = run.pr.startsWith(prefix) ? run.pr.slice(prefix.length) : "";
+        if (!/^[1-9][0-9]*$/.test(number) || !Number.isSafeInteger(Number(number)))
+          throw new Error("Invalid run pull request reference");
+        return [number];
+      })
+    );
+    for (const number of numbers) {
       const pr = z
         .object({
           html_url: z.string(),
           state: z.enum(["open", "closed"]),
           merged_at: z.string().nullable()
         })
-        .parse(value);
-      pulls[pr.html_url] = pr.merged_at ? "merged" : pr.state;
+        .parse(github(`repos/${config.repository}/pulls/${number}`));
+      if (pr.html_url !== `${prefix}${number}`)
+        throw new Error("Pull request response differs from its reference");
+      pulls[`${prefix}${number}`] = pr.merged_at ? "merged" : pr.state;
     }
     const failures = monitoringSnapshot(config)
       .filter(
@@ -112,7 +123,6 @@ export async function refreshSnapshot(config: FactoryConfig, store: FactoryStore
         ? "Live pilot evidence is missing or stale. Run all six provider pilots with the current configuration, then complete an owner-approved issue-to-PR trial."
         : redact(error instanceof Error ? error.message : "Rollout not verified");
   }
-  const runs = readHistory(store).runs;
   const fingerprint = pilotFingerprint(config, REPO_ROOT);
   const pilots = factoryProviderSchema.options.flatMap((provider) =>
     pilotTierSchema.options.map((tier) => {

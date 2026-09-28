@@ -35,6 +35,42 @@ afterEach(async () => {
   rmSync(root, { recursive: true, force: true });
 });
 describe("persisted dashboard actions", () => {
+  it("retains ten terminal refreshes while preserving recovery, other actions and receipts", async () => {
+    const preserve = [];
+    for (let i = 0; i < 18; i++) {
+      const id = randomUUID();
+      const kind = i === 17 ? "doctor" : "refresh";
+      const state = i === 15 ? "cleanup-unverified" : i === 16 ? "running" : "completed";
+      if (i >= 15) preserve.push(id);
+      store.write(`action-${id}.json`, {
+        id,
+        request: { key: id, kind },
+        state,
+        startedAt: new Date(i * 1000).toISOString(),
+        finishedAt: null,
+        runId: null,
+        detail: ""
+      });
+    }
+    store.write("receipt.json", { key: "preserve" });
+    actions = new DashboardActions(store, root);
+    expect(actions.list()).toHaveLength(13);
+    for (const id of preserve) expect(actions.list().some((action) => action.id === id)).toBe(true);
+    expect(readFileSync(store.file("receipt.json"), "utf8")).toContain("preserve");
+    const request = { key: randomUUID(), kind: "refresh" as const };
+    actions.start(request);
+    const spawned = vi.mocked(spawn).mock.results.at(-1)?.value;
+    if (!spawned) throw new Error("Missing child");
+    spawned.emit("close", 0);
+    // The synthetic close does not stop the real fixture child.
+    spawned.kill();
+    expect(
+      actions
+        .list()
+        .filter((action) => action.request.kind === "refresh" && action.state === "completed")
+    ).toHaveLength(10);
+    expect(actions.list().some((action) => action.id === request.key)).toBe(true);
+  });
   it("deduplicates a network retry and prevents two tabs from starting concurrent operations", () => {
     const request = { key: randomUUID(), kind: "doctor" as const };
     const first = actions.start(request);

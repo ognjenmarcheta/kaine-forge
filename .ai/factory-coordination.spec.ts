@@ -12,12 +12,17 @@ import {
   resolveCheckout,
   checkoutId
 } from "./factory-checkouts";
+import { readOptional } from "./factory-files";
 import { FactoryStore } from "./factory-store";
 import { createDashboard } from "./factory-ui";
 import { DashboardActions } from "./factory-ui-actions";
 import { factoryRunSchema, factoryConfigSchema } from "./factory.util";
 
 let folder: string;
+vi.mock("./factory-files", async (original) => {
+  const actual = await original<typeof import("./factory-files")>();
+  return { ...actual, readOptional: vi.fn(actual.readOptional) };
+});
 let roots: string[];
 let dashboard: Awaited<ReturnType<typeof createDashboard>> | undefined;
 const git = (root: string, args: string[]) =>
@@ -189,4 +194,22 @@ it("does not let recovery remove a live controller's lease", () => {
   const release = one.acquire(id, "owner/project:450");
   expect(() => one.coordination?.recover(id)).toThrow("still active");
   release();
+});
+it("tolerates a lease disappearing during concurrent release and rejects malformed ownership", async () => {
+  const one = store(0);
+  const id = randomUUID();
+  const release = one.acquire(id);
+  const actual = await vi.importActual<typeof import("./factory-files")>("./factory-files");
+  vi.mocked(readOptional).mockImplementationOnce((file) => {
+    rmSync(file);
+    return actual.readOptional(file);
+  });
+  expect(() => one.coordination?.release(id)).not.toThrow();
+  release();
+  const directory = one.coordination?.directory;
+  if (!directory) throw new Error("Missing coordination");
+  const malformed = path.join(directory, `${randomUUID()}.resource.json`);
+  writeFileSync(malformed, "{partial");
+  expect(() => one.coordination?.release(id)).toThrow();
+  expect(existsSync(malformed)).toBe(true);
 });

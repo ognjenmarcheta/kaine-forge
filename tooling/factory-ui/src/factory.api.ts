@@ -48,7 +48,6 @@ export function bootstrap(): Promise<void> {
     session = (async () => {
       const token = new URLSearchParams(location.hash.slice(1)).get("session");
       if (!token) return;
-      history.replaceState(null, "", location.pathname + location.search);
       try {
         await api("/api/session", z.object({ ok: z.boolean() }), {
           method: "POST",
@@ -59,6 +58,10 @@ export function bootstrap(): Promise<void> {
         // Another tab can consume the one-use token while sharing an already valid cookie.
         await api("/api/state", stateSchema);
       }
-    })();
+      history.replaceState(null, "", location.pathname + location.search);
+    })().catch((error: Error) => {
+      session = undefined;
+      throw error;
+    });
   return session;
 }

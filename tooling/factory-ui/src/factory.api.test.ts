@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { artifactRequestUrl, dashboardLocation, runRequestUrl } from "./factory.api";
 
@@ -18,6 +18,29 @@ const unsafeSegments = [
   "",
   "not-an-id"
 ];
+afterEach(() => vi.unstubAllGlobals());
+it("shares an exchange attempt, retains the fragment on failure, and retries successfully", async () => {
+  vi.resetModules();
+  const { bootstrap } = await import("./factory.api");
+  const replaceState = vi.fn();
+  vi.stubGlobal("location", {
+    hash: "#session=fixture-token",
+    pathname: "/",
+    search: "?view=health"
+  });
+  vi.stubGlobal("history", { replaceState });
+  const fetch = vi.fn().mockRejectedValue(new Error("Temporary network failure"));
+  vi.stubGlobal("fetch", fetch);
+  const first = bootstrap();
+  expect(bootstrap()).toBe(first);
+  await expect(first).rejects.toThrow("Temporary network failure");
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(replaceState).not.toHaveBeenCalled();
+  fetch.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+  await bootstrap();
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(replaceState).toHaveBeenCalledWith(null, "", "/?view=health");
+});
 
 describe("dashboard request paths", () => {
   it("constructs fixed run and artifact routes from valid identifiers", () => {

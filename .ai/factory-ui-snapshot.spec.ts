@@ -1,18 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { docker } from "./factory-docker";
-import { githubPages } from "./factory-github";
+import { github, githubPages } from "./factory-github";
 import { FactoryStore } from "./factory-store";
 import { githubState, healthState } from "./factory-ui-data";
 import { refreshSnapshot } from "./factory-ui-snapshot";
-import { factoryConfigSchema } from "./factory.util";
+import { factoryConfigSchema, factoryRunSchema } from "./factory.util";
 
 vi.mock("./factory", () => ({ currentApproval: vi.fn() }));
 vi.mock("./factory-docker", () => ({ docker: vi.fn() }));
 vi.mock("./factory-github", () => ({
+  github: vi.fn(),
   githubPages: vi.fn(() => []),
   monitoringSnapshot: vi.fn(() => [])
 }));
@@ -44,6 +46,64 @@ beforeEach(() => {
   vi.mocked(docker).mockReturnValue("linux");
 });
 afterEach(() => rmSync(store.directory, { recursive: true, force: true }));
+function record(pr: string) {
+  store.save(
+    factoryRunSchema.parse({
+      id: randomUUID(),
+      issue: 1,
+      stage: "implement",
+      provider: "codex",
+      model: "fixture",
+      revision: "a".repeat(40),
+      authorization: "owner",
+      snapshot: "s",
+      startedAt: "now",
+      finishedAt: null,
+      status: "failed",
+      detail: "",
+      branch: "",
+      pr,
+      validation: [],
+      result: null,
+      invocations: []
+    })
+  );
+}
+it("fetches only unique PRs referenced in run history", async () => {
+  record("https://github.com/owner/repo/pull/7");
+  record("https://github.com/owner/repo/pull/7");
+  record("https://github.com/owner/repo/pull/9");
+  vi.mocked(github).mockImplementation((endpoint) => ({
+    html_url: `https://github.com/owner/repo/pull/${endpoint.split("/").at(-1)}`,
+    state: "closed",
+    merged_at: "2026-09-28"
+  }));
+  await refreshSnapshot(config, store);
+  expect(
+    vi
+      .mocked(github)
+      .mock.calls.map(([endpoint]) => endpoint)
+      .sort()
+  ).toEqual(["repos/owner/repo/pulls/7", "repos/owner/repo/pulls/9"]);
+  expect(githubPages).toHaveBeenCalledTimes(1);
+  expect(Object.values(githubState(store).pulls)).toEqual(["merged", "merged"]);
+  const previous = githubState(store);
+  vi.mocked(github).mockImplementation(() => {
+    throw new Error("PR fetch offline");
+  });
+  await refreshSnapshot(config, store);
+  expect(githubState(store)).toEqual({ ...previous, error: "PR fetch offline" });
+});
+it.each([
+  "https://github.com/other/repo/pull/7",
+  "https://github.com/owner/repo/pull/../issues",
+  "https://github.com/owner/repo/pull/7?query=1"
+])("rejects invalid PR references before issuing requests: %s", async (pr) => {
+  record(pr);
+  await refreshSnapshot(config, store);
+  expect(github).not.toHaveBeenCalled();
+  expect(githubState(store).error).toBe("Invalid run pull request reference");
+});
 it("keeps the last successful GitHub timestamp and marks network failures stale", async () => {
   store.write("ui-github.json", {
     at: "2026-09-01T00:00:00Z",

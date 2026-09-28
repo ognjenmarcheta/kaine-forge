@@ -296,10 +296,10 @@ describe("progress and history", () => {
     writeFileSync(file, "evidence");
     const id = registerArtifact(store, run.id, file);
     expect(id).toBeTruthy();
-    expect(() => containedFile(root, "../outside")).toThrow();
-    expect(() => containedFile(root, "C:/outside")).toThrow();
+    expect(() => containedFile(root, "../outside", root)).toThrow();
+    expect(() => containedFile(root, "C:/outside", root)).toThrow();
     symlinkSync(store.directory, path.join(root, "linked"), "junction");
-    expect(() => containedFile(root, "linked/safe.log")).toThrow("Symlink");
+    expect(() => containedFile(root, "linked/safe.log", root)).toThrow("Symlink");
     rmSync(file);
     expect(runDetail(store, run).warnings).toContain("Artifact unavailable: safe.log");
   });
@@ -309,6 +309,20 @@ describe("progress and history", () => {
         "Bearer abc123 cookie=session123 https://user:pass@example.com/test?token=123 ghp_abc123 sk-secret123"
       )
     ).not.toMatch(/abc123|session123|user:pass|token=123|sk-secret123/);
+  });
+  it("accepts a trusted host junction but rejects an evidence root below it that is a junction", () => {
+    const anchor = path.join(root, "host-link");
+    symlinkSync(path.join(root, ".ai.local"), anchor, "junction");
+    writeFileSync(store.file("safe.log"), "evidence");
+    expect(containedFile(path.join(anchor, "factory"), "runs/safe.log", anchor)).toBeTruthy();
+    symlinkSync(
+      path.join(root, ".ai.local/factory"),
+      path.join(anchor, "evidence-link"),
+      "junction"
+    );
+    expect(() =>
+      containedFile(path.join(anchor, "evidence-link"), "runs/safe.log", anchor)
+    ).toThrow("Symlink artifact root");
   });
   it("keeps independent review current after its temporary storage cleanup finishes", () => {
     const run = fixture();

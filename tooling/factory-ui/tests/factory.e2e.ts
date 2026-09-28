@@ -337,6 +337,38 @@ test("another tab can reopen the launch URL with an existing session cookie", as
   await expect(page).toHaveURL("http://127.0.0.1:4178/");
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
+test("a transient session failure retains the launch token and recovers on the next poll", async ({
+  page
+}) => {
+  await fixture(page);
+  let offline = true;
+  await page.route("**/api/**", async (route) => {
+    if (offline) return route.fulfill({ status: 503, json: { error: "Temporarily offline" } });
+    return route.fallback();
+  });
+  await page.goto("/#session=retry-token");
+  await expect(page.getByRole("alert")).toContainText("Temporarily offline");
+  await expect(page).toHaveURL(/#session=retry-token$/);
+  offline = false;
+  await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page).toHaveURL("http://127.0.0.1:4178/");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+test("status badges keep the semibold design token after the body font shorthand", async ({
+  page
+}) => {
+  await fixture(page);
+  await page.goto("/");
+  const badge = page.locator(".factory-status").first();
+  await expect(badge).toBeVisible();
+  const weight = await badge.evaluate((element) =>
+    getComputedStyle(element).getPropertyValue("--ds-font-weight-semibold").trim()
+  );
+  expect(weight).toBe("600");
+  await expect(badge).toHaveCSS("font-weight", weight);
+});
 
 test("live command output arrives before completion and follow output is optional", async ({
   page

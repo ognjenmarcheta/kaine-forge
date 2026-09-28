@@ -11,13 +11,15 @@ import path from "node:path";
 import { z } from "zod";
 
 import { FactoryCoordination } from "./factory-coordination";
+import { exclusiveJson, readOptional } from "./factory-files";
 import { factoryRunSchema, type FactoryRun } from "./factory.util";
 
 export class FactoryStore {
   readonly coordination?: FactoryCoordination;
   constructor(
     readonly directory: string,
-    readonly checkout?: string
+    readonly checkout?: string,
+    readonly anchor = checkout ?? path.dirname(directory)
   ) {
     mkdirSync(directory, { recursive: true });
     if (checkout) this.coordination = new FactoryCoordination(checkout);
@@ -69,10 +71,7 @@ export class FactoryStore {
     // Never steal a stale lock. Cancel inspects and stops the recorded containers first.
     const sharedRelease = this.coordination?.acquire(id, issue);
     try {
-      writeFileSync(this.file("active.json"), JSON.stringify({ id, pid: process.pid }), {
-        flag: "wx",
-        mode: 0o600
-      });
+      exclusiveJson(this.file("active.json"), { id, pid: process.pid });
     } catch (error) {
       sharedRelease?.();
       if (error instanceof Error && "code" in error && error.code === "EEXIST")
@@ -83,16 +82,15 @@ export class FactoryStore {
     }
     return () => {
       const active = this.active();
-      if (active?.id === id) rmSync(this.file("active.json"));
+      if (active?.id === id) rmSync(this.file("active.json"), { force: true });
       sharedRelease?.();
     };
   }
   active() {
     const file = this.file("active.json");
-    return existsSync(file)
-      ? z
-          .object({ id: z.string().uuid(), pid: z.number().int() })
-          .parse(JSON.parse(readFileSync(file, "utf8")))
+    const contents = readOptional(file);
+    return contents !== null
+      ? z.object({ id: z.string().uuid(), pid: z.number().int() }).parse(JSON.parse(contents))
       : null;
   }
   assertActive(id: string): void {
@@ -142,18 +140,16 @@ export class FactoryStore {
   }
   watcher(): { pid: number } | null {
     const file = this.file("watcher.json");
-    return existsSync(file)
-      ? z.object({ pid: z.number().int().positive() }).parse(JSON.parse(readFileSync(file, "utf8")))
+    const contents = readOptional(file);
+    return contents !== null
+      ? z.object({ pid: z.number().int().positive() }).parse(JSON.parse(contents))
       : null;
   }
   acquireWatcher(): () => void {
-    writeFileSync(this.file("watcher.json"), JSON.stringify({ pid: process.pid }), {
-      flag: "wx",
-      mode: 0o600
-    });
+    exclusiveJson(this.file("watcher.json"), { pid: process.pid });
     return () => this.releaseWatcher(process.pid);
   }
   releaseWatcher(pid: number): void {
-    if (this.watcher()?.pid === pid) rmSync(this.file("watcher.json"));
+    if (this.watcher()?.pid === pid) rmSync(this.file("watcher.json"), { force: true });
   }
 }

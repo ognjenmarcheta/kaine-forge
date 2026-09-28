@@ -103,8 +103,8 @@ export function registeredArtifacts(store: FactoryStore, id: string) {
     });
 }
 
-/** Reject symlinks at every component, including ancestors, before opening a file. */
-export function containedFile(root: string, relative: string): string {
+/** The trusted host anchor may resolve through symlinks; every child must be ordinary. */
+export function containedFile(root: string, relative: string, anchor: string): string {
   if (
     !relative ||
     path.isAbsolute(relative) ||
@@ -113,11 +113,13 @@ export function containedFile(root: string, relative: string): string {
     relative.split("/").some((part) => !part || part === "." || part === "..")
   )
     throw new Error("Unsafe artifact path");
-  const base = path.resolve(root);
-  let ancestor = base;
-  while (path.dirname(ancestor) !== ancestor) {
-    if (lstatSync(ancestor).isSymbolicLink()) throw new Error("Symlink artifact root");
-    ancestor = path.dirname(ancestor);
+  const below = path.relative(path.resolve(anchor), path.resolve(root));
+  if (path.isAbsolute(below) || below.split(path.sep).includes(".."))
+    throw new Error("Artifact root outside trusted anchor");
+  let base = realpathSync(anchor);
+  for (const part of below.split(path.sep).filter(Boolean)) {
+    base = path.join(base, part);
+    if (lstatSync(base).isSymbolicLink()) throw new Error("Symlink artifact root");
   }
   let target = base;
   for (const part of relative.split("/")) {
@@ -132,14 +134,18 @@ export function containedFile(root: string, relative: string): string {
   return target;
 }
 
-export function openArtifact(root: string, relative: string): { descriptor: number; size: number } {
-  const file = containedFile(root, relative);
+export function openArtifact(
+  root: string,
+  relative: string,
+  anchor: string
+): { descriptor: number; size: number } {
+  const file = containedFile(root, relative, anchor);
   const before = statSync(file);
   const descriptor = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync(descriptor);
     // Recheck the path after opening. A changed parent or target must not redirect a read.
-    const after = statSync(containedFile(root, relative));
+    const after = statSync(containedFile(root, relative, anchor));
     if (
       opened.dev !== before.dev ||
       opened.ino !== before.ino ||
@@ -156,7 +162,7 @@ export function openArtifact(root: string, relative: string): { descriptor: numb
 
 export function registerArtifact(store: FactoryStore, id: string, file: string): string {
   const relative = path.relative(path.dirname(store.directory), file).split(path.sep).join("/");
-  containedFile(path.dirname(store.directory), relative);
+  containedFile(path.dirname(store.directory), relative, store.anchor);
   const registered = registeredArtifacts(store, id);
   const existing = registered.find((entry) => entry.path === relative);
   if (existing) return existing.id;

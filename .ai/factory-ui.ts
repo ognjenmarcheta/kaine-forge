@@ -72,7 +72,11 @@ export async function createDashboard(root: string, port = 0) {
       if (!config && !existsSync(path.join(worktree.path, ".ai.local/factory/runs"))) return [];
       let manager = managers.get(worktree.id);
       if (!manager) {
-        const store = new FactoryStore(path.join(worktree.path, ".ai.local/factory/runs"));
+        const store = new FactoryStore(
+          path.join(worktree.path, ".ai.local/factory/runs"),
+          undefined,
+          worktree.path
+        );
         manager = { store, actions: new DashboardActions(store, worktree.path) };
         managers.set(worktree.id, manager);
       }
@@ -195,8 +199,8 @@ export async function createDashboard(root: string, port = 0) {
             (item) => item.id === artifactMatch[2]
           );
           if (!entry) return json(response, { error: "Artifact not registered" }, 404);
-          const file = containedFile(local, entry.path);
-          const opened = openArtifact(local, entry.path);
+          const file = containedFile(local, entry.path, store.anchor);
+          const opened = openArtifact(local, entry.path, store.anchor);
           const kind = artifactKind(entry.name);
           if (kind === "log") {
             const size = opened.size;
@@ -244,7 +248,7 @@ export async function createDashboard(root: string, port = 0) {
       const relative =
         url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
       const assets = path.join(root, "tooling/factory-ui/dist");
-      const file = containedFile(assets, relative);
+      const file = containedFile(assets, relative, root);
       response.setHeader(
         "Content-Type",
         file.endsWith(".html")

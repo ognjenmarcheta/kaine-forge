@@ -1,13 +1,21 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cancelContainers, docker } from "./factory-docker";
-import { finishStorage, candidateVolume, dependencyVolume } from "./factory-storage";
+import { events } from "./factory-progress";
+import {
+  finishStorage,
+  candidateVolume,
+  dependencyVolume,
+  initializeCandidate,
+  resources
+} from "./factory-storage";
 import { FactoryStore } from "./factory-store";
+import { git } from "./factory-workspace";
 import { factoryConfigSchema, factoryRunSchema } from "./factory.util";
 
 vi.mock("node:child_process", async (original) => ({
@@ -15,6 +23,10 @@ vi.mock("node:child_process", async (original) => ({
   execFileSync: vi.fn()
 }));
 vi.mock("./factory-docker", () => ({ docker: vi.fn(), cancelContainers: vi.fn() }));
+vi.mock("./factory-workspace", async (original) => ({
+  ...(await original<typeof import("./factory-workspace")>()),
+  git: vi.fn()
+}));
 const config = factoryConfigSchema.parse({
   enabled: false,
   repository: "owner/repo",
@@ -57,9 +69,72 @@ beforeEach(() => {
   vi.mocked(docker).mockReturnValue("");
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   if (path.dirname(directory) !== path.resolve(tmpdir()))
     throw new Error("Unexpected test directory");
   rmSync(directory, { recursive: true, force: true });
+});
+it.each([false, true])(
+  "removes the exact source bundle after initialization (failure=%s)",
+  (fail) => {
+    const run = fixture();
+    const transfer = path.join(directory, "transfers", run.id);
+    vi.mocked(git).mockImplementation(() => {
+      writeFileSync(path.join(transfer, "source.bundle"), "source");
+      return "";
+    });
+    vi.mocked(execFileSync).mockImplementation(() => {
+      if (fail) throw new Error("Init failed");
+      return "";
+    });
+    if (fail)
+      expect(() => initializeCandidate(config, run, store, directory, [])).toThrow("Init failed");
+    else initializeCandidate(config, run, store, directory, []);
+    expect(existsSync(transfer)).toBe(false);
+  }
+);
+it("keeps the original initialization failure when transfer cleanup also fails", () => {
+  const run = fixture();
+  vi.mocked(execFileSync).mockImplementation(() => {
+    writeFileSync(path.join(directory, "transfers", run.id, "unrelated.txt"), "retain me");
+    throw new Error("Init failed");
+  });
+  expect(() => initializeCandidate(config, run, store, directory, [], false)).toThrow(
+    "Init failed"
+  );
+  expect(events(store, run.id).events.at(-1)?.detail).toBe("Source bundle cleanup failed");
+});
+it("requires source export after a partially applied proposal", () => {
+  const run = fixture();
+  vi.mocked(execFileSync)
+    .mockReturnValueOnce("")
+    .mockImplementationOnce(() => {
+      throw new Error("Apply failed");
+    });
+  expect(() => initializeCandidate(config, run, store, directory, [], false)).toThrow(
+    "Apply failed"
+  );
+  expect(resources(store, run.id)?.ready).toBe(true);
+});
+it("records truncation warnings and clears an old failure after verified cleanup without a manifest", () => {
+  const run = fixture();
+  run.cleanup = { status: "cleanup-unverified", errors: ["Old failure"] };
+  expect(finishStorage(config, run, store)).toBe(true);
+  expect(cancelContainers).toHaveBeenCalledWith(run.id);
+  expect(run.cleanup).toEqual({ status: "passed", errors: [] });
+  store.write(`${run.id}.resources.json`, {
+    version: 1,
+    image: config.image,
+    volumes: [],
+    ready: true
+  });
+  vi.mocked(execFileSync).mockReturnValue(
+    JSON.stringify({ files: [], warnings: ["Optional evidence truncated: byte limit exceeded"] })
+  );
+  expect(finishStorage(config, run, store)).toBe(true);
+  expect(events(store, run.id).events.some((event) => event.detail.includes("truncated"))).toBe(
+    true
+  );
 });
 it("retains the install failure and all volumes when recovery export fails", () => {
   const run = fixture();

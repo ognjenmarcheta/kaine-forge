@@ -172,7 +172,7 @@ export function runDetail(store: FactoryStore, run: FactoryRun): RunDetail {
   }
   const artifacts = registrations.flatMap((entry) => {
     try {
-      const file = containedFile(path.dirname(store.directory), entry.path);
+      const file = containedFile(path.dirname(store.directory), entry.path, store.anchor);
       return [
         {
           id: entry.id,
