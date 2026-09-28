@@ -27,7 +27,7 @@
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
-    "@tanstack/react-query-devtools": "^5.103.1",
+    "@tanstack/react-query-devtools": "^5.103.2",
     "graphql": "catalog:",
     "graphql-request": "catalog:",
     "graphql-ws": "catalog:",
