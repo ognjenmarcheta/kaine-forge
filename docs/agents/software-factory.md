@@ -4,6 +4,86 @@ The factory is optional and disabled by default. GitHub holds issues and decisio
 A local controller runs Codex and Claude in disposable Linux Docker containers.
 The owner reviews and merges every PR manually.
 
+## Local dashboard
+
+After initialization, start the dashboard from the trusted controller checkout:
+
+```sh
+pnpm factory ui
+pnpm factory ui --port 4380 --no-open
+```
+
+The launcher builds `@repo/factory-ui` through Turbo, selects an available loopback
+port by default, and opens a per-launch browser session. With `--no-open`, open the
+printed URL yourself. Its one-use fragment establishes an HttpOnly cookie. The
+browser removes the fragment immediately. Refresh and additional tabs on the same
+origin use the cookie. A new dashboard launch requires its new launch URL.
+
+The default view includes all linked worktrees of this Git repository. Select a
+worktree to start work there. Run details and cancellation retain the originating
+worktree. The controller uses its own installed code for every action, including
+actions in an older checkout. CLI commands can select the same checkout with
+`--checkout <path>`. Paths supplied by the browser are rejected; actions use
+server-resolved worktree IDs. Runs started in another CLI appear automatically.
+
+Board shows active work, blockers, the issue queue, and recent runs. Runs provides
+filters and issue-grouped attempts. Open a run for its phase timeline, checks,
+acceptance evidence, independent review, and redacted validation log tails. The
+pilot filter is separate from ordinary issue totals. Health shows Docker,
+credential detection, isolation, model versions, and live pilot evidence. Missing
+or stale evidence never establishes readiness. Historical records remain readable;
+timing and usage absent from older records appear as unavailable.
+
+Start, retry, cancel, doctor, pilot, and watcher controls execute the existing CLI.
+An action returns an ID before work starts. Network retries with that ID reuse the
+action. Model selection and possible GitHub writes appear before submission.
+Readiness is checked again in the controller. Login, configuration, readiness
+approval, and merging remain in the terminal or GitHub. Opening the dashboard does
+not enable the factory or start the watcher.
+
+Closing a browser tab leaves work running. Stop the foreground dashboard command
+with Ctrl+C to stop and clean up work it started. Independent CLI runs are left
+alone. Interrupted actions display `cleanup-unverified`; they never restart
+automatically. Use the run's cancel control to verify cleanup before retrying.
+An independent watcher must be stopped in its owning terminal. A stale
+`runs/watcher.json` marker requires manual process inspection before removal.
+
+Progress journals, artifact registrations, action receipts, and cached GitHub
+snapshots live under gitignored `.ai.local/factory/runs/`. Validation output is
+bounded and redacted. Only registered screenshots and videos preview inline;
+trace archives and HTML reports download. Local paths are not public evidence
+links. Subscription quota and monetary cost remain unavailable when not reported.
+Current commands show their start and last-output times. Select Logs to follow
+output while a command runs. Turn off Follow output to inspect earlier lines.
+Incomplete credential fragments remain buffered until they can be redacted.
+
+Shared leases, action keys, and completed readiness decisions live under
+`kaine-factory/` in Git's common directory. Two runs can be active across the
+repository, with one per worktree. The same issue cannot run in two worktrees.
+Heavy validation commands and calls sharing subscription credentials wait for
+their resource. Waiting does not consume the model invocation timeout. Retry
+from the failed attempt's original worktree. Locks are never stolen after a crash.
+
+Local polling runs every two seconds during activity and every ten seconds while
+idle. GitHub refreshes every 60 seconds. The last successful refresh remains visible
+when GitHub is offline. The foreground watcher retains the real-issue rollout gate.
+
+The HTTP adapter is developer tooling, separate from the Organization-scoped
+product API. See [ADR 0010](../adr/0010-local-factory-dashboard.md).
+
+Validation commands:
+
+```sh
+pnpm --filter @repo/factory-ui build
+pnpm --filter @repo/factory-ui test:browser
+pnpm check
+```
+
+Browser tests use deterministic API fixtures and make no GitHub writes or model
+calls. Session, artifact, action idempotency, and process ownership tests run in
+the AI tooling test suite. Browser screenshots and traces stay in ignored test
+output directories.
+
 ## Setup
 
 Run from the repository root:
@@ -117,8 +197,11 @@ Docker socket, or GitHub credential is mounted. Claude tools are disabled. Codex
 shell, browser, MCP, plugin, and delegation features are disabled; unexpected tool
 events fail the run. Read-only permissions remain enabled.
 
-The controller applies changes in a separate clone. Dependency setup and checks
-run without provider or GitHub credentials. Dependency downloads run in a separate directory that contains only the lockfile,
+The controller preserves the proposal in a separate clone and transfers a Git
+bundle into a run-specific Docker volume. Checks, dependencies, and commits stay
+in Linux storage. Candidate dependency trees never cross onto Windows. Dependency
+setup and checks run without provider or GitHub credentials. Dependency downloads
+run in a separate volume that contains only the lockfile,
 registered `patches/*.patch` files, and a controller-written package-manager pin.
 This container has no network interface. Its only route is a dedicated proxy
 that permits HTTPS CONNECT to `registry.npmjs.org:443`. Other hosts, ports, plain
@@ -126,17 +209,23 @@ HTTP, and redirects to other hosts are denied. Private registries and Git-hosted
 dependencies require a reviewed extension of this policy. Lifecycle scripts and
 pnpm hooks are disabled during fetch.
 It cannot read the proposed checkout or its package-manager configuration.
-Installation uses the downloaded store offline. Temporary download directories
-are removed after installation, failed fetches, cancellation, and preparation errors. Rebuilds, repository hooks, and
-validation have no external network. Git trusts only the mounted `/workspace` path to handle
-Windows/Linux ownership differences. Web checks use disposable loopback PostgreSQL
+Installation uses the downloaded store offline. Validation, repair, and final
+checks reuse that run's volumes. Dependency inputs determine whether another
+fetch is needed. Runs do not share a dependency cache. Rebuilds, repository hooks,
+and validation have no external network. Git trusts only `/workspace`.
+Web checks use disposable loopback PostgreSQL
 and serial Playwright scenarios. Repository commit hooks run in that container.
 The controller imports the commit, checks parent and scope, obtains independent
 review, then pushes through the trusted checkout's normal pre-push hook.
 It never force-pushes, approves, merges, or runs release:apps.
 
-One issue runs at a time. Each model invocation has a 30-minute limit, with at most
-one implementation repair. Failures preserve the clone and logs. Retry explicitly.
+Each model invocation has a 30-minute limit, with at most one implementation
+repair. Fetch, installation, and cleanup failures stop work without spending that
+repair. Failures preserve the clone and logs. Before deleting owned volumes, the
+controller exports bounded evidence and a recovery patch. Export and cleanup
+failures are separate from command failure. Unverified cleanup retains resources
+and blocks retry. Recovery checks exact names and ownership labels; it never prunes
+Docker. Retry explicitly.
 Retries reuse a recorded factory branch and open PR. An unrecorded remote branch
 or a branch that needs a rebase blocks work for human inspection. The controller
 never overwrites a changed remote head.

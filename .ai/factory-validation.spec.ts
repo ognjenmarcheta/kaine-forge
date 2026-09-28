@@ -1,20 +1,13 @@
 import { randomUUID } from "node:crypto";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { docker, withDependencyProxy } from "./factory-docker";
+import { readCandidateText, applyDependencyMetadata, resources } from "./factory-storage";
 import { FactoryStore } from "./factory-store";
-import { prepareDependencyDownload, validateWorkspace } from "./factory-validation";
+import { validateWorkspace, validationCommand } from "./factory-validation";
 import { factoryConfigSchema, factoryRunSchema } from "./factory.util";
 import { runModelProcess } from "./model-process.util";
 
@@ -22,10 +15,14 @@ vi.mock("./factory-docker", () => ({
   docker: vi.fn(() => ""),
   withDependencyProxy: vi.fn(async (_config, _id, action) => action("test-fetch-socket"))
 }));
+vi.mock("./factory-storage", () => ({
+  candidateVolume: (id: string) => `kf-${id}-candidate`,
+  dependencyVolume: (id: string) => `kf-${id}-dependencies`,
+  readCandidateText: vi.fn(),
+  applyDependencyMetadata: vi.fn(),
+  resources: vi.fn()
+}));
 vi.mock("./model-process.util", () => ({ runModelProcess: vi.fn() }));
-let directory: string;
-let workspace: string;
-let store: FactoryStore;
 const config = factoryConfigSchema.parse({
   enabled: true,
   repository: "owner/project",
@@ -39,181 +36,141 @@ const config = factoryConfigSchema.parse({
     ])
   )
 });
-beforeEach(() => {
-  vi.clearAllMocks();
-  directory = mkdtempSync(path.join(tmpdir(), "factory-download-"));
-  workspace = path.join(directory, "candidate");
-  mkdirSync(workspace);
-  store = new FactoryStore(path.join(directory, "runs"));
-  writeFileSync(path.join(workspace, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
-  vi.mocked(runModelProcess).mockResolvedValue({
-    termination: "completed",
-    exitCode: 0,
-    cleanup: "passed"
-  });
-});
-afterEach(() => rmSync(directory, { recursive: true, force: true }));
-it("only exposes the lock and registered patch data during downloads", () => {
-  writeFileSync(
-    path.join(workspace, "pnpm-lock.yaml"),
-    "lockfileVersion: '9.0'\npatchedDependencies:\n  example@1:\n    path: patches/example.patch\n"
-  );
-  mkdirSync(path.join(workspace, "patches"));
-  writeFileSync(path.join(workspace, "patches/example.patch"), "patch data");
-  for (const file of [
-    ".pnpmfile.cjs",
-    ".npmrc",
-    "package.json",
-    "pnpm-workspace.yaml",
-    "private-source.ts"
-  ])
-    writeFileSync(path.join(workspace, file), "untrusted");
-  const download = prepareDependencyDownload(workspace, store.directory);
-  expect(readdirSync(download).sort()).toEqual([
-    "package.json",
-    "patches",
-    "pnpm-lock.yaml",
-    "store"
-  ]);
-  expect(readFileSync(path.join(download, "patches/example.patch"), "utf8")).toBe("patch data");
-  expect(JSON.parse(readFileSync(path.join(download, "package.json"), "utf8"))).toEqual({
-    private: true,
-    packageManager: "pnpm@10.29.3"
-  });
-});
-it.each(["../private", "src/secret.ts", "patches/../private.patch"])(
-  "rejects download patch path %s",
-  (file) => {
-    writeFileSync(
-      path.join(workspace, "pnpm-lock.yaml"),
-      `patchedDependencies:\n  example:\n    path: ${file}\n`
-    );
-    expect(() => prepareDependencyDownload(workspace, store.directory)).toThrow("patch path");
-    expect(readdirSync(store.directory)).toEqual([]);
-  }
-);
-it("rejects symlinked patches before copying their target", () => {
-  writeFileSync(
-    path.join(workspace, "pnpm-lock.yaml"),
-    "patchedDependencies:\n  example:\n    path: patches/example.patch\n"
-  );
-  const outside = path.join(directory, "outside");
-  mkdirSync(outside);
-  writeFileSync(path.join(outside, "example.patch"), "private");
-  symlinkSync(outside, path.join(workspace, "patches"), "junction");
-  expect(() => prepareDependencyDownload(workspace, store.directory)).toThrow("Symlink");
-  expect(readdirSync(store.directory)).toEqual([]);
-});
-it("uses the network only for the isolated download directory, then installs offline", async () => {
-  const run = factoryRunSchema.parse({
+let directory: string;
+let store: FactoryStore;
+let release: () => void;
+const fixture = () =>
+  factoryRunSchema.parse({
     id: randomUUID(),
     issue: 1,
     stage: "implement",
     provider: "codex",
     model: "model",
     revision: "a".repeat(40),
-    authorization: "1",
+    authorization: "owner",
     snapshot: "snapshot",
     startedAt: "now",
     finishedAt: null,
     status: "running",
     detail: "",
-    branch: "branch",
+    branch: "",
     pr: null,
     validation: [],
     result: null,
     invocations: []
   });
-  const release = store.acquire(run.id);
-  try {
-    expect(await validateWorkspace(config, run, store, workspace, "docs", ["README.md"])).toBe(
-      true
-    );
-    const calls = vi.mocked(runModelProcess).mock.calls.map(([input]) => input.args);
-    expect(calls[0]).toEqual(
-      expect.arrayContaining([
-        "none",
-        "node",
-        "/opt/factory/factory-fetch.mjs",
-        "type=volume,src=test-fetch-socket,dst=/socket,readonly"
-      ])
-    );
-    expect(calls[0]).not.toContain(`type=bind,src=${workspace},dst=/workspace`);
-    expect(calls[1]).toEqual(
-      expect.arrayContaining([
-        "none",
-        "install",
-        "--offline",
-        `type=bind,src=${workspace},dst=/workspace`
-      ])
-    );
-    for (const args of calls.slice(1)) expect(args[args.indexOf("--network") + 1]).toBe("none");
-    expect(docker).toHaveBeenCalled();
-    expect(readdirSync(store.directory).filter((name) => name.startsWith("download-"))).toEqual([]);
-  } finally {
-    release();
-  }
-});
-
-it("removes a partially copied patch set when a later patch is missing", () => {
-  writeFileSync(
-    path.join(workspace, "pnpm-lock.yaml"),
-    "patchedDependencies:\n  first:\n    path: patches/first.patch\n  second:\n    path: patches/missing.patch\n"
+beforeEach(() => {
+  vi.resetAllMocks();
+  directory = mkdtempSync(path.join(tmpdir(), "factory-volumes-test-"));
+  store = new FactoryStore(path.join(directory, "runs"));
+  vi.mocked(docker).mockReturnValue("");
+  vi.mocked(readCandidateText).mockReturnValue("lockfileVersion: '9.0'\n");
+  vi.mocked(resources).mockReturnValue({
+    version: 1,
+    image: config.image,
+    volumes: [],
+    ready: true,
+    exported: false
+  });
+  vi.mocked(withDependencyProxy).mockImplementation(async (_config, _id, action) =>
+    action("test-fetch-socket")
   );
-  mkdirSync(path.join(workspace, "patches"));
-  writeFileSync(path.join(workspace, "patches/first.patch"), "patch");
-  expect(() => prepareDependencyDownload(workspace, store.directory)).toThrow();
-  expect(readdirSync(store.directory)).toEqual([]);
+  vi.mocked(runModelProcess).mockResolvedValue({
+    termination: "completed",
+    exitCode: 0,
+    cleanup: "passed"
+  });
 });
-it.each(["fetch", "install", "exception", "proxy", "cancel"])(
-  "removes download directories after %s failure",
-  async (failure) => {
-    const run = factoryRunSchema.parse({
-      id: randomUUID(),
-      issue: 1,
-      stage: "implement",
-      provider: "codex",
-      model: "model",
-      revision: "a".repeat(40),
-      authorization: "1",
-      snapshot: "snapshot",
-      startedAt: "now",
-      finishedAt: null,
-      status: "running",
-      detail: "",
-      branch: "branch",
-      pr: null,
-      validation: [],
-      result: null,
-      invocations: []
-    });
-    const release = store.acquire(run.id);
-    if (failure === "install")
+afterEach(() => {
+  release?.();
+  rmSync(directory, { recursive: true, force: true });
+});
+it("fetches metadata alone, installs offline in volumes, and never mounts Windows dependency paths", async () => {
+  const run = fixture();
+  release = store.acquire(run.id);
+  expect(await validateWorkspace(config, run, store, directory, "docs", ["README.md"])).toBe(true);
+  const calls = vi.mocked(runModelProcess).mock.calls.map(([input]) => input.args);
+  expect(calls[0]).toContain(`type=volume,src=kf-${run.id}-dependencies,dst=/workspace`);
+  expect(calls[0]).toContain("type=volume,src=test-fetch-socket,dst=/socket,readonly");
+  expect(calls[1]).toContain("--offline");
+  expect(calls[1]).toContain(`type=volume,src=kf-${run.id}-candidate,dst=/workspace`);
+  for (const args of calls) {
+    expect(args.some((arg) => arg.startsWith("type=bind"))).toBe(false);
+    expect(args[args.indexOf("--network") + 1]).toBe("none");
+  }
+  expect(vi.mocked(applyDependencyMetadata).mock.calls[0]?.[2].map((file) => file.path)).toEqual([
+    "pnpm-lock.yaml",
+    "package.json"
+  ]);
+});
+it.each(["../private", "src/secret.ts", "patches/../secret.patch"])(
+  "rejects dependency patch path %s",
+  async (patch) => {
+    const run = fixture();
+    release = store.acquire(run.id);
+    vi.mocked(readCandidateText).mockReturnValue(
+      `patchedDependencies:\n  example:\n    path: ${patch}\n`
+    );
+    await expect(
+      validateWorkspace(config, run, store, directory, "docs", ["README.md"])
+    ).rejects.toThrow("patch path");
+    expect(applyDependencyMetadata).not.toHaveBeenCalled();
+  }
+);
+it.each(["fetch", "install"])(
+  "stops infrastructure failure during %s without treating it as a model repair",
+  async (stage) => {
+    const run = fixture();
+    release = store.acquire(run.id);
+    if (stage === "install")
       vi.mocked(runModelProcess).mockResolvedValueOnce({
         termination: "completed",
         exitCode: 0,
         cleanup: "passed"
       });
-    if (failure === "fetch" || failure === "install")
-      vi.mocked(runModelProcess).mockResolvedValueOnce({
-        termination: "failed",
-        exitCode: 1,
-        cleanup: "passed"
-      });
-    if (failure === "exception")
-      vi.mocked(runModelProcess).mockRejectedValueOnce(new Error("launch failed"));
-    if (failure === "proxy")
-      vi.mocked(withDependencyProxy).mockRejectedValueOnce(new Error("proxy failed"));
-    if (failure === "cancel") store.cancel(run.id);
-    try {
-      const validation = validateWorkspace(config, run, store, workspace, "docs", ["README.md"]);
-      if (failure === "fetch" || failure === "install") expect(await validation).toBe(false);
-      else await expect(validation).rejects.toThrow();
-      expect(readdirSync(store.directory).filter((name) => name.startsWith("download-"))).toEqual(
-        []
-      );
-    } finally {
-      release();
-    }
+    vi.mocked(runModelProcess).mockResolvedValueOnce({
+      termination: "failed",
+      exitCode: 1,
+      cleanup: "passed"
+    });
+    await expect(
+      validateWorkspace(config, run, store, directory, "docs", ["README.md"])
+    ).rejects.toThrow(stage === "fetch" ? "fetch failed" : "install failed");
+    expect(run.validation.at(-1)?.passed).toBe(false);
   }
 );
+it("publishes live redacted output only after split secret lines are complete", async () => {
+  const run = fixture();
+  release = store.acquire(run.id);
+  vi.mocked(runModelProcess).mockImplementation(async (input) => {
+    input.stdout?.(Buffer.from("Authorization: Bearer sec"));
+    const log = store.file(`${run.id}.check-0.log`);
+    expect(readFileSync(log, "utf8")).not.toContain("sec");
+    input.stdout?.(Buffer.from("ret-value\nprogress 1\n"));
+    expect(readFileSync(log, "utf8")).not.toContain("secret-value");
+    return { termination: "completed", exitCode: 0, cleanup: "passed" };
+  });
+  expect(await validationCommand(config, run, store, directory, ["pnpm", "check"])).toBe(true);
+  const output = readFileSync(store.file(run.validation[0]!.artifact), "utf8");
+  expect(output).toContain("[redacted]");
+  expect(output).toContain("progress 1");
+  expect(run.currentCommand).toBeNull();
+  expect(run.validation[0]?.finishedAt).toBeTruthy();
+});
+it("records command failure even when Docker cleanup cannot be verified", async () => {
+  const run = fixture();
+  release = store.acquire(run.id);
+  vi.mocked(runModelProcess).mockResolvedValue({
+    termination: "failed",
+    exitCode: 1,
+    cleanup: "passed"
+  });
+  vi.mocked(docker).mockImplementation(() => {
+    throw new Error("Docker unavailable");
+  });
+  await expect(
+    validationCommand(config, run, store, directory, ["pnpm", "install"])
+  ).rejects.toThrow("cleanup");
+  expect(run.validation).toHaveLength(1);
+  expect(run.validation[0]?.passed).toBe(false);
+});

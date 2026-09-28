@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,12 +14,20 @@ import {
   statusComment
 } from "./factory-github";
 import { runPilot } from "./factory-pilot";
+import { finishStorage } from "./factory-storage";
 import { FactoryStore } from "./factory-store";
-import { validateWorkspace, validationCommand } from "./factory-validation";
+import { prepareEvidence, validateWorkspace, validationCommand } from "./factory-validation";
 import { git, repositoryContext } from "./factory-workspace";
 import { factoryConfigSchema, issueSnapshot, type FactoryResult } from "./factory.util";
 
-vi.mock("./factory-docker", () => ({ propose: vi.fn() }));
+vi.mock("./factory-storage", () => ({
+  initializeCandidate: vi.fn(),
+  applyCandidate: vi.fn(),
+  exportCandidateFile: vi.fn(),
+  finishStorage: vi.fn(() => true)
+}));
+
+vi.mock("./factory-docker", () => ({ propose: vi.fn(), cancelContainers: vi.fn() }));
 vi.mock("./factory-github", () => ({
   findPullRequest: vi.fn(),
   assertControllerIdentity: vi.fn(),
@@ -94,6 +102,11 @@ const result = (revision = "a".repeat(40)): FactoryResult => ({
 let store: FactoryStore;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(finishStorage).mockReturnValue(true);
+  vi.mocked(prepareEvidence).mockImplementation((workspace) => {
+    mkdirSync(path.join(workspace, ".ai.local"), { recursive: true });
+    writeFileSync(path.join(workspace, ".ai.local/factory-playwright.config.ts"), "fixture");
+  });
   store = new FactoryStore(
     path.join(mkdtempSync(path.join(tmpdir(), "kaine-factory-controller-")), "runs")
   );

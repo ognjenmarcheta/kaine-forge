@@ -10,11 +10,19 @@ import {
 import path from "node:path";
 import { z } from "zod";
 
+import { FactoryCoordination } from "./factory-coordination";
+import { exclusiveJson, readOptional } from "./factory-files";
 import { factoryRunSchema, type FactoryRun } from "./factory.util";
 
 export class FactoryStore {
-  constructor(readonly directory: string) {
+  readonly coordination?: FactoryCoordination;
+  constructor(
+    readonly directory: string,
+    readonly checkout?: string,
+    readonly anchor = checkout ?? path.dirname(directory)
+  ) {
     mkdirSync(directory, { recursive: true });
+    if (checkout) this.coordination = new FactoryCoordination(checkout);
   }
   file(name: string): string {
     if (!/^[a-zA-Z0-9.-]+$/.test(name) || name.startsWith("."))
@@ -33,18 +41,39 @@ export class FactoryStore {
       .map((file) => factoryRunSchema.parse(JSON.parse(readFileSync(this.file(file), "utf8"))));
   }
   save(run: FactoryRun): void {
+    if (!existsSync(this.file(`${run.id}.json`)) && process.env.KAINE_FACTORY_ACTION_ID)
+      run.actionId = z.string().uuid().parse(process.env.KAINE_FACTORY_ACTION_ID);
+    if (!existsSync(this.file(`${run.id}.json`)) && process.env.KAINE_FACTORY_RETRY_OF)
+      run.retryOf = z.string().uuid().parse(process.env.KAINE_FACTORY_RETRY_OF);
     this.write(`${run.id}.json`, z.json().parse(factoryRunSchema.parse(run)));
   }
-  acquire(id: string): () => void {
+  history(): FactoryRun[] {
+    return this.coordination?.history() ?? this.runs();
+  }
+  async resource(name: string, run: FactoryRun): Promise<() => void> {
+    return (
+      this.coordination?.resource(
+        name,
+        run.id,
+        () => this.assertActive(run.id),
+        (reason) => {
+          if (run.waiting !== reason) {
+            run.waiting = reason;
+            this.save(run);
+          }
+        }
+      ) ?? (() => {})
+    );
+  }
+  acquire(id: string, issue: string | null = null): () => void {
     z.string().uuid().parse(id);
     if (this.cancelled(id)) throw new Error("Run cancelled");
     // Never steal a stale lock. Cancel inspects and stops the recorded containers first.
+    const sharedRelease = this.coordination?.acquire(id, issue);
     try {
-      writeFileSync(this.file("active.json"), JSON.stringify({ id, pid: process.pid }), {
-        flag: "wx",
-        mode: 0o600
-      });
+      exclusiveJson(this.file("active.json"), { id, pid: process.pid });
     } catch (error) {
+      sharedRelease?.();
       if (error instanceof Error && "code" in error && error.code === "EEXIST")
         throw new Error(
           `Factory is busy with run ${this.active()?.id}. Use factory status or cancel that run.`
@@ -53,15 +82,15 @@ export class FactoryStore {
     }
     return () => {
       const active = this.active();
-      if (active?.id === id) rmSync(this.file("active.json"));
+      if (active?.id === id) rmSync(this.file("active.json"), { force: true });
+      sharedRelease?.();
     };
   }
   active() {
     const file = this.file("active.json");
-    return existsSync(file)
-      ? z
-          .object({ id: z.string().uuid(), pid: z.number().int() })
-          .parse(JSON.parse(readFileSync(file, "utf8")))
+    const contents = readOptional(file);
+    return contents !== null
+      ? z.object({ id: z.string().uuid(), pid: z.number().int() }).parse(JSON.parse(contents))
       : null;
   }
   assertActive(id: string): void {
@@ -71,7 +100,7 @@ export class FactoryStore {
       throw new Error("Controller no longer owns the factory lock");
   }
   comments(issue: number): NonNullable<FactoryRun["statusComment"]>[] {
-    return this.runs()
+    return this.history()
       .filter((run) => run.issue === issue)
       .flatMap((run) => (run.statusComment ? [run.statusComment] : []));
   }
@@ -100,6 +129,7 @@ export class FactoryStore {
     }
     if (this.active()?.id !== id) return false;
     rmSync(this.file("active.json"));
+    this.coordination?.release(id);
     return true;
   }
   cancelled(id: string): boolean {
@@ -107,5 +137,19 @@ export class FactoryStore {
   }
   cancel(id: string): void {
     writeFileSync(this.file(`${z.string().uuid().parse(id)}.cancel`), "cancelled\n");
+  }
+  watcher(): { pid: number } | null {
+    const file = this.file("watcher.json");
+    const contents = readOptional(file);
+    return contents !== null
+      ? z.object({ pid: z.number().int().positive() }).parse(JSON.parse(contents))
+      : null;
+  }
+  acquireWatcher(): () => void {
+    exclusiveJson(this.file("watcher.json"), { pid: process.pid });
+    return () => this.releaseWatcher(process.pid);
+  }
+  releaseWatcher(pid: number): void {
+    if (this.watcher()?.pid === pid) rmSync(this.file("watcher.json"), { force: true });
   }
 }

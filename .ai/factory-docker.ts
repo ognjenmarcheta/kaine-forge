@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
@@ -109,7 +109,8 @@ export async function withDependencyProxy<T>(
 ): Promise<T> {
   const socket = `kf-${id}-fetch-socket`;
   const proxy = `kf-${id}-fetch-proxy`;
-  docker(["volume", "create", socket]);
+  docker(["volume", "create", "--label", `kaine.factory.run=${id}`, socket]);
+  let outcome: { value: T } | { error: Error };
   try {
     docker([
       "run",
@@ -144,11 +145,20 @@ export async function withDependencyProxy<T>(
       "-e",
       "const fs=require('fs');let n=0;const t=setInterval(()=>{if(fs.existsSync('/socket/provider.sock')){clearInterval(t);process.exit(0)}if(++n===50)process.exit(1)},100)"
     ]);
-    return await action(socket);
-  } finally {
+    outcome = { value: await action(socket) };
+  } catch (error) {
+    outcome = { error: error instanceof Error ? error : new Error("Dependency fetch failed") };
+  }
+  try {
     removeContainer(proxy);
     docker(["volume", "rm", socket]);
+  } catch (error) {
+    throw new Error(
+      `${"error" in outcome ? outcome.error.message + "; " : ""}Dependency proxy cleanup unverified: ${error instanceof Error ? error.message : "Docker unavailable"}`
+    );
   }
+  if ("error" in outcome) throw outcome.error;
+  return outcome.value;
 }
 
 async function withWorker<T>(
@@ -161,7 +171,7 @@ async function withWorker<T>(
   const socket = `kf-${id}-socket`;
   const proxy = `kf-${id}-proxy`;
   const auth = authVolume(config.repository, provider);
-  docker(["volume", "create", socket]);
+  docker(["volume", "create", "--label", `kaine.factory.run=${id}`, socket]);
   docker(["volume", "create", auth]);
   try {
     docker([
@@ -171,6 +181,8 @@ async function withWorker<T>(
       "none",
       "--user",
       "0",
+      "--label",
+      `kaine.factory.run=${id}`,
       "--entrypoint",
       "chown",
       "--mount",
@@ -282,7 +294,8 @@ export async function probeWorker(
     "factory-worker.mjs",
     "factory-proxy.mjs",
     "factory-provider.mjs",
-    "factory-fetch.mjs"
+    "factory-fetch.mjs",
+    "factory-storage.mjs"
   ];
   const hashes = JSON.parse(
     docker([
@@ -293,6 +306,8 @@ export async function probeWorker(
       "none",
       "--cap-drop",
       "ALL",
+      "--label",
+      `kaine.factory.run=${id}`,
       "--entrypoint",
       "node",
       config.image,
@@ -332,6 +347,28 @@ export async function propose(
   prompt: string,
   provider = run.provider,
   model = run.model
+) {
+  if (!existsSync(store.file(`${run.id}.resources.json`)))
+    store.write(`${run.id}.resources.json`, {
+      version: 1,
+      image: config.image,
+      volumes: [`kf-${run.id}-socket`, `kf-${run.id}-fetch-socket`],
+      ready: false
+    });
+  const releaseResource = await store.resource(`provider-${config.repository}-${provider}`, run);
+  try {
+    return await proposeWithResource(config, run, store, prompt, provider, model);
+  } finally {
+    releaseResource();
+  }
+}
+async function proposeWithResource(
+  config: FactoryConfig,
+  run: FactoryRun,
+  store: FactoryStore,
+  prompt: string,
+  provider: FactoryProvider,
+  model: string
 ) {
   store.assertActive(run.id);
   const readiness = await probeWorker(config, provider, run.id);
@@ -395,6 +432,7 @@ export async function propose(
         reasoning: "high",
         mode: "read",
         runId: randomUUID(),
+        factoryRunId: run.id,
         workspace: store.directory,
         revision: run.revision,
         model,

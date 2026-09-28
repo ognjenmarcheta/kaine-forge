@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
+import { CONTROLLER_VERSION } from "./factory-checkouts";
 import { propose } from "./factory-docker";
+import { progress } from "./factory-progress";
+import { initializeCandidate, applyCandidate, finishStorage } from "./factory-storage";
 import type { FactoryStore } from "./factory-store";
 import { validationCommand } from "./factory-validation";
 import { applyFiles } from "./factory-workspace";
@@ -27,15 +30,16 @@ export function pilotFingerprint(config: FactoryConfig, root: string): string {
       effort: "high"
     }) +
       [
-        "factory-docker.ts",
-        "factory-validation.ts",
+        ...readdirSync(path.join(root, ".ai")).filter(
+          (file) => /^factory.*\.ts$/.test(file) && !file.endsWith(".spec.ts")
+        ),
+        "docker/factory-storage.mjs",
         "docker/factory-fetch.mjs",
-        "factory-pilot.ts",
-        "factory.util.ts",
         "docker/factory-worker.mjs",
         "docker/factory-provider.mjs",
         "docker/factory-proxy.mjs"
       ]
+        .sort()
         .map((file) => readFileSync(path.join(root, ".ai", file), "utf8"))
         .join("\n")
   );
@@ -83,6 +87,13 @@ export async function runPilot(
     mkdirSync(path.join(workspace, "evidence"));
     writeFileSync(path.join(workspace, testCase.file), testCase.before);
     const run: FactoryRun = {
+      controller: {
+        version: CONTROLLER_VERSION,
+        root,
+        checkout: store.checkout ?? root,
+        image: config.image,
+        fingerprint: pilotFingerprint(config, root)
+      },
       id,
       issue: 1,
       stage: "implement",
@@ -109,8 +120,17 @@ export async function runPilot(
       testCase.check
     ];
     try {
+      initializeCandidate(
+        config,
+        run,
+        store,
+        workspace,
+        [{ path: testCase.file, content: testCase.before }],
+        false
+      );
       if (await validationCommand(config, run, store, workspace, check))
         throw new Error("Broken pilot fixture unexpectedly passed");
+      progress(store, id, "proposal", "started");
       const result = await propose(
         config,
         run,
@@ -125,10 +145,13 @@ export async function runPilot(
       )
         throw new Error("Pilot returned an invalid result");
       validateChanges(result, "implement", [testCase.file]);
+      progress(store, id, "proposal", "passed");
       applyFiles(workspace, result);
+      applyCandidate(config, run, result.files);
       if (!(await validationCommand(config, run, store, workspace, check)))
         throw new Error("Pilot failed independent verification");
       run.result = result;
+      if (!finishStorage(config, run, store)) throw new Error("Pilot cleanup unverified");
       run.status = "completed";
       store.write(`pilot-${provider}-${tier}.json`, {
         fingerprint: run.snapshot,
@@ -141,12 +164,17 @@ export async function runPilot(
       run.status = store.cancelled(id) ? "cancelled" : "failed";
       run.detail = error instanceof Error ? error.message : "Pilot failed";
     } finally {
+      if (!finishStorage(config, run, store)) {
+        run.status = "failed";
+        run.detail += "; cleanup unverified; cancel before retrying";
+      }
       run.finishedAt = new Date().toISOString();
       store.save(run);
     }
     return run;
   } finally {
-    release();
+    const recorded = store.runs().find((entry) => entry.id === id);
+    if (recorded?.cleanup?.status !== "cleanup-unverified") release();
   }
 }
 

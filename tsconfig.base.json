@@ -51,7 +51,8 @@
       "@repo/translation": ["packages/translation/src/index.ts"],
       "@repo/translation/*": ["packages/translation/src/*"],
       "@repo/ui": ["packages/ui/src/index.ts"],
-      "@repo/ui/*": ["packages/ui/src/*"]
+      "@repo/ui/*": ["packages/ui/src/*"],
+      "@repo/factory-ui/contracts": ["tooling/factory-ui/src/factory.contract.ts"]
     }
   }
 }

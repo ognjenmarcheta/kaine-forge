@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 
 import { REPO_ROOT } from "./ai.util";
+import { CONTROLLER_VERSION, selectCheckout, selectedCheckout } from "./factory-checkouts";
 import {
   docker,
   login,
@@ -26,7 +27,14 @@ import {
   reviewFeedback,
   statusComment
 } from "./factory-github";
-import { pilotTierSchema, requirePilots, runPilot } from "./factory-pilot";
+import { pilotFingerprint, pilotTierSchema, requirePilots, runPilot } from "./factory-pilot";
+import { progress } from "./factory-progress";
+import {
+  initializeCandidate,
+  applyCandidate,
+  exportCandidateFile,
+  finishStorage
+} from "./factory-storage";
 import { FactoryStore } from "./factory-store";
 import {
   prepareEvidence,
@@ -60,8 +68,8 @@ import {
   type FactoryProvider
 } from "./factory.util";
 
-const local = path.join(REPO_ROOT, ".ai.local", "factory");
-const configPath = path.join(local, "config.json");
+let local = path.join(REPO_ROOT, ".ai.local", "factory");
+let configPath = path.join(local, "config.json");
 
 function readConfig(): FactoryConfig {
   if (!existsSync(configPath))
@@ -110,7 +118,7 @@ export function currentApproval(config: FactoryConfig, number: number, store: Fa
     store.comments(context.issue.number)
   );
   const previous = store
-    .runs()
+    .history()
     .find((run) => run.issue === number && run.authorization === authorization);
   if (previous && previous.snapshot !== snapshot)
     throw new Error("Issue changed after authorization; remove and reapply ready-for-agent");
@@ -127,7 +135,25 @@ export async function runStage(
   stage: FactoryStage,
   override?: FactoryProvider
 ) {
+  const checkoutRoot = store.checkout ?? REPO_ROOT;
   assertEnabled(config);
+  const attempts = store
+    .history()
+    .filter(
+      (previous) =>
+        previous.issue === number &&
+        previous.stage === stage &&
+        previous.authorization !== "local-pilot"
+    );
+  const previous = attempts.sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+  if (
+    previous &&
+    !store.runs().some((entry) => entry.id === previous.id) &&
+    previous.status !== "completed"
+  )
+    throw new Error("Retry this issue from its original worktree");
+  if (previous?.cleanup?.status === "cleanup-unverified")
+    throw new Error("Recover the previous run before retrying");
   const context =
     stage === "implement"
       ? currentApproval(config, number, store)
@@ -150,12 +176,19 @@ export async function runStage(
   const metadata = z
     .object({ default_branch: z.string() })
     .parse(github(`repos/${config.repository}`));
-  git(REPO_ROOT, ["fetch", "origin", metadata.default_branch]);
-  const baseRevision = git(REPO_ROOT, ["rev-parse", `origin/${metadata.default_branch}`]);
+  git(checkoutRoot, ["fetch", "origin", metadata.default_branch]);
+  const baseRevision = git(checkoutRoot, ["rev-parse", `origin/${metadata.default_branch}`]);
   let revision = baseRevision;
   const id = randomUUID();
-  const release = store.acquire(id);
+  const release = store.acquire(id, `${config.repository}:${number}`);
   const run: FactoryRun = {
+    controller: {
+      version: CONTROLLER_VERSION,
+      root: REPO_ROOT,
+      checkout: checkoutRoot,
+      image: config.image,
+      fingerprint: pilotFingerprint(config, REPO_ROOT)
+    },
     id,
     issue: number,
     stage,
@@ -174,12 +207,19 @@ export async function runStage(
     result: null,
     invocations: []
   };
+  if (previous && ["failed", "cancelled"].includes(previous.status)) run.retryOf = previous.id;
+  store.save(run);
+  progress(store, id, "preflight", "passed");
+  let phase: "proposal" | "validation" | "repair" | "final-validation" | "review" | "publication" =
+    "proposal";
   try {
     store.save(run);
+    if (store.coordination?.completed(config.repository, run))
+      throw new Error("This readiness decision already produced a completed run");
     if (stage === "implement" || stage === "spec") {
       if (findPullRequest(config, run.branch, "all")?.state === "closed")
         throw new Error("The owner closed this factory PR; reopen it before continuing this issue");
-      const remote = git(REPO_ROOT, ["ls-remote", "origin", `refs/heads/${run.branch}`]).split(
+      const remote = git(checkoutRoot, ["ls-remote", "origin", `refs/heads/${run.branch}`]).split(
         /\s/
       )[0];
       if (remote) {
@@ -195,8 +235,8 @@ export async function runStage(
             )
         )
           throw new Error("Existing branch has no matching local factory record");
-        git(REPO_ROOT, ["fetch", "origin", run.branch]);
-        git(REPO_ROOT, ["merge-base", "--is-ancestor", baseRevision, remote]);
+        git(checkoutRoot, ["fetch", "origin", run.branch]);
+        git(checkoutRoot, ["merge-base", "--is-ancestor", baseRevision, remote]);
         revision = remote;
         run.revision = revision;
         store.save(run);
@@ -205,7 +245,7 @@ export async function runStage(
     if (
       stage === "implement" &&
       store
-        .runs()
+        .history()
         .some(
           (previous) =>
             previous.id !== id &&
@@ -216,7 +256,7 @@ export async function runStage(
         )
     )
       throw new Error("This readiness decision already produced a completed run");
-    const sources = repositoryContext(REPO_ROOT, revision, [
+    const sources = repositoryContext(checkoutRoot, revision, [
       ...ready.scope,
       `docs/specs/${number}.md`
     ]);
@@ -233,13 +273,15 @@ export async function runStage(
       const pr = findPullRequest(config, run.branch);
       if (!pr) throw new Error("No factory pull request exists for this issue");
       // A review requested separately must inspect the PR, not the default branch packet.
-      git(REPO_ROOT, ["fetch", "origin", pr.head.ref]);
-      const diff = git(REPO_ROOT, [
+      git(checkoutRoot, ["fetch", "origin", pr.head.ref]);
+      const diff = git(checkoutRoot, [
         "diff",
         "--no-ext-diff",
         "--no-textconv",
         `${pr.base.sha}...${pr.head.sha}`
       ]);
+      phase = "review";
+      progress(store, id, phase, "started");
       const reviewed = await propose(
         config,
         run,
@@ -249,6 +291,9 @@ export async function runStage(
       validateChanges(reviewed, "review", []);
       if (reviewed.issue !== number || reviewed.revision !== pr.head.sha)
         throw new Error("Review targets a different revision");
+      progress(store, id, phase, "passed");
+      phase = "publication";
+      progress(store, id, phase, "started");
       publishReview(
         config,
         pr.number,
@@ -258,6 +303,7 @@ export async function runStage(
         reviewLocations(reviewed, diff),
         () => store.assertActive(id)
       );
+      progress(store, id, phase, "passed");
       run.result = reviewed;
       run.pr = pr.html_url;
       run.status =
@@ -266,7 +312,9 @@ export async function runStage(
           : "blocked";
       return run;
     }
+    progress(store, id, "proposal", "started");
     const result = await propose(config, run, store, prompt);
+    progress(store, id, "proposal", result.status === "completed" ? "passed" : "blocked");
     if (result.issue !== number || result.revision !== revision)
       throw new Error("Worker result identifies the wrong issue or revision");
     validateChanges(result, stage, ready.scope);
@@ -304,11 +352,22 @@ export async function runStage(
     if (!result.files.length) throw new Error("Worker completed without proposed changes");
     const workspace = path.join(local, "workspaces", id);
     mkdirSync(path.dirname(workspace), { recursive: true });
-    git(REPO_ROOT, ["clone", "--no-hardlinks", "--no-checkout", REPO_ROOT, workspace]);
+    git(checkoutRoot, ["clone", "--no-hardlinks", "--no-checkout", checkoutRoot, workspace]);
     git(workspace, ["checkout", "-b", run.branch, revision]);
     applyFiles(workspace, result);
     prepareEvidence(workspace);
+    initializeCandidate(config, run, store, workspace, [
+      ...result.files,
+      {
+        path: ".ai.local/factory-playwright.config.ts",
+        content: readFileSync(
+          path.join(workspace, ".ai.local/factory-playwright.config.ts"),
+          "utf8"
+        )
+      }
+    ]);
     const files = result.files.map((file) => file.path);
+    phase = "validation";
     let valid = await validateWorkspace(
       config,
       run,
@@ -318,6 +377,8 @@ export async function runStage(
       files
     );
     if (!valid && !store.cancelled(id) && stage === "implement") {
+      phase = "repair";
+      progress(store, id, "repair", "started");
       const repair = await propose(
         config,
         run,
@@ -328,14 +389,17 @@ export async function runStage(
         throw new Error("Repair is blocked or targets another revision");
       validateChanges(repair, stage, ready.scope);
       applyFiles(workspace, repair);
+      applyCandidate(config, run, repair.files);
       for (const file of repair.files) if (!files.includes(file.path)) files.push(file.path);
+      progress(store, id, "repair", "passed");
+      phase = "validation";
       valid = await validateWorkspace(config, run, store, workspace, ready.tier ?? "code", files);
     }
     if (!valid)
       throw new Error("Required validation failed; checkout and evidence preserved locally");
     const author = {
-      name: git(REPO_ROOT, ["config", "user.name"]),
-      email: git(REPO_ROOT, ["config", "user.email"])
+      name: git(checkoutRoot, ["config", "user.name"]),
+      email: git(checkoutRoot, ["config", "user.email"])
     };
     if (/\b(bot|codex|claude|assistant)\b/i.test(`${author.name} ${author.email}`))
       throw new Error("A human commit identity is required");
@@ -348,6 +412,8 @@ export async function runStage(
       if (!(await validationCommand(config, run, store, workspace, command)))
         throw new Error("Commit with repository hooks failed");
     }
+    phase = "final-validation";
+    progress(store, id, phase, "started");
     // Hooks can rewrite files. Validate the committed tree before exporting it.
     if (
       !(await validateWorkspace(
@@ -375,15 +441,21 @@ export async function runStage(
         "bundle",
         "create",
         ".ai.local/factory.bundle",
-        "HEAD"
+        `${revision}..HEAD`
       ]))
     )
       throw new Error("Could not export candidate commit");
-    git(REPO_ROOT, ["fetch", candidateBundle(workspace), "HEAD"]);
-    const candidate = git(REPO_ROOT, ["rev-parse", "FETCH_HEAD"]);
-    if (git(REPO_ROOT, ["rev-parse", `${candidate}^`]) !== revision)
+    exportCandidateFile(
+      config,
+      run,
+      ".ai.local/factory.bundle",
+      path.join(workspace, ".ai.local/factory.bundle")
+    );
+    git(checkoutRoot, ["fetch", candidateBundle(workspace), "HEAD"]);
+    const candidate = git(checkoutRoot, ["rev-parse", "FETCH_HEAD"]);
+    if (git(checkoutRoot, ["rev-parse", `${candidate}^`]) !== revision)
       throw new Error("Candidate has an unexpected parent");
-    const changed = git(REPO_ROOT, ["diff", "--name-only", "-z", revision, candidate])
+    const changed = git(checkoutRoot, ["diff", "--name-only", "-z", revision, candidate])
       .split("\0")
       .filter(Boolean);
     validateChanges(
@@ -391,15 +463,20 @@ export async function runStage(
       stage,
       ready.scope
     );
-    const proposed = changedContent(REPO_ROOT, candidate, changed);
-    const diff = git(REPO_ROOT, [
+    const proposed = changedContent(checkoutRoot, candidate, changed);
+    const diff = git(checkoutRoot, [
       "diff",
       "--no-ext-diff",
       "--no-textconv",
       baseRevision,
       candidate
     ]);
+    progress(store, id, phase, "passed");
+    phase = "review";
+    progress(store, id, phase, "started");
     const reviewSelection = config.stages.review;
+    if (!finishStorage(config, run, store))
+      throw new Error("Cleanup unverified; publication blocked");
     const review = await propose(
       config,
       run,
@@ -414,6 +491,10 @@ export async function runStage(
     reviewLocations(review, diff);
     verifyAcceptance(review, stage === "spec" ? [] : ready.criteria);
     run.result = review;
+    progress(store, id, phase, "passed");
+    phase = "publication";
+    progress(store, id, phase, "started");
+    if (store.cancelled(id)) throw new Error("Run cancelled");
     store.assertActive(id);
     const latest =
       stage === "implement" ? currentApproval(config, number, store) : loadIssue(config, number);
@@ -428,13 +509,15 @@ export async function runStage(
       latest.authorization !== run.authorization
     )
       throw new Error("Readiness decision changed");
-    const remote = git(REPO_ROOT, ["ls-remote", "origin", `refs/heads/${run.branch}`]);
+    const remote = git(checkoutRoot, ["ls-remote", "origin", `refs/heads/${run.branch}`]);
     if (remote && !remote.startsWith(revision))
       throw new Error("Existing branch differs; inspect and resume manually without force-pushing");
     if (
-      !git(REPO_ROOT, ["ls-remote", "origin", `refs/heads/${metadata.default_branch}`]).startsWith(
-        baseRevision
-      )
+      !git(checkoutRoot, [
+        "ls-remote",
+        "origin",
+        `refs/heads/${metadata.default_branch}`
+      ]).startsWith(baseRevision)
     )
       throw new Error("Base branch changed after validation; retry against its new revision");
     run.candidate = candidate;
@@ -453,17 +536,36 @@ export async function runStage(
       store.assertActive(id)
     );
     run.pr = pr.html_url;
+    progress(store, id, "publication", "passed", pr.html_url);
     run.status = "completed";
     run.detail = `Draft PR: ${pr.html_url}`;
+    store.coordination?.record(config.repository, run);
     return run;
   } catch (error) {
     run.status = store.cancelled(id) ? "cancelled" : "failed";
+    progress(store, id, phase, run.status);
     run.detail =
       error instanceof Error
         ? (error.message.split("\n")[0] ?? "Factory failed")
         : "Factory failed";
     return run;
   } finally {
+    let cleaned = false;
+    try {
+      cancelContainers(id);
+      cleaned = finishStorage(config, run, store);
+    } catch {
+      run.cleanup = {
+        status: "cleanup-unverified",
+        errors: ["Container cleanup could not be verified"]
+      };
+    }
+    if (!cleaned) {
+      run.status = "failed";
+      run.detail = `${run.detail || "Run stopped"}; cleanup unverified; cancel before retrying`;
+    }
+    run.finishedAt = new Date().toISOString();
+    store.save(run);
     try {
       run.finishedAt = new Date().toISOString();
       store.save(run);
@@ -475,7 +577,8 @@ export async function runStage(
           store
         );
     } finally {
-      release();
+      progress(store, id, "cleanup", cleaned ? "passed" : "failed");
+      if (cleaned) release();
     }
   }
 }
@@ -487,6 +590,7 @@ async function watch(config: FactoryConfig, store: FactoryStore) {
       "Polling is disabled; enable watch only after both providers pass the documented pilots"
     );
   requirePilots(config, store, REPO_ROOT);
+  const releaseWatcher = store.acquireWatcher();
   let stopped = false;
   const stop = () => {
     stopped = true;
@@ -570,6 +674,7 @@ async function watch(config: FactoryConfig, store: FactoryStore) {
   } finally {
     process.removeListener("SIGINT", stop);
     process.removeListener("SIGTERM", stop);
+    releaseWatcher();
   }
 }
 
@@ -584,14 +689,33 @@ export async function factoryMain(args: string[]) {
       provider: { type: "string" },
       run: { type: "string" },
       image: { type: "string" },
-      "import-existing": { type: "boolean", default: false }
+      port: { type: "string" },
+      "no-open": { type: "boolean", default: false },
+      "import-existing": { type: "boolean", default: false },
+      checkout: { type: "string" }
     }
   });
   const command = positionals[0] ?? "help";
-  const store = new FactoryStore(path.join(local, "runs"));
+  if (values.checkout) selectCheckout(values.checkout);
+  local = path.join(selectedCheckout(), ".ai.local", "factory");
+  configPath = path.join(local, "config.json");
+  const store = new FactoryStore(path.join(local, "runs"), selectedCheckout());
+  if (command === "ui") {
+    const { launchDashboard } = await import("./factory-ui");
+    await launchDashboard(
+      values.port ? z.coerce.number().int().min(1).max(65535).parse(values.port) : 0,
+      !values["no-open"]
+    );
+    return;
+  }
+  if (command === "ui-snapshot") {
+    const { refreshSnapshot } = await import("./factory-ui-snapshot");
+    await refreshSnapshot(readConfig(), store);
+    return;
+  }
   if (command === "help") {
     console.log(
-      "factory init --image <image> | login --provider codex|claude [--import-existing] | doctor | pilot --provider codex|claude --tier docs|code|web | run --issue N --stage intake|spec|implement|review|learn [--provider codex|claude] | status | cancel --run ID | watch"
+      "factory init --image <image> | login --provider codex|claude [--import-existing] | doctor | pilot --provider codex|claude --tier docs|code|web | run --issue N --stage intake|spec|implement|review|learn [--provider codex|claude] | status | cancel --run ID | watch | ui [--port N] [--no-open]"
     );
     return;
   }
@@ -603,6 +727,23 @@ export async function factoryMain(args: string[]) {
     const id = z.string().uuid().parse(values.run);
     store.cancel(id);
     cancelContainers(id);
+    const failedRun = store.runs().find((entry) => entry.id === id);
+    const activeController = store.active();
+    let controllerAlive = false;
+    if (activeController?.id === id) {
+      try {
+        process.kill(activeController.pid, 0);
+        controllerAlive = true;
+      } catch {
+        /* explicit recovery below */
+      }
+    }
+    if (!controllerAlive && failedRun) {
+      const cleaned = finishStorage(readConfig(), failedRun, store);
+      store.save(failedRun);
+      if (!cleaned) throw new Error("Storage recovery remains unverified");
+    }
+    if (!controllerAlive) store.coordination?.recover(id);
     if (store.recoverCancelled(id)) {
       const run = store.runs().find((entry) => entry.id === id);
       if (run) {
@@ -670,30 +811,62 @@ export async function factoryMain(args: string[]) {
     const provider = factoryProviderSchema.parse(values.provider);
     const id = randomUUID();
     const release = store.acquire(id);
+    let releaseCredentials: (() => void) | undefined;
     try {
+      releaseCredentials = await store.coordination?.resource(
+        `provider-${config.repository}-${provider}`,
+        id,
+        () => store.assertActive(id),
+        () => {}
+      );
       if (values["import-existing"]) importSubscription(config, provider);
       else await login(config, provider, id);
     } finally {
+      releaseCredentials?.();
       release();
     }
     return;
   }
   if (command === "doctor") {
-    const results = [];
-    for (const provider of factoryProviderSchema.options) {
-      try {
-        results.push({ provider, ...(await probeWorker(config, provider)) });
-      } catch (error) {
-        results.push({
-          provider,
-          isolation: false,
-          authenticated: false,
-          error: error instanceof Error ? error.message : "Probe failed"
-        });
+    const id = process.env.KAINE_FACTORY_ACTION_ID
+      ? z.string().uuid().parse(process.env.KAINE_FACTORY_ACTION_ID)
+      : randomUUID();
+    const release = store.acquire(id);
+    try {
+      const results = [];
+      for (const provider of factoryProviderSchema.options) {
+        if (store.cancelled(id)) throw new Error("Doctor cancelled");
+        const releaseCredentials = await store.coordination?.resource(
+          `provider-${config.repository}-${provider}`,
+          id,
+          () => store.assertActive(id),
+          () => {}
+        );
+        try {
+          results.push({ provider, ...(await probeWorker(config, provider, id)) });
+        } catch (error) {
+          results.push({
+            provider,
+            isolation: false,
+            authenticated: false,
+            error: error instanceof Error ? error.message : "Probe failed"
+          });
+        } finally {
+          releaseCredentials?.();
+        }
       }
+      store.write("doctor.json", {
+        at: new Date().toISOString(),
+        fingerprint: pilotFingerprint(config, REPO_ROOT),
+        workers: results
+      });
+      console.log(JSON.stringify({ enabled: config.enabled, workers: results }, null, 2));
+      if (results.some((result) => !result.isolation || !result.authenticated))
+        process.exitCode = 1;
+    } finally {
+      cancelContainers(id);
+      release();
     }
-    console.log(JSON.stringify({ enabled: config.enabled, workers: results }, null, 2));
-    if (results.some((result) => !result.isolation || !result.authenticated)) process.exitCode = 1;
     return;
   }
   if (command === "watch") {
