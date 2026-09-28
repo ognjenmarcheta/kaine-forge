@@ -1,5 +1,12 @@
 # @repo/config
 
+## 1.3.1
+
+### Patch Changes
+
+- b39e2d4: Add the optional local factory dashboard with run history, evidence, health checks,
+  and supervised controls. Include English, Serbian, and German interface strings.
+
 ## 1.3.0
 
 ### Minor Changes
