@@ -336,6 +336,7 @@ Root commands:
 | `pnpm db:*`           | database lifecycle commands                                                                                 |
 | `pnpm ai:install`     | install shared assistant files locally                                                                      |
 | `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                    |
+| `pnpm factory`        | optional local software factory; disabled until configured; see `docs/agents/software-factory.md`           |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                           |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                   |
 
@@ -363,6 +364,11 @@ Before finishing a substantial task, run the narrowest useful workspace checks p
 ## 18. AI Assistant Scaffold
 
 `.ai/` is canonical. Installed assistant files should not be edited directly.
+
+Serena uses each agent's native context and binds to the current checkout at startup.
+Additional TypeScript workspace roots load cross-package consumers. Follow
+[Serena verification](docs/agents/serena-verification.md) for guided comparisons,
+independent caller checks, and disposable editing trials.
 
 Canonical sources:
 

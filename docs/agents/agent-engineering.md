@@ -69,6 +69,10 @@ in repository-owned hook launch definitions. Updates follow the existing
 Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
 process from the persisted Windows PATH makes both local readiness checks pass.
 Existing app/terminal processes may need a restart to inherit PATH changes.
+The installer selects Serena's native `codex` and `claude-code` contexts and adds
+`--project-from-cwd`. Additional TypeScript workspace roots load consumers from
+the other packages. See [Serena verification](serena-verification.md) for the
+independent coverage check and guided current/improved trials.
 Serena's first cold initialization exceeded the 10-second limit. Explicit preparation
 now uses `pnpm ai:install --agent claude --prepare-serena`. It derives the Git commit from
 the selected launch configuration, rejects unsupported overrides, and bounds preparation
