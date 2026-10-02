@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   cpSync,
   mkdirSync,
@@ -56,54 +56,78 @@ it("preserves a personal Serena launch and other personal servers", () => {
   expect(result.source).toEqual(source);
 });
 
-it("keeps installation and readiness aligned without changing selections or personal settings", () => {
-  const root = mkdtempSync(path.join(tmpdir(), "kaine-serena-install-"));
-  const run = (script: string, args: string[]) =>
-    execFileSync(process.execPath, ["--import", "tsx", script, ...args], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: "pipe"
-    });
-  try {
-    cpSync(path.join(process.cwd(), ".ai"), path.join(root, ".ai"), { recursive: true });
-    symlinkSync(
-      path.join(process.cwd(), "node_modules"),
-      path.join(root, "node_modules"),
-      "junction"
-    );
-    mkdirSync(path.join(root, ".codex"));
-    writeFileSync(
-      path.join(root, ".codex/config.toml"),
-      'model = "personal-model"\n[mcp_servers.personal]\ncommand = "node"\n'
-    );
-    run(".ai/install.ts", [
-      "--agent",
-      "codex",
-      "--agent",
-      "claude",
-      "--mcp",
-      "serena",
-      "--non-interactive"
-    ]);
-    const firstCodex = readFileSync(path.join(root, ".codex/config.toml"), "utf8");
-    const firstClaude = readFileSync(path.join(root, ".mcp.json"), "utf8");
-    expect(firstCodex).toContain('model = "personal-model"');
-    expect(installedServers("codex", root).personal?.command).toBe("node");
-    for (const agent of ["codex", "claude"] as const) {
-      const report = JSON.parse(run(".ai/readiness.ts", ["--agent", agent, "--local", "--json"]));
-      expect(report.installation).toBe("ready");
-      expect(report.problems).toEqual([]);
-      expect(report.runtime.mcp).toBe("not-verified");
+it.each([true, false])(
+  "keeps installation and readiness aligned with uvx available=%s without changing selections or personal settings",
+  (launcherAvailable) => {
+    const root = mkdtempSync(path.join(tmpdir(), "kaine-serena-install-"));
+    const bin = path.join(root, "bin");
+    const env = { ...process.env, PATH: bin };
+    const run = (script: string, args: string[]) =>
+      execFileSync(process.execPath, ["--import", "tsx", script, ...args], {
+        cwd: root,
+        env,
+        encoding: "utf8",
+        stdio: "pipe"
+      });
+    try {
+      mkdirSync(bin);
+      if (launcherAvailable) {
+        // Local readiness checks executable presence; it must not launch Serena.
+        writeFileSync(
+          path.join(bin, process.platform === "win32" ? "uvx.cmd" : "uvx"),
+          process.platform === "win32" ? "@exit /b 1\r\n" : "#!/bin/sh\nexit 1\n",
+          { mode: 0o755 }
+        );
+      }
+      cpSync(path.join(process.cwd(), ".ai"), path.join(root, ".ai"), { recursive: true });
+      symlinkSync(
+        path.join(process.cwd(), "node_modules"),
+        path.join(root, "node_modules"),
+        "junction"
+      );
+      mkdirSync(path.join(root, ".codex"));
+      writeFileSync(
+        path.join(root, ".codex/config.toml"),
+        `model = "personal-model"\n[mcp_servers.personal]\ncommand = ${JSON.stringify(process.execPath)}\n`
+      );
+      run(".ai/install.ts", [
+        "--agent",
+        "codex",
+        "--agent",
+        "claude",
+        "--mcp",
+        "serena",
+        "--non-interactive"
+      ]);
+      const firstCodex = readFileSync(path.join(root, ".codex/config.toml"), "utf8");
+      const firstClaude = readFileSync(path.join(root, ".mcp.json"), "utf8");
+      expect(firstCodex).toContain('model = "personal-model"');
+      expect(installedServers("codex", root).personal?.command).toBe(process.execPath);
+      for (const agent of ["codex", "claude"] as const) {
+        const readiness = spawnSync(
+          process.execPath,
+          ["--import", "tsx", ".ai/readiness.ts", "--agent", agent, "--local", "--json"],
+          { cwd: root, env, encoding: "utf8" }
+        );
+        expect(readiness.status).toBe(launcherAvailable ? 0 : 1);
+        expect(JSON.parse(readiness.stdout)).toMatchObject({
+          installation: launcherAvailable ? "ready" : "needs-attention",
+          problems: launcherAvailable ? [] : ["serena: missing executable"],
+          runtime: { mcp: "not-verified" },
+          probes: []
+        });
+      }
+      run(".ai/install.ts", ["--agent", "codex", "--agent", "claude", "--non-interactive"]);
+      expect(readFileSync(path.join(root, ".codex/config.toml"), "utf8")).toBe(firstCodex);
+      expect(readFileSync(path.join(root, ".mcp.json"), "utf8")).toBe(firstClaude);
+      expect(installedServers("claude", root).serena?.args).toContain("claude-code");
+      expect(installedServers("codex", root).serena?.args).toContain("codex");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
-    run(".ai/install.ts", ["--agent", "codex", "--agent", "claude", "--non-interactive"]);
-    expect(readFileSync(path.join(root, ".codex/config.toml"), "utf8")).toBe(firstCodex);
-    expect(readFileSync(path.join(root, ".mcp.json"), "utf8")).toBe(firstClaude);
-    expect(installedServers("claude", root).serena?.args).toContain("claude-code");
-    expect(installedServers("codex", root).serena?.args).toContain("codex");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}, 30_000);
+  },
+  30_000
+);
 
 it("adds existing workspace roots without reverting Serena migrations, comments, or custom roots", () => {
   const root = mkdtempSync(path.join(tmpdir(), "kaine-serena-workspaces-"));
