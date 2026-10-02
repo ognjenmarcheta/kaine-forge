@@ -21,6 +21,7 @@ import {
   mcpEnvValue,
   type McpSource,
   mergeMcpSources,
+  mergeSerenaWorkspaceFolders,
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
@@ -374,18 +375,17 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
   }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
-    // Seed once and never overwrite: Serena migrates this file in place on
-    // schema upgrades, so rewriting it here would revert those migrations and
-    // reopen a permanent drift loop. The file is gitignored; doctor checks its
-    // semantics instead of its bytes.
+    // Preserve Serena's schema migrations and local settings; only append missing
+    // canonical workspace roots to existing projects.
     const serenaProjectPath = join(REPO_ROOT, ".serena", "project.yml");
-    if (!existsSync(serenaProjectPath)) {
-      writeGenerated(
-        serenaProjectPath,
-        renderSerenaProject(readFileSync(SERENA_PROJECT_SRC, "utf8")),
-        results
-      );
-    }
+    const seed = readFileSync(SERENA_PROJECT_SRC, "utf8");
+    writeGenerated(
+      serenaProjectPath,
+      existsSync(serenaProjectPath)
+        ? mergeSerenaWorkspaceFolders(seed, readFileSync(serenaProjectPath, "utf8"))
+        : renderSerenaProject(seed),
+      results
+    );
   }
 
   if (existsSync(SERENA_MEMORIES_SRC_DIR)) {

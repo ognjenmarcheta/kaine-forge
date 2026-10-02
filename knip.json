@@ -21,7 +21,8 @@
         "scripts/*.mjs",
         "tooling/dev-mobile-lan.ts",
         "vitest.coverage.config.ts",
-        ".ai/factory-ui-browser-fixture.ts"
+        ".ai/factory-ui-browser-fixture.ts",
+        ".ai/fixtures/serena/verify.mjs"
       ],
       "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"]
     },
