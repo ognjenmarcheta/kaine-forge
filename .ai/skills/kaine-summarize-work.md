@@ -17,6 +17,8 @@ Keep the technical evidence useful and explain what the result means to a
 nontechnical reader. Do not automatically apply this workflow to standalone
 investigations, reviews, ordinary questions, or progress updates. Implementation
 plans remain owned by `kaine-write-plan`.
+Apply `kaine-explain` for the shared explanation method. Preserve this skill's
+implementation evidence and use only one final **In plain language** section.
 
 ## Workflow
 

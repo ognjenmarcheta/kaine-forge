@@ -167,6 +167,60 @@ Do not add tests that merely search for the ending's heading.
 
 The writing guidance follows the [National Archives plain-language principles](https://www.archives.gov/open/plain-writing/10-principles.html): lead with the main point, use familiar words, and keep sentences focused. The skill has no external runtime dependency.
 
+## Explanation skill acceptance
+
+`kaine-explain` owns the shared explanation method and the final **In plain
+language** section for substantive replies. The canonical guide explicitly routes
+investigations, architecture answers, plans, reviews, and implementation handoffs
+to it. The planning, summary, and review skills keep their own workflow authority.
+Short factual answers, progress updates, and a single clarifying question need no
+extra section. Reuse unchanged skill instructions rather than repeatedly loading them.
+
+These scenarios specify expected behavior; installation does not execute them:
+
+| Scenario                                         | Expected behavior                                                                                                                                                                               |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Explicit invocation or substantive explanation   | Inspect relevant sources, answer the reader's question, and end with In plain language.                                                                                                         |
+| Small factual question or progress update        | Use concise text without an unnecessary artifact or ending.                                                                                                                                     |
+| Request flow                                     | Trace the actual callers across package boundaries; provide a source-linked Mermaid diagram or ASCII fallback.                                                                                  |
+| Useful exploration of changing inputs            | Use interactive HTML with verified behavior or labeled illustrative data; exercise its controls. Topic size alone does not justify HTML.                                                        |
+| Inline renderer unavailable                      | When writes are permitted, create self-contained HTML under ignored `.ai.local/explain/` and link to the absolute file. In a read-only mode, use text or a diagram and disclose the limitation. |
+| Plan, implementation handoff, or review          | Preserve the owning workflow's required content. Put the single plain-language ending last, inside the plan wrapper or after verification or the review verdict.                                |
+| Evidence missing or checks have limited coverage | Retain the limitation in both the technical explanation and its ending. Do not turn an inference into an observed fact.                                                                         |
+| Beginner explanation                             | Define necessary terms respectfully; retain domain vocabulary. An optional analogy must agree with the real mechanism.                                                                          |
+| Video requested but no supported capability      | State the capability limit; do not install tools or claim a video exists.                                                                                                                       |
+
+Check actual source links, examples, and interactive output. Do not add tests that
+only match the ending's heading. Record live trials separately in the existing
+`docs/agents/harness-evals.md` ledger, following `kaine-harness-eval`.
+
+For the explanation pilot, compare existing guidance with the candidate procedure
+on three task families: hidden Organization UI versus data scoping, the Todo
+request path, and uncertain Todo creation. Use three fresh trials per arm for each
+family. Keep revision, model settings, sources, and tools equal; prevent candidate
+instructions from reaching baseline trials. Check factual accuracy, source links,
+format usefulness, uncertainty, and final-section placement. Record response
+length, elapsed time, available token usage, and actual transcript citations.
+
+Present one randomly ordered response pair per family for a reader check with two
+source-grounded questions and a usefulness preference. Keep reader feedback
+separate from model-output scoring. A small paired comparison cannot establish a
+percentage productivity gain or generalize across models, tasks, or readers.
+Correct factual errors and tighten instructions that add cost without value.
+
+### Explanation sources
+
+The Kaine procedure is original. It uses ideas from these reviewed sources without
+requiring their tooling or copying their text or templates:
+
+- [ARYANK-08 explanation skill at 0573ad9](https://github.com/ARYANK-08/agentic-dev-kit/blob/0573ad968b06a84679e64a720f0de756cfdee2f9/skills/explain/SKILL.md): format choice, concrete examples, and source grounding. The inspected repository declares no license; its fixed layouts and tool assumptions are not adopted.
+- [Andrej Karpathy, October 2, 2026](https://x.com/karpathy/status/2105819303471976479): use prose, diagrams, and custom interactive explanations to support understanding and oversight. These are experience-based suggestions, not a Kaine effectiveness measurement.
+- [Aakash Gupta, October 2, 2026](https://x.com/aakashgupta/status/2105884986138411482): controlled language as a way to reduce ambiguity. Claims of the strongest prompt or safety gains do not establish a measured result for Kaine.
+- [Official ASD-STE100 overview](https://www.asd-ste100.org/about_STE.html) and [Issue 9, January 15, 2025](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf): short sentences, consistent terms, and permitted technical vocabulary. Kaine uses STE-inspired prose; it does not claim full standards compliance.
+
+The two X posts were read through the FxTwitter mirror on October 2, 2026 because
+direct access returned 403. Attribution links point to the original posts.
+
 ## Related
 
 - Day-one ramp: `docs/agents/day-one.md`

@@ -141,7 +141,7 @@ When giving the human instructions, explaining something to them, or asking clar
 - Commit messages and PR titles (follow repo commit conventions)
 - Domain terms from `CONTEXT.md` (and other required domain docs). Use the glossary term even when it is multi-word or specialized. Do not replace it with a synonym the glossary forbids.
 
-This rule does **not** force STE on all final outputs (code review depth, long architectural notes, or internal agent scratch work). It applies to human-facing instructions, explanations, and clarifying questions.
+Use STE-inspired prose without claiming full ASD-STE100 compliance. Preserve technical depth, domain terms, and meaningful uncertainty. This rule applies to human-facing prose, not internal agent scratch work.
 
 Always read `CONTEXT.md` (and domain docs under `docs/agents/domain.md`) before naming product concepts, and use that ubiquitous language.
 
@@ -207,6 +207,7 @@ Team-managed skills must use the `kaine-` prefix. To customize a team skill, cop
 
 ### Skill selection for each request
 
+- Before substantive final replies, read and apply `kaine-explain` for source-grounded explanations and useful format choices. This includes investigations, architecture answers, plans, reviews, and implementation handoffs. End with **In plain language** as the last section, inside any required plan wrapper and after review findings and verdict or implementation verification. Preserve the owning workflow's structure. Short factual answers, progress updates, and a single clarifying question need no extra section. Reuse unchanged instructions already loaded.
 - When the harness indicates Plan mode, or the user asks you to write or revise an implementation plan, read and apply `kaine-write-plan`. Every completed plan must end with its “In plain language” section.
 - Before the final handoff for completed, partial, or blocked implementation of code, configuration, or documentation, read and apply `kaine-summarize-work`. Apply it to PR delivery and revisions or shortened implementation summaries too. End with its **In plain language** section after technical results and verification. Standalone investigations, reviews, ordinary questions, and progress updates do not automatically trigger it; plans use `kaine-write-plan`.
 - Before task-specific work, assess the available Kaine skill names and descriptions. Honor explicitly requested skills; otherwise select the smallest set that matches the actual workflow.
