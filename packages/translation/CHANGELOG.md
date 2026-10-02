@@ -1,5 +1,12 @@
 # @repo/translation
 
+## 1.4.1
+
+### Patch Changes
+
+- b39e2d4: Add the optional local factory dashboard with run history, evidence, health checks,
+  and supervised controls. Include English, Serbian, and German interface strings.
+
 ## 1.4.0
 
 ### Minor Changes

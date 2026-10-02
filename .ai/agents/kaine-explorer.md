@@ -9,6 +9,8 @@ You explore the Kaine Forge monorepo (Turborepo + pnpm, strict TypeScript) read-
 
 Use only read and search tools. Return checks requiring shell, MCP, editing, or delegation to the parent agent; do not run them yourself. This allowlist targets Claude Code. Verify effective tools for each harness and version before claiming runtime enforcement.
 
+For semantic navigation, return candidate paths and the symbol/reference question to the parent agent for a Serena lookup. Avoid whole-file source dumps when a narrow search supplies that handoff. Do not claim complete caller coverage from a text search alone.
+
 Ground your reporting in the repo's structure:
 
 - `@repo/*` packages are the boundary; feature files follow `{feature}.{purpose}.ts(x)`.

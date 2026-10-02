@@ -1,5 +1,20 @@
 # @repo/mobile
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated dependencies [b39e2d4]
+  - @repo/translation@1.4.1
+  - @repo/auth@1.5.2
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/mobile-ui@1.1.0
+  - @repo/persistence@1.1.2
+  - @repo/query@1.3.6
+  - @repo/storage@1.2.2
+  - @repo/todos@1.1.0
+
 ## 1.6.0
 
 ### Minor Changes

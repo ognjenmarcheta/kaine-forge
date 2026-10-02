@@ -12,6 +12,12 @@ catalogs:
     '@graphql-typed-document-node/core':
       specifier: ^3.2.0
       version: 3.2.0
+    '@playwright/test':
+      specifier: ^1.63.0
+      version: 1.63.0
+    '@tailwindcss/vite':
+      specifier: ^4.3.3
+      version: 4.3.3
     '@tanstack/react-query':
       specifier: ^5.103.1
       version: 5.103.1
@@ -24,6 +30,9 @@ catalogs:
     '@types/react-dom':
       specifier: ^19.2.7
       version: 19.2.7
+    '@vitejs/plugin-react':
+      specifier: ^6.1.1
+      version: 6.1.1
     '@vitest/coverage-v8':
       specifier: 4.1.11
       version: 4.1.11
@@ -78,6 +87,9 @@ catalogs:
     typescript:
       specifier: ^5.9.2
       version: 5.9.3
+    vite:
+      specifier: ^8.3.0
+      version: 8.3.0
     vitest:
       specifier: 4.1.11
       version: 4.1.11
@@ -175,6 +187,9 @@ importers:
       '@graphql-inspector/cli':
         specifier: 7.0.0
         version: 7.0.0(@types/node@24.13.5)(graphql@16.14.2)
+      '@repo/factory-ui':
+        specifier: workspace:*
+        version: link:tooling/factory-ui
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.5
@@ -312,7 +327,7 @@ importers:
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.63.0)
       '@playwright/test':
-        specifier: ^1.63.0
+        specifier: 'catalog:'
         version: 1.63.0
       '@repo/config':
         specifier: workspace:*
@@ -527,7 +542,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/vite':
-        specifier: ^4.3.3
+        specifier: 'catalog:'
         version: 4.3.3(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
       '@types/react':
         specifier: 'catalog:'
@@ -536,7 +551,7 @@ importers:
         specifier: 'catalog:'
         version: 19.2.7(@types/react@19.2.18)
       '@vitejs/plugin-react':
-        specifier: ^6.1.1
+        specifier: 'catalog:'
         version: 6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
       jsdom:
         specifier: 'catalog:'
@@ -545,7 +560,7 @@ importers:
         specifier: 'catalog:'
         version: 4.3.3
       vite:
-        specifier: ^8.3.0
+        specifier: 'catalog:'
         version: 8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1)
       vitest:
         specifier: 'catalog:'
@@ -840,6 +855,52 @@ importers:
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.6.1)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
+
+  tooling/factory-ui:
+    dependencies:
+      '@repo/translation':
+        specifier: workspace:*
+        version: link:../../packages/translation
+      '@repo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.63.0
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.3.3(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.7(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
+      tailwindcss:
+        specifier: 'catalog:'
+        version: 4.3.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1)
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.6.1)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.13)(yaml@2.9.1))
