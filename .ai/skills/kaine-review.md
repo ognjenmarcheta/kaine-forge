@@ -7,6 +7,8 @@ argument-hint: diff, branch, PR, or path
 # Review Workflow
 
 Use this skill when asked to review code or assess a patch.
+Apply `kaine-explain` for source-grounded, clear explanations. Preserve findings
+first and the review verdict. End with **In plain language** after the verdict.
 
 ## Contract
 

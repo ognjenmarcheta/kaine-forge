@@ -13,6 +13,8 @@ develop or revise an implementation plan, or the user invokes `kaine-write-plan`
 Keep it active through revisions; reuse unchanged instructions already loaded.
 
 Produce a plan that an implementer can follow and a nontechnical reader can assess.
+Apply `kaine-explain` for source grounding and useful format choices. Keep this
+skill's planning workflow and final **In plain language** section.
 An implementation request outside Plan mode does not restart planning merely because
 it includes an approved plan. Ordinary status updates and unrelated questions outside
 Plan mode do not trigger this workflow.
