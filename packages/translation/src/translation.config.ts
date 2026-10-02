@@ -4,6 +4,7 @@ import assistantDe from "./locales/de/assistant.json";
 import authDe from "./locales/de/auth.json";
 import commonDe from "./locales/de/common.json";
 import dashboardDe from "./locales/de/dashboard.json";
+import factoryDe from "./locales/de/factory.json";
 import navigationDe from "./locales/de/navigation.json";
 import notesDe from "./locales/de/notes.json";
 import organizationsDe from "./locales/de/organizations.json";
@@ -13,6 +14,7 @@ import assistantEn from "./locales/en/assistant.json";
 import authEn from "./locales/en/auth.json";
 import commonEn from "./locales/en/common.json";
 import dashboardEn from "./locales/en/dashboard.json";
+import factoryEn from "./locales/en/factory.json";
 import navigationEn from "./locales/en/navigation.json";
 import notesEn from "./locales/en/notes.json";
 import organizationsEn from "./locales/en/organizations.json";
@@ -22,6 +24,7 @@ import assistantSr from "./locales/sr/assistant.json";
 import authSr from "./locales/sr/auth.json";
 import commonSr from "./locales/sr/common.json";
 import dashboardSr from "./locales/sr/dashboard.json";
+import factorySr from "./locales/sr/factory.json";
 import navigationSr from "./locales/sr/navigation.json";
 import notesSr from "./locales/sr/notes.json";
 import organizationsSr from "./locales/sr/organizations.json";
@@ -41,6 +44,7 @@ void translationInstance.init({
   returnNull: false,
   resources: {
     de: {
+      factory: factoryDe,
       assistant: assistantDe,
       auth: authDe,
       common: commonDe,
@@ -52,6 +56,7 @@ void translationInstance.init({
       todos: todosDe
     },
     en: {
+      factory: factoryEn,
       assistant: assistantEn,
       auth: authEn,
       common: commonEn,
@@ -63,6 +68,7 @@ void translationInstance.init({
       todos: todosEn
     },
     sr: {
+      factory: factorySr,
       assistant: assistantSr,
       auth: authSr,
       common: commonSr,

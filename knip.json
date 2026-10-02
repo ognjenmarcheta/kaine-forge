@@ -20,7 +20,9 @@
         ".ai/**/*.spec.ts",
         "scripts/*.mjs",
         "tooling/dev-mobile-lan.ts",
-        "vitest.coverage.config.ts"
+        "vitest.coverage.config.ts",
+        ".ai/factory-ui-browser-fixture.ts",
+        ".ai/fixtures/serena/verify.mjs"
       ],
       "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"]
     },
@@ -77,6 +79,14 @@
     },
     "tooling/graphql-codegen": {
       "entry": ["codegen.ts", "vitest.config.ts"]
+    },
+    "tooling/factory-ui": {
+      "entry": [
+        "src/factory.main.tsx",
+        "src/factory.contract.ts",
+        "*.config.ts",
+        "tests/**/*.e2e.ts"
+      ]
     }
   },
   "ignore": ["**/generated/**", "**/dist/**", "**/src-tauri/**", "graphify-out/**"],

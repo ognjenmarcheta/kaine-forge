@@ -13,6 +13,8 @@
 - Coverage: `pnpm coverage`
 - E2E: `pnpm test:e2e`
 - Full check: `pnpm check`
+- Iteration check: `pnpm check:affected` (omits boundaries and knip)
+- Local prerequisites: `pnpm preflight`
 - Build API and web: `pnpm run build:core`
 - Release branches: updated by the Release workflow; manual `pnpm release:apps` (including dry-runs) is human-only.
 - DB generate: `pnpm db:generate`
