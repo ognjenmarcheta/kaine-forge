@@ -60,6 +60,12 @@ Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.e
 
 - Dependency audit and secret scanning: `.github/workflows/security.yml`.
   - On `main` push, weekly schedule, and manual dispatch, `pnpm audit --audit-level high` **fails the job** on high or critical advisories (it no longer warns and continues).
-  - To suppress a known false positive, use pnpm audit config (for example `package.json` → `pnpm.auditConfig.ignoreCves`) and document the reason in the PR that adds the ignore entry.
+  - Use `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` for an explicitly accepted advisory exception. Document the reason, affected paths, remaining risk, and removal trigger in the PR.
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
 - AI tooling health/drift check: `pnpm ai:doctor`.
+
+### Accepted temporary audit exception
+
+`GHSA-86w9-cpqp-85rv` (CVE-2026-85393) is temporarily excluded from the audit. As of 2026-10-02, `node-forge` 1.4.0 is affected and no fixed release is available. The paths include `expo > @expo/cli > node-forge` and `expo > @expo/cli > @expo/code-signing-certificates > node-forge`, including auto-installed `@better-auth/expo` peers. Expo certificate tooling calls the affected RSA signature verification code.
+
+The repository owner accepts this risk while a compatible fix is unavailable. This exception does not fix the vulnerability and is not a false positive. Other high and critical advisories still fail the audit. Remove the exception when a fixed release is compatible with the supported Expo SDK, or when the affected dependency is removed. [Issue #457](https://github.com/ognjenmarcheta/kaine-forge/issues/457) tracks that removal; the [upstream advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv) records the affected and fixed versions.
