@@ -91,6 +91,7 @@
     ]
   },
   "devDependencies": {
+    "@actions/expressions": "0.3.61",
     "@changesets/cli": "^3.0.3",
     "@clack/prompts": "^1.8.1",
     "@commitlint/cli": "^21.2.3",

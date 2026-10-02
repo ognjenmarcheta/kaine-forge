@@ -21,7 +21,7 @@ env:
 jobs:
   mobile-export:
     name: Mobile Export Validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -37,7 +37,7 @@ jobs:
 
   desktop-check:
     name: Desktop Check
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -58,7 +58,7 @@ jobs:
     # undetected. This job is the only place `tauri build` actually runs, and it
     # runs on macOS because that is a shipping target for the desktop app and its
     # toolchain differs most from the Linux runners used everywhere else.
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_MACOS == 'true' && fromJSON(vars.CI_SELF_HOSTED_MACOS) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","kaine-ci-macos"]' || '["macos-latest"]') }}
     timeout-minutes: 60
     steps:
       - name: Checkout

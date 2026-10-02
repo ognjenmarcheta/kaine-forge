@@ -22,7 +22,7 @@ concurrency:
 jobs:
   label:
     name: Apply PR labels
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
       - name: Apply file-based labels

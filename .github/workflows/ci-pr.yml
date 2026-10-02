@@ -22,7 +22,7 @@ env:
 jobs:
   detect-paths:
     name: Detect Changed Paths
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -92,7 +92,7 @@ jobs:
   changeset-required:
     name: Changeset Required
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -129,7 +129,7 @@ jobs:
       github.event_name == 'pull_request' &&
       (github.event.repository.visibility == 'public' ||
        vars.ENABLE_GITHUB_CODE_SCANNING == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -147,7 +147,7 @@ jobs:
 
   check-fast:
     name: Check Fast
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -241,7 +241,7 @@ jobs:
       always() &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
     needs: detect-paths
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -285,7 +285,7 @@ jobs:
       always() &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
     needs: [detect-paths]
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -310,7 +310,7 @@ jobs:
       always() &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
     needs: [detect-paths]
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -330,7 +330,7 @@ jobs:
       github.event_name == 'pull_request' &&
       needs.detect-paths.outputs.graphql == 'true'
     needs: detect-paths
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -382,7 +382,7 @@ jobs:
       always() &&
       needs.check-fast.result == 'success' &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     needs: [check-fast, detect-paths]
     steps:
@@ -425,7 +425,7 @@ jobs:
     if: |
       always() &&
       (github.event_name != 'pull_request' || needs.detect-paths.outputs.docker == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     needs: [detect-paths]
     permissions:
@@ -505,7 +505,7 @@ jobs:
     if: |
       always() &&
       needs.build-core.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     needs: build-core
     strategy:
@@ -609,7 +609,7 @@ jobs:
     # when a shard failed, since that is exactly when the report is wanted.
     if: always() && needs.e2e-web-api.result != 'skipped'
     needs: e2e-web-api
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -646,7 +646,7 @@ jobs:
   pr-quality-gate:
     name: PR Quality Gate
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     needs:
       - detect-paths
