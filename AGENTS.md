@@ -188,6 +188,17 @@ In the final response for substantive work, state what you actually verified, no
 
 ## AI Skills
 
+### Serena during coding work
+
+- When Serena is available, read its `initial_instructions` once before code exploration and confirm the active project matches the workspace. If it is unavailable, state that limit and use ordinary tools.
+- Use scoped symbol searches or file overviews, then retrieve only the bodies needed for the task. Do not repeat a full-file read or reload instructions already in context.
+- Inspect references before changing shared code. In this monorepo, independently check callers across package boundaries: TypeScript reference results can omit other configured projects. An empty or short result does not prove that a symbol has no callers.
+- Prefer symbol edits for whole definitions and reference-aware renames when caller coverage is verified. Use ordinary tools for prose, configuration, builds, tests, and small edits that symbolic replacement does not suit.
+- Verify public exports after a rename. TypeScript can preserve the old barrel name with an alias; complete an intended API rename across that export and its consumers, then check that the old API name is absent.
+- Read relevant Serena memories on demand. Keep stable shared facts in canonical `.ai/serena-memories/` sources and regenerate them; do not write over generated memories through Serena.
+- The parent agent performs Serena lookups requested by `kaine-explorer`; its read/search allowlist remains unchanged. Successful tool calls do not replace the repository's required tests and checks.
+- Use `docs/agents/serena-verification.md` to verify tool choice, correctness, caller coverage, and retrieval overhead. Dashboard counts show activity, not task success.
+
 Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, Serena seed files, and lightweight Codex/Claude/Grok session hooks. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, local per-agent installs, and AI setup hooks stay aligned. Supported install targets: `claude`, `codex`, `cursor`, `opencode`, `grok`. `pnpm quick-setup` and `pnpm initialize` also run `pnpm ai:install` during onboarding after dependency installation. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
 
 Codex, Claude, and Grok Build `SessionStart` hooks inject compact repo context at startup: repository name, branch, worktree status, and AI setup health. Hooks warn when local generated AI files look missing or stale, but they do not block work; run `pnpm ai:install --agent <agent>` and `pnpm ai:doctor` when they warn. Grok project MCP lives in `.grok/config.toml` (requires folder trust in Grok Build).
