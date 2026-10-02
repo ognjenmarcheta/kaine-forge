@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { readMcpSource } from "./ai.util";
+import { installedServers } from "./readiness";
 
 const hookScript = join(process.cwd(), ".ai", "hooks", "session-start.mjs");
 
@@ -76,7 +76,7 @@ describe("session-start hook", () => {
         { cwd: repo, stdio: "pipe" }
       );
       expect(runHook(repo, "claude").stdout).toContain("--prepare-serena");
-      const server = readMcpSource().mcpServers.serena;
+      const server = installedServers("claude", repo).serena;
       if (!server) throw new Error("Missing Serena definition");
       const fingerprint = createHash("sha256")
         .update(JSON.stringify([server.command, server.args ?? []]))

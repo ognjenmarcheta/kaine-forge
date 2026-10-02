@@ -15,6 +15,7 @@ import {
   readMcpSource,
   readPersonalMcpSource,
   readLocalMcpEnv,
+  resolveMcpServerForAgent,
   REPO_ROOT
 } from "./ai.util";
 import { agentSchema, readInstallSelection } from "./install-state.util";
@@ -140,7 +141,8 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
   for (const name of selection?.mcps ?? [])
     if (!(name in installedServers(agent, REPO_ROOT, true)))
       problems.push(`Missing selected MCP: ${name}`);
-  const source = mergeMcpSources(readMcpSource(), readPersonalMcpSource()).source;
+  const merged = mergeMcpSources(readMcpSource(), readPersonalMcpSource());
+  const source = merged.source;
   const localEnv = readLocalMcpEnv();
   for (const skill of skills.filter((entry) => selection?.skills.includes(entry.name))) {
     const missing = skill.requiresEnv.filter((name) => mcpEnvValue(name, localEnv) === undefined);
@@ -152,7 +154,10 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
   }
   for (const [name, server] of Object.entries(servers)) {
     if (!commandExists(server.command)) problems.push(`${name}: missing executable`);
-    const canonical = source.mcpServers[name];
+    const definition = source.mcpServers[name];
+    const canonical = definition
+      ? resolveMcpServerForAgent(name, definition, agent, merged.personalNames.has(name))
+      : undefined;
     if (canonical) {
       const missing = envRequirements(
         { ...canonical, env: { ...canonical.env, ...server.env } },

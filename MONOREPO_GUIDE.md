@@ -365,6 +365,11 @@ Before finishing a substantial task, run the narrowest useful workspace checks p
 
 `.ai/` is canonical. Installed assistant files should not be edited directly.
 
+Serena uses each agent's native context and binds to the current checkout at startup.
+Additional TypeScript workspace roots load cross-package consumers. Follow
+[Serena verification](docs/agents/serena-verification.md) for guided comparisons,
+independent caller checks, and disposable editing trials.
+
 Canonical sources:
 
 - `.ai/guide.md`

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse as parseYaml } from "yaml";
+import { isScalar, isSeq, parse as parseYaml, parseDocument } from "yaml";
 
 export const generatedTextEqual = (actual: string, expected: string): boolean =>
   actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
@@ -908,12 +908,53 @@ export const renderCursorRulesFile = (cursorRulesSrc: string): string => {
 export const renderSerenaProject = (source: string): string =>
   `${TOML_HEADER}\n\n${source.trim()}\n`;
 
+export const mergeSerenaWorkspaceFolders = (
+  seedSource: string,
+  installedContent: string,
+  root = REPO_ROOT
+): string => {
+  const seed: unknown = parseYaml(seedSource);
+  if (!isRecord(seed)) throw new Error("Invalid Serena project seed");
+  const requested: unknown = seed.ls_additional_workspace_folders;
+  if (requested === undefined) return installedContent;
+  if (
+    !Array.isArray(requested) ||
+    !requested.every((entry): entry is string => typeof entry === "string")
+  ) {
+    throw new Error("Invalid Serena workspace folders in seed");
+  }
+  const document = parseDocument(installedContent);
+  if (document.errors.length) throw new Error("Invalid installed Serena project YAML");
+  const existing: unknown = document.get("ls_additional_workspace_folders", true);
+  if (
+    existing != null &&
+    (!isSeq(existing) ||
+      !existing.items.every((entry) => isScalar(entry) && typeof entry.value === "string"))
+  ) {
+    throw new Error("Invalid installed Serena workspace folders");
+  }
+  const configured = isSeq(existing)
+    ? existing.items.map((entry) => (isScalar(entry) ? entry.value : null))
+    : [];
+  const missing = requested.filter(
+    (folder) => existsSync(join(root, folder, "tsconfig.json")) && !configured.includes(folder)
+  );
+  if (!missing.length) return installedContent;
+  if (isSeq(existing)) {
+    for (const folder of missing) existing.add(folder);
+  } else {
+    document.set("ls_additional_workspace_folders", missing);
+  }
+  return document.toString();
+};
+
 // Serena migrates .serena/project.yml in place (schema upgrades rename and add
 // keys), so byte-comparing it against the seed flags every migration as drift
 // forever. Only the semantics the seed is responsible for are checked.
 export const checkSerenaProjectSemantics = (
   seedSource: string,
-  installedContent: string
+  installedContent: string,
+  root = REPO_ROOT
 ): string[] => {
   const asRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
   const asStringList = (value: unknown): string[] =>
@@ -941,6 +982,13 @@ export const checkSerenaProjectSemantics = (
   for (const language of expectedLanguages) {
     if (!installedLanguages.includes(language)) {
       problems.push(`language server "${language}" is not configured`);
+    }
+  }
+  const expectedFolders = asStringList(seed.ls_additional_workspace_folders);
+  const installedFolders = asStringList(installed.ls_additional_workspace_folders);
+  for (const folder of expectedFolders) {
+    if (existsSync(join(root, folder, "tsconfig.json")) && !installedFolders.includes(folder)) {
+      problems.push(`workspace folder "${folder}" is not configured`);
     }
   }
   return problems;
@@ -1007,6 +1055,24 @@ const resolveMcpServerEnv = (
   return publicMcpServer({ ...server, env });
 };
 
+export const resolveMcpServerForAgent = (
+  name: string,
+  server: McpServer,
+  agent: Agent,
+  isPersonal = false
+): McpServer => {
+  if (name !== "serena" || isPersonal || (agent !== "codex" && agent !== "claude")) {
+    return server;
+  }
+  const args = [...(server.args ?? [])];
+  const contextIndex = args.indexOf("--context");
+  if (contextIndex < 0 || contextIndex + 1 >= args.length) {
+    return server;
+  }
+  args[contextIndex + 1] = agent === "codex" ? "codex" : "claude-code";
+  return { ...server, args };
+};
+
 export const resolveInstallMcpSource = (
   source: McpSource,
   options: ResolveInstallMcpSourceOptions
@@ -1029,7 +1095,10 @@ export const resolveInstallMcpSource = (
       continue;
     }
 
-    const resolved = resolveMcpServerEnv(server, options.localEnv);
+    const resolved = resolveMcpServerEnv(
+      resolveMcpServerForAgent(name, server, options.agent, isPersonal),
+      options.localEnv
+    );
     if (!resolved) {
       skipped.push(name);
       continue;
