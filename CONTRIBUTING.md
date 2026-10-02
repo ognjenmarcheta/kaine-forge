@@ -204,6 +204,12 @@ distinguish the owner from automation using the owner's personal credentials.
 
 Contract tests keep the required check names and the two rulesets aligned.
 
+Private repositories can opt into owner-managed Linux and macOS runners to
+reduce hosted Actions minutes. See [Optional self-hosted CI](docs/self-hosted-ci.md)
+for the repository variables, machine requirements, validation, and rollback.
+Hosted runners remain the default. Required checks and owner-only merging remain
+in force.
+
 ## Validation Expectations
 
 Before opening a PR, run the narrowest relevant checks plus the root gates for broad changes.

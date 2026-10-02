@@ -9,6 +9,36 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Check self-hosted prerequisites
+      if: runner.environment == 'self-hosted'
+      shell: bash
+      env:
+        RUNNER_OS: ${{ runner.os }}
+      run: |
+        set -euo pipefail
+        for tool in node git bash tar gzip curl unzip; do
+          if ! command -v "$tool" >/dev/null 2>&1; then
+            echo "::error::Self-hosted runner requires $tool. See docs/self-hosted-ci.md."
+            exit 1
+          fi
+        done
+        if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)'; then
+          echo "::error::Self-hosted runner requires host Node.js 22 or newer. See docs/self-hosted-ci.md."
+          exit 1
+        fi
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          for tool in docker gh; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "::error::Self-hosted Linux runner requires $tool. See docs/self-hosted-ci.md."
+              exit 1
+            fi
+          done
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Self-hosted Linux runner requires access to a running Docker daemon. See docs/self-hosted-ci.md."
+            exit 1
+          fi
+        fi
+
     - name: Setup pnpm
       uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       with:

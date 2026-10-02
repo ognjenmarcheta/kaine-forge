@@ -23,7 +23,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze TypeScript
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     permissions:
       # Required for CodeQL to upload results to the Security tab.

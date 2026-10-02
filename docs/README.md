@@ -14,6 +14,7 @@ Use this index to find the right source of truth quickly.
 
 ## Operational docs
 
+- [`self-hosted-ci.md`](self-hosted-ci.md): optional private-repository runner routing, setup, validation, and rollback.
 - [`release-checklist.md`](release-checklist.md): release validation checklist.
 - [`troubleshooting.md`](troubleshooting.md): common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - [`turborepo-2-8-audit.md`](turborepo-2-8-audit.md): Turborepo 2.8 adoption notes.
