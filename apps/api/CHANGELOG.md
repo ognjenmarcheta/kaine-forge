@@ -1,5 +1,17 @@
 # @repo/api
 
+## 1.8.1
+
+### Patch Changes
+
+- Updated dependencies [b39e2d4]
+  - @repo/translation@1.4.1
+  - @repo/auth@1.5.2
+  - @repo/db@1.6.2
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/storage@1.2.2
+
 ## 1.8.0
 
 ### Minor Changes

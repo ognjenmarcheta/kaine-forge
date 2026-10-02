@@ -49,8 +49,8 @@
     "ai:doctor": "tsx .ai/doctor.ts",
     "ai:context": "tsx .ai/context-audit.ts",
     "ai:install": "tsx .ai/install.ts",
-    "ai:lint": "eslint .ai/*.ts",
-    "ai:test": "vitest run --config .ai/vitest.config.ts",
+    "ai:lint": "eslint .ai/*.ts .ai/docker/*.mjs",
+    "ai:test": "vitest run --config .ai/vitest.config.ts && node --test .ai/docker/factory-provider.test.mjs .ai/docker/factory-proxy.test.mjs",
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
@@ -58,6 +58,7 @@
     "eval:assistant": "pnpm --filter @repo/api eval:assistant",
     "eval:assistant:review": "pnpm --filter @repo/api eval:assistant review",
     "agent:run": "tsx .ai/agent-run.ts",
+    "factory": "tsx .ai/factory.ts",
     "agent:report": "tsx .ai/run-report.ts",
     "agent:outcome": "tsx .ai/run-report.ts outcome",
     "harness:context": "tsx .ai/context-experiment.ts",
@@ -111,6 +112,7 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "^2.9.1",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@repo/factory-ui": "workspace:*"
   }
 }

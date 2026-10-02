@@ -12,5 +12,27 @@ fixed_tools: []
 encoding: utf-8
 language_servers:
   - typescript
+# Load each TypeScript project so references can cross workspace boundaries.
+ls_additional_workspace_folders:
+  - .ai
+  - apps/api
+  - apps/desktop
+  - apps/e2e
+  - apps/mobile
+  - apps/web
+  - packages/auth
+  - packages/db
+  - packages/email
+  - packages/feature-flags
+  - packages/logger
+  - packages/mobile-ui
+  - packages/persistence
+  - packages/query
+  - packages/storage
+  - packages/todos
+  - packages/translation
+  - packages/ui
+  - tooling/factory-ui
+  - tooling/graphql-codegen
 language_backend:
 ignored_memory_patterns: []
