@@ -20,15 +20,15 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^3.0.54",
-    "@ai-sdk/openai": "^4.0.78",
+    "@ai-sdk/deepseek": "^3.0.58",
+    "@ai-sdk/openai": "^4.0.83",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",
-    "ai": "^7.0.118",
+    "ai": "^7.0.127",
     "better-auth": "catalog:",
     "dataloader": "^2.2.3",
     "dotenv": "catalog:",
@@ -42,7 +42,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@repo/config": "workspace:*",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "^8.18.2",
     "vitest": "catalog:"
   }
 }
