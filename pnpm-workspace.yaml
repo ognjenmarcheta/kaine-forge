@@ -7,7 +7,7 @@ packages:
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
   # Runtime libraries shared across workspaces
-  better-auth: "^1.7.6"
+  better-auth: "^1.7.7"
   "@better-auth/expo": "1.7.6"
   dotenv: "^18.0.4"
   drizzle-orm: "^0.45.3"
