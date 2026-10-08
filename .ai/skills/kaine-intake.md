@@ -26,5 +26,5 @@ Return supporting evidence and no file changes. Do not apply ready-for-agent,
 close issues, or start implementation. The owner authorizes implementation.
 Existing findings use kaine-triage-issue instead.
 
-In a factory worker, use the supplied result schema. Otherwise, return the
+In a factory worker or an Agent Desk run, use the supplied result schema. Otherwise, return the
 recommendation and evidence in chat. State which checks actually ran.

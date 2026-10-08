@@ -48,6 +48,7 @@ Labels apply to review responses only. GitHub issue titles keep the `kaine-score
 
 - Read the diff and surrounding code.
 - Read the tests first: do they cover the change, test behavior rather than implementation, and would they fail on a regression? Missing or implementation-coupled tests are findings.
+- In a headless run, the prompt supplies a diff file (for example `diff.patch`). Review that file and do not run `gh`; the Agent Desk denies it. Fill the supplied result schema, do not ask questions, and put the plain-language ending in its plain-language field.
 - For GitHub PRs, use `gh pr diff` or the PR’s own commits. Do **not** size or judge a stale branch with `git diff main..HEAD` / `main...HEAD` — that range includes every commit main gained since the fork as deletions and can turn a tiny PR into a fake massive revert.
 - Size the change: ~100 changed lines is good, ~300 is acceptable for one logical change, ~1000 means ask the author to split before deep review. Deletions and mechanical or automated refactors are exempt.
 - Walk `REVIEW.md` sections relevant to the diff (skip unrelated sections briefly).

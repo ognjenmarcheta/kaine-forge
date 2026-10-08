@@ -55,11 +55,30 @@ export * from "./lib/variants";
 
 export {
   ArrowRight,
+  Bot,
+  Check,
+  CircleHelp,
+  Clock,
+  Copy,
   Ellipsis,
   ChevronRight,
+  ExternalLink,
+  FileText,
+  GitBranch,
+  GitPullRequest,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
   MessageSquare,
-  Users
+  Minus,
+  Plus,
+  RotateCcw,
+  Search,
+  ShieldAlert,
+  SlidersHorizontal,
+  Terminal,
+  TriangleAlert,
+  User,
+  Users,
+  X
 } from "lucide-react";

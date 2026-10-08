@@ -46,3 +46,27 @@ gh label create ready-for-human --description "Requires human implementation" --
 ```
 
 (`wontfix` is a GitHub default label and already exists.) If a `gh issue create --label` call fails with "label not found", run the block above first.
+
+## Agent execution labels
+
+The agent desk ([`agent-desk.md`](agent-desk.md)) shows where a run stands with three
+labels. They are separate from the triage labels above.
+
+| Label             | Meaning                                       |
+| ----------------- | --------------------------------------------- |
+| `agent:working`   | The agent desk is working on this issue       |
+| `agent:needs-you` | The agent desk waits for the repository owner |
+| `agent:pr-open`   | The agent desk opened a draft pull request    |
+
+- An issue has at most one of these labels. The desk removes the others when it sets one.
+- The desk never adds or removes a triage label. `ready-for-agent` stays under human control.
+- Label writes are best effort. If a label is missing, the desk logs it and goes on.
+
+Create the labels once per repository. This prints the commands and changes nothing:
+
+```bash
+pnpm desk labels sync
+```
+
+Add `--apply` to run them. The commands use `--force`, so a second run updates the
+color and description.

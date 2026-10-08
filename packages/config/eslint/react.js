@@ -54,6 +54,7 @@ export default [
     files: [
       "apps/web/src/**/*.{tsx,jsx}",
       "tooling/factory-ui/src/**/*.{tsx,jsx}",
+      "tooling/desk-ui/src/**/*.{tsx,jsx}",
       "apps/mobile/app/**/*.{tsx,jsx}",
       "apps/mobile/src/**/*.{tsx,jsx}"
     ],

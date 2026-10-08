@@ -32,7 +32,7 @@ it("preserves file content and refuses to write through destination symlinks", (
     expect(() => applySnapshot(target, snapshot.entries)).toThrow("Unsafe snapshot ancestor");
     expect(() => collectSnapshot(source, ["../outside"])).toThrow("Unsafe snapshot path");
     expect(() => collectSnapshot(source, ["missing"])).toThrow("deleted tracked file");
-    rmSync(path.join(target, "dir"));
+    rmSync(path.join(target, "dir"), { recursive: true });
     applySnapshot(target, snapshot.entries);
     expect(readFileSync(path.join(target, "dir/file"), "utf8")).toBe("content");
     writeFileSync(path.join(source, "dir/file"), "changed");

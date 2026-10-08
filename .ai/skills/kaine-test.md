@@ -32,4 +32,4 @@ Use this skill when adding tests, repairing tests, or proving behavior.
 - Keep fixtures small and explicit.
 - Do not use `any` in tests.
 - Keep user-facing strings in translations even for test-only rendered components.
-- When adding GraphQL operations, run `pnpm generate` and commit generated outputs.
+- When adding GraphQL operations, run `pnpm generate` and include the generated outputs in the change. The author commits them. In an Agent Desk run, the engine commits and the agent never runs `git commit`.

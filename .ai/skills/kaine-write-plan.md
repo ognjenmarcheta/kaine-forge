@@ -51,6 +51,13 @@ delegation. A planning-only request ends with the plan. Preserve existing execut
 authorization and do not add repeated approval requests. Do not require another
 planning framework, external skill or subagent.
 
+## Headless runs (Agent Desk or factory worker)
+
+When the prompt supplies a result schema, fill the schema. Do not ask the user a
+question. Record each unknown in the schema's open-question field and state the
+default you chose. Put the plain-language ending in the schema's plain-language
+field. Do not print a banner or add any text outside the schema.
+
 ## In plain language
 
 Use this exact heading as the final section of each completed plan. Explain:

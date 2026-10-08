@@ -106,7 +106,7 @@ it("reserves recovery space and bounds file count, depth and bytes with visible 
 it("rejects unsafe recovery sources and evidence symlinks", () => {
   symlinkSync(root, path.join(root, "evidence", "linked"), "junction");
   expect(evidence).toThrow();
-  rmSync(path.join(root, "evidence", "linked"));
+  rmSync(path.join(root, "evidence", "linked"), { recursive: true });
   sparse("huge.ts", 65 * 1024 * 1024);
   expect(evidence).toThrow();
 });

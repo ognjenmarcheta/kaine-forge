@@ -78,6 +78,13 @@ Keep it proportionate: one short paragraph often suffices. Do not merely repeat
 file lists, check counts, or the whole answer. Do not invent a next step or use the
 ending as a reason to stop authorized work. Explain jargon respectfully.
 
+## Headless runs (Agent Desk or factory worker)
+
+When the prompt supplies a result schema, the schema owns the output. Do not write
+interactive HTML, files under `.ai.local/explain/`, or text outside the schema. Put
+the plain-language explanation in the schema's plain-language field and do not ask
+the user a question.
+
 ## Verification
 
 Check source accuracy, example behavior, format usefulness, retained uncertainty,
