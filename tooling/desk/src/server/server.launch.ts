@@ -194,11 +194,13 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
     throw error;
   }
 
-  print(`Agent desk: ${desk.launchUrl}\n`);
-  print("Open this link once. It works one time and only on this machine.\n");
+  const pageUrl = `${desk.url}/`;
+  print(`Agent desk: ${pageUrl}\n`);
+  print("Open this local URL in your browser.\n");
+  print(`Vite dev link (one use): ${desk.launchUrl}\n`);
   if (options.open === true) {
-    if (options.openBrowser === undefined) openInBrowser(desk.launchUrl, print);
-    else options.openBrowser(desk.launchUrl);
+    if (options.openBrowser === undefined) openInBrowser(pageUrl, print);
+    else options.openBrowser(pageUrl);
   }
 
   return {

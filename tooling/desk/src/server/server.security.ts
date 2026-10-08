@@ -6,10 +6,10 @@ import { HttpError } from "./server.errors";
 
 /**
  * Security model of the desk server, ported from the factory dashboard
- * (ADR 0010): a loopback listener, a one-use launch token that becomes an
- * HttpOnly SameSite=Strict cookie, Host and Origin checks, a custom header on
- * every write, and strict response headers. The server has no login: whoever
- * holds the cookie is the engineer who ran `pnpm desk serve`.
+ * (ADR 0010): a loopback listener, an HttpOnly SameSite=Strict cookie, Host and
+ * Origin checks, a custom header on every write, and strict response headers.
+ * The built UI issues a session on direct local navigation; the one-use token
+ * serves the separate Vite development origin. The server has no login.
  */
 
 export const CONTENT_SECURITY_POLICY = [
@@ -59,6 +59,8 @@ export interface Security {
   readonly requireSession: (request: IncomingMessage) => void;
   /** Trade the one-use token for the cookie value. Throws `forbidden` after the first success. */
   readonly exchange: (token: string) => string;
+  /** Issue a browser session when the local UI entry page is opened directly. */
+  readonly issueSession: () => string;
   readonly launchToken: string;
   readonly cookieName: string;
 }
@@ -122,7 +124,8 @@ export const createSecurity = (options: SecurityOptions): Security => {
       }
       exchanged = true;
       return session;
-    }
+    },
+    issueSession: () => session
   };
 };
 

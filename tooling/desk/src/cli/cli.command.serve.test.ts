@@ -21,12 +21,12 @@ describe("serve", () => {
     const calls: ServeOptions[] = [];
     const e = await open((options) => {
       calls.push(options);
-      options.print?.("Agent desk: http://127.0.0.1:4000/#session=abc\n");
+      options.print?.("Agent desk: http://127.0.0.1:4000/\n");
       return Promise.resolve();
     });
     const result = await e.run("serve");
     expect(result).toMatchObject({ code: 0, stderr: "" });
-    expect(result.stdout).toContain("Agent desk: http://127.0.0.1:4000/#session=abc");
+    expect(result.stdout).toContain("Agent desk: http://127.0.0.1:4000/");
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ port: undefined, open: true, cwd: e.repo });
   });

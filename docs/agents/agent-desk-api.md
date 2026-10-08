@@ -11,7 +11,7 @@ import only Zod, so a browser can use them.
 ## Start and connect
 
 - `launchDeskServer({ port?, open?, uiDir?, depsFactory?, cwd?, print?, tuning? })`
-  builds the runtime, starts the server, prints the launch URL, and returns
+  builds the runtime, starts the server, prints the local URL and Vite dev link, and returns
   `{ server, url, launchUrl, close, runtime }`.
 - `serveDesk({ ...same options, signal? })` does the same, then waits for SIGINT,
   SIGTERM, or `signal`, then closes. This is what `pnpm desk serve` calls.
@@ -19,10 +19,11 @@ import only Zod, so a browser can use them.
   Pass the given `onEvent` to `createPipelineRunner` as `PipelineDeps.onEvent`. The server
   listens to it for live logs and fast updates. Without a factory the server builds the
   real runtime (`createDefaultDeskRuntime`).
-- The launch URL is `http://127.0.0.1:<port>/#session=<token>`. The token is in the URL
-  fragment, so it never reaches a server log or a `Referer` header. The page posts it to
-  `POST /api/session` once. The server answers with an `HttpOnly; SameSite=Strict`
-  cookie. The token works one time.
+- The built UI at `http://127.0.0.1:<port>/` or `http://localhost:<port>/` issues an
+  `HttpOnly; SameSite=Strict` cookie on each direct page load. This lets each local
+  browser open the plain URL. The separate Vite development origin uses the printed
+  launch URL, `http://127.0.0.1:<port>/#session=<token>`. The token stays in the URL
+  fragment and is posted to `POST /api/session` once.
 
 ## Security rules
 
@@ -34,7 +35,8 @@ import only Zod, so a browser can use them.
 - A write (`POST`) needs an `Origin` header, the header `x-desk-request: 1`, and
   `Content-Type: application/json`. The body is limited to 64 KiB.
 - Every `/api/*` route except `POST /api/session` needs the session cookie
-  (`401 unauthorized` without it). Static files need no cookie.
+  (`401 unauthorized` without it). Static files need no cookie; the UI entry page
+  issues one for the local browser.
 - Every response has a strict CSP, `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, and `X-Frame-Options: DENY`.
 - A client names an artifact by id and an issue by number. It never sends a path.

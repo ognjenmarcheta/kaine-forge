@@ -9,9 +9,6 @@ import { useRouter } from "./shell/shell.router";
 import { Loading } from "./shell/shell.ui";
 import { useDesk } from "./state/desk.provider";
 
-/** The command that prints a new launch link. It is code, not a translated sentence. */
-const SERVE_COMMAND = "pnpm desk serve";
-
 function SessionGate() {
   const t = useT();
   const { state, reloadIssues } = useDesk();
@@ -20,9 +17,6 @@ function SessionGate() {
       <div className="desk-session" role="alert">
         <h1>{t("desk.session.lostTitle")}</h1>
         <p>{t("desk.session.lost")}</p>
-        <p>
-          <code>{SERVE_COMMAND}</code>
-        </p>
       </div>
     );
   }

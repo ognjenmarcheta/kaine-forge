@@ -20,7 +20,7 @@
   "desk.connection.live": "Uživo",
   "desk.connection.reconnecting": "Ponovno povezivanje",
   "desk.session.lostTitle": "Sesija nedostaje ili je istekla",
-  "desk.session.lost": "Ponovo otvorite link za pokretanje. Link za pokretanje važi samo jednom. Ovom komandom dobijate novi:",
+  "desk.session.lost": "Osvežite ovu stranicu da biste započeli novu lokalnu sesiju.",
   "desk.session.unavailableTitle": "Desk server ne odgovara",
   "desk.session.unavailable": "Proverite da li server i dalje radi, pa pokušajte ponovo.",
   "desk.session.retry": "Pokušaj ponovo",

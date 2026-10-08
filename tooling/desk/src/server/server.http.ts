@@ -425,6 +425,9 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       } else if (staticHandler === null) {
         throw new HttpError("not-found");
       } else {
+        if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+          response.setHeader("Set-Cookie", sessionCookie(active.cookieName, active.issueSession()));
+        }
         await staticHandler.serve(request, response, url.pathname);
       }
     } catch (error) {

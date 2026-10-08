@@ -47,7 +47,7 @@ const fakeRuntime = async (): Promise<{
 };
 
 describe("launchDeskServer", () => {
-  it("prints the launch URL with the token in the fragment and serves the API", async () => {
+  it("prints the plain local URL and serves the API", async () => {
     const { factory } = await fakeRuntime();
     const printed: string[] = [];
     const desk = await launchDeskServer({
@@ -61,12 +61,12 @@ describe("launchDeskServer", () => {
         .find((line) => line.startsWith("Agent desk: "))
         ?.slice(12)
         .trim() ?? "";
-    expect(url).toBe(desk.launchUrl);
-    expect(new URL(url).hash).toMatch(/^#session=[0-9a-f]{64}$/);
+    expect(url).toBe(`${desk.url}/`);
+    expect(new URL(url).hash).toBe("");
     expect(new URL(url).hostname).toBe("127.0.0.1");
-    expect(printed.join("")).not.toMatch(/\?session=|\/session\//);
+    expect(printed.join("")).toContain(`Vite dev link (one use): ${desk.launchUrl}`);
 
-    const token = new URLSearchParams(new URL(url).hash.slice(1)).get("session") ?? "";
+    const token = new URLSearchParams(new URL(desk.launchUrl).hash.slice(1)).get("session") ?? "";
     const cookie = await login({ desk, token });
     const reply = await raw(desk, { path: "/api/health", headers: { Cookie: cookie } });
     expect(reply.status).toBe(200);
@@ -107,7 +107,7 @@ describe("launchDeskServer", () => {
       openBrowser: (url) => opened.push(url)
     });
     cleanups.push(() => second.close());
-    expect(opened).toEqual([second.launchUrl]);
+    expect(opened).toEqual([`${second.url}/`]);
   });
 
   it("gives the factory the pipeline's event sink and shows what it emits in the log", async () => {
@@ -136,7 +136,28 @@ describe("launchDeskServer", () => {
       print: () => undefined
     });
     cleanups.push(() => desk.close());
-    expect((await raw(desk, { path: "/" })).text).toBe("<title>ui</title>");
+    const page = await raw(desk, { path: "/" });
+    expect(page.text).toBe("<title>ui</title>");
+    const cookie = page.headers["set-cookie"]?.[0]?.split(";")[0] ?? "";
+    expect(cookie).toMatch(/^desk_session_[0-9a-f]{16}=[0-9a-f]{64}$/);
+    expect(page.headers["set-cookie"]?.[0]).toContain("HttpOnly; SameSite=Strict");
+    expect((await raw(desk, { path: "/api/health", headers: { Cookie: cookie } })).status).toBe(
+      200
+    );
+
+    const localhost = await raw(desk, {
+      path: "/",
+      headers: { Host: `localhost:${new URL(desk.url).port}` }
+    });
+    expect(localhost.status).toBe(200);
+    expect(localhost.headers["set-cookie"]?.[0]).toMatch(/^desk_session_/);
+
+    const crossSite = await raw(desk, {
+      path: "/",
+      headers: { "Sec-Fetch-Site": "cross-site" }
+    });
+    expect(crossSite.status).toBe(403);
+    expect(crossSite.headers["set-cookie"]).toBeUndefined();
   });
 
   it("serves only the API for uiDir null, even when the runtime knows a UI", async () => {

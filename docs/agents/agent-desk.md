@@ -62,8 +62,8 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
 - `doctor [--json] [--probe]`: check the environment. It only reads. It also checks Docker (see
   "Docker isolation"). `--probe` runs the isolation probes in a throwaway container.
 - `docker build|login|doctor|status|prune`: Docker isolation commands (see "Docker isolation").
-- `serve [--port N] [--no-open]`: start the local server (see "Serve"). It prints a one-use
-  launch link and runs until Ctrl-C. Then it closes the server and exits 0.
+- `serve [--port N] [--no-open]`: start the local server (see "Serve"). It prints the
+  local URL and runs until Ctrl-C. Then it closes the server and exits 0.
 - `--help`: list the commands.
 
 ### Exit codes
@@ -416,9 +416,11 @@ pnpm desk remove 9001 --force   # --force: the worktree holds the agent's uncomm
 
 `pnpm desk serve [--port N] [--no-open]` starts the local server (`serveDesk`). It runs the
 same engine as the CLI and listens on `127.0.0.1` only. Without `--port` it picks a free
-port. It prints `Agent desk: http://127.0.0.1:<port>/#session=<token>`. Open that link
-once: the token works one time. `--no-open` does not open a browser. Every `/api/*` route
-except the session start needs the cookie, so a request without it gets `401`. Ctrl-C closes
+port. It prints `Agent desk: http://127.0.0.1:<port>/`. Open that URL, or
+`http://localhost:<port>/`, in any local browser. The built UI grants that browser a
+session cookie. The printed Vite dev link contains a one-use token for the separate
+development origin. `--no-open` does not open a browser. Every `/api/*` route except
+the token exchange needs the cookie, so a request without it gets `401`. Ctrl-C closes
 the server and exits 0. A running action is not cancelled: the next start marks it
 `needs-you`. See [`agent-desk-api.md`](agent-desk-api.md).
 
@@ -511,7 +513,7 @@ developer tooling. It has three views:
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
 reloads the list after every (re)connect with exponential backoff, so a missed event is not
-lost. A `401` shows "reopen the launch link". The top bar is one row at every width: the
+lost. A `401` tells the engineer to reload the page. The top bar is one row at every width: the
 brand mark (the full name from 48 rem, a short one between 30 and 48 rem), the Board and
 Health pills, one polite "Live"/"Reconnecting" status, and a preferences menu. Theme (light,
 dark, or system, which follows `prefers-color-scheme`) and language (English, German,
@@ -522,10 +524,11 @@ only, including the React Flow variables.
 
 ### Dev flow
 
-1. `pnpm desk serve --port 4777 --no-open` in one terminal. It prints the launch link.
+1. `pnpm desk serve --port 4777 --no-open` in one terminal. It prints the local URL and
+   a one-use Vite dev link.
 2. `pnpm desk:ui` in another terminal. This starts Vite on `http://localhost:5174` and
    proxies `/api` to `127.0.0.1:4777` (change it with `DESK_API_TARGET`).
-3. Open the launch link, but with the Vite address: replace `http://127.0.0.1:4777` with
+3. Open the Vite dev link, but with the Vite address: replace `http://127.0.0.1:4777` with
    `http://localhost:5174` and keep `#session=<token>`.
 
 Tests: `pnpm --filter @repo/desk-ui test` (logic and component tests) and

@@ -87,9 +87,10 @@ graph model are in `@repo/desk/contracts` (browser-safe, Zod only). The routes a
 [agent-desk-api.md](../agents/agent-desk-api.md).
 
 The server reuses the security model of the factory dashboard (ADR 0010): a loopback
-listener on a random port, a one-use launch token in the URL fragment that becomes an
-`HttpOnly; SameSite=Strict` cookie, Host and Origin checks, a custom header on every
-write, a strict CSP, and artifacts that a client names by id and never by path. The
+listener on a random port, an `HttpOnly; SameSite=Strict` cookie, Host and Origin checks,
+a custom header on every write, a strict CSP, and artifacts that a client names by id
+and never by path. Opening the built UI at the local URL issues the cookie. The one-use
+launch token remains available for the separate Vite development origin. The
 desk adds server-sent events (a runner listener plus a store comparison for changes
 from a CLI run in another terminal) and one running action for each issue. `cancel`
 and `remove` may run beside it, because they stop it. The server is never mounted in

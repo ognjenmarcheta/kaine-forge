@@ -3,12 +3,12 @@ import { z } from "zod";
 
 const CONTROL = "http://127.0.0.1:4180";
 
-const launchReply = z.object({ launchUrl: z.string() });
+const launchReply = z.object({ url: z.string() });
 const callList = z.array(z.object({ issue: z.number(), action: z.string(), payload: z.unknown() }));
 type Call = z.infer<typeof callList>[number];
 
 interface Desk {
-  /** Reset the fixture data and open the launch link in a fresh page. */
+  /** Reset the fixture data and open the local URL in a fresh page. */
   readonly open: (
     options?: { scenario?: "board" | "empty"; failShipGate?: boolean },
     path?: string
@@ -41,9 +41,9 @@ const test = base.extend<{ desk: Desk; problems: string[] }>({
     await use({
       open: async (options = {}, path = "") => {
         const reply = await request.post(`${CONTROL}/reset`, { data: options });
-        const { launchUrl } = launchReply.parse(await reply.json());
-        await page.goto(path === "" ? launchUrl : launchUrl.replace("/#", `/${path}#`));
-        return launchUrl;
+        const { url } = launchReply.parse(await reply.json());
+        await page.goto(`${url}/${path}`);
+        return url;
       },
       calls: async () => callList.parse(await (await request.get(`${CONTROL}/calls`)).json()),
       mutate: async (issue) => {
@@ -65,10 +65,7 @@ const more = async (page: Page, item: string) => {
   await page.getByRole("menuitem", { name: item }).click();
 };
 
-test("exchanges the launch token, removes it from the address, and shows the four board columns", async ({
-  page,
-  desk
-}) => {
+test("opens the plain local URL and shows the four board columns", async ({ page, desk }) => {
   await desk.open();
   await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
   expect(page.url()).not.toContain("session");
@@ -152,26 +149,20 @@ test("opens the plan gate from the card's next action", async ({ page, desk }) =
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
 });
 
-test("tells the engineer to reopen the launch link without a session, and for a spent token", async ({
+test("opens the plain local URL in a second browser without a launch token", async ({
   page,
   browser,
   desk
 }) => {
-  const launch = await desk.open();
+  const url = await desk.open();
   await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
 
-  // A second browser has no cookie. The token is spent, so the page says so.
+  // A second browser has no cookie yet. Opening the local page issues one.
   const other = await browser.newContext();
   const stranger = await other.newPage();
-  const messages: string[] = [];
-  stranger.on("console", (message) => messages.push(message.text()));
-  await stranger.goto(launch);
-  await expect(stranger.getByRole("heading", { name: "Session missing or expired" })).toBeVisible();
-  await expect(stranger.getByText("pnpm desk serve")).toBeVisible();
-  await expect(stranger.getByRole("heading", { name: "Issues", level: 1 })).toHaveCount(0);
+  await stranger.goto(`${url}/`);
+  await expect(stranger.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
   await other.close();
-  // The refused requests of the second browser are expected: only the first page must stay clean.
-  void messages;
 });
 
 test("opens an issue: the inspector shows the current stage beside a graph that fits", async ({

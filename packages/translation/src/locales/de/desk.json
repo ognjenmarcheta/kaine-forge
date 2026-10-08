@@ -20,7 +20,7 @@
   "desk.connection.live": "Live",
   "desk.connection.reconnecting": "Verbindung wird wiederhergestellt",
   "desk.session.lostTitle": "Sitzung fehlt oder ist abgelaufen",
-  "desk.session.lost": "Öffnen Sie den Startlink erneut. Ein Startlink funktioniert nur einmal. Mit diesem Befehl erhalten Sie einen neuen:",
+  "desk.session.lost": "Laden Sie diese Seite neu, um eine neue lokale Sitzung zu starten.",
   "desk.session.unavailableTitle": "Der Desk-Server antwortet nicht",
   "desk.session.unavailable": "Prüfen Sie, ob der Server noch läuft, und versuchen Sie es erneut.",
   "desk.session.retry": "Erneut versuchen",

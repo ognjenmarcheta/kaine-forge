@@ -14,7 +14,7 @@ const parsePort = (value: string | undefined): number | undefined => {
 };
 
 /**
- * `serve` starts the local server, prints the one-use launch link, and runs
+ * `serve` starts the local server, prints its local URL, and runs
  * until Ctrl-C (or `deps.signal`). It then closes the server and exits 0. The
  * server listens on 127.0.0.1 only. Without `--port` it takes a free port.
  */

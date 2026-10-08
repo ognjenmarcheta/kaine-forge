@@ -11,13 +11,13 @@ import { DeskProvider, useDesk, type ActionSettled } from "./state/desk.provider
 import { fakeApi, makeState, makeSummary, renderDesk } from "./test/test.render";
 
 describe("DeskApp session states", () => {
-  it("tells the engineer to reopen the launch link when the server answers 401", async () => {
+  it("tells the engineer to reload the page when the server answers 401", async () => {
     renderDesk(
       <DeskApp />,
       fakeApi({ issues: () => Promise.reject(new DeskApiError("unauthorized", 401, null)) })
     );
     expect(await screen.findByRole("heading", { name: "Session missing or expired" })).toBeTruthy();
-    expect(screen.getByText("pnpm desk serve")).toBeTruthy();
+    expect(screen.getByText("Reload this page to start a new local session.")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Issues" })).toBeNull();
   });
 

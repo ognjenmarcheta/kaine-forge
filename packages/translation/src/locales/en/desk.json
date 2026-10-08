@@ -20,7 +20,7 @@
   "desk.connection.live": "Live",
   "desk.connection.reconnecting": "Reconnecting",
   "desk.session.lostTitle": "Session missing or expired",
-  "desk.session.lost": "Open the launch link again. A launch link works one time. Run this command to get a new one:",
+  "desk.session.lost": "Reload this page to start a new local session.",
   "desk.session.unavailableTitle": "The desk server does not answer",
   "desk.session.unavailable": "Check that the server still runs, then try again.",
   "desk.session.retry": "Try again",

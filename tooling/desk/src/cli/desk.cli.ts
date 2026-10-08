@@ -52,7 +52,7 @@ const USAGE = [
   "  labels sync [--apply]           Print the agent:* label commands; --apply runs them",
   "  doctor [--json] [--probe]       Check the environment. --probe also runs the Docker isolation probes",
   "  docker build|login|doctor|status|prune ...   Docker isolation (run 'pnpm desk docker' for details)",
-  "  serve [--port <n>] [--no-open]  Start the local server and print its one-use launch link",
+  "  serve [--port <n>] [--no-open]  Start the local server and print its URL",
   "",
   "The driving commands also take --json (print one JSON result) and --no-writeback.",
   "Exit codes: 0 at a gate or done, 1 needs you, refused or failed, 2 usage error.",
