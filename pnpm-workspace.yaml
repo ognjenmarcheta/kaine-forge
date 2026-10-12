@@ -77,9 +77,13 @@ minimumReleaseAge: 4320 # minutes
 # Accepted temporary risk: node-forge 1.4.0 has no fixed release for this GHSA.
 # Expo CLI certificate tooling calls the affected RSA verification code.
 # Remove when an SDK-compatible fix ships or the dependency is removed (#457).
+# Accepted temporary risk: braces <=3.0.3 has no fixed release for this GHSA.
+# Only build tooling (micromatch via Metro, Expo CLI, codegen, globbing) reaches
+# it, with developer-authored patterns. Remove when a fixed braces ships (#469).
 auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv
+    - GHSA-vfj7-8cjw-p6xm
 
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
 # (optional better-auth peers + transitive CLI deps otherwise pin older releases).
@@ -89,7 +93,11 @@ overrides:
   # minimatch: transitive vulnerability floor. Caret, not an exact pin — the old
   # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
   minimatch: "^10.2.3"
-  shell-quote: "^1.10.0"
+  shell-quote: "^1.11.0" # GHSA-pqg4-j6r4-53mv via @changesets/cli>launch-editor
+  # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
+  solid-js: "^1.9.17"
+  source-map-js: "^1.2.2" # GHSA-68fv-2mgg-jv7q via @vitest/coverage-v8>magicast
+  compression: "^1.8.2" # GHSA-vc2v-76pw-4v95 via expo>@expo/cli
   # No tar override: nothing in pnpm-lock.yaml resolves tar. The image's tar copies
   # come from the npm/corepack toolchains that Dockerfile.api deletes at runtime.
   # esbuild: caret floor — the old exact pin (0.27.3) became the vulnerable version
