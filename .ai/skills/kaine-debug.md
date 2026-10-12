@@ -28,9 +28,11 @@ Use this skill when something fails or misbehaves on a local checkout: a test, t
    git bisect start
    git bisect bad
    git bisect good <known-good-sha>
-   git bisect run pnpm --filter <workspace> test <file-filter>
+   git bisect run sh -c 'test -f <workspace-dir>/<test-path> || exit 125; pnpm --filter <workspace> test <test-path>'
    git bisect reset
    ```
+
+   Workspace test scripts pass when no file matches, so exit 125 skips revisions that lack a committed test file. `<test-path>` is relative to the workspace; the `test -f` check runs from the repo root. An uncommitted repro test stays in the working tree at every revision.
 
 4. **Reduce.** Shrink the input, fixture, or test to the smallest case that still fails. The minimal case usually names the cause.
 5. **Fix the root cause.** Ask why until the answer is a defect, not a location. Trace every caller of the function you change across `@repo/*` boundaries and fix the shared function once.
