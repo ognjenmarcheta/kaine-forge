@@ -57,6 +57,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 ## Quality Gates
 
 - [ ] Tests cover new or changed behavior at the nearest useful layer; risky auth/tenancy/GraphQL paths have tests.
+- [ ] New or changed tests pass the `kaine-test` value gate: each protects a named contract that no other test owns, and runs code instead of reading its text.
 - [ ] No new `any`; prefer precise types or `unknown` with narrowing.
 - [ ] `SAFETY:` comments on type assertions state the specific checked invariant (what validated the value), not boilerplate like "needed for types" (lint requires the comment; review checks its substance).
 - [ ] Preserved inference or `satisfies` over widening annotations that discard known keys/values (e.g. `const handlers: Record<string, Handler> = { start }` loses the `start` key).

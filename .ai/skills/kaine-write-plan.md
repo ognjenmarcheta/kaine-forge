@@ -32,7 +32,9 @@ Plan mode do not trigger this workflow.
    dependencies and how to verify success. Prefer stages that each deliver a working
    path through the layers over one stage per layer. Order migrations and shared
    contracts before their consumers. For refactors, identify the behavior to
-   preserve and keep intermediate changes working where feasible.
+   preserve and keep intermediate changes working where feasible. When a stage
+   adds tests, name the contract and the regression each one protects
+   (`kaine-test` value gate).
 4. Record relevant interface, migration, risk and rollout decisions. Use verified
    paths and commands where they remove ambiguity. Include code only when it conveys
    a necessary decision more precisely than prose. Avoid speculative detail.

@@ -195,6 +195,26 @@ separate from model-output scoring. A small paired comparison cannot establish a
 percentage productivity gain or generalize across models, tasks, or readers.
 Correct factual errors and tighten instructions that add cost without value.
 
+## Test skill acceptance
+
+`kaine-test` owns the test value gate. The canonical guide and the
+`kaine-implementer` agent definition route every task that writes, changes, or
+plans tests to it. `kaine-test-audit` owns sweeps of existing tests and runs only
+on request. Enforcement is instruction-level: no hook or lint rule blocks a
+low-value test.
+
+These are manual acceptance scenarios, not executed model trials:
+
+| Scenario                                                  | Expected behavior                                                                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Implementation or bug fix adds or changes a test          | Apply the value gate to each test; name the protected contract in the handoff.                                     |
+| Plan includes tests                                       | Each planned test names its contract and the regression it catches.                                                |
+| Request for a test that protects no contract (a getter)   | Decline the test or move the proof to the real boundary, and state why.                                            |
+| Proposed test reads a source file and asserts on its text | Reject it; test the behavior by running the code.                                                                  |
+| Bug fix where an existing test already owns the contract  | Extend that test or its table instead of adding a test at every layer.                                             |
+| “Find and remove useless tests” for a folder or workspace | Use `kaine-test-audit`: baseline, ledger, evidence before deletion, coverage before and after, and mutation proof. |
+| Existing test fails at baseline during an audit           | Treat it as a possible product bug; do not delete it to get green.                                                 |
+
 ## Related
 
 - Day-one ramp: `docs/agents/day-one.md`
