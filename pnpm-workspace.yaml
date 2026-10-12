@@ -7,16 +7,16 @@ packages:
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
   # Runtime libraries shared across workspaces
-  better-auth: "^1.7.6"
-  "@better-auth/expo": "1.7.6"
-  dotenv: "^18.0.4"
-  drizzle-orm: "^0.45.3"
+  better-auth: "^1.7.7"
+  "@better-auth/expo": "1.7.7"
+  dotenv: "^18.0.6"
+  drizzle-orm: "^0.45.4"
   graphql: "^16.14.2"
   graphql-request: "^7.4.0"
   graphql-ws: "^6.3.0"
   zod: "^4.6.5"
   zustand: "^5.0.15"
-  "@tanstack/react-query": "^5.104.0"
+  "@tanstack/react-query": "^5.104.1"
   "@graphql-typed-document-node/core": "^3.2.0"
   class-variance-authority: "^0.7.1"
   clsx: "^2.1.1"
@@ -30,11 +30,11 @@ catalog:
   # Web Tailwind v4 (keep @tailwindcss/vite on the same minor line)
   tailwindcss: "^4.3.3"
   # Tooling
-  "@playwright/test": "^1.63.0"
+  "@playwright/test": "^1.64.0"
   "@tailwindcss/vite": "^4.3.3"
-  "@vitejs/plugin-react": "^6.1.1"
-  vite: "^8.3.1"
-  jsdom: "^30.1.1"
+  "@vitejs/plugin-react": "^6.1.2"
+  vite: "^8.3.4"
+  jsdom: "^30.1.2"
   typescript: "^5.9.2"
   # Keep vitest and its UI/coverage companions on the same version (peer deps);
   # monorepo-alignment pins the lockstep and Dependabot groups them (#324).
@@ -45,7 +45,7 @@ catalog:
   "@vitest/coverage-v8": "4.1.11"
   "@vitest/ui": "4.1.11"
   prettier: "^3.9.9"
-  "@types/node": "^24.19.0"
+  "@types/node": "^24.19.1"
 
 catalogs:
   # Expo SDK / React Native singleton graph — pin exactly; freezes paths (issue #198).
