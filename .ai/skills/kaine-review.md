@@ -47,7 +47,9 @@ Labels apply to review responses only. GitHub issue titles keep the `kaine-score
 ## Method
 
 - Read the diff and surrounding code.
-- Read the tests first: do they cover the change, test behavior rather than implementation, and would they fail on a regression? Missing or implementation-coupled tests are findings.
+- Read the tests first: do they cover the change, test behavior rather than implementation, and would they fail on a regression? Missing or implementation-coupled tests are findings, and so is a new test that fails the `kaine-test` value gate.
+- When a test's strength is in doubt and you can run commands, probe it: invert one condition the diff adds, run the scoped test, then restore the file. A test that stays green is a finding.
+- When you delegate a review, give the reviewer the diff and the requirement, not the author's claims about it. Sort what comes back into contract misread, actionable, trade-off, or noise.
 - For GitHub PRs, use `gh pr diff` or the PR’s own commits. Do **not** size or judge a stale branch with `git diff main..HEAD` / `main...HEAD` — that range includes every commit main gained since the fork as deletions and can turn a tiny PR into a fake massive revert.
 - Size the change: ~100 changed lines is good, ~300 is acceptable for one logical change, ~1000 means ask the author to split before deep review. Deletions and mechanical or automated refactors are exempt.
 - Walk `REVIEW.md` sections relevant to the diff (skip unrelated sections briefly).

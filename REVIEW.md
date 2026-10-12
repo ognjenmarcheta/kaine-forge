@@ -20,6 +20,9 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] No secrets, tokens, or `.ai.local/` material committed; MCP config uses placeholders only (`SECURITY.md`, `.ai/guide.md`).
 - [ ] CORS / trusted origins and cookie/session assumptions stay consistent with `@repo/auth` (ADR 0008).
 - [ ] File/attachment access remains organization-scoped when relevant.
+- [ ] Model output (assistant, AI todos) is untrusted input: validated before it is persisted or rendered, and never chooses organization scope or authorization.
+- [ ] Server-side requests to user-supplied URLs go through an allowlist of hosts and schemes.
+- [ ] Log fields carry no secrets, tokens, passwords, or full request bodies (`@repo/logger`, `MONOREPO_GUIDE.md` section 9).
 
 ## Architecture & Boundaries
 
@@ -36,6 +39,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Operations edited at source; `pnpm generate` run; generated GraphQL outputs not hand-edited.
 - [ ] Organization scoping enforced in resolvers/adapters for tenant data.
 - [ ] Already-shipped migration files are not rewritten in place; schema changes are new migrations and preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
+- [ ] Column renames, drops, and type changes on deployed data follow expand/contract: the destructive step ships in a later migration than the code that stops using the column (`MONOREPO_GUIDE.md` section 6).
 
 ## Performance
 
@@ -43,6 +47,8 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] List reads (GraphQL fields, endpoints, DB queries) are paginated or explicitly bounded.
 - [ ] No unbounded loops or unconstrained data fetching on hot paths.
 - [ ] No blocking synchronous work or large-object churn in hot paths where async or streaming fits.
+- [ ] Cache keys for organization-scoped data include the organization (and the viewer when results depend on permissions).
+- [ ] A new index is justified by a query plan (`EXPLAIN ANALYZE`) for the query it serves.
 
 ## UI & i18n
 
@@ -53,6 +59,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 ## Quality Gates
 
 - [ ] Tests cover new or changed behavior at the nearest useful layer; risky auth/tenancy/GraphQL paths have tests.
+- [ ] New or changed tests pass the `kaine-test` value gate: each protects a named contract that no other test owns, and runs code instead of reading its text.
 - [ ] No new `any`; prefer precise types or `unknown` with narrowing.
 - [ ] `SAFETY:` comments on type assertions state the specific checked invariant (what validated the value), not boilerplate like "needed for types" (lint requires the comment; review checks its substance).
 - [ ] Preserved inference or `satisfies` over widening annotations that discard known keys/values (e.g. `const handlers: Record<string, Handler> = { start }` loses the `start` key).
@@ -60,6 +67,8 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Parsing or type guards at the boundary seam instead of scattered ad hoc `typeof` checks.
 - [ ] No reinvented standard-library or platform features, and no new dependency where stdlib or an already-installed one covers it.
 - [ ] No speculative abstraction: single-implementation interfaces, one-caller layers, or config nobody sets — inline until a second consumer exists.
+- [ ] A refactor reduces complexity instead of moving it to another file or layer.
+- [ ] The quality bar is not lowered without a stated reason: no new lint or TypeScript suppressions, `.skip`/`.todo` tests, removed assertions, or reduced coverage thresholds.
 - [ ] Deliberate simplifications with a known ceiling are tracked as GitHub issues naming the ceiling and upgrade trigger, not "for now" comments.
 - [ ] Relevant checks run (workspace test/typecheck; root `pnpm check` for broad changes; e2e for user-visible web/API flows).
 - [ ] Changesets included for releasable `apps/**`, `packages/**`, `tooling/**` changes unless `release:skip-changeset`.

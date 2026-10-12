@@ -134,6 +134,18 @@ Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-sp
 - `API_CORS_ORIGINS` is dual-purpose: it feeds both CORS and better-auth's `trustedOrigins`. It is **required in production** (boot fails if unset/empty). A browser web origin missing from it fails sign-in with `403 INVALID_ORIGIN`, not a CORS error. Full variable list: `.env.example` and section 9 below.
 - The API rate-limits `/api/auth/*` and `/graphql` (`API_RATE_LIMIT_*`, `API_TRUST_PROXY`) and exposes `/health` and `/ready` probes. Full variable list: `.env.example` and section 9 below.
 
+### Schema changes on deployed data
+
+Drizzle migrations here are forward-only, and production can apply them at API startup (`API_RUN_MIGRATIONS`), so a migration and the code that depends on it ship together. A rename, drop, or type change on a column that holds deployed data therefore uses expand/contract across separate releases:
+
+1. Expand: add the new column or table as nullable, or with a default.
+2. Write both: the code writes the old and the new shape.
+3. Backfill existing rows in a migration, in bounded batches for large tables.
+4. Switch reads to the new shape.
+5. Contract: in a later release, stop writing the old shape, then drop it in a new migration.
+
+Migrations `0003` (backfill credential passwords) and `0005` (drop `users.password_hash`) follow this pattern, which is why their order is load-bearing (`docs/troubleshooting.md`). A brand-new table needs none of these steps.
+
 ## 7. Feature Flags
 
 Feature flags are config-driven in `@repo/feature-flags`. There is no remote flag service in the template.
@@ -210,6 +222,14 @@ Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorizatio
 Postgres SSL is derived from `DATABASE_URL` query params. `sslmode=verify-ca` and `sslmode=verify-full` require certificate verification. Other enabled SSL modes use TLS without strict certificate verification, which works better for common managed database and local tunnel setups.
 
 The API verifies database connectivity on startup. Production startup can run `runMigrations()` from `@repo/db/migrate` when `API_RUN_MIGRATIONS` resolves true.
+
+### Logging
+
+- Log through `@repo/logger`. In resolvers and routers, use `ctx.logger`; it is a child logger that already carries `userId` and `organizationId`.
+- Pass data as structured fields and keep the message a stable phrase: `ctx.logger.info({ fileId }, "upload confirmed")`.
+- Log errors as `{ err: error }`, except errors that can carry request bodies (the AI SDK): log those as `{ error: formatLoggableError(err) }` from `apps/api/src/observability.ts`.
+- Do not log secrets, tokens, passwords, session ids, or full request or model payloads. The logger has no redaction, so leave such fields out at the call site.
+- Error reporting to Sentry or OTLP goes through the `OBSERVABILITY_*` seam and is a no-op until it is configured.
 
 ### Mobile device testing (LAN)
 
