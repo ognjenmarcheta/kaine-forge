@@ -25,11 +25,16 @@ Plan mode do not trigger this workflow.
    existing tests before choosing an approach. Follow the required reading rules;
    do not ask the user for facts you can discover.
 2. Establish the intended outcome, scope, constraints and acceptance criteria. Ask
-   only questions whose answers materially change the plan. Resolve consequential
-   unknowns; make reasonable defaults explicit.
+   only questions whose answers materially change the plan. Ask one at a time and
+   attach your best guess so the user can confirm or correct it. Resolve consequential
+   unknowns; make reasonable defaults explicit and state what is out of scope.
 3. Divide the work into proportionate stages. State what each stage delivers, its
-   dependencies and how to verify success. For refactors, identify the behavior to
-   preserve and keep intermediate changes working where feasible.
+   dependencies and how to verify success. Prefer stages that each deliver a working
+   path through the layers over one stage per layer. Order migrations and shared
+   contracts before their consumers. For refactors, identify the behavior to
+   preserve and keep intermediate changes working where feasible. When a stage
+   adds tests, name the contract and the regression each one protects
+   (`kaine-test` value gate).
 4. Record relevant interface, migration, risk and rollout decisions. Use verified
    paths and commands where they remove ambiguity. Include code only when it conveys
    a necessary decision more precisely than prose. Avoid speculative detail.

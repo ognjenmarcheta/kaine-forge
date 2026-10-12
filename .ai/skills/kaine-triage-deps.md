@@ -40,8 +40,9 @@ Repo anchors: `pnpm-workspace.yaml` (`catalog:` / `catalogs.mobile`), `packages/
 
 1. Prefer `release:skip-changeset` for pure dependency bumps when Changeset Required would fail on `apps/**` / `packages/**`.
 2. After closing unsafe one-offs, file or update **one** tracking issue grouping workstreams; comment on closed PRs: `Tracked in #<N>`.
-3. Optionally harden the Dependabot `ignore` list or `groups` so frozen graphs stop reopening (the mobile freeze list lives in `.github/dependabot.yml`).
-4. **Authority:** close superseded or unsafe PRs only when the user asked to resolve or clear the queue. Otherwise list recommended dispositions. Only the owner performs the final merge manually after required checks pass. Never merge, approve on the owner's behalf, enable auto-merge, or bypass protection.
+3. For an intentional upgrade, read the migration notes for the exact target version from the pinned catalog entry (Context7 when available, otherwise the official release notes). Cite the version you read. When the docs and current repo code disagree, report the conflict instead of choosing silently.
+4. Optionally harden the Dependabot `ignore` list or `groups` so frozen graphs stop reopening (the mobile freeze list lives in `.github/dependabot.yml`).
+5. **Authority:** close superseded or unsafe PRs only when the user asked to resolve or clear the queue. Otherwise list recommended dispositions. Only the owner performs the final merge manually after required checks pass. Never merge, approve on the owner's behalf, enable auto-merge, or bypass protection.
 
 ## Repository MCP launch dependencies
 
