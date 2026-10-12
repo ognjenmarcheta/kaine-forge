@@ -3,6 +3,12 @@
 # Digest-pinned so Trivy CRITICAL can be a hard gate (issue #155). Dependabot bumps the
 # digest within the Node major; Node majors move with .nvmrc, engines, and CI (#323).
 FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS base
+# Debian security fixes (e.g. perl-base) land before the pinned Node image is rebuilt.
+# CI passes the ISO week as APT_REFRESH so the cached upgrade layer reruns weekly.
+ARG APT_REFRESH
+RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate

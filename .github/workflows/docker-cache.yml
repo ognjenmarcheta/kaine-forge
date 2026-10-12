@@ -60,7 +60,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # Must match the PR job's build inputs (context, file, no build-args):
+      # Same weekly key as the PR job; it refreshes Dockerfile.api's apt upgrade layer.
+      - name: Compute apt refresh key
+        id: apt
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      # Must match the PR job's build inputs (context, file, build-args):
       # any difference changes the layer keys and the PR build misses the cache.
       # mode=max exports the intermediate pruner/builder stages too, which is
       # where the pnpm install and turbo build layers live.
@@ -69,5 +74,6 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}

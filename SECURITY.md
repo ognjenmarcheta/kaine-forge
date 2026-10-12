@@ -64,8 +64,12 @@ Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.e
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
 - AI tooling health/drift check: `pnpm ai:doctor`.
 
-### Accepted temporary audit exception
+### Accepted temporary audit exceptions
 
 `GHSA-86w9-cpqp-85rv` (CVE-2026-85393) is temporarily excluded from the audit. As of 2026-10-02, `node-forge` 1.4.0 is affected and no fixed release is available. The paths include `expo > @expo/cli > node-forge` and `expo > @expo/cli > @expo/code-signing-certificates > node-forge`, including auto-installed `@better-auth/expo` peers. Expo certificate tooling calls the affected RSA signature verification code.
 
 The repository owner accepts this risk while a compatible fix is unavailable. This exception does not fix the vulnerability and is not a false positive. Other high and critical advisories still fail the audit. Remove the exception when a fixed release is compatible with the supported Expo SDK, or when the affected dependency is removed. [Issue #457](https://github.com/ognjenmarcheta/kaine-forge/issues/457) tracks that removal; the [upstream advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv) records the affected and fixed versions.
+
+`GHSA-vfj7-8cjw-p6xm` is temporarily excluded from the audit. As of 2026-10-12, `braces` through 3.0.3 is affected and no fixed release is available. A deeply nested brace pattern can exhaust the call stack and stop the Node.js process. `braces` is in the production dependency graph: `@repo/auth > @better-auth/expo > expo` (auto-installed peers) `> @expo/cli > metro > metro-file-map > micromatch > braces`, so `braces` 3.0.3 ships in the API runtime image. Dev tooling (GraphQL Codegen, GraphQL Inspector, glob libraries) also resolves it. Only Metro, Expo CLI, and that tooling call `micromatch`, and they expand developer-authored patterns. The API does not run Metro or Expo CLI, and no API request path passes user input to `micromatch` or `braces`.
+
+The repository owner accepts this risk while a fixed release is unavailable. Other high and critical advisories still fail the audit. Remove the exception when a fixed `braces` release passes the 3-day release-age gate, or when every dependent drops `braces`. [Issue #469](https://github.com/ognjenmarcheta/kaine-forge/issues/469) tracks that removal; the [upstream advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) records the affected versions.
