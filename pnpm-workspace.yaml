@@ -78,8 +78,9 @@ minimumReleaseAge: 4320 # minutes
 # Expo CLI certificate tooling calls the affected RSA verification code.
 # Remove when an SDK-compatible fix ships or the dependency is removed (#457).
 # Accepted temporary risk: braces <=3.0.3 has no fixed release for this GHSA.
-# Only build tooling (micromatch via Metro, Expo CLI, codegen, globbing) reaches
-# it, with developer-authored patterns. Remove when a fixed braces ships (#469).
+# It is in the production graph (and API image) via @repo/auth > @better-auth/expo
+# > expo peers > metro > micromatch, but only Metro / Expo CLI and dev tooling
+# call micromatch, with developer-authored patterns. Remove when a fix ships (#469).
 auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv
