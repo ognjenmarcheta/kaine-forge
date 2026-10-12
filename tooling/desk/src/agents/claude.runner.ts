@@ -208,6 +208,7 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
           sessionId: summary.sessionId ?? "",
           usage: final.usage,
           costUsd: final.costUsd,
+          turns: final.turns,
           denials: final.denials,
           trace: summary.events,
           resultText: final.resultText

@@ -109,6 +109,8 @@ export interface AgentRunResult<T> {
   readonly sessionId: string;
   readonly usage: AgentUsage;
   readonly costUsd?: number | undefined;
+  /** Model turns, when the provider reports them (Claude). */
+  readonly turns?: number | undefined;
   readonly denials: readonly AgentDenial[];
   readonly trace: readonly AgentEvent[];
   /** The agent's final text answer. */

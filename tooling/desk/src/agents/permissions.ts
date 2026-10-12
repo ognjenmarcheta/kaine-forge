@@ -115,6 +115,14 @@ const SERENA_EDIT = [
   "rename_symbol"
 ].map((tool) => `mcp__serena__${tool}`);
 
+/** Tools that change a file: Claude edits, Codex `FileChange`, and the Serena edits the builder may use. */
+export const EDIT_TOOLS: ReadonlySet<string> = new Set([
+  "Edit",
+  "Write",
+  "FileChange",
+  ...SERENA_EDIT
+]);
+
 /** Serena tools that write memory or run shell commands. Memory files are tracked, so a write dirties the diff. */
 export const FORBIDDEN_SERENA_TOOLS: readonly string[] = [
   "write_memory",

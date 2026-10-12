@@ -55,6 +55,8 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
   planner, with `codex resume <id>` for a Codex role. It refuses when the issue has no
   worktree, the worktree is gone, or no agent has run yet. Stop every desk run for the
   issue first, and close your session before the next desk command.
+- `stats [--role R] [--json]`: compare agent runs by role, provider, and model (see
+  "Metrics"). It only reads.
 
 ### Repository commands
 
@@ -108,6 +110,22 @@ denials, errors), and `log` (desk messages). `desk logs` and the future UI read 
   dropped) and the new file starts with a `note` record that says so.
 - A failed log write never stops a run. The command prints a warning at the end.
 - `remove` deletes the log with the issue.
+
+## Metrics
+
+Every agent run that starts appends one JSON line to `runs.jsonl` in the state root
+(`<git-common-dir>/kaine-desk/`). The line holds the issue, role, provider, model (`null` for the
+CLI default), isolation, loop counts, and duration. It also holds whether the run returned a
+result, whether the stage accepted it, and the failure kind (`stuck` for a stuck stop). Then come
+tokens, cost, turns (Claude only), and counts of tool calls, edit calls, failed calls, and
+denials. It holds no prompt, output, or path. `remove` keeps the file, so the runs of a removed
+issue still count.
+
+`pnpm desk stats` prints one row per role, provider, and model: runs, accepted runs, stuck stops,
+timeouts, median duration, mean tokens, turns, and edit calls, and the cost per run and in total.
+Then it lists each issue with its stage (`removed` when the state is gone), loops, runs, and cost.
+Codex reports no cost and no turns, so those cells show `-`. Use the rows to choose `providers`
+and `models` for each role: change one role at a time, then compare.
 
 ## Notifications
 
@@ -198,6 +216,11 @@ agent stage it checks these rules, whether the run succeeded or not:
 - The builder changed only files that the plan lists (or generated GraphQL output),
   and no protected path.
 - The result passes the contract schema. The runner parses it, and the engine parses it again.
+
+While the agent runs, the engine also watches its tool calls. When the same call (tool, command,
+and paths) fails 8 times in a row, the engine stops the run and does not wait for the time limit.
+The stage goes to `needs-you`, and the reason names the command. A call that the permission rules
+denied does not count. A success or a different call starts the count again.
 
 A violation moves the issue to `needs-you` with every violation in the reason. The
 worktree stays as the agent left it. The agent session is not kept.

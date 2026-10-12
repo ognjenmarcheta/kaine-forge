@@ -110,6 +110,10 @@ export const createReplayRunner = (steps: readonly ReplayStep[]): ReplayRunner =
       if (step.failure !== undefined) {
         return Promise.resolve({ ok: false, failure: step.failure, partial });
       }
+      // A real runner stops its process when the signal fires during the stream.
+      if (request.signal?.aborted === true) {
+        return Promise.resolve({ ok: false, failure: { kind: "aborted" }, partial });
+      }
       if (step.structured === undefined) {
         return Promise.resolve({
           ok: false,

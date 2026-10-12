@@ -22,6 +22,7 @@ import {
 } from "./cli.command.drive";
 import { commandLogs, commandResume, commandStatus } from "./cli.command.inspect";
 import { commandServe } from "./cli.command.serve";
+import { commandStats } from "./cli.command.stats";
 import { UsageError, type CliCommand, type CliDeps, type CliIo, type CliResult } from "./cli.types";
 
 export type { CliDeps, CliResult, LiveOutput } from "./cli.types";
@@ -47,6 +48,7 @@ const USAGE = [
   "  status [issue] [--json]         Show one issue, or list all",
   "  logs <issue> [--follow] [--json]   Show the agent log",
   "  resume <issue>                  Print the command that resumes the agent session by hand",
+  "  stats [--role <role>] [--json]  Compare agent runs by role, provider and model",
   "",
   "Repository:",
   "  labels sync [--apply]           Print the agent:* label commands; --apply runs them",
@@ -114,6 +116,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   status: commandStatus,
   logs: commandLogs,
   resume: commandResume,
+  stats: commandStats,
   labels: commandLabels,
   doctor: commandDoctor,
   docker: commandDocker,

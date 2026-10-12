@@ -134,6 +134,7 @@ describe("parseClaudeStream", () => {
       structured: { word: "PINEAPPLE-42", overrideSeen: true }
     });
     expect(summary.final?.costUsd).toBeCloseTo(0.0496, 3);
+    expect(summary.final?.turns).toBe(5);
     expect(summary.final?.usage.outputTokens).toBeGreaterThan(0);
     const calls = summary.events.filter((event) => event.type === "tool_call");
     expect(calls.map((call) => call.tool)).toEqual(["Skill", "Bash"]);

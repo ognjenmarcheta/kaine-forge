@@ -38,6 +38,7 @@ const streamLine = z.object({
   result: z.string().optional(),
   structured_output: jsonValueSchema.optional(),
   total_cost_usd: z.number().optional(),
+  num_turns: z.number().int().nonnegative().optional(),
   permission_denials: z
     .array(
       z.object({
@@ -65,6 +66,7 @@ export interface ClaudeFinal {
   readonly structured: JsonValue | undefined;
   readonly usage: AgentUsage;
   readonly costUsd?: number | undefined;
+  readonly turns?: number | undefined;
   readonly denials: readonly AgentDenial[];
 }
 
@@ -218,6 +220,7 @@ export const createClaudeStreamParser = (): ClaudeStreamParser => {
           outputTokens: entry.usage?.output_tokens ?? 0
         },
         costUsd: entry.total_cost_usd,
+        turns: entry.num_turns,
         denials: [...denials.values()]
       };
     }

@@ -1,10 +1,10 @@
 import type { Provider } from "../contracts";
-import type { CheckStatus, DoctorCheck } from "../doctor/doctor.checks";
-import type { Exec } from "../ports";
 import { authVolumePresent } from "./docker.admin";
 import type { DockerClient } from "./docker.cli";
 import { inspectImage } from "./docker.image";
 import type { ProbeReport } from "./docker.probe";
+import type { CheckStatus, DoctorCheck } from "../doctor/doctor.checks";
+import type { Exec } from "../ports";
 
 /**
  * Docker checks for `desk doctor` and `desk docker doctor`. Without Docker in the

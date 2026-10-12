@@ -6,3 +6,4 @@ export * from "./desk-config.contract";
 export * from "./flow.model";
 export * from "./issue-state.contract";
 export * from "./pipeline.contract";
+export * from "./run-metrics.contract";
