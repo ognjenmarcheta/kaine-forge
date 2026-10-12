@@ -102,8 +102,6 @@ These are manual agent-behavior scenarios. `pnpm ai:install` and strict `pnpm ai
 | Several retries in one debugging attempt                                                                                | Do not treat the retries as evidence of a recurring workflow.                                                                                   |
 | Declined suggestion appears relevant again                                                                              | Do not repeat it unless new evidence is available in context.                                                                                   |
 
-This follows [OpenAI's skill guidance](https://learn.chatgpt.com/docs/build-skills): discover through concise metadata and load instructions selectively. Selection remains model-driven across the supported agent targets.
-
 ## Planning skill acceptance
 
 `kaine-write-plan` owns implementation planning. The canonical guide explicitly
@@ -127,15 +125,6 @@ The following scenarios are manual acceptance criteria, not executed model trial
 
 Installation and doctor checks verify metadata and generated copies. They do not
 execute these scenarios or prove that every agent will select or follow the skill.
-
-### Planning sources
-
-The short repository workflow adapts ideas from these reviewed sources; it does
-not depend on installing or invoking them:
-
-- [Superpowers writing-plans](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/writing-plans/SKILL.md): verifiable stages, clear interfaces and proportionate self-review.
-- [Matt Pocock's historical request-refactor-plan](https://github.com/mattpocock/skills/blob/e7f0b58a4b8ad0764d9478b069fe6e48b99c320f/request-refactor-plan/SKILL.md): scope, decisions, behavioral testing and safe incremental changes. This skill is absent from the current source tree reviewed for this change.
-- [Matt Pocock's grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) and [to-spec](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/to-spec/SKILL.md): discover facts before asking for decisions, and reuse established context.
 
 ## Implementation-summary skill acceptance
 
@@ -164,8 +153,6 @@ outcomes, and clear ownership of next steps. Record any observed agent behavior
 separately. Installation, doctor, formatting, and repository checks validate
 metadata and generated files; they do not prove universal instruction-following.
 Do not add tests that merely search for the ending's heading.
-
-The writing guidance follows the [National Archives plain-language principles](https://www.archives.gov/open/plain-writing/10-principles.html): lead with the main point, use familiar words, and keep sentences focused. The skill has no external runtime dependency.
 
 ## Explanation skill acceptance
 
@@ -207,19 +194,6 @@ source-grounded questions and a usefulness preference. Keep reader feedback
 separate from model-output scoring. A small paired comparison cannot establish a
 percentage productivity gain or generalize across models, tasks, or readers.
 Correct factual errors and tighten instructions that add cost without value.
-
-### Explanation sources
-
-The Kaine procedure is original. It uses ideas from these reviewed sources without
-requiring their tooling or copying their text or templates:
-
-- [ARYANK-08 explanation skill at 0573ad9](https://github.com/ARYANK-08/agentic-dev-kit/blob/0573ad968b06a84679e64a720f0de756cfdee2f9/skills/explain/SKILL.md): format choice, concrete examples, and source grounding. The inspected repository declares no license; its fixed layouts and tool assumptions are not adopted.
-- [Andrej Karpathy, October 2, 2026](https://x.com/karpathy/status/2105819303471976479): use prose, diagrams, and custom interactive explanations to support understanding and oversight. These are experience-based suggestions, not a Kaine effectiveness measurement.
-- [Aakash Gupta, October 2, 2026](https://x.com/aakashgupta/status/2105884986138411482): controlled language as a way to reduce ambiguity. Claims of the strongest prompt or safety gains do not establish a measured result for Kaine.
-- [Official ASD-STE100 overview](https://www.asd-ste100.org/about_STE.html) and [Issue 9, January 15, 2025](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf): short sentences, consistent terms, and permitted technical vocabulary. Kaine uses STE-inspired prose; it does not claim full standards compliance.
-
-The two X posts were read through the FxTwitter mirror on October 2, 2026 because
-direct access returned 403. Attribution links point to the original posts.
 
 ## Related
 

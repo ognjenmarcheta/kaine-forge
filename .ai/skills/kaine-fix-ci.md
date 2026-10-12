@@ -12,7 +12,7 @@ Use this skill when a GitHub Actions check fails or when local validation differ
 
 - Identify the failing workflow, job, command, and first meaningful error.
 - Prefer CI logs over guesses.
-- Reproduce locally with the closest scoped command.
+- Reproduce locally with the closest scoped command. When the cause is not obvious from the log, continue with `kaine-debug`.
 - Check whether failures come from generated drift, missing lockfile updates, GraphQL generation, formatting, or environment assumptions.
 
 ## Common Commands

@@ -225,6 +225,7 @@ This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
+- `kaine-debug`: Find and fix the root cause of a local failure — a failing test, broken build, runtime error, or regression — by reproducing, localizing, and reducing it before changing code.
 - `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.

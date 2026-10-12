@@ -29,6 +29,8 @@ Use this skill when adding tests, repairing tests, or proving behavior.
 ## Expectations
 
 - Assert behavior, not implementation trivia.
+- For a bug, write the reproduction test first and watch it fail before the fix.
+- Prefer real dependencies, then fakes, then stubs, then mocks. Tenancy tests run the real resolver (`apps/api/src/features/notes/notes.tenancy.test.ts`).
 - Keep fixtures small and explicit.
 - Do not use `any` in tests.
 - Keep user-facing strings in translations even for test-only rendered components.

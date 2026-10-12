@@ -40,5 +40,7 @@ Dependencies the stdlib or platform already ships, single-implementation interfa
 
 - Scope: over-engineering and complexity only. Correctness bugs, security holes, and performance go to `kaine-review`, not this pass.
 - The minimum test for non-trivial logic is the floor, not bloat — never flag it for deletion.
+- A cut must keep existing tests passing without edits. If a test needs a change, the cut changes behavior; report it as such.
+- Before tagging odd code `delete`, check `git log -L` or `git blame` for the reason it exists.
 - Report only; apply nothing unless the user asks.
 - A cut with a known ceiling becomes a GitHub issue naming the ceiling and upgrade trigger (`docs/agents/issue-tracker.md`), never a "for now" comment.

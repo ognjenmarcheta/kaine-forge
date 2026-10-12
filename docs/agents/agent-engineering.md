@@ -6,12 +6,6 @@ probes, offline fixtures, comparable reports and context snapshots are available
 Isolation certification and live comparisons remain blocked or pending.
 No paid model calls are part of this implementation or ordinary CI.
 
-The workflow follows the emphasis on verified outcomes and focused context in
-[Codex learning resources](https://developers.openai.com/learn/codex) and
-[Claude Code best practices](https://code.claude.com/docs/en/best-practices).
-The [AI engineer roadmap](https://roadmap.sh/ai-engineer) is a topic inventory;
-it is not evidence that this repository needs every listed system.
-
 ## Installation readiness and MCP startup
 
 ```sh
