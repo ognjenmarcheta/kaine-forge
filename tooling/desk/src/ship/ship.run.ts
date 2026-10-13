@@ -1,7 +1,13 @@
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { checkReportSchema, runChecks, CHECK_REPORT_FILE, type CheckReport } from "../check";
+import {
+  checkReportSchema,
+  runChecks,
+  CHECK_REPORT_FILE,
+  type CheckReport,
+  type RunChecksRequest
+} from "../check";
 import type { DeskConfig, IssueState, PlannerOutput } from "../contracts";
 import { findAttributionViolations, isAiIdentity } from "./ship.attribution";
 import {
@@ -116,6 +122,8 @@ export interface ShipDeps {
   readonly onEvent?: ((event: ShipEvent) => void) | undefined;
   /** Runs a check inside the scheduler's one check slot. Default: run it at once. */
   readonly checkSlot?: (<T>(task: () => Promise<T>) => Promise<T>) | undefined;
+  /** Runs the ship checks. The pipeline passes the Docker port in Docker mode. Default: on the host. */
+  readonly runChecks?: ((request: RunChecksRequest) => Promise<CheckReport>) | undefined;
   readonly timeouts?: Partial<ShipTimeouts> | undefined;
   /**
    * Awaited once, after the gate passed and before the first change (not in a
@@ -629,7 +637,15 @@ const runShip = async (
     deps.checkSlot === undefined ? task() : deps.checkSlot(task);
   const shipChecks = (baseSha: string): Promise<CheckReport> =>
     runCheckJob(() =>
-      runChecks({ worktree, kind: "ship", config, exec, baseSha, artifactsDir: shipDir, clock })
+      (deps.runChecks ?? runChecks)({
+        worktree,
+        kind: "ship",
+        config,
+        exec,
+        baseSha,
+        artifactsDir: shipDir,
+        clock
+      })
     );
 
   // --- ship checks ------------------------------------------------------------

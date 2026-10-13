@@ -690,15 +690,21 @@ overrides the config for one issue.
 
 See [ADR 0011](../adr/0011-local-agent-desk.md) for the decision.
 
+On a Windows host, use Docker mode. In host mode the builder and the checks run on Windows, and
+some repository tests (the desk's own, for example) pass only on Linux and macOS. Docker mode runs
+the builder and every check on Linux, as CI does. Docker Desktop must be running. On Linux and
+macOS, host mode is enough for the checks; Docker mode adds the security boundary.
+
 ### What runs where
 
-| Step                                                   | Host mode | Docker mode                              |
-| ------------------------------------------------------ | --------- | ---------------------------------------- |
-| Intake, setup (worktree, `pnpm install`, `ai:install`) | host      | host (trusted code from `origin/main`)   |
-| Planner, reviewer (read-only)                          | host      | host (they run no repository code)       |
-| Builder                                                | host      | container                                |
-| Check stage (`pnpm generate`, loop checks)             | host      | container, one container per step        |
-| Ship (commit, push, PR, ship checks)                   | host      | host (ship checks still run on the host) |
+| Step                                                   | Host mode | Docker mode                            |
+| ------------------------------------------------------ | --------- | -------------------------------------- |
+| Intake, setup (worktree, `pnpm install`, `ai:install`) | host      | host (trusted code from `origin/main`) |
+| Planner, reviewer (read-only)                          | host      | host (they run no repository code)     |
+| Builder                                                | host      | container                              |
+| Check stage (`pnpm generate`, loop checks)             | host      | container, one container per step      |
+| Ship checks (`pnpm check` before the commit)           | host      | container, one container per step      |
+| Ship (commit, push, PR)                                | host      | host                                   |
 
 The host worktree stays the canonical copy. The container has its own copy in a Docker volume.
 Nothing is bind-mounted from the worktree.
@@ -726,7 +732,6 @@ It does not protect against these, and the owner still decides on them:
   invariants stop paths and refs that must not change. The owner reads the diff at `pr-review`.
 - The agent can use the provider login that is in the container (it can read it). The login has
   no other way out than the provider hosts.
-- Ship checks (`pnpm check` before the commit) run on the host, after the owner approved the diff.
 
 ### Commands
 
@@ -812,7 +817,6 @@ needs no `allowCodexBuilder` opt-in. A Codex builder on the host still needs it.
 - The image is about 2 GB (Node, git, a C toolchain for native modules, Claude Code, Codex).
 - Checks run on Linux. A check that passes on macOS can fail in the container, and the other way
   round.
-- Ship checks run on the host.
 - The agent log redaction (`redact()`) applies. The stream is not filtered in the container.
 
 ### What is verified, and what is not

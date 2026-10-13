@@ -775,6 +775,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     };
     if (mode.retry) await begin();
 
+    const docker = isolationOf(config, session.state) === "docker" ? deps.docker : undefined;
     const shipDeps: ShipDeps = {
       exec: deps.exec,
       git: deps.git,
@@ -784,6 +785,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       store,
       onEvent: (event) => log(issue, describeShipEvent(event)),
       checkSlot: (task) => scheduler.check.run(task),
+      runChecks:
+        docker === undefined ? undefined : (request) => docker.runChecks({ ...request, issue }),
       beforeChange: mode.dryRun ? undefined : begin
     };
     // A dry run asks the gate as if the engineer confirmed, so the plan lists only the real blockers.

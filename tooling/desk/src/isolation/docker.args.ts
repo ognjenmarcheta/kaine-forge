@@ -85,6 +85,11 @@ const FORBIDDEN_ENV =
 
 const VOLUME_TARGETS: ReadonlySet<string> = new Set([WORKSPACE, STATE, STORE, SOCKET, AUTH]);
 const MEMORY = /^[1-9]\d*[mMgG]$/;
+/**
+ * An absolute folder below the root: POSIX (`/x`) or a Windows drive (`C:\x`).
+ * No root, no relative path, no UNC share or device path (`\\server`, `\\.\pipe`).
+ */
+const HOST_FOLDER = /^(?:\/|[A-Za-z]:[\\/])[^\\/]/;
 
 const fail = (message: string): never => {
   throw new ContainerPolicyError(message);
@@ -113,11 +118,7 @@ const validate = (spec: ContainerSpec): void => {
         fail(`Volume '${mount.source}' lacks the desk prefix.`);
       if (!VOLUME_TARGETS.has(mount.target)) fail(`Unknown volume target '${mount.target}'.`);
     } else {
-      if (
-        !mount.source.startsWith("/") ||
-        mount.source === "/" ||
-        /docker\.sock/.test(mount.source)
-      ) {
+      if (!HOST_FOLDER.test(mount.source) || /docker\.sock|docker_engine/.test(mount.source)) {
         fail(`Refusing the bind mount '${mount.source}'.`);
       }
       if (mount.target !== INPUT) fail(`A bind mount may only target ${INPUT}.`);

@@ -1,4 +1,4 @@
-import { readFile, symlink } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -116,10 +116,15 @@ describe("guardPatch", () => {
 
   it("refuses a symbolic link, because it can point outside the worktree", async () => {
     const repo = await open();
-    const patch = await patchOf(repo, async () => {
-      await symlink("/etc/passwd", path.join(repo.dir, "src", "link"));
+    // Stage the link in the index only: Windows refuses `symlink` without admin rights.
+    await repo.write("target.txt", "/etc/passwd");
+    const blob = (await repo.git(["hash-object", "-w", "target.txt"])).trim();
+    await repo.git(["update-index", "--add", "--cacheinfo", `120000,${blob},src/link`]);
+    const { stdout: patch } = await hermeticExec({
+      argv: ["git", "diff", "--cached", "--binary", "--full-index", "HEAD"],
+      cwd: repo.dir
     });
-    expect(patch).toContain("120000");
+    expect(patch).toContain("new file mode 120000");
     const verdict = await guardPatch(hermeticExec, repo.dir, patch, OPTIONS);
     expect(verdict.ok).toBe(false);
     expect(verdict.ok ? "" : verdict.reasons.join(" ")).toContain("symbolic link");

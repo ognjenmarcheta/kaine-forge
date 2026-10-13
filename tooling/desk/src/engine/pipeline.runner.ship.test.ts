@@ -2,8 +2,10 @@ import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { runChecks } from "../check";
 import type { IssueState } from "../contracts";
 import { createPipelineRunner, type PipelineRunner } from "./pipeline.runner";
+import type { IsolatedCheckRequest, IsolationPort } from "../isolation/isolation.port";
 import { createLogSink } from "../log/log.writer";
 import { REFS_BASELINE_FILE, SHIP_PLAN_FILE, SHIP_RECORD_FILE } from "../ship/ship.contract";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
@@ -59,7 +61,28 @@ const hookScript = (root: string, name: string): string =>
     ""
   ].join("\n");
 
-const open = async (): Promise<ShipHarness> => {
+/** A Docker port that records the check requests and runs them on the host. */
+interface RecordingDocker extends IsolationPort {
+  readonly checks: IsolatedCheckRequest[];
+}
+
+const recordingDocker = (runner: () => PipelineEnv["runner"]): RecordingDocker => {
+  const checks: IsolatedCheckRequest[] = [];
+  return {
+    mode: "docker",
+    checks,
+    preflight: () => Promise.resolve(null),
+    runnerFor: () => runner(),
+    runChecks: (request) => {
+      checks.push(request);
+      return runChecks(request);
+    },
+    removeContainers: () => Promise.resolve(null),
+    removeIssue: () => Promise.resolve(null)
+  };
+};
+
+const open = async (docker?: IsolationPort): Promise<ShipHarness> => {
   const template = await readFile(
     path.resolve(import.meta.dirname, "../../../../.github/pull_request_template.md"),
     "utf8"
@@ -71,7 +94,8 @@ const open = async (): Promise<ShipHarness> => {
       { role: "planner", output: planOutput() },
       { role: "builder", output: builderOutput(), effect: (run) => writeFeature(run) },
       { role: "reviewer", output: reviewOutput() }
-    ]
+    ],
+    ...(docker === undefined ? {} : { docker })
   });
   env = created;
   const { clone, scratch } = created;
@@ -121,8 +145,16 @@ const open = async (): Promise<ShipHarness> => {
 };
 
 /** Drive the issue to `pr-review`. */
-const toPrReview = async (h: ShipHarness): Promise<IssueState> => {
-  expect(await h.pipeline.start(ISSUE, { override: false })).toMatchObject({
+const toPrReview = async (
+  h: ShipHarness,
+  isolation?: IssueState["isolation"]
+): Promise<IssueState> => {
+  expect(
+    await h.pipeline.start(ISSUE, {
+      override: false,
+      ...(isolation === undefined ? {} : { isolation })
+    })
+  ).toMatchObject({
     outcome: "stopped",
     stop: "gate"
   });
@@ -368,5 +400,27 @@ describe("ship, end to end with real git", () => {
     expect((await h.hookLog()).filter((name) => name === "pre-commit")).toHaveLength(1);
     expect(h.env.github.labelEdits.at(-1)?.change.add).toEqual(["agent:pr-open"]);
     expectSafeCalls(h.env);
+  });
+});
+
+describe("ship in Docker mode", () => {
+  it("runs the ship checks through the Docker port, like the loop checks", async () => {
+    const holder: { env: PipelineEnv | null } = { env: null };
+    const docker = recordingDocker(() => {
+      if (holder.env === null) throw new Error("the environment is not ready");
+      return holder.env.runner;
+    });
+    const h = await open(docker);
+    holder.env = h.env;
+    await toPrReview(h, "docker");
+
+    expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
+      outcome: "stopped",
+      stop: "shipped"
+    });
+    expect(docker.checks.map((request) => [request.kind, request.issue])).toEqual([
+      ["loop", ISSUE],
+      ["ship", ISSUE]
+    ]);
   });
 });
