@@ -24,6 +24,7 @@ import { useId, useRef, useState, type ReactElement, type RefObject } from "reac
 
 import type { IssueActions } from "./gate.actions";
 import { CancelDialog, RemoveDialog } from "./gate.confirm";
+import { DraftDialog } from "./gate.draft-dialog";
 import { FeedbackForm } from "./gate.feedback";
 import { ShipDialog } from "./gate.ship-dialog";
 import { useT } from "../i18n/i18n.t";
@@ -31,6 +32,7 @@ import { safeHttpUrl } from "../shell/shell.format";
 import { useNow } from "../shell/shell.now";
 import { TimeInStage } from "../shell/shell.time";
 import { Pre } from "../shell/shell.ui";
+import { useDesk } from "../state/desk.provider";
 import { canCancel, gateModeOf, type GateMode, type ReadableSummary } from "../status/status.model";
 
 const PR_REVIEW_TARGETS: readonly FeedbackTarget[] = ["build", "review", "plan"];
@@ -163,6 +165,25 @@ export function useGatePanel({
   const [override, setOverride] = useState(false);
   /** Intake stopped: the issue starts again, and the engineer chooses the override again. */
   const restart = mode === "needs-you" && summary.resumeStage === "intake";
+  const { api } = useDesk();
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const hasDraft = detail.artifacts.some((entry) => entry.id === "issue-draft" && entry.present);
+  /** The intake agent drafts the issue format. The dialog opens when a draft exists afterwards. */
+  const draft = async (): Promise<void> => {
+    setDrafting(true);
+    try {
+      const settled = await actions.run({ action: "draft" });
+      if (settled.kind !== "done") return;
+      const ready = await api
+        .artifactText(summary.issueNumber, "issue-draft")
+        .then(() => true)
+        .catch(() => false);
+      if (ready) setDraftOpen(true);
+    } finally {
+      setDrafting(false);
+    }
+  };
   const prUrl = safeHttpUrl(detail.state.prUrl);
   const titleId = `${id}-title`;
   const feedbackId = `${id}-feedback`;
@@ -320,6 +341,24 @@ export function useGatePanel({
           {restart ? (
             <>
               <p className="desk-muted">{t("desk.gate.needsYou.restartHelp")}</p>
+              <div className="desk-draft__actions">
+                <Button appearance="secondary" disabled={actions.busy} onClick={() => void draft()}>
+                  {drafting ? (
+                    <>
+                      <Spinner size="sm" label={t("desk.draft.drafting")} aria-hidden="true" />
+                      {t("desk.draft.drafting")}
+                    </>
+                  ) : (
+                    t("desk.draft.start")
+                  )}
+                </Button>
+                {hasDraft && (
+                  <Button appearance="subtle" onClick={() => setDraftOpen(true)}>
+                    {t("desk.draft.review")}
+                  </Button>
+                )}
+              </div>
+              <p className="desk-muted">{t("desk.draft.help")}</p>
               <div className="desk-check-row">
                 <Checkbox
                   id={`${id}-override`}
@@ -382,6 +421,12 @@ export function useGatePanel({
         issueNumber={summary.issueNumber}
         open={shipOpen}
         onOpenChange={setShipOpen}
+        actions={actions}
+      />
+      <DraftDialog
+        issueNumber={summary.issueNumber}
+        open={draftOpen}
+        onOpenChange={setDraftOpen}
         actions={actions}
       />
       <CancelDialog

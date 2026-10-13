@@ -8,7 +8,7 @@ import {
   type ServerRunner,
   type ShipActionResult
 } from "@repo/desk";
-import type { HistoryEvent, IssueState } from "@repo/desk/contracts";
+import { issueDraftSchema, type HistoryEvent, type IssueState } from "@repo/desk/contracts";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -22,6 +22,8 @@ import {
   scenarioBoard,
   scenarioRuns,
   issueUrl,
+  intakeStoppedIssue,
+  draftArtifact,
   type SeedIssue
 } from "./fixture.data";
 
@@ -134,8 +136,41 @@ const buildRunner = (
           state: null
         };
       }
+      if (issue === 130) {
+        await writeSeed(store, intakeStoppedIssue(issue, "Remove the temporary audit exception"));
+        return {
+          outcome: "stopped",
+          stop: "needs-you",
+          state: await readState(store, issue),
+          message: "No acceptance criteria found."
+        };
+      }
       await writeSeed(store, planGateIssue(issue, `Started from the page (#${String(issue)})`));
       return gate(await readState(store, issue));
+    },
+    draft: async (issue) => {
+      record(issue, "draft", {});
+      await writeFile(
+        path.join(store.artifactsDir(issue), "issue-draft.json"),
+        draftArtifact(issue)
+      );
+      const state = await change(store, issue, {}, event("needs-you", "draft-ready"));
+      return {
+        outcome: "drafted",
+        state,
+        draft: issueDraftSchema.parse(JSON.parse(draftArtifact(issue)))
+      };
+    },
+    applyDraft: async (issue, applyOptions) => {
+      record(issue, "apply-draft", applyOptions);
+      await rm(path.join(store.artifactsDir(issue), "issue-draft.json"), { force: true });
+      const state = await change(store, issue, {}, event("needs-you", "draft-applied"));
+      return {
+        outcome: "stopped",
+        stop: "needs-you",
+        state,
+        message: `The body of #${String(issue)} on GitHub is the draft now. Run 'start' again.`
+      };
     },
     approvePlan: async (issue) => {
       record(issue, "approve", {});

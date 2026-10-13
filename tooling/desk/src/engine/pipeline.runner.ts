@@ -906,6 +906,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           return refused("intake-refused", `Issue #${issue} is closed.`, session.state);
         }
 
+        // A new draft replaces the old one, also when it fails: no stale draft stays to apply.
+        await rm(path.join(store.artifactsDir(issue), ISSUE_DRAFT_FILE), { force: true });
         await record(session, "needs-you", "draft-started");
         await save(session);
         const result = await draftIssueFormat(contextFor(session), { snapshot, owner });

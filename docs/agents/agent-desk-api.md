@@ -60,20 +60,22 @@ import only Zod, so a browser can use them.
 | POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.               |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
-`ship-plan`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.
+`ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.
 `log` is `events.jsonl`, the saved history. The `?after=` log is the live buffer in memory.
 
 ## Actions
 
-| `action`   | Extra fields                                             | Runner call                    |
-| ---------- | -------------------------------------------------------- | ------------------------------ |
-| `start`    | `override?: boolean`                                     | `start(n, { override })`       |
-| `approve`  | none                                                     | `approvePlan(n)`               |
-| `feedback` | `to: plan\|build\|review`, `text`                        | `feedback(n, to, text)`        |
-| `continue` | `from?: intake\|setup\|plan\|build\|check\|review\|ship` | `continueFrom(n, from)`        |
-| `cancel`   | none                                                     | `cancel(n)`                    |
-| `remove`   | `force?: boolean`                                        | `remove(n, { force })`         |
-| `ship`     | `confirm: boolean`, `dryRun?: boolean`                   | `ship(n, { confirm, dryRun })` |
+| `action`      | Extra fields                                             | Runner call                                           |
+| ------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+| `start`       | `override?: boolean`                                     | `start(n, { override })`                              |
+| `approve`     | none                                                     | `approvePlan(n)`                                      |
+| `feedback`    | `to: plan\|build\|review`, `text`                        | `feedback(n, to, text)`                               |
+| `continue`    | `from?: intake\|setup\|plan\|build\|check\|review\|ship` | `continueFrom(n, from)`                               |
+| `cancel`      | none                                                     | `cancel(n)`                                           |
+| `remove`      | `force?: boolean`                                        | `remove(n, { force })`                                |
+| `ship`        | `confirm: boolean`, `dryRun?: boolean`                   | `ship(n, { confirm, dryRun })`                        |
+| `draft`       | none                                                     | `draft(n)`: done means `needs-you` with "Draft ready" |
+| `apply-draft` | `confirm: true` (anything else is `400`)                 | `applyDraft(n, { confirm })`                          |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.

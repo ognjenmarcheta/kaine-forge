@@ -1,6 +1,6 @@
 import type { ActionName, ActionOutcome, ActionRequest, RefusalCode, Stage } from "../contracts";
 import type { RemoveResult, PipelineRunner } from "../engine/pipeline.runner";
-import type { ShipActionResult } from "../engine/pipeline.types";
+import type { DraftActionResult, ShipActionResult } from "../engine/pipeline.types";
 
 /** The part of the pipeline runner the server drives. A real `PipelineRunner` fits it. */
 export interface ServerRunner {
@@ -11,6 +11,8 @@ export interface ServerRunner {
   readonly cancel: PipelineRunner["cancel"];
   readonly remove: PipelineRunner["remove"];
   readonly ship: PipelineRunner["ship"];
+  readonly draft: PipelineRunner["draft"];
+  readonly applyDraft: PipelineRunner["applyDraft"];
 }
 
 /** How a runner call ended, in the terms of the wire contract. */
@@ -42,7 +44,9 @@ export interface ActionDispatcher {
   readonly isBusy: (issueNumber: number) => boolean;
 }
 
-const settle = (result: ShipActionResult | RemoveResult): Settled => {
+type RunnerResult = ShipActionResult | DraftActionResult | RemoveResult;
+
+const settle = (result: RunnerResult): Settled => {
   if (result.outcome === "refused") {
     return { kind: "refused", code: result.refusal, detail: result.reason };
   }
@@ -57,6 +61,18 @@ const settle = (result: ShipActionResult | RemoveResult): Settled => {
         stop: "gate",
         stage: result.state.stage,
         message: blockers.length === 0 ? null : blockers.join("\n")
+      }
+    };
+  }
+  if (result.outcome === "drafted") {
+    // The issue still waits at intake. The page reads the draft from its artifact.
+    const { draft } = result;
+    return {
+      kind: "done",
+      outcome: {
+        stop: "needs-you",
+        stage: result.state.stage,
+        message: `Draft ready: contract ${draft.contract.found}/${draft.contract.total}, ${draft.recommendation}.`
       }
     };
   }
@@ -84,10 +100,7 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
   const { runner } = options;
   const busy = new Set<number>();
 
-  const run = (
-    issueNumber: number,
-    request: ActionRequest
-  ): Promise<ShipActionResult | RemoveResult> => {
+  const run = (issueNumber: number, request: ActionRequest): Promise<RunnerResult> => {
     switch (request.action) {
       case "start":
         return runner.start(issueNumber, { override: request.override });
@@ -103,6 +116,10 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.remove(issueNumber, { force: request.force });
       case "ship":
         return runner.ship(issueNumber, { confirm: request.confirm, dryRun: request.dryRun });
+      case "draft":
+        return runner.draft(issueNumber);
+      case "apply-draft":
+        return runner.applyDraft(issueNumber, { confirm: request.confirm });
     }
   };
 

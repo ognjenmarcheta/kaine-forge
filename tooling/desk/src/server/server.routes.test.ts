@@ -390,6 +390,7 @@ describe("GET /api/issues/:n/artifacts/:id", () => {
         "build",
         "check-report",
         "diff",
+        "issue-draft",
         "log",
         "plan",
         "pr-body",
@@ -592,6 +593,16 @@ describe("POST /api/issues/:n/actions", () => {
       body: { action: "ship", confirm: false, dryRun: true },
       check: (h: Harness) =>
         expect(h.runner.ship).toHaveBeenCalledWith(3, { confirm: false, dryRun: true })
+    },
+    {
+      name: "draft",
+      body: { action: "draft" },
+      check: (h: Harness) => expect(h.runner.draft).toHaveBeenCalledWith(3)
+    },
+    {
+      name: "apply-draft",
+      body: { action: "apply-draft", confirm: true },
+      check: (h: Harness) => expect(h.runner.applyDraft).toHaveBeenCalledWith(3, { confirm: true })
     }
   ])("calls the runner for $name", async ({ body, check }) => {
     await harness.seed(3);
@@ -643,6 +654,47 @@ describe("POST /api/issues/:n/actions", () => {
         stop: "gate",
         stage: state.stage,
         message: "refs-baseline-missing: No baseline."
+      }
+    });
+  });
+
+  it("refuses an apply-draft without confirm: true before the runner sees it", async () => {
+    await harness.seed(3);
+    for (const body of [{ action: "apply-draft" }, { action: "apply-draft", confirm: false }]) {
+      expect((await api.post("/api/issues/3/actions", body)).status).toBe(400);
+    }
+    expect(harness.runner.applyDraft).not.toHaveBeenCalled();
+  });
+
+  it("answers a draft as done at needs-you, with the score and the recommendation", async () => {
+    const state = makeState(3, { stage: "needs-you", resumeStage: "intake" });
+    harness.runner.draft.mockResolvedValueOnce({
+      outcome: "drafted",
+      state,
+      draft: {
+        schema: 1,
+        issue: 3,
+        createdAt: "2026-10-13T09:00:00.000Z",
+        originalBodyHash: "a".repeat(64),
+        body: "## Outcome\nx",
+        contract: { found: 6, total: 6 },
+        acceptanceCriteria: 1,
+        recommendation: "needs-info",
+        reasons: ["r"],
+        unknowns: [],
+        plainLanguage: "p",
+        provider: "claude",
+        model: null
+      }
+    });
+    await harness.seed(3, { stage: "needs-you", resumeStage: "intake" });
+    const reply = await api.post("/api/issues/3/actions", { action: "draft" });
+    expect(actionResponseSchema.parse(reply.json())).toMatchObject({
+      status: "done",
+      outcome: {
+        stop: "needs-you",
+        stage: "needs-you",
+        message: "Draft ready: contract 6/6, needs-info."
       }
     });
   });

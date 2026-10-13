@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { CHECK_REPORT_FILE } from "../check/check.run";
 import { ARTIFACT_IDS, type ArtifactEntry, type ArtifactId } from "../contracts";
+import { ISSUE_DRAFT_FILE } from "../engine/intake.draft";
 import { ARTIFACTS } from "../engine/pipeline.artifacts";
 import { PR_BODY_FILE, SHIP_PLAN_FILE } from "../ship/ship.contract";
 import type { IssueStore } from "../store/store.issue";
@@ -33,6 +34,7 @@ export const ARTIFACT_SPECS: Readonly<Record<ArtifactId, ArtifactSpec>> = {
   diff: { file: ARTIFACTS.diff, contentType: TEXT, location: "artifacts" },
   "pr-body": { file: PR_BODY_FILE, contentType: MARKDOWN, location: "artifacts" },
   "ship-plan": { file: SHIP_PLAN_FILE, contentType: JSON_TYPE, location: "artifacts" },
+  "issue-draft": { file: ISSUE_DRAFT_FILE, contentType: JSON_TYPE, location: "artifacts" },
   log: { file: "events.jsonl", contentType: TEXT, location: "issue" }
 };
 

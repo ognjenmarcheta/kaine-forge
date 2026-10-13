@@ -277,6 +277,73 @@ const needsYouIssue = (issueNumber: number, title: string): SeedIssue => {
   };
 };
 
+/** An issue that stopped at intake: its body has no acceptance criteria under a known heading. */
+export const intakeStoppedIssue = (issueNumber: number, title: string): SeedIssue => ({
+  title,
+  labels: [],
+  state: base(
+    issueNumber,
+    [
+      event("intake", "intake-started"),
+      event(
+        "needs-you",
+        "needs-you",
+        "No acceptance criteria found (contract 0/6, missing: outcome, acceptance-criteria, scope, validation, evidence, out-of-scope)."
+      )
+    ],
+    { stage: "needs-you", status: "waiting", resumeStage: "intake" }
+  ),
+  artifacts: { "ticket.md": ticketText(title, 0) }
+});
+
+/** The intake draft the fixture's agent writes. */
+export const draftArtifact = (issueNumber: number): string =>
+  `${JSON.stringify({
+    schema: 1,
+    issue: issueNumber,
+    createdAt: at(),
+    originalBodyHash: "c".repeat(64),
+    body: [
+      "## Outcome",
+      "",
+      "pnpm audit passes without the temporary exception.",
+      "",
+      "## Acceptance criteria",
+      "",
+      "- The advisory is gone from auditConfig.ignoreGhsas",
+      "",
+      "## Scope",
+      "",
+      "pnpm-workspace.yaml",
+      "",
+      "## Validation",
+      "",
+      "pnpm check",
+      "",
+      "## Evidence",
+      "",
+      "unknown, investigate first",
+      "",
+      "## Out of scope",
+      "",
+      "- The Expo SDK pins",
+      "",
+      "## Original text",
+      "",
+      "> ## Exit condition",
+      "> <b>Remove</b> the exception when a fix ships.",
+      ""
+    ].join("\n"),
+    contract: { found: 6, total: 6 },
+    acceptanceCriteria: 1,
+    recommendation: "needs-info",
+    reasons: ["It waits for a fixed upstream release."],
+    unknowns: [{ section: "evidence", question: "Which release fixes the advisory?" }],
+    plainLanguage: "Remove a temporary security exception once a fix exists.",
+    provider: "claude",
+    model: null
+  })}\n`;
+
 export const planGateIssue = (issueNumber: number, title: string): SeedIssue => ({
   title,
   labels: ["ready-for-agent", "agent:working"],

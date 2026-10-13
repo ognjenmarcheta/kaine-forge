@@ -594,6 +594,35 @@ test("starts an issue picked from GitHub, and shows open pull requests read-only
   });
 });
 
+test("drafts the issue format for a stopped intake and applies it after a second yes", async ({
+  page,
+  desk
+}) => {
+  await desk.open();
+  await page.getByRole("button", { name: "Start issue" }).first().click();
+  const start = page.getByRole("dialog", { name: "Start an issue" });
+  await start.getByRole("textbox", { name: "Issue number" }).fill("130");
+  await start.getByRole("button", { name: "Start", exact: true }).click();
+
+  await group(page, /^Needs you/)
+    .getByRole("link", { name: "Fix and start again" })
+    .click();
+  await page.getByRole("button", { name: "Draft the issue format" }).click();
+  const draft = page.getByRole("dialog", { name: "Draft of #130" });
+  await expect(draft.getByText("Contract 6/6")).toBeVisible();
+  await expect(draft.getByText("Which release fixes the advisory?")).toBeVisible();
+  // The quoted original stays text.
+  await expect(draft.getByText(/<b>Remove<\/b> the exception/)).toBeVisible();
+
+  await draft.getByRole("button", { name: "Apply to GitHub…" }).click();
+  await draft.getByRole("button", { name: "Replace the issue body" }).click();
+  await expect(page.getByText(/The issue body on GitHub is the draft now/)).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Draft of #130" })).toHaveCount(0);
+  const calls = await desk.calls();
+  expect(calls.map((call) => call.action)).toEqual(["start", "draft", "apply-draft"]);
+  expect(calls.at(-1)?.payload).toEqual({ confirm: true });
+});
+
 test("switches language and theme without leaving the page", async ({ page, desk }) => {
   await desk.open({}, "?issue=101");
   await page.getByRole("button", { name: "Request changes" }).click();

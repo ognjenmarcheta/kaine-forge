@@ -79,3 +79,6 @@ for 6/6 with at least one criterion.
   `github.contract.templates.test.ts` renders each template and fails below 6/6.
 - The same test checks the example on this page.
 - Skills that write issues use `kaine-write-issue`.
+- For an issue that stopped at intake, the agent desk can draft this format and apply it after
+  your yes (`pnpm desk draft <n>`, or **Draft the issue format** on the issue page). See
+  [`agent-desk.md`](agent-desk.md#draft-the-issue-format).

@@ -117,7 +117,9 @@ export const createDefaultDeskRuntime =
         continueFrom: runner.continueFrom,
         cancel: runner.cancel,
         remove: runner.remove,
-        ship: runner.ship
+        ship: runner.ship,
+        draft: runner.draft,
+        applyDraft: runner.applyDraft
       },
       readRuns: () => readRunRecords(location.stateRoot),
       openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),

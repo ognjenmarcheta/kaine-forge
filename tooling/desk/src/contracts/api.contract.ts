@@ -78,6 +78,7 @@ export const ARTIFACT_IDS = [
   "diff",
   "pr-body",
   "ship-plan",
+  "issue-draft",
   "log"
 ] as const;
 export const artifactIdSchema = z.enum(ARTIFACT_IDS);
@@ -259,7 +260,9 @@ export const ACTION_NAMES = [
   "continue",
   "cancel",
   "remove",
-  "ship"
+  "ship",
+  "draft",
+  "apply-draft"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
@@ -290,7 +293,10 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     .refine((request) => request.confirm || request.dryRun, {
       message: "A ship that is not a dry run needs confirm: true",
       path: ["confirm"]
-    })
+    }),
+  z.object({ action: z.literal("draft") }).strict(),
+  // Applying replaces the issue body on GitHub. Only an explicit yes reaches the engine.
+  z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;

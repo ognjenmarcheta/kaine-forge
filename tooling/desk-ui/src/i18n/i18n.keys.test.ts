@@ -2,6 +2,8 @@ import {
   ACTION_NAMES,
   AGENT_STAGE_ROLES,
   HEALTH_FIXES,
+  INTAKE_RECOMMENDATIONS,
+  ISSUE_SECTIONS,
   FLOW_NODE_IDS,
   LOOP_KINDS,
   NODE_KINDS,
@@ -85,6 +87,8 @@ describe("desk translations", () => {
       "desk.health.fix.confirm.": HEALTH_FIXES,
       "desk.health.fix.name.": HEALTH_FIXES,
       "desk.inspector.role.": AGENT_STAGE_ROLES,
+      "desk.draft.recommendation.": INTAKE_RECOMMENDATIONS,
+      "desk.draft.section.": ISSUE_SECTIONS,
       "desk.stats.column.": [
         "role",
         "provider",

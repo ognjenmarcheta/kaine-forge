@@ -57,6 +57,8 @@ export interface FakeRunner extends ServerRunner {
   readonly cancel: ReturnType<typeof vi.fn<ServerRunner["cancel"]>>;
   readonly remove: ReturnType<typeof vi.fn<ServerRunner["remove"]>>;
   readonly ship: ReturnType<typeof vi.fn<ServerRunner["ship"]>>;
+  readonly draft: ReturnType<typeof vi.fn<ServerRunner["draft"]>>;
+  readonly applyDraft: ReturnType<typeof vi.fn<ServerRunner["applyDraft"]>>;
 }
 
 export const makeFakeRunner = (): FakeRunner => {
@@ -71,7 +73,9 @@ export const makeFakeRunner = (): FakeRunner => {
     remove: vi.fn<ServerRunner["remove"]>(() =>
       Promise.resolve({ outcome: "removed", worktreeRemoved: true, branch: null })
     ),
-    ship: vi.fn<ServerRunner["ship"]>((issue) => done(issue))
+    ship: vi.fn<ServerRunner["ship"]>((issue) => done(issue)),
+    draft: vi.fn<ServerRunner["draft"]>((issue) => done(issue)),
+    applyDraft: vi.fn<ServerRunner["applyDraft"]>((issue) => done(issue))
   };
 };
 

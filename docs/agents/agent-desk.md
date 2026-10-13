@@ -378,7 +378,8 @@ terminal; `--confirm` is the yes without a terminal. Every rule must hold, and a
 
 The body goes to `gh issue edit --body-file -` through stdin. Then the draft is deleted, the
 history records `draft-applied`, and the issue waits for `start`. The desk still never adds
-`ready-for-agent`.
+`ready-for-agent`. A new draft deletes the old one first, so a failed redraft leaves none to
+apply. The desk UI offers the same steps on the issue page.
 
 ## State
 
@@ -575,7 +576,12 @@ developer tooling. It has four views:
     plan gate: **Approve plan**, and **Request changes**, which opens the feedback form in
     place. At PR review: **Ship as draft PR…**, and **Request changes** with the target
     (build, review, plan) in a segmented control. When the desk needs you: the engine's reason,
-    **Resume from** (the remembered stage by default), and **Continue**. While an agent runs:
+    **Resume from** (the remembered stage by default), and **Continue**. After a stop at intake:
+    **Draft the issue format** (the read-only intake agent; the review opens when the draft is
+    ready), **Review the draft** while one exists, the override box, and **Start again**. The
+    review shows the score, the agent's recommendation and reasons, the open questions, and the
+    proposed body and the issue now as plain text in tabs. **Copy** copies the body. **Apply to
+    GitHub…** asks a second time; only that yes sends `apply-draft` with `confirm: true`. While an agent runs:
     a spinner, the stage, and the time in it. After a ship: the PR link and, once on the page,
     the note that you merge it yourself. **Cancel run** and **Remove** sit in a **More** menu
     beside the decision title. Both ask first, and focus returns to the menu button. Remove has

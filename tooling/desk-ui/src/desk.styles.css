@@ -583,6 +583,21 @@ main:focus {
   gap: var(--ds-space-100);
 }
 
+/* Intake draft: the buttons in the decision, and the facts on top of the review. */
+.desk-draft__actions,
+.desk-draft__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-draft {
+  display: grid;
+  gap: var(--ds-space-150);
+  min-width: 0;
+}
+
 /* Start dialog: the open issues of the repository, to pick one. */
 .desk-picker {
   display: grid;
