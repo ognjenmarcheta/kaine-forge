@@ -11,6 +11,8 @@ export default mergeConfig(
       include: ["src/**/*.test.{ts,tsx}"],
       exclude: vitestExclude,
       environment: "jsdom",
+      // A test here can wait more than once at the `waitFor` budget of test.setup.ts.
+      testTimeout: 15_000,
       setupFiles: ["./src/test/test.setup.ts"]
     }
   })
