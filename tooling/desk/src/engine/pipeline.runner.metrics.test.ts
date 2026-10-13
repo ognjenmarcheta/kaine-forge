@@ -68,6 +68,7 @@ describe("stuck detection", () => {
     expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     const state = await stateOf(e);
     expect(state).toMatchObject({ stage: "needs-you", resumeStage: "build", status: "waiting" });
+    expect(state.history.at(-1)?.note).toMatch(/^The agent ran /);
     expect(state.history.at(-1)?.note).toContain(
       `ran \`pnpm --filter app test\` ${STUCK_LIMIT} times in a row`
     );

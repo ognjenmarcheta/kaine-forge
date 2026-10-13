@@ -1,12 +1,7 @@
-import { agentStageRoleSchema } from "../contracts";
 import { parse } from "./cli.args";
 import { UsageError, type CliCommand } from "./cli.types";
-import {
-  aggregateRuns,
-  type IssueSnapshot,
-  type RunGroup,
-  type RunStats
-} from "../stats/stats.aggregate";
+import { agentStageRoleSchema, type RunGroup, type RunStats } from "../contracts";
+import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
 import { readRunRecords } from "../stats/stats.runs";
 import { createIssueStore } from "../store/store.issue";
 import { resolveRepoLocation } from "../store/store.root";
@@ -49,7 +44,7 @@ const groupRow = (group: RunGroup): string[] => [
   orDash(group.totalCostUsd, dollars)
 ];
 
-export const formatStats = (stats: RunStats, invalidLines: number): string[] => {
+const formatStats = (stats: RunStats): string[] => {
   if (stats.groups.length === 0) return ["No agent runs recorded yet."];
   const lines = [
     "Agent runs by role, provider and model (means per run):",
@@ -84,8 +79,11 @@ export const formatStats = (stats: RunStats, invalidLines: number): string[] => 
       ])
     )
   ];
-  if (invalidLines > 0) {
-    lines.push("", `${invalidLines} line(s) of runs.jsonl could not be read and were skipped.`);
+  if (stats.invalidLines > 0) {
+    lines.push(
+      "",
+      `${stats.invalidLines} line(s) of runs.jsonl could not be read and were skipped.`
+    );
   }
   return lines;
 };
@@ -101,24 +99,15 @@ export const commandStats: CliCommand = async (args, deps, io) => {
   if (role !== undefined && !role.success) throw new UsageError(USAGE);
 
   const { stateRoot } = await resolveRepoLocation(deps.exec, deps.cwd);
-  const { records, invalidLines } = await readRunRecords(stateRoot);
-  const snapshots = (await createIssueStore(stateRoot).list()).flatMap((entry): IssueSnapshot[] =>
-    entry.result.status === "ok"
-      ? [
-          {
-            issue: entry.issueNumber,
-            stage: entry.result.state.stage,
-            loops: entry.result.state.loops
-          }
-        ]
-      : []
-  );
+  const read = await readRunRecords(stateRoot);
   const stats = aggregateRuns(
-    role === undefined ? records : records.filter((record) => record.role === role.data),
-    snapshots
+    role === undefined
+      ? read
+      : { ...read, records: read.records.filter((record) => record.role === role.data) },
+    snapshotsOf(await createIssueStore(stateRoot).list())
   );
 
-  if (values.json === true) io.out(`${JSON.stringify({ ...stats, invalidLines }, null, 2)}\n`);
-  else io.out(`${formatStats(stats, invalidLines).join("\n")}\n`);
+  if (values.json === true) io.out(`${JSON.stringify(stats, null, 2)}\n`);
+  else io.out(`${formatStats(stats).join("\n")}\n`);
   return 0;
 };

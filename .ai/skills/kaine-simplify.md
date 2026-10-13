@@ -43,4 +43,4 @@ Dependencies the stdlib or platform already ships, single-implementation interfa
 - A cut must keep tests that check observable behavior passing without edits. If such a test needs a change, the cut changes behavior; report it. A test that breaks only because it checks implementation details is a test finding (`kaine-test` value gate), not proof of a behavior change.
 - Before tagging odd code `delete`, check `git log -L` or `git blame` for the reason it exists.
 - Report only; apply nothing unless the user asks.
-- A cut with a known ceiling becomes a GitHub issue naming the ceiling and upgrade trigger (`docs/agents/issue-tracker.md`), never a "for now" comment.
+- A cut with a known ceiling becomes a GitHub issue naming the ceiling and upgrade trigger (write it with `kaine-write-issue`), never a "for now" comment.

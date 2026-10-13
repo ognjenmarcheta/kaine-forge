@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { Anomaly, CheckItem, CheckState, ItemText, Kpi } from "./inspector.model";
 import { ANOMALY_TONE } from "./inspector.model";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
-import { formatDuration } from "../shell/shell.format";
+import { formatCount, formatDuration, formatUsd } from "../shell/shell.format";
 import { toneClass } from "../status/status.model";
 
 export const itemText = (t: Translate, text: ItemText): string =>
@@ -86,6 +86,26 @@ function KpiValueText({ kpi }: { readonly kpi: Kpi }) {
       );
     case "text":
       return <code>{value.text}</code>;
+    case "tokens":
+      return (
+        <>
+          {formatCount(value.input, language)}
+          <small className="desk-kpi__note">
+            {t("desk.inspector.usage.output", { count: formatCount(value.output, language) })}
+          </small>
+        </>
+      );
+    case "cost":
+      return <>{formatUsd(value.usd, language)}</>;
+    case "calls":
+      return (
+        <>
+          {value.total}
+          <small className="desk-kpi__note">
+            {t("desk.inspector.usage.failed", { count: value.failed })}
+          </small>
+        </>
+      );
     case "none":
       return (
         <>

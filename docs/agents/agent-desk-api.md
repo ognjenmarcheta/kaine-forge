@@ -15,7 +15,7 @@ import only Zod, so a browser can use them.
   `{ server, url, launchUrl, close, runtime }`.
 - `serveDesk({ ...same options, signal? })` does the same, then waits for SIGINT,
   SIGTERM, or `signal`, then closes. This is what `pnpm desk serve` calls.
-- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, currentDiffHash?, uiDir?, dispose? }`.
+- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, uiDir?, dispose? }`.
   Pass the given `onEvent` to `createPipelineRunner` as `PipelineDeps.onEvent`. The server
   listens to it for live logs and fast updates. Without a factory the server builds the
   real runtime (`createDefaultDeskRuntime`).
@@ -49,9 +49,12 @@ import only Zod, so a browser can use them.
 | ------ | -------------------------------- | ----------------------------------------------------------------------- |
 | POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.      |
 | GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                        |
+| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`. |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs. Cached 60 s; `ok: false` + reason.  |
+| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue. |
 | GET    | `/api/events`                    | Event stream. See "Events".                                             |
 | GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`. |
-| GET    | `/api/issues/:n`                 | `IssueDetail`. `404 unknown-issue`, `409 unreadable`.                   |
+| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.         |
 | GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.               |
 | GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).      |
 | POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.               |
@@ -138,6 +141,7 @@ line in `data:`. The server sends `: ping` every 15 s.
 | `action-result` | `{ issueNumber, action, outcome \| null, error \| null }` |
 | `log`           | `{ entry: LogEntry }`                                     |
 | `health`        | `{ report: HealthReport }`                                |
+| `health-fix`    | `{ result: { fix, ok, detail } }` when a repair ends      |
 
 Two sources feed `issue-updated`: the runner's events (fast), and a comparison of the
 store every 2 s with `fs.watch` as a trigger. The comparison shows changes from a CLI

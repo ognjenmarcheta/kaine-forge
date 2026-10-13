@@ -163,8 +163,11 @@ describe("runDoctor", () => {
     const result = await run(healthy, { viewer: "stranger" }).report;
     expect(result.checks.find((check) => check.id === "gh-identity")).toMatchObject({
       status: "error",
-      detail: expect.stringContaining("stranger")
+      detail: expect.stringContaining("stranger"),
+      // A login needs the engineer: the desk offers the command, never a repair of its own.
+      command: "gh auth login"
     });
+    expect(result.checks.find((check) => check.id === "gh-identity")?.fix).toBeUndefined();
   });
 
   it("fails when the config is invalid", async () => {
@@ -243,5 +246,12 @@ describe("formatDoctorReport", () => {
     const text = formatDoctorReport(await run(healthy, { nodeVersion: "v18.0.0" }).report);
     expect(text).toContain("FAIL");
     expect(text).toContain("Doctor found 1 problem(s).");
+  });
+
+  it("prints the command under a check that failed", async () => {
+    const text = formatDoctorReport(await run(healthy, { viewer: "stranger" }).report);
+    const lines = text.split("\n");
+    const row = lines.findIndex((line) => line.includes("gh identity"));
+    expect(lines[row + 1]).toMatch(/^\s+run: gh auth login$/);
   });
 });

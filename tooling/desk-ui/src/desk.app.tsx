@@ -8,6 +8,7 @@ import { Shell } from "./shell/shell.layout";
 import { useRouter } from "./shell/shell.router";
 import { Loading } from "./shell/shell.ui";
 import { useDesk } from "./state/desk.provider";
+import { StatsView } from "./stats/stats.view";
 
 function SessionGate() {
   const t = useT();
@@ -39,6 +40,8 @@ function Routes() {
       return <BoardView />;
     case "health":
       return <HealthView />;
+    case "stats":
+      return <StatsView />;
     case "issue":
       return <IssueView key={route.issueNumber} issueNumber={route.issueNumber} />;
   }

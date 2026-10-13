@@ -246,6 +246,7 @@ This index is generated from canonical skill metadata:
 - `kaine-test-audit`: Audit existing tests for low-value proof and remove it with evidence. Use for test-bloat sweeps of a file, feature, or workspace.
 - `kaine-triage-deps`: Triage open Dependabot PRs against main and repo policy—prepare safe bumps for owner review, recreate conflicts, close unsafe one-offs with reasons, and track intentional upgrades.
 - `kaine-triage-issue`: Verify each finding in a GitHub issue against current code; fix or triage only still-valid items, skip or close the rest with a brief reason, keep changes minimal, and validate.
+- `kaine-write-issue`: Required before creating or rewriting a GitHub issue — write the body in the six-heading issue format the agent desk and kaine-intake read, then check it scores 6/6.
 - `kaine-write-plan`: Write or revise implementation plans in Plan mode or when the user asks for a plan, always ending with a plain-language explanation for a nontechnical reader.
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
@@ -260,7 +261,7 @@ Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `gh` CLI. See `docs/agents/issue-tracker.md`. Write or rewrite every issue body with `kaine-write-issue`, in the six-heading format of `docs/agents/issue-format.md` that the agent desk reads.
 
 ### Triage labels
 

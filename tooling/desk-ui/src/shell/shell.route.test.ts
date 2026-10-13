@@ -7,6 +7,7 @@ describe("parseRoute", () => {
     ["", { view: "board" }],
     ["?issue=457", { view: "issue", issueNumber: 457 }],
     ["?view=health", { view: "health" }],
+    ["?view=stats", { view: "stats" }],
     ["?issue=457&view=health", { view: "issue", issueNumber: 457 }],
     ["?issue=0", { view: "board" }],
     ["?issue=-3", { view: "board" }],
@@ -22,6 +23,7 @@ describe("parseRoute", () => {
     for (const route of [
       { view: "board" } as const,
       { view: "health" } as const,
+      { view: "stats" } as const,
       { view: "issue", issueNumber: 12 } as const
     ]) {
       expect(parseRoute(routeHref(route))).toEqual(route);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { FLOW_NODE_IDS, flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
 import { ACTIVE_STAGES, feedbackTargetSchema, stageSchema } from "./pipeline.contract";
+import { runRecordSchema } from "./run-metrics.contract";
 
 /**
  * Wire contract between the desk server and a browser UI. Browser-safe: this
@@ -238,7 +239,9 @@ export const issueDetailSchema = z
     contract: contractProgressSchema.nullable(),
     check: checkSummarySchema.nullable(),
     review: reviewSummarySchema.nullable(),
-    ship: shipReadinessSchema
+    ship: shipReadinessSchema,
+    /** The agent runs of this issue from `runs.jsonl`, oldest first. */
+    runs: z.array(runRecordSchema)
   })
   .strict();
 export type IssueDetail = z.infer<typeof issueDetailSchema>;
@@ -353,12 +356,24 @@ export const logResponseSchema = z
   .strict();
 export type LogResponse = z.infer<typeof logResponseSchema>;
 
+/**
+ * Repairs the desk runs itself, each a fixed command in the engine. No agent decides what
+ * runs, and nothing here needs a login or a secret.
+ */
+export const HEALTH_FIXES = ["docker-build"] as const;
+export const healthFixSchema = z.enum(HEALTH_FIXES);
+export type HealthFix = z.infer<typeof healthFixSchema>;
+
 export const healthCheckSchema = z
   .object({
     id: z.string(),
     label: z.string(),
     status: z.enum(["ok", "warn", "error"]),
-    detail: z.string()
+    detail: z.string(),
+    /** A command the engineer runs in a terminal, such as a login. The page offers it to copy. */
+    command: z.string().nullable(),
+    /** A repair the desk can run after the engineer confirms it. */
+    fix: healthFixSchema.nullable()
   })
   .strict();
 
@@ -371,6 +386,71 @@ export const healthReportSchema = z
   .strict();
 export type HealthReport = z.infer<typeof healthReportSchema>;
 
+export const healthFixRequestSchema = z.object({ fix: healthFixSchema }).strict();
+
+/** `202` to a repair request: it runs, and a `health-fix` event reports how it ended. */
+export const healthFixAcceptedSchema = z
+  .object({ fix: healthFixSchema, status: z.literal("running") })
+  .strict();
+
+/** How a repair ended. `detail` is engine text: the last lines of the command, or the reason. */
+export const healthFixResultSchema = z
+  .object({ fix: healthFixSchema, ok: z.boolean(), detail: z.string() })
+  .strict();
+export type HealthFixResult = z.infer<typeof healthFixResultSchema>;
+
+// --- GitHub lists ---------------------------------------------------------
+
+/** An open issue of the repository. Its body stays on the server; the page gets the contract count. */
+export const githubIssueSchema = z
+  .object({
+    number: z.number().int().positive(),
+    /** Untrusted text from GitHub. The page shows it as plain text. */
+    title: z.string(),
+    url: z.string(),
+    labels: z.array(z.string()),
+    /** It carries `ready-for-agent`. Intake still checks who applied it. */
+    ready: z.boolean(),
+    contract: z
+      .object({ found: z.number().int().nonnegative(), total: z.number().int().positive() })
+      .strict(),
+    /** The desk already has state for it. */
+    onBoard: z.boolean(),
+    updatedAt: z.string()
+  })
+  .strict();
+export type GithubIssue = z.infer<typeof githubIssueSchema>;
+
+/** An open pull request. The desk shows it and does not work on it. */
+export const githubPullSchema = z
+  .object({
+    number: z.number().int().positive(),
+    title: z.string(),
+    url: z.string(),
+    draft: z.boolean(),
+    branch: z.string(),
+    author: z.string().nullable(),
+    updatedAt: z.string(),
+    /** The desk issue it belongs to: the desk shipped it, or its branch is `KAINE-<n>-...`. */
+    issue: z.number().int().positive().nullable()
+  })
+  .strict();
+export type GithubPull = z.infer<typeof githubPullSchema>;
+
+/** `GET /api/github`. `ok: false` when `gh` could not list them; `reason` is engine text. */
+export const githubListsSchema = z.discriminatedUnion("ok", [
+  z
+    .object({
+      ok: z.literal(true),
+      issues: z.array(githubIssueSchema),
+      pulls: z.array(githubPullSchema),
+      fetchedAt: timestampSchema
+    })
+    .strict(),
+  z.object({ ok: z.literal(false), reason: z.string(), fetchedAt: timestampSchema }).strict()
+]);
+export type GithubLists = z.infer<typeof githubListsSchema>;
+
 // --- server events (SSE) --------------------------------------------------
 
 export const SERVER_EVENT_TYPES = [
@@ -378,7 +458,8 @@ export const SERVER_EVENT_TYPES = [
   "issue-removed",
   "action-result",
   "log",
-  "health"
+  "health",
+  "health-fix"
 ] as const;
 
 export const serverEventSchema = z.discriminatedUnion("type", [
@@ -395,7 +476,8 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     })
     .strict(),
   z.object({ type: z.literal("log"), entry: logEntrySchema }).strict(),
-  z.object({ type: z.literal("health"), report: healthReportSchema }).strict()
+  z.object({ type: z.literal("health"), report: healthReportSchema }).strict(),
+  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict()
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

@@ -50,6 +50,16 @@ describe("issueStatusOf", () => {
       }
     ],
     [
+      "a stop at intake, which needs a new start",
+      summaryOf({ stage: "needs-you", status: "waiting", resumeStage: "intake" }),
+      {
+        group: "needs-you",
+        tone: "danger",
+        label: { kind: "key", key: "desk.stage.needs-you" },
+        primaryAction: "restart"
+      }
+    ],
+    [
       "a failed stage",
       summaryOf({ stage: "build", status: "failed" }),
       {

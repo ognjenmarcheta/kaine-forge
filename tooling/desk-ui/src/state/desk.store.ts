@@ -2,6 +2,7 @@ import type {
   ActionName,
   ActionOutcome,
   ApiErrorCode,
+  HealthFixResult,
   HealthReport,
   IssueDetail,
   IssueSummary,
@@ -41,6 +42,8 @@ export interface DeskState {
   readonly notes: Readonly<Record<number, ActionNote>>;
   readonly noteCounter: number;
   readonly health: HealthReport | null;
+  /** The latest repair that ended. `seq` grows with each one, so the page notices a repeat. */
+  readonly repair: { readonly seq: number; readonly result: HealthFixResult } | null;
 }
 
 export const initialDeskState: DeskState = {
@@ -52,7 +55,8 @@ export const initialDeskState: DeskState = {
   logs: {},
   notes: {},
   noteCounter: 0,
-  health: null
+  health: null,
+  repair: null
 };
 
 export type DeskAction =
@@ -146,6 +150,8 @@ const applyEvent = (state: DeskState, event: ServerEvent): DeskState => {
     }
     case "health":
       return { ...state, health: event.report };
+    case "health-fix":
+      return { ...state, repair: { seq: (state.repair?.seq ?? 0) + 1, result: event.result } };
   }
 };
 

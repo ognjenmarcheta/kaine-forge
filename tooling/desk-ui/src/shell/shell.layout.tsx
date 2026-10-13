@@ -112,6 +112,12 @@ export function Shell({ children }: { readonly children: ReactNode }) {
             >
               {t("desk.nav.health")}
             </RouteLink>
+            <RouteLink
+              to={{ view: "stats" }}
+              aria-current={route.view === "stats" ? "page" : undefined}
+            >
+              {t("desk.nav.stats")}
+            </RouteLink>
           </nav>
           <div className="desk-topbar__end">
             <LivePill />

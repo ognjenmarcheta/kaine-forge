@@ -1,20 +1,32 @@
 import { spawn } from "node:child_process";
 
+import { createAgentProcess } from "../agents/agent.process";
 import { createClaudeRunner } from "../agents/claude.runner";
 import { createCodexRunner } from "../agents/codex.runner";
 import { loadDeskConfig } from "../config/config.load";
-import type { IssueState, Provider } from "../contracts";
+import type { HealthFix, IssueState, Provider } from "../contracts";
 import type { ServerRunner } from "./server.actions";
 import { createEventBus, type PipelineEventListener } from "./server.events";
-import { createDeskServer, type DeskServer, type DeskServerDeps } from "./server.http";
+import {
+  createDeskServer,
+  type DeskServer,
+  type DeskServerDeps,
+  type HealthFixOutcome
+} from "./server.http";
 import { runDoctor, type DoctorReport } from "../doctor/doctor.checks";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
 import { diffAgainstBase, createGitPort } from "../git";
+import { createGhClient } from "../github/github.gh";
+import { fetchOpenWork, type OpenWork } from "../github/github.lists";
 import { createGitHubPort } from "../github/github.port";
+import { buildWorkerImage } from "../isolation/docker.admin";
+import { dockerDoctorChecks } from "../isolation/docker.doctor";
+import { createDockerIsolation } from "../isolation/isolation.docker";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { ensureUiBuilt } from "./server.ui";
+import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
 import { configPath, resolveRepoLocation } from "../store/store.root";
 
@@ -25,7 +37,13 @@ export interface DeskRuntime {
   readonly runner: ServerRunner;
   readonly store: IssueStore;
   readonly health: () => Promise<DoctorReport>;
+  /** Open issues and pull requests of the repository, read with `gh`. */
+  readonly openWork?: (() => Promise<OpenWork>) | undefined;
+  /** Repairs the Health page offers, such as building the Docker image. */
+  readonly healthFixes?: Partial<Record<HealthFix, () => Promise<HealthFixOutcome>>> | undefined;
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
+  /** `runs.jsonl` of the desk state. */
+  readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** The built UI, when the runtime knows where it is. */
   readonly uiDir?: string | null | undefined;
   /** Wait for background work (notify commands, log writes) before the process exits. */
@@ -64,6 +82,18 @@ export const createDefaultDeskRuntime =
       log
     });
 
+    // The Docker checks and the image build, as `desk doctor` and `desk docker build` run them.
+    // The output cap is above the largest patch, as in the CLI.
+    const dockerExec = createExec({ maxOutputBytes: 64 * 1024 * 1024 });
+    const docker = createDockerIsolation({
+      exec: dockerExec,
+      process: createAgentProcess(),
+      hostRunnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      repoRoot: location.repoRoot,
+      stateRoot: location.stateRoot,
+      config
+    });
+
     await recoverInterrupted(store, { clock: systemClock, log });
     const runner = createPipelineRunner({
       exec,
@@ -89,14 +119,32 @@ export const createDefaultDeskRuntime =
         remove: runner.remove,
         ship: runner.ship
       },
+      readRuns: () => readRunRecords(location.stateRoot),
+      openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),
       health: () =>
         runDoctor({
           exec,
           github,
           cwd: location.repoRoot,
           nodeVersion: process.version,
-          loadConfig: () => loadDeskConfig(configPath(location.repoRoot))
+          loadConfig: () => loadDeskConfig(configPath(location.repoRoot)),
+          dockerChecks: async (required) =>
+            dockerDoctorChecks({
+              docker: docker.docker,
+              exec: dockerExec,
+              imageTag: await docker.imageTag(),
+              required,
+              probe: null
+            })
         }),
+      healthFixes: {
+        "docker-build": async () => {
+          const result = await buildWorkerImage(dockerExec, location.repoRoot);
+          return result.ok
+            ? { ok: true, detail: `Built ${result.tag}.` }
+            : { ok: false, detail: result.reason };
+        }
+      },
       currentDiffHash: async (state) => {
         if (state.worktreePath === null || state.baseSha === null || state.baseSha === undefined) {
           return null;
@@ -184,7 +232,10 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       store: runtime.store,
       events: bus,
       health: runtime.health,
+      healthFixes: runtime.healthFixes,
+      openWork: runtime.openWork,
       currentDiffHash: runtime.currentDiffHash,
+      readRuns: runtime.readRuns,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,
       ...options.tuning

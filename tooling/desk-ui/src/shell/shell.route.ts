@@ -1,6 +1,7 @@
 export type Route =
   | { readonly view: "board" }
   | { readonly view: "health" }
+  | { readonly view: "stats" }
   | { readonly view: "issue"; readonly issueNumber: number };
 
 const POSITIVE_INTEGER = /^[1-9]\d{0,8}$/;
@@ -13,6 +14,7 @@ export function parseRoute(search: string): Route {
     return { view: "issue", issueNumber: Number(issue) };
   }
   if (params.get("view") === "health") return { view: "health" };
+  if (params.get("view") === "stats") return { view: "stats" };
   return { view: "board" };
 }
 
@@ -23,6 +25,8 @@ export function routeHref(route: Route): string {
       return "?";
     case "health":
       return "?view=health";
+    case "stats":
+      return "?view=stats";
     case "issue":
       return `?issue=${String(route.issueNumber)}`;
   }

@@ -3,7 +3,7 @@ import { authVolumePresent } from "./docker.admin";
 import type { DockerClient } from "./docker.cli";
 import { inspectImage } from "./docker.image";
 import type { ProbeReport } from "./docker.probe";
-import type { CheckStatus, DoctorCheck } from "../doctor/doctor.checks";
+import { withRemedy, type CheckStatus, type DoctorCheck } from "../doctor/doctor.checks";
 import type { Exec } from "../ports";
 
 /**
@@ -30,6 +30,8 @@ const check = (id: string, label: string, status: CheckStatus, detail: string): 
 
 const PROVIDERS: readonly Provider[] = ["claude", "codex"];
 
+const BUILD_REMEDY = { command: "pnpm desk docker build", fix: "docker-build" } as const;
+
 export const dockerDoctorChecks = async (input: DockerDoctorInput): Promise<DoctorCheck[]> => {
   const missing: CheckStatus = input.required ? "error" : "warn";
   const daemon = await input.docker.reachable();
@@ -45,21 +47,27 @@ export const dockerDoctorChecks = async (input: DockerDoctorInput): Promise<Doct
       break;
     case "stale":
       checks.push(
-        check(
-          "docker-image",
-          "Docker image",
-          missing,
-          `${image.tag} is not built. Older images: ${image.present.join(", ")}. Run 'pnpm desk docker build'.`
+        withRemedy(
+          check(
+            "docker-image",
+            "Docker image",
+            missing,
+            `${image.tag} is not built. Older images: ${image.present.join(", ")}. Run 'pnpm desk docker build'.`
+          ),
+          BUILD_REMEDY
         )
       );
       break;
     case "missing":
       checks.push(
-        check(
-          "docker-image",
-          "Docker image",
-          missing,
-          `${image.tag} is not built. Run 'pnpm desk docker build'.`
+        withRemedy(
+          check(
+            "docker-image",
+            "Docker image",
+            missing,
+            `${image.tag} is not built. Run 'pnpm desk docker build'.`
+          ),
+          BUILD_REMEDY
         )
       );
       break;
@@ -70,16 +78,16 @@ export const dockerDoctorChecks = async (input: DockerDoctorInput): Promise<Doct
 
   for (const provider of PROVIDERS) {
     const present = await authVolumePresent(input.docker, provider);
-    checks.push(
-      check(
-        `docker-auth-${provider}`,
-        `Docker login (${provider})`,
-        present ? "ok" : "warn",
-        present
-          ? "the auth volume exists (the desk cannot tell whether the login is still valid)"
-          : `no login yet. Run 'pnpm desk docker login --provider ${provider}' before a ${provider} agent runs in Docker.`
-      )
+    const login = check(
+      `docker-auth-${provider}`,
+      `Docker login (${provider})`,
+      present ? "ok" : "warn",
+      present
+        ? "the auth volume exists (the desk cannot tell whether the login is still valid)"
+        : `no login yet. Run 'pnpm desk docker login --provider ${provider}' before a ${provider} agent runs in Docker.`
     );
+    // A login needs the engineer at a terminal, so the desk only offers the command.
+    checks.push(withRemedy(login, { command: `pnpm desk docker login --provider ${provider}` }));
   }
 
   if (input.probe !== null && image.status === "current") {

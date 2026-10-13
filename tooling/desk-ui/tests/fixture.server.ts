@@ -20,6 +20,8 @@ import {
   planGateIssue,
   prReviewIssue,
   scenarioBoard,
+  scenarioRuns,
+  issueUrl,
   type SeedIssue
 } from "./fixture.data";
 
@@ -268,25 +270,108 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
     tuning: { pollMs: 40, heartbeatMs: 2000, actionSettleMs: 300 },
     depsFactory: (onEvent: (event: PipelineEvent) => void) => {
       emit = onEvent;
+      // The fixture's Docker image: missing until the page runs the repair.
+      let imageBuilt = false;
       const log = (issue: number, message: string): void =>
         onEvent({ type: "log", issue, message });
       return Promise.resolve({
         runner: buildRunner(store, options, log),
         store,
+        readRuns: () =>
+          Promise.resolve({
+            records: options.scenario === "empty" ? [] : scenarioRuns(),
+            invalidLines: 0
+          }),
         health: () =>
           Promise.resolve({
             ok: false,
             checks: [
               { id: "node", label: "Node.js", status: "ok", detail: "v22.0.0" },
-              { id: "gh", label: "GitHub CLI", status: "warn", detail: "not logged in" },
+              imageBuilt
+                ? {
+                    id: "docker-image",
+                    label: "Docker image",
+                    status: "ok",
+                    detail: "kaine-desk-worker:abc is current"
+                  }
+                : {
+                    id: "docker-image",
+                    label: "Docker image",
+                    status: "warn",
+                    detail: "kaine-desk-worker:abc is not built.",
+                    command: "pnpm desk docker build",
+                    fix: "docker-build"
+                  },
               {
                 id: "claude",
                 label: "Claude CLI",
                 status: "error",
-                detail: "claude: command not found"
+                detail: "claude: command not found",
+                command: "npm install -g @anthropic-ai/claude-code"
               }
             ]
           }),
+        // GitHub as `gh issue list` and `gh pr list` report it. #101 is on the board.
+        openWork: () =>
+          Promise.resolve({
+            issues: [
+              {
+                number: 120,
+                title: "Add a CSV export to reports",
+                url: issueUrl(120),
+                labels: [{ name: "ready-for-agent" }],
+                body: [
+                  "### Outcome",
+                  "A",
+                  "### Acceptance criteria",
+                  "- B",
+                  "### Scope",
+                  "C",
+                  "### Validation",
+                  "D",
+                  "### Evidence",
+                  "E",
+                  "### Out of scope",
+                  "F"
+                ].join("\n"),
+                updatedAt: "2026-10-12T09:00:00Z"
+              },
+              {
+                number: 121,
+                title: "Explain the verdict <b>now</b>",
+                url: issueUrl(121),
+                labels: [],
+                body: "",
+                updatedAt: "2026-10-11T09:00:00Z"
+              },
+              {
+                number: 101,
+                title: "Add an empty state to the board",
+                url: issueUrl(101),
+                labels: [{ name: "ready-for-agent" }],
+                body: "",
+                updatedAt: "2026-10-10T09:00:00Z"
+              }
+            ],
+            pulls: [
+              {
+                number: 321,
+                title: "feat(desk): open the draft pull request",
+                url: "https://github.com/owner/kaine-forge/pull/321",
+                isDraft: true,
+                headRefName: "KAINE-105-feat-open-pr",
+                author: { login: "owner" },
+                updatedAt: "2026-10-12T10:00:00Z"
+              }
+            ]
+          }),
+        healthFixes: {
+          "docker-build": async () => {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            imageBuilt = true;
+            return { ok: true, detail: "Built kaine-desk-worker:abc." };
+          }
+        },
         currentDiffHash: () => Promise.resolve(DIFF_HASH),
         uiDir
       });

@@ -128,4 +128,18 @@ describe("mergeLog", () => {
     expect(merged).toHaveLength(LOG_CAPACITY);
     expect(merged[0]?.seq).toBe(6);
   });
+
+  it("numbers each finished repair, so a repeat of the same result is new", () => {
+    const ended = {
+      type: "server-event",
+      event: {
+        type: "health-fix",
+        result: { fix: "docker-build", ok: true, detail: "Built." }
+      }
+    } as const;
+    const once = deskReducer(initialDeskState, ended);
+    const twice = deskReducer(once, ended);
+    expect(once.repair).toEqual({ seq: 1, result: ended.event.result });
+    expect(twice.repair?.seq).toBe(2);
+  });
 });

@@ -162,7 +162,11 @@ export const createCodexStreamParser = (): CodexStreamParser => {
     } else if (entry.type === "turn.completed") {
       completed = true;
       usage = {
-        inputTokens: entry.usage?.input_tokens ?? 0,
+        // Codex counts cached input inside `input_tokens`.
+        inputTokens: Math.max(
+          0,
+          (entry.usage?.input_tokens ?? 0) - (entry.usage?.cached_input_tokens ?? 0)
+        ),
         cachedInputTokens: entry.usage?.cached_input_tokens ?? 0,
         outputTokens: entry.usage?.output_tokens ?? 0
       };

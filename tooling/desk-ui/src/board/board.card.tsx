@@ -56,6 +56,12 @@ function NextAction({
           </RouteLink>
         </>
       );
+    case "restart":
+      return (
+        <RouteLink to={issue} className={LINK_BUTTON}>
+          {t("desk.card.startAgain")}
+        </RouteLink>
+      );
     case "review-plan":
       return (
         <RouteLink to={issue} className={LINK_BUTTON}>

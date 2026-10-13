@@ -53,7 +53,7 @@ Give every finding a deterministic slug and match it against ledger slugs and th
 Propose the full table and **wait for an explicit go-ahead before filing.** Then, per issue:
 
 - Title `scope: lowercase declarative statement of the defect`. No priority prefixes.
-- Body `## What` / `## Evidence` / `## Why it matters` / `## Suggested fix` / optional `## Related` / `## Origin`. `## Origin` cites the run date, commit, overall score, and the ledger path.
+- Body in the issue format, written with `kaine-write-issue`: `## Outcome` (the fixed state) / `## Acceptance criteria` / `## Scope` / `## Validation` / `## Evidence` / `## Out of scope`, then `## Why it matters` / `## Suggested fix` / optional `## Related` / `## Origin`. `## Origin` cites the run date, commit, overall score, and the ledger path. `pnpm desk contract --file` must print 6/6.
 - Labels: one `type:*`, one or more `area:*`, and `ready-for-agent` (or `ready-for-human` when no agent fix exists).
 
 See `docs/agents/issue-tracker.md` for `gh` usage and `docs/agents/triage-labels.md` for the triage roles.

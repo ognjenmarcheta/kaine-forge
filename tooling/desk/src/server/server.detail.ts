@@ -17,6 +17,7 @@ import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
 import { needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
+import type { RunRecords } from "../stats/stats.runs";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
 
 export interface DetailDeps {
@@ -29,6 +30,8 @@ export interface DetailDeps {
    * Absent in tests and in setups without a git port.
    */
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
+  /** `runs.jsonl`. Absent: the detail shows no runs. */
+  readonly readRuns?: (() => Promise<RunRecords>) | undefined;
 }
 
 const parseJson = (bytes: Buffer): unknown => {
@@ -239,7 +242,7 @@ export const buildIssueDetail = async (
   if (result.status !== "ok" || !summary.readable) return { status: "unreadable", summary };
 
   const { state } = result;
-  const [artifacts, ticket, checkReport, reviewArtifact] = await Promise.all([
+  const [artifacts, ticket, checkReport, reviewArtifact, runs] = await Promise.all([
     indexArtifacts(deps.store, issueNumber),
     readArtifact(deps.store, issueNumber, "ticket"),
     readParsed(deps, issueNumber, "check-report", (json) => {
@@ -249,7 +252,8 @@ export const buildIssueDetail = async (
     readParsed(deps, issueNumber, "review", (json) => {
       const parsed = reviewArtifactSchema.safeParse(json);
       return parsed.success ? parsed.data : null;
-    })
+    }),
+    deps.readRuns?.() ?? Promise.resolve({ records: [], invalidLines: 0 })
   ]);
   const check = checkReport === null ? null : toCheckSummary(checkReport);
   const review = reviewArtifact === null ? null : toReviewSummary(reviewArtifact);
@@ -265,7 +269,8 @@ export const buildIssueDetail = async (
         ticket.status === "ok" ? parseContractProgress(ticket.bytes.toString("utf8")) : null,
       check,
       review,
-      ship: await shipReadiness(deps, state, check, review)
+      ship: await shipReadiness(deps, state, check, review),
+      runs: runs.records.filter((record) => record.issue === issueNumber)
     }
   };
 };

@@ -3,11 +3,13 @@ import {
   type FlowNodeId,
   type IssueDetail,
   type LogEntry,
-  type PlannerOutput
+  type PlannerOutput,
+  type RunRecord
 } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
+  agentUsageKpis,
   anomaliesOf,
   buildChecklist,
   checkChecklist,
@@ -321,5 +323,70 @@ describe("sameFailureStop", () => {
     expect(sameFailureStop([failed("fp a"), failed("fp a"), stop])).toBe(true);
     expect(sameFailureStop([failed("fp a"), failed("fp b"), stop])).toBe(false);
     expect(sameFailureStop([failed("fp a"), failed("fp a")])).toBe(false);
+  });
+});
+
+describe("agentUsageKpis", () => {
+  const run = (over: Partial<RunRecord> = {}): RunRecord => ({
+    schema: 1,
+    at: "2026-10-13T09:00:00.000Z",
+    issue: 42,
+    role: "builder",
+    provider: "claude",
+    model: null,
+    isolation: "host",
+    loops: { check: 0, review: 0 },
+    durationMs: 60_000,
+    ok: true,
+    accepted: true,
+    failureKind: null,
+    usage: { inputTokens: 1000, cachedInputTokens: 4000, outputTokens: 300 },
+    costUsd: 0.5,
+    turns: 10,
+    toolCalls: 20,
+    editCalls: 3,
+    failedToolCalls: 2,
+    denials: 0,
+    ...over
+  });
+
+  it("sums every run of the stage's agent and ignores the other roles", () => {
+    const detail = detailOf(102, {
+      runs: [run(), run({ costUsd: 1, turns: 5, failedToolCalls: 0 }), run({ role: "planner" })]
+    });
+    const kpis = agentUsageKpis(nodeOf(detail, "build"), detail);
+    expect(kpis.map((kpi) => [kpi.id, kpi.value, kpi.tone])).toEqual([
+      ["tokens", { kind: "tokens", input: 10_000, output: 600 }, "neutral"],
+      ["cost", { kind: "cost", usd: 1.5 }, "neutral"],
+      ["turns", { kind: "count", value: 15 }, "neutral"],
+      ["calls", { kind: "calls", total: 40, failed: 2 }, "neutral"]
+    ]);
+  });
+
+  it("shows none for what the provider never reports, and flags a stuck stop", () => {
+    const detail = detailOf(102, {
+      runs: [
+        run({ role: "reviewer", provider: "codex", costUsd: null, turns: null }),
+        run({
+          role: "reviewer",
+          ok: false,
+          failureKind: "stuck",
+          usage: null,
+          costUsd: null,
+          turns: null
+        })
+      ]
+    });
+    const kpis = agentUsageKpis(nodeOf(detail, "review"), detail);
+    expect(tile(kpis, "cost")?.value).toEqual({ kind: "none" });
+    expect(tile(kpis, "turns")?.value).toEqual({ kind: "none" });
+    expect(tile(kpis, "tokens")?.value).toEqual({ kind: "tokens", input: 5000, output: 300 });
+    expect(tile(kpis, "calls")?.tone).toBe("danger");
+  });
+
+  it("has no tiles for a stage without an agent, or before the first run", () => {
+    const detail = detailOf(102, { runs: [run()] });
+    expect(agentUsageKpis(nodeOf(detail, "check"), detail)).toEqual([]);
+    expect(agentUsageKpis(nodeOf(detail, "plan"), detail)).toEqual([]);
   });
 });

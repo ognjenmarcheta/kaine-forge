@@ -1,5 +1,5 @@
 import type { DeskConfigLoadResult } from "../config/config.load";
-import type { Provider } from "../contracts";
+import type { HealthFix, Provider } from "../contracts";
 import { checkControllerIdentity } from "../github/github.identity";
 import type { Exec, GitHubPort } from "../ports";
 
@@ -10,7 +10,17 @@ export interface DoctorCheck {
   readonly label: string;
   readonly status: CheckStatus;
   readonly detail: string;
+  /** A command the engineer runs by hand to repair the check. */
+  readonly command?: string | undefined;
+  /** A repair the desk can run itself. */
+  readonly fix?: HealthFix | undefined;
 }
+
+/** The same check with a way to repair it. */
+export const withRemedy = (
+  check: DoctorCheck,
+  remedy: { readonly command: string; readonly fix?: HealthFix }
+): DoctorCheck => ({ ...check, ...remedy });
 
 export interface DoctorReport {
   /** False when any check is an error. Warnings do not fail the doctor. */
@@ -92,7 +102,9 @@ const checkPnpm = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck> => {
   const result = await exec({ argv: ["pnpm", "--version"], cwd, timeoutMs: 15_000 });
   return result.code === 0
     ? check("pnpm", "pnpm", "ok", result.stdout.trim())
-    : check("pnpm", "pnpm", "error", "pnpm is not installed or does not start");
+    : withRemedy(check("pnpm", "pnpm", "error", "pnpm is not installed or does not start"), {
+        command: "corepack enable"
+      });
 };
 
 const checkGit = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck[]> => {
@@ -146,15 +158,20 @@ const checkGh = async (deps: DoctorDeps, owner: string | undefined): Promise<Doc
             "ok",
             `signed in as the owner ${identity.owner} for ${identity.repository.fullName}`
           )
-        : check("gh-identity", "gh identity", "error", identity.reason)
+        : withRemedy(check("gh-identity", "gh identity", "error", identity.reason), {
+            command: "gh auth login"
+          })
     );
   } catch (error) {
     checks.push(
-      check(
-        "gh-identity",
-        "gh identity",
-        "error",
-        `gh is not authenticated or cannot reach GitHub: ${error instanceof Error ? error.message : "unknown error"}`
+      withRemedy(
+        check(
+          "gh-identity",
+          "gh identity",
+          "error",
+          `gh is not authenticated or cannot reach GitHub: ${error instanceof Error ? error.message : "unknown error"}`
+        ),
+        { command: "gh auth login" }
       )
     );
   }
@@ -257,9 +274,12 @@ const MARK: Readonly<Record<CheckStatus, string>> = { ok: "ok", warn: "warn", er
 /** Plain-text table for a terminal. */
 export const formatDoctorReport = (report: DoctorReport): string => {
   const width = Math.max(...report.checks.map((entry) => entry.label.length));
-  const rows = report.checks.map(
-    (entry) => `${MARK[entry.status].padEnd(5)} ${entry.label.padEnd(width)}  ${entry.detail}`
-  );
+  const rows = report.checks.flatMap((entry) => [
+    `${MARK[entry.status].padEnd(5)} ${entry.label.padEnd(width)}  ${entry.detail}`,
+    ...(entry.status !== "ok" && entry.command !== undefined
+      ? [`${" ".repeat(6 + width)}  run: ${entry.command}`]
+      : [])
+  ]);
   const failed = report.checks.filter((entry) => entry.status === "error").length;
   const warned = report.checks.filter((entry) => entry.status === "warn").length;
   return [

@@ -189,12 +189,18 @@ describe("runIntake", () => {
   });
 
   it("moves to needs-you when there are no acceptance criteria, and says what to add", async () => {
-    const { run } = setup({ snapshot: snapshotOf({ body: "### Outcome\nSomething" }) });
+    const { run, store } = setup({ snapshot: snapshotOf({ body: "### Outcome\nSomething" }) });
     const result = await run();
     expect(result).toMatchObject({
       outcome: "needs-you",
       reason: expect.stringContaining("Acceptance criteria")
     });
+    expect(result).toMatchObject({ reason: expect.stringContaining("kaine-write-issue") });
+    // The board still shows the title of an issue that stopped at intake.
+    const summary: unknown = JSON.parse(
+      await readFile(path.join(store.artifactsDir(7), "issue.json"), "utf8")
+    );
+    expect(summary).toMatchObject({ number: 7, title: expect.any(String) });
   });
 
   it("accepts a partial contract and reports N/6 in the history note", async () => {

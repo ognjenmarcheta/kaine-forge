@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import type { LabelChange, LabelDefinition } from "./github/github.labels";
 import type { CreatePullRequestRequest, PullRequestInfo } from "./github/github.pull-request";
@@ -79,21 +80,58 @@ const ENV_ALLOWLIST: ReadonlySet<string> = new Set([
   "XDG_CACHE_HOME",
   "COREPACK_HOME",
   "SystemRoot",
-  "PATHEXT"
+  "PATHEXT",
+  // Windows keeps the user profile there, and with it the `gh` login and the git config.
+  "APPDATA",
+  "LOCALAPPDATA",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "TEMP",
+  "TMP"
 ]);
+const ENV_ALLOWLIST_UPPER: ReadonlySet<string> = new Set(
+  [...ENV_ALLOWLIST].map((key) => key.toUpperCase())
+);
 
-const allowlistedEnv = (parent: NodeJS.ProcessEnv): Record<string, string> => {
+/** Windows names are case-insensitive: a shell may hand over `Path` instead of `PATH`. */
+const allowlistedEnv = (
+  parent: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform
+): Record<string, string> => {
+  const allowed = (key: string): boolean =>
+    platform === "win32" ? ENV_ALLOWLIST_UPPER.has(key.toUpperCase()) : ENV_ALLOWLIST.has(key);
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(parent)) {
-    if (value !== undefined && (ENV_ALLOWLIST.has(key) || key.startsWith("LC_"))) env[key] = value;
+    if (value !== undefined && (allowed(key) || key.startsWith("LC_"))) env[key] = value;
   }
   return env;
+};
+
+/**
+ * On Windows `pnpm` is a `.cmd` shim, and a spawn without a shell cannot start one. A desk
+ * started through `pnpm desk` has the real pnpm in `npm_execpath`, so it runs that instead:
+ * an executable as it is, a `.js` or `.cjs` entry with this Node. Still no shell.
+ */
+export const resolveArgv = (
+  argv: readonly string[],
+  platform: NodeJS.Platform,
+  parent: NodeJS.ProcessEnv,
+  nodePath: string = process.execPath
+): readonly string[] => {
+  const [command, ...args] = argv;
+  const pnpm = parent["npm_execpath"];
+  if (platform !== "win32" || command !== "pnpm" || pnpm === undefined) return argv;
+  if (!/^pnpm/i.test(path.basename(pnpm))) return argv;
+  return /\.c?js$/i.test(pnpm) ? [nodePath, pnpm, ...args] : [pnpm, ...args];
 };
 
 export interface ExecOptions {
   readonly maxOutputBytes?: number;
   readonly defaultTimeoutMs?: number;
   readonly parentEnv?: NodeJS.ProcessEnv;
+  /** For tests. Default: this process's platform. */
+  readonly platform?: NodeJS.Platform;
 }
 
 /**
@@ -105,7 +143,9 @@ export const createExec =
   (options: ExecOptions = {}): Exec =>
   (request) =>
     new Promise<ExecResult>((resolve) => {
-      const [command, ...args] = request.argv;
+      const platform = options.platform ?? process.platform;
+      const parentEnv = options.parentEnv ?? process.env;
+      const [command, ...args] = resolveArgv(request.argv, platform, parentEnv);
       if (command === undefined || command === "") {
         resolve({
           code: null,
@@ -118,7 +158,7 @@ export const createExec =
       }
       const cap = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
       const timeoutMs = request.timeoutMs ?? options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
-      const env = { ...allowlistedEnv(options.parentEnv ?? process.env), ...request.env };
+      const env = { ...allowlistedEnv(parentEnv, platform), ...request.env };
 
       const chunks: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] };
       const sizes = { stdout: 0, stderr: 0 };

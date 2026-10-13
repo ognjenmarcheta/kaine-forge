@@ -55,6 +55,9 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
   planner, with `codex resume <id>` for a Codex role. It refuses when the issue has no
   worktree, the worktree is gone, or no agent has run yet. Stop every desk run for the
   issue first, and close your session before the next desk command.
+- `contract <n> | --file P [--json]`: how intake reads an issue body: the contract score, the
+  missing sections, and the number of acceptance criteria. It prints no issue text and changes
+  nothing. Exit 0 only at 6/6 with criteria. See [`issue-format.md`](issue-format.md).
 - `stats [--role R] [--json]`: compare agent runs by role, provider, and model (see
   "Metrics"). It only reads.
 
@@ -119,13 +122,16 @@ CLI default), isolation, loop counts, and duration. It also holds whether the ru
 result, whether the stage accepted it, and the failure kind (`stuck` for a stuck stop). Then come
 tokens, cost, turns (Claude only), and counts of tool calls, edit calls, failed calls, and
 denials. It holds no prompt, output, or path. `remove` keeps the file, so the runs of a removed
-issue still count.
+issue still count. Tokens mean the same for both providers: `inputTokens` is fresh input (cache
+writes included) and `cachedInputTokens` is input read from the cache. Their sum is the total
+input.
 
 `pnpm desk stats` prints one row per role, provider, and model: runs, accepted runs, stuck stops,
 timeouts, median duration, mean tokens, turns, and edit calls, and the cost per run and in total.
 Then it lists each issue with its stage (`removed` when the state is gone), loops, runs, and cost.
 Codex reports no cost and no turns, so those cells show `-`. Use the rows to choose `providers`
-and `models` for each role: change one role at a time, then compare.
+and `models` for each role: change one role at a time, then compare. The desk UI shows the same
+tables in its **Runs** view, and the inspector shows the usage of each agent stage.
 
 ## Notifications
 
@@ -338,10 +344,14 @@ See "Try it without GitHub".
    not decide readiness: `kaine-intake` or a human does.
 5. Write `artifacts/ticket.md`, then move the issue to `setup` with status `waiting`.
 
-Intake needs at least one acceptance criterion. Without one, the issue goes to
-`needs-you` with the reason. Fix the issue, then run `desk start` again. A closed
-issue also goes to `needs-you`. After a successful intake, `start` goes on to setup
-and the planner.
+Intake reads the issue by the headings of [`issue-format.md`](issue-format.md). It needs at
+least one acceptance criterion. Without one, the issue goes to `needs-you` with the reason.
+Fix the issue on GitHub (the `kaine-write-issue` skill writes the format, and
+`pnpm desk contract <n>` shows how intake reads it), then run `desk start` again. In the desk
+UI the card says **Fix and start again**, and the issue page offers **Start again** with the
+override box, because intake cannot continue: it reads the issue again. A closed issue also
+goes to `needs-you`. The board shows the title of a stopped issue too. After a successful
+intake, `start` goes on to setup and the planner.
 
 ## State
 
@@ -376,7 +386,8 @@ labels in the repository, label writes fail and are logged.
 ## Doctor
 
 `desk doctor` checks Node, pnpm, git and worktree support, `gh` and its identity, the
-config file, and the `claude` and `codex` CLIs. It reads `claude --help` and
+config file, and the `claude` and `codex` CLIs. Under a failed check it prints the command that
+repairs it (`run: gh auth login`). It reads `claude --help` and
 `codex exec --help` and checks that each required flag exists. A missing provider
 that a role uses is an error. A provider that no role uses is a warning.
 
@@ -447,6 +458,9 @@ the token exchange needs the cookie, so a request without it gets `401`. Ctrl-C 
 the server and exits 0. A running action is not cancelled: the next start marks it
 `needs-you`. See [`agent-desk-api.md`](agent-desk-api.md).
 
+`pnpm desk:run [--port N] [--no-open]` builds the UI, then runs `pnpm desk serve` with the
+same options. Use it to start the desk with one command and a fresh UI build.
+
 The server serves the built UI from `tooling/desk-ui/dist`. When that folder has no
 `index.html`, `serve` builds it first with `pnpm --filter @repo/desk-ui build` and says so.
 If the build fails, the server still starts with the API only and prints the end of the
@@ -455,7 +469,7 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has three views:
+developer tooling. It has four views:
 
 - **Board.** A kanban with four columns: _Needs you_, _Waiting for you_, _Running_, and
   _Done_. Each column has a count and one line of help. From 64 rem the columns stand side by
@@ -463,10 +477,21 @@ developer tooling. It has three views:
   _Needs you_ first: on a phone the engineer reads top-down, and a segmented control would
   hide three columns behind taps. _Done_ shows the newest 12 and "Show all".
   - The toolbar has a search (number with or without `#`, or words of the title; `/` focuses
-    it, Escape or the clear button empties it) and **Start issue**. That opens a small dialog
-    with the number and the `override` box. The override runs the issue on your own authority
+    it, Escape or the clear button empties it) and **Start issue**. That opens a dialog with the
+    open issues of the repository (`GET /api/github`), the number, and the `override` box. Each
+    issue shows whether it carries `ready-for-agent` and its contract count (`Contract 5/6`); an
+    issue the desk already has cannot be picked, and a filter narrows the list. Picking an issue
+    fills the number and nothing else. For an issue without the label, the dialog says that it
+    needs the override, but it never checks the box for you. Intake still proves who applied the
+    label, so the list is only a shortcut. The override runs the issue on your own authority
     instead of the `ready-for-agent` label event. The desk logs it. The result is a toast; a
     refusal keeps the dialog open, and a refusal that arrives later is a toast too.
+  - Below the columns, **Open pull requests** lists the open PRs of the repository, read-only:
+    number (a link to GitHub), title, draft, branch, author, the last update, and the desk issue
+    when the desk shipped the PR or its branch is `KAINE-<n>-...`. The desk does not continue a
+    pull request; you review and merge on GitHub. The server asks `gh` at most once a minute
+    (100 issues and 100 PRs at most); **Refresh** asks again. Titles are untrusted text and stay
+    text.
   - A compact card reads only the summary, never the detail: the number and title (two lines,
     full title in a tooltip when cut), **one status chip** that joins stage and state ("Plan
     approval · waiting for you", "Build · running", "Needs you", "Shipped"), an 8-segment
@@ -508,7 +533,9 @@ developer tooling. It has three views:
     stepper, or its own stage select. It has the role icon, the title, who works there, a
     status pill, and four tiles of one size: runs, last or running duration, loops, and one
     of the stage's own (files in the plan, files changed, steps passed, findings with the
-    blocking count, ship readiness, the PR or commit, or the contract). Checklists follow
+    blocking count, ship readiness, the PR or commit, or the contract). For the plan, build, and
+    review stages, **Agent usage, all runs** adds four more tiles: tokens in (and out), cost, turns,
+    and tool calls (and failed ones; red after a stuck stop). Checklists follow
     with ✓, ✗, ! or – and the state in words: acceptance criteria and open questions (plan),
     the builder's claimed checks (build), each check step with its duration and the failing
     output on demand (check), the verdict, findings by label, and the reviewer's acceptance
@@ -532,7 +559,17 @@ developer tooling. It has three views:
     changes nothing, and shows the gate result, the commit message, the PR title, the
     changeset decision, the files, and the PR text. Step 2 asks for the final yes. Only that
     yes sends `confirm: true`. A failed gate rule disables step 2.
-- **Health.** The doctor report with a status in words for every check.
+- **Health.** The doctor report with a status in words for every check. A failed check shows the
+  command that repairs it, with a **Copy** button: a login or an install stays with the engineer,
+  who runs it in a terminal. When the desk has its own repair for the check (today: build the
+  Docker image), a **Fix** button asks first, then the engine runs that fixed command. No agent
+  runs, one repair runs at a time, and the report runs again when it ends. A toast says how it
+  ended.
+- **Runs.** `GET /api/stats` as two tables: one row per role, provider, and model (runs,
+  accepted, stuck, timeouts, median time, mean tokens in and out, turns, edits, cost per run, and
+  total cost), and one row per issue (stage, loops, runs, cost; a removed issue says so). A value
+  that no run reports shows a dash read as "none". The view loads again when an issue changes.
+  Wide tables scroll inside their panel.
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
 reloads the list after every (re)connect with exponential backoff, so a missed event is not

@@ -1,5 +1,6 @@
 import {
   FLOW_NODE_IDS,
+  type AgentStageRole,
   type BuilderOutput,
   type CheckSummary,
   type ContractProgress,
@@ -48,6 +49,9 @@ export type KpiValue =
   | { readonly kind: "duration"; readonly ms: number }
   | { readonly kind: "findings"; readonly total: number; readonly blocking: number }
   | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "tokens"; readonly input: number; readonly output: number }
+  | { readonly kind: "cost"; readonly usd: number }
+  | { readonly kind: "calls"; readonly total: number; readonly failed: number }
   | { readonly kind: "none" }
   | { readonly kind: "loading" };
 
@@ -223,6 +227,70 @@ export function stageKpis(
       tone: loopCount > 0 ? "warning" : "neutral"
     },
     stageKpi(node, detail, artifacts)
+  ];
+}
+
+// --- agent usage ------------------------------------------------------------
+
+/** The agent that works in a stage. Other stages have none. */
+const AGENT_ROLE: Partial<Record<FlowNodeId, AgentStageRole>> = {
+  plan: "planner",
+  build: "builder",
+  review: "reviewer"
+};
+
+const total = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0);
+
+/**
+ * What the agent of a stage used over all its runs: input and output tokens, cost,
+ * turns, and tool calls. Empty for a stage without an agent run. A value no run
+ * reports (Codex reports no cost and no turns) shows as none.
+ */
+export function agentUsageKpis(node: FlowNode, detail: IssueDetail): readonly Kpi[] {
+  const role = AGENT_ROLE[node.id];
+  const runs = role === undefined ? [] : detail.runs.filter((run) => run.role === role);
+  if (runs.length === 0) return [];
+  const usage = runs.flatMap((run) => (run.usage === null ? [] : [run.usage]));
+  const costs = runs.flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
+  const turns = runs.flatMap((run) => (run.turns === null ? [] : [run.turns]));
+  const stuck = runs.some((run) => run.failureKind === "stuck");
+  const none: KpiValue = { kind: "none" };
+  return [
+    {
+      id: "tokens",
+      label: "desk.inspector.usage.tokens",
+      value:
+        usage.length === 0
+          ? none
+          : {
+              kind: "tokens",
+              input: total(usage.map((entry) => entry.inputTokens + entry.cachedInputTokens)),
+              output: total(usage.map((entry) => entry.outputTokens))
+            },
+      tone: "neutral"
+    },
+    {
+      id: "cost",
+      label: "desk.inspector.usage.cost",
+      value: costs.length === 0 ? none : { kind: "cost", usd: total(costs) },
+      tone: "neutral"
+    },
+    {
+      id: "turns",
+      label: "desk.inspector.usage.turns",
+      value: turns.length === 0 ? none : { kind: "count", value: total(turns) },
+      tone: "neutral"
+    },
+    {
+      id: "calls",
+      label: "desk.inspector.usage.toolCalls",
+      value: {
+        kind: "calls",
+        total: total(runs.map((run) => run.toolCalls)),
+        failed: total(runs.map((run) => run.failedToolCalls))
+      },
+      tone: stuck ? "danger" : "neutral"
+    }
   ];
 }
 

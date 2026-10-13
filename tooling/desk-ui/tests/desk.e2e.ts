@@ -521,6 +521,79 @@ test("shows the health report with a status in words", async ({ page, desk }) =>
   await expect(page.getByText("Error", { exact: true })).toBeVisible();
 });
 
+test("compares agent runs by role and model, and shows a stage's agent usage", async ({
+  page,
+  desk
+}) => {
+  await desk.open();
+  await page.getByRole("navigation").getByRole("link", { name: "Runs" }).click();
+  await expect(page.getByRole("heading", { name: "Agent runs", level: 1 })).toBeVisible();
+  const groups = page.getByRole("table", { name: "By role and model" });
+  await expect(groups.getByRole("row")).toHaveCount(5);
+  await expect(groups.getByRole("row", { name: /Builder claude opus 2 1 1/ })).toBeVisible();
+  const issues = page.getByRole("table", { name: "By issue" });
+  await expect(issues.getByRole("row", { name: /#99 Removed/ })).toBeVisible();
+
+  await issues.getByRole("link", { name: "#102" }).click();
+  await page
+    .getByRole("group", { name: "Pipeline graph" })
+    .getByRole("group", { name: /^Build: / })
+    .click();
+  await expect(
+    inspector(page).getByRole("heading", { name: "Agent usage, all runs" })
+  ).toBeVisible();
+  await expect(inspector(page).getByText("$1.25")).toBeVisible();
+});
+
+test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=health");
+  const claude = page.getByRole("listitem").filter({ hasText: "Claude CLI" });
+  await expect(claude.getByText("npm install -g @anthropic-ai/claude-code")).toBeVisible();
+  await expect(claude.getByRole("button", { name: "Fix" })).toHaveCount(0);
+
+  const image = page.getByRole("listitem").filter({ hasText: "Docker image" });
+  await image.getByRole("button", { name: "Fix" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Build the image" }).click();
+  await expect(image.getByRole("button", { name: /Running/ })).toBeDisabled();
+  await expect(page.getByText("Repaired: Docker image")).toBeVisible();
+  // The report runs again and the check passes.
+  await expect(image.getByText("kaine-desk-worker:abc is current")).toBeVisible();
+  await expect(image.getByRole("button", { name: "Fix" })).toHaveCount(0);
+});
+
+test("starts an issue picked from GitHub, and shows open pull requests read-only", async ({
+  page,
+  desk
+}) => {
+  await desk.open();
+  const pulls = page.getByRole("region", { name: "Open pull requests (1)" });
+  await expect(pulls.getByRole("link", { name: "#321" })).toHaveAttribute(
+    "href",
+    "https://github.com/owner/kaine-forge/pull/321"
+  );
+  await expect(pulls.getByRole("link", { name: "Issue #105 on the board" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Start issue" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Start an issue" });
+  await expect(dialog.getByRole("button", { name: /#101/ })).toBeDisabled();
+  // Untrusted GitHub text stays text.
+  await expect(dialog.getByText("Explain the verdict <b>now</b>")).toBeVisible();
+  await dialog.getByRole("button", { name: /#120/ }).click();
+  await expect(dialog.getByRole("textbox", { name: "Issue number" })).toHaveValue("120");
+  await expect(dialog.getByText("Contract 6/6")).toBeVisible();
+  await dialog.getByRole("button", { name: "Start", exact: true }).click();
+
+  await expect(page.getByRole("link", { name: /#120/ })).toBeVisible();
+  expect(await desk.calls()).toContainEqual({
+    issue: 120,
+    action: "start",
+    payload: { override: false }
+  });
+});
+
 test("switches language and theme without leaving the page", async ({ page, desk }) => {
   await desk.open({}, "?issue=101");
   await page.getByRole("button", { name: "Request changes" }).click();
@@ -588,7 +661,7 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
   ]) {
     expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   }
-  for (const path of ["", "?issue=102", "?issue=103", "?view=health"]) {
+  for (const path of ["", "?issue=102", "?issue=103", "?view=health", "?view=stats"]) {
     await page.goto(`/${path}`);
     await expect(page.locator("main")).toBeVisible();
     const overflow = await page.evaluate(
@@ -638,7 +711,8 @@ test("on a phone only a compact action bar sticks, below the decision and the ti
   const resume = page.getByRole("combobox", { name: "Resume from" });
   await expect(reason).toBeInViewport();
   await expect(resume).toBeInViewport();
-  const tiles = inspector(page).locator(".desk-kpis");
+  // The stage tiles. An agent stage also has a second grid for agent usage below them.
+  const tiles = inspector(page).locator(".desk-kpis").first();
   const resumeBox = await resume.boundingBox();
   const tilesBox = await tiles.boundingBox();
   expect((resumeBox?.y ?? 0) + (resumeBox?.height ?? 0)).toBeLessThanOrEqual(tilesBox?.y ?? 0);

@@ -3,13 +3,17 @@ import type { AddressInfo } from "node:net";
 
 import {
   actionRequestSchema,
+  healthFixRequestSchema,
   sessionRequestSchema,
   type ActionName,
   type ActionResponse,
   type ApiErrorCode,
+  type GithubLists,
+  type HealthFix,
   type HealthReport,
   type IssueState,
   type LogResponse,
+  type RunStats,
   type ServerEvent
 } from "../contracts";
 import type { DoctorReport } from "../doctor/doctor.checks";
@@ -38,6 +42,9 @@ import {
 } from "./server.security";
 import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
+import { toGithubLists, type OpenWork } from "../github/github.lists";
+import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
+import type { RunRecords } from "../stats/stats.runs";
 import type { IssueStore } from "../store/store.issue";
 
 export interface DeskServerDeps {
@@ -47,9 +54,17 @@ export interface DeskServerDeps {
   readonly events: PipelineEventSource;
   /** The doctor report. Results are cached for `healthTtlMs`. */
   readonly health: () => Promise<DoctorReport>;
+  /** The repairs this desk can run. A repair the map lacks is refused. */
+  readonly healthFixes?: Partial<Record<HealthFix, () => Promise<HealthFixOutcome>>> | undefined;
   readonly clock?: Clock | undefined;
   /** Hash of the worktree diff now, for the ship panel. */
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
+  /** Open issues and pull requests from GitHub, for `GET /api/github`. Absent: the route says so. */
+  readonly openWork?: (() => Promise<OpenWork>) | undefined;
+  /** How long `GET /api/github` reuses a list. Default 60 s. `?refresh=1` asks again. */
+  readonly githubTtlMs?: number | undefined;
+  /** `runs.jsonl`, for `GET /api/stats` and the runs in the issue detail. Absent: no runs. */
+  readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
   readonly uiDir?: string | null | undefined;
   /** Default 0: the system picks a free port. */
@@ -67,6 +82,12 @@ export interface DeskServerDeps {
   readonly logCapacity?: number | undefined;
 }
 
+/** How a repair ended. `detail` is engine text. */
+export interface HealthFixOutcome {
+  readonly ok: boolean;
+  readonly detail: string;
+}
+
 export interface DeskServer {
   readonly server: Server;
   /** `http://127.0.0.1:<port>`. */
@@ -82,13 +103,17 @@ const DEFAULTS = {
   pollMs: 2_000,
   actionSettleMs: 400,
   healthTtlMs: 10_000,
+  githubTtlMs: 60_000,
   requestTimeoutMs: 10_000
 } as const;
 
 const ISSUE_NUMBER = /^[1-9]\d{0,8}$/;
 
 type Route =
-  | { readonly kind: "session" | "health" | "events" | "issues" | "unknown" }
+  | {
+      readonly kind:
+        "session" | "health" | "health-fix" | "github" | "stats" | "events" | "issues" | "unknown";
+    }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
 
@@ -98,6 +123,9 @@ const parseRoute = (pathname: string): Route => {
   if (api !== "api") return { kind: "unknown" };
   if (segments.length === 2 && resource === "session") return { kind: "session" };
   if (segments.length === 2 && resource === "health") return { kind: "health" };
+  if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
+  if (segments.length === 2 && resource === "stats") return { kind: "stats" };
+  if (segments.length === 2 && resource === "github") return { kind: "github" };
   if (segments.length === 2 && resource === "events") return { kind: "events" };
   if (resource !== "issues") return { kind: "unknown" };
   if (segments.length === 2) return { kind: "issues" };
@@ -115,6 +143,9 @@ const parseRoute = (pathname: string): Route => {
 const METHOD_OF: Readonly<Record<Route["kind"], "GET" | "POST">> = {
   session: "POST",
   health: "GET",
+  "health-fix": "POST",
+  github: "GET",
+  stats: "GET",
   events: "GET",
   issues: "GET",
   issue: "GET",
@@ -139,7 +170,9 @@ const toHealthReport = (report: DoctorReport, clock: Clock): HealthReport => ({
     id: check.id,
     label: check.label,
     status: check.status,
-    detail: check.detail
+    detail: check.detail,
+    command: check.command ?? null,
+    fix: check.fix ?? null
   })),
   generatedAt: clock.now().toISOString()
 });
@@ -181,7 +214,8 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     store: deps.store,
     clock,
     isBusy: (issueNumber) => dispatcher.isBusy(issueNumber),
-    currentDiffHash: deps.currentDiffHash
+    currentDiffHash: deps.currentDiffHash,
+    readRuns: deps.readRuns
   };
 
   const publishIssue = async (issueNumber: number): Promise<void> => {
@@ -264,6 +298,75 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         healthInflight = null;
       });
     return healthInflight;
+  };
+
+  // --- GitHub lists ---------------------------------------------------------
+
+  // One `gh` round trip per minute at most. The board marks follow the store on every request.
+  let openWorkCache: { readonly at: number; readonly work: OpenWork } | null = null;
+  let openWorkInflight: Promise<OpenWork> | null = null;
+  const githubLists = async (refresh: boolean): Promise<GithubLists> => {
+    const fetchedAt = clock.now();
+    if (deps.openWork === undefined) {
+      return {
+        ok: false,
+        reason: "This desk has no GitHub access.",
+        fetchedAt: fetchedAt.toISOString()
+      };
+    }
+    const ttl = deps.githubTtlMs ?? DEFAULTS.githubTtlMs;
+    const fresh = openWorkCache !== null && fetchedAt.getTime() - openWorkCache.at < ttl;
+    try {
+      let work: OpenWork;
+      if (fresh && !refresh && openWorkCache !== null) {
+        work = openWorkCache.work;
+      } else {
+        openWorkInflight ??= deps.openWork().finally(() => {
+          openWorkInflight = null;
+        });
+        work = await openWorkInflight;
+        openWorkCache = { at: fetchedAt.getTime(), work };
+      }
+      const at = new Date(openWorkCache?.at ?? fetchedAt.getTime()).toISOString();
+      return toGithubLists(work, await deps.store.list(), at);
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : "gh could not list the open work",
+        fetchedAt: fetchedAt.toISOString()
+      };
+    }
+  };
+
+  // --- repairs --------------------------------------------------------------
+
+  /** One repair at a time. It outlives its request: a build takes minutes. */
+  let repairing: HealthFix | null = null;
+
+  const handleHealthFix = async (request: IncomingMessage, response: ServerResponse) => {
+    const parsed = healthFixRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
+    if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+    const { fix } = parsed.data;
+    const run = deps.healthFixes?.[fix];
+    if (run === undefined) throw new HttpError("not-found", `This desk cannot run '${fix}'.`);
+    if (repairing !== null) throw new HttpError("busy", `'${repairing}' still runs.`);
+    repairing = fix;
+    logLine(0, `repair ${fix} started`);
+    void run()
+      .catch((error: unknown): HealthFixOutcome => ({
+        ok: false,
+        detail: error instanceof Error ? error.message : "the repair failed"
+      }))
+      .then(async (outcome) => {
+        repairing = null;
+        logLine(0, `repair ${fix} ${outcome.ok ? "done" : "failed"}: ${outcome.detail}`);
+        hub.broadcast({ type: "health-fix", result: { fix, ...outcome } });
+        // The next report shows the result, and its broadcast updates every page.
+        healthCache = null;
+        await health();
+      })
+      .catch(() => undefined);
+    sendJson(response, 202, { fix, status: "running" });
   };
 
   // --- routes ---------------------------------------------------------------
@@ -363,6 +466,18 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       case "health":
         sendJson(response, 200, await health());
         return;
+      case "health-fix":
+        await handleHealthFix(request, response);
+        return;
+      case "github":
+        sendJson(response, 200, await githubLists(url.searchParams.get("refresh") === "1"));
+        return;
+      case "stats": {
+        const runs = (await deps.readRuns?.()) ?? { records: [], invalidLines: 0 };
+        const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()));
+        sendJson(response, 200, stats);
+        return;
+      }
       case "events":
         // Take the baseline first: a change after "connected" must not be missed.
         await watcher.start();

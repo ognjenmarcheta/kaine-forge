@@ -59,7 +59,11 @@ describe("Shell", () => {
     renderDesk(<DeskApp />, fakeApi());
     const nav = await screen.findByRole("navigation", { name: "Main navigation" });
     expect(screen.getByRole("link", { name: "Board" }).getAttribute("aria-current")).toBe("page");
-    expect(nav.querySelectorAll("a")).toHaveLength(2);
+    expect(Array.from(nav.querySelectorAll("a"), (link) => link.textContent)).toEqual([
+      "Board",
+      "Health",
+      "Runs"
+    ]);
   });
 
   it("has one polite connection status and no alert banner", async () => {

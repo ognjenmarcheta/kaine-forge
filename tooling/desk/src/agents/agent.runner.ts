@@ -99,7 +99,9 @@ export interface AgentDenial {
 }
 
 export interface AgentUsage {
+  /** Input the model read fresh, cache writes included. Not counted in `cachedInputTokens`. */
   readonly inputTokens: number;
+  /** Input read from the prompt cache. The total input is the sum of both. */
   readonly cachedInputTokens: number;
   readonly outputTokens: number;
 }

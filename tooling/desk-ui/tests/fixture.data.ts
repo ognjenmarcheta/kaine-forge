@@ -4,6 +4,7 @@ import {
   reviewerOutputSchema,
   type HistoryEvent,
   type IssueState,
+  type RunRecord,
   type Stage
 } from "@repo/desk/contracts";
 
@@ -343,6 +344,55 @@ export const scenarioBoard = (): SeedIssue[] => [
   needsYouIssue(103, "Fix the check step that fails twice"),
   runningIssue(104, "Show loop counts on the flow graph"),
   shippedIssue(105, "Open the draft pull request from the desk")
+];
+
+const run = (over: Partial<RunRecord> & Pick<RunRecord, "issue" | "role">): RunRecord => ({
+  schema: 1,
+  at: "2026-10-13T09:00:00.000Z",
+  provider: "claude",
+  model: "opus",
+  isolation: "host",
+  loops: { check: 0, review: 0 },
+  durationMs: 240_000,
+  ok: true,
+  accepted: true,
+  failureKind: null,
+  usage: { inputTokens: 18_000, cachedInputTokens: 96_000, outputTokens: 4_200 },
+  costUsd: 1.25,
+  turns: 34,
+  toolCalls: 52,
+  editCalls: 6,
+  failedToolCalls: 3,
+  denials: 0,
+  ...over
+});
+
+/** `runs.jsonl` of the board scenario: #102 ran every agent, #103 had a stuck builder, #99 was removed. */
+export const scenarioRuns = (): RunRecord[] => [
+  run({ issue: 102, role: "planner", durationMs: 90_000, costUsd: 0.4, turns: 12, editCalls: 0 }),
+  run({ issue: 102, role: "builder" }),
+  run({
+    issue: 102,
+    role: "reviewer",
+    provider: "codex",
+    model: null,
+    costUsd: null,
+    turns: null,
+    usage: { inputTokens: 9_000, cachedInputTokens: 30_000, outputTokens: 1_100 },
+    editCalls: 0
+  }),
+  run({
+    issue: 103,
+    role: "builder",
+    ok: false,
+    accepted: false,
+    failureKind: "stuck",
+    usage: null,
+    costUsd: null,
+    turns: null,
+    failedToolCalls: 8
+  }),
+  run({ issue: 99, role: "builder", model: "sonnet", costUsd: 0.6, turns: 28 })
 ];
 
 export const issueUrl = (issueNumber: number): string =>

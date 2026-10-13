@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createExec } from "./ports";
+import { createExec, resolveArgv } from "./ports";
 
 const node = (script: string): string[] => [process.execPath, "-e", script];
 
@@ -78,5 +78,53 @@ describe("createExec", () => {
     const result = await exec({ argv: [] });
     expect(result.code).toBeNull();
     expect(result.stderr).toBe("empty argv");
+  });
+});
+
+describe("createExec on Windows", () => {
+  it("keeps the profile variables that gh needs, whatever their case", async () => {
+    const exec = createExec({
+      platform: "win32",
+      parentEnv: {
+        Path: process.env.PATH ?? "",
+        APPDATA: "C:/Users/me/AppData/Roaming",
+        Secret: "x"
+      }
+    });
+    const result = await exec({
+      argv: node("process.stdout.write(JSON.stringify(Object.keys(process.env).sort()))")
+    });
+    const keys: string[] = JSON.parse(result.stdout);
+    expect(keys.map((key) => key.toUpperCase())).toEqual(
+      expect.arrayContaining(["APPDATA", "PATH"])
+    );
+    expect(keys.map((key) => key.toUpperCase())).not.toContain("SECRET");
+  });
+});
+
+describe("resolveArgv", () => {
+  const exe = "C:/Users/me/AppData/Local/pnpm/.tools/pnpm-exe/10.30.3/pnpm.exe";
+  it.each([
+    ["the pnpm executable on Windows", "win32", exe, [exe, "install"]],
+    [
+      "a pnpm JavaScript entry with this Node",
+      "win32",
+      "C:/pnpm/bin/pnpm.cjs",
+      ["node", "C:/pnpm/bin/pnpm.cjs", "install"]
+    ],
+    ["nothing when npm is the runner", "win32", "C:/npm/bin/npm-cli.js", ["pnpm", "install"]],
+    ["nothing on Linux", "linux", exe, ["pnpm", "install"]]
+  ] as const)("starts %s", (_name, platform, execPath, expected) => {
+    expect(resolveArgv(["pnpm", "install"], platform, { npm_execpath: execPath }, "node")).toEqual(
+      expected
+    );
+  });
+
+  it("leaves other commands and a missing npm_execpath alone", () => {
+    expect(resolveArgv(["git", "status"], "win32", { npm_execpath: exe })).toEqual([
+      "git",
+      "status"
+    ]);
+    expect(resolveArgv(["pnpm", "test"], "win32", {})).toEqual(["pnpm", "test"]);
   });
 });

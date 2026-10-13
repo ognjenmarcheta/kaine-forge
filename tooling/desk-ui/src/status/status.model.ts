@@ -134,7 +134,7 @@ export type StatusLabel =
 
 /** The one next step a card offers. Navigation actions open the issue page. */
 export type PrimaryAction =
-  "continue" | "review-plan" | "review-ship" | "open-pr" | "working" | "open";
+  "continue" | "restart" | "review-plan" | "review-ship" | "open-pr" | "working" | "open";
 
 export interface IssueStatus {
   readonly group: BoardGroup;
@@ -172,7 +172,9 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   ): IssueStatus => ({ group, tone, label, gateMode, primaryAction });
 
   if (gateMode === "needs-you") {
-    return status("needs-you", "danger", byKey("desk.stage.needs-you"), "continue");
+    // Intake cannot continue: it reads the issue again, so it needs a new start and its options.
+    const action = summary.resumeStage === "intake" ? "restart" : "continue";
+    return status("needs-you", "danger", byKey("desk.stage.needs-you"), action);
   }
   if (gateMode === "shipped") {
     const action = summary.prUrl === null ? "open" : "open-pr";

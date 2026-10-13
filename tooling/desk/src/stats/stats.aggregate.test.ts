@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { aggregateRuns } from "./stats.aggregate";
+import type { IssueSnapshot } from "./stats.aggregate";
 import { parseRunRecords } from "./stats.runs";
 import type { RunRecord } from "../contracts";
 
@@ -27,9 +28,12 @@ const record = (over: Partial<RunRecord> = {}): RunRecord => ({
   ...over
 });
 
+const aggregate = (records: readonly RunRecord[], snapshots: readonly IssueSnapshot[]) =>
+  aggregateRuns({ records, invalidLines: 0 }, snapshots);
+
 describe("aggregateRuns", () => {
   it("groups runs by role, provider and model, in pipeline order", () => {
-    const stats = aggregateRuns(
+    const stats = aggregate(
       [
         record({ role: "reviewer", provider: "codex", model: null }),
         record({ model: "sonnet" }),
@@ -49,7 +53,7 @@ describe("aggregateRuns", () => {
   });
 
   it("counts outcomes and averages only the runs that report a value", () => {
-    const [group] = aggregateRuns(
+    const [group] = aggregate(
       [
         record({ durationMs: 10, costUsd: 1, turns: 10, editCalls: 2 }),
         record({ durationMs: 30, costUsd: 3, turns: null, editCalls: 6 }),
@@ -80,7 +84,7 @@ describe("aggregateRuns", () => {
       stuck: 1,
       timeouts: 1,
       medianDurationMs: 25,
-      meanInputTokens: 100,
+      meanInputTokens: 150,
       totalCostUsd: 4,
       meanCostUsd: 2,
       meanTurns: 15,
@@ -89,7 +93,7 @@ describe("aggregateRuns", () => {
   });
 
   it("reports no cost for a provider that reports none (Codex)", () => {
-    const [group] = aggregateRuns(
+    const [group] = aggregate(
       [record({ provider: "codex", costUsd: null, turns: null })],
       []
     ).groups;
@@ -97,7 +101,7 @@ describe("aggregateRuns", () => {
   });
 
   it("rolls up per issue and keeps the runs of a removed issue", () => {
-    const stats = aggregateRuns(
+    const stats = aggregate(
       [record({ issue: 3, costUsd: 2 }), record({ issue: 3, costUsd: 0.5 }), record({ issue: 9 })],
       [
         { issue: 3, stage: "pr-review", loops: { check: 1, review: 0 } },
@@ -109,6 +113,12 @@ describe("aggregateRuns", () => {
       { issue: 5, stage: "plan-gate", loops: { check: 0, review: 0 }, runs: 0, totalCostUsd: null },
       { issue: 9, stage: null, loops: null, runs: 1, totalCostUsd: 1 }
     ]);
+  });
+});
+
+describe("aggregateRuns with skipped lines", () => {
+  it("passes the count of skipped lines through", () => {
+    expect(aggregateRuns({ records: [], invalidLines: 3 }, []).invalidLines).toBe(3);
   });
 });
 

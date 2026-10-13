@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { IssueCard } from "./board.card";
 import { groupIssues, matchesSearch } from "./board.grouping";
+import { OpenPullRequests } from "./board.pulls";
 import { StartDialog } from "./board.start-dialog";
 import { useT } from "../i18n/i18n.t";
 import { useNow } from "../shell/shell.now";
@@ -204,6 +205,7 @@ export function BoardView() {
           ))}
         </div>
       )}
+      <OpenPullRequests />
       <StartDialog open={startOpen} onOpenChange={setStartOpen} />
     </div>
   );

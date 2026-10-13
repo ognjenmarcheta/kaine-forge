@@ -20,6 +20,11 @@ const unexpected = (name: string) => (): Promise<never> =>
 export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   exchangeSession: unexpected("exchangeSession"),
   health: unexpected("health"),
+  healthFix: unexpected("healthFix"),
+  stats: unexpected("stats"),
+  // The board and the Start dialog list GitHub work. Most tests want no list.
+  github: () =>
+    Promise.resolve({ ok: true, issues: [], pulls: [], fetchedAt: "2026-03-01T10:00:00.000Z" }),
   issues: () => Promise.resolve([]),
   issue: unexpected("issue"),
   artifactText: unexpected("artifactText"),
@@ -123,7 +128,8 @@ export const makeDetail = (
         reviewedDiffMatches: atGate ? true : null,
         currentDiffMatches: atGate ? true : null,
         ready: atGate
-      }
+      },
+      runs: []
     }
   };
 };

@@ -38,6 +38,8 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "factory.json:mark",
 
     // Agent desk: brand, autonyms, issue numbers, and technical terms that German developers use as they are.
+    "desk.json:desk.flow.metrics",
+    "desk.json:desk.stats.column.issue",
     "desk.json:desk.shell.brand",
     "desk.json:desk.shell.mark",
     "desk.json:desk.prefs.language.en",
@@ -92,6 +94,9 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "auth.json:auth.form.emailPlaceholder",
 
     // Agent desk: brand, autonyms, issue numbers, and technical terms that Serbian developers use as they are.
+    "desk.json:desk.flow.metrics",
+    "desk.json:desk.stats.column.model",
+    "desk.json:desk.health.fix.name.docker-build",
     "desk.json:desk.shell.brand",
     "desk.json:desk.shell.mark",
     "desk.json:desk.prefs.language.en",

@@ -193,6 +193,21 @@ export const runIntake = async (
   else if (previous === null) move(apply({ type: "start" }), "running");
   await record("intake", rerun ? "intake-restarted" : "intake-started");
 
+  // The title first: an issue that stops here still shows what it is on the board.
+  const artifacts = store.artifactsDir(issueNumber);
+  await mkdir(artifacts, { recursive: true });
+  const summary: IssueSummary = {
+    number: snapshot.number,
+    title: snapshot.title,
+    url: snapshot.url,
+    labels: [...snapshot.labels]
+  };
+  await writeFile(
+    path.join(artifacts, ISSUE_SUMMARY_FILE),
+    `${JSON.stringify(summary, null, 2)}\n`,
+    "utf8"
+  );
+
   if (!snapshot.open) return park(`Issue #${issueNumber} is closed.`);
 
   const authorization = authorize(snapshot, {
@@ -209,26 +224,13 @@ export const runIntake = async (
   const contract = parseContract(snapshot.body);
   if (contract.acceptanceCriteria.length === 0) {
     return park(
-      `No acceptance criteria found (${formatContract(contract)}). Add an "Acceptance criteria" section with one checkable item per line.`
+      `No acceptance criteria found (${formatContract(contract)}). Rewrite the issue in the format of docs/agents/issue-format.md (skill kaine-write-issue): the six headings, with one checkable item per line under "Acceptance criteria".`
     );
   }
 
-  const artifacts = store.artifactsDir(issueNumber);
-  await mkdir(artifacts, { recursive: true });
   await writeFile(
     path.join(artifacts, "ticket.md"),
     renderTicket(snapshot, owner, contract),
-    "utf8"
-  );
-  const summary: IssueSummary = {
-    number: snapshot.number,
-    title: snapshot.title,
-    url: snapshot.url,
-    labels: [...snapshot.labels]
-  };
-  await writeFile(
-    path.join(artifacts, ISSUE_SUMMARY_FILE),
-    `${JSON.stringify(summary, null, 2)}\n`,
     "utf8"
   );
 

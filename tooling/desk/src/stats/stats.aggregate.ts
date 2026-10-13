@@ -1,46 +1,34 @@
-import type { AgentStageRole, LoopCounters, Provider, RunRecord, Stage } from "../contracts";
-
-/** Runs of one role with one provider and model. */
-export interface RunGroup {
-  readonly role: AgentStageRole;
-  readonly provider: Provider;
-  /** `null`: the CLI's default model. */
-  readonly model: string | null;
-  readonly runs: number;
-  /** Runs the stage accepted (result, invariants and verification held). */
-  readonly accepted: number;
-  readonly stuck: number;
-  readonly timeouts: number;
-  readonly medianDurationMs: number;
-  /** Means and totals cover only the runs that report the value. `null` when none does. */
-  readonly meanInputTokens: number | null;
-  readonly meanOutputTokens: number | null;
-  readonly totalCostUsd: number | null;
-  readonly meanCostUsd: number | null;
-  readonly meanTurns: number | null;
-  readonly meanEditCalls: number;
-}
-
-/** One issue: where it stands and what its runs cost. */
-export interface IssueRollup {
-  readonly issue: number;
-  /** `null` when the issue was removed: its runs stay in the record. */
-  readonly stage: Stage | null;
-  readonly loops: LoopCounters | null;
-  readonly runs: number;
-  readonly totalCostUsd: number | null;
-}
-
-export interface RunStats {
-  readonly groups: readonly RunGroup[];
-  readonly issues: readonly IssueRollup[];
-}
+import type { RunRecords } from "./stats.runs";
+import type {
+  AgentStageRole,
+  IssueRollup,
+  LoopCounters,
+  RunGroup,
+  RunRecord,
+  RunStats,
+  Stage
+} from "../contracts";
+import type { IssueListEntry } from "../store/store.issue";
 
 export interface IssueSnapshot {
   readonly issue: number;
   readonly stage: Stage;
   readonly loops: LoopCounters;
 }
+
+/** Stage and loops of every readable issue. An unreadable issue shows as if removed. */
+export const snapshotsOf = (entries: readonly IssueListEntry[]): IssueSnapshot[] =>
+  entries.flatMap((entry) =>
+    entry.result.status === "ok"
+      ? [
+          {
+            issue: entry.issueNumber,
+            stage: entry.result.state.stage,
+            loops: entry.result.state.loops
+          }
+        ]
+      : []
+  );
 
 const sum = (values: readonly number[]): number =>
   values.reduce((total, value) => total + value, 0);
@@ -76,7 +64,13 @@ const groupOf = (records: readonly RunRecord[]): RunGroup => {
     stuck: records.filter((record) => record.failureKind === "stuck").length,
     timeouts: records.filter((record) => record.failureKind === "timeout").length,
     medianDurationMs: median(records.map((record) => record.durationMs)),
-    meanInputTokens: mean(present(records.map((record) => record.usage?.inputTokens ?? null))),
+    meanInputTokens: mean(
+      present(
+        records.map((record) =>
+          record.usage === null ? null : record.usage.inputTokens + record.usage.cachedInputTokens
+        )
+      )
+    ),
     meanOutputTokens: mean(present(records.map((record) => record.usage?.outputTokens ?? null))),
     totalCostUsd: costs.length === 0 ? null : sum(costs),
     meanCostUsd: mean(costs),
@@ -89,7 +83,7 @@ const ROLE_ORDER: readonly AgentStageRole[] = ["planner", "builder", "reviewer"]
 
 /** Groups runs by role, provider and model, and rolls them up per issue. */
 export const aggregateRuns = (
-  records: readonly RunRecord[],
+  { records, invalidLines }: RunRecords,
   snapshots: readonly IssueSnapshot[]
 ): RunStats => {
   const byGroup = new Map<string, RunRecord[]>();
@@ -123,5 +117,5 @@ export const aggregateRuns = (
       totalCostUsd: totalCost(runs)
     };
   });
-  return { groups, issues };
+  return { groups, issues, invalidLines };
 };

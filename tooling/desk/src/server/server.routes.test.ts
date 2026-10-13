@@ -103,7 +103,7 @@ describe("GET /api/health", () => {
     const report = healthReportSchema.parse(first.json());
     expect(report.ok).toBe(true);
     expect(report.checks).toEqual([
-      { id: "node", label: "Node.js", status: "ok", detail: "v22.0.0" }
+      { id: "node", label: "Node.js", status: "ok", detail: "v22.0.0", command: null, fix: null }
     ]);
     expect(second.json()).toEqual(first.json());
     expect(harness.health).toHaveBeenCalledTimes(1);

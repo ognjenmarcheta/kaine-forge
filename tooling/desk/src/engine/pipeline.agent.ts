@@ -344,11 +344,8 @@ const runAgentStageOnce = async <T>(
     );
   }
   if (!outcome.ok) {
-    return stop(
-      stuckStopped
-        ? `The ${role} failed. ${failureText(outcome.failure)}`
-        : failureReason(role, outcome.failure)
-    );
+    // The stuck reason leads: the desk shows the first sentence of a reason.
+    return stop(stuckStopped ? failureText(outcome.failure) : failureReason(role, outcome.failure));
   }
   if (diffAfter === null) return stop(`Cannot inspect the worktree after the ${role} run.`);
 

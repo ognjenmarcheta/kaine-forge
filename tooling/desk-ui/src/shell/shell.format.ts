@@ -34,6 +34,23 @@ export function relativeTime(iso: string, now: number, language: string): string
 const unitText = (value: number, unit: string, language: string): string =>
   new Intl.NumberFormat(language, { style: "unit", unit, unitDisplay: "narrow" }).format(value);
 
+/** "12K", "1.2M": a large count, short, in the page language. */
+export function formatCount(value: number, language: string): string {
+  return new Intl.NumberFormat(language, { notation: "compact", maximumFractionDigits: 1 }).format(
+    value
+  );
+}
+
+/** "$1.23": a cost in US dollars, in the page language. */
+export function formatUsd(value: number, language: string): string {
+  return new Intl.NumberFormat(language, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
 /** "1h 5m 3s", with the narrow unit symbols of the page language. */
 export function formatDuration(ms: number, language: string): string {
   const total = Math.max(0, Math.round(ms / 1000));

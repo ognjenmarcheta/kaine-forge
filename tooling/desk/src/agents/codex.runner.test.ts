@@ -164,7 +164,12 @@ describe("parseCodexStream", () => {
     const summary = parseCodexStream(fixtureLines("codex-skill-read.jsonl"));
     expect(summary.threadId).toBe("00000000-0000-4000-8000-000000000001");
     expect(summary.completed).toBe(true);
-    expect(summary.usage.outputTokens).toBe(346);
+    // Fresh input excludes the cached part, so the two add up to the total input.
+    expect(summary.usage).toEqual({
+      inputTokens: 35_098 - 28_288,
+      cachedInputTokens: 28_288,
+      outputTokens: 346
+    });
     const call = summary.events.find((event) => event.type === "tool_call");
     expect(call).toMatchObject({
       tool: "Bash",

@@ -1,6 +1,7 @@
 import { ACTIVE_STAGES, type FeedbackTarget, type IssueDetail } from "@repo/desk/contracts";
 import {
   Button,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -159,6 +160,9 @@ export function useGatePanel({
   const [removeOpen, setRemoveOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [resume, setResume] = useState<string>(AUTO_STAGE);
+  const [override, setOverride] = useState(false);
+  /** Intake stopped: the issue starts again, and the engineer chooses the override again. */
+  const restart = mode === "needs-you" && summary.resumeStage === "intake";
   const prUrl = safeHttpUrl(detail.state.prUrl);
   const titleId = `${id}-title`;
   const feedbackId = `${id}-feedback`;
@@ -260,7 +264,15 @@ export function useGatePanel({
           </Button>
         );
       case "needs-you":
-        return (
+        return restart ? (
+          <Button
+            className="desk-gate__primary"
+            disabled={actions.busy}
+            onClick={() => void send({ action: "start", override })}
+          >
+            {t("desk.gate.needsYou.startAgain")}
+          </Button>
+        ) : (
           <Button
             className="desk-gate__primary"
             disabled={actions.busy}
@@ -305,28 +317,42 @@ export function useGatePanel({
           {summary.needsYouReason !== null && (
             <Pre label={t("desk.gate.needsYou.reason")}>{summary.needsYouReason}</Pre>
           )}
-          <div className="desk-field">
-            <Label htmlFor={`${id}-resume`}>{t("desk.gate.needsYou.resume")}</Label>
-            <Select value={resume} onValueChange={setResume}>
-              <SelectTrigger id={`${id}-resume`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={AUTO_STAGE}>
-                  {summary.resumeStage === null
-                    ? t("desk.gate.needsYou.resumeAuto")
-                    : t("desk.gate.needsYou.resumeRemembered", {
-                        stage: t(`desk.stage.${summary.resumeStage}`)
-                      })}
-                </SelectItem>
-                {ACTIVE_STAGES.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {t(`desk.stage.${stage}`)}
+          {restart ? (
+            <>
+              <p className="desk-muted">{t("desk.gate.needsYou.restartHelp")}</p>
+              <div className="desk-check-row">
+                <Checkbox
+                  id={`${id}-override`}
+                  checked={override}
+                  onCheckedChange={(next) => setOverride(next === true)}
+                />
+                <Label htmlFor={`${id}-override`}>{t("desk.start.override")}</Label>
+              </div>
+            </>
+          ) : (
+            <div className="desk-field">
+              <Label htmlFor={`${id}-resume`}>{t("desk.gate.needsYou.resume")}</Label>
+              <Select value={resume} onValueChange={setResume}>
+                <SelectTrigger id={`${id}-resume`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={AUTO_STAGE}>
+                    {summary.resumeStage === null
+                      ? t("desk.gate.needsYou.resumeAuto")
+                      : t("desk.gate.needsYou.resumeRemembered", {
+                          stage: t(`desk.stage.${summary.resumeStage}`)
+                        })}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                  {ACTIVE_STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {t(`desk.stage.${stage}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </>
       )}
 

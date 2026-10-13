@@ -10,6 +10,7 @@ import { createGitPort } from "../git";
 import { createGitHubPort } from "../github/github.port";
 import { createExec, systemClock } from "../ports";
 import { commandDoctor, commandLabels } from "./cli.command.admin";
+import { commandContract } from "./cli.command.contract";
 import { commandDocker } from "./cli.command.docker";
 import {
   commandApprove,
@@ -49,6 +50,7 @@ const USAGE = [
   "  logs <issue> [--follow] [--json]   Show the agent log",
   "  resume <issue>                  Print the command that resumes the agent session by hand",
   "  stats [--role <role>] [--json]  Compare agent runs by role, provider and model",
+  "  contract <issue> | --file <path> [--json]   How intake reads an issue body (exit 0 at 6/6)",
   "",
   "Repository:",
   "  labels sync [--apply]           Print the agent:* label commands; --apply runs them",
@@ -117,6 +119,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   logs: commandLogs,
   resume: commandResume,
   stats: commandStats,
+  contract: commandContract,
   labels: commandLabels,
   doctor: commandDoctor,
   docker: commandDocker,

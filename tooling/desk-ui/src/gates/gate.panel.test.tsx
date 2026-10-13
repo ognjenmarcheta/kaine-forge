@@ -153,6 +153,19 @@ describe("GatePanel when the desk needs you", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(actions.run).toHaveBeenCalledWith({ action: "continue" });
   });
+
+  it("starts an issue that stopped at intake again, with the override the engineer chooses", async () => {
+    const actions = actionsOf();
+    show({ stage: "needs-you", resumeStage: "intake" }, actions);
+    // Intake cannot continue: no resume select and no Continue.
+    expect(screen.queryByRole("combobox", { name: "Resume from" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /own authority/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Start again" }));
+
+    expect(actions.run).toHaveBeenCalledWith({ action: "start", override: true });
+  });
 });
 
 describe("GatePanel after the ship", () => {

@@ -583,6 +583,116 @@ main:focus {
   gap: var(--ds-space-100);
 }
 
+/* Start dialog: the open issues of the repository, to pick one. */
+.desk-picker {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+}
+
+.desk-picker__head h3 {
+  margin: 0;
+  font: var(--ds-font-heading-xsmall);
+}
+
+.desk-picker__list {
+  display: grid;
+  gap: var(--ds-space-050);
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* A @repo/ui button laid out as a list row: the same pattern as `.ui-todos__title.ui-button`. */
+.desk-picker__item.ui-button {
+  display: grid;
+  justify-content: stretch;
+  justify-items: start;
+  gap: var(--ds-space-050);
+  width: 100%;
+  height: auto;
+  font-weight: inherit;
+  white-space: normal;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  text-align: start;
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  cursor: pointer;
+}
+
+.desk-picker__item.ui-button:hover:not(:disabled) {
+  border-color: var(--ds-border-bold);
+}
+
+.desk-picker__item.ui-button[aria-pressed="true"] {
+  border-color: var(--ds-border-selected);
+  background: var(--ds-background-selected);
+}
+
+.desk-picker__item.ui-button:disabled {
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-color: var(--ds-border);
+}
+
+.desk-picker__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.desk-picker__meta,
+.desk-pulls__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  font: var(--ds-font-body-small);
+}
+
+.desk-picker__note {
+  margin: 0;
+  color: var(--ds-text-warning);
+}
+
+/* Board: the open pull requests, read-only. */
+.desk-pulls {
+  margin-block-start: var(--ds-space-300);
+}
+
+.desk-pulls__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-pulls__row {
+  display: grid;
+  gap: var(--ds-space-050);
+  padding-block: var(--ds-space-100);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-pulls__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.desk-pulls__meta code {
+  overflow-wrap: anywhere;
+}
+
 .desk-start p {
   margin: 0;
 }
@@ -1689,8 +1799,25 @@ html:has(.desk-gate-bar) {
   border-bottom: var(--ds-border-width) solid var(--ds-border);
 }
 
-.desk-checks .desk-muted {
+.desk-checks .desk-muted,
+.desk-remedy {
   grid-column: 2;
+}
+
+/* The command to run by hand, a copy button, and the desk's own repair when it has one. */
+.desk-remedy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  min-width: 0;
+}
+
+.desk-remedy code {
+  padding: var(--ds-space-050) var(--ds-space-100);
+  overflow-wrap: anywhere;
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-100);
 }
 
 .desk-drawer {
@@ -2041,4 +2168,43 @@ html:has(.desk-gate-bar) {
   .desk-gate-bar .ui-button:not(:disabled):active {
     transform: none;
   }
+}
+
+/*
+ * Stats: wide tables scroll inside their panel, so the page never scrolls sideways. The
+ * scroller is the containing block of the screen-reader-only text in its cells; without it
+ * that absolute text would widen the page.
+ */
+.desk-table-scroll {
+  position: relative;
+  overflow-x: auto;
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--ds-font-body-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-table th,
+.desk-table td {
+  padding: var(--ds-space-075) var(--ds-space-150);
+  text-align: start;
+  white-space: nowrap;
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-table thead th {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-table tbody th {
+  font-weight: inherit;
+}
+
+.desk-table .desk-table__number {
+  text-align: end;
 }

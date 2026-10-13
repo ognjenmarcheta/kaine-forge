@@ -51,6 +51,7 @@ const streamLine = z.object({
   usage: z
     .object({
       input_tokens: z.number().optional(),
+      cache_creation_input_tokens: z.number().optional(),
       cache_read_input_tokens: z.number().optional(),
       output_tokens: z.number().optional()
     })
@@ -215,7 +216,9 @@ export const createClaudeStreamParser = (): ClaudeStreamParser => {
         resultText: entry.result ?? "",
         structured: entry.structured_output,
         usage: {
-          inputTokens: entry.usage?.input_tokens ?? 0,
+          // Claude counts cache writes apart from `input_tokens`.
+          inputTokens:
+            (entry.usage?.input_tokens ?? 0) + (entry.usage?.cache_creation_input_tokens ?? 0),
           cachedInputTokens: entry.usage?.cache_read_input_tokens ?? 0,
           outputTokens: entry.usage?.output_tokens ?? 0
         },

@@ -4,18 +4,24 @@ import {
   actionRequestSchema,
   actionResponseSchema,
   apiErrorSchema,
+  githubListsSchema,
+  healthFixAcceptedSchema,
   healthReportSchema,
   issueDetailSchema,
   issueListSchema,
   logResponseSchema,
+  runStatsSchema,
   type ActionRequestInput,
   type ActionResponse,
   type ApiErrorCode,
   type ArtifactId,
+  type GithubLists,
+  type HealthFix,
   type HealthReport,
   type IssueDetail,
   type IssueSummary,
-  type LogResponse
+  type LogResponse,
+  type RunStats
 } from "@repo/desk/contracts";
 import { z } from "zod";
 
@@ -58,6 +64,11 @@ const sessionReplySchema = z.object({ ok: z.literal(true) });
 export interface DeskApi {
   readonly exchangeSession: (token: string) => Promise<void>;
   readonly health: () => Promise<HealthReport>;
+  /** Starts a repair. It answers once the repair runs; a `health-fix` event says how it ended. */
+  readonly healthFix: (fix: HealthFix) => Promise<void>;
+  readonly stats: () => Promise<RunStats>;
+  /** Open issues and pull requests. `refresh` asks GitHub again instead of the server's cache. */
+  readonly github: (refresh: boolean) => Promise<GithubLists>;
   readonly issues: () => Promise<IssueSummary[]>;
   readonly issue: (issueNumber: number) => Promise<IssueDetail>;
   readonly artifactText: (issueNumber: number, id: ArtifactId) => Promise<string>;
@@ -125,6 +136,20 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
       }
     },
     health: () => getJson("/api/health", healthReportSchema),
+    stats: () => getJson("/api/stats", runStatsSchema),
+    github: (refresh) =>
+      getJson(refresh ? "/api/github?refresh=1" : "/api/github", githubListsSchema),
+    healthFix: async (fix) => {
+      const response = await send("/api/health/fix", {
+        method: "POST",
+        headers: WRITE_HEADERS,
+        body: JSON.stringify({ fix })
+      });
+      const body: unknown = await response.json().catch(() => null);
+      if (!healthFixAcceptedSchema.safeParse(body).success) {
+        throw new DeskApiError("invalid-response", response.status, null);
+      }
+    },
     issues: async () => (await getJson("/api/issues", issueListSchema)).issues,
     issue: (issueNumber) => getJson(issuePath(issueNumber), issueDetailSchema),
     artifactText: async (issueNumber, id) =>

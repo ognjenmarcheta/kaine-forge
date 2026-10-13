@@ -33,6 +33,9 @@ carries all six of these. Missing any one makes it `needs-info`, not
 6. **Anything deliberately out of scope**, named — so the agent does not widen
    the change to be helpful.
 
+[`issue-format.md`](issue-format.md) gives the six headings to write them under. The agent desk
+reads an issue by those headings, so content under other headings counts as missing.
+
 ## Bootstrapping the labels
 
 GitHub labels are repository state, not files, so a repo generated from this template starts without them. Create the set once per repository:

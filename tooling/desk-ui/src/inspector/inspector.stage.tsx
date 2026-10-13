@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import type { z } from "zod";
 
 import {
+  agentUsageKpis,
   buildChecklist,
   checkChecklist,
   contractChecklist,
@@ -86,9 +87,16 @@ function Frame({
   readonly artifacts?: StageArtifacts;
   readonly children: ReactNode;
 }) {
+  const t = useT();
+  const usage = agentUsageKpis(section.node, section.detail);
   return (
     <>
       <KpiGrid kpis={stageKpis(section.node, section.detail, section.flow, artifacts)} />
+      {usage.length > 0 && (
+        <Block title={t("desk.inspector.usage.title")}>
+          <KpiGrid kpis={usage} />
+        </Block>
+      )}
       {children}
     </>
   );
