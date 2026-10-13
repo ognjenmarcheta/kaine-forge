@@ -44,10 +44,24 @@ families, detect small effects, survive a model upgrade without a re-run, or say
 whether a rule helps a _human_ read the repo — which is often the real reason a
 rule exists. Weigh the `action` field accordingly.
 
+## Noise floor (protocol 2)
+
+A run marked `"protocol": 2` names a calibration from the `calibrations` list:
+an A/A run of the same agent, model and task family, with the rule present in
+both arms. The difference of its two means, and never less than 0.5, is the
+noise floor. `pnpm harness:eval` refuses a protocol 2 run that calls an
+`effect` with `|Δ|` within the floor, or `no-effect` with `|Δ|` above it, and
+any run that pairs `inconclusive` with `keep`, `delete`, or `promote-to-lint`.
+Runs recorded before protocol 2 keep their original record. A rule change that
+passes here is also checked against the whole harness after it merges, with
+`pnpm desk stats --by-harness` (see the `kaine-harness-eval` skill).
+
 ## Rubric
 
 Scored per trial, 1–5, against the paper's dimensions (task success, tool-use
-quality, trajectory compliance, hallucination, response quality). The `action`
+quality, trajectory compliance, hallucination, response quality). A trial that
+redefines its task, or quietly drops part of it, scores 1 and records
+`offTask: 1`. The `action`
 is the point of the exercise: a rule measured as a no-op twice is a rule to
 delete from `.ai/guide.md`, not a rule to re-word.
 
