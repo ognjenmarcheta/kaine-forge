@@ -27,7 +27,7 @@ export const repoKeyFor = (repoRoot: string): string => {
       .basename(repoRoot)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
+      .replace(/^-|-$/g, "")
       .slice(0, 24) || "repo";
   return `${slug}-${createHash("sha256").update(path.resolve(repoRoot)).digest("hex").slice(0, 6)}`;
 };

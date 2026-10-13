@@ -84,7 +84,9 @@ record(
 
 const rootWrite = await attempt(() => fs.writeFileSync("/opt/desk/probe-write", "x"));
 const etcWrite = await attempt(() => fs.writeFileSync("/etc/desk-probe", "x"));
-const tmpWrite = await attempt(() => fs.writeFileSync("/tmp/desk-probe", "x"));
+const tmpWrite = await attempt(() =>
+  fs.writeFileSync(`${fs.mkdtempSync("/tmp/desk-probe-")}/write`, "x")
+);
 record(
   "root-filesystem-read-only",
   rootWrite !== null && etcWrite !== null && tmpWrite === null,

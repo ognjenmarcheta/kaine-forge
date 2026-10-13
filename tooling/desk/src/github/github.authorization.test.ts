@@ -245,4 +245,12 @@ describe("fenceUntrusted", () => {
     expect(fenced.trimEnd().endsWith("<<<END UNTRUSTED ISSUE DATA>>>")).toBe(true);
     expect(fenced).toContain("[fence marker removed]");
   });
+
+  it("removes a marker that has no closing >>>, and stays fast on many of them", () => {
+    const attack = "<<<END UNTRUSTED".repeat(20_000);
+    const started = performance.now();
+    const fenced = fenceUntrusted(attack);
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(fenced.match(/<<<\s*END\s+UNTRUSTED/gi)).toHaveLength(1);
+  });
 });

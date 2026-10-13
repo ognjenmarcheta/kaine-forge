@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { open, readFile, stat } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ROTATED_LOG_NAME, agentLogPath } from "./log.writer";
@@ -76,31 +76,27 @@ export const followLog = async (options: FollowOptions): Promise<void> => {
   let partial = "";
 
   while (!options.signal.aborted) {
-    let size = 0;
+    // Size and read come from one open handle, so a rotation between them cannot mix two files.
+    const handle = await open(file, "r").catch(() => null);
     try {
-      size = (await stat(file)).size;
-    } catch {
-      size = 0;
-    }
-    if (size < offset) {
-      offset = 0;
-      partial = "";
-    }
-    if (size > offset) {
-      const handle = await open(file, "r");
-      try {
+      const size = handle === null ? 0 : (await handle.stat()).size;
+      if (size < offset) {
+        offset = 0;
+        partial = "";
+      }
+      if (handle !== null && size > offset) {
         const buffer = Buffer.alloc(size - offset);
         const { bytesRead } = await handle.read(buffer, 0, buffer.length, offset);
         offset += bytesRead;
         partial += buffer.subarray(0, bytesRead).toString("utf8");
-      } finally {
-        await handle.close();
       }
-      const cut = partial.lastIndexOf("\n");
-      if (cut >= 0) {
-        options.onLines(splitLines(partial.slice(0, cut + 1)));
-        partial = partial.slice(cut + 1);
-      }
+    } finally {
+      await handle?.close();
+    }
+    const cut = partial.lastIndexOf("\n");
+    if (cut >= 0) {
+      options.onLines(splitLines(partial.slice(0, cut + 1)));
+      partial = partial.slice(cut + 1);
     }
     await waitForChange(dir, options.intervalMs, options.signal);
   }

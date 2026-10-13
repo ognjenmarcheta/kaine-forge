@@ -73,10 +73,19 @@ export const readArtifact = async (
 ): Promise<ArtifactRead> => {
   const file = artifactPath(store, issueNumber, id);
   try {
-    const info = await lstat(file);
-    if (!info.isFile()) return { status: "missing" };
-    const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    // Open first, then check what was opened: a check before the open can see another file.
+    // O_NONBLOCK keeps a FIFO from blocking the open.
+    const handle = await open(
+      file,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK
+    );
     try {
+      const info = await handle.stat();
+      // Windows has no O_NOFOLLOW: the path must still be the plain file that was opened.
+      const entry = await lstat(file);
+      if (!info.isFile() || !entry.isFile() || entry.ino !== info.ino || entry.dev !== info.dev) {
+        return { status: "missing" };
+      }
       const size = Math.min(info.size, maxBytes);
       const bytes = Buffer.alloc(size);
       const { bytesRead } = await handle.read(bytes, 0, size, 0);

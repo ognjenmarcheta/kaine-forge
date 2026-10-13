@@ -80,7 +80,8 @@ export const missingFlags = (help: string, provider: Provider): string[] =>
   REQUIRED_FLAGS[provider].filter((flag) => !helpMentions(help, flag));
 
 const versionOf = (text: string): number[] | null => {
-  const match = /(\d+)\.(\d+)(?:\.(\d+))?/.exec(text);
+  // A match starts where a digit run starts, so a long run is not rescanned from inside.
+  const match = /(?:^|\D)(\d+)\.(\d+)(?:\.(\d+))?/.exec(text);
   return match ? [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)] : null;
 };
 

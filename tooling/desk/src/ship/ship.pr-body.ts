@@ -2,6 +2,7 @@ import type { CheckReport } from "../check";
 import type { PlannerOutput, ReviewerOutput } from "../contracts";
 import { SEVERITY_LABELS } from "../contracts";
 import type { ChangesetDecision } from "./ship.changeset";
+import { trimEndWhile } from "../text/text.trim";
 
 /**
  * The PR body. The shape comes from `.github/pull_request_template.md`, read
@@ -28,7 +29,12 @@ export interface ParsedTemplate {
   readonly sections: readonly TemplateSection[];
 }
 
-const HEADING = /^(#{1,6})\s+(\S.*?)\s*#*\s*$/;
+// Read on a line with its end trimmed. `titleOf` drops a closing `#` run in code.
+const HEADING = /^(#{1,6})\s+(\S.*)$/;
+
+/** `## Title ##` and `## Title#` are both "Title". A title of only `#` keeps its first one. */
+const titleOf = (text: string): string =>
+  trimEndWhile(text, (char) => char === "#").trimEnd() || text.charAt(0);
 const FENCE = /^\s*(```|~~~)/;
 
 export const parseTemplate = (template: string): ParsedTemplate => {
@@ -37,9 +43,9 @@ export const parseTemplate = (template: string): ParsedTemplate => {
   let fenced = false;
   for (const line of template.split(/\r?\n/)) {
     if (FENCE.test(line)) fenced = !fenced;
-    const heading = fenced ? null : HEADING.exec(line);
+    const heading = fenced ? null : HEADING.exec(line.trimEnd());
     if (heading?.[1] !== undefined && heading[2] !== undefined) {
-      sections.push({ level: heading[1].length, title: heading[2], lines: [] });
+      sections.push({ level: heading[1].length, title: titleOf(heading[2]), lines: [] });
     } else {
       (sections.at(-1)?.lines ?? preamble).push(line);
     }

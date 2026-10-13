@@ -129,7 +129,9 @@ export const recheckAuthorization = (
 
 const BEGIN = "<<<BEGIN UNTRUSTED ISSUE DATA>>>";
 const END = "<<<END UNTRUSTED ISSUE DATA>>>";
-const FENCE_MARKER = /<<<\s*(?:BEGIN|END)\s+UNTRUSTED[^>\n]*>>>/gi;
+// The marker start is removed even without its `>>>`. The label stops at `<`, so a run of
+// unclosed markers does not rescan the rest of the line from each one.
+const FENCE_MARKER = /<<<\s*(?:BEGIN|END)\s+UNTRUSTED(?:[^<>\n]*>>>)?/gi;
 
 /**
  * Wrap issue text for a prompt as data. Any fence marker inside the text is

@@ -1,4 +1,5 @@
 import { conventionalTypeSchema, type ConventionalType } from "../contracts";
+import { isSpace, trimEndWhile } from "../text/text.trim";
 
 /**
  * The commit message and the PR title. Both follow Conventional Commits as
@@ -52,10 +53,10 @@ const wrap = (text: string, width: number): string[] => {
 
 /** Fit a subject into the header: one line, lower-case first letter, no final full stop. */
 export const normalizeSubject = (subject: string, room: number): string => {
-  const flat = subject
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[.\s]+$/, "");
+  const flat = trimEndWhile(
+    subject.replace(/\s+/g, " ").trim(),
+    (char) => char === "." || isSpace(char)
+  );
   if (flat === "") throw new RangeError("A commit needs a subject");
   const lowered = `${flat.charAt(0).toLowerCase()}${flat.slice(1)}`;
   if (lowered.length <= room) return lowered;

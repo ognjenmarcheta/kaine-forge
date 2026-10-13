@@ -18,7 +18,7 @@ export const diffNewLines = (patch: string): Map<string, ReadonlySet<number>> =>
       line = 0;
       header = true;
     } else if (header && text.startsWith("+++ ")) {
-      const target = text.slice(4).replace(/\t.*$/, "");
+      const target = text.slice(4).split("\t", 1)[0] ?? "";
       if (target === "/dev/null") {
         file = null;
       } else {

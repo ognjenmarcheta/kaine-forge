@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { stripVTControlCharacters } from "node:util";
 
+import { trimEndWhile } from "../text/text.trim";
+
 /**
  * A fingerprint names a failure, not a run. Two rounds that fail the same way
  * must get the same value even though timestamps, durations, temp
@@ -41,7 +43,8 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 export const normalizeLine = (line: string, roots: readonly string[] = []): string => {
   let text = stripVTControlCharacters(line);
   for (const root of [...roots].filter((r) => r.length > 1).sort((a, b) => b.length - a.length)) {
-    text = text.replace(new RegExp(`${escapeRegExp(root.replace(/\/+$/, ""))}`, "g"), "<dir>");
+    const dir = trimEndWhile(root, (char) => char === "/");
+    text = text.replace(new RegExp(`${escapeRegExp(dir)}`, "g"), "<dir>");
   }
   return text
     .replace(ISO_TIME, "<time>")

@@ -265,7 +265,7 @@ const DECISIONS: Readonly<
 };
 
 const FEEDBACK_NOTE = /^to (plan|build|review)$/;
-const BLOCKING_NOTE = /(\d+) blocking/;
+const BLOCKING_NOTE = /^(\d+) blocking/;
 
 const firstLine = (text: string): string => (text.split("\n")[0] ?? "").replace(/:$/, "").trim();
 

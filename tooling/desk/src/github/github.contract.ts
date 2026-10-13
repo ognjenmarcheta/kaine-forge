@@ -1,4 +1,5 @@
 import { ISSUE_SECTIONS, type IssueSection } from "../contracts";
+import { isSpace, trimEndWhile } from "../text/text.trim";
 
 /**
  * Lenient reader for the six-heading `ready-for-agent` contract in
@@ -34,11 +35,18 @@ export interface ContractReport {
   readonly acceptanceCriteria: readonly string[];
 }
 
+/** Drop a closing `#` sequence. It counts only after whitespace, as in `## Scope ##`. */
+const stripClosingHashes = (raw: string): string => {
+  const trimmed = raw.trimEnd();
+  const body = trimEndWhile(trimmed, (char) => char === "#");
+  return body !== trimmed && body !== body.trimEnd() ? body.trimEnd() : raw;
+};
+
 const normalizeHeading = (raw: string): string =>
-  raw
-    .replace(/\s+#+\s*$/, "")
-    .replace(/[*_`]/g, "")
-    .replace(/[:?.\s]+$/, "")
+  trimEndWhile(
+    stripClosingHashes(raw).replace(/[*_`]/g, ""),
+    (char) => ":?.".includes(char) || isSpace(char)
+  )
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -50,7 +58,8 @@ const sectionFor = (heading: string): ContractSection | null => {
   return null;
 };
 
-const HEADING_LINE = /^ {0,3}#{1,6}[ \t]+(.+?)[ \t]*$/;
+// The text starts at its first non-blank character, so the blank run before it has one match.
+const HEADING_LINE = /^ {0,3}#{1,6}[ \t]+([^ \t].*)?$/;
 const FENCE_LINE = /^ {0,3}(```|~~~)/;
 
 interface RawBlock {
@@ -81,7 +90,7 @@ const splitBlocks = (body: string): RawBlock[] => {
   return blocks;
 };
 
-const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?(.*)$/;
+const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?(\S.*)?$/;
 
 /** Bullets and checklist items. With no bullets, each non-empty line is one criterion. */
 export const parseAcceptanceCriteria = (text: string): string[] => {

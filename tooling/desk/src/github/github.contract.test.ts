@@ -101,6 +101,20 @@ describe("parseContract", () => {
     const report = parseContract("### Acceptance criteria\r\n- a\r\n- b\r\n");
     expect(report.acceptanceCriteria).toEqual(["a", "b"]);
   });
+
+  it("reads a hostile issue body in linear time", () => {
+    // Long runs of spaces or tabs once made the heading patterns backtrack for minutes.
+    const body = [
+      `## Outcome${" ".repeat(100_000)}x`,
+      `#\t${"\t".repeat(100_000)}\rx`,
+      "## Acceptance criteria",
+      "- a"
+    ].join("\n");
+    const started = performance.now();
+    const report = parseContract(body);
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(report.acceptanceCriteria).toEqual(["a"]);
+  });
 });
 
 describe("parseAcceptanceCriteria", () => {

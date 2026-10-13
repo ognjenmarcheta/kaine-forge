@@ -20,7 +20,8 @@ const AI_GENERATOR_FOOTER =
 
 const AI_ROBOT_FOOTER = /^\s*\u{1F916}\s*Generated\b/imu;
 
-const CO_AUTHORED_BY = /^\s*Co-Authored-By:\s*(.+)\s*$/i;
+// Read on a line with its end trimmed, so the identity has no trailing blank to share with `\s*`.
+const CO_AUTHORED_BY = /^\s*Co-Authored-By:\s*(\S.*)$/i;
 
 /** True when a git author name or email looks like an AI or tool identity. */
 export const isAiIdentity = (name: string, email: string): boolean =>
@@ -31,7 +32,7 @@ export const findAiCoauthorViolation = (message: string): string | null => {
   if (message.length === 0) return null;
 
   for (const line of message.split(/\r?\n/)) {
-    const match = CO_AUTHORED_BY.exec(line);
+    const match = CO_AUTHORED_BY.exec(line.trimEnd());
     if (match === null) continue;
     const identity = match[1] ?? "";
     if (AI_IDENTITY.test(identity) || AI_EMAIL.test(identity)) {
