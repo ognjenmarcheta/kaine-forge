@@ -32,6 +32,8 @@ export interface RunGitOptions {
   readonly timeoutMs?: number;
   /** Exit codes besides 0 that are an answer, not a failure. */
   readonly okCodes?: readonly number[];
+  /** Text for git's stdin. */
+  readonly input?: string;
 }
 
 /**
@@ -49,7 +51,8 @@ export const runGit = async (
     argv,
     cwd,
     env: { ...GIT_ENV, ...options.env },
-    timeoutMs: options.timeoutMs ?? GIT_TIMEOUT_MS
+    timeoutMs: options.timeoutMs ?? GIT_TIMEOUT_MS,
+    ...(options.input === undefined ? {} : { input: options.input })
   });
   if (result.timedOut) throw new GitError(`git ${args[0] ?? ""} timed out`, argv, null);
   if (result.code === 0 || (result.code !== null && options.okCodes?.includes(result.code))) {

@@ -130,7 +130,9 @@ an `IsolationPort` (`src/isolation`) for the runner of each agent stage and for 
 Host mode returns today's behaviour. Docker mode runs the builder and the check steps in
 containers. The planner and the reviewer run no repository code and stay on the host. Setup and
 ship stay on the host, because they run trusted code from `origin/main` and the commit and push
-need the owner's identity.
+need the owner's identity. The ship checks are the exception: they run the branch's code, so in
+Docker mode they go through the same port as the loop checks. A Windows host then runs every
+check on Linux, the platform of CI.
 
 The host worktree stays canonical. The volume holds a copy: the base commit arrives as a
 `git bundle`, the work in progress as `git diff --binary`, and the result comes back as a
@@ -158,7 +160,6 @@ clean the resources of the issue. `desk docker prune` cleans by issue, or everyt
 `--all --yes`.
 
 Consequences: the image is about 2 GB and is rebuilt on purpose (`desk docker build`). The first
-run of an issue is slower than on the host. No MCP server and no browser run in a container. Ship
-checks still run on the host. Real-Docker tests are gated by `DESK_DOCKER=1`. A model run in a
+run of an issue is slower than on the host. No MCP server and no browser run in a container. Real-Docker tests are gated by `DESK_DOCKER=1`. A model run in a
 container needs a provider login, so it is verified by the owner with the checklist in
 [agent-desk.md](../agents/agent-desk.md).

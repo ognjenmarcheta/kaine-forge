@@ -1,5 +1,13 @@
+/// <reference types="vitest/jsdom" />
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
+
+// Node 25 has its own global `localStorage`. Without `--localstorage-file` it lacks most
+// methods, and it hides the one of jsdom. Use jsdom's storage on every Node version.
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: jsdom.window.localStorage
+});
 
 // CI runs every workspace's tests at once, so a render here can take a few times longer than
 // on a quiet machine. The default 1 s budget of `waitFor` and `findBy*` is too short for that.

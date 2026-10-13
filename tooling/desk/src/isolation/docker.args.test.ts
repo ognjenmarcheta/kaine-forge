@@ -396,9 +396,33 @@ describe("policy errors", () => {
     [
       "a mount path with a comma, which would add a mount option",
       { mounts: [{ type: "bind" as const, source: "/tmp/a,b", target: "/desk/in" }] }
+    ],
+    [
+      "a bind mount of a Windows drive root",
+      { mounts: [{ type: "bind" as const, source: "C:\\", target: "/desk/in" }] }
+    ],
+    [
+      "a bind mount of the Docker pipe on Windows",
+      {
+        mounts: [
+          { type: "bind" as const, source: "\\\\.\\pipe\\docker_engine", target: "/desk/in" }
+        ]
+      }
+    ],
+    [
+      "a bind mount of a network share",
+      { mounts: [{ type: "bind" as const, source: "\\\\server\\share\\in", target: "/desk/in" }] }
     ]
   ])("refuses %s", (_name, change) => {
     expect(attempt(change)).toThrow(ContainerPolicyError);
+  });
+
+  it.each([
+    "C:\\Users\\dev\\repo\\.git\\kaine-desk\\issues\\7\\docker\\agent-x",
+    "C:\\work\\docker_engine\\repo\\.git\\kaine-desk\\issues\\7\\docker\\agent-x"
+  ])("accepts the staging folder of a Windows host: %s", (source) => {
+    const args = attempt({ mounts: [{ type: "bind", source, target: "/desk/in" }] })();
+    expect(all(args, "--mount")).toEqual([`type=bind,src=${source},dst=/desk/in,readonly`]);
   });
 
   it("refuses an empty check command", () => {

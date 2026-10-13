@@ -1,4 +1,4 @@
-import { GitError } from "../git";
+import { fileModeIgnored, GitError, patchExecBits, setIndexExecBits } from "../git";
 import { protectedPathReason } from "../policy";
 import type { Exec } from "../ports";
 
@@ -131,9 +131,18 @@ export const guardPatch = async (
   return reasons.length > 0 ? reject(...reasons) : { ok: true, files: paths.sort(), bytes };
 };
 
-/** Apply a guarded patch to the worktree. `git apply` is all or nothing. */
+/**
+ * Apply a guarded patch to the worktree. `git apply` is all or nothing.
+ *
+ * A host with `core.fileMode=false` (Windows) cannot keep an exec bit on disk. Git keeps
+ * it in the index there, so the exec bits of the patch go into the index. Otherwise the
+ * host diff would lose them and differ from the container's diff.
+ */
 export const applyPatch = async (exec: Exec, worktree: string, patch: string): Promise<void> => {
   if (patch === "") return;
+  const bits = (await fileModeIgnored(exec, worktree))
+    ? await patchExecBits(exec, worktree, patch)
+    : null;
   const result = await exec({
     argv: ["git", "apply", "--binary", "--whitespace=nowarn"],
     cwd: worktree,
@@ -148,4 +157,5 @@ export const applyPatch = async (exec: Exec, worktree: string, patch: string): P
       result.code
     );
   }
+  if (bits !== null) await setIndexExecBits(exec, worktree, bits);
 };

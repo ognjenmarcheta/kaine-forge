@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAgentProcess } from "../agents/agent.process";
 import { createReplayRunner } from "../agents/agent.replay";
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase } from "../git";
+import { diffAgainstBase, fileModeIgnored } from "../git";
 import { createExec } from "../ports";
 import { checkContainer, dockerRunArgs, proxyContainer } from "./docker.args";
 import { containerBase } from "./docker.context";
@@ -223,11 +223,24 @@ const runScenario = async (scenario: string) => {
   );
 };
 
-/** `git status --porcelain` lines. The helper `repo.git` trims, which would eat a leading space. */
+/**
+ * `git status --porcelain` lines. The helper `repo.git` trims, which would eat a leading space.
+ * Line ends follow the host's core.autocrlf, as the desk's own git sees them.
+ */
 const gitStatus = async (repo: TestRepo): Promise<string[]> => {
-  const result = await hermeticExec({ argv: ["git", "status", "--porcelain"], cwd: repo.dir });
+  const autocrlf = (
+    await exec({ argv: ["git", "config", "--get", "core.autocrlf"], cwd: repo.dir })
+  ).stdout.trim();
+  const result = await hermeticExec({
+    argv: ["git", "-c", `core.autocrlf=${autocrlf || "false"}`, "status", "--porcelain"],
+    cwd: repo.dir
+  });
   return result.stdout.split("\n").filter((line) => line !== "");
 };
+
+/** A text file with LF line ends. A Windows checkout with core.autocrlf writes CRLF. */
+const readText = async (file: string): Promise<string> =>
+  (await readFile(file, "utf8")).replace(/\r\n/g, "\n");
 
 const observed = async (repo: TestRepo): Promise<Record<string, unknown>> =>
   JSON.parse(await readFile(path.join(repo.dir, "observations.json"), "utf8"));
@@ -241,6 +254,8 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
     for (const [file, content] of Object.entries(FILES)) await repo.write(file, content);
     await repo.write("fake-claude.mjs", FAKE_AGENT);
     await chmod(path.join(repo.dir, "fake-claude.mjs"), 0o755);
+    // Windows git ignores the file mode; record it in the index so the container can run the agent.
+    await repo.git(["add", "--chmod=+x", "fake-claude.mjs"]);
     // The lockfile comes from the host's pnpm; the container installs from it offline.
     const lock = await exec({
       argv: ["pnpm", "install", "--lockfile-only", "--ignore-scripts"],
@@ -434,17 +449,19 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
     if (!outcome.ok) throw new Error(JSON.stringify(outcome.failure));
     expect(outcome.result.structured).toEqual({ word: "benign", overrideSeen: true });
 
-    // The edits came back, byte for byte.
-    expect(await readFile(path.join(w.repo.dir, "src/hello.txt"), "utf8")).toBe(
+    // The edits came back: text as the host checkout writes it (CRLF with core.autocrlf), the
+    // binary file byte for byte.
+    expect(await readText(path.join(w.repo.dir, "src/hello.txt"))).toBe(
       "edited in the container\n"
     );
-    expect(await readFile(path.join(w.repo.dir, "src/new.txt"), "utf8")).toBe(
-      "created in the container\n"
-    );
+    expect(await readText(path.join(w.repo.dir, "src/new.txt"))).toBe("created in the container\n");
     const blob = await readFile(path.join(w.repo.dir, "blob.bin"));
     expect([...blob]).toEqual(Array.from({ length: 256 }, (_unused, index) => index));
     await expect(readFile(path.join(w.repo.dir, "to-delete.txt"))).rejects.toThrow();
     const status = await gitStatus(w.repo);
+    // Where git ignores the exec bit on disk (Windows), the index holds it, so the file is staged.
+    const modeInIndex = await fileModeIgnored(exec, w.repo.dir);
+    const newScript = modeInIndex ? "A  src/new.txt" : "?? src/new.txt";
     expect(status.sort()).toEqual(
       [
         " D to-delete.txt",
@@ -452,7 +469,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
         " M src/hello.txt",
         "?? blob.bin",
         "?? observations.json",
-        "?? src/new.txt"
+        newScript
       ].sort()
     );
     // The engine's own invariants still hold: nothing moved in the host repository.
@@ -464,7 +481,11 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
       false
     );
     // The mode bit crossed over too.
-    expect((await stat(path.join(w.repo.dir, "src/new.txt"))).mode & 0o111).toBeGreaterThan(0);
+    if (modeInIndex) {
+      expect(await w.repo.git(["ls-files", "--stage", "src/new.txt"])).toMatch(/^100755 /);
+    } else {
+      expect((await stat(path.join(w.repo.dir, "src/new.txt"))).mode & 0o111).toBeGreaterThan(0);
+    }
 
     // What the agent saw inside the container.
     const seen = await observed(w.repo);
@@ -634,7 +655,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
     const first = await timed("check round 1 (drift)", () => w.isolation.runChecks(request));
     expect(first.passed).toBe(false);
     expect(first.generatedDrift).toBe(true);
-    expect(await readFile(path.join(w.repo.dir, "generated.txt"), "utf8")).toBe("generated\n");
+    expect(await readText(path.join(w.repo.dir, "generated.txt"))).toBe("generated\n");
 
     const second = await timed("check round 2 (pass)", () => w.isolation.runChecks(request));
     expect(second.passed).toBe(true);
@@ -643,10 +664,9 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
       "pnpm check:affected"
     ]);
     expect(second.steps[1]?.tail).toContain("checks passed");
-    // The report's hash is the host worktree's hash.
-    expect(second.diffHash).toBe(
-      (await diffAgainstBase(hermeticExec, w.repo.dir, w.baseSha)).diffHash
-    );
+    // The report's hash is the host worktree's hash, read with the git config the desk uses
+    // (core.autocrlf on Windows).
+    expect(second.diffHash).toBe((await diffAgainstBase(exec, w.repo.dir, w.baseSha)).diffHash);
     expect(await labelled("ps")).toEqual([]);
   }, 600_000);
 
