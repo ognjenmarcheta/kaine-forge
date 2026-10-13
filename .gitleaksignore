@@ -1,0 +1,9 @@
+# Desk test fixtures: token-shaped placeholders that redaction/ship tests need. Not real credentials.
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/cli/cli.command.drive.test.ts:github-pat:582
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/engine/pipeline.runner.ship.test.ts:github-pat:32
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/isolation/docker.names.test.ts:generic-api-key:17
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/isolation/docker.args.test.ts:generic-api-key:21
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/server/server.events.test.ts:curl-auth-header:325
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/log/log.redact.test.ts:github-pat:9
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/log/log.redact.test.ts:generic-api-key:10
+cb7174c526d86774ccfceb48a3e610106d5693b7:tooling/desk/src/ship/ship.describe.test.ts:github-pat:23
