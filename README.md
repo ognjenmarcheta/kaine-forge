@@ -15,9 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="media/kaine-forge-promo.mp4"><img src="media/kaine-forge-promo-poster.jpg" width="800" alt="Play the 40-second Kaine Forge tour: the template, then the Agent Desk taking an issue to a draft pull request" /></a>
-  <br />
-  <a href="media/kaine-forge-promo.mp4">▶ Watch the 40-second tour</a> · desk screens use demo data
+  <a href="https://youtu.be/j-iqv4mJD_M">▶ Watch the 40-second tour</a>
 </p>
 
 # Kaine Forge
