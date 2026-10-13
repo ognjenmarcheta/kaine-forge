@@ -19,6 +19,7 @@ export const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
   unreadable: "desk.error.unreadable",
   "invalid-transition": "desk.error.invalid-transition",
   "ship-refused": "desk.error.ship-refused",
+  "draft-refused": "desk.error.draft-refused",
   "already-started": "desk.error.already-started",
   "intake-refused": "desk.error.intake-refused",
   authorization: "desk.error.authorization",

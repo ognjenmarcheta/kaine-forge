@@ -88,5 +88,7 @@ export const createSnapshotGitHubPort = (snapshot: IssueSnapshot, owner: string)
   // An offline snapshot cannot reach GitHub, so it can never ship.
   findPullRequest: () => Promise.resolve(null),
   createPullRequest: () => Promise.reject(new Error("A snapshot run cannot open a pull request")),
-  addPullRequestLabel: () => Promise.reject(new Error("A snapshot run cannot label a pull request"))
+  addPullRequestLabel: () =>
+    Promise.reject(new Error("A snapshot run cannot label a pull request")),
+  editIssueBody: () => Promise.reject(new Error("A snapshot run cannot edit an issue"))
 });

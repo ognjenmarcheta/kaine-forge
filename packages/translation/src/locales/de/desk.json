@@ -50,6 +50,7 @@
   "desk.error.unreadable": "Die Zustandsdatei dieses Issues ist nicht lesbar.",
   "desk.error.invalid-transition": "Das Issue ist nicht in einer Phase, in der diese Aktion erlaubt ist.",
   "desk.error.ship-refused": "Das Ausliefern wurde abgelehnt. Es wurde nichts geändert.",
+  "desk.error.draft-refused": "Der Entwurf wurde nicht übernommen. Der Grund steht unten.",
   "desk.error.already-started": "Dieses Issue wurde schon gestartet. Nutzen Sie „Fortsetzen“ oder „Entfernen“.",
   "desk.error.intake-refused": "Die Aufnahme hat dieses Issue abgelehnt. Der Grund steht unten.",
   "desk.error.authorization": "Der Eigentümer hat diesen Lauf nicht freigegeben. Nutzen Sie die Überschreibung für eigene Läufe.",

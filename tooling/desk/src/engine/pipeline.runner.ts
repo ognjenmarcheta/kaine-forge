@@ -2,6 +2,7 @@ import { appendFile, mkdir, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  issueDraftSchema,
   type ActiveStage,
   type Isolation,
   type FeedbackTarget,
@@ -10,7 +11,7 @@ import {
   type LoopLimits,
   type Stage
 } from "../contracts";
-import { draftIssueFormat } from "./intake.draft";
+import { ISSUE_DRAFT_FILE, bodyHash, draftIssueFormat } from "./intake.draft";
 import { runIntake } from "./intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
@@ -35,6 +36,7 @@ import type {
   PipelineDeps,
   PipelineEvent,
   PipelineResult,
+  ApplyDraftOptions,
   DraftActionResult,
   DraftOptions,
   Refusal,
@@ -47,6 +49,7 @@ import type {
   StatePatch,
   StatusEntry
 } from "./pipeline.types";
+import { formatContract, parseContract } from "../github/github.contract";
 import { checkControllerIdentity } from "../github/github.identity";
 import {
   applyLabelChange,
@@ -135,6 +138,12 @@ export interface PipelineRunner {
    * `needs-you`, and nothing is written to GitHub.
    */
   readonly draft: (issue: number, options?: DraftOptions) => Promise<DraftActionResult>;
+  /**
+   * Replace the issue body on GitHub with the intake draft. It needs `confirm`, the owner
+   * signed in, write-back on, and a body on GitHub that is still the one the draft started
+   * from. A refusal changes nothing. The issue stays at `needs-you`: start it again.
+   */
+  readonly applyDraft: (issue: number, options: ApplyDraftOptions) => Promise<PipelineResult>;
   /** Stop the running agent (if this process drives the issue) and end the issue. The worktree stays. */
   readonly cancel: (issue: number) => Promise<PipelineResult>;
   /** Delete the issue's desk state and its worktree (unless `keepWorktree`). The branch stays. */
@@ -924,6 +933,60 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
+  const applyDraft: PipelineRunner["applyDraft"] = (issue, options) =>
+    withLease(
+      issue,
+      async (loaded): Promise<PipelineResult> => {
+        const session = requireSession(loaded);
+        const refuse = (reason: string): PipelineResult =>
+          refused("draft-refused", `${reason} Nothing was changed.`, session.state);
+        if (session.state.stage !== "needs-you" || session.state.resumeStage !== "intake") {
+          return refuse(`#${issue} did not stop at intake.`);
+        }
+        const artifacts = store.artifactsDir(issue);
+        const stored = await readArtifactJson(artifacts, ISSUE_DRAFT_FILE, issueDraftSchema);
+        if (stored.status !== "ok" || stored.value.issue !== issue) {
+          return refuse(`#${issue} has no draft. Run 'draft' first.`);
+        }
+        const drafted = stored.value;
+        // The engine checks the body again: a local file is no reason to trust a write.
+        const report = parseContract(drafted.body);
+        if (report.missing.length > 0 || report.acceptanceCriteria.length === 0) {
+          return refuse(`The draft does not read as a full contract (${formatContract(report)}).`);
+        }
+        if (!options.confirm) {
+          return refuse("Replacing the issue body needs your explicit confirmation.");
+        }
+        if (deps.noWriteback === true || noWriteback.has(issue)) {
+          return refuse(
+            `#${issue} writes nothing to GitHub (no write-back or a snapshot file). Copy the draft by hand.`
+          );
+        }
+        try {
+          const identity = await checkControllerIdentity(github, config.owner);
+          if (!identity.ok) return refused("authorization", identity.reason, session.state);
+          const current = await github.fetchIssue(issue);
+          if (!current.open) return refuse(`Issue #${issue} is closed.`);
+          if (bodyHash(current.body) !== drafted.originalBodyHash) {
+            return refuse(`The issue changed on GitHub after the draft. Run 'draft' again.`);
+          }
+          await github.editIssueBody(issue, drafted.body);
+        } catch (error) {
+          return refuse(`GitHub failed: ${message(error)}.`);
+        }
+        await rm(path.join(artifacts, ISSUE_DRAFT_FILE), { force: true });
+        await record(session, "needs-you", "draft-applied", formatContract(report));
+        await save(session);
+        return {
+          outcome: "stopped",
+          stop: "needs-you",
+          state: session.state,
+          message: `The body of #${issue} on GitHub is the draft now. Run 'start' again.`
+        };
+      },
+      { needsState: true }
+    );
+
   const cancel: PipelineRunner["cancel"] = (issue) => {
     // Stop the agent now. The cancel action then waits for the running action to end.
     controllers.get(issue)?.abort();
@@ -1032,6 +1095,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     continueFrom,
     ship,
     draft,
+    applyDraft,
     cancel,
     remove,
     status

@@ -23,6 +23,7 @@ export const REFUSAL_CODES = [
   "unreadable",
   "invalid-transition",
   "ship-refused",
+  "draft-refused",
   "already-started",
   "intake-refused",
   "authorization",

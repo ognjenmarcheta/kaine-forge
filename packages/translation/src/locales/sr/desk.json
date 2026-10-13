@@ -50,6 +50,7 @@
   "desk.error.unreadable": "Datoteka stanja ovog zadatka ne može da se pročita.",
   "desk.error.invalid-transition": "Zadatak nije u fazi u kojoj je ova akcija dozvoljena.",
   "desk.error.ship-refused": "Isporuka je odbijena. Ništa nije promenjeno.",
+  "desk.error.draft-refused": "Nacrt nije primenjen. Razlog je ispod.",
   "desk.error.already-started": "Ovaj zadatak je već pokrenut. Koristite „Nastavi“ ili „Ukloni“.",
   "desk.error.intake-refused": "Prijem je odbio ovaj zadatak. Razlog je ispod.",
   "desk.error.authorization": "Vlasnik nije odobrio ovo pokretanje. Za sopstvena pokretanja koristite premošćavanje.",

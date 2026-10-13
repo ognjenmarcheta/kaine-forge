@@ -57,6 +57,16 @@ describe("createGitHubPort", () => {
     ]);
   });
 
+  it("replaces an issue body through stdin, never on the command line", async () => {
+    const { fake, port } = portWith();
+    const body = "## Outcome\n\n$(rm -rf /) `stays text`";
+    await port.editIssueBody(7, body);
+    expect(fake.calls.at(-1)).toMatchObject({
+      argv: ["gh", "issue", "edit", "7", "--body-file", "-"],
+      input: body
+    });
+  });
+
   it("creates a label with gh label create", async () => {
     const { fake, port } = portWith();
     await port.createLabel({ name: "agent:working", color: "1d76db", description: "d" });

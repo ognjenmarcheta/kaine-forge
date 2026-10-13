@@ -44,6 +44,12 @@ authorized text and checks it again before ship. GitHub write-back is best effor
 three mutually exclusive `agent:*` execution labels and one status comment, edited
 in place. The desk never adds or removes `ready-for-agent` or another triage label.
 
+One write is not write-back: the owner may replace the body of an issue that stopped at
+intake with a drafted body in the issue format (`desk draft --apply`). The read-only intake
+agent proposes the sections, and the engine renders and writes the body. The write needs an
+explicit confirmation, the owner's identity, write-back on, and an unchanged body on GitHub
+since the draft. It keeps the old body as a quote. No agent writes to GitHub.
+
 Every agent stage runs through one function that checks the same invariants. The engine
 compares HEAD, the branch, all refs, remotes, and the stash before and after each agent
 run, and the worktree diff hash around each read-only role. It does this because a deny

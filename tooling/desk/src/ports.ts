@@ -54,6 +54,8 @@ export interface GitHubPort {
   /** Open a DRAFT PR. The request type allows no other value. */
   readonly createPullRequest: (request: CreatePullRequestRequest) => Promise<PullRequestInfo>;
   readonly addPullRequestLabel: (pr: number, label: string) => Promise<void>;
+  /** Replace the issue body. Only the owner's confirmed apply of an intake draft calls it. */
+  readonly editIssueBody: (issueNumber: number, body: string) => Promise<void>;
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;

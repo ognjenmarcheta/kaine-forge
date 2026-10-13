@@ -68,6 +68,10 @@ export interface FakeGitHub extends GitHubPort {
   readonly pullRequestLabels: { pr: number; label: string }[];
   /** Branches asked for with `findPullRequest`. */
   readonly pullRequestLookups: string[];
+  /** Bodies written with `editIssueBody`. `fetchIssue` returns the latest. */
+  readonly bodyEdits: { issue: number; body: string }[];
+  /** Someone else edits the issue on GitHub. */
+  readonly setIssueBody: (body: string) => void;
 }
 
 export interface FakeGitHubOptions {
@@ -90,6 +94,8 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
   const createdPullRequests: CreatePullRequestRequest[] = [];
   const pullRequestLabels: FakeGitHub["pullRequestLabels"] = [];
   const pullRequestLookups: string[] = [];
+  const bodyEdits: FakeGitHub["bodyEdits"] = [];
+  let body: string | null = null;
   return {
     labelEdits,
     comments,
@@ -97,12 +103,20 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
     createdPullRequests,
     pullRequestLabels,
     pullRequestLookups,
+    bodyEdits,
+    setIssueBody: (next) => {
+      body = next;
+    },
     repository: () => Promise.resolve(options.repository ?? repositoryOf()),
     viewer: () => Promise.resolve(options.viewer ?? OWNER),
     fetchIssue: () =>
       options.failRead
         ? Promise.reject(new Error("gh issue view failed (exit 1): boom"))
-        : Promise.resolve(options.snapshot ?? snapshotOf()),
+        : Promise.resolve(
+            body === null
+              ? (options.snapshot ?? snapshotOf())
+              : { ...(options.snapshot ?? snapshotOf()), body }
+          ),
     editLabels: (issue, change) => {
       if (options.failLabels) return Promise.reject(new Error("label 'agent:needs-you' not found"));
       labelEdits.push({ issue, change });
@@ -141,6 +155,11 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
         return Promise.reject(new Error(`could not add label: '${label}' not found`));
       }
       pullRequestLabels.push({ pr, label });
+      return Promise.resolve();
+    },
+    editIssueBody: (issue, next) => {
+      bodyEdits.push({ issue, body: next });
+      body = next;
       return Promise.resolve();
     }
   };

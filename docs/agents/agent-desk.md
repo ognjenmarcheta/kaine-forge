@@ -20,7 +20,7 @@ take many minutes, so the command prints live progress (see "Live output").
 | `continue <n> [--from STAGE]`                                                            | From `needs-you`: retry the recorded stage (or STAGE), then run on.                                                                                                     |
 | `cancel <n>`                                                                             | End the issue. The worktree stays.                                                                                                                                      |
 | `remove <n> [--force] [--keep-worktree]`                                                 | Delete the desk state and the worktree. It refuses a dirty worktree unless `--force`. The branch stays.                                                                 |
-| `draft <n> [--snapshot-file P]`                                                          | For an issue that stopped at intake: the read-only intake agent drafts it in the format of `issue-format.md`. It prints the proposed body and writes nothing to GitHub. |
+| `draft <n> [--snapshot-file P] \| --apply [--confirm]`                                   | For an issue that stopped at intake: draft it in the issue format, then apply the draft to GitHub after your yes. See "Draft the issue format".                         |
 | `ship <n> [--confirm \| --dry-run]`                                                      | At `pr-review`: commit, push, and open a draft PR. See "Ship". The desk never merges.                                                                                   |
 
 - Every driving command also takes `--json` and `--no-writeback`.
@@ -345,22 +345,40 @@ See "Try it without GitHub".
    not decide readiness: `kaine-intake` or a human does.
 5. Write `artifacts/ticket.md`, then move the issue to `setup` with status `waiting`.
 
-Intake reads the issue by the headings of [`issue-format.md`](issue-format.md). When it stops,
-`pnpm desk draft <n>` asks the read-only `intake` agent (skills `kaine-intake` and
-`kaine-write-issue`) to sort the author's facts into the six sections. It runs in the main
-checkout, because no worktree exists before setup, under the same invariants as every agent
-stage, and it records no refs baseline. The engine renders the body from the sections and adds the
-old body as a quote under `## Original text`, so no fact is lost and no old heading counts. A
-section the facts do not support says `unknown, investigate first`, with the question. The draft
-goes to `artifacts/issue-draft.json` with the agent's recommendation. The issue stays at
-`needs-you`, and nothing reaches GitHub. `providers.intake` and `models.intake` choose the agent. It needs at
+Intake reads the issue by the headings of [`issue-format.md`](issue-format.md). It needs at
 least one acceptance criterion. Without one, the issue goes to `needs-you` with the reason.
 Fix the issue on GitHub (the `kaine-write-issue` skill writes the format, and
-`pnpm desk contract <n>` shows how intake reads it), then run `desk start` again. In the desk
-UI the card says **Fix and start again**, and the issue page offers **Start again** with the
-override box, because intake cannot continue: it reads the issue again. A closed issue also
-goes to `needs-you`. The board shows the title of a stopped issue too. After a successful
-intake, `start` goes on to setup and the planner.
+`pnpm desk contract <n>` shows how intake reads it), or let the desk draft it (below). Then run
+`desk start` again. In the desk UI the card says **Fix and start again**, and the issue page
+offers **Start again** with the override box, because intake cannot continue: it reads the issue
+again. A closed issue also goes to `needs-you`. The board shows the title of a stopped issue too.
+After a successful intake, `start` goes on to setup and the planner.
+
+### Draft the issue format
+
+For an issue that stopped at intake, `pnpm desk draft <n>` asks the read-only `intake` agent
+(skills `kaine-intake` and `kaine-write-issue`) to sort the author's facts into the six sections.
+It runs in the main checkout, because no worktree exists before setup, under the same invariants
+as every agent stage, and it records no refs baseline. The engine renders the body from the
+sections and adds the old body as a quote under `## Original text`, so no fact is lost and no old
+heading counts. A section the facts do not support says `unknown, investigate first`, with the
+question. The draft goes to `artifacts/issue-draft.json` with the agent's recommendation. The
+issue stays at `needs-you`. `providers.intake` and `models.intake` choose the agent.
+
+`pnpm desk draft <n> --apply` replaces the issue body on GitHub with the draft. It asks first on a
+terminal; `--confirm` is the yes without a terminal. Every rule must hold, and a refusal
+(`draft-refused`) changes nothing:
+
+- you confirmed;
+- a draft exists, and it still reads as a full contract;
+- the issue writes to GitHub (no `--no-writeback`, no snapshot file);
+- `gh` is signed in as the owner;
+- the issue is open, and its body on GitHub is still the one the draft started from. When someone
+  edited it in the meantime, draft again.
+
+The body goes to `gh issue edit --body-file -` through stdin. Then the draft is deleted, the
+history records `draft-applied`, and the issue waits for `start`. The desk still never adds
+`ready-for-agent`.
 
 ## State
 

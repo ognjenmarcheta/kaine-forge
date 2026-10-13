@@ -50,6 +50,7 @@
   "desk.error.unreadable": "The state file of this issue cannot be read.",
   "desk.error.invalid-transition": "The issue is not at a stage where this action is allowed.",
   "desk.error.ship-refused": "The ship was refused. Nothing was changed.",
+  "desk.error.draft-refused": "The draft was not applied. The reason is below.",
   "desk.error.already-started": "This issue already started. Use Continue or Remove.",
   "desk.error.intake-refused": "Intake refused this issue. The reason is below.",
   "desk.error.authorization": "The owner did not authorize this run. Use the override for your own runs.",

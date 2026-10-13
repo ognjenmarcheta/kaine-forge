@@ -82,6 +82,8 @@ export const REFUSALS = [
   "invalid-transition",
   /** A ship rule refused: no confirmation, a failed gate rule. Nothing was changed. */
   "ship-refused",
+  /** Applying an intake draft refused: no confirmation, no draft, a changed issue. */
+  "draft-refused",
   /** `start` found state that is past intake. */
   "already-started",
   /** Intake could not run (identity, GitHub, closed state, bad snapshot file). */
@@ -148,6 +150,11 @@ export interface DraftedResult {
 
 /** `drafted`, a refusal, or `stopped` with the reason when the draft run failed. */
 export type DraftActionResult = PipelineResult | DraftedResult;
+
+export interface ApplyDraftOptions {
+  /** The owner's explicit yes. Without it the apply refuses and changes nothing. */
+  readonly confirm: boolean;
+}
 
 export interface DraftOptions {
   /** Read the issue from an `IssueSnapshot` file, as `start --snapshot-file` did. */

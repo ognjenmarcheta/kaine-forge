@@ -171,3 +171,81 @@ describe("draft", () => {
     expect(env.runner.requests.map((request) => request.role)).toEqual(["planner"]);
   });
 });
+
+describe("applyDraft", () => {
+  const drafted = async (options: EnvOptions = {}): Promise<PipelineEnv> => {
+    const e = await stoppedAtIntake({ steps: [intakeStep()], ...options });
+    expect((await e.pipeline.draft(ISSUE)).outcome).toBe("drafted");
+    return e;
+  };
+
+  it("replaces the body with the draft, and the next start reads it as a full contract", async () => {
+    const e = await drafted({
+      steps: [intakeStep(), { role: "planner", output: planOutput() }]
+    });
+    const draft = issueDraftSchema.parse(JSON.parse(await readFile(draftFile(e), "utf8")));
+
+    const result = await e.pipeline.applyDraft(ISSUE, { confirm: true });
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
+    expect(e.github.bodyEdits).toEqual([{ issue: ISSUE, body: draft.body }]);
+    expect(await exists(draftFile(e))).toBe(false);
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ stage: "needs-you", resumeStage: "intake" });
+    expect(state.history.at(-1)?.event).toBe("draft-applied");
+
+    expect(await e.pipeline.start(ISSUE, { override: true })).toMatchObject({
+      outcome: "stopped",
+      stop: "gate"
+    });
+    expect((await stateOf(e)).stage).toBe("plan-gate");
+  });
+
+  it.each([["without confirmation", { confirm: false }, "explicit confirmation"]] as const)(
+    "refuses %s and writes nothing",
+    async (_name, options, reason) => {
+      const e = await drafted();
+      const result = await e.pipeline.applyDraft(ISSUE, options);
+      expect(result).toMatchObject({ outcome: "refused", refusal: "draft-refused" });
+      if (result.outcome === "refused") expect(result.reason).toContain(reason);
+      expect(e.github.bodyEdits).toEqual([]);
+      expect(await exists(draftFile(e))).toBe(true);
+    }
+  );
+
+  it("refuses when someone changed the issue after the draft", async () => {
+    const e = await drafted();
+    e.github.setIssueBody("Edited on GitHub by someone else.");
+
+    const result = await e.pipeline.applyDraft(ISSUE, { confirm: true });
+
+    expect(result).toMatchObject({ outcome: "refused", refusal: "draft-refused" });
+    if (result.outcome === "refused") expect(result.reason).toContain("changed on GitHub");
+    expect(e.github.bodyEdits).toEqual([]);
+  });
+
+  it("refuses an issue that writes nothing to GitHub", async () => {
+    const e = await drafted({ noWriteback: true });
+    const result = await e.pipeline.applyDraft(ISSUE, { confirm: true });
+    expect(result).toMatchObject({ outcome: "refused", refusal: "draft-refused" });
+    if (result.outcome === "refused") expect(result.reason).toContain("writes nothing to GitHub");
+    expect(e.github.bodyEdits).toEqual([]);
+  });
+
+  it("refuses without a draft, and checks a stored draft again before it writes", async () => {
+    const e = await stoppedAtIntake({ steps: [intakeStep()] });
+    expect(await e.pipeline.applyDraft(ISSUE, { confirm: true })).toMatchObject({
+      outcome: "refused",
+      refusal: "draft-refused"
+    });
+
+    expect((await e.pipeline.draft(ISSUE)).outcome).toBe("drafted");
+    const draft = issueDraftSchema.parse(JSON.parse(await readFile(draftFile(e), "utf8")));
+    await writeFile(draftFile(e), JSON.stringify({ ...draft, body: "## Outcome\nOnly this." }));
+
+    const result = await e.pipeline.applyDraft(ISSUE, { confirm: true });
+    expect(result).toMatchObject({ outcome: "refused", refusal: "draft-refused" });
+    if (result.outcome === "refused") expect(result.reason).toContain("full contract");
+    expect(e.github.bodyEdits).toEqual([]);
+  });
+});

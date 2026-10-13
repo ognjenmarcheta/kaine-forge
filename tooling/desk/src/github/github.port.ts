@@ -58,6 +58,10 @@ export const createGitHubPort = ({ exec, cwd }: GitHubPortOptions): GitHubPort =
     createPullRequest: (request) => createPullRequest(gh, request),
     addPullRequestLabel: async (pr, label) => {
       await gh.text(addPullRequestLabelArgv(pr, label));
+    },
+    // The body goes through stdin: no shell, no temporary file, no length limit of argv.
+    editIssueBody: async (issueNumber, body) => {
+      await gh.text(["issue", "edit", String(issueNumber), "--body-file", "-"], body);
     }
   };
 };
