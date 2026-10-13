@@ -1,5 +1,9 @@
 # Local software factory
 
+> **Frozen.** The [agent desk](agent-desk.md) is replacing the factory. Per
+> [ADR 0011](../adr/0011-local-agent-desk.md), the factory gets no new features and
+> will be removed after the desk ships its first verified draft PR.
+
 The factory is optional and disabled by default. GitHub holds issues and decisions.
 A local controller runs Codex and Claude in disposable Linux Docker containers.
 The owner reviews and merges every PR manually.

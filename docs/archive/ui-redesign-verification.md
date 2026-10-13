@@ -40,12 +40,12 @@ Browser tests include automated contrast/accessibility checks on the reviewed ro
 
 These captures contain only the seeded test account and synthetic Todo/Attachment data. Build outputs and test traces are excluded from the PR.
 
-| Light, 1440px                                   | Dark, 1440px                                  |
-| ----------------------------------------------- | --------------------------------------------- |
-| ![Light Todos](images/redesign/todos-light.png) | ![Dark Todos](images/redesign/todos-dark.png) |
+| Light, 1440px                                      | Dark, 1440px                                     |
+| -------------------------------------------------- | ------------------------------------------------ |
+| ![Light Todos](../images/redesign/todos-light.png) | ![Dark Todos](../images/redesign/todos-dark.png) |
 
-| Collapsed sidebar                                                    | Phone browser, 360px                                           |
-| -------------------------------------------------------------------- | -------------------------------------------------------------- |
-| ![Contained sidebar preferences](images/redesign/collapsed-dark.png) | ![Phone Todos and Attachments](images/redesign/phone-dark.png) |
+| Collapsed sidebar                                                       | Phone browser, 360px                                              |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| ![Contained sidebar preferences](../images/redesign/collapsed-dark.png) | ![Phone Todos and Attachments](../images/redesign/phone-dark.png) |
 
 No schema migration, backend/API change, or new production environment setting is required. The only dependency declarations added are for the existing test-only jsdom package, centralized in the pnpm catalog. No animation dependency was added.

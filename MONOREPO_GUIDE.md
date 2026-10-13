@@ -30,7 +30,7 @@ kaine-forge/
     mobile/    Expo / React Native app
     e2e/       Playwright end-to-end tests
   packages/
-    auth/          better-auth instance (organization + bearer plugins), custom scrypt password hooks, and the session/read facade
+    auth/          better-auth instance (organization, bearer, and Expo plugins), custom scrypt password hooks, and the session/read facade
     config/        ESLint, TypeScript, Prettier, and Tailwind configuration
     db/            Drizzle schema, validators, migrations, seed, migrate export
     email/         provider-agnostic email sending (console adapter, EMAIL_PROVIDER factory)
@@ -44,7 +44,11 @@ kaine-forge/
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
   tooling/
+    desk/            local agent desk engine, CLI, and server (`@repo/desk`)
+    desk-ui/         React UI for the agent desk (`@repo/desk-ui`)
+    factory-ui/      dashboard UI for the optional software factory (`@repo/factory-ui`)
     graphql-codegen/ GraphQL Code Generator config
+    dev-mobile-lan.ts  `pnpm dev:mobile:lan` launcher
 ```
 
 All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths. ESLint forbids `@repo/*/src/**` deep imports, `@repo/ui` inside mobile, and `@repo/mobile-ui` inside web/desktop.
@@ -59,13 +63,13 @@ Shared third-party versions live in `pnpm-workspace.yaml`:
 Prefer `"zod": "catalog:"` (or `"react": "catalog:mobile"`) in package.json over duplicated ranges. Scaffold a package with `pnpm create:package <name>`.
 
 ```ts
-import { auth } from "@repo/auth/client";
+import { createClientAuth } from "@repo/auth/client";
 import { runMigrations } from "@repo/db/migrate";
 import { todosTable } from "@repo/db/schema";
-import type { TodoInsert } from "@repo/db/types";
+import type { NewTodo } from "@repo/db/types";
 import { useFeatureFlag } from "@repo/feature-flags";
 import { Button } from "@repo/ui";
-import { MobileButton } from "@repo/mobile-ui";
+import { Button as MobileButton } from "@repo/mobile-ui";
 ```
 
 ## 3. Technology Choices
@@ -81,7 +85,7 @@ import { MobileButton } from "@repo/mobile-ui";
 | API             | Node.js, GraphQL Yoga                                                           |
 | GraphQL client  | GraphQL Code Generator, graphql-request, React Query                            |
 | Database        | PostgreSQL 17, Drizzle ORM                                                      |
-| Auth            | better-auth 1.7 (organization + bearer plugins, scrypt password hooks)          |
+| Auth            | better-auth 1.7 (organization, bearer, Expo plugins, scrypt password hooks)     |
 | Styling         | Tailwind CSS v4 for web/UI, NativeWind with Tailwind CSS v3 pipeline for mobile |
 | Testing         | Vitest and Playwright                                                           |
 | Releases        | Changesets and GitHub Actions                                                   |
@@ -92,23 +96,28 @@ Do not introduce alternate foundational libraries without explicit approval. Exa
 
 Feature files follow `{feature}.{purpose}.ts(x)`.
 
-| Suffix           | Purpose                                                    |
-| ---------------- | ---------------------------------------------------------- |
-| `.definition.ts` | constants, route paths, storage keys, enums, magic strings |
-| `.type.ts`       | TypeScript types and interfaces                            |
-| `.config.ts`     | feature-specific config                                    |
-| `.util.ts`       | pure helpers and business logic helpers                    |
-| `.adapter.ts`    | data access or integration adapters                        |
-| `.schema.ts`     | GraphQL SDL/type definitions for API features              |
-| `.router.ts`     | GraphQL resolvers or server route handlers                 |
-| `.route.tsx`     | page/screen route component                                |
-| `.validator.ts`  | Zod validators                                             |
-| `.store.ts`      | Zustand store                                              |
-| `.hook.ts`       | React hooks                                                |
-| `.server.ts`     | server entry point or server-only logic                    |
-| `.client.ts`     | client entry point or client-only logic                    |
-| `.test.ts`       | Vitest tests                                               |
-| `.graphql`       | GraphQL operation documents                                |
+| Suffix             | Purpose                                                    |
+| ------------------ | ---------------------------------------------------------- |
+| `.definition.ts`   | constants, route paths, storage keys, enums, magic strings |
+| `.type.ts`         | TypeScript types and interfaces                            |
+| `.config.ts`       | feature-specific config                                    |
+| `.util.ts`         | pure helpers and business logic helpers                    |
+| `.adapter.ts`      | data access or integration adapters                        |
+| `.schema.ts`       | GraphQL SDL/type definitions for API features              |
+| `.router.ts`       | GraphQL resolvers or server route handlers                 |
+| `.route.tsx`       | page/screen route component                                |
+| `.validator.ts`    | Zod validators                                             |
+| `.store.ts`        | Zustand store                                              |
+| `.hook.ts`         | React hooks                                                |
+| `.server.ts`       | server entry point or server-only logic                    |
+| `.client.ts`       | client entry point or client-only logic                    |
+| `.transport.ts`    | wire-level transport (HTTP routes, auth client transport)  |
+| `.workflow.ts`     | multi-step domain operation over an injected adapter       |
+| `.lifecycle.ts`    | state machine or create/cleanup lifecycle of a resource    |
+| `.provider.tsx`    | React context provider                                     |
+| `.test.ts`         | Vitest tests                                               |
+| `.tenancy.test.ts` | real-database organization isolation proof                 |
+| `.graphql`         | GraphQL operation documents                                |
 
 Component files use kebab-case: `todo-list.tsx`, `login-form.tsx`, `organization-switcher.tsx`.
 
@@ -127,7 +136,7 @@ Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-sp
 - User-created data is organization-scoped by default. New data tables need an `organizationId` foreign key unless there is a clear system-level reason not to.
 - API queries resolve the active organization from auth/session context. Do not trust client-provided organization IDs for scoped user data.
 - Every resolver that accesses scoped data must authenticate the user, verify organization membership, and filter by `organizationId`.
-- Auth is better-auth (organization + bearer plugins) in `@repo/auth`; see `docs/adr/0008-adopt-better-auth.md`. better-auth owns `/api/auth/*` (mounted via `toNodeHandler`); `ServerAuth` is a thin session/read facade. Sessions are database-backed; passwords are salted scrypt hashes with embedded cost parameters, preserved as better-auth's custom password hooks (see `docs/adr/0005-scrypt-password-hashing.md`).
+- Auth is better-auth (organization, bearer, and Expo plugins) in `@repo/auth`; see `docs/adr/0008-adopt-better-auth.md`. better-auth owns `/api/auth/*` (mounted via `toNodeHandler`); `ServerAuth` is a thin session/read facade. Sessions are database-backed; passwords are salted scrypt hashes with embedded cost parameters, preserved as better-auth's custom password hooks (see `docs/adr/0005-scrypt-password-hashing.md`).
 - Cookies are primary for browser auth (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases where cookies are unreliable.
 - The signup flow auto-creates a default personal organization so every user belongs to at least one organization.
 - The auth surface also covers: organization invitations (admin-gated, accepted by the authenticated user whose email matches), password reset (`/api/auth/request-password-reset`, `/api/auth/reset-password`; resets invalidate sessions), optional soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, never gates login, `emailVerified` on session users), and env-gated GitHub/Google OAuth on web.
@@ -150,11 +159,10 @@ Migrations `0003` (backfill credential passwords) and `0005` (drop `users.passwo
 
 Feature flags are config-driven in `@repo/feature-flags`. There is no remote flag service in the template.
 
-`ORGANIZATIONS_VISIBLE` controls whether organization UI is visible:
+The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. Its value is set in `packages/feature-flags/src/feature-flags.config.ts` (default `true`); no environment variable changes it.
 
 - When true: org switcher, members navigation, members route, and invite/member UI are visible.
 - When false: org UI is hidden, but the data model and default organization behavior still exist.
-- Web uses `VITE_ORGANIZATIONS_VISIBLE`; mobile uses `EXPO_PUBLIC_ORGANIZATIONS_VISIBLE`.
 
 ## 8. GraphQL Rules
 
@@ -200,7 +208,6 @@ Important runtime variables:
 | `API_GRAPHQL_INTROSPECTION`                                        | force introspection; default off in production                                                                         |
 | `API_RATE_LIMIT_*`                                                 | in-memory rate limit for `/api/auth/*` and `/graphql`                                                                  |
 | `API_TRUST_PROXY`                                                  | set `true` only behind a trusted reverse proxy                                                                         |
-| `ORGANIZATIONS_VISIBLE` / `VITE_*` / `EXPO_PUBLIC_*`               | org UI visibility flags                                                                                                |
 | `AI_TODO_PROVIDER`                                                 | optional AI todo provider; must be exactly `openai` or `deepseek`, any other value fails startup; defaults to `openai` |
 | `AI_TODO_MODEL`                                                    | optional model override for the selected AI todo provider                                                              |
 | `AI_ASSISTANT_PROVIDER`                                            | optional assistant provider; same allowed values, falls back to `AI_TODO_PROVIDER`                                     |
@@ -270,7 +277,7 @@ pnpm release:apps --apps all
 
 `DESIGN_SYSTEM.md` is authoritative for visual rules. Engineering rules:
 
-- Web and desktop use `@repo/ui`, React DOM primitives, shadcn/Radix foundations, Tailwind CSS v4, and `--ds-*` tokens.
+- Web, desktop, and the agent desk UI (`tooling/desk-ui`) use `@repo/ui`, React DOM primitives, shadcn/Radix foundations, Tailwind CSS v4, and `--ds-*` tokens.
 - Mobile uses `@repo/mobile-ui`, React Native primitives, NativeWind, and mobile-compatible token utilities.
 - Do not import `@repo/ui` into React Native runtime code.
 - Do not import `@repo/mobile-ui` into web/desktop runtime code.
@@ -327,7 +334,7 @@ Provider order:
 - Expo Router file routes live in `apps/mobile/app`.
 - Feature code lives under `apps/mobile/src/features/{feature}` using the same FDD naming style as web/API.
 - `@repo/mobile-ui` owns reusable React Native primitives and variants.
-- `apps/mobile/src/styles/global.css` holds NativeWind-compatible token CSS generated from `packages/ui/src/styles/globals.css` via `pnpm tokens:mobile` (see DESIGN*SYSTEM.md §10). Do not hand-edit the `DESIGN_TOKENS*\*` region.
+- `apps/mobile/src/styles/global.css` holds NativeWind-compatible token CSS generated from `packages/ui/src/styles/globals.css` via `pnpm tokens:mobile` (see `DESIGN_SYSTEM.md` §10). Do not hand-edit the `DESIGN_TOKENS_*` region.
 - Mobile can share auth, db types/validators, feature flags, query helpers, translations, and GraphQL operations, but not React DOM components.
 
 ## 16. Script Standards
@@ -340,25 +347,28 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command               | Purpose                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes      |
-| `pnpm bootstrap`      | env, install, AI files, build (every workspace except `@repo/desktop`), db seed (no dev server)             |
-| `pnpm initialize`     | `bootstrap` then `dev`                                                                                      |
-| `pnpm build`          | build all workspaces                                                                                        |
-| `pnpm build:core`     | build API and web dependency graph                                                                          |
-| `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                       |
-| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui` |
-| `pnpm test:e2e`       | Playwright web/API suite                                                                                    |
-| `pnpm generate`       | GraphQL codegen                                                                                             |
-| `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                    |
-| `pnpm create:package` | scaffold a new `@repo/*` package                                                                            |
-| `pnpm db:*`           | database lifecycle commands                                                                                 |
-| `pnpm ai:install`     | install shared assistant files locally                                                                      |
-| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                    |
-| `pnpm factory`        | optional local software factory; disabled until configured; see `docs/agents/software-factory.md`           |
-| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                           |
-| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                   |
+| Command               | Purpose                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes                |
+| `pnpm bootstrap`      | preflight, env, install, AI files, build (every workspace except `@repo/desktop`), `db:prepare:local` (no dev server) |
+| `pnpm initialize`     | `bootstrap` then `dev`                                                                                                |
+| `pnpm build`          | build all workspaces                                                                                                  |
+| `pnpm build:core`     | build API and web dependency graph                                                                                    |
+| `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                                 |
+| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui`           |
+| `pnpm test:e2e`       | Playwright web/API suite                                                                                              |
+| `pnpm generate`       | GraphQL codegen                                                                                                       |
+| `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                              |
+| `pnpm create:package` | scaffold a new `@repo/*` package                                                                                      |
+| `pnpm db:*`           | database lifecycle commands                                                                                           |
+| `pnpm ai:install`     | install shared assistant files locally                                                                                |
+| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                              |
+| `pnpm desk`           | local agent desk CLI; see `docs/agents/agent-desk.md`                                                                 |
+| `pnpm desk:run`       | build the desk UI, then serve the desk (`--port N`, `--no-open`)                                                      |
+| `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
+| `pnpm factory`        | optional local software factory (frozen; the desk is replacing it); see `docs/agents/software-factory.md`             |
+| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
+| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
 
 Use scoped commands from the repo root:
 
@@ -371,7 +381,7 @@ pnpm --filter @repo/mobile-ui typecheck
 ## 17. Quality Gates
 
 - Only the repository owner merges into `main`, manually through a PR after required checks pass. Agents and bots never merge, approve on the owner's behalf, enable automatic merging, or bypass protection. See `CONTRIBUTING.md` for the sole-maintainer approval workflow.
-- Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/publication-readiness.md` records whether the remote settings are active and verified.
+- Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/archive/publication-readiness.md` records the 2026-09-13 verification of those settings.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
 - PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
@@ -394,6 +404,9 @@ Canonical sources:
 
 - `.ai/guide.md`
 - `.ai/skills/*.md`
+- `.ai/agents/*.md`
+- `.ai/hooks/*`
+- `.ai/permissions.json`
 - `.ai/mcp.json`
 - `.ai/cursor-rules.md`
 - `.ai/review.md`

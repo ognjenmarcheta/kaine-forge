@@ -40,8 +40,8 @@ The footer follow-up reruns affected checks, full checks, token drift, core buil
 
 ## Review captures
 
-- [Light motion recording](images/motion/light.webm)
-- [Dark motion recording](images/motion/dark.webm)
+- [Light motion recording](../images/motion/light.webm)
+- [Dark motion recording](../images/motion/dark.webm)
 
 Each short recording shows the updated sidebar/drawer with German labels at 360, 768, and 1440px, followed by a Todo dialog. Only the seeded test account and synthetic test data appear. The HTML Sheet fixture is development-only and is not a production build entry.
 

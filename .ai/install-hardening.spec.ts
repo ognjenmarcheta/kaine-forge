@@ -18,6 +18,7 @@ import { mergeInstalledConfig } from "./install-config.util";
 import {
   chooseInstallSelection,
   managedMcpOwnership,
+  newDefaultSkills,
   readInstallSelection,
   writeInstallSelection
 } from "./install-state.util";
@@ -33,6 +34,16 @@ it("distinguishes fresh defaults, recorded emptiness, legacy subsets and interac
   expect(
     chooseInstallSelection({ ...base, recorded: ["old"], explicit: ["chosen"] }).names
   ).toEqual(["chosen"]);
+});
+
+it("adds team skills that are new since the recorded install and keeps deliberate removals", () => {
+  const defaults = ["kept", "removed", "new"];
+  expect(newDefaultSkills(["kept"], defaults, ["kept", "removed"])).toEqual(["new"]);
+  expect(newDefaultSkills([], defaults, defaults)).toEqual([]);
+  // A legacy record cannot tell removals from additions: a subset gains the missing defaults,
+  // an empty selection stays empty.
+  expect(newDefaultSkills(["kept"], defaults, undefined)).toEqual(["removed", "new"]);
+  expect(newDefaultSkills([], defaults, undefined)).toEqual([]);
 });
 
 it("revokes owned MCPs and preserves explicit personal overrides and ambiguous legacy entries", () => {

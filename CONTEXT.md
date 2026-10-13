@@ -63,7 +63,7 @@ This repository is a multi-platform **template**. Reference features are not req
 | **Mobile** (`apps/mobile`)   | Subset client: auth, dashboard, todos (+ attachments), shared org session. Not full web parity. |
 | **Desktop** (`apps/desktop`) | Tauri shell around web — no separate feature tree.                                              |
 
-**Mobile-supported reference features (today):** auth, dashboard, todos (CRUD and attachments), organization session/switch when `ORGANIZATIONS_VISIBLE` is enabled (members route is thin).
+**Mobile-supported reference features (today):** auth, dashboard, todos (CRUD and attachments), organization session/switch when the `ORGANIZATIONS_VISIBLE` feature flag is enabled (members route is thin).
 
 **Web-first / web-only reference features (API + web; not mobile UI or mobile GraphQL ops):** notes, assistant (and any new feature that does not explicitly opt into mobile).
 

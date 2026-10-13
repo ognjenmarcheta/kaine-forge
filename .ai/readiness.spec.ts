@@ -5,7 +5,11 @@ import { expect, it } from "vitest";
 
 import { discoverSkills, renderCodexSkill, renderOpencodeConfig, REPO_ROOT } from "./ai.util";
 import { managedConfigMatches, mergeInstalledConfig } from "./install-config.util";
-import { readInstallSelection, writeInstallSelection } from "./install-state.util";
+import {
+  type InstallSelection,
+  readInstallSelection,
+  writeInstallSelection
+} from "./install-state.util";
 import { computeSkillDrift } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
 import { installedServers } from "./readiness";
@@ -18,9 +22,25 @@ it("respects selected skills and detects content drift independently of timestam
     if (!skill) throw new Error("Missing test skill");
     const directory = path.join(root, ".agents/skills/kaine-test");
     mkdirSync(directory, { recursive: true });
-    writeInstallSelection("codex", { schemaVersion: 1, skills: [skill.name], mcps: [] }, root);
+    const selection: Extract<InstallSelection, { schemaVersion: 2 }> = {
+      schemaVersion: 2,
+      skills: [skill.name],
+      mcps: [],
+      ownedMcps: []
+    };
+    const knownSkills = skills.map((entry) => entry.name);
+    writeInstallSelection("codex", { ...selection, knownSkills }, root);
     writeFileSync(path.join(directory, "SKILL.md"), renderCodexSkill(skill));
     expect(computeSkillDrift(skills, root)).toEqual([]);
+    const added = skills.find((entry) => entry.isDefault && entry.name !== skill.name);
+    if (!added) throw new Error("Missing second default skill");
+    writeInstallSelection(
+      "codex",
+      { ...selection, knownSkills: knownSkills.filter((name) => name !== added.name) },
+      root
+    );
+    expect(computeSkillDrift(skills, root)[0]?.missing).toEqual([added.name]);
+    writeInstallSelection("codex", { ...selection, knownSkills }, root);
     expect(
       computeSkillDrift(
         skills.map((entry) =>

@@ -10,12 +10,12 @@ import only Zod, so a browser can use them.
 
 ## Start and connect
 
-- `launchDeskServer({ port?, open?, uiDir?, depsFactory?, cwd?, print?, tuning? })`
+- `launchDeskServer({ port?, open?, uiDir?, depsFactory?, cwd?, print?, openBrowser?, tuning? })`
   builds the runtime, starts the server, prints the local URL and Vite dev link, and returns
   `{ server, url, launchUrl, close, runtime }`.
 - `serveDesk({ ...same options, signal? })` does the same, then waits for SIGINT,
   SIGTERM, or `signal`, then closes. This is what `pnpm desk serve` calls.
-- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, uiDir?, dispose? }`.
+- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, lessons?, uiDir?, dispose? }`.
   Pass the given `onEvent` to `createPipelineRunner` as `PipelineDeps.onEvent`. The server
   listens to it for live logs and fast updates. Without a factory the server builds the
   real runtime (`createDefaultDeskRuntime`).
@@ -95,19 +95,19 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 
 The body is `{ "error": { "code": "<code>", "detail": "<raw text or null>" } }`.
 
-| Code                                                                            | Status |
-| ------------------------------------------------------------------------------- | ------ |
-| `bad-request`                                                                   | 400    |
-| `unauthorized`                                                                  | 401    |
-| `forbidden`                                                                     | 403    |
-| `not-found`, `artifact-missing`, `unknown-issue`                                | 404    |
-| `method-not-allowed`                                                            | 405    |
-| `busy`                                                                          | 409    |
-| `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `already-started` | 409    |
-| `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`            | 409    |
-| `payload-too-large`                                                             | 413    |
-| `unsupported-media-type`                                                        | 415    |
-| `internal` (the message is logged, never sent)                                  | 500    |
+| Code                                                                                             | Status |
+| ------------------------------------------------------------------------------------------------ | ------ |
+| `bad-request`                                                                                    | 400    |
+| `unauthorized`                                                                                   | 401    |
+| `forbidden`                                                                                      | 403    |
+| `not-found`, `artifact-missing`, `unknown-issue`                                                 | 404    |
+| `method-not-allowed`                                                                             | 405    |
+| `busy`                                                                                           | 409    |
+| `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `draft-refused`, `already-started` | 409    |
+| `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`                             | 409    |
+| `payload-too-large`                                                                              | 413    |
+| `unsupported-media-type`                                                                         | 415    |
+| `internal` (the message is logged, never sent)                                                   | 500    |
 
 The refusal codes (`leased` to `remove-failed`) mirror `REFUSALS` in the engine. A test
 keeps the two lists equal.
