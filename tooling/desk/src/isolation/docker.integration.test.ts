@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAgentProcess } from "../agents/agent.process";
 import { createReplayRunner } from "../agents/agent.replay";
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase } from "../git";
+import { diffAgainstBase, fileModeIgnored } from "../git";
 import { createExec } from "../ports";
 import { checkContainer, dockerRunArgs, proxyContainer } from "./docker.args";
 import { containerBase } from "./docker.context";
@@ -223,9 +223,18 @@ const runScenario = async (scenario: string) => {
   );
 };
 
-/** `git status --porcelain` lines. The helper `repo.git` trims, which would eat a leading space. */
+/**
+ * `git status --porcelain` lines. The helper `repo.git` trims, which would eat a leading space.
+ * Line ends follow the host's core.autocrlf, as the desk's own git sees them.
+ */
 const gitStatus = async (repo: TestRepo): Promise<string[]> => {
-  const result = await hermeticExec({ argv: ["git", "status", "--porcelain"], cwd: repo.dir });
+  const autocrlf = (
+    await exec({ argv: ["git", "config", "--get", "core.autocrlf"], cwd: repo.dir })
+  ).stdout.trim();
+  const result = await hermeticExec({
+    argv: ["git", "-c", `core.autocrlf=${autocrlf || "false"}`, "status", "--porcelain"],
+    cwd: repo.dir
+  });
   return result.stdout.split("\n").filter((line) => line !== "");
 };
 
@@ -450,6 +459,9 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
     expect([...blob]).toEqual(Array.from({ length: 256 }, (_unused, index) => index));
     await expect(readFile(path.join(w.repo.dir, "to-delete.txt"))).rejects.toThrow();
     const status = await gitStatus(w.repo);
+    // Where git ignores the exec bit on disk (Windows), the index holds it, so the file is staged.
+    const modeInIndex = await fileModeIgnored(exec, w.repo.dir);
+    const newScript = modeInIndex ? "A  src/new.txt" : "?? src/new.txt";
     expect(status.sort()).toEqual(
       [
         " D to-delete.txt",
@@ -457,7 +469,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
         " M src/hello.txt",
         "?? blob.bin",
         "?? observations.json",
-        "?? src/new.txt"
+        newScript
       ].sort()
     );
     // The engine's own invariants still hold: nothing moved in the host repository.
@@ -469,7 +481,11 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
       false
     );
     // The mode bit crossed over too.
-    expect((await stat(path.join(w.repo.dir, "src/new.txt"))).mode & 0o111).toBeGreaterThan(0);
+    if (modeInIndex) {
+      expect(await w.repo.git(["ls-files", "--stage", "src/new.txt"])).toMatch(/^100755 /);
+    } else {
+      expect((await stat(path.join(w.repo.dir, "src/new.txt"))).mode & 0o111).toBeGreaterThan(0);
+    }
 
     // What the agent saw inside the container.
     const seen = await observed(w.repo);

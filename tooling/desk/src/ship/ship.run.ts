@@ -50,7 +50,8 @@ import {
   revParse,
   stageFiles,
   stagedPaths,
-  unstageAll
+  unstageAll,
+  type GitOutcome
 } from "./ship.git";
 import { buildCommitMessage, commitInputFor } from "./ship.message";
 import { buildPrBody } from "./ship.pr-body";
@@ -62,7 +63,14 @@ import {
   writeArtifactText
 } from "../engine/pipeline.artifacts";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
-import { diffAgainstBase, type DiffResult, type GitPort } from "../git";
+import {
+  diffAgainstBase,
+  fileModeIgnored,
+  indexExecBits,
+  setIndexExecBits,
+  type DiffResult,
+  type GitPort
+} from "../git";
 import { recheckAuthorization } from "../github/github.authorization";
 import { checkControllerIdentity, type ControllerIdentity } from "../github/github.identity";
 import { isProtectedPath } from "../policy";
@@ -771,8 +779,26 @@ const runShip = async (
         missing: []
       });
     }
-    await unstageAll(exec, worktree);
-    const added = await stageFiles(exec, worktree, files);
+    // `git reset` drops an exec bit that only the index holds (core.fileMode=false). Keep it.
+    let added: GitOutcome;
+    try {
+      const bits = (await fileModeIgnored(exec, worktree))
+        ? await indexExecBits(exec, worktree, files)
+        : null;
+      await unstageAll(exec, worktree);
+      added = await stageFiles(exec, worktree, files);
+      if (added.ok && bits !== null) {
+        const now = await indexExecBits(exec, worktree, files);
+        await setIndexExecBits(
+          exec,
+          worktree,
+          new Map([...bits].filter(([file, bit]) => now.get(file) !== bit))
+        );
+      }
+    } catch (error) {
+      await rollback();
+      return stop({ kind: "error", message: `git add failed: ${errorMessage(error)}` });
+    }
     const staged = added.ok ? await stagedPaths(exec, worktree) : null;
     if (staged === null) {
       await rollback();

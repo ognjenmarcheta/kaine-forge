@@ -695,6 +695,10 @@ some repository tests (the desk's own, for example) pass only on Linux and macOS
 the builder and every check on Linux, as CI does. Docker Desktop must be running. On Linux and
 macOS, host mode is enough for the checks; Docker mode adds the security boundary.
 
+Git on Windows ignores the exec bit on disk (`core.fileMode=false`) and keeps it in the index. The
+desk writes the exec bits of a container patch into the index, and ship keeps them through its
+`git reset` and `git add`. A new executable file from the container therefore shows as staged.
+
 ### What runs where
 
 | Step                                                   | Host mode | Docker mode                            |

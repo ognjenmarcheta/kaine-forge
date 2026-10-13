@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { applyPatch, guardPatch, parseNumstat, parseSummary } from "./docker.patch";
+import { diffAgainstBase } from "../git";
 import { createScratch, hermeticExec, type TestRepo, type TestScratch } from "../testing/git.repo";
 
 let scratch: TestScratch | null = null;
@@ -190,6 +191,28 @@ describe("applyPatch", () => {
     await repo.write("src/a.ts", "export const a = 99;\n");
     await expect(applyPatch(hermeticExec, repo.dir, patch)).rejects.toThrow(/does not apply/);
     expect(await readFile(path.join(repo.dir, "src/a.ts"), "utf8")).toBe("export const a = 99;\n");
+  });
+
+  it("keeps exec bits on a host that ignores file modes, so the host diff matches the container", async () => {
+    const repo = await open();
+    // Windows sets core.fileMode false: the index, not the disk, holds the exec bit.
+    await repo.git(["config", "core.fileMode", "false"]);
+    await repo.write("bin/run.sh", "echo run\n");
+    await repo.git(["add", "--chmod=+x", "bin/run.sh"]);
+    await repo.commit("an executable");
+    const base = await repo.git(["rev-parse", "HEAD"]);
+
+    await repo.write("bin/tool.sh", "echo tool\n");
+    await repo.git(["add", "--chmod=+x", "bin/tool.sh"]);
+    await repo.git(["update-index", "--chmod=+x", "src/a.ts"]);
+    await repo.git(["update-index", "--chmod=-x", "bin/run.sh"]);
+    const container = await diffAgainstBase(hermeticExec, repo.dir, base);
+    expect(container.patch).toContain("new file mode 100755");
+    await repo.git(["reset", "--quiet", "--hard"]);
+    await repo.git(["clean", "--quiet", "-fd"]);
+
+    await applyPatch(hermeticExec, repo.dir, container.patch);
+    expect((await diffAgainstBase(hermeticExec, repo.dir, base)).diffHash).toBe(container.diffHash);
   });
 
   it("does nothing for an empty patch", async () => {

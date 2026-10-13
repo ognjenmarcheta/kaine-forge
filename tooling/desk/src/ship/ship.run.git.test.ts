@@ -269,3 +269,24 @@ describe("shipIssue: the gate refuses before anything changes", () => {
     }
   );
 });
+
+describe("shipIssue on a host that ignores file modes", () => {
+  shipTest(
+    "commits the exec bit that the index holds, as the reviewed diff has it",
+    { edits: SOURCE, plan: RELEASABLE },
+    async (env) => {
+      // Windows sets core.fileMode false: the index, not the disk, holds the exec bit.
+      await env.clone.git(["config", "core.fileMode", "false"]);
+      await env.clone.git(
+        ["update-index", "--add", "--chmod=+x", "tooling/desk/src/feature.ts"],
+        env.worktree
+      );
+      await env.refreshArtifacts();
+
+      expect(await env.ship()).toMatchObject({ status: "shipped" });
+      expect(
+        await env.clone.git(["ls-tree", "HEAD", "tooling/desk/src/feature.ts"], env.worktree)
+      ).toMatch(/^100755 /);
+    }
+  );
+});

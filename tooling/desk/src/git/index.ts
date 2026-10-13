@@ -15,3 +15,4 @@ export {
   type WorktreeEntry
 } from "./git.port";
 export { compareRefs, createGitPort, GitError, runGit, type RunGitOptions } from "./git.real";
+export { fileModeIgnored, indexExecBits, setIndexExecBits } from "./git.modes";
