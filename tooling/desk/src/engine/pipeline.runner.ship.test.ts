@@ -423,4 +423,19 @@ describe("ship in Docker mode", () => {
       ["ship", ISSUE]
     ]);
   });
+
+  it("refuses to run the ship checks on the host when this process has no Docker support", async () => {
+    const h = await open();
+    const state = await toPrReview(h);
+    // The issue was started with Docker by another process.
+    await h.env.store.write({ ...state, isolation: "docker" });
+
+    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+    expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
+    expect(result.outcome === "stopped" ? result.message : "").toContain(
+      "Docker isolation is requested"
+    );
+    expect(h.env.pnpm.calls.filter((call) => call.argv.join(" ") === "pnpm check")).toEqual([]);
+    expect(await commitCount(h, state)).toBe(0);
+  });
 });

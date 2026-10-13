@@ -64,7 +64,7 @@ import {
 } from "../github/github.snapshot-file";
 import { renderStatusComment } from "../github/github.status-comment";
 import type { IssueSnapshot } from "../github/github.types";
-import { containerCleanupFor, isolationOf } from "../isolation/isolation.select";
+import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
 import {
   describeGateFailures,
   describeShipEvent,
@@ -775,7 +775,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     };
     if (mode.retry) await begin();
 
-    const docker = isolationOf(config, session.state) === "docker" ? deps.docker : undefined;
+    // The ship checks run where the loop checks ran. Never on the host for a Docker issue.
+    const isolation = selectIsolation(deps, session.state);
     const shipDeps: ShipDeps = {
       exec: deps.exec,
       git: deps.git,
@@ -785,8 +786,10 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       store,
       onEvent: (event) => log(issue, describeShipEvent(event)),
       checkSlot: (task) => scheduler.check.run(task),
-      runChecks:
-        docker === undefined ? undefined : (request) => docker.runChecks({ ...request, issue }),
+      runChecks: (request) =>
+        isolation.ok
+          ? isolation.port.runChecks({ ...request, issue })
+          : Promise.reject(new Error(isolation.reason)),
       beforeChange: mode.dryRun ? undefined : begin
     };
     // A dry run asks the gate as if the engineer confirmed, so the plan lists only the real blockers.

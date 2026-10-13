@@ -198,16 +198,22 @@ describe("applyPatch", () => {
     // Windows sets core.fileMode false: the index, not the disk, holds the exec bit.
     await repo.git(["config", "core.fileMode", "false"]);
     await repo.write("bin/run.sh", "echo run\n");
-    await repo.git(["add", "--chmod=+x", "bin/run.sh"]);
-    await repo.commit("an executable");
+    await repo.write("bin/move.sh", "echo a script that only moves\n");
+    await repo.git(["add", "--chmod=+x", "bin/run.sh", "bin/move.sh"]);
+    await repo.commit("executables");
     const base = await repo.git(["rev-parse", "HEAD"]);
 
     await repo.write("bin/tool.sh", "echo tool\n");
     await repo.git(["add", "--chmod=+x", "bin/tool.sh"]);
     await repo.git(["update-index", "--chmod=+x", "src/a.ts"]);
     await repo.git(["update-index", "--chmod=-x", "bin/run.sh"]);
+    // A rename prints no mode, and git quotes a name like this one in its summaries.
+    await repo.git(["mv", "bin/move.sh", "bin/moved.sh"]);
+    await repo.write("bin/tööl.sh", "echo quoted\n");
+    await repo.git(["add", "--chmod=+x", "bin/tööl.sh"]);
     const container = await diffAgainstBase(hermeticExec, repo.dir, base);
     expect(container.patch).toContain("new file mode 100755");
+    expect(container.patch).toContain("rename to bin/moved.sh");
     await repo.git(["reset", "--quiet", "--hard"]);
     await repo.git(["clean", "--quiet", "-fd"]);
 

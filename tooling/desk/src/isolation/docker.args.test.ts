@@ -417,8 +417,10 @@ describe("policy errors", () => {
     expect(attempt(change)).toThrow(ContainerPolicyError);
   });
 
-  it("accepts the staging folder of a Windows host", () => {
-    const source = "C:\\Users\\dev\\repo\\.git\\kaine-desk\\issues\\7\\docker\\agent-x";
+  it.each([
+    "C:\\Users\\dev\\repo\\.git\\kaine-desk\\issues\\7\\docker\\agent-x",
+    "C:\\work\\docker_engine\\repo\\.git\\kaine-desk\\issues\\7\\docker\\agent-x"
+  ])("accepts the staging folder of a Windows host: %s", (source) => {
     const args = attempt({ mounts: [{ type: "bind", source, target: "/desk/in" }] })();
     expect(all(args, "--mount")).toEqual([`type=bind,src=${source},dst=/desk/in,readonly`]);
   });

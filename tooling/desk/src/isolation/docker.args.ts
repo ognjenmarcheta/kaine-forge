@@ -118,7 +118,7 @@ const validate = (spec: ContainerSpec): void => {
         fail(`Volume '${mount.source}' lacks the desk prefix.`);
       if (!VOLUME_TARGETS.has(mount.target)) fail(`Unknown volume target '${mount.target}'.`);
     } else {
-      if (!HOST_FOLDER.test(mount.source) || /docker\.sock|docker_engine/.test(mount.source)) {
+      if (!HOST_FOLDER.test(mount.source) || /docker\.sock/.test(mount.source)) {
         fail(`Refusing the bind mount '${mount.source}'.`);
       }
       if (mount.target !== INPUT) fail(`A bind mount may only target ${INPUT}.`);

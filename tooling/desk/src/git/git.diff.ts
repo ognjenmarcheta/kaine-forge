@@ -108,21 +108,17 @@ const keepIndexTime = async (from: string, to: string): Promise<void> => {
 };
 
 /**
- * Diff the worktree (tracked and untracked, not ignored) against `baseSha`.
- *
- * It stages into a temporary copy of the index selected with
- * `GIT_INDEX_FILE`, so the real index, the refs and the working files stay as
- * they are. Staging does write blob objects for new files; they are
- * unreachable and git collects them later.
+ * Run `task` against a temporary copy of the index that `git add -A` brought up to
+ * date with the worktree (tracked and untracked, not ignored). `task` gets the
+ * `GIT_INDEX_FILE` environment that selects the copy. The real index, the refs and
+ * the working files stay as they are. Staging does write blob objects for new
+ * files; they are unreachable and git collects them later.
  */
-export const diffAgainstBase = async (
+export const withWorktreeIndex = async <T>(
   exec: Exec,
   worktree: string,
-  baseSha: string
-): Promise<DiffResult> => {
-  if (!COMMIT_PATTERN.test(baseSha)) {
-    throw new RangeError(`Base must be a full commit hash, got '${baseSha}'`);
-  }
+  task: (env: Readonly<Record<string, string>>) => Promise<T>
+): Promise<T> => {
   const realIndex = (
     await runGit(exec, worktree, ["rev-parse", "--path-format=absolute", "--git-path", "index"])
   ).stdout.trim();
@@ -139,7 +135,22 @@ export const diffAgainstBase = async (
     );
     const env = { GIT_INDEX_FILE: index };
     await runGit(exec, worktree, ["add", "-A"], { env });
+    return await task(env);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+};
 
+/** Diff the worktree (tracked and untracked, not ignored) against `baseSha`. */
+export const diffAgainstBase = async (
+  exec: Exec,
+  worktree: string,
+  baseSha: string
+): Promise<DiffResult> => {
+  if (!COMMIT_PATTERN.test(baseSha)) {
+    throw new RangeError(`Base must be a full commit hash, got '${baseSha}'`);
+  }
+  return withWorktreeIndex(exec, worktree, async (env) => {
     const patch = await runGit(exec, worktree, [...DIFF_FLAGS, "--binary", baseSha, "--"], {
       env
     });
@@ -158,7 +169,5 @@ export const diffAgainstBase = async (
       files: parseNameStatus(names.stdout),
       diffHash: createHash("sha256").update(patch.stdout).digest("hex")
     };
-  } finally {
-    await rm(scratch, { recursive: true, force: true });
-  }
+  });
 };

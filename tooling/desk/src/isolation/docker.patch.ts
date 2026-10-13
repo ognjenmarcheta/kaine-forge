@@ -1,4 +1,4 @@
-import { fileModeIgnored, GitError, setIndexExecBits } from "../git";
+import { fileModeIgnored, GitError, patchExecBits, setIndexExecBits } from "../git";
 import { protectedPathReason } from "../policy";
 import type { Exec } from "../ports";
 
@@ -131,20 +131,6 @@ export const guardPatch = async (
   return reasons.length > 0 ? reject(...reasons) : { ok: true, files: paths.sort(), bytes };
 };
 
-/** Paths whose exec bit the patch sets (`true`) or clears (`false`), from `git apply --summary`. */
-const execBits = (summary: string): Map<string, boolean> => {
-  const bits = new Map<string, boolean>();
-  for (const line of summary.split("\n")) {
-    const create = /^ create mode (\d+) (.+)$/.exec(line);
-    if (create?.[1] === "100755" && create[2] !== undefined) bits.set(create[2], true);
-    const change = /^ mode change \d+ => (100755|100644) (.+)$/.exec(line);
-    if (change?.[1] !== undefined && change[2] !== undefined) {
-      bits.set(change[2], change[1] === "100755");
-    }
-  }
-  return bits;
-};
-
 /**
  * Apply a guarded patch to the worktree. `git apply` is all or nothing.
  *
@@ -154,25 +140,22 @@ const execBits = (summary: string): Map<string, boolean> => {
  */
 export const applyPatch = async (exec: Exec, worktree: string, patch: string): Promise<void> => {
   if (patch === "") return;
-  const apply = async (flags: readonly string[]): Promise<string> => {
-    const result = await exec({
-      argv: ["git", "apply", ...flags],
-      cwd: worktree,
-      input: patch,
-      env: { GIT_TERMINAL_PROMPT: "0" },
-      timeoutMs: 120_000
-    });
-    if (result.code !== 0) {
-      throw new GitError(
-        `The container patch does not apply to the worktree: ${result.stderr.trim().slice(-300)}`,
-        ["git", "apply", ...flags],
-        result.code
-      );
-    }
-    return result.stdout;
-  };
-  await apply(["--binary", "--whitespace=nowarn"]);
-  if (await fileModeIgnored(exec, worktree)) {
-    await setIndexExecBits(exec, worktree, execBits(await apply(["--summary"])));
+  const bits = (await fileModeIgnored(exec, worktree))
+    ? await patchExecBits(exec, worktree, patch)
+    : null;
+  const result = await exec({
+    argv: ["git", "apply", "--binary", "--whitespace=nowarn"],
+    cwd: worktree,
+    input: patch,
+    env: { GIT_TERMINAL_PROMPT: "0" },
+    timeoutMs: 120_000
+  });
+  if (result.code !== 0) {
+    throw new GitError(
+      `The container patch does not apply to the worktree: ${result.stderr.trim().slice(-300)}`,
+      ["git", "apply"],
+      result.code
+    );
   }
+  if (bits !== null) await setIndexExecBits(exec, worktree, bits);
 };
