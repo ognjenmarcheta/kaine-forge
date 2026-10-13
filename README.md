@@ -14,6 +14,12 @@
   <a href="docs/agents/day-one.md"><img alt="Agent harnesses" src="https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2"></a>
 </p>
 
+<p align="center">
+  <a href="media/kaine-forge-promo.mp4"><img src="media/kaine-forge-promo-poster.jpg" width="800" alt="Play the 40-second Kaine Forge tour: the template, then the Agent Desk taking an issue to a draft pull request" /></a>
+  <br />
+  <a href="media/kaine-forge-promo.mp4">▶ Watch the 40-second tour</a> · desk screens use demo data
+</p>
+
 # Kaine Forge
 
 Kaine Forge is a production-oriented, **agent-ready** Turborepo template for building a full-stack TypeScript product from one repository. It includes a GraphQL API, React web app, Tauri desktop shell, Expo mobile app, shared packages, release automation, and Docker build paths; one canonical `.ai/` source keeps five coding agents aligned with the repo's rules.
