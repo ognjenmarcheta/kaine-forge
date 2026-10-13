@@ -58,7 +58,7 @@ export type DeskRole = (typeof DESK_ROLES)[number];
  * other skill. Ops skills are never listed.
  */
 export const ROLE_SKILLS: Readonly<Record<DeskRole, readonly string[]>> = {
-  intake: ["kaine-intake"],
+  intake: ["kaine-intake", "kaine-write-issue"],
   planner: ["kaine-write-plan"],
   builder: ["kaine-test"],
   reviewer: ["kaine-review"]

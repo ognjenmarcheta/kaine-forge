@@ -44,6 +44,7 @@ describe("loadDeskConfig", () => {
       expect(result.config.maxTestLoops).toBe(5);
       expect(result.config.maxReviewLoops).toBe(2);
       expect(result.config.providers).toEqual({
+        intake: "claude",
         planner: "claude",
         builder: "claude",
         reviewer: "claude"

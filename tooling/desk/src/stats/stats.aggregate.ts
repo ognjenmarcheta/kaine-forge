@@ -1,12 +1,13 @@
 import type { RunRecords } from "./stats.runs";
-import type {
-  AgentStageRole,
-  IssueRollup,
-  LoopCounters,
-  RunGroup,
-  RunRecord,
-  RunStats,
-  Stage
+import {
+  AGENT_STAGE_ROLES,
+  type AgentStageRole,
+  type IssueRollup,
+  type LoopCounters,
+  type RunGroup,
+  type RunRecord,
+  type RunStats,
+  type Stage
 } from "../contracts";
 import type { IssueListEntry } from "../store/store.issue";
 
@@ -79,7 +80,7 @@ const groupOf = (records: readonly RunRecord[]): RunGroup => {
   };
 };
 
-const ROLE_ORDER: readonly AgentStageRole[] = ["planner", "builder", "reviewer"];
+const ROLE_ORDER: readonly AgentStageRole[] = AGENT_STAGE_ROLES;
 
 /** Groups runs by role, provider and model, and rolls them up per issue. */
 export const aggregateRuns = (

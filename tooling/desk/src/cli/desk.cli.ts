@@ -12,6 +12,7 @@ import { createExec, systemClock } from "../ports";
 import { commandDoctor, commandLabels } from "./cli.command.admin";
 import { commandContract } from "./cli.command.contract";
 import { commandDocker } from "./cli.command.docker";
+import { commandDraft } from "./cli.command.draft";
 import {
   commandApprove,
   commandCancel,
@@ -41,6 +42,9 @@ const USAGE = [
   "  continue <issue> [--from <stage>]   Retry the stage that needs you",
   "  cancel <issue>                  End the issue. The worktree stays",
   "  remove <issue> [--force] [--keep-worktree]   Delete desk state and worktree",
+  "  draft <issue> [--snapshot-file <path>]",
+  "                                  For an issue that stopped at intake: draft it in the issue format.",
+  "                                  Prints the proposed body. Writes nothing to GitHub",
   "  ship <issue> [--confirm | --dry-run]",
   "                                  Commit, push, and open a draft PR. --dry-run changes nothing.",
   "                                  The desk never merges: you merge on GitHub",
@@ -114,6 +118,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   continue: commandContinue,
   cancel: commandCancel,
   remove: commandRemove,
+  draft: commandDraft,
   ship: commandShip,
   status: commandStatus,
   logs: commandLogs,

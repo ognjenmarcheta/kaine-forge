@@ -66,6 +66,10 @@ const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 const stripFrontmatter = (text: string): string => text.replace(FRONTMATTER, "").trim();
 
 const REPO_SOURCE: Partial<Record<DeskRole, { readonly file: string; readonly title: string }>> = {
+  intake: {
+    file: ".ai/agents/kaine-explorer.md",
+    title: "Repository role definition: exploring (read-only)"
+  },
   planner: {
     file: ".ai/agents/kaine-explorer.md",
     title: "Repository role definition: exploring (read-only)"

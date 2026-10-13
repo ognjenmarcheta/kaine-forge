@@ -146,6 +146,21 @@ describe("reviewer output", () => {
 });
 
 describe("intake output", () => {
+  const output = {
+    recommendation: "needs-info",
+    reasons: ["clear"],
+    draft: {
+      outcome: "Reports export as CSV.",
+      acceptanceCriteria: ["The button downloads a CSV"],
+      scope: "apps/web",
+      validation: "pnpm check",
+      evidence: "unknown, investigate first",
+      outOfScope: []
+    },
+    unknowns: [{ section: "evidence", question: "Where does the export fail today?" }],
+    plainLanguage: "The page should export reports."
+  };
+
   it("accepts each recommendation and requires a reason", () => {
     for (const recommendation of [
       "ready-for-agent",
@@ -153,16 +168,25 @@ describe("intake output", () => {
       "needs-info",
       "ready-for-human"
     ]) {
-      expect(intakeOutputSchema.safeParse({ recommendation, reasons: ["clear"] }).success).toBe(
-        true
-      );
+      expect(intakeOutputSchema.safeParse({ ...output, recommendation }).success).toBe(true);
     }
-    expect(
-      intakeOutputSchema.safeParse({ recommendation: "ready-for-agent", reasons: [] }).success
-    ).toBe(false);
-    expect(intakeOutputSchema.safeParse({ recommendation: "maybe", reasons: ["x"] }).success).toBe(
+    expect(intakeOutputSchema.safeParse({ ...output, reasons: [] }).success).toBe(false);
+    expect(intakeOutputSchema.safeParse({ ...output, recommendation: "maybe" }).success).toBe(
       false
     );
+  });
+
+  it("allows empty criteria (the draft then stops) but no empty section text or unknown section", () => {
+    const draft = (over: Record<string, unknown>) =>
+      intakeOutputSchema.safeParse({ ...output, draft: { ...output.draft, ...over } }).success;
+    expect(draft({ acceptanceCriteria: [] })).toBe(true);
+    expect(draft({ scope: "" })).toBe(false);
+    expect(
+      intakeOutputSchema.safeParse({
+        ...output,
+        unknowns: [{ section: "context", question: "x" }]
+      }).success
+    ).toBe(false);
   });
 });
 

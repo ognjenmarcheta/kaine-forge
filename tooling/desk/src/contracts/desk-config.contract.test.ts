@@ -11,7 +11,7 @@ describe("desk config contract", () => {
       maxTestLoops: 3,
       maxReviewLoops: 2,
       maxConcurrentAgents: 2,
-      providers: { planner: "claude", builder: "claude", reviewer: "codex" },
+      providers: { intake: "claude", planner: "claude", builder: "claude", reviewer: "codex" },
       models: {},
       isolation: "host",
       docker: {
@@ -51,7 +51,12 @@ describe("desk config contract", () => {
       owner: "octo-cat",
       isolation: "docker"
     });
-    expect(config.providers).toEqual({ planner: "claude", builder: "claude", reviewer: "claude" });
+    expect(config.providers).toEqual({
+      intake: "claude",
+      planner: "claude",
+      builder: "claude",
+      reviewer: "claude"
+    });
     expect(config.models).toEqual({ planner: "opus" });
     expect(config.notifyCommand).toEqual(["notify-send", "desk"]);
     expect(config.owner).toBe("octo-cat");

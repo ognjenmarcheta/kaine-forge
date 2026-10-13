@@ -59,6 +59,8 @@ const copyPathSchema = z.string().superRefine((value, context) => {
 
 const providersSchema = z
   .object({
+    /** Drafts the issue format for an issue that stopped at intake (`desk draft`). */
+    intake: providerSchema.default("claude"),
     planner: providerSchema.default("claude"),
     builder: providerSchema.default("claude"),
     reviewer: providerSchema.default("codex")
@@ -67,6 +69,7 @@ const providersSchema = z
 
 const modelsSchema = z
   .object({
+    intake: z.string().min(1).optional(),
     planner: z.string().min(1).optional(),
     builder: z.string().min(1).optional(),
     reviewer: z.string().min(1).optional()

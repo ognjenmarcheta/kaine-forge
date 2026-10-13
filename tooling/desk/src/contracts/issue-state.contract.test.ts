@@ -110,7 +110,7 @@ describe("issue state contract", () => {
       {
         activeProcess: {
           pid: 3,
-          role: "intake",
+          role: "shipper",
           processStart: null,
           startedAt: "2026-10-07T10:00:00Z"
         }

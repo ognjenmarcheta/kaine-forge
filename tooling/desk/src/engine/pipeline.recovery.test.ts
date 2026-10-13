@@ -189,6 +189,29 @@ describe("recoverInterrupted", () => {
     });
   });
 
+  it("stops the agent of a run beside the stages and keeps the issue where it waits", async () => {
+    await seed({
+      stage: "needs-you",
+      status: "waiting",
+      resumeStage: "intake",
+      activeProcess: { ...agent(4321, "Tue Oct 7 08:59:00 2026"), role: "intake" }
+    });
+    const { deps, stopped } = table({ 4321: "Tue Oct 7 08:59:00 2026" });
+
+    const [entry] = await recoverInterrupted(store, deps);
+
+    expect(stopped).toEqual([4321]);
+    expect(entry?.processNote).toContain("Stopped the agent process group");
+    const state = await read();
+    expect(state).toMatchObject({
+      stage: "needs-you",
+      status: "waiting",
+      resumeStage: "intake",
+      activeProcess: null
+    });
+    expect(state.history.at(-1)).toMatchObject({ stage: "needs-you", event: "interrupted" });
+  });
+
   it("does not touch issues that are not running", async () => {
     await seed({ issueNumber: 1, stage: "plan-gate", status: "waiting" });
     await seed({ issueNumber: 2, stage: "needs-you", status: "waiting", resumeStage: "check" });

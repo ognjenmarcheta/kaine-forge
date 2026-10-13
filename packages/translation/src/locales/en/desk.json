@@ -322,6 +322,7 @@
   "desk.inspector.subtitle.human": "You decide",
   "desk.inspector.subtitle.script": "The engine runs it",
   "desk.inspector.subtitle.agentRole": "Agent · {{role}}",
+  "desk.inspector.role.intake": "Intake",
   "desk.inspector.role.planner": "Planner",
   "desk.inspector.role.builder": "Builder",
   "desk.inspector.role.reviewer": "Reviewer",

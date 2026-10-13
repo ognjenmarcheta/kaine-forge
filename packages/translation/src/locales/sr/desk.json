@@ -322,6 +322,7 @@
   "desk.inspector.subtitle.human": "Vi odlučujete",
   "desk.inspector.subtitle.script": "Mašina ovo izvršava",
   "desk.inspector.subtitle.agentRole": "Agent · {{role}}",
+  "desk.inspector.role.intake": "Prijem",
   "desk.inspector.role.planner": "Planer",
   "desk.inspector.role.builder": "Graditelj",
   "desk.inspector.role.reviewer": "Recenzent",

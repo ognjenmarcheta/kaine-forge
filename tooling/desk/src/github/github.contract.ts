@@ -1,18 +1,14 @@
+import { ISSUE_SECTIONS, type IssueSection } from "../contracts";
+
 /**
  * Lenient reader for the six-heading `ready-for-agent` contract in
- * `docs/agents/triage-labels.md`. It reports "contract N/6". It never decides
+ * `docs/agents/issue-format.md`. It reports "contract N/6". It never decides
  * readiness: that stays with a human or `kaine-intake`.
  */
 
-export const CONTRACT_SECTIONS = [
-  "outcome",
-  "acceptance-criteria",
-  "scope",
-  "validation",
-  "evidence",
-  "out-of-scope"
-] as const;
-export type ContractSection = (typeof CONTRACT_SECTIONS)[number];
+/** The six sections, in order. The contracts module owns the list. */
+export const CONTRACT_SECTIONS = ISSUE_SECTIONS;
+export type ContractSection = IssueSection;
 
 /**
  * Headings that count for each section, lower-case. The first entry is the

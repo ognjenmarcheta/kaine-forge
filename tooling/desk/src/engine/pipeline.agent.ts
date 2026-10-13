@@ -68,6 +68,7 @@ import { defaultProcessStart } from "../store/store.lease";
  */
 
 const DEFAULT_TIMEOUTS_MS: Readonly<Record<AgentStageRole, number>> = {
+  intake: 10 * 60_000,
   planner: 20 * 60_000,
   builder: 60 * 60_000,
   reviewer: 20 * 60_000
@@ -88,6 +89,12 @@ export interface AgentStageInput<T> {
   readonly diffPath?: string | undefined;
   /** Exact workspace package names the builder may run scripts for. */
   readonly workspaces?: readonly string[] | undefined;
+  /**
+   * Run in this checkout instead of the issue worktree, for a role that runs before setup
+   * (the intake draft). The invariants hold for it, and no refs baseline is recorded: the
+   * baseline belongs to the worktree that ship commits from.
+   */
+  readonly checkout?: { readonly path: string; readonly base: string } | undefined;
 }
 
 export type AgentStageResult<T> =
@@ -168,8 +175,8 @@ const runAgentStageOnce = async <T>(
     aborted
   });
 
-  const worktree = state.worktreePath;
-  const baseSha = state.baseSha;
+  const worktree = input.checkout?.path ?? state.worktreePath;
+  const baseSha = input.checkout?.base ?? state.baseSha;
   if (worktree === null || baseSha === null || baseSha === undefined) {
     return stop(`The ${role} cannot run: setup has not recorded a worktree and a base commit.`);
   }
@@ -382,6 +389,7 @@ const runAgentStageOnce = async <T>(
   }
 
   // 6. The refs as this stage leaves them. `ship` compares the worktree with them.
+  if (input.checkout !== undefined) return { ok: true, result: outcome.result, diff: diffAfter };
   try {
     await recordRefsBaseline(deps.git, worktree, context.artifactsDir);
   } catch (error) {

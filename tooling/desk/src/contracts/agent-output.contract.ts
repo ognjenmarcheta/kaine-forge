@@ -53,10 +53,43 @@ export const INTAKE_RECOMMENDATIONS = [
   "ready-for-human"
 ] as const;
 
+/** The six sections of `docs/agents/issue-format.md`, in order. */
+export const ISSUE_SECTIONS = [
+  "outcome",
+  "acceptance-criteria",
+  "scope",
+  "validation",
+  "evidence",
+  "out-of-scope"
+] as const;
+export const issueSectionSchema = z.enum(ISSUE_SECTIONS);
+export type IssueSection = z.infer<typeof issueSectionSchema>;
+
+/**
+ * The issue in the six sections, from the author's facts. A section the facts do not
+ * support says so ("unknown, investigate first") and names the question in `unknowns`.
+ * An empty list renders as "None"; empty acceptance criteria stop the draft.
+ */
+export const intakeDraftSchema = z
+  .object({
+    outcome: nonEmpty,
+    acceptanceCriteria: z.array(nonEmpty),
+    scope: nonEmpty,
+    validation: nonEmpty,
+    evidence: nonEmpty,
+    outOfScope: z.array(nonEmpty)
+  })
+  .strict();
+export type IntakeDraft = z.infer<typeof intakeDraftSchema>;
+
+/** The intake agent: whether the issue is ready, and the issue in the format the desk reads. */
 export const intakeOutputSchema = z
   .object({
     recommendation: z.enum(INTAKE_RECOMMENDATIONS),
-    reasons: z.array(nonEmpty).min(1)
+    reasons: z.array(nonEmpty).min(1),
+    draft: intakeDraftSchema,
+    unknowns: z.array(z.object({ section: issueSectionSchema, question: nonEmpty }).strict()),
+    plainLanguage: nonEmpty
   })
   .strict();
 export type IntakeOutput = z.infer<typeof intakeOutputSchema>;

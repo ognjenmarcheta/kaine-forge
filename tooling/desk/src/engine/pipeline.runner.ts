@@ -10,6 +10,7 @@ import {
   type LoopLimits,
   type Stage
 } from "../contracts";
+import { draftIssueFormat } from "./intake.draft";
 import { runIntake } from "./intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
@@ -34,6 +35,8 @@ import type {
   PipelineDeps,
   PipelineEvent,
   PipelineResult,
+  DraftActionResult,
+  DraftOptions,
   Refusal,
   ShipActionResult,
   ShipDryRunResult,
@@ -44,6 +47,7 @@ import type {
   StatePatch,
   StatusEntry
 } from "./pipeline.types";
+import { checkControllerIdentity } from "../github/github.identity";
 import {
   applyLabelChange,
   bestEffort,
@@ -56,6 +60,7 @@ import {
   readSnapshotFile
 } from "../github/github.snapshot-file";
 import { renderStatusComment } from "../github/github.status-comment";
+import type { IssueSnapshot } from "../github/github.types";
 import { containerCleanupFor, isolationOf } from "../isolation/isolation.select";
 import {
   describeGateFailures,
@@ -124,6 +129,12 @@ export interface PipelineRunner {
    * `needs-you` at `ship`; `continueFrom` retries it. The desk never merges.
    */
   readonly ship: (issue: number, options: ShipOptions) => Promise<ShipActionResult>;
+  /**
+   * For an issue that stopped at intake: the read-only intake agent drafts the issue in the
+   * format of `docs/agents/issue-format.md`, into `issue-draft.json`. The issue stays at
+   * `needs-you`, and nothing is written to GitHub.
+   */
+  readonly draft: (issue: number, options?: DraftOptions) => Promise<DraftActionResult>;
   /** Stop the running agent (if this process drives the issue) and end the issue. The worktree stays. */
   readonly cancel: (issue: number) => Promise<PipelineResult>;
   /** Delete the issue's desk state and its worktree (unless `keepWorktree`). The branch stays. */
@@ -841,6 +852,78 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
+  const draft: PipelineRunner["draft"] = (issue, options = {}) =>
+    withLease(
+      issue,
+      async (loaded): Promise<DraftActionResult> => {
+        const session = requireSession(loaded);
+        if (session.state.stage !== "needs-you" || session.state.resumeStage !== "intake") {
+          return refused(
+            "invalid-transition",
+            `#${issue} did not stop at intake. Only such an issue gets a draft of the issue format.`,
+            session.state
+          );
+        }
+        let source = github;
+        if (options.snapshotFile !== undefined) {
+          try {
+            const snapshot = await readSnapshotFile(options.snapshotFile);
+            if (snapshot.number !== issue) {
+              return refused(
+                "intake-refused",
+                `The snapshot file is for #${snapshot.number}, not #${issue}.`,
+                session.state
+              );
+            }
+            source = createSnapshotGitHubPort(snapshot, config.owner ?? "desk-local-owner");
+          } catch (error) {
+            if (error instanceof SnapshotFileError) {
+              return refused("intake-refused", error.message, session.state);
+            }
+            throw error;
+          }
+        }
+        let owner: string;
+        let snapshot: IssueSnapshot;
+        try {
+          const identity = await checkControllerIdentity(source, config.owner);
+          if (!identity.ok) return refused("authorization", identity.reason, session.state);
+          owner = identity.owner;
+          snapshot = await source.fetchIssue(issue);
+        } catch (error) {
+          return refused("intake-refused", `GitHub read failed: ${message(error)}`, session.state);
+        }
+        if (!snapshot.open) {
+          return refused("intake-refused", `Issue #${issue} is closed.`, session.state);
+        }
+
+        await record(session, "needs-you", "draft-started");
+        await save(session);
+        const result = await draftIssueFormat(contextFor(session), { snapshot, owner });
+        if (!result.ok) {
+          if (result.aborted) return stopped(session.state);
+          await record(session, "needs-you", "draft-failed", result.reason);
+          await save(session);
+          return {
+            outcome: "stopped",
+            stop: "needs-you",
+            state: session.state,
+            message: result.reason
+          };
+        }
+        const { draft: drafted } = result;
+        await record(
+          session,
+          "needs-you",
+          "draft-ready",
+          `contract ${drafted.contract.found}/${drafted.contract.total}; ${drafted.recommendation}`
+        );
+        await save(session);
+        return { outcome: "drafted", state: session.state, draft: drafted };
+      },
+      { needsState: true }
+    );
+
   const cancel: PipelineRunner["cancel"] = (issue) => {
     // Stop the agent now. The cancel action then waits for the running action to end.
     controllers.get(issue)?.abort();
@@ -941,5 +1024,16 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     return (await store.list()).map(({ issueNumber, result }) => entry(issueNumber, result));
   };
 
-  return { start, advance, approvePlan, feedback, continueFrom, ship, cancel, remove, status };
+  return {
+    start,
+    advance,
+    approvePlan,
+    feedback,
+    continueFrom,
+    ship,
+    draft,
+    cancel,
+    remove,
+    status
+  };
 };

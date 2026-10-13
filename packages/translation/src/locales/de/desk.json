@@ -322,6 +322,7 @@
   "desk.inspector.subtitle.human": "Sie entscheiden",
   "desk.inspector.subtitle.script": "Die Engine führt es aus",
   "desk.inspector.subtitle.agentRole": "Agent · {{role}}",
+  "desk.inspector.role.intake": "Aufnahme",
   "desk.inspector.role.planner": "Planer",
   "desk.inspector.role.builder": "Entwickler",
   "desk.inspector.role.reviewer": "Prüfer",

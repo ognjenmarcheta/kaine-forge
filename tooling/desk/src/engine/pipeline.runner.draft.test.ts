@@ -1,0 +1,173 @@
+import { readFile, stat, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ISSUE_DRAFT_FILE } from "./intake.draft";
+import { issueDraftSchema, type IntakeOutput, type IssueState } from "../contracts";
+import { parseContract } from "../github/github.contract";
+import { snapshotOf } from "../testing/github.fake";
+import {
+  ISSUE,
+  createPipelineEnv,
+  planOutput,
+  type EnvOptions,
+  type PipelineEnv,
+  type ScriptedStep
+} from "../testing/pipeline.testing";
+
+vi.setConfig({ testTimeout: 30_000 });
+
+let env: PipelineEnv | null = null;
+afterEach(async () => {
+  await env?.cleanup();
+  env = null;
+});
+
+/** The shape of #457: real content under headings intake does not know. */
+const OLD_BODY = [
+  "## Removal trigger and acceptance",
+  "- Remove GHSA-86w9-cpqp-85rv from auditConfig.ignoreGhsas.",
+  "## Exposure",
+  "Expo certificate tooling calls the affected code."
+].join("\n");
+
+const intakeOutput = (over: Partial<IntakeOutput> = {}): IntakeOutput => ({
+  recommendation: "needs-info",
+  reasons: ["It waits for a fixed upstream release."],
+  draft: {
+    outcome: "pnpm audit passes without the node-forge exception.",
+    acceptanceCriteria: ["GHSA-86w9-cpqp-85rv is not in auditConfig.ignoreGhsas"],
+    scope: "pnpm-workspace.yaml",
+    validation: "pnpm audit --audit-level high, pnpm check",
+    evidence: "pnpm-workspace.yaml:80",
+    outOfScope: ["The Expo SDK pins"]
+  },
+  unknowns: [{ section: "evidence", question: "Which node-forge release fixes it?" }],
+  plainLanguage: "Remove a temporary security exception once a fix exists.",
+  ...over
+});
+
+const intakeStep = (over: Partial<ScriptedStep> = {}): ScriptedStep => ({
+  role: "intake",
+  output: intakeOutput(),
+  ...over
+});
+
+/** An issue that stopped at intake: no acceptance criteria under a known heading. */
+const stoppedAtIntake = async (options: EnvOptions = {}): Promise<PipelineEnv> => {
+  // Real git: the draft runs in the repository root, which the fake git does not model.
+  env = await createPipelineEnv({
+    git: "real",
+    github: { snapshot: snapshotOf({ number: ISSUE, body: OLD_BODY }) },
+    ...options
+  });
+  await env.pipeline.start(ISSUE, { override: true });
+  return env;
+};
+
+const stateOf = async (e: PipelineEnv): Promise<IssueState> => {
+  const read = await e.store.read(ISSUE);
+  if (read.status !== "ok") throw new Error(`state is ${read.status}`);
+  return read.state;
+};
+
+const draftFile = (e: PipelineEnv): string =>
+  path.join(e.store.artifactsDir(ISSUE), ISSUE_DRAFT_FILE);
+
+const exists = (file: string): Promise<boolean> =>
+  stat(file).then(
+    () => true,
+    () => false
+  );
+
+describe("draft", () => {
+  it("drafts the issue format in the main checkout and leaves the issue where it stopped", async () => {
+    const e = await stoppedAtIntake({ steps: [intakeStep()] });
+    expect(await stateOf(e)).toMatchObject({ stage: "needs-you", resumeStage: "intake" });
+
+    const writesBefore = JSON.stringify([e.github.comments, e.github.labelEdits]);
+
+    const result = await e.pipeline.draft(ISSUE);
+
+    expect(result.outcome).toBe("drafted");
+    const draft = issueDraftSchema.parse(JSON.parse(await readFile(draftFile(e), "utf8")));
+    expect(draft).toMatchObject({
+      issue: ISSUE,
+      contract: { found: 6, total: 6 },
+      acceptanceCriteria: 1,
+      recommendation: "needs-info",
+      provider: "claude"
+    });
+    // Every fact of the author stays, as a quote that no section reads.
+    expect(draft.body).toContain("> ## Removal trigger and acceptance");
+    expect(parseContract(draft.body).acceptanceCriteria).toEqual([
+      "GHSA-86w9-cpqp-85rv is not in auditConfig.ignoreGhsas"
+    ]);
+
+    const [request] = e.runner.requests;
+    expect(request).toMatchObject({ role: "intake", cwd: e.repoRoot });
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ stage: "needs-you", resumeStage: "intake", activeProcess: null });
+    expect(state.history.slice(-2).map((entry) => entry.event)).toEqual([
+      "draft-started",
+      "draft-ready"
+    ]);
+    // The refs baseline belongs to the worktree that ship commits from. The draft records none.
+    expect(await exists(path.join(e.store.artifactsDir(ISSUE), "refs-baseline.json"))).toBe(false);
+    // Nothing reached GitHub.
+    expect(JSON.stringify([e.github.comments, e.github.labelEdits])).toBe(writesBefore);
+  });
+
+  it("stops an agent that changes the main checkout, and keeps no draft", async () => {
+    const e = await stoppedAtIntake({
+      steps: [
+        intakeStep({
+          effect: async () => {
+            if (env === null) return;
+            await writeFile(path.join(env.repoRoot, "planted.txt"), "x\n");
+          }
+        })
+      ]
+    });
+
+    const result = await e.pipeline.draft(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
+    if (result.outcome === "stopped") expect(result.message).toContain("read-only");
+    expect(await exists(draftFile(e))).toBe(false);
+    expect((await stateOf(e)).history.at(-1)?.event).toBe("draft-failed");
+  });
+
+  it("keeps no draft when no acceptance criterion is supported, and names the questions", async () => {
+    const e = await stoppedAtIntake({
+      steps: [
+        intakeStep({
+          output: intakeOutput({
+            draft: { ...intakeOutput().draft, acceptanceCriteria: [] },
+            unknowns: [{ section: "acceptance-criteria", question: "What must be true when done?" }]
+          })
+        })
+      ]
+    });
+
+    const result = await e.pipeline.draft(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
+    if (result.outcome === "stopped") {
+      expect(result.message).toContain("Only the author can add them.");
+      expect(result.message).toContain("What must be true when done?");
+    }
+    expect(await exists(draftFile(e))).toBe(false);
+  });
+
+  it("refuses an issue that did not stop at intake", async () => {
+    env = await createPipelineEnv({ steps: [{ role: "planner", output: planOutput() }] });
+    await env.pipeline.start(ISSUE, { override: false });
+
+    expect(await env.pipeline.draft(ISSUE)).toMatchObject({
+      outcome: "refused",
+      refusal: "invalid-transition"
+    });
+    expect(env.runner.requests.map((request) => request.role)).toEqual(["planner"]);
+  });
+});

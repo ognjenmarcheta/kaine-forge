@@ -211,6 +211,7 @@ export const PROTECTED_EDIT_RULES: readonly string[] = [
 const KAINE_SKILLS: readonly string[] = [
   "kaine-adopt-template",
   "kaine-create-feature",
+  "kaine-debug",
   "kaine-encode-knowledge",
   "kaine-explain",
   "kaine-fix-ci",
@@ -227,8 +228,10 @@ const KAINE_SKILLS: readonly string[] = [
   "kaine-summarize-work",
   "kaine-sync-docs",
   "kaine-test",
+  "kaine-test-audit",
   "kaine-triage-deps",
   "kaine-triage-issue",
+  "kaine-write-issue",
   "kaine-write-plan"
 ];
 

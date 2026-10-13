@@ -4,6 +4,7 @@ export * from "./artifact-view.contract";
 export * from "./command-line.contract";
 export * from "./desk-config.contract";
 export * from "./flow.model";
+export * from "./issue-draft.contract";
 export * from "./issue-state.contract";
 export * from "./pipeline.contract";
 export * from "./run-metrics.contract";

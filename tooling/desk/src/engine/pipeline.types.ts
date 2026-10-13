@@ -5,6 +5,7 @@ import type {
   AgentStageRole,
   DeskConfig,
   HistoryEvent,
+  IssueDraft,
   IssueState,
   Provider,
   Stage
@@ -137,6 +138,21 @@ export interface ShipDryRunResult {
 }
 
 export type ShipActionResult = PipelineResult | ShipDryRunResult;
+
+/** A draft is ready. The issue stays where it stopped, at `needs-you` after intake. */
+export interface DraftedResult {
+  readonly outcome: "drafted";
+  readonly state: IssueState;
+  readonly draft: IssueDraft;
+}
+
+/** `drafted`, a refusal, or `stopped` with the reason when the draft run failed. */
+export type DraftActionResult = PipelineResult | DraftedResult;
+
+export interface DraftOptions {
+  /** Read the issue from an `IssueSnapshot` file, as `start --snapshot-file` did. */
+  readonly snapshotFile?: string | undefined;
+}
 
 export interface StatusEntry {
   readonly issueNumber: number;

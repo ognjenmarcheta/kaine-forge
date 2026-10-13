@@ -17,7 +17,9 @@ import {
  * `queued`. Recovery turns every such issue into `needs-you`, with the stage
  * to retry and a note. It never resumes anything by itself. If the dead desk
  * left an agent process behind, recovery stops that process group, but only
- * after it checks that the pid still belongs to the recorded process.
+ * after it checks that the pid still belongs to the recorded process. A run
+ * beside the stages (the intake draft) leaves its issue waiting with a recorded
+ * process: recovery stops that process and keeps the stage.
  */
 
 export interface RecoveryDeps {
@@ -94,10 +96,27 @@ export const recoverIssue = async (
   state: IssueState,
   deps: RecoveryDeps
 ): Promise<{ readonly state: IssueState; readonly processNote: string | null }> => {
-  if (state.status !== "running" && state.status !== "queued") {
-    return { state, processNote: null };
-  }
   const at = deps.clock.now().toISOString();
+  if (state.status !== "running" && state.status !== "queued") {
+    if (state.activeProcess === null || state.activeProcess === undefined) {
+      return { state, processNote: null };
+    }
+    const processNote = await stopLeftoverProcess(state, deps);
+    const note = ["Interrupted: the desk stopped during a run beside the stages.", processNote]
+      .filter((part): part is string => part !== null)
+      .join(" ");
+    const event: HistoryEvent = { at, stage: state.stage, event: "interrupted", note };
+    const settled: IssueState = {
+      ...state,
+      activeProcess: null,
+      history: [...state.history, event],
+      updatedAt: at
+    };
+    await store.write(settled);
+    await store.appendEvent(state.issueNumber, event);
+    deps.log?.(`#${state.issueNumber}: ${note}`);
+    return { state: settled, processNote };
+  }
   const processNote = await stopLeftoverProcess(state, deps);
 
   const moved = transition(machineOf(state), { type: "error" });
@@ -147,7 +166,10 @@ export const recoverInterrupted = async (
       continue;
     }
     if (result.status !== "ok") continue;
-    if (result.state.status !== "running" && result.state.status !== "queued") continue;
+    const sideRun = result.state.activeProcess !== null && result.state.activeProcess !== undefined;
+    if (result.state.status !== "running" && result.state.status !== "queued" && !sideRun) {
+      continue;
+    }
 
     const leased = await acquireLease(store.leasePath(issueNumber), deps.lease);
     if (leased.status === "held") {

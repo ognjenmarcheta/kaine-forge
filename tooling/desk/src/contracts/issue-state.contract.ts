@@ -52,7 +52,7 @@ export const agentSessionsSchema = z
 export type AgentSessions = z.infer<typeof agentSessionsSchema>;
 
 /** The agent roles that run as a child process. */
-export const AGENT_STAGE_ROLES = ["planner", "builder", "reviewer"] as const;
+export const AGENT_STAGE_ROLES = ["intake", "planner", "builder", "reviewer"] as const;
 export const agentStageRoleSchema = z.enum(AGENT_STAGE_ROLES);
 export type AgentStageRole = z.infer<typeof agentStageRoleSchema>;
 
