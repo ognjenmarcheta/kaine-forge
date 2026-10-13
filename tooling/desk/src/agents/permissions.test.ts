@@ -368,12 +368,34 @@ describe("buildRunSettings", () => {
 
   it("refuses a path that cannot be quoted safely", () => {
     for (const bad of ['/w/a"b', "/w/$HOME", "/w/`x`", "/w/a\\b", "/w/a\nb"]) {
-      expect(() => buildRunSettings({ worktree: bad, receiptsPath: "/r.jsonl" })).toThrow(
-        PermissionsPolicyError
-      );
-      expect(() => buildRunSettings({ worktree: "/w", receiptsPath: bad })).toThrow(
-        PermissionsPolicyError
-      );
+      // On Linux a backslash is a file name character, and the shell would read it as an escape.
+      expect(() =>
+        buildRunSettings({ worktree: bad, receiptsPath: "/r.jsonl", platform: "linux" })
+      ).toThrow(PermissionsPolicyError);
+      expect(() =>
+        buildRunSettings({ worktree: "/w", receiptsPath: bad, platform: "linux" })
+      ).toThrow(PermissionsPolicyError);
+    }
+  });
+
+  it("writes Windows paths with forward slashes, and still refuses what cannot be quoted", () => {
+    const settings = buildRunSettings({
+      worktree: "C:\\Users\\me\\repo.worktrees\\KAINE-469",
+      receiptsPath: "C:\\Users\\me\\repo\\.git\\kaine-desk\\receipts.jsonl",
+      receiptHookPath: "C:\\Users\\me\\repo\\tooling\\desk\\hooks\\receipt.mjs",
+      platform: "win32"
+    });
+    const commands = [...settings.hooks.PreToolUse, ...settings.hooks.PostToolUse].flatMap(
+      (group) => group.hooks.map((hook) => hook.command)
+    );
+    expect(commands).toEqual([
+      'node "C:/Users/me/repo.worktrees/KAINE-469/.ai/hooks/pre-tool-use.mjs" --agent claude',
+      'node "C:/Users/me/repo/tooling/desk/hooks/receipt.mjs" "C:/Users/me/repo/.git/kaine-desk/receipts.jsonl"'
+    ]);
+    for (const bad of ['C:\\w\\a"b', "C:\\w\\$HOME", "C:\\w\\`x`", "C:\\w\\a\nb"]) {
+      expect(() =>
+        buildRunSettings({ worktree: bad, receiptsPath: "C:\\r.jsonl", platform: "win32" })
+      ).toThrow(PermissionsPolicyError);
     }
   });
 

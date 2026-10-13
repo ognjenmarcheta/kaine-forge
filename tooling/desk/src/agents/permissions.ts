@@ -357,7 +357,17 @@ export interface RunSettingsInput {
   readonly receiptsPath: string;
   /** Override for tests. Default: the desk's own `hooks/receipt.mjs`. */
   readonly receiptHookPath?: string;
+  /** For tests. Default: this process's platform. */
+  readonly platform?: NodeJS.Platform;
 }
+
+/**
+ * A path for the hook's shell string. On Windows the separator becomes `/`: Node accepts
+ * `C:/Users/...`, and a shell reads `/` as plain text where a backslash would be an escape. Every other
+ * character that the quote refuses stays refused.
+ */
+const hookPath = (value: string, platform: NodeJS.Platform): string =>
+  platform === "win32" ? value.replaceAll("\\", "/") : value;
 
 /**
  * The `--settings` file for one run: the repo's PreToolUse hook (read from the
@@ -365,8 +375,13 @@ export interface RunSettingsInput {
  * appends the receipts file.
  */
 export const buildRunSettings = (input: RunSettingsInput): RunSettings => {
-  const preToolUse = path.join(input.worktree, ".ai", "hooks", "pre-tool-use.mjs");
-  const receiptHook = input.receiptHookPath ?? defaultReceiptHookPath();
+  const platform = input.platform ?? process.platform;
+  const preToolUse = hookPath(
+    path.join(input.worktree, ".ai", "hooks", "pre-tool-use.mjs"),
+    platform
+  );
+  const receiptHook = hookPath(input.receiptHookPath ?? defaultReceiptHookPath(), platform);
+  const receiptsPath = hookPath(input.receiptsPath, platform);
   return {
     hooks: {
       PreToolUse: [
@@ -383,7 +398,7 @@ export const buildRunSettings = (input: RunSettingsInput): RunSettings => {
           hooks: [
             {
               type: "command",
-              command: `node ${quote(receiptHook)} ${quote(input.receiptsPath)}`,
+              command: `node ${quote(receiptHook)} ${quote(receiptsPath)}`,
               timeout: 10
             }
           ]
