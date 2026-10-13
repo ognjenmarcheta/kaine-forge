@@ -1,5 +1,12 @@
 # @repo/desk-ui
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [cfa361b]
+  - @repo/desk@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
