@@ -1,4 +1,4 @@
-import { realpath, stat } from "node:fs/promises";
+import { realpath, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { bootstrapPlan, evaluateStep, type BootstrapInput } from "../engine/worktree.bootstrap";
@@ -202,10 +202,28 @@ export type RemoveWorktreeResult =
       readonly detail: string;
     };
 
+/** The desk names every task worktree `KAINE-<issue>`. Only such a folder may be a leftover of one. */
+const DESK_WORKTREE_NAME = /^KAINE-[1-9]\d*(?:-|$)/;
+
+/**
+ * A worktree that git already gave up: no registration, no `.git` link, but files left. Git
+ * removes the registration and the link first and the files last, so a failure on the files
+ * (paths longer than Windows allows, a file another process holds) leaves this.
+ */
+const isLeftover = async (worktreePath: string): Promise<boolean> =>
+  DESK_WORKTREE_NAME.test(path.basename(worktreePath)) &&
+  !(await exists(path.join(worktreePath, ".git")));
+
+/** Delete what git left of a worktree. Node removes long Windows paths and retries busy files. */
+const deleteLeftover = (worktreePath: string): Promise<void> =>
+  rm(worktreePath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+
 /**
  * Remove a task worktree and keep its branch. It refuses a tree with
  * uncommitted changes (including untracked files) unless `force` is set, and
- * refuses a directory that is not a worktree of this repository.
+ * refuses a directory that is not a worktree of this repository. When git
+ * unregistered the worktree but could not delete its files, the desk finishes
+ * the deletion. A leftover from an earlier such failure goes only with `force`.
  */
 export const removeWorktree = async (
   deps: Pick<WorktreeDeps, "git">,
@@ -223,11 +241,23 @@ export const removeWorktree = async (
   }
   if (!registered) {
     if (await exists(worktreePath)) {
-      return {
-        ok: false,
-        reason: "not-a-worktree",
-        detail: `${worktreePath} is not a worktree of this repository`
-      };
+      if (!(await isLeftover(worktreePath))) {
+        return {
+          ok: false,
+          reason: "not-a-worktree",
+          detail: `${worktreePath} is not a worktree of this repository`
+        };
+      }
+      if (!force) {
+        return {
+          ok: false,
+          reason: "not-a-worktree",
+          detail: `${worktreePath} is what an earlier removal left: git no longer knows it, but its files remain. Remove with force to delete the folder.`
+        };
+      }
+      await deleteLeftover(worktreePath);
+      await git.worktreePrune(repoDir);
+      return { ok: true, removed: true };
     }
     await git.worktreePrune(repoDir);
     return { ok: true, removed: false };
@@ -246,7 +276,17 @@ export const removeWorktree = async (
     await git.worktreeRemove(repoDir, worktreePath, force);
   } catch (error) {
     if (!(error instanceof GitError)) throw error;
-    return { ok: false, reason: "git-failed", detail: error.message };
+    // Git may have unregistered the worktree before it failed on the files. Then it is ours to finish.
+    const stillRegistered = await Promise.all(
+      (await git.worktreeList(repoDir)).map(
+        async (entry) => (await realOrResolved(entry.path)) === target
+      )
+    );
+    if (stillRegistered.includes(true) || !(await isLeftover(worktreePath))) {
+      return { ok: false, reason: "git-failed", detail: error.message };
+    }
+    await deleteLeftover(worktreePath);
+    await git.worktreePrune(repoDir);
   }
   return { ok: true, removed: true };
 };

@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BootstrapInput } from "../engine/worktree.bootstrap";
-import { createGitPort } from "../git";
+import { GitError, createGitPort } from "../git";
 import type { Exec, ExecRequest } from "../ports";
 import { createWorktree, removeWorktree, type WorktreeDeps } from "./worktree.create";
 import {
@@ -406,6 +406,58 @@ describe("removeWorktree", () => {
         force: false
       })
     ).toEqual({ ok: true, removed: false });
+  });
+
+  describe("a worktree that git unregistered but could not delete", () => {
+    /** A desk-named worktree. Git's removal fails after the registration and the link are gone. */
+    const halfRemoved = async () => {
+      input = { ...input, worktreeDir: path.join(scratch.root, "KAINE-77") };
+      const deps = await created();
+      const failingRemove: WorktreeDeps["git"] = {
+        ...deps.git,
+        worktreeRemove: async () => {
+          await rm(path.join(input.worktreeDir, ".git"), { force: true });
+          await deps.git.worktreePrune(clone.dir);
+          throw new GitError("error: cannot remove: Filename too long", ["worktree", "remove"], 1);
+        }
+      };
+      return { ...deps, git: failingRemove };
+    };
+
+    it("finishes the deletion that git started, and keeps the branch", async () => {
+      const deps = await halfRemoved();
+      const result = await removeWorktree(deps, {
+        repoDir: clone.dir,
+        worktreePath: input.worktreeDir,
+        force: false
+      });
+      expect(result).toEqual({ ok: true, removed: true });
+      expect(await exists(input.worktreeDir)).toBe(false);
+      expect(await deps.git.branchExists(clone.dir, BRANCH)).toBe(true);
+    });
+
+    it("deletes a leftover of an earlier failure only with force", async () => {
+      const deps = await halfRemoved();
+      await removeWorktree(deps, {
+        repoDir: clone.dir,
+        worktreePath: input.worktreeDir,
+        force: false
+      }).catch(() => undefined);
+      // Simulate the state a failed removal of an older desk left: files without git.
+      await mkdir(path.join(input.worktreeDir, "node_modules", "deep"), { recursive: true });
+      const leftover = { repoDir: clone.dir, worktreePath: input.worktreeDir };
+
+      const refused = await removeWorktree(deps, { ...leftover, force: false });
+      expect(refused).toMatchObject({ ok: false, reason: "not-a-worktree" });
+      if (!refused.ok) expect(refused.detail).toContain("Remove with force");
+      expect(await exists(input.worktreeDir)).toBe(true);
+
+      expect(await removeWorktree(deps, { ...leftover, force: true })).toEqual({
+        ok: true,
+        removed: true
+      });
+      expect(await exists(input.worktreeDir)).toBe(false);
+    });
   });
 
   it("reports a git failure instead of throwing", async () => {
