@@ -1,5 +1,13 @@
 # @repo/factory-ui
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [cb7174c]
+  - @repo/translation@1.5.0
+  - @repo/ui@1.3.1
+
 ## 0.1.0
 
 ### Minor Changes
