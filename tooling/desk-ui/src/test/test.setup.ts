@@ -1,5 +1,9 @@
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
+
+// CI runs every workspace's tests at once, so a render here can take a few times longer than
+// on a quiet machine. The default 1 s budget of `waitFor` and `findBy*` is too short for that.
+configure({ asyncUtilTimeout: 3_000 });
 
 // jsdom lacks these browser APIs. Radix primitives and React Flow read them.
 class ResizeObserverStub {
