@@ -63,6 +63,7 @@ import { mergeInstalledConfig } from "./install-config.util";
 import {
   chooseInstallSelection,
   managedMcpOwnership,
+  newDefaultSkills,
   readInstallSelection,
   writeInstallSelection
 } from "./install-state.util";
@@ -85,7 +86,9 @@ const usage = `Usage:
   pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena]
 
 Without selection flags and on a TTY, prompts interactively.
-Otherwise defaults to: --agent claude --agent codex, all default skills, all default-eligible MCPs.
+Otherwise defaults to: --agent claude --agent codex. Skills and MCPs keep the recorded
+selection for each agent; new default skills added to the team since then are installed too.
+A first install uses all default skills and all default-eligible MCPs.
 `;
 
 const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode", "grok"];
@@ -427,7 +430,8 @@ const installAgent = (
   personalMcpNames: Set<string>,
   managedMcps: string[],
   results: WriteResult[],
-  removedSkills: string[]
+  removedSkills: string[],
+  knownSkills: string[]
 ): string[] => {
   const skippedMcps: string[] = [];
   const skillsDir = SKILL_DIRS[agent];
@@ -599,7 +603,8 @@ const installAgent = (
     schemaVersion: 2,
     skills: [...expected],
     mcps: [...Object.keys(resolved.source.mcpServers), ...resolved.skipped],
-    ownedMcps: Object.keys(resolved.source.mcpServers).filter((name) => managedMcps.includes(name))
+    ownedMcps: Object.keys(resolved.source.mcpServers).filter((name) => managedMcps.includes(name)),
+    knownSkills
   });
   return skippedMcps;
 };
@@ -687,15 +692,25 @@ const main = async (): Promise<void> => {
           )
           .map((entry) => entry.name)
       : undefined;
+    const defaultSkills = allSkills.filter((skill) => skill.isDefault).map((skill) => skill.name);
     const skillChoice = chooseInstallSelection({
       explicit: options.skills,
       recorded: previous?.skills,
       detected: installedSkills ?? [],
-      defaults: allSkills.filter((skill) => skill.isDefault).map((skill) => skill.name)
+      defaults: defaultSkills
     });
+    const addedSkills = options.skills.length
+      ? []
+      : newDefaultSkills(
+          skillChoice.names,
+          defaultSkills,
+          previous?.schemaVersion === 2 ? previous.knownSkills : undefined
+        );
+    if (addedSkills.length)
+      console.log(chalk.cyan(`${agent}: added new team skills: ${addedSkills.join(", ")}`));
     const agentOptions = {
       ...options,
-      skills: skillChoice.names,
+      skills: [...skillChoice.names, ...addedSkills],
       exactSkillSelection: skillChoice.exact,
       mcps: mcpChoice.names,
       exactMcpSelection: mcpChoice.exact
@@ -712,7 +727,8 @@ const main = async (): Promise<void> => {
       merged.personalNames,
       managedMcpOwnership(previous, teamNames, merged.personalNames),
       results,
-      removedSkills
+      removedSkills,
+      allSkills.map((skill) => skill.name)
     )) {
       skippedMcps.add(skipped);
     }

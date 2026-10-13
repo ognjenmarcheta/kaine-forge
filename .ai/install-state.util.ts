@@ -14,7 +14,8 @@ const selectionSchema = z.discriminatedUnion("schemaVersion", [
   z.object({
     schemaVersion: z.literal(2),
     ...selectionFields,
-    ownedMcps: z.array(z.string().min(1))
+    ownedMcps: z.array(z.string().min(1)),
+    knownSkills: z.array(z.string()).optional()
   })
 ]);
 export type InstallSelection = z.infer<typeof selectionSchema>;
@@ -32,6 +33,21 @@ export function chooseInstallSelection(input: {
   if (input.recorded !== undefined) return { names: input.recorded, exact: true };
   if (input.detected.length) return { names: input.detected, exact: true };
   return { names: input.defaults, exact: true };
+}
+
+/**
+ * Default skills added to the team since the selection was recorded. A user who removed a
+ * known skill keeps it removed. A record without `known` predates tracking, so only an empty
+ * selection counts as a deliberate opt-out.
+ */
+export function newDefaultSkills(
+  selected: string[],
+  defaults: string[],
+  known: string[] | undefined
+): string[] {
+  if (!known && !selected.length) return [];
+  const seen = new Set([...(known ?? []), ...selected]);
+  return defaults.filter((name) => !seen.has(name));
 }
 
 export function managedMcpOwnership(

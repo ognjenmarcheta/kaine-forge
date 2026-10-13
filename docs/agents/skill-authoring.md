@@ -58,7 +58,7 @@ Write skills as thin, re-runnable procedures — not essays.
 ## After you add a skill
 
 1. Set accurate canonical frontmatter. The installer generates the single skill index at the marker in `.ai/guide.md`; do not maintain a second list by hand.
-2. `pnpm ai:install`
+2. `pnpm ai:install`. A default skill also reaches checkouts that already have a recorded selection: their next `pnpm ai:install` adds it, and `pnpm ai:doctor` reports it as missing until then.
 3. `pnpm ai:doctor` — must be clean for the new skill (frontmatter, prefix, guide list).
 
 ## Prefer the encoding ladder before a new skill

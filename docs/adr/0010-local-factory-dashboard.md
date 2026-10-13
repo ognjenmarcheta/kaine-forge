@@ -1,8 +1,9 @@
 # ADR 0010: Local factory dashboard
 
-## Status
+- Status: Accepted
+- Date: 2026-09-28
 
-Accepted for the optional software factory.
+Scope: the optional software factory.
 
 ## Context
 

@@ -24,14 +24,14 @@ When adopting this template for a product repository, remove this `TEMPLATE_POLI
 
 Kaine Forge has two UI packages because web/desktop and mobile have different runtimes.
 
-| Surface         | Package           | Runtime      | Styling pipeline                                       |
-| --------------- | ----------------- | ------------ | ------------------------------------------------------ |
-| Web and desktop | `@repo/ui`        | React DOM    | Tailwind CSS v4, shadcn/Radix, CSS custom properties   |
-| Mobile          | `@repo/mobile-ui` | React Native | NativeWind, Tailwind CSS v3-compatible mobile pipeline |
+| Surface               | Package           | Runtime      | Styling pipeline                                       |
+| --------------------- | ----------------- | ------------ | ------------------------------------------------------ |
+| Web, desktop, desk UI | `@repo/ui`        | React DOM    | Tailwind CSS v4, shadcn/Radix, CSS custom properties   |
+| Mobile                | `@repo/mobile-ui` | React Native | NativeWind, Tailwind CSS v3-compatible mobile pipeline |
 
 Rules:
 
-- Use `@repo/ui` only in web/desktop React DOM code.
+- Use `@repo/ui` only in React DOM code: web, desktop, and the agent desk UI (`tooling/desk-ui`).
 - Use `@repo/mobile-ui` only in React Native code.
 - Keep component APIs similar where useful, but do not force DOM-specific primitives into mobile.
 - Shared visual decisions come from the same `--ds-*` token vocabulary.
@@ -51,11 +51,11 @@ Tokens are the public design API. Components should consume functional tokens in
 
 ### 3.1 Token Tiers
 
-| Tier              | Purpose                                  | Example                                    |
-| ----------------- | ---------------------------------------- | ------------------------------------------ |
-| Base tokens       | raw palette/scale values, reference only | `--ds-base-light-surface-default`          |
-| Functional tokens | semantic UI values, primary consumer API | `--ds-text`, `--ds-background-danger-bold` |
-| Component tokens  | component or pattern-specific values     | `--ds-button-brand-bg-hovered`             |
+| Tier              | Purpose                                  | Example                                                         |
+| ----------------- | ---------------------------------------- | --------------------------------------------------------------- |
+| Base tokens       | raw palette/scale values, reference only | `--ds-base-light-surface-default`                               |
+| Functional tokens | semantic UI values, primary consumer API | `--ds-text`, `--ds-background-danger-bold`                      |
+| Component tokens  | component or pattern-specific values     | `--ds-button-brand-bg-hovered` (illustrative; none defined yet) |
 
 Base tokens should not be used directly in component classes or CSS. Functional tokens are the default choice.
 
@@ -262,10 +262,7 @@ Rules:
 
 `@repo/ui` owns React DOM primitives and composed components.
 
-Token definitions and Tailwind mappings live primarily in:
-
-- `packages/ui/src/styles/globals.css`
-- `packages/config/tailwind/preset.js`
+Token definitions and the Tailwind v4 mapping (`@theme inline`) live in `packages/ui/src/styles/globals.css`. `packages/config/tailwind/preset.js` is the Tailwind v3 mapping for mobile (NativeWind) only.
 
 Web app global styles should stay minimal and app-shell oriented. Feature components should prefer `@repo/ui` primitives and token utilities over custom CSS.
 

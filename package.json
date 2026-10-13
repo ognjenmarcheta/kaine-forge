@@ -61,6 +61,7 @@
     "factory": "tsx .ai/factory.ts",
     "desk": "tsx tooling/desk/src/cli/desk.cli.ts",
     "desk:ui": "pnpm --filter @repo/desk-ui dev",
+    "desk:run": "pnpm --filter @repo/desk-ui build && pnpm desk serve",
     "agent:report": "tsx .ai/run-report.ts",
     "agent:outcome": "tsx .ai/run-report.ts outcome",
     "harness:context": "tsx .ai/context-experiment.ts",

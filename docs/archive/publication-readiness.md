@@ -118,7 +118,7 @@ are accepted. Contract tests also detect an added job missing from the aggregate
 For a bot version PR created with `GITHUB_TOKEN`, the owner closes and reopens the
 PR to trigger `pull_request` checks under the owner's event. Then wait for both
 required checks on the current revision. Do not bypass protection or accept a
-manually dispatched run against the wrong revision. See [bot version PRs](../CONTRIBUTING.md)
+manually dispatched run against the wrong revision. See [bot version PRs](../../CONTRIBUTING.md)
 and GitHub's [workflow trigger rules](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow).
 
 ## Approved-transition procedure

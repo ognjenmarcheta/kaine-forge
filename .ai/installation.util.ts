@@ -32,7 +32,7 @@ import {
   type Skill
 } from "./ai.util";
 import { managedConfigMatches } from "./install-config.util";
-import { readInstallSelection } from "./install-state.util";
+import { newDefaultSkills, readInstallSelection } from "./install-state.util";
 
 interface EnvRequirement {
   name: string;
@@ -123,9 +123,18 @@ export const computeSkillDrift = (
     }
 
     const selection = readInstallSelection(agent, root);
+    // A team skill added since the last install is missing until ai:install adds it.
+    const added = selection
+      ? newDefaultSkills(
+          selection.skills,
+          skills.filter((skill) => skill.isDefault).map((skill) => skill.name),
+          selection.schemaVersion === 2 ? selection.knownSkills : undefined
+        )
+      : [];
     const targeted = skills.filter(
       (skill) =>
-        skill.agents.includes(agent) && (!selection || selection.skills.includes(skill.name))
+        skill.agents.includes(agent) &&
+        (!selection || selection.skills.includes(skill.name) || added.includes(skill.name))
     );
     const expectedNames = new Set(targeted.map((skill) => skill.name));
     const missing: string[] =

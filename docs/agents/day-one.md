@@ -37,14 +37,18 @@ Do not invent mobile parity for notes/assistant unless the task explicitly requi
 
 At the start of each request, assess the skill names and descriptions in generated `AGENTS.md` → **AI Skills**. Honor explicit skill requests, choose the smallest matching set, and read selected instructions before use. Reassess when the task changes. The table below gives common examples; the generated index is the complete list.
 
-| Job                               | Skill                                                |
-| --------------------------------- | ---------------------------------------------------- |
-| Tests                             | `kaine-test`                                         |
-| Review                            | `kaine-review`                                       |
-| PR                                | `kaine-open-pr`                                      |
-| Assess recurring work or failures | `kaine-encode-knowledge`                             |
-| Sync AI files                     | `kaine-sync-docs`                                    |
-| Rebase / CI / release             | `kaine-rebase`, `kaine-fix-ci`, `kaine-release-apps` |
+| Job                                  | Skill                                                |
+| ------------------------------------ | ---------------------------------------------------- |
+| Local failure (test, build, runtime) | `kaine-debug`                                        |
+| Tests                                | `kaine-test`                                         |
+| Review                               | `kaine-review`                                       |
+| PR                                   | `kaine-open-pr`                                      |
+| Write or rewrite a GitHub issue      | `kaine-write-issue`                                  |
+| Assess recurring work or failures    | `kaine-encode-knowledge`                             |
+| Sync AI files                        | `kaine-sync-docs`                                    |
+| Rebase / CI / release                | `kaine-rebase`, `kaine-fix-ci`, `kaine-release-apps` |
+
+To drive a whole GitHub issue to a draft PR with plan and review gates, use the local agent desk (`pnpm desk:run`); see [`agent-desk.md`](agent-desk.md).
 
 When work repeats, check existing skills before proposing an improvement. Continue the task and obtain authorization before creating or expanding the proposed skill. See `docs/agents/skill-authoring.md` for evidence requirements and acceptance scenarios. Selection is model-driven; installation alone does not prove that an agent follows the guidance.
 

@@ -32,6 +32,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
 - `apps/e2e`: Playwright web/API tests with accessibility coverage.
 - `packages/*`: shared auth, db, email, logger, config, feature flags, persistence, query helpers, storage, todos, translation, web UI, and mobile UI packages.
+- `tooling/*`: the local agent desk (`@repo/desk` engine and `@repo/desk-ui`), the factory dashboard UI (`@repo/factory-ui`), and GraphQL codegen (`@repo/graphql-codegen`).
 - `.ai/`: canonical agent scaffold — see [Agent-ready](#agent-ready).
 
 ## Agent-ready
@@ -43,6 +44,7 @@ Agents get the same encoded rules as humans — generated, linted, and drift-che
 - `kaine-*` skills cover tests, review, PRs, CI fixes, releases, and triage.
 - [`REVIEW.md`](REVIEW.md) is one review checklist for humans and agents; [`docs/agents/day-one.md`](docs/agents/day-one.md) is the day-one ramp.
 - Repeated agent failures become lint rules, tests, or skills ([ADR 0009](docs/adr/0009-domain-knowledge-as-agent-infra.md)).
+- The local agent desk (`pnpm desk:run`) drives a GitHub issue through intake, plan, build, check, and review to a draft PR; the owner approves at two gates and merges. See [`docs/agents/agent-desk.md`](docs/agents/agent-desk.md).
 
 <!-- TEMPLATE_ONLY_START -->
 
@@ -127,7 +129,7 @@ Full steps (interactive dry-run, `template-adoption.json`, post-adopt checklist)
 | Release validation                                            | [`docs/release-checklist.md`](docs/release-checklist.md) |
 | Full documentation index                                      | [`docs/README.md`](docs/README.md)                       |
 
-**Everyday commands:** `pnpm preflight` · `pnpm check` · `pnpm generate` · `pnpm build:core` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
+**Everyday commands:** `pnpm preflight` · `pnpm check` · `pnpm check:affected` · `pnpm generate` · `pnpm build:core` · `pnpm smoke` · `pnpm test:e2e` · `pnpm ai:install` · `pnpm ai:doctor` · `pnpm desk:run` · `pnpm scorecard` · `pnpm release:apps --dry-run` · `pnpm dev:mobile:lan`
 
 ## License
 

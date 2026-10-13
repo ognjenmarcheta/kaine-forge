@@ -57,7 +57,7 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] Non-releasable source changes use `release:skip-changeset`
 - [ ] `pnpm release:status`
 - [ ] Review generated changelog/version output before merging a version PR
-- [ ] Confirm the version PR shows its required checks. A PR opened with the job token gets no `pull_request` workflow runs; set repository secret `RELEASE_PR_TOKEN` (fine-grained PAT: Contents rw, Pull requests rw) or re-run `CI PR` on the PR by hand.
+- [ ] Confirm the version PR shows its required checks. A PR opened with the job token gets no `pull_request` workflow runs; set repository secret `RELEASE_PR_TOKEN` (fine-grained PAT: Contents rw, Pull requests rw), or close and reopen the PR to trigger its checks.
 
 ## 8. Security Review
 

@@ -53,8 +53,8 @@ The owner can close and reopen the version PR in GitHub to trigger checks. Do no
 merge until the required checks pass. A separately configured `RELEASE_PR_TOKEN`
 also supports triggering CI; no such credential is required for local setup.
 
-Publication settings and verification evidence are tracked in
-[public repository readiness](docs/publication-readiness.md).
+The 2026-09-13 publication audit, its target settings, and the transition evidence are
+archived in [public repository readiness](docs/archive/publication-readiness.md).
 
 ## Setup
 
@@ -150,14 +150,16 @@ Repository settings the template cannot carry over (GitHub copies files, not set
 
 `.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
 
-After changing `.ai/guide.md`, `.ai/review.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, or `.ai/serena-memories/*.md`, run:
+After changing `.ai/guide.md`, `.ai/review.md`, `.ai/skills/*.md`, `.ai/agents/*.md`, `.ai/hooks/*`, `.ai/permissions.json`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/serena-project.yml`, or `.ai/serena-memories/*.md`, run:
 
 ```bash
 pnpm ai:install
 pnpm ai:doctor
 ```
 
-Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.serena/project.yml`, and `.serena/memories/*`. Canonical review guidance lives in `.ai/review.md` and is installed to tracked `REVIEW.md`. Local gitignored outputs include `.claude/skills/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.grok/skills/*`, `.grok/hooks/*`, `.grok/agents/*`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, `.grok/config.toml`, and `opencode.json`.
+Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/settings.json`, and `.serena/memories/*`. Canonical review guidance lives in `.ai/review.md` and is installed to tracked `REVIEW.md`. Local gitignored outputs include `.claude/skills/*`, `.claude/agents/*`, `.claude/hooks/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.cursor/hooks.json`, `.grok/skills/*`, `.grok/hooks/*`, `.grok/agents/*`, `.opencode/skills/*`, `.opencode/plugins/*`, `.serena/project.yml`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, `.grok/config.toml`, and `opencode.json`.
+
+`pnpm ai:install` keeps each agent's recorded skill selection in `.ai.local/installations/<agent>.json`. A reinstall also adds default skills that the team added since that record, and keeps any skill you removed. `pnpm ai:doctor` reports a new team skill as missing until you reinstall.
 
 When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
 
@@ -272,9 +274,9 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 ### Affected and path filters
 
-- PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck/test.
+- PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck. Workspace tests run once, over the full repo, in the `coverage` job.
 - Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs.
-- Mobile typecheck is required when `apps/mobile/**` or `packages/mobile-ui/**` change.
+- Mobile typecheck is required when `apps/mobile/**`, any `packages/**`, `scripts/sync-mobile-design-tokens.mjs`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or `tsconfig.base.json` change. Metro resolves `@repo/*` to package source, so any shared package can break the mobile bundle.
 - Shared setup lives in `.github/actions/setup-node-pnpm`.
 
 ### Dependency catalogs
