@@ -533,6 +533,11 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
   await expect(groups.getByRole("row", { name: /Builder claude opus 2 1 1/ })).toBeVisible();
   const issues = page.getByRole("table", { name: "By issue" });
   await expect(issues.getByRole("row", { name: /#99 Removed/ })).toBeVisible();
+  const lessons = page.getByRole("table", { name: "Lesson candidates" });
+  await expect(
+    lessons.getByRole("row", { name: /review\/Correctness\/Consider Review finding #102 #103 3 1/ })
+  ).toBeVisible();
+  await expect(lessons.getByText("The export drops the header row")).toBeVisible();
 
   await issues.getByRole("link", { name: "#102" }).click();
   await page

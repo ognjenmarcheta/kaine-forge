@@ -1,4 +1,4 @@
-import type { RunStats } from "@repo/desk/contracts";
+import type { LessonReport, RunStats } from "@repo/desk/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -23,7 +23,8 @@ const STATS: RunStats = {
       totalCostUsd: 6,
       meanCostUsd: 1.5,
       meanTurns: 30,
-      meanEditCalls: 4.25
+      meanEditCalls: 4.25,
+      harness: null
     },
     {
       role: "reviewer",
@@ -39,7 +40,8 @@ const STATS: RunStats = {
       totalCostUsd: null,
       meanCostUsd: null,
       meanTurns: null,
-      meanEditCalls: 0
+      meanEditCalls: 0,
+      harness: null
     }
   ],
   issues: [
@@ -93,6 +95,54 @@ describe("StatsView", () => {
       fakeApi({ stats: () => Promise.resolve({ groups: [], issues: [], invalidLines: 0 }) })
     );
     expect(await screen.findByText(/No agent runs recorded yet/)).toBeTruthy();
+  });
+
+  it("lists lesson candidates with links to their issues, and shows agent text as text", async () => {
+    const lessons: LessonReport = {
+      candidates: [
+        {
+          key: "review/Correctness/Consider",
+          source: "review",
+          issues: [12, 15],
+          occurrences: 3,
+          currentOccurrences: 1,
+          lastSeen: "2026-10-13T09:00:00.000Z",
+          samples: [{ issue: 15, detail: "<b>No header row</b>", file: "src/export.ts" }]
+        }
+      ],
+      belowThreshold: 4,
+      minIssues: 2,
+      currentRepo: null,
+      invalidLines: 0
+    };
+    renderDesk(
+      <StatsView />,
+      fakeApi({
+        stats: () => Promise.resolve(STATS),
+        lessons: () => Promise.resolve(lessons)
+      })
+    );
+
+    const table = await screen.findByRole("table", { name: "Lesson candidates" });
+    const [, row] = within(table).getAllByRole("row");
+    expect(row && cells(row).slice(0, 4)).toEqual([
+      "review/Correctness/ConsiderReview finding",
+      "#12#15",
+      "3",
+      "1"
+    ]);
+    expect(within(table).getByRole("link", { name: "#15" }).getAttribute("href")).toBe("?issue=15");
+    // The sample is shown as written, never as markup.
+    expect(within(table).getByText(/<b>No header row<\/b>/)).toBeTruthy();
+    expect(table.querySelector("b")).toBeNull();
+    expect(screen.getByText("Other kinds of problem, seen in fewer issues: 4")).toBeTruthy();
+  });
+
+  it("keeps the run tables when the lessons cannot be loaded", async () => {
+    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
+
+    expect(await screen.findByRole("table", { name: "By role and model" })).toBeTruthy();
+    expect(screen.queryByRole("table", { name: "Lesson candidates" })).toBeNull();
   });
 
   it("shows a failure and loads again on request", async () => {

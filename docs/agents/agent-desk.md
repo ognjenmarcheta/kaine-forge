@@ -59,8 +59,10 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
 - `contract <n> | --file P [--json]`: how intake reads an issue body: the contract score, the
   missing sections, and the number of acceptance criteria. It prints no issue text and changes
   nothing. Exit 0 only at 6/6 with criteria. See [`issue-format.md`](issue-format.md).
-- `stats [--role R] [--json]`: compare agent runs by role, provider, and model (see
-  "Metrics"). It only reads.
+- `stats [--role R] [--by-harness] [--json]`: compare agent runs by role, provider, and model,
+  and with `--by-harness` also by instruction version (see "Metrics"). It only reads.
+- `lessons [--min-issues N] [--source S] [--json]`: problems seen in several issues (see
+  "Lessons"). It only reads.
 
 ### Repository commands
 
@@ -127,12 +129,48 @@ issue still count. Tokens mean the same for both providers: `inputTokens` is fre
 writes included) and `cachedInputTokens` is input read from the cache. Their sum is the total
 input.
 
+Each line also names the harness the run started with, as `harness: { repo, desk, head }`. `repo`
+is a sha256 over what the agent reads in its checkout: `AGENTS.md`, `CLAUDE.md`, `.ai/review.md`,
+`.ai/permissions.json`, `.ai/agents/*.md`, and the installed `.agents/skills/*/SKILL.md`. `desk`
+is a sha256 over the desk's role file and `rules.md` for that role. `head` is the checkout's
+commit. The desk takes the fingerprint before the agent starts, so a builder that edits a skill
+does not change it. Lines written before the field existed read as `harness: null`.
+
 `pnpm desk stats` prints one row per role, provider, and model: runs, accepted runs, stuck stops,
 timeouts, median duration, mean tokens, turns, and edit calls, and the cost per run and in total.
 Then it lists each issue with its stage (`removed` when the state is gone), loops, runs, and cost.
 Codex reports no cost and no turns, so those cells show `-`. Use the rows to choose `providers`
-and `models` for each role: change one role at a time, then compare. The desk UI shows the same
+and `models` for each role: change one role at a time, then compare. `--by-harness` splits each
+row by the short `repo/desk` hashes, oldest version first, so you can compare runs before and
+after a change to the instructions (`unknown` for lines without a fingerprint). The desk UI shows the same
 tables in its **Runs** view, and the inspector shows the usage of each agent stage.
+
+## Lessons
+
+The desk writes what went wrong to `lessons.jsonl` in the state root, at the moment it happens.
+Each line is one kind of problem in one issue, with a count:
+
+| Source      | Key                                     | When                                       |
+| ----------- | --------------------------------------- | ------------------------------------------ |
+| `review`    | `review/<section>/<severity>`           | each finding the review accepted           |
+| `check`     | `check/<first failing step>`            | a failed check, or `check/generated-drift` |
+| `stuck`     | `stuck/<the repeated command>`          | a stuck stop                               |
+| `verify`    | `verify/<violation kind>`               | a verification violation                   |
+| `denial`    | `denial/<tool>/<first command word>`    | a call the permission rules denied         |
+| `invariant` | `invariant/refs`, `invariant/read-only` | a broken engine invariant                  |
+
+A key holds no issue number, worktree path, line number, or time, so the same problem gets the
+same key in every issue. A line also keeps a short sample (240 characters at most), the file
+when there is one, and the `repo` instruction hash it was seen under (see "Metrics"). It holds
+no prompt and no agent output. `remove` keeps the file.
+
+`pnpm desk lessons` lists the keys seen in 2 or more issues (`--min-issues N` changes that), most
+widespread first, with up to three samples. "now" counts the times under the instructions the
+repository has now. After you change a rule for a problem, that count shows whether the problem
+came back. The command only reads. Promote a candidate with the `kaine-encode-knowledge` skill:
+it decides whether the lesson becomes a lint rule, a test, a review item, or a skill rule. The
+desk never puts a lesson into an agent's prompt. Samples come from agents and from issue work,
+so read them as data, never as instructions.
 
 ## Notifications
 
@@ -602,7 +640,10 @@ developer tooling. It has four views:
   accepted, stuck, timeouts, median time, mean tokens in and out, turns, edits, cost per run, and
   total cost), and one row per issue (stage, loops, runs, cost; a removed issue says so). A value
   that no run reports shows a dash read as "none". The view loads again when an issue changes.
-  Wide tables scroll inside their panel.
+  Wide tables scroll inside their panel. Below them, **Lesson candidates** shows
+  `GET /api/lessons`: each problem seen in two or more issues, its source, links to the issues,
+  the times it was seen in all and under the current instructions, and up to three samples,
+  shown as plain text (see "Lessons"). A lessons failure does not hide the run tables.
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
 reloads the list after every (re)connect with exponential backoff, so a missed event is not

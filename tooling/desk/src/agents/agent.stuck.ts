@@ -6,6 +6,8 @@ export const STUCK_LIMIT = 8;
 export interface StuckDetector {
   /** Feed every event of a run in order. Returns the stop reason once, when the run is stuck. */
   readonly observe: (event: AgentEvent) => string | null;
+  /** The command or tool call that tripped the detector, `null` until it trips. */
+  readonly stuckOn: () => string | null;
 }
 
 interface Call {
@@ -28,11 +30,11 @@ export const createStuckDetector = (limit: number = STUCK_LIMIT): StuckDetector 
   const denied = new Set<string>();
   let streak: Call | null = null;
   let count = 0;
-  let tripped = false;
+  let tripped: Call | null = null;
 
   return {
     observe: (event) => {
-      if (tripped) return null;
+      if (tripped !== null) return null;
       if (event.type === "tool_call") {
         pending.set(event.id, {
           key: JSON.stringify([event.tool, event.command ?? null, event.paths]),
@@ -61,8 +63,9 @@ export const createStuckDetector = (limit: number = STUCK_LIMIT): StuckDetector 
         count = 1;
       }
       if (count < limit) return null;
-      tripped = true;
+      tripped = call;
       return `The agent ran \`${call.label.slice(0, 200)}\` ${count} times in a row and it failed each time. The desk stopped the run.`;
-    }
+    },
+    stuckOn: () => tripped?.label ?? null
   };
 };

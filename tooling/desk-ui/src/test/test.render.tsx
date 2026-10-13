@@ -22,6 +22,7 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   health: unexpected("health"),
   healthFix: unexpected("healthFix"),
   stats: unexpected("stats"),
+  lessons: unexpected("lessons"),
   // The board and the Start dialog list GitHub work. Most tests want no list.
   github: () =>
     Promise.resolve({ ok: true, issues: [], pulls: [], fetchedAt: "2026-03-01T10:00:00.000Z" }),

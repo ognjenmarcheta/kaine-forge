@@ -20,6 +20,7 @@ import {
   planGateIssue,
   prReviewIssue,
   scenarioBoard,
+  scenarioLessons,
   scenarioRuns,
   issueUrl,
   intakeStoppedIssue,
@@ -317,6 +318,18 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
             records: options.scenario === "empty" ? [] : scenarioRuns(),
             invalidLines: 0
           }),
+        lessons: () =>
+          Promise.resolve(
+            options.scenario === "empty"
+              ? {
+                  candidates: [],
+                  belowThreshold: 0,
+                  minIssues: 2,
+                  currentRepo: null,
+                  invalidLines: 0
+                }
+              : scenarioLessons()
+          ),
         health: () =>
           Promise.resolve({
             ok: false,

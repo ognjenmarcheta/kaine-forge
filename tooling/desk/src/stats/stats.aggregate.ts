@@ -1,6 +1,7 @@
 import type { RunRecords } from "./stats.runs";
 import {
   AGENT_STAGE_ROLES,
+  HARNESS_SHORT_LENGTH,
   type AgentStageRole,
   type IssueRollup,
   type LoopCounters,
@@ -52,7 +53,16 @@ const totalCost = (records: readonly RunRecord[]): number | null => {
   return costs.length === 0 ? null : sum(costs);
 };
 
-const groupOf = (records: readonly RunRecord[]): RunGroup => {
+/** The short hashes a group shows. `null` for a run recorded without a fingerprint. */
+const shortHarness = (record: RunRecord): RunGroup["harness"] =>
+  record.harness === null
+    ? null
+    : {
+        repo: record.harness.repo.slice(0, HARNESS_SHORT_LENGTH),
+        desk: record.harness.desk.slice(0, HARNESS_SHORT_LENGTH)
+      };
+
+const groupOf = (records: readonly RunRecord[], byHarness: boolean): RunGroup => {
   const [first] = records;
   if (first === undefined) throw new RangeError("A run group needs at least one record");
   const costs = present(records.map((record) => record.costUsd));
@@ -76,26 +86,34 @@ const groupOf = (records: readonly RunRecord[]): RunGroup => {
     totalCostUsd: costs.length === 0 ? null : sum(costs),
     meanCostUsd: mean(costs),
     meanTurns: mean(present(records.map((record) => record.turns))),
-    meanEditCalls: sum(records.map((record) => record.editCalls)) / records.length
+    meanEditCalls: sum(records.map((record) => record.editCalls)) / records.length,
+    harness: byHarness ? shortHarness(first) : null
   };
 };
 
 const ROLE_ORDER: readonly AgentStageRole[] = AGENT_STAGE_ROLES;
 
+export interface AggregateOptions {
+  /** Also split the groups by harness version, to compare instructions before and after a change. */
+  readonly byHarness?: boolean;
+}
+
 /** Groups runs by role, provider and model, and rolls them up per issue. */
 export const aggregateRuns = (
   { records, invalidLines }: RunRecords,
-  snapshots: readonly IssueSnapshot[]
+  snapshots: readonly IssueSnapshot[],
+  { byHarness = false }: AggregateOptions = {}
 ): RunStats => {
   const byGroup = new Map<string, RunRecord[]>();
   const byIssue = new Map<number, RunRecord[]>();
   for (const record of records) {
-    const key = JSON.stringify([record.role, record.provider, record.model]);
+    const harness = byHarness ? shortHarness(record) : null;
+    const key = JSON.stringify([record.role, record.provider, record.model, harness]);
     byGroup.set(key, [...(byGroup.get(key) ?? []), record]);
     byIssue.set(record.issue, [...(byIssue.get(record.issue) ?? []), record]);
   }
   const groups = [...byGroup.values()]
-    .map(groupOf)
+    .map((group) => groupOf(group, byHarness))
     .sort(
       (left, right) =>
         ROLE_ORDER.indexOf(left.role) - ROLE_ORDER.indexOf(right.role) ||

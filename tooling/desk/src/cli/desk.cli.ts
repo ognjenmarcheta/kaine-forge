@@ -23,6 +23,7 @@ import {
   commandStart
 } from "./cli.command.drive";
 import { commandLogs, commandResume, commandStatus } from "./cli.command.inspect";
+import { commandLessons } from "./cli.command.lessons";
 import { commandServe } from "./cli.command.serve";
 import { commandStats } from "./cli.command.stats";
 import { UsageError, type CliCommand, type CliDeps, type CliIo, type CliResult } from "./cli.types";
@@ -53,7 +54,12 @@ const USAGE = [
   "  status [issue] [--json]         Show one issue, or list all",
   "  logs <issue> [--follow] [--json]   Show the agent log",
   "  resume <issue>                  Print the command that resumes the agent session by hand",
-  "  stats [--role <role>] [--json]  Compare agent runs by role, provider and model",
+  "  stats [--role <role>] [--by-harness] [--json]",
+  "                                  Compare agent runs by role, provider and model.",
+  "                                  --by-harness also splits them by instruction version",
+  "  lessons [--min-issues N] [--source S] [--json]",
+  "                                  Problems seen in several issues: review findings, failed checks,",
+  "                                  stuck runs, denials. Kept after remove. Promote with kaine-encode-knowledge",
   "  contract <issue> | --file <path> [--json]   How intake reads an issue body (exit 0 at 6/6)",
   "",
   "Repository:",
@@ -124,6 +130,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   logs: commandLogs,
   resume: commandResume,
   stats: commandStats,
+  lessons: commandLessons,
   contract: commandContract,
   labels: commandLabels,
   doctor: commandDoctor,

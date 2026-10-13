@@ -4,7 +4,7 @@ import { createAgentProcess } from "../agents/agent.process";
 import { createClaudeRunner } from "../agents/claude.runner";
 import { createCodexRunner } from "../agents/codex.runner";
 import { loadDeskConfig } from "../config/config.load";
-import type { HealthFix, IssueState, Provider } from "../contracts";
+import type { HealthFix, IssueState, LessonReport, Provider } from "../contracts";
 import type { ServerRunner } from "./server.actions";
 import { createEventBus, type PipelineEventListener } from "./server.events";
 import {
@@ -14,6 +14,7 @@ import {
   type HealthFixOutcome
 } from "./server.http";
 import { runDoctor, type DoctorReport } from "../doctor/doctor.checks";
+import { repoFingerprint } from "../engine/harness.fingerprint";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
 import { diffAgainstBase, createGitPort } from "../git";
@@ -26,6 +27,7 @@ import { createDockerIsolation } from "../isolation/isolation.docker";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { ensureUiBuilt } from "./server.ui";
+import { aggregateLessons, readLessonRecords } from "../stats/stats.lessons";
 import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
 import { configPath, resolveRepoLocation } from "../store/store.root";
@@ -44,6 +46,8 @@ export interface DeskRuntime {
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
   /** `runs.jsonl` of the desk state. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
+  /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
+  readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** The built UI, when the runtime knows where it is. */
   readonly uiDir?: string | null | undefined;
   /** Wait for background work (notify commands, log writes) before the process exits. */
@@ -122,6 +126,10 @@ export const createDefaultDeskRuntime =
         applyDraft: runner.applyDraft
       },
       readRuns: () => readRunRecords(location.stateRoot),
+      lessons: async () =>
+        aggregateLessons(await readLessonRecords(location.stateRoot), {
+          currentRepo: await repoFingerprint(location.repoRoot).catch(() => null)
+        }),
       openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),
       health: () =>
         runDoctor({
@@ -238,6 +246,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       openWork: runtime.openWork,
       currentDiffHash: runtime.currentDiffHash,
       readRuns: runtime.readRuns,
+      lessons: runtime.lessons,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,
       ...options.tuning

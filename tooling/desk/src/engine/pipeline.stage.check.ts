@@ -1,4 +1,5 @@
 import type { CheckReport } from "../check";
+import { checkLessons, recordCheckoutLessons } from "./pipeline.lessons";
 import type { StageHandler } from "./pipeline.types";
 import { fenceUntrusted } from "../github/github.authorization";
 import { selectIsolation } from "../isolation/isolation.select";
@@ -63,6 +64,7 @@ export const checkStage: StageHandler = async (context) => {
       note: `${report.steps.length} step(s) passed`
     };
   }
+  await recordCheckoutLessons(context, checkLessons(report), worktree);
   const failure = checkFailureText(report);
   return {
     kind: "trigger",

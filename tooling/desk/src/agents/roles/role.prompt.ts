@@ -60,6 +60,15 @@ export interface RolePromptDeps {
 }
 
 const DEFAULT_AGENTS_DIR = fileURLToPath(new URL("../../../agents/", import.meta.url));
+
+/** The desk's own files that go into a role's prompt: its role file and the rules. */
+export const deskPromptFiles = (
+  role: DeskRole,
+  deps: RolePromptDeps = {}
+): readonly [roleFile: string, rules: string] => {
+  const agentsDir = deps.agentsDir ?? DEFAULT_AGENTS_DIR;
+  return [path.join(agentsDir, `${role}.md`), path.join(agentsDir, "rules.md")];
+};
 const SKILL_NAME = /^kaine-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
@@ -112,11 +121,9 @@ export const composeRolePrompt = async (
     if (!SKILL_NAME.test(skill)) throw new RolePromptError(`Invalid skill name '${skill}'.`);
   }
 
-  const roleFile = await load(
-    path.join(agentsDir, `${input.role}.md`),
-    `the ${input.role} role file`
-  );
-  const rules = await load(path.join(agentsDir, "rules.md"), "the desk rules");
+  const [roleFilePath, rulesPath] = deskPromptFiles(input.role, { agentsDir });
+  const roleFile = await load(roleFilePath, `the ${input.role} role file`);
+  const rules = await load(rulesPath, "the desk rules");
   const source = REPO_SOURCE[input.role];
   const repoDefinition =
     source === undefined

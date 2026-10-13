@@ -347,6 +347,7 @@ describe("agentUsageKpis", () => {
     editCalls: 3,
     failedToolCalls: 2,
     denials: 0,
+    harness: null,
     ...over
   });
 

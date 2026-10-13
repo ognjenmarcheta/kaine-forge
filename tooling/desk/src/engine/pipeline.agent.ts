@@ -2,7 +2,9 @@ import { rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { z } from "zod";
 
+import { harnessFingerprint } from "./harness.fingerprint";
 import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
+import { agentRunLessons, recordLessons } from "./pipeline.lessons";
 import type { StageContext } from "./pipeline.types";
 import { ROLE_SKILLS } from "./worktree.bootstrap";
 import {
@@ -14,7 +16,7 @@ import {
   type AgentRunResult
 } from "../agents/agent.runner";
 import { createStuckDetector } from "../agents/agent.stuck";
-import { forbiddenCommandReason, verifyAgentRun } from "../agents/agent.verify";
+import { forbiddenCommandReason, verifyAgentRun, type Violation } from "../agents/agent.verify";
 import {
   EDIT_TOOLS,
   buildRunSettings,
@@ -22,10 +24,11 @@ import {
   permissionsFor,
   type Receipt
 } from "../agents/permissions";
-import { composeRolePrompt } from "../agents/roles";
+import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
 import {
   agentOutputJsonSchema,
   type AgentStageRole,
+  type HarnessFingerprint,
   type LoopCounters,
   type PlannerOutput,
   type Provider,
@@ -145,26 +148,54 @@ const bulletList = (items: readonly string[]): string =>
 interface ObservedRun {
   readonly outcome: AgentRunOutcome<unknown>;
   readonly provider: Provider;
+  readonly harness: HarnessFingerprint | null;
   readonly loops: LoopCounters;
   readonly startedAt: Date;
   readonly durationMs: number;
   readonly stuck: boolean;
+  /** The command that tripped the stuck detector. */
+  readonly stuckOn: string | null;
+  readonly stuckReason: string | null;
+  readonly checkout: string;
+}
+
+/** Filled while a run is checked, for `runs.jsonl` and `lessons.jsonl`. */
+interface Observed {
+  run: ObservedRun | null;
+  readonly violations: Violation[];
+  readonly invariants: ("refs" | "read-only")[];
 }
 
 export const runAgentStage = async <T>(
   context: StageContext,
   input: AgentStageInput<T>
 ): Promise<AgentStageResult<T>> => {
-  const observed: { run: ObservedRun | null } = { run: null };
+  const observed: Observed = { run: null, violations: [], invariants: [] };
   const result = await runAgentStageOnce(context, input, observed);
-  if (observed.run !== null) await recordRun(context, input.role, observed.run, result.ok);
+  const { run } = observed;
+  if (run !== null) {
+    await recordRun(context, input.role, run, result.ok);
+    await recordLessons(
+      context,
+      agentRunLessons({
+        role: input.role,
+        checkout: run.checkout,
+        stuckOn: run.stuckOn,
+        stuckReason: run.stuckReason,
+        denials: run.outcome.ok ? run.outcome.result.denials : run.outcome.partial.denials,
+        violations: observed.violations,
+        invariants: observed.invariants
+      }),
+      run.harness?.repo ?? null
+    );
+  }
   return result;
 };
 
 const runAgentStageOnce = async <T>(
   context: StageContext,
   input: AgentStageInput<T>,
-  observed: { run: ObservedRun | null }
+  observed: Observed
 ): Promise<AgentStageResult<T>> => {
   const { deps, signal } = context;
   const { role } = input;
@@ -195,6 +226,15 @@ const runAgentStageOnce = async <T>(
   } catch (error) {
     return stop(`Cannot inspect the worktree before the ${role} run: ${message(error)}`);
   }
+  // Before the run: the record names the instructions the agent was given, not its edits.
+  const harness = await harnessFingerprint(
+    worktree,
+    deskPromptFiles(role, deps.prompts),
+    deps.git.headSha
+  ).catch((error: unknown) => {
+    context.log(`could not fingerprint the ${role} harness: ${message(error)}`);
+    return null;
+  });
 
   // 2. Prompt, permissions and per-run settings.
   const receiptsPath = path.join(context.artifactsDir, `receipts-${role}.jsonl`);
@@ -310,10 +350,14 @@ const runAgentStageOnce = async <T>(
   observed.run = {
     outcome,
     provider,
+    harness,
     loops: state.loops,
     startedAt,
     durationMs: Math.max(0, deps.clock.now().getTime() - startedAt.getTime()),
-    stuck: stuckStopped
+    stuck: stuckStopped,
+    stuckOn: stuckStopped ? stuck.stuckOn() : null,
+    stuckReason: stuckStopped ? stuckReason : null,
+    checkout: worktree
   };
   const failureText = (failure: AgentFailure): string =>
     stuckStopped && stuckReason !== null ? stuckReason : describeFailure(failure);
@@ -332,13 +376,16 @@ const runAgentStageOnce = async <T>(
   let diffAfter: DiffResult | null = null;
   try {
     const refsAfter = await deps.git.refsSnapshot(worktree);
-    violations.push(...compareRefs(refsBefore, refsAfter).map(describeRefViolation));
+    const refViolations = compareRefs(refsBefore, refsAfter);
+    if (refViolations.length > 0) observed.invariants.push("refs");
+    violations.push(...refViolations.map(describeRefViolation));
     diffAfter = await diffAgainstBase(deps.exec, worktree, baseSha);
   } catch (error) {
     violations.push(`Cannot inspect the worktree after the ${role} run: ${message(error)}`);
   }
   if (input.readOnly && diffAfter !== null && diffAfter.diffHash !== diffBefore.diffHash) {
     const files = new Set([...changedPaths(diffBefore), ...changedPaths(diffAfter)]);
+    observed.invariants.push("read-only");
     violations.push(
       `The ${role} is read-only, but the worktree diff changed (${[...files].slice(0, 10).join(", ") || "no file list"}).`
     );
@@ -364,6 +411,7 @@ const runAgentStageOnce = async <T>(
     plan: input.readOnly ? undefined : input.plan,
     receipts: await readReceipts(receiptsPath)
   });
+  observed.violations.push(...verdict.violations);
   // A denied tool call means the narrow allowlist did its job: the agent probed and was
   // blocked. Log it, but do not fail the stage. An attempt at a forbidden command still
   // stops the stage, even when the permission rules denied it.
@@ -439,7 +487,8 @@ const recordRun = async (
     toolCalls: calls.length,
     editCalls: calls.filter((call) => EDIT_TOOLS.has(call.tool)).length,
     failedToolCalls: trace.filter(isFailedResult).length,
-    denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length
+    denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length,
+    harness: run.harness
   };
   try {
     await appendRunRecord(deps.location.stateRoot, record);

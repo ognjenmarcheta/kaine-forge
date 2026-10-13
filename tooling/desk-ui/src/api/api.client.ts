@@ -9,6 +9,7 @@ import {
   healthReportSchema,
   issueDetailSchema,
   issueListSchema,
+  lessonReportSchema,
   logResponseSchema,
   runStatsSchema,
   type ActionRequestInput,
@@ -20,6 +21,7 @@ import {
   type HealthReport,
   type IssueDetail,
   type IssueSummary,
+  type LessonReport,
   type LogResponse,
   type RunStats
 } from "@repo/desk/contracts";
@@ -67,6 +69,8 @@ export interface DeskApi {
   /** Starts a repair. It answers once the repair runs; a `health-fix` event says how it ended. */
   readonly healthFix: (fix: HealthFix) => Promise<void>;
   readonly stats: () => Promise<RunStats>;
+  /** Problems seen in several issues, from `lessons.jsonl`. */
+  readonly lessons: () => Promise<LessonReport>;
   /** Open issues and pull requests. `refresh` asks GitHub again instead of the server's cache. */
   readonly github: (refresh: boolean) => Promise<GithubLists>;
   readonly issues: () => Promise<IssueSummary[]>;
@@ -137,6 +141,7 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     },
     health: () => getJson("/api/health", healthReportSchema),
     stats: () => getJson("/api/stats", runStatsSchema),
+    lessons: () => getJson("/api/lessons", lessonReportSchema),
     github: (refresh) =>
       getJson(refresh ? "/api/github?refresh=1" : "/api/github", githubListsSchema),
     healthFix: async (fix) => {

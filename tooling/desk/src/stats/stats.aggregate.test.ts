@@ -25,6 +25,7 @@ const record = (over: Partial<RunRecord> = {}): RunRecord => ({
   editCalls: 4,
   failedToolCalls: 1,
   denials: 0,
+  harness: null,
   ...over
 });
 
@@ -116,6 +117,33 @@ describe("aggregateRuns", () => {
   });
 });
 
+describe("aggregateRuns by harness", () => {
+  const harness = (repo: string) => ({
+    repo: repo.repeat(64),
+    desk: "d".repeat(64),
+    head: "0".repeat(40)
+  });
+
+  it("splits a role into one row per instruction version, oldest first", () => {
+    const records = [
+      record({ harness: harness("a"), accepted: false }),
+      record({ harness: null }),
+      record({ harness: harness("b") }),
+      record({ harness: harness("a"), accepted: false })
+    ];
+    const split = aggregateRuns({ records, invalidLines: 0 }, [], { byHarness: true });
+    expect(split.groups.map((group) => [group.harness, group.runs, group.accepted])).toEqual([
+      [{ repo: "a".repeat(12), desk: "d".repeat(12) }, 2, 0],
+      [null, 1, 1],
+      [{ repo: "b".repeat(12), desk: "d".repeat(12) }, 1, 1]
+    ]);
+    // Without the option the same runs stay one row, with no harness named.
+    expect(aggregate(records, []).groups).toEqual([
+      expect.objectContaining({ runs: 4, accepted: 2, harness: null })
+    ]);
+  });
+});
+
 describe("aggregateRuns with skipped lines", () => {
   it("passes the count of skipped lines through", () => {
     expect(aggregateRuns({ records: [], invalidLines: 3 }, []).invalidLines).toBe(3);
@@ -134,5 +162,14 @@ describe("parseRunRecords", () => {
     const parsed = parseRunRecords(text);
     expect(parsed.records.map((entry) => entry.issue)).toEqual([12, 4]);
     expect(parsed.invalidLines).toBe(2);
+  });
+
+  it("reads a line written before the harness field existed as harness null", () => {
+    const older = JSON.stringify(record(), (key, value: unknown) =>
+      key === "harness" ? undefined : value
+    );
+    const parsed = parseRunRecords(older);
+    expect(parsed.records).toEqual([expect.objectContaining({ issue: 12, harness: null })]);
+    expect(parsed.invalidLines).toBe(0);
   });
 });

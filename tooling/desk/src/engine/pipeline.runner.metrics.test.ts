@@ -1,11 +1,15 @@
+import { appendFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ROLE_SKILLS } from "./worktree.bootstrap";
 import type { AgentEvent } from "../agents/agent.runner";
 import { STUCK_LIMIT } from "../agents/agent.stuck";
 import type { IssueState } from "../contracts";
+import { readLessonRecords } from "../stats/stats.lessons";
 import { readRunRecords } from "../stats/stats.runs";
 import {
+  FEATURE_FILE,
   ISSUE,
   builderOutput,
   createPipelineEnv,
@@ -80,6 +84,15 @@ describe("stuck detection", () => {
       failureKind: "stuck",
       failedToolCalls: STUCK_LIMIT
     });
+    const lessons = await readLessonRecords(e.stateRoot);
+    expect(lessons.records).toEqual([
+      expect.objectContaining({
+        role: "builder",
+        source: "stuck",
+        key: "stuck/pnpm --filter app test",
+        count: 1
+      })
+    ]);
   });
 });
 
@@ -118,5 +131,96 @@ describe("run records", () => {
       [ISSUE, "reviewer", null, true]
     ]);
     expect(records[1]).toMatchObject({ provider: "claude", isolation: "host", editCalls: 1 });
+  });
+
+  it("names the instructions each run started with, taken before the agent could edit them", async () => {
+    const roleDefinition = ".ai/agents/kaine-implementer.md";
+    const e = await open({
+      steps: [
+        {
+          role: "planner",
+          output: planOutput({
+            files: [
+              ...planOutput().files,
+              { path: roleDefinition, action: "modify", purpose: "Sharpen the builder role" }
+            ]
+          })
+        },
+        {
+          role: "builder",
+          output: builderOutput({ filesChanged: [FEATURE_FILE, roleDefinition] }),
+          effect: async (run) => {
+            await writeFeature(run);
+            await appendFile(path.join(run.cwd, roleDefinition), "\nOne more rule.\n");
+          },
+          trace: skillCalls(ROLE_SKILLS.builder)
+        },
+        { role: "reviewer", output: reviewOutput() }
+      ]
+    });
+    await e.pipeline.start(ISSUE, { override: false });
+    await e.pipeline.approvePlan(ISSUE);
+    expect((await stateOf(e)).stage).toBe("pr-review");
+
+    const { records } = await readRunRecords(e.stateRoot);
+    const [planner, builder, reviewer] = records.map((record) => record.harness);
+    expect(builder).toMatchObject({ head: expect.stringMatching(/^[0-9a-f]{40}$/) });
+    // The builder's record names what it was given, not the file it changed.
+    expect(builder?.repo).toBe(planner?.repo);
+    expect(reviewer?.repo).not.toBe(builder?.repo);
+    // Each role has its own desk role file.
+    expect(builder?.desk).not.toBe(planner?.desk);
+  });
+});
+
+describe("lesson records", () => {
+  it("keeps failed checks and review findings after remove, under keys without issue detail", async () => {
+    const e = await open({
+      steps: [
+        { role: "planner", output: planOutput() },
+        { role: "builder", output: builderOutput(), effect: (run) => writeFeature(run) },
+        {
+          role: "builder",
+          output: builderOutput(),
+          effect: (run) => writeFeature(run, "// fixed\n")
+        },
+        {
+          role: "reviewer",
+          output: reviewOutput({
+            findings: [
+              {
+                severity: "Consider",
+                blocking: false,
+                file: FEATURE_FILE,
+                line: 1,
+                section: "Correctness",
+                summary: "The export has no header row",
+                fix: "Add one"
+              }
+            ]
+          })
+        }
+      ]
+    });
+    e.pnpm.checkReplies.push({ code: 1, stdout: "FAIL a.test.ts: expected 1 received 2\n" });
+    await e.pipeline.start(ISSUE, { override: false });
+    await e.pipeline.approvePlan(ISSUE);
+    expect((await stateOf(e)).stage).toBe("pr-review");
+
+    await e.pipeline.remove(ISSUE, { force: true });
+
+    const { records, invalidLines } = await readLessonRecords(e.stateRoot);
+    expect(invalidLines).toBe(0);
+    expect(records.map((record) => [record.source, record.key])).toEqual([
+      ["check", expect.stringMatching(/^check\/pnpm /)],
+      ["review", "review/Correctness/Consider"]
+    ]);
+    expect(records[1]).toMatchObject({
+      issue: ISSUE,
+      role: "reviewer",
+      detail: "The export has no header row",
+      file: FEATURE_FILE,
+      repo: expect.stringMatching(/^[0-9a-f]{64}$/)
+    });
   });
 });

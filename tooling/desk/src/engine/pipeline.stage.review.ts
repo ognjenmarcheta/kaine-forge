@@ -10,6 +10,7 @@ import {
 import { diffAgainstBase } from "../git";
 import { runAgentStage } from "./pipeline.agent";
 import { ARTIFACTS, readPlan, writeArtifactJson, writeArtifactText } from "./pipeline.artifacts";
+import { recordCheckoutLessons, reviewLessons } from "./pipeline.lessons";
 import { locateFindings } from "./pipeline.review-locations";
 import type { StageHandler } from "./pipeline.types";
 
@@ -105,6 +106,7 @@ export const reviewStage: StageHandler = async (context) => {
     diffHash: diff.diffHash
   };
   await writeArtifactJson(context.artifactsDir, ARTIFACTS.review, artifact);
+  await recordCheckoutLessons(context, reviewLessons(located.accepted), state.worktreePath);
 
   const rejectedBlocking = located.rejected.filter((entry) => entry.finding.blocking);
   if (rejectedBlocking.length > 0) {

@@ -2223,3 +2223,24 @@ html:has(.desk-gate-bar) {
 .desk-table .desk-table__number {
   text-align: end;
 }
+
+/* Runs view: lesson candidates. A key or sample can be long, so it wraps instead of widening the table. */
+.desk-lesson__issues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050);
+}
+
+.desk-lesson__samples {
+  display: grid;
+  gap: var(--ds-space-050);
+  min-width: 16rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.desk-table tbody th code {
+  overflow-wrap: anywhere;
+}

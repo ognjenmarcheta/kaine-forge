@@ -4,6 +4,7 @@ import {
   reviewerOutputSchema,
   type HistoryEvent,
   type IssueState,
+  type LessonReport,
   type RunRecord,
   type Stage
 } from "@repo/desk/contracts";
@@ -431,6 +432,7 @@ const run = (over: Partial<RunRecord> & Pick<RunRecord, "issue" | "role">): RunR
   editCalls: 6,
   failedToolCalls: 3,
   denials: 0,
+  harness: null,
   ...over
 });
 
@@ -464,6 +466,28 @@ export const scenarioRuns = (): RunRecord[] => [
 
 export const issueUrl = (issueNumber: number): string =>
   `${OWNER_REPOSITORY}/issues/${String(issueNumber)}`;
+
+/** `lessons.jsonl` of the board scenario: one problem came back in #102 and #103. */
+export const scenarioLessons = (): LessonReport => ({
+  candidates: [
+    {
+      key: "review/Correctness/Consider",
+      source: "review",
+      issues: [102, 103],
+      occurrences: 3,
+      currentOccurrences: 1,
+      lastSeen: "2026-10-13T09:00:00.000Z",
+      samples: [
+        { issue: 103, detail: "The export drops the header row", file: "src/export.ts" },
+        { issue: 102, detail: "The CSV has no header row", file: "src/export.ts" }
+      ]
+    }
+  ],
+  belowThreshold: 2,
+  minIssues: 2,
+  currentRepo: null,
+  invalidLines: 0
+});
 
 /** Flow model of a seed issue, for a unit test that wants the browser's input. */
 export const flowOf = (issue: SeedIssue) => buildFlowModel(issue.state, Date.now());

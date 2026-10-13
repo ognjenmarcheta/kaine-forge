@@ -31,6 +31,7 @@ const record = (over: Partial<RunRecord> = {}): RunRecord => ({
   editCalls: 3,
   failedToolCalls: 2,
   denials: 0,
+  harness: null,
   ...over
 });
 

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { issueDetailSchema, runStatsSchema, type RunRecord } from "../contracts";
+import {
+  issueDetailSchema,
+  lessonReportSchema,
+  runStatsSchema,
+  type RunRecord
+} from "../contracts";
 import { authenticated, createHarness, raw, type Harness } from "./server.testing";
 
 let harness: Harness | null = null;
@@ -29,6 +34,7 @@ const record = (over: Partial<RunRecord> = {}): RunRecord => ({
   editCalls: 2,
   failedToolCalls: 0,
   denials: 0,
+  harness: null,
   ...over
 });
 
@@ -73,6 +79,30 @@ describe("GET /api/stats", () => {
   it("needs a session", async () => {
     harness = await createHarness();
     expect((await raw(harness.desk, { path: "/api/stats" })).status).toBe(401);
+  });
+});
+
+describe("GET /api/lessons", () => {
+  it("answers with the runtime's report, an empty one without it, and only with a session", async () => {
+    const report = {
+      candidates: [],
+      belowThreshold: 4,
+      minIssues: 2,
+      currentRepo: "c".repeat(64),
+      invalidLines: 0
+    };
+    harness = await createHarness({ lessons: () => Promise.resolve(report) });
+    const api = await authenticated(harness);
+    expect(lessonReportSchema.parse((await api.get("/api/lessons")).json())).toEqual(report);
+    expect((await raw(harness.desk, { path: "/api/lessons" })).status).toBe(401);
+    await harness.cleanup();
+
+    harness = await createHarness();
+    const bare = await authenticated(harness);
+    expect(lessonReportSchema.parse((await bare.get("/api/lessons")).json())).toMatchObject({
+      candidates: [],
+      belowThreshold: 0
+    });
   });
 });
 

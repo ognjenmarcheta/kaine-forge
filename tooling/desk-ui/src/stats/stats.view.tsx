@@ -1,7 +1,8 @@
-import type { IssueRollup, RunGroup, RunStats } from "@repo/desk/contracts";
+import type { IssueRollup, LessonReport, RunGroup, RunStats } from "@repo/desk/contracts";
 import { Button, Card } from "@repo/ui";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { LessonsPanel } from "./stats.lessons";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { formatCount, formatDuration, formatUsd } from "../shell/shell.format";
@@ -163,12 +164,27 @@ function Report({ stats }: { readonly stats: RunStats }) {
   );
 }
 
-/** Agent runs compared by role, provider, and model, from `runs.jsonl`. It reloads when an issue changes. */
+interface Failure {
+  readonly code: FailureCode;
+  readonly detail: string | null;
+}
+
+const failureOf = (failure: unknown): Failure => {
+  const converted = toApiError(failure);
+  return { code: converted.code, detail: converted.detail };
+};
+
+/**
+ * Agent runs compared by role, provider, and model, from `runs.jsonl`, and the problems seen
+ * in several issues, from `lessons.jsonl`. It reloads when an issue changes.
+ */
 export function StatsView() {
   const t = useT();
   const { api, state } = useDesk();
   const [stats, setStats] = useState<RunStats | null>(null);
-  const [error, setError] = useState<{ code: FailureCode; detail: string | null } | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
+  const [lessons, setLessons] = useState<LessonReport | null>(null);
+  const [lessonsError, setLessonsError] = useState<Failure | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback((): void => {
@@ -179,11 +195,16 @@ export function StatsView() {
         setStats(loaded);
         setError(null);
       })
-      .catch((failure: unknown) => {
-        const converted = toApiError(failure);
-        setError({ code: converted.code, detail: converted.detail });
-      })
+      .catch((failure: unknown) => setError(failureOf(failure)))
       .finally(() => setLoading(false));
+    // Apart from the runs: a lessons failure must not hide the run tables.
+    Promise.resolve()
+      .then(() => api.lessons())
+      .then((loaded) => {
+        setLessons(loaded);
+        setLessonsError(null);
+      })
+      .catch((failure: unknown) => setLessonsError(failureOf(failure)));
   }, [api]);
 
   // A finished run changes its issue, so a changed issue list means new numbers.
@@ -202,6 +223,10 @@ export function StatsView() {
       </div>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {stats !== null ? <Report stats={stats} /> : error === null && <Loading />}
+      {lessonsError !== null && (
+        <FailureText code={lessonsError.code} detail={lessonsError.detail} />
+      )}
+      {lessons !== null && <LessonsPanel report={lessons} />}
     </>
   );
 }

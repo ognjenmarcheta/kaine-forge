@@ -45,19 +45,20 @@ import only Zod, so a browser can use them.
 
 ## Routes
 
-| Method | Path                             | Answer                                                                  |
-| ------ | -------------------------------- | ----------------------------------------------------------------------- |
-| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.      |
-| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                        |
-| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`. |
-| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs. Cached 60 s; `ok: false` + reason.  |
-| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue. |
-| GET    | `/api/events`                    | Event stream. See "Events".                                             |
-| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`. |
-| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.         |
-| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.               |
-| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).      |
-| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.               |
+| Method | Path                             | Answer                                                                    |
+| ------ | -------------------------------- | ------------------------------------------------------------------------- |
+| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.        |
+| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                          |
+| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.   |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs. Cached 60 s; `ok: false` + reason.    |
+| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue.   |
+| GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
+| GET    | `/api/events`                    | Event stream. See "Events".                                               |
+| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.   |
+| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.           |
+| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                 |
+| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).        |
+| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                 |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
 `ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.

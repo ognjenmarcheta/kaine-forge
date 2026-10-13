@@ -13,6 +13,7 @@ import {
   type HealthReport,
   type IssueState,
   type LogResponse,
+  type LessonReport,
   type RunStats,
   type ServerEvent
 } from "../contracts";
@@ -44,6 +45,7 @@ import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
 import { toGithubLists, type OpenWork } from "../github/github.lists";
 import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
+import { aggregateLessons } from "../stats/stats.lessons";
 import type { RunRecords } from "../stats/stats.runs";
 import type { IssueStore } from "../store/store.issue";
 
@@ -65,6 +67,8 @@ export interface DeskServerDeps {
   readonly githubTtlMs?: number | undefined;
   /** `runs.jsonl`, for `GET /api/stats` and the runs in the issue detail. Absent: no runs. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
+  /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
+  readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
   readonly uiDir?: string | null | undefined;
   /** Default 0: the system picks a free port. */
@@ -112,7 +116,15 @@ const ISSUE_NUMBER = /^[1-9]\d{0,8}$/;
 type Route =
   | {
       readonly kind:
-        "session" | "health" | "health-fix" | "github" | "stats" | "events" | "issues" | "unknown";
+        | "session"
+        | "health"
+        | "health-fix"
+        | "github"
+        | "stats"
+        | "lessons"
+        | "events"
+        | "issues"
+        | "unknown";
     }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
@@ -125,6 +137,7 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 2 && resource === "health") return { kind: "health" };
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
+  if (segments.length === 2 && resource === "lessons") return { kind: "lessons" };
   if (segments.length === 2 && resource === "github") return { kind: "github" };
   if (segments.length === 2 && resource === "events") return { kind: "events" };
   if (resource !== "issues") return { kind: "unknown" };
@@ -146,6 +159,7 @@ const METHOD_OF: Readonly<Record<Route["kind"], "GET" | "POST">> = {
   "health-fix": "POST",
   github: "GET",
   stats: "GET",
+  lessons: "GET",
   events: "GET",
   issues: "GET",
   issue: "GET",
@@ -476,6 +490,12 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         const runs = (await deps.readRuns?.()) ?? { records: [], invalidLines: 0 };
         const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()));
         sendJson(response, 200, stats);
+        return;
+      }
+      case "lessons": {
+        const report: LessonReport =
+          (await deps.lessons?.()) ?? aggregateLessons({ records: [], invalidLines: 0 });
+        sendJson(response, 200, report);
         return;
       }
       case "events":
