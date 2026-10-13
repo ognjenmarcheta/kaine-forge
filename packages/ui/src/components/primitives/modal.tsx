@@ -1,3 +1,4 @@
+import { XIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useRef, type ReactNode } from "react";
 
@@ -130,7 +131,7 @@ export function Modal({
                   spacing="compact"
                   type="button"
                 >
-                  x
+                  <XIcon aria-hidden="true" className="size-4" />
                 </Button>
               </Dialog.Close>
             ) : null}

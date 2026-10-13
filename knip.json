@@ -80,6 +80,25 @@
     "tooling/graphql-codegen": {
       "entry": ["codegen.ts", "vitest.config.ts"]
     },
+    "tooling/desk": {
+      "entry": [
+        "src/cli/desk.cli.ts",
+        "src/contracts/*.ts",
+        "*.config.ts",
+        "**/*.test.ts",
+        "docker/desk-*.mjs",
+        "docker/*.test.mjs"
+      ]
+    },
+    "tooling/desk-ui": {
+      "entry": [
+        "src/desk.main.tsx",
+        "*.config.ts",
+        "tests/**/*.e2e.ts",
+        "tests/fixture.server.ts",
+        "src/test/test.setup.ts"
+      ]
+    },
     "tooling/factory-ui": {
       "entry": [
         "src/factory.main.tsx",

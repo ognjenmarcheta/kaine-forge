@@ -1,0 +1,11 @@
+{
+  "number": 9001,
+  "title": "Docs: add a Quick start section to the day-one guide",
+  "body": "### Outcome\n\nNew contributors can see the first three commands to run at the top of the day-one guide, without reading the whole page.\n\n### Acceptance criteria\n\n- [ ] `docs/agents/day-one.md` has a new `## Quick start` heading. It sits directly before the `## 1. Install assistant files` heading.\n- [ ] The new section lists these three commands, in this order, each as a bullet with the command in backticks and one short phrase: `pnpm install`, `pnpm quick-setup`, `pnpm dev`.\n- [ ] The new section has no more than eight lines.\n- [ ] No existing line of `docs/agents/day-one.md` changes. The change only adds lines.\n- [ ] No other file changes.\n\n### Scope\n\n`docs/agents/day-one.md` only.\n\n### Validation\n\ndocs (a Markdown change; `pnpm format:check` covers it)\n\n### Evidence\n\n`docs/agents/day-one.md` starts with the title and goes straight to `## 1. Install assistant files`. The three commands are in `AGENTS.md`, section \"Common Commands\".\n\n### Out of scope\n\nAny change to the other steps of the guide, to `AGENTS.md`, or to code.\n",
+  "url": "https://example.test/desk-fixture/issues/9001",
+  "open": true,
+  "author": "desk-fixture-author",
+  "labels": ["documentation"],
+  "comments": [],
+  "labelEvents": []
+}

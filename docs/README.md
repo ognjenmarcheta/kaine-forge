@@ -33,6 +33,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0007-soft-email-verification.md`](adr/0007-soft-email-verification.md): soft, opt-in email verification.
 - [`adr/0008-adopt-better-auth.md`](adr/0008-adopt-better-auth.md): adopt better-auth as the authentication provider.
 - [`adr/0009-domain-knowledge-as-agent-infra.md`](adr/0009-domain-knowledge-as-agent-infra.md): encode domain knowledge as agent/review infrastructure.
+- [`adr/0011-local-agent-desk.md`](adr/0011-local-agent-desk.md): local agent desk engine, GitHub authorization, and factory retirement path.
 
 ## AI assistant docs
 
@@ -48,6 +49,7 @@ Canonical AI assistant sources live in [`../.ai/`](../.ai/).
 - [`agents/day-one.md`](agents/day-one.md): day-one agent-assisted contribution ramp.
 - [`agents/skill-authoring.md`](agents/skill-authoring.md): how to add product-specific skills.
 - [`agents/automation-gap-audit.md`](agents/automation-gap-audit.md): residual automation opportunities.
+- [`agents/agent-desk.md`](agents/agent-desk.md): operating manual for the local agent desk.
 
 Run `pnpm ai:install` and `pnpm ai:doctor` after editing canonical AI sources.
 

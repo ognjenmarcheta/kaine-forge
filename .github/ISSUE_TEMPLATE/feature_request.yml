@@ -1,19 +1,14 @@
 name: Feature request
 description: Propose an improvement to the template.
 labels: ["type:feat"]
+# The six required fields are the issue format of docs/agents/issue-format.md. Their labels
+# become the headings that the agent desk reads at intake. Keep them in step with that page.
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What gap or friction does this address?
-    validations:
-      required: true
-  - type: textarea
-    id: proposal
-    attributes:
-      label: Proposed solution
-      description: What should change, and where (workspace, package, docs)?
+      label: Outcome
+      description: What is true when this is done? Name the gap or friction it removes.
     validations:
       required: true
   - type: textarea
@@ -27,20 +22,39 @@ body:
   - type: input
     id: area
     attributes:
-      label: Workspace or paths in scope
-      placeholder: e.g. apps/web, packages/ui, .ai/ tooling, or "unknown - investigate first"
+      label: Scope
+      description: Workspaces or paths in scope, or "unknown, investigate first".
+      placeholder: e.g. apps/web, packages/ui, .ai/ tooling
+    validations:
+      required: true
   - type: dropdown
     id: validation-tier
     attributes:
-      label: Validation tier
+      label: Validation
       description: Which checks close the loop? See docs/agents/day-one.md section 5.
       options:
         - "Docs / .ai only — pnpm ai:doctor, pnpm format:check"
         - "Package/app code — pnpm check (plus pnpm build:core for API/web runtime)"
         - "User-visible web/API flow — also pnpm test:e2e"
         - "Unsure"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Where the gap shows today. A path:line, command output, a link, or a screenshot.
+    validations:
+      required: true
   - type: textarea
     id: out-of-scope
     attributes:
       label: Out of scope
-      description: Anything an agent should deliberately not change.
+      description: Anything an agent should deliberately not change, or "None".
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Optional. What should change, and where (workspace, package, docs)?

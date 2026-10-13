@@ -60,5 +60,5 @@ Independent contracts stay even when they are slow or static: public API and Gra
 - Keep fixtures small and explicit.
 - Do not use `any` in tests.
 - Keep user-facing strings in translations even for test-only rendered components.
-- When adding GraphQL operations, run `pnpm generate` and commit generated outputs.
+- When adding GraphQL operations, run `pnpm generate` and include the generated outputs in the change. The author commits them. In an Agent Desk run, the engine commits and the agent never runs `git commit`.
 - In the handoff, name the contract each new test protects and any test you chose not to write.

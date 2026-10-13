@@ -238,7 +238,7 @@ Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/mcp.json`, `.ai
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues for `ognjenmarcheta/kaine-forge` using the `gh` CLI. See `docs/agents/issue-tracker.md`. Write or rewrite every issue body with `kaine-write-issue`, in the six-heading format of `docs/agents/issue-format.md` that the agent desk reads.
 
 ### Triage labels
 

@@ -87,6 +87,28 @@ whether pasting a rule is worth the prompt space, or to test a **candidate**
 rule the repo has not adopted, where arm B is genuinely clean. Say which
 construction a run used; the two are not comparable.
 
+## Calibrate the noise floor first
+
+With `n = 3`, two arms can differ by a full rubric point by chance. A protocol 2
+run (`"protocol": 2`) therefore names a **calibration**: an A/A run of the same
+agent, model and task family, with the rule present in both arms. Record it in
+the `calibrations` list of the data block. It takes `first` and `second` trials,
+three each, each with a transcript citation. The noise floor is the difference
+of the two means, and never less than 0.5, because means at `n = 3` move in
+steps of 1/3. One calibration serves every later run of the same agent, model
+and task family. Calibrate again after a model or CLI upgrade.
+
+`pnpm harness:eval` refuses a protocol 2 run whose words the arithmetic does
+not back:
+
+- `effect` needs `|Δ|` above the noise floor.
+- `no-effect` needs `|Δ|` within it.
+- `inconclusive` never pairs with `keep`, `delete`, or `promote-to-lint`, under
+  any protocol. It means "not enough to decide", so its action is `tighten` and
+  another measurement.
+
+Record every new run as protocol 2. Older runs stay as they were recorded.
+
 ## Which rules are worth measuring
 
 Only rules whose efficacy is genuinely in doubt **and** that reach the trial
@@ -139,7 +161,9 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    checkable claim a trial makes by reproducing it — suite counts, file scope,
    insertion counts, exit codes. A claim you did not reproduce is not scored.
 5. Score each trial against the rubric in `docs/agents/harness-evals.md` and
-   collect the metrics the rule calls for.
+   collect the metrics the rule calls for. Check that the trial solved the task
+   it was given. A trial that redefines the task, or quietly drops part of it,
+   scores 1 and gets the metric `offTask: 1`, however good its output reads.
 6. Restore every stripped file, `pnpm ai:install`, and confirm
    `pnpm ai:doctor --strict` exits 0. Then append the run to the
    `harness-eval:data` block and render:
@@ -163,10 +187,17 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    the rule and the check that replaces it. Acting is not optional — an eval
    nobody acts on is worse than no eval, because it costs the run and buys
    nothing.
+9. After a rule change merges, check the whole harness too. One rule can win
+   its own eval and still make the desk worse. Run
+   `pnpm desk stats --by-harness` and compare the rows of the new `repo` hash
+   with the rows of the old one: accepted runs, stuck stops, cost per run. With
+   fewer than 10 runs per role under the new hash, the answer is "insufficient":
+   say so and look again later. A clear drop is a reason to revert the change.
 
 ## Reporting
 
 State the rule, the file it was stripped from, the construction used, the
-per-arm verdict means and the delta, the conclusion, and the action. Say plainly
+per-arm verdict means and the delta, the calibration and its noise floor, the
+conclusion, and the action. Say plainly
 that `n = 3` detects only large effects, and name the model, the agent and the
 CLI version — a result for one does not transfer to another.

@@ -1,7 +1,7 @@
 import { actionSchema, stateSchema } from "@repo/factory-ui/contracts";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -52,7 +52,8 @@ const record = (id: string) =>
     invocations: []
   });
 beforeEach(() => {
-  folder = mkdtempSync(path.join(tmpdir(), "factory-coordination-test-"));
+  // Git prints real paths; macOS tmpdir() is a symlink, so compare real paths only.
+  folder = realpathSync(mkdtempSync(path.join(tmpdir(), "factory-coordination-test-")));
   git(folder, ["init"]);
   git(folder, ["config", "user.name", "Test Owner"]);
   git(folder, ["config", "user.email", "owner@example.com"]);
@@ -65,7 +66,7 @@ afterEach(async () => {
   await dashboard?.close();
   dashboard = undefined;
   vi.restoreAllMocks();
-  if (!path.dirname(folder).startsWith(path.resolve(tmpdir())))
+  if (!path.dirname(folder).startsWith(realpathSync(tmpdir())))
     throw new Error("Unsafe test cleanup");
   rmSync(folder, { recursive: true, force: true });
 });

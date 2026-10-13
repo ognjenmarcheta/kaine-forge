@@ -59,6 +59,8 @@
     "eval:assistant:review": "pnpm --filter @repo/api eval:assistant review",
     "agent:run": "tsx .ai/agent-run.ts",
     "factory": "tsx .ai/factory.ts",
+    "desk": "tsx tooling/desk/src/cli/desk.cli.ts",
+    "desk:ui": "pnpm --filter @repo/desk-ui dev",
     "agent:report": "tsx .ai/run-report.ts",
     "agent:outcome": "tsx .ai/run-report.ts outcome",
     "harness:context": "tsx .ai/context-experiment.ts",
