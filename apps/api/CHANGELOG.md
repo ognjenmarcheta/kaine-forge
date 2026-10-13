@@ -1,5 +1,12 @@
 # @repo/api
 
+## 1.8.2
+
+### Patch Changes
+
+- Updated dependencies [cb7174c]
+  - @repo/translation@1.5.0
+
 ## 1.8.1
 
 ### Patch Changes
