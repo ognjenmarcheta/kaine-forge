@@ -96,7 +96,10 @@ on every install; `.serena/project.local.yml` remains the personal override:
 - `excluded_apis: [shell, fs.create_text_file]`, which steers the REPL to the agent's
   own shell and editors. It is not enforcement.
 - `included_apis: [lsp.get_diagnostics_for_symbol, lsp.restart_language_server]`, two
-  optional REPL operations for per-symbol checks and stale tsserver recovery.
+  optional REPL operations for per-symbol checks and stale tsserver recovery. In
+  Serena 2.0.0, diagnostics return an empty result when their 5-second wait times out,
+  for example on the first call after start. Empty diagnostics are therefore not proof
+  of a clean file; the guide requires `git diff` and the package typecheck instead.
 - `read_only_memory_patterns: [".*"]`, because memories are generated from
   `.ai/serena-memories/`. `mem:core` is their entry point.
 
