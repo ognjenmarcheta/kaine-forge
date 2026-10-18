@@ -1,5 +1,11 @@
 # @repo/desk
 
+## 0.1.2
+
+### Patch Changes
+
+- cdbf45d: Desk worktrees install Serena v2 with the classic tools interface, and the desk denies and flags the `serena_repl` tool.
+
 ## 0.1.1
 
 ### Patch Changes
