@@ -102,7 +102,8 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     }
   }
 
-  // legacy unsalted sha256 hashes, rehashed on next successful login
+  // Legacy unsalted sha256 hashes from before the 2026-07-04 migration, rehashed
+  // on next successful login. Removal and its trigger are tracked in issue #499.
   return constantTimeEquals(
     Buffer.from(createHash("sha256").update(password).digest("hex")),
     Buffer.from(storedHash)
