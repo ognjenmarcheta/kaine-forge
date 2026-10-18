@@ -135,7 +135,7 @@ const main = async () => {
   if (
     agent === "claude" &&
     health.serenaPrompt &&
-    !["ready", "disabled"].includes(health.serenaPrompt)
+    !["ready", "disabled", "not-applicable"].includes(health.serenaPrompt)
   )
     lines.push("- Serena prompt unavailable; run pnpm ai:install --agent claude --prepare-serena");
   if (health.startupContext) lines.push(health.startupContext);

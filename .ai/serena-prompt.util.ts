@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { controllerEnvironment } from "./agent-run.util";
 import { type McpServer } from "./ai.util";
+import { isPinnedUvxSource } from "./mcp-probe.util";
 import { stopProcessTree } from "./process-cleanup.util";
 
 const cacheSchema = z.object({
@@ -25,19 +26,26 @@ function preparationArgs(server: McpServer) {
   if (
     server.command !== "uvx" ||
     args[0] !== "--from" ||
-    !source ||
-    !/^git\+\S+@[a-f0-9]{40}$/.test(source) ||
+    !isPinnedUvxSource(source) ||
     args[2] !== "serena" ||
     args[3] !== "start-mcp-server"
   )
     throw new Error(
-      "Unsupported Serena override: prompt preparation requires uvx --from <Git URL pinned to a commit> serena start-mcp-server"
+      "Unsupported Serena override: prompt preparation requires uvx --from <commit-pinned Git URL or package==x.y.z> serena start-mcp-server"
     );
   return ["--from", source, "serena", "prompts", "print-cc-system-prompt-override"];
 }
 
+/** Serena's Claude prompt override names classic tools only; it does not describe the REPL. */
+export function usesSerenaRepl(server: McpServer) {
+  const args = server.args ?? [];
+  const index = args.indexOf("--agent-interface");
+  return index >= 0 && args[index + 1]?.toUpperCase() === "REPL";
+}
+
 export function inspectSerenaPrompt(root: string, server?: McpServer) {
   if (!server) return { status: "disabled" as const };
+  if (usesSerenaRepl(server)) return { status: "not-applicable" as const };
   try {
     preparationArgs(server);
   } catch {

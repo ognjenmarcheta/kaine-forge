@@ -123,8 +123,12 @@ export const EDIT_TOOLS: ReadonlySet<string> = new Set([
   ...SERENA_EDIT
 ]);
 
-/** Serena tools that write memory or run shell commands. Memory files are tracked, so a write dirties the diff. */
+/**
+ * Serena tools that write memory or run shell commands. Memory files are tracked, so a write dirties the diff.
+ * `serena_repl` runs arbitrary Python; desk worktrees install the classic tools interface instead.
+ */
 export const FORBIDDEN_SERENA_TOOLS: readonly string[] = [
+  "serena_repl",
   "write_memory",
   "edit_memory",
   "delete_memory",

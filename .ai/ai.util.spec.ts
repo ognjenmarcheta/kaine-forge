@@ -414,6 +414,7 @@ describe("lintDomainKnowledgeArtifacts", () => {
     contributingContent: "## Day-one agent ramp\n\nSee `docs/agents/day-one.md`.\n",
     dayOneExists: true,
     serenaMemoryNames: [
+      "core.md",
       "architecture_patterns.md",
       "coding_standards.md",
       "domain_overview.md",

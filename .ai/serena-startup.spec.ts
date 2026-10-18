@@ -15,34 +15,48 @@ import { parse as parseYaml } from "yaml";
 
 import {
   checkSerenaProjectSemantics,
-  mergeSerenaWorkspaceFolders,
+  mergeSerenaProjectSeed,
   readMcpSource,
   resolveInstallMcpSource
 } from "./ai.util";
 import { installedServers } from "./readiness";
 
+const flagValue = (args: string[] | undefined, flag: string) => args?.[args.indexOf(flag) + 1];
+
 it.each(["codex", "claude"] as const)(
-  "binds %s Serena to the workspace with its native context",
+  "binds %s Serena to the workspace with its native context and the REPL by default",
   (agent) => {
     const source = readMcpSource();
     const previousArgs = [...(source.mcpServers.serena?.args ?? [])];
-    const installed = resolveInstallMcpSource(source, {
-      agent,
-      mcps: ["serena"],
-      personalNames: new Set(),
-      localEnv: {}
-    }).source.mcpServers.serena;
+    const install = (serenaInterface?: "tools") =>
+      resolveInstallMcpSource(source, {
+        agent,
+        mcps: ["serena"],
+        personalNames: new Set(),
+        localEnv: {},
+        ...(serenaInterface ? { serenaInterface } : {})
+      }).source.mcpServers.serena;
+    const installed = install();
     expect(installed?.args).toContain("--project-from-cwd");
-    expect(
-      installed?.args?.slice(
-        installed.args.indexOf("--context"),
-        installed.args.indexOf("--context") + 2
-      )
-    ).toEqual(["--context", agent === "codex" ? "codex" : "claude-code"]);
+    expect(flagValue(installed?.args, "--context")).toBe(
+      agent === "codex" ? "codex" : "claude-code"
+    );
+    expect(flagValue(installed?.args, "--agent-interface")).toBe("REPL");
+    expect(flagValue(install("tools")?.args, "--agent-interface")).toBe("tools");
     expect(installed?.args?.[1]).toBe(previousArgs[1]);
     expect(source.mcpServers.serena?.args).toEqual(previousArgs);
   }
 );
+
+it("keeps the canonical classic tools interface for other agents", () => {
+  const installed = resolveInstallMcpSource(readMcpSource(), {
+    agent: "cursor",
+    mcps: ["serena"],
+    personalNames: new Set(),
+    localEnv: {}
+  }).source.mcpServers.serena;
+  expect(flagValue(installed?.args, "--agent-interface")).toBe("tools");
+});
 
 it("preserves a personal Serena launch and other personal servers", () => {
   const serena = { command: "personal-serena", args: ["--context", "mine"] };
@@ -56,9 +70,12 @@ it("preserves a personal Serena launch and other personal servers", () => {
   expect(result.source).toEqual(source);
 });
 
-it.each([true, false])(
-  "keeps installation and readiness aligned with uvx available=%s without changing selections or personal settings",
-  (launcherAvailable) => {
+it.each([
+  [true, "tools"],
+  [false, "REPL"]
+] as const)(
+  "keeps installation and readiness aligned with uvx available=%s and the %s interface without changing selections or personal settings",
+  (launcherAvailable, serenaInterface) => {
     const root = mkdtempSync(path.join(tmpdir(), "kaine-serena-install-"));
     const bin = path.join(root, "bin");
     const env = { ...process.env, PATH: bin };
@@ -97,6 +114,8 @@ it.each([true, false])(
         "claude",
         "--mcp",
         "serena",
+        "--serena-interface",
+        serenaInterface,
         "--non-interactive"
       ]);
       const firstCodex = readFileSync(path.join(root, ".codex/config.toml"), "utf8");
@@ -122,6 +141,11 @@ it.each([true, false])(
       expect(readFileSync(path.join(root, ".mcp.json"), "utf8")).toBe(firstClaude);
       expect(installedServers("claude", root).serena?.args).toContain("claude-code");
       expect(installedServers("codex", root).serena?.args).toContain("codex");
+      // A rerun without the flag keeps the recorded interface.
+      for (const agent of ["codex", "claude"] as const)
+        expect(flagValue(installedServers(agent, root).serena?.args, "--agent-interface")).toBe(
+          serenaInterface
+        );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -138,25 +162,61 @@ it("adds existing workspace roots without reverting Serena migrations, comments,
   try {
     mkdirSync(path.join(root, "apps/web"), { recursive: true });
     writeFileSync(path.join(root, "apps/web/tsconfig.json"), "{}");
-    const merged = mergeSerenaWorkspaceFolders(seed, previous, root);
+    const merged = mergeSerenaProjectSeed(seed, previous, root);
     expect(parseYaml(merged)).toMatchObject({
       activation_command_timeout: 180,
       ls_additional_workspace_folders: ["external", "apps/web"]
     });
     expect(merged).toContain("# personal comment");
     expect(merged).toContain("# keep this comment");
-    expect(mergeSerenaWorkspaceFolders(seed, merged, root)).toBe(merged);
+    expect(mergeSerenaProjectSeed(seed, merged, root)).toBe(merged);
     expect(checkSerenaProjectSemantics(seed, previous, root)).toEqual([
       'workspace folder "apps/web" is not configured'
     ]);
     expect(checkSerenaProjectSemantics(seed, merged, root)).toEqual([]);
     expect(() =>
-      mergeSerenaWorkspaceFolders(seed, "ls_additional_workspace_folders: personal", root)
+      mergeSerenaProjectSeed(seed, "ls_additional_workspace_folders: personal", root)
     ).toThrow("Invalid installed Serena workspace folders");
-    expect(() => mergeSerenaWorkspaceFolders(seed, "a: [unclosed", root)).toThrow(
+    expect(() => mergeSerenaProjectSeed(seed, "a: [unclosed", root)).toThrow(
       "Invalid installed Serena project YAML"
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+it("resets seed-owned settings in an existing install and drops the deprecated base_modes key", () => {
+  const seed = [
+    "project_name: kaine-forge",
+    "line_ending: lf",
+    "excluded_apis: [shell]",
+    'read_only_memory_patterns: [".*"]',
+    ""
+  ].join("\n");
+  const previous = [
+    "# personal comment",
+    "project_name: kaine-forge",
+    "base_modes:",
+    "line_ending: crlf",
+    "excluded_apis: []",
+    "symbol_info_budget: 3",
+    ""
+  ].join("\n");
+  expect(checkSerenaProjectSemantics(seed, previous)).toEqual([
+    "line_ending differs from the seed",
+    "excluded_apis differs from the seed",
+    "read_only_memory_patterns differs from the seed"
+  ]);
+  const merged = mergeSerenaProjectSeed(seed, previous);
+  const parsed: unknown = parseYaml(merged);
+  expect(parsed).toEqual({
+    project_name: "kaine-forge",
+    line_ending: "lf",
+    excluded_apis: ["shell"],
+    symbol_info_budget: 3,
+    read_only_memory_patterns: [".*"]
+  });
+  expect(merged).toContain("# personal comment");
+  expect(checkSerenaProjectSemantics(seed, merged)).toEqual([]);
+  expect(mergeSerenaProjectSeed(seed, merged)).toBe(merged);
 });
