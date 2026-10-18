@@ -1357,6 +1357,393 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Not enabled on this repository"
         }
       ]
+    },
+    {
+      "date": "2026-10-18",
+      "commit": "c794e07c2777aace371ee343bf4dfa8d4508de32",
+      "mode": "fan-out",
+      "agent": "claude",
+      "overall": 7.6,
+      "dimensions": {
+        "1": {
+          "score": 8,
+          "evidence": "New tooling workspaces follow @repo/* naming; @repo/desk declares exports (tooling/desk/package.json:6-9), @repo/factory-ui exports only ./contracts (tooling/factory-ui/package.json:6-8), @repo/desk-ui is a leaf Vite app; 0 deep @repo/*/src imports, no app or package imports tooling; knip has explicit entries per new workspace (knip.json:83-109); pnpm boundaries exit 0 (984 files, 22 packages), knip exit 0. Observed: the server-only client import block (packages/config/eslint/base.js:77) does not cover tooling/desk-ui and tooling/factory-ui although react.js:56-57 treats them as DOM apps (no violation today); turbo boundaries runs without tag rules"
+        },
+        "2": {
+          "score": 7,
+          "evidence": "Down 1 with reproduced cause: turbo run test --filter=@repo/desk --dry=json hashes 310 inputs and none of the root files its tests read (.github/pull_request_template.md read at tooling/desk/src/ship/ship.pr-body.test.ts:12, .github/workflows/ci-pr.yml at ship.changeset.test.ts:122, docs/agents/day-one.md at github.snapshot-fixture.test.ts:14, root commitlint.config.mjs via ship.message.test.ts:16-19); no tooling/*/turbo.json exists, and the Release run on c794e07 reported 32 of 35 test-phase tasks cached, so a stale desk result can pass on main. @repo/config#test scans tooling sources (monorepo-alignment.test.ts:909) but hashes only {apps,packages}/*/src/** (packages/config/turbo.json:27). Global hash still minimal (turbo.json:5). Observed carry-over: @repo/desktop#build builds @repo/web inline without an edge (apps/desktop/package.json:8,21); no automated inputs-versus-reads check"
+        },
+        "3": {
+          "score": 8,
+          "evidence": "Binding hold lifted: rulesets 12994169 and 23204248 are active on main and require PR Quality Gate + Analyze TypeScript (gh api repos/.../rules/branches/main); the rule file .github/rulesets/main.json:31-34 is contract-tested against job names (scripts/pr-quality-gate.test.mjs:122-153, monorepo-alignment.test.ts:185-219) and the gate needs every job (pr-quality-gate.test.mjs:104-120); every job has timeout-minutes and every workflow a concurrency block; #456 runs-on expression evaluated for every job (pr-quality-gate.test.mjs:194-254). PR 39166806480 wall clock 6m37s, Docker Image (api) 4m18s on the critical path. Observed: docker-cache.yml:17-31 path list and the ci-pr.yml:218-220 node --test list stay aligned by comment only; two Trivy passes plus SBOM in the image job (ci-pr.yml:469-507); tooling tests are absent from the PR path (see dim 4)"
+        },
+        "4": {
+          "score": 7,
+          "evidence": "Down 1 with cause: PR CI never runs tooling workspace tests: Check Fast runs only format:check/lint/typecheck on pull_request (ci-pr.yml:206-213), the coverage projects list has no tooling/* entry (vitest.coverage.config.ts:5-22) and coverage excludes tooling/** without a reason (:51); the PR 488 log has 0 @repo/desk:test lines, while Release on main runs them (cache miss line in run 39166160803), so about 2,200 desk tests first run after merge. The 09-10 conditions for 9 are otherwise met: notes.tenancy.test.ts:1-17,225-345 drives real GraphQL over HTTP through Yoga with a session, and assistant-composer.test.tsx:61-62 renders a component. Coverage on PR 39166806480: 163 files, statements 61.1 / branches 47.32 / functions 49.32 / lines 62.15 vs floors 45/45/40/38. Observed: cross-org e2e still todos-only (web-organization-isolation.e2e.ts:54); invitation e2e skipped (web-invitation-attachment.e2e.ts:17-20); 5 of 17 web tests read source text; floors 13-17 points below measured"
+        },
+        "5": {
+          "score": 8,
+          "evidence": "Binding raise condition met: #356 closed and the grouped npm updater run succeeded on 2026-10-12 (26 updates, merged as #471); minimumReleaseAge 4320 matches the Dependabot cooldown (pnpm-workspace.yaml:71-80, dependabot.yml:19-22); catalog gate requires catalog: for any dependency in two or more workspaces (monorepo-alignment.test.ts:574-642); every ignoreGhsas entry has a reason and an issue (#457, #469; pnpm-workspace.yaml:82-92) and both advisories still list no patched version; overrides are caret floors bar the documented metro>image-size pin (:97); five ecosystems with groups and ignores (dependabot.yml:10-178); pnpm audit --audit-level high exit 0 (2 ignored); Dependabot alerts 1 high (node-forge, accepted) / 6 medium / 2 low. Observed: individual security-update runs fail for six transitive packages; the catalog gate skips the root manifest so eslint ^9.35.0 is declared twice (package.json:108, packages/config/package.json:38); tailwindcss and @clack/prompts majors outside ignores"
+        },
+        "6": {
+          "score": 8,
+          "evidence": "Release green on the last five main commits (latest 39166160803 at c794e07) and version PR #486 merged; release:apps runs after check:ci, build:core and test:e2e (release.yml:80-91); #376 no-op is a tested pure function (originSyncState, .ai/release.util.spec.ts:81); Dockerfile.api:5 and Dockerfile.web:5,34 digest-pinned with Dependabot digest updates and Node-major ignores (dependabot.yml:121-135); new tooling packages are private and not deployable (only Dockerfile.api and Dockerfile.web exist). Not 9: the git path of .ai/release-apps.ts:168-306 (fetch, merge-base, update-ref, push) still has no test"
+        },
+        "7": {
+          "score": 7,
+          "evidence": "Down 1 with cause: the repository is public and code scanning holds 28 open alerts created 2026-09-13..27 with no triage (15 CodeQL, 13 Trivy); the main-branch Trivy alerts come only from manual workflow_dispatch runs (09-13, 09-27) because ci-pr.yml runs on pull_request/merge_group/workflow_dispatch only, so main's image state is never rescanned; the web runner stage (Dockerfile.web:34) never upgrades Alpine packages, unlike Dockerfile.api:7-11, and PR 488's scan shows 5 fixable HIGH OS CVEs (pcre2, tiff, libexpat x2, libx11) that pass because the gate fails only on CRITICAL (ci-pr.yml:492-499); scrypt cost N=16384 (packages/auth/src/auth.password.ts:11) is below the OWASP floor of 2^17 and an unsalted SHA-256 verify fallback has no sunset (:102-106). Still strong: audit exit 0, Gitleaks green, secret scanning + push protection on with 0 alerts, Dependency Review on PRs (ci-pr.yml:124-146), production CORS fails closed (server.config.ts:53-58), notes tenancy proven over HTTP. Most CodeQL highs checked are false positives (auth.util.ts slug regex, notes.hook.ts computed keys, client-only email regex). Observed carry-over: cookie attributes and server password minimum implicit (auth.instance.ts:131-152,174-176); no sweeping tenancy contract"
+        },
+        "8": {
+          "score": 8,
+          "evidence": "Every pnpm script named in README.md, CONTRIBUTING.md and docs/agents/day-one.md exists in package.json; bootstrap excludes the Tauri build (package.json:45, monorepo-alignment.test.ts:171); scripts/doctor.mjs:146-172 warns on missing Rust and checks Docker (:274-289); #406 Windows setup fixes; create:feature generator (#385). Observed: .vscode/launch.json:28-30 vitest debug still runs from the root with no workspace config; on a Windows host pnpm check fails in @repo/desk (29 tests: symlinks, POSIX paths) and only docs/agents/agent-desk.md:693-696 says so, with no troubleshooting entry and no platform guard"
+        },
+        "9": {
+          "score": 8,
+          "evidence": "pnpm ai:doctor --strict exit 0 (all five agent contracts pass); 09-10 Serena drift fixed (.ai/serena-memories/task_completion_checklist.md:14, suggested_commands.md:14-15); MONOREPO_GUIDE.md:47-49,280 and README.md:35 describe the desk and factory; ADR 0010 and 0011 added; 24 skills match the AGENTS.md index; some facts are manifest-derived (monorepo-alignment.test.ts:94,420-455,690). Not 9: no test checks documented script names or the guide's workspace tree against manifests. Observed: kaine-adopt-template.md:37 keeps the legacy src-tauri/target glob unexplained; .ai/context-audit.ts:99 counts guide words but enforces no ceiling (.ai/guide.md 251 lines)"
+        },
+        "10": {
+          "score": 7,
+          "evidence": "Baseline. Offline tier gated in CI: the assistant golden set covers 8 of 9 tools (assistant.tools.ts:30-138 vs assistant.eval.data.ts:54-109), assistant.eval.test.ts:57-126 asserts tool existence, refusals and rubric coverage, assistant.ai-runtime.test.ts pins the system prompt (:217), scope forwarding (:227), an 8-step cap (:239) and call/result pairing (:292), and foreign-organization writes are rejected through real adapters (assistant.eval.fixture.test.ts:79); telemetry records provider, model, tokens, duration, steps, tool calls and failure category (apps/api/src/ai.telemetry.ts:9-18) with an exact-key test that blocks content (assistant.ai-runtime.test.ts:414-438); harness ledger holds 4 runs / 24 trials validated by .ai/harness-eval.spec.ts:55-59 in ai:test; desk run records carry a harness fingerprint (tooling/desk/src/contracts/run-metrics.contract.ts:20-77). Not 9: live evals are opt-in and write to gitignored .ai.local/ (assistant.eval.cli.ts:53-61), so no committed baseline or regression gate exists; the write-tool floor is a hand-kept list (assistant.eval.test.ts:33-41); updateNote has no expected-call case"
+        }
+      },
+      "findings": [
+        {
+          "slug": "ci-tooling-tests-skip-pr-gate",
+          "title": "ci: tooling workspace tests never run on pull requests, so desk regressions first fail after merge",
+          "dimension": 4,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 489
+        },
+        {
+          "slug": "desk-test-inputs-missing-root-files",
+          "title": "build: the tooling/desk test hash omits the root files its tests read",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "open",
+          "issue": 490
+        },
+        {
+          "slug": "web-image-os-packages-not-refreshed",
+          "title": "security: the web image ships fixable high alpine cves because its runner stage never upgrades packages",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "open",
+          "issue": 491
+        },
+        {
+          "slug": "code-scanning-alerts-untriaged",
+          "title": "security: 28 code scanning alerts sit untriaged on the public repository",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "open",
+          "issue": 493
+        },
+        {
+          "slug": "scrypt-cost-below-owasp",
+          "title": "auth: the scrypt cost n=16384 is below the owasp minimum",
+          "dimension": 7,
+          "ladderRank": 3,
+          "disposition": "open",
+          "issue": 492
+        },
+        {
+          "slug": "legacy-sha256-verify-no-sunset",
+          "title": "auth: the unsalted sha256 verify fallback has no removal plan",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "open",
+          "reason": "Folded into the scrypt-cost-below-owasp proposal",
+          "issue": 492
+        },
+        {
+          "slug": "config-test-inputs-omit-tooling-sources",
+          "title": "build: the packages/config test hash omits tooling sources its vitest scan reads",
+          "dimension": 2,
+          "ladderRank": 4,
+          "disposition": "open",
+          "reason": "Folded into the desk-test-inputs-missing-root-files proposal",
+          "issue": 490
+        },
+        {
+          "slug": "coverage-tooling-exclusion-unexplained",
+          "title": "testing: tooling/** is excluded from coverage with no recorded reason",
+          "dimension": 4,
+          "ladderRank": 5,
+          "disposition": "open",
+          "reason": "Folded into the ci-tooling-tests-skip-pr-gate proposal",
+          "issue": 489
+        },
+        {
+          "slug": "main-trivy-alerts-stale-no-main-scan",
+          "title": "security: main-branch trivy alerts come only from manual runs, so they never close",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "open",
+          "reason": "Folded into the code-scanning-alerts-untriaged proposal",
+          "issue": 493
+        },
+        {
+          "slug": "cors-429-reflects-origin-without-allowlist",
+          "title": "api: the rate-limit 429 path reflects any origin with credentials when no allowlist is set",
+          "dimension": 7,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Production cannot start without the allowlist (server.config.ts:53-58); 429 body has no data"
+        },
+        {
+          "slug": "eval-no-regression-baseline",
+          "title": "eval: live assistant quality has no committed baseline or regression gate",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Live evals are deliberately opt-in and cost money; a committed summary ledger is the upgrade"
+        },
+        {
+          "slug": "release-apps-git-path-untested",
+          "title": "release: release:apps fetch, ancestry and push path has no test",
+          "dimension": 6,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Carried as the 09-10 condition for 9"
+        },
+        {
+          "slug": "windows-desk-tests-undocumented-for-check",
+          "title": "dx: windows-host pnpm check fails in @repo/desk with no troubleshooting entry or guard",
+          "dimension": 8,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "Documented only in agent-desk.md:693-696; Linux CI is green"
+        },
+        {
+          "slug": "client-import-block-skips-tooling-ui",
+          "title": "eslint: the server-only import restriction skips desk-ui and factory-ui",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Latent; no violation today"
+        },
+        {
+          "slug": "doc-script-refs-not-gated",
+          "title": "docs: documented pnpm scripts are not checked against package.json",
+          "dimension": 9,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "All resolve today; the known band-8 ceiling"
+        },
+        {
+          "slug": "eval-write-tools-hand-list",
+          "title": "eval: the assistant write-tool floor checks a hand-kept list",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "eval-update-note-no-golden-call",
+          "title": "eval: updateNote has no expected-call golden case",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "harness-ledger-render-drift-ungated",
+          "title": "harness-eval: generated ledger region drift is not checked",
+          "dimension": 10,
+          "ladderRank": 9,
+          "disposition": "observed"
+        },
+        {
+          "slug": "telemetry-org-scope-untested",
+          "title": "telemetry: organization scope on model-call logs is not asserted",
+          "dimension": 10,
+          "ladderRank": 9,
+          "disposition": "observed"
+        },
+        {
+          "slug": "adopt-template-dead-tauri-glob",
+          "title": "skills: kaine-adopt-template keeps the legacy src-tauri/target glob unexplained",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "observed"
+        },
+        {
+          "slug": "ai-guide-no-size-budget",
+          "title": "ai: the context audit reports guide size but enforces no ceiling",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "observed"
+        },
+        {
+          "slug": "dependabot-npm-updater-red-types-node",
+          "title": "deps: the Dependabot npm updater job ends in error on @types/node every run",
+          "dimension": 5,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 356,
+          "reason": "#356 closed; grouped npm updater green 2026-10-12 (#471)"
+        },
+        {
+          "slug": "red-prs-merged-without-required-checks",
+          "title": "process: pull requests with failing checks reach main because required checks are not enforced",
+          "dimension": 3,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 325,
+          "reason": "#325 closed; rulesets active with required checks"
+        },
+        {
+          "slug": "required-status-checks-not-enforced",
+          "title": "ci: no required status checks, the ruleset is not imported on this repository",
+          "dimension": 3,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "Rulesets 12994169 and 23204248 active on main"
+        },
+        {
+          "slug": "code-scanning-uploads-disabled",
+          "title": "security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "Enabled after the public flip; superseded by code-scanning-alerts-untriaged"
+        },
+        {
+          "slug": "no-schema-level-graphql-test",
+          "title": "testing: no test runs a session-scoped feature operation through the schema",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "apps/api/src/features/notes/notes.tenancy.test.ts"
+        },
+        {
+          "slug": "deep-checks-red-until-next-schedule",
+          "title": "ci: Deep Checks is red on its last runs, all before the mobile export fix",
+          "dimension": 3,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "Scheduled Deep Checks green 2026-10-16 (38867999412)"
+        },
+        {
+          "slug": "serena-memories-minor-drift",
+          "title": "docs: serena task_completion_checklist omits boundaries/knip and suggested_commands omits pnpm preflight",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "fixed",
+          "reason": "task_completion_checklist.md:14, suggested_commands.md:14-15"
+        },
+        {
+          "slug": "desktop-build-hash-omits-web",
+          "title": "build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "observed",
+          "reason": "Unchanged; cache:false bounds it"
+        },
+        {
+          "slug": "auth-cookie-password-policy-implicit",
+          "title": "security: cookie attributes and server password minimum rely on better-auth defaults",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "observed",
+          "reason": "Unchanged (auth.instance.ts:131-152,174-176)"
+        },
+        {
+          "slug": "test-input-coverage-not-gated",
+          "title": "build: no automated check that files a test reads appear in its turbo inputs",
+          "dimension": 2,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Unchanged; desk-test-inputs-missing-root-files is its first new instance"
+        },
+        {
+          "slug": "e2e-cross-org-todos-only",
+          "title": "testing: cross-organization isolation is asserted for todos only",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Notes now proven below the browser by notes.tenancy.test.ts"
+        },
+        {
+          "slug": "web-tests-source-string-assertions",
+          "title": "testing: web feature tests assert on source text, no rendered component tests",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "5 of 17 still read source text; rendered tests now exist"
+        },
+        {
+          "slug": "tenancy-enforced-by-convention",
+          "title": "security: no contract test or lint guarantees every resolver resolves scope from session",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Unchanged"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Six runs failed 2026-10-12 (postcss-selector-parser, uuid, @humanfs/node, fast-copy, @babel/core, glib)"
+        },
+        {
+          "slug": "docker-image-job-dominated-by-scan-export",
+          "title": "ci: the api image job spends about 3m40s on image load, two Trivy passes, and SBOM after a 30s compile",
+          "dimension": 3,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Image job 4m18s of 6m37s on PR 39166806480"
+        },
+        {
+          "slug": "docker-cache-path-list-comment-only",
+          "title": "ci: docker-cache.yml path list and pins match ci-pr.yml by comment only",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Lists identical today"
+        },
+        {
+          "slug": "ci-scripts-test-list-comment-only",
+          "title": "ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Lists identical today (eight node tests)"
+        },
+        {
+          "slug": "majors-uncovered-by-ignore-or-287",
+          "title": "deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Unchanged"
+        },
+        {
+          "slug": "eslint-duplicate-resolution",
+          "title": "deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Root and packages/config both declare ^9.35.0; the catalog gate skips the root manifest"
+        },
+        {
+          "slug": "knip-ignore-stale-and-laundering",
+          "title": "tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "zod and @repo/config still in knip.json:112-123"
+        },
+        {
+          "slug": "launch-json-vitest-config-broken",
+          "title": "dx: .vscode/launch.json vitest debug config runs from the root without a vitest config",
+          "dimension": 8,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "Unchanged (.vscode/launch.json:28-30)"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -1564,6 +1951,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Dims | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | ---- | -------------- |
+| 2026-10-18 | `c794e07` | fan-out    | claude   | **7.6** | 10   | 11             |
 | 2026-09-10 | `cd623ee` | fan-out    | claude   | **7.8** | 9    | 14             |
 | 2026-09-09 | `7e867a9` | fan-out    | claude   | **7.7** | 9    | 4              |
 | 2026-09-09 | `c4189a5` | sequential | claude   | **7.4** | 9    | 9              |
@@ -1572,63 +1960,69 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 9    | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 9    | 2              |
 
-### Latest scorecard — 2026-09-10 (`cd623ee`, fan-out)
+### Latest scorecard — 2026-10-18 (`c794e07`, fan-out)
 
-| #   | Dimension                | Score    |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| --- | ------------------------ | -------- | ------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 8.0      | `████████░░` | 0   | Server-only regex defined at packages/config/eslint/base.js:14-15 and applied in both client blocks (:95, :121), contract-tested at monorepo-alignment.test.ts:707-741; 0 deep @repo/*/src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | dist imports and every @repo/x/y subpath in use maps to a declared exports key; all 13 packages declare exports; knip exit 0; pnpm boundaries green (1137 files, 19 packages) once the pre-#365 Tauri target dir was removed; Mobile Export green on PR CI. Observed unchanged: knip.json:76-78 ignores two undeclared deps and unused zod (packages/auth/package.json:81); @repo/logger reachable from mobile by design; one @boundaries-ignore |
-| 2   | Build & Cache            | 8.0      | `████████░░` | 0   | #366 closed the test-hash gap: @repo/config#test dry-run has 561 inputs including .github/rulesets/main.json, all 7 workflow ymls, Dockerfile.api/web, MONOREPO_GUIDE.md, DESIGN_SYSTEM.md, .gitignore, root package.json and turbo.json; every root path read by packages/config/*.test.ts is hashed (0 missing); @repo/ui#test hashes DESIGN_SYSTEM.md; lists pinned at monorepo-alignment.test.ts:856-891; global hash exactly pnpm-workspace.yaml + tsconfig.base.json; .tauri-target and .claude/worktrees/ gitignored and outside every hash. Observed: @repo/desktop#build still depends only on @repo/config#build while its script builds @repo/web inline (bounded by cache:false and the bootstrap filter); no automated check that files a test reads appear in turbo inputs (the pinned list is hand-maintained)                                                                                                                                                                                                                                                                  |
-| 3   | CI Topology & Speed      | 7.0      | `███████░░░` | 0   | Held by the binding condition: rulesets/branch protection still 403 on this repository, #325 open. Topology improved: docker-cache.yml (push to main, path list equal to ci-pr's docker filter, identical SHA pins) seeded green on 003c064 and cd623ee; PR 34401778755 wall clock 5m57s (was 8m06s) with Docker Image (api) 5m43s and 16 CACHED layers, now dominated by image load + two Trivy passes + SBOM (~3m40s) after a 30s compile; codeql.yml:9 runs on merge_group and monorepo-alignment.test.ts:210-230 asserts it for every required check; deep-checks.yml:85-89 caches the moved .tauri-target. Observed: docker-cache path list equals ci-pr's by comment only; Deep Checks last ran 2026-09-08 at 5f6f91f (pre-fix red), next scheduled Fri                                                                                                                                                                                                                                                                                                                                  |
-| 4   | Testing & Coverage       | 8.0      | `████████░░` | 0   | Coverage Threshold green on PR 34401778755: 142 test files, lines 50.15 / statements 49.49 / functions 43.42 / branches 42.67 vs floors 45/45/40/38; 152 test files on disk; apps/api/src/server.hardening.test.ts drives the real Yoga handler on an ephemeral port and asserts 400 + message for introspection, depth, and complexity with positive controls (:93-171), reading limits from resolveApiRuntimeConfig (:131,:153); storage content-type mismatch covered at storage.lifecycle.test.ts:130-158; scripts/create-package.test.mjs registered in root test (package.json:27) and Check Fast (ci-pr.yml:220). Observed: no test runs a session-scoped feature operation through the schema (todos.router.test.ts:19 calls resolvers directly); cross-organization e2e covers todos only; 6 of 11 web tests read source text, 0 render; invitation/attachment e2e still test.skip                                                                                                                                                                                                    |
-| 5   | Dependency Hygiene       | 7.0      | `███████░░░` | 0   | Binding raise condition unmet: the npm updater job is still red (34387229249) under a new mechanism: with minimumReleaseAge 4320 (pnpm-workspace.yaml:70) Dependabot's second step pnpm install --lockfile-only rejects obug@2.2.1 (12h old, locked since bf15118) because vitest/@vitest/coverage-v8 snapshot keys include the @types/node peer, so an @types/node bump re-resolves that subtree; #356 relabelled ready-for-human (pnpm 11 vs Dependabot-only cooldown). Otherwise strong: five ecosystems (dependabot.yml:10,100,121,140,161) with groups and major ignores, cargo/docker-compose/docker/github-actions jobs green on first run; every override a caret floor (pnpm-workspace.yaml:77-108), tar override gone, esbuild ^0.28.1; audit exit 0; alerts 0 high / 5 medium / 2 low; 0 open bot PRs; 28 majors behind, all covered by ignores or #287 except @clack/prompts and the deliberate mobile tailwindcss 3 line                                                                                                                                                          |
-| 6   | Release & Deploy         | 8.0      | `████████░░` | 0   | Release green on cd623ee (34441002649): release/api and release/web advanced to cd623ee and the changesets action opened version PR #372 (@repo/translation 1.3.2, @repo/web 1.6.2 plus dependents); tags for 10 packages published 2026-09-09; .ai/release.util.ts:7-8,17-18 now count .npmrc and scripts/fix-esm-extensions.mjs as image inputs with spec cases (release.util.spec.ts:118,124); Dockerfiles unchanged and digest-pinned. Observed: the git path of .ai/release-apps.ts (fetch, merge-base, update-ref, push) has no test; version-PR CI runs stop at action_required until a maintainer approves them (runs 34441235642/34441235725; #317 needed a human re-run); tags publish only on the last green commit of a merge burst                                                                                                                                                                                                                                                                                                                                                |
-| 7   | Security Posture         | 8.0      | `████████░░` | 0   | Audit exit 0 (Security 34441002645 green), CodeQL green, Gitleaks green; request-level hardening tests landed (#368: server.hardening.test.ts:93-171; content-type at the service layer storage.lifecycle.test.ts:130-158); tenancy: 36 requireOrganizationScope router calls, adapters filter scope.organizationId, runtime-proven by the isolation e2e; minimumReleaseAge gate for human installs; frozen lockfile in every CI install; digest-pinned bases with Trivy CRITICAL gate + SBOM; compose images now under the docker-compose ecosystem (dependabot.yml:161) though still tag-pinned (docker-compose.yml:3,19,31); SECURITY.md. Observed: cookie attributes and server password minimum rely on better-auth defaults (auth.instance.ts:174-176 sets only cookiePrefix; client-side min 8 only); no sweeping contract test or lint that every resolver resolves scope from session; scanners cannot block merges without required checks                                                                                                                                           |
-| 8   | DX & Onboarding          | 8.0      | `████████░░` | ▲+1 | Raise condition met: bootstrap runs turbo run build --filter=!@repo/desktop (package.json:43), pinned by monorepo-alignment.test.ts:171,181-182; scripts/doctor.mjs:141-167 warns on a missing Rust toolchain and fails only with --with-desktop; the Cargo target moved to root .tauri-target (apps/desktop/src-tauri/.cargo/config.toml:7; .gitignore:20; deep-checks.yml:88) with a troubleshooting entry (docs/troubleshooting.md:102-117); create-package writes vitest.config.ts, tsconfig.build.json, .prettierignore (scripts/create-package.mjs:252-254) with scripts/create-package.test.mjs in root test and Check Fast; .ai/install.ts:243-244 accepts the pnpm run separator (install.spec.ts:14-17). Fresh-clone smoke at 4e6a8e1 with Rust off PATH: pnpm bootstrap exit 0 in 29s, pnpm check exit 0 in 49s; 36 documented pnpm commands all resolve; preflight honest (exit 1 only on the local placeholder secret); .claude/worktrees/ gitignored; type:perf label created. Observed: .vscode/launch.json:29-30 vitest debug still runs from the root without a vitest config |
-| 9   | Docs & Agent Scaffolding | 8.0      | `████████░░` | 0   | ai:doctor --strict exit 0 and gating every PR; MONOREPO_GUIDE.md:56-57,78,79,84 now match pnpm-workspace.yaml, apps/web and apps/mobile manifests (React 19.2, Vite 8, Expo SDK 55, better-auth 1.7), check/coverage/mobile-export rows corrected (#371); ADR 0002:27 and 0003:32 carry dated status updates; dashboard.json en/de/sr use Organization wording; REVIEW.md equals .ai/review.md bar the generated header; serena environment_setup.md matches .nvmrc and packageManager; README:79, CONTRIBUTING.md:142-148, day-one.md correct. Observed: hand-written facts are verified by hand, not by a manifest-derived test (monorepo-alignment.test.ts:420-467 pins only theme/SDL/styling/flags/catalog:mobile strings); serena task_completion_checklist.md:14 omits boundaries and knip and suggested_commands.md omits pnpm preflight; kaine-adopt-template.md:37 keeps a dead src-tauri/target glob                                                                                                                                                                                |
-| 10  | AI & Agent Quality       | unscored | `——————————` | —   | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --- | ------------------------ | ----- | ------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | 0   | New tooling workspaces follow @repo/* naming; @repo/desk declares exports (tooling/desk/package.json:6-9), @repo/factory-ui exports only ./contracts (tooling/factory-ui/package.json:6-8), @repo/desk-ui is a leaf Vite app; 0 deep @repo/*/src imports, no app or package imports tooling; knip has explicit entries per new workspace (knip.json:83-109); pnpm boundaries exit 0 (984 files, 22 packages), knip exit 0. Observed: the server-only client import block (packages/config/eslint/base.js:77) does not cover tooling/desk-ui and tooling/factory-ui although react.js:56-57 treats them as DOM apps (no violation today); turbo boundaries runs without tag rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2   | Build & Cache            | 7.0   | `███████░░░` | ▼-1 | Down 1 with reproduced cause: turbo run test --filter=@repo/desk --dry=json hashes 310 inputs and none of the root files its tests read (.github/pull_request_template.md read at tooling/desk/src/ship/ship.pr-body.test.ts:12, .github/workflows/ci-pr.yml at ship.changeset.test.ts:122, docs/agents/day-one.md at github.snapshot-fixture.test.ts:14, root commitlint.config.mjs via ship.message.test.ts:16-19); no tooling/_/turbo.json exists, and the Release run on c794e07 reported 32 of 35 test-phase tasks cached, so a stale desk result can pass on main. @repo/config#test scans tooling sources (monorepo-alignment.test.ts:909) but hashes only {apps,packages}/_/src/** (packages/config/turbo.json:27). Global hash still minimal (turbo.json:5). Observed carry-over: @repo/desktop#build builds @repo/web inline without an edge (apps/desktop/package.json:8,21); no automated inputs-versus-reads check                                                                                                                                                                                                                                                                                                                                                                             |
+| 3   | CI Topology & Speed      | 8.0   | `████████░░` | ▲+1 | Binding hold lifted: rulesets 12994169 and 23204248 are active on main and require PR Quality Gate + Analyze TypeScript (gh api repos/.../rules/branches/main); the rule file .github/rulesets/main.json:31-34 is contract-tested against job names (scripts/pr-quality-gate.test.mjs:122-153, monorepo-alignment.test.ts:185-219) and the gate needs every job (pr-quality-gate.test.mjs:104-120); every job has timeout-minutes and every workflow a concurrency block; #456 runs-on expression evaluated for every job (pr-quality-gate.test.mjs:194-254). PR 39166806480 wall clock 6m37s, Docker Image (api) 4m18s on the critical path. Observed: docker-cache.yml:17-31 path list and the ci-pr.yml:218-220 node --test list stay aligned by comment only; two Trivy passes plus SBOM in the image job (ci-pr.yml:469-507); tooling tests are absent from the PR path (see dim 4)                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 4   | Testing & Coverage       | 7.0   | `███████░░░` | ▼-1 | Down 1 with cause: PR CI never runs tooling workspace tests: Check Fast runs only format:check/lint/typecheck on pull_request (ci-pr.yml:206-213), the coverage projects list has no tooling/* entry (vitest.coverage.config.ts:5-22) and coverage excludes tooling/** without a reason (:51); the PR 488 log has 0 @repo/desk:test lines, while Release on main runs them (cache miss line in run 39166160803), so about 2,200 desk tests first run after merge. The 09-10 conditions for 9 are otherwise met: notes.tenancy.test.ts:1-17,225-345 drives real GraphQL over HTTP through Yoga with a session, and assistant-composer.test.tsx:61-62 renders a component. Coverage on PR 39166806480: 163 files, statements 61.1 / branches 47.32 / functions 49.32 / lines 62.15 vs floors 45/45/40/38. Observed: cross-org e2e still todos-only (web-organization-isolation.e2e.ts:54); invitation e2e skipped (web-invitation-attachment.e2e.ts:17-20); 5 of 17 web tests read source text; floors 13-17 points below measured                                                                                                                                                                                                                                                                            |
+| 5   | Dependency Hygiene       | 8.0   | `████████░░` | ▲+1 | Binding raise condition met: #356 closed and the grouped npm updater run succeeded on 2026-10-12 (26 updates, merged as #471); minimumReleaseAge 4320 matches the Dependabot cooldown (pnpm-workspace.yaml:71-80, dependabot.yml:19-22); catalog gate requires catalog: for any dependency in two or more workspaces (monorepo-alignment.test.ts:574-642); every ignoreGhsas entry has a reason and an issue (#457, #469; pnpm-workspace.yaml:82-92) and both advisories still list no patched version; overrides are caret floors bar the documented metro>image-size pin (:97); five ecosystems with groups and ignores (dependabot.yml:10-178); pnpm audit --audit-level high exit 0 (2 ignored); Dependabot alerts 1 high (node-forge, accepted) / 6 medium / 2 low. Observed: individual security-update runs fail for six transitive packages; the catalog gate skips the root manifest so eslint ^9.35.0 is declared twice (package.json:108, packages/config/package.json:38); tailwindcss and @clack/prompts majors outside ignores                                                                                                                                                                                                                                                                |
+| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release green on the last five main commits (latest 39166160803 at c794e07) and version PR #486 merged; release:apps runs after check:ci, build:core and test:e2e (release.yml:80-91); #376 no-op is a tested pure function (originSyncState, .ai/release.util.spec.ts:81); Dockerfile.api:5 and Dockerfile.web:5,34 digest-pinned with Dependabot digest updates and Node-major ignores (dependabot.yml:121-135); new tooling packages are private and not deployable (only Dockerfile.api and Dockerfile.web exist). Not 9: the git path of .ai/release-apps.ts:168-306 (fetch, merge-base, update-ref, push) still has no test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 7   | Security Posture         | 7.0   | `███████░░░` | ▼-1 | Down 1 with cause: the repository is public and code scanning holds 28 open alerts created 2026-09-13..27 with no triage (15 CodeQL, 13 Trivy); the main-branch Trivy alerts come only from manual workflow_dispatch runs (09-13, 09-27) because ci-pr.yml runs on pull_request/merge_group/workflow_dispatch only, so main's image state is never rescanned; the web runner stage (Dockerfile.web:34) never upgrades Alpine packages, unlike Dockerfile.api:7-11, and PR 488's scan shows 5 fixable HIGH OS CVEs (pcre2, tiff, libexpat x2, libx11) that pass because the gate fails only on CRITICAL (ci-pr.yml:492-499); scrypt cost N=16384 (packages/auth/src/auth.password.ts:11) is below the OWASP floor of 2^17 and an unsalted SHA-256 verify fallback has no sunset (:102-106). Still strong: audit exit 0, Gitleaks green, secret scanning + push protection on with 0 alerts, Dependency Review on PRs (ci-pr.yml:124-146), production CORS fails closed (server.config.ts:53-58), notes tenancy proven over HTTP. Most CodeQL highs checked are false positives (auth.util.ts slug regex, notes.hook.ts computed keys, client-only email regex). Observed carry-over: cookie attributes and server password minimum implicit (auth.instance.ts:131-152,174-176); no sweeping tenancy contract |
+| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | Every pnpm script named in README.md, CONTRIBUTING.md and docs/agents/day-one.md exists in package.json; bootstrap excludes the Tauri build (package.json:45, monorepo-alignment.test.ts:171); scripts/doctor.mjs:146-172 warns on missing Rust and checks Docker (:274-289); #406 Windows setup fixes; create:feature generator (#385). Observed: .vscode/launch.json:28-30 vitest debug still runs from the root with no workspace config; on a Windows host pnpm check fails in @repo/desk (29 tests: symlinks, POSIX paths) and only docs/agents/agent-desk.md:693-696 says so, with no troubleshooting entry and no platform guard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | pnpm ai:doctor --strict exit 0 (all five agent contracts pass); 09-10 Serena drift fixed (.ai/serena-memories/task_completion_checklist.md:14, suggested_commands.md:14-15); MONOREPO_GUIDE.md:47-49,280 and README.md:35 describe the desk and factory; ADR 0010 and 0011 added; 24 skills match the AGENTS.md index; some facts are manifest-derived (monorepo-alignment.test.ts:94,420-455,690). Not 9: no test checks documented script names or the guide's workspace tree against manifests. Observed: kaine-adopt-template.md:37 keeps the legacy src-tauri/target glob unexplained; .ai/context-audit.ts:99 counts guide words but enforces no ceiling (.ai/guide.md 251 lines)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 10  | AI & Agent Quality       | 7.0   | `███████░░░` | —   | Baseline. Offline tier gated in CI: the assistant golden set covers 8 of 9 tools (assistant.tools.ts:30-138 vs assistant.eval.data.ts:54-109), assistant.eval.test.ts:57-126 asserts tool existence, refusals and rubric coverage, assistant.ai-runtime.test.ts pins the system prompt (:217), scope forwarding (:227), an 8-step cap (:239) and call/result pairing (:292), and foreign-organization writes are rejected through real adapters (assistant.eval.fixture.test.ts:79); telemetry records provider, model, tokens, duration, steps, tool calls and failure category (apps/api/src/ai.telemetry.ts:9-18) with an exact-key test that blocks content (assistant.ai-runtime.test.ts:414-438); harness ledger holds 4 runs / 24 trials validated by .ai/harness-eval.spec.ts:55-59 in ai:test; desk run records carry a harness fingerprint (tooling/desk/src/contracts/run-metrics.contract.ts:20-77). Not 9: live evals are opt-in and write to gitignored .ai.local/ (assistant.eval.cli.ts:53-61), so no committed baseline or regression gate exists; the write-tool floor is a hand-kept list (assistant.eval.test.ts:33-41); updateNote has no expected-call case                                                                                                                           |
 
-**Overall: 7.8** (▲+0.1)
+**Overall: 7.6** (▼-0.2)
 
 ### Findings
 
-| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                         |
-| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | ------------------------------------------------------------------------------------------------------------- |
-| `bootstrap-builds-tauri-desktop`                      | 8         | 1      | fixed       | #351  | dx: pnpm bootstrap compiles the Tauri desktop app and leaves pnpm check red on every fresh clone              |
-| `boundaries-local-red-tauri-target`                   | 8         | 1      | fixed       | #351  | tooling: turbo boundaries fails locally on gitignored apps/desktop/src-tauri/target output                    |
-| `bootstrap-ai-install-separator-rejected`             | 8         | 1      | fixed       | #367  | dx: pnpm bootstrap fails at ai:install because the -- separator reaches the installer                         |
-| `create-package-missing-vitest-config`                | 8         | 1      | fixed       | #352  | tooling: create-package scaffolds a package that the vitest-exclude contract test rejects                     |
-| `test-task-inputs-omit-doc-contracts`                 | 2         | 1      | fixed       | #353  | build: turbo test hash for packages/config omits the root files its contract tests read                       |
-| `codeql-missing-merge-group-trigger`                  | 3         | 1      | fixed       | #354  | ci: codeql.yml never runs on merge_group while the ruleset requires Analyze TypeScript                        |
-| `deploy-inputs-invisible-to-affected-gates`           | 6         | 1      | fixed       | #355  | release: files the api image copies are neither release:apps nor docker-filter inputs                         |
-| `dependabot-npm-updater-red-types-node`               | 5         | 1      | open        | #356  | deps: the Dependabot npm updater job ends in error on @types/node every run                                   |
-| `red-prs-merged-without-required-checks`              | 3         | 1      | open        | #325  | process: pull requests with failing checks reach main because required checks are not enforced                |
-| `desktop-build-hash-omits-web`                        | 2         | 1      | observed    | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output     |
-| `esbuild-override-pins-advisory-floor`                | 5         | 2      | fixed       | #357  | deps: the exact esbuild override pins the version an open advisory names as vulnerable                        |
-| `cargo-deps-unaudited`                                | 5         | 2      | fixed       | #357  | deps: the Tauri Cargo graph has no bot ecosystem and no audit gate                                            |
-| `compose-images-tag-pinned-outside-dependabot`        | 7         | 2      | fixed       | #357  | deps: docker-compose postgres and minio images are tag-pinned and not bot-managed                             |
-| `auth-cookie-password-policy-implicit`                | 7         | 2      | observed    | —     | security: cookie attributes and server password minimum rely on better-auth defaults                          |
-| `hardening-gates-untested`                            | 7         | 4      | fixed       | #358  | security: introspection-off, depth/complexity, and confirm-time content-type gates have no request-level test |
-| `test-input-coverage-not-gated`                       | 2         | 4      | observed    | —     | build: no automated check that files a test reads appear in its turbo inputs                                  |
-| `no-schema-level-graphql-test`                        | 4         | 4      | observed    | —     | testing: no test runs a session-scoped feature operation through the schema                                   |
-| `e2e-cross-org-todos-only`                            | 4         | 4      | observed    | —     | testing: cross-organization isolation is asserted for todos only                                              |
-| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                                 |
-| `tenancy-enforced-by-convention`                      | 7         | 4      | observed    | —     | security: no contract test or lint guarantees every resolver resolves scope from session                      |
-| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible           |
-| `required-status-checks-not-enforced`                 | 3         | 5      | observed    | —     | ci: no required status checks, the ruleset is not imported on this repository                                 |
-| `code-scanning-uploads-disabled`                      | 7         | 5      | observed    | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab                 |
-| `docker-cache-cold-on-every-new-branch`               | 3         | 6      | fixed       | #359  | ci: the Docker layer cache is never seeded from main, so each branch's first build runs cold                  |
-| `docker-image-job-dominated-by-scan-export`           | 3         | 6      | observed    | —     | ci: the api image job spends about 3m40s on image load, two Trivy passes, and SBOM after a 30s compile        |
-| `version-pr-ci-held-action-required`                  | 6         | 8      | observed    | —     | release: changesets version PR CI runs stop at action_required until a maintainer approves them               |
-| `docker-cache-path-list-comment-only`                 | 3         | 8      | observed    | —     | ci: docker-cache.yml path list and pins match ci-pr.yml by comment only                                       |
-| `majors-uncovered-by-ignore-or-287`                   | 5         | 8      | observed    | —     | deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287                            |
-| `knip-ignore-stale-and-laundering`                    | 1         | 8      | observed    | —     | tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep                            |
-| `eslint-duplicate-resolution`                         | 5         | 8      | observed    | —     | deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile                                            |
-| `ci-scripts-test-list-comment-only`                   | 3         | 8      | observed    | —     | ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment           |
-| `deep-checks-red-until-next-schedule`                 | 3         | 9      | observed    | —     | ci: Deep Checks is red on its last runs, all before the mobile export fix                                     |
-| `docs-version-facts-stale`                            | 9         | 10     | fixed       | —     | docs: MONOREPO_GUIDE.md and ADRs 0002/0003 carry superseded version and gate facts                            |
-| `serena-memories-minor-drift`                         | 9         | 10     | observed    | —     | docs: serena task_completion_checklist omits boundaries/knip and suggested_commands omits pnpm preflight      |
-| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                        |
-| `translation-team-language-drift`                     | 9         | 11     | fixed       | —     | i18n: dashboard.json uses Teams/squads/timove where CONTEXT mandates Organization                             |
+| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                     |
+| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | --------------------------------------------------------------------------------------------------------- |
+| `ci-tooling-tests-skip-pr-gate`                       | 4         | 1      | open        | #489  | ci: tooling workspace tests never run on pull requests, so desk regressions first fail after merge        |
+| `desk-test-inputs-missing-root-files`                 | 2         | 1      | open        | #490  | build: the tooling/desk test hash omits the root files its tests read                                     |
+| `dependabot-npm-updater-red-types-node`               | 5         | 1      | fixed       | #356  | deps: the Dependabot npm updater job ends in error on @types/node every run                               |
+| `red-prs-merged-without-required-checks`              | 3         | 1      | fixed       | #325  | process: pull requests with failing checks reach main because required checks are not enforced            |
+| `desktop-build-hash-omits-web`                        | 2         | 1      | observed    | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output |
+| `web-image-os-packages-not-refreshed`                 | 7         | 2      | open        | #491  | security: the web image ships fixable high alpine cves because its runner stage never upgrades packages   |
+| `code-scanning-alerts-untriaged`                      | 7         | 2      | open        | #493  | security: 28 code scanning alerts sit untriaged on the public repository                                  |
+| `auth-cookie-password-policy-implicit`                | 7         | 2      | observed    | —     | security: cookie attributes and server password minimum rely on better-auth defaults                      |
+| `scrypt-cost-below-owasp`                             | 7         | 3      | open        | #492  | auth: the scrypt cost n=16384 is below the owasp minimum                                                  |
+| `legacy-sha256-verify-no-sunset`                      | 7         | 4      | open        | #492  | auth: the unsalted sha256 verify fallback has no removal plan                                             |
+| `config-test-inputs-omit-tooling-sources`             | 2         | 4      | open        | #490  | build: the packages/config test hash omits tooling sources its vitest scan reads                          |
+| `no-schema-level-graphql-test`                        | 4         | 4      | fixed       | —     | testing: no test runs a session-scoped feature operation through the schema                               |
+| `test-input-coverage-not-gated`                       | 2         | 4      | observed    | —     | build: no automated check that files a test reads appear in its turbo inputs                              |
+| `e2e-cross-org-todos-only`                            | 4         | 4      | observed    | —     | testing: cross-organization isolation is asserted for todos only                                          |
+| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                             |
+| `tenancy-enforced-by-convention`                      | 7         | 4      | observed    | —     | security: no contract test or lint guarantees every resolver resolves scope from session                  |
+| `coverage-tooling-exclusion-unexplained`              | 4         | 5      | open        | #489  | testing: tooling/** is excluded from coverage with no recorded reason                                     |
+| `main-trivy-alerts-stale-no-main-scan`                | 7         | 5      | open        | #493  | security: main-branch trivy alerts come only from manual runs, so they never close                        |
+| `eval-no-regression-baseline`                         | 10        | 5      | observed    | —     | eval: live assistant quality has no committed baseline or regression gate                                 |
+| `required-status-checks-not-enforced`                 | 3         | 5      | fixed       | —     | ci: no required status checks, the ruleset is not imported on this repository                             |
+| `code-scanning-uploads-disabled`                      | 7         | 5      | fixed       | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab             |
+| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible       |
+| `cors-429-reflects-origin-without-allowlist`          | 7         | 6      | observed    | —     | api: the rate-limit 429 path reflects any origin with credentials when no allowlist is set                |
+| `release-apps-git-path-untested`                      | 6         | 6      | observed    | —     | release: release:apps fetch, ancestry and push path has no test                                           |
+| `docker-image-job-dominated-by-scan-export`           | 3         | 6      | observed    | —     | ci: the api image job spends about 3m40s on image load, two Trivy passes, and SBOM after a 30s compile    |
+| `windows-desk-tests-undocumented-for-check`           | 8         | 7      | observed    | —     | dx: windows-host pnpm check fails in @repo/desk with no troubleshooting entry or guard                    |
+| `client-import-block-skips-tooling-ui`                | 1         | 8      | observed    | —     | eslint: the server-only import restriction skips desk-ui and factory-ui                                   |
+| `doc-script-refs-not-gated`                           | 9         | 8      | observed    | —     | docs: documented pnpm scripts are not checked against package.json                                        |
+| `eval-write-tools-hand-list`                          | 10        | 8      | observed    | —     | eval: the assistant write-tool floor checks a hand-kept list                                              |
+| `eval-update-note-no-golden-call`                     | 10        | 8      | observed    | —     | eval: updateNote has no expected-call golden case                                                         |
+| `docker-cache-path-list-comment-only`                 | 3         | 8      | observed    | —     | ci: docker-cache.yml path list and pins match ci-pr.yml by comment only                                   |
+| `ci-scripts-test-list-comment-only`                   | 3         | 8      | observed    | —     | ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment       |
+| `majors-uncovered-by-ignore-or-287`                   | 5         | 8      | observed    | —     | deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287                        |
+| `eslint-duplicate-resolution`                         | 5         | 8      | observed    | —     | deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile                                        |
+| `knip-ignore-stale-and-laundering`                    | 1         | 8      | observed    | —     | tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep                        |
+| `harness-ledger-render-drift-ungated`                 | 10        | 9      | observed    | —     | harness-eval: generated ledger region drift is not checked                                                |
+| `telemetry-org-scope-untested`                        | 10        | 9      | observed    | —     | telemetry: organization scope on model-call logs is not asserted                                          |
+| `deep-checks-red-until-next-schedule`                 | 3         | 9      | fixed       | —     | ci: Deep Checks is red on its last runs, all before the mobile export fix                                 |
+| `adopt-template-dead-tauri-glob`                      | 9         | 10     | observed    | —     | skills: kaine-adopt-template keeps the legacy src-tauri/target glob unexplained                           |
+| `ai-guide-no-size-budget`                             | 9         | 10     | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                          |
+| `serena-memories-minor-drift`                         | 9         | 10     | fixed       | —     | docs: serena task_completion_checklist omits boundaries/knip and suggested_commands omits pnpm preflight  |
+| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                    |
 
 <!-- scorecard:generated:end -->
 
@@ -1701,3 +2095,13 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Slugs closed this run:** eleven findings from the 09-09 run plus `docs-version-facts-stale` and `translation-team-language-drift` (#371) and the new `bootstrap-ai-install-separator-rejected` (#367). No new issue filed: the remaining findings are observed depth or not-enforced items.
 - **Proofs still pending at run time:** Friday's Deep Checks (first desktop build with the moved target dir), Monday's scheduled Security and CodeQL runs, and the first weekly Dependabot pass under five ecosystems. The next run should read them before comparing.
 - **Overall 7.7 → 7.8.** One raise (dim 8); everything else re-evidenced flat.
+
+### 2026-10-18 — eighth run (`c794e07`, fan-out: five explorer probes covering all ten dimensions)
+
+- **First ten-dimension run.** Dimension 10 gets its baseline (7), so the overall (7.6) averages ten dimensions and is not comparable with the nine-dimension 7.8 of 09-10 (header rule). The nine-dimension mean on this run is 7.7. Depth floor kept: five probes (dims 1/2, 4/7, 3/5/6, 8/9, 10).
+- **Dim 3 → 8, binding hold lifted.** The 09-09 hold ("do not raise until required checks are in use") is met: two rulesets are active on main and require PR Quality Gate and Analyze TypeScript, and the rule file is contract-tested. Do not raise to 9 until the comment-only list alignments (docker-cache paths, node --test list) are tested and tooling tests run on the PR path.
+- **Dim 5 → 8, binding raise condition met.** #356 closed and the grouped npm updater ran green (#471). The two remaining `ignoreGhsas` entries are accepted risk with tracked issues and no upstream fix; they do not hold the score while their issues stay open with a recheck.
+- **Dim 4 → 7 with cause, although the 09-10 conditions for 9 landed.** A schema-level tenancy test and rendered component tests now exist, but about 2,200 tooling tests run only after merge, in Release. Gate placement for these tests is scored here, not under dim 3, so the gap is counted once. Raise back to 8 when tooling tests run in PR CI (or the exclusion is a recorded decision with its upgrade trigger).
+- **Dim 2 → 7 with reproduced cause.** `turbo run test --filter=@repo/desk --dry=json` shows that no root file the desk tests read is hashed, and Release caches most test tasks. Same class as #353/#366, reintroduced by new workspaces. Raise back to 8 when tooling test inputs are declared; 9 still needs the automated inputs-versus-reads check.
+- **Dim 7 → 7 with cause.** The public flip turned on code scanning; 28 alerts sat untriaged for up to five weeks, the web runner stage ships fixable HIGH Alpine CVEs, and the scrypt cost is below the OWASP floor. Most CodeQL highs checked are false positives; dismissing them with a reason is part of the fix. Raise back to 8 when alerts are triaged, the web image refreshes OS packages, and the scrypt cost meets the floor.
+- **Dims 1, 6, 8, 9 held at 8.** New tooling workspaces respect boundaries; release mechanics stay proven; onboarding scripts all resolve; doc coverage of desk and factory landed with ADRs 0010/0011. The 09-10 conditions for 9 are unchanged.
