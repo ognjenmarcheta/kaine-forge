@@ -41,7 +41,6 @@ const apiEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   LOG_LEVEL: z.string().optional(),
-  ORGANIZATIONS_VISIBLE: z.string().optional(),
   AI_TODO_PROVIDER: aiProviderSchema,
   AI_TODO_MODEL: z.string().optional(),
   AI_ASSISTANT_PROVIDER: aiProviderSchema,
