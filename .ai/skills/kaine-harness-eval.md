@@ -114,9 +114,9 @@ Record every new run as protocol 2. Older runs stay as they were recorded.
 A `tighten` action says the wording must change, but not to what. Use this
 procedure to choose the new wording before you pay for a full run.
 
-- **Entry condition.** Use it only for a rule whose latest run is `tighten`, or
-  for a lesson that `pnpm desk lessons` reports in several issues. It never
-  creates a rule from nothing.
+- **Entry condition.** Use it only for a rule whose latest recorded run is
+  `tighten`. That run supplies the task and the trials the candidates cite, so
+  the procedure never creates a rule from nothing.
 - **Propose.** Write at most three candidate wordings. Each candidate must aim at
   a failure that a recorded trial shows. Cite the trial and the metric, for
   example `redGreenProof: 0` in a without-arm trial, or flow prose that repeats
