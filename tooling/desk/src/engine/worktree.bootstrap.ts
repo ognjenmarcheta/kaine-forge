@@ -142,6 +142,8 @@ export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   installArgv.push("--non-interactive");
   if (input.skills.length > 0) installArgv.push("--skill", input.skills.join(","));
   if (input.mcp.length > 0) installArgv.push("--mcp", input.mcp.join(","));
+  // REPL code runs arbitrary Python, past the role allowlists. Desk runs keep one tool per operation.
+  if (input.mcp.includes("serena")) installArgv.push("--serena-interface", "tools");
 
   const steps: BootstrapStep[] = [
     {

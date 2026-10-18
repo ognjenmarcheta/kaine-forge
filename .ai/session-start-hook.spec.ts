@@ -71,6 +71,8 @@ describe("session-start hook", () => {
           "claude",
           "--mcp",
           "serena",
+          "--serena-interface",
+          "tools",
           "--non-interactive"
         ],
         { cwd: repo, stdio: "pipe" }
@@ -116,6 +118,12 @@ describe("session-start hook", () => {
       const stale = runHook(repo, "claude").stdout;
       expect(stale).not.toContain("Synthetic cached prompt");
       expect(stale).toContain("--prepare-serena");
+      // The cached prompt names classic tools only, so a REPL launch neither emits nor requests it.
+      const args = (server.args ?? []).map((arg: string) => (arg === "tools" ? "REPL" : arg));
+      writeFile(repo, ".mcp.json", JSON.stringify({ mcpServers: { serena: { ...server, args } } }));
+      expect(runHook(repo, "claude").stdout).not.toMatch(
+        /Synthetic cached prompt|--prepare-serena/
+      );
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

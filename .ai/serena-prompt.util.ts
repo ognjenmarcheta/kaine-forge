@@ -36,8 +36,16 @@ function preparationArgs(server: McpServer) {
   return ["--from", source, "serena", "prompts", "print-cc-system-prompt-override"];
 }
 
+/** Serena's Claude prompt override names classic tools only; it does not describe the REPL. */
+export function usesSerenaRepl(server: McpServer) {
+  const args = server.args ?? [];
+  const index = args.indexOf("--agent-interface");
+  return index >= 0 && args[index + 1]?.toUpperCase() === "REPL";
+}
+
 export function inspectSerenaPrompt(root: string, server?: McpServer) {
   if (!server) return { status: "disabled" as const };
+  if (usesSerenaRepl(server)) return { status: "not-applicable" as const };
   try {
     preparationArgs(server);
   } catch {

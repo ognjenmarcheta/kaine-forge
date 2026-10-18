@@ -66,6 +66,9 @@ it("prepares the selected commit and only emits a current cache", async () => {
     status: "stale"
   });
   expect(readdirSync(path.join(root, ".ai.local/serena"))).toEqual(["claude-prompt.json"]);
+  expect(
+    inspectSerenaPrompt(root, { ...server, args: [...server.args, "--agent-interface", "REPL"] })
+  ).toEqual({ status: "not-applicable" });
   expect(inspectSerenaPrompt(root, { command: "personal" })).toEqual({ status: "unsupported" });
   await expect(prepareSerenaPrompt(root, { command: "personal" })).rejects.toThrow("Unsupported");
   expect(mocks.spawn).toHaveBeenCalledTimes(1);

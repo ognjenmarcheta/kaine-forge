@@ -63,6 +63,9 @@ const EFFORT_LEVELS = ["low", "medium", "high"] as const;
 const DESCRIPTION_SOFT_LIMIT = 1500;
 
 export type Agent = (typeof ALL_AGENTS)[number];
+/** Serena's `--agent-interface`: one MCP tool per operation, or Python through `serena_repl`. */
+export const SERENA_INTERFACES = ["tools", "REPL"] as const;
+export type SerenaInterface = (typeof SERENA_INTERFACES)[number];
 export type Effort = (typeof EFFORT_LEVELS)[number];
 
 export interface Skill {
@@ -125,6 +128,7 @@ export interface ResolveInstallMcpSourceOptions {
   exactSelection?: boolean;
   personalNames: Set<string>;
   localEnv: Record<string, string>;
+  serenaInterface?: SerenaInterface;
 }
 
 export interface ResolvedInstallMcpSource {
@@ -1059,17 +1063,19 @@ export const resolveMcpServerForAgent = (
   name: string,
   server: McpServer,
   agent: Agent,
-  isPersonal = false
+  isPersonal = false,
+  serenaInterface: SerenaInterface = "REPL"
 ): McpServer => {
   if (name !== "serena" || isPersonal || (agent !== "codex" && agent !== "claude")) {
     return server;
   }
   const args = [...(server.args ?? [])];
-  const contextIndex = args.indexOf("--context");
-  if (contextIndex < 0 || contextIndex + 1 >= args.length) {
-    return server;
-  }
-  args[contextIndex + 1] = agent === "codex" ? "codex" : "claude-code";
+  const replace = (flag: string, value: string) => {
+    const index = args.indexOf(flag);
+    if (index >= 0 && index + 1 < args.length) args[index + 1] = value;
+  };
+  replace("--context", agent === "codex" ? "codex" : "claude-code");
+  replace("--agent-interface", serenaInterface);
   return { ...server, args };
 };
 
@@ -1096,7 +1102,7 @@ export const resolveInstallMcpSource = (
     }
 
     const resolved = resolveMcpServerEnv(
-      resolveMcpServerForAgent(name, server, options.agent, isPersonal),
+      resolveMcpServerForAgent(name, server, options.agent, isPersonal, options.serenaInterface),
       options.localEnv
     );
     if (!resolved) {

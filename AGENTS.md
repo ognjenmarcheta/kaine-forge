@@ -196,6 +196,7 @@ In the final response for substantive work, state what you actually verified, no
 - Prefer symbol edits for whole definitions and reference-aware renames when caller coverage is verified. Use ordinary tools for prose, configuration, builds, tests, and small edits that symbolic replacement does not suit.
 - Verify public exports after a rename. TypeScript can preserve the old barrel name with an alias; complete an intended API rename across that export and its consumers, then check that the old API name is absent.
 - Read relevant Serena memories on demand. Keep stable shared facts in canonical `.ai/serena-memories/` sources and regenerate them; do not write over generated memories through Serena.
+- Local Claude and Codex sessions use Serena's REPL (`serena_repl`). Pass the session ID from `initial_instructions`, get API details with `s.info(...)`, and combine related lookups in one call. Use REPL code only through `s.lsp`, `s.edit`, read-only `s.fs`, and memory reads. REPL code runs outside the guarded-command hooks: do not run shell commands, subprocesses, or direct file or memory writes in it. Run commands with the agent's own shell so the hooks apply.
 - The parent agent performs Serena lookups requested by `kaine-explorer`; its read/search allowlist remains unchanged. Successful tool calls do not replace the repository's required tests and checks.
 - Use `docs/agents/serena-verification.md` to verify tool choice, correctness, caller coverage, and retrieval overhead. Dashboard counts show activity, not task success.
 

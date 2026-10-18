@@ -37,7 +37,13 @@ Refresh it explicitly with `pnpm ai:install --agent claude --prepare-serena`.
 Cached startup content does not establish that Serena is connected.
 
 The improved installer selects `codex` for Codex and `claude-code` for Claude. The
-shared catalog uses `ide` for the other integrations. `--project-from-cwd` resolves
+shared catalog uses `ide` for the other integrations. Claude and Codex use the REPL
+interface unless `--serena-interface tools` is recorded; check `--agent-interface` in the
+installed launch. Compare interfaces only in separate setups.
+
+Since v2.0.0, Serena uses its own managed TypeScript unless the project matches
+`trusted_project_path_patterns` in `~/.serena/serena_config.yml`. Record the trust state,
+because it can change reference results. `--project-from-cwd` resolves
 the nearest ancestor with a `.serena/project.yml` or `.git` marker. Verify the
 absolute project path, including when starting from a workspace subdirectory.
 
@@ -173,7 +179,7 @@ Use this template once per session:
 | Run / setup / agent / repetition                            |                                                |
 | Model / reasoning / agent version                           |                                                |
 | Product-source revision / setup hashes / fixture hashes     |                                                |
-| Serena version / context / modes / absolute project path    |                                                |
+| Serena version / context / interface / modes / project path |                                                |
 | Dashboard URL / server PID / session / timestamps           |                                                |
 | Discovery correctness / production caller coverage          | pass, fail, or inconclusive                    |
 | Edit tests / allowed diff / protected text                  | pass, fail, or inconclusive                    |

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 
-import { type Agent, REPO_ROOT } from "./ai.util";
+import { type Agent, REPO_ROOT, SERENA_INTERFACES, type SerenaInterface } from "./ai.util";
 
 export const agentSchema = z.enum(["claude", "codex", "cursor", "opencode", "grok"]);
 const selectionFields = {
@@ -15,7 +15,8 @@ const selectionSchema = z.discriminatedUnion("schemaVersion", [
     schemaVersion: z.literal(2),
     ...selectionFields,
     ownedMcps: z.array(z.string().min(1)),
-    knownSkills: z.array(z.string()).optional()
+    knownSkills: z.array(z.string()).optional(),
+    serenaInterface: z.enum(SERENA_INTERFACES).optional()
   })
 ]);
 export type InstallSelection = z.infer<typeof selectionSchema>;
@@ -48,6 +49,16 @@ export function newDefaultSkills(
   if (!known && !selected.length) return [];
   const seen = new Set([...(known ?? []), ...selected]);
   return defaults.filter((name) => !seen.has(name));
+}
+
+/** An explicit flag wins, then the recorded choice. Local Claude and Codex default to REPL. */
+export function chooseSerenaInterface(
+  explicit: SerenaInterface | undefined,
+  previous: InstallSelection | null
+): SerenaInterface {
+  return (
+    explicit ?? (previous?.schemaVersion === 2 ? previous.serenaInterface : undefined) ?? "REPL"
+  );
 }
 
 export function managedMcpOwnership(

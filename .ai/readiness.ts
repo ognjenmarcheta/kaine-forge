@@ -18,7 +18,7 @@ import {
   resolveMcpServerForAgent,
   REPO_ROOT
 } from "./ai.util";
-import { agentSchema, readInstallSelection } from "./install-state.util";
+import { agentSchema, chooseSerenaInterface, readInstallSelection } from "./install-state.util";
 import {
   commandExists,
   computeSharedDrift,
@@ -156,7 +156,13 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
     if (!commandExists(server.command)) problems.push(`${name}: missing executable`);
     const definition = source.mcpServers[name];
     const canonical = definition
-      ? resolveMcpServerForAgent(name, definition, agent, merged.personalNames.has(name))
+      ? resolveMcpServerForAgent(
+          name,
+          definition,
+          agent,
+          merged.personalNames.has(name),
+          chooseSerenaInterface(undefined, selection)
+        )
       : undefined;
     if (canonical) {
       const missing = envRequirements(

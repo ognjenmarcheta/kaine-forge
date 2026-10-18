@@ -51,14 +51,14 @@ transports have no passing startup claim. Probes stay out of hooks and ordinary 
 in repository-owned hook launch definitions. Updates follow the existing
 [dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
 
-| Server     | Exact launch dependency                               | Verification on 2026-09-27                          |
-| ---------- | ----------------------------------------------------- | --------------------------------------------------- |
-| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31`   | initialization passed                               |
-| context7   | `@upstash/context7-mcp@4.1.1`                         | initialization passed                               |
-| playwright | `@playwright/mcp@0.0.82`                              | initialization passed                               |
-| serena     | Git commit `7a2968335f2198b966864de1ce3655c8e485a653` | initialization passed after environment preparation |
-| firecrawl  | `firecrawl-mcp@3.25.5`                                | unselected; not probed                              |
-| graphify   | local `graphify-mcp` executable                       | optional; not probed                                |
+| Server     | Exact launch dependency                               | Verification on 2026-09-27                  |
+| ---------- | ----------------------------------------------------- | ------------------------------------------- |
+| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31`   | initialization passed                       |
+| context7   | `@upstash/context7-mcp@4.1.1`                         | initialization passed                       |
+| playwright | `@playwright/mcp@0.0.82`                              | initialization passed                       |
+| serena     | Git commit `4c4268f9c0adf8743a75e6dda2ef1fa635f34cc3` | v2.0.0; initialization passed on 2026-10-18 |
+| firecrawl  | `firecrawl-mcp@3.25.5`                                | unselected; not probed                      |
+| graphify   | local `graphify-mcp` executable                       | optional; not probed                        |
 
 Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
 process from the persisted Windows PATH makes both local readiness checks pass.
@@ -73,12 +73,24 @@ the selected launch configuration, rejects unsupported overrides, and bounds pre
 to 60 seconds and 64 KiB of combined output. Successful prompts are saved atomically in
 `.ai.local/serena/`; failed preparation retains the previous cache.
 
+The canonical launch sets `--agent-interface tools`. The installer gives local Claude and
+Codex the REPL interface: one `serena_repl` tool that runs Python against Serena's APIs.
+`pnpm ai:install --serena-interface tools|REPL` overrides this, and the installation
+selection records the choice for later reruns. Agent Desk worktrees install `tools`, so
+its role allowlists and memory-write guard keep working; the desk also denies and flags
+`serena_repl`. REPL code can do anything the Serena process can do. It runs outside the
+guarded-command hooks, and `read_only` or excluded APIs do not contain it. The guide
+limits REPL code to symbol, edit, read, and memory-read APIs; that limit is guidance,
+not enforcement. Cursor, OpenCode, and Grok keep the canonical `tools` value.
+
 Claude startup uses the existing bounded local inspector. It launches no Serena process
 and performs no download. It emits cached content only when Serena is selected, enabled,
 and its command/arguments fingerprint matches. Otherwise it prints a recovery command.
+Serena's prompt override names classic tools only. With the REPL interface, `serenaPrompt`
+is `not-applicable`, startup emits no Serena prompt, and `--prepare-serena` skips preparation.
 `serenaPrompt` reports availability separately from installation and runtime results.
 Installation removes only the exact former repository-generated Serena hook; personal
-hooks remain. The current pinned prompt prepared successfully on this host.
+hooks remain. The v2.0.0 prompt prepared successfully on this host with `tools` selected.
 
 The canonical explorer has a `Read`, `Grep`, `Glob` allowlist. Shell, MCP, editing and
 delegation checks return to the parent. Tests verify the rendered Claude definition.

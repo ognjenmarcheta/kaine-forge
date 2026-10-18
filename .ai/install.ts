@@ -53,8 +53,10 @@ import {
   resolveInstallMcpSource,
   REVIEW_OUT,
   REVIEW_SRC,
+  SERENA_INTERFACES,
   SERENA_MEMORIES_SRC_DIR,
   SERENA_PROJECT_SRC,
+  type SerenaInterface,
   type Skill,
   writeGenerated,
   type WriteResult
@@ -62,13 +64,14 @@ import {
 import { mergeInstalledConfig } from "./install-config.util";
 import {
   chooseInstallSelection,
+  chooseSerenaInterface,
   managedMcpOwnership,
   newDefaultSkills,
   readInstallSelection,
   writeInstallSelection
 } from "./install-state.util";
 import { installedServers } from "./readiness";
-import { prepareSerenaPrompt } from "./serena-prompt.util";
+import { prepareSerenaPrompt, usesSerenaRepl } from "./serena-prompt.util";
 
 interface InstallOptions {
   agents: Agent[];
@@ -76,6 +79,7 @@ interface InstallOptions {
   mcps: string[];
   nonInteractive: boolean;
   prepareSerena: boolean;
+  serenaInterface?: SerenaInterface;
   exactMcpSelection?: boolean;
   exactSkillSelection?: boolean;
 }
@@ -83,12 +87,14 @@ interface InstallOptions {
 let localMcpEnv: Record<string, string> = {};
 
 const usage = `Usage:
-  pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena]
+  pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena] [--serena-interface tools|REPL]
 
 Without selection flags and on a TTY, prompts interactively.
 Otherwise defaults to: --agent claude --agent codex. Skills and MCPs keep the recorded
 selection for each agent; new default skills added to the team since then are installed too.
 A first install uses all default skills and all default-eligible MCPs.
+Claude and Codex launch Serena with the REPL interface unless --serena-interface tools
+is recorded. REPL code runs outside the guarded-command hooks.
 `;
 
 const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode", "grok"];
@@ -256,6 +262,7 @@ const parseArgs = (): InstallOptions => {
   const mcps: string[] = [];
   let nonInteractive = false;
   let prepareSerena = false;
+  let serenaInterface: SerenaInterface | undefined;
 
   const args = process.argv.slice(2);
   for (let index = 0; index < args.length; index += 1) {
@@ -272,6 +279,13 @@ const parseArgs = (): InstallOptions => {
     }
     if (arg === "--prepare-serena") {
       prepareSerena = true;
+      continue;
+    }
+    if (arg === "--serena-interface") {
+      const value = SERENA_INTERFACES.find((name) => name === args[index + 1]);
+      if (!value) throw new Error(`--serena-interface requires ${SERENA_INTERFACES.join(" or ")}`);
+      serenaInterface = value;
+      index += 1;
       continue;
     }
     if (arg === "--non-interactive" || arg === "--no-interactive") {
@@ -319,7 +333,8 @@ const parseArgs = (): InstallOptions => {
     skills,
     mcps,
     nonInteractive,
-    prepareSerena
+    prepareSerena,
+    ...(serenaInterface ? { serenaInterface } : {})
   };
 };
 
@@ -480,7 +495,8 @@ const installAgent = (
     mcps: options.mcps,
     exactSelection: options.exactMcpSelection ?? false,
     personalNames: personalMcpNames,
-    localEnv: localMcpEnv
+    localEnv: localMcpEnv,
+    ...(options.serenaInterface ? { serenaInterface: options.serenaInterface } : {})
   });
   skippedMcps.push(...resolved.skipped);
 
@@ -604,7 +620,8 @@ const installAgent = (
     skills: [...expected],
     mcps: [...Object.keys(resolved.source.mcpServers), ...resolved.skipped],
     ownedMcps: Object.keys(resolved.source.mcpServers).filter((name) => managedMcps.includes(name)),
-    knownSkills
+    knownSkills,
+    ...(options.serenaInterface ? { serenaInterface: options.serenaInterface } : {})
   });
   return skippedMcps;
 };
@@ -713,7 +730,8 @@ const main = async (): Promise<void> => {
       skills: [...skillChoice.names, ...addedSkills],
       exactSkillSelection: skillChoice.exact,
       mcps: mcpChoice.names,
-      exactMcpSelection: mcpChoice.exact
+      exactMcpSelection: mcpChoice.exact,
+      serenaInterface: chooseSerenaInterface(options.serenaInterface, previous)
     };
     const { skills, requested, envSkipped: agentSkipped } = selectSkills(agentOptions, allSkills);
     envSkipped.push(...agentSkipped);
@@ -745,8 +763,12 @@ const main = async (): Promise<void> => {
   if (options.prepareSerena) {
     const server = installedServers("claude").serena;
     if (!server) throw new Error("Select and enable Serena before preparing its prompt");
-    await prepareSerenaPrompt(REPO_ROOT, server);
-    console.log("Prepared pinned Serena prompt for local startup.");
+    if (usesSerenaRepl(server)) {
+      console.log("Skipped Serena prompt: it describes classic tools, and Claude uses the REPL.");
+    } else {
+      await prepareSerenaPrompt(REPO_ROOT, server);
+      console.log("Prepared pinned Serena prompt for local startup.");
+    }
   }
   const changed = results.filter((result) => result.status !== "unchanged");
   if (changed.length === 0) {

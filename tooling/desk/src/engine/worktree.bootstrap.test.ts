@@ -179,7 +179,9 @@ describe("bootstrapPlan", () => {
       "--skill",
       "kaine-write-plan,kaine-test",
       "--mcp",
-      "serena"
+      "serena",
+      "--serena-interface",
+      "tools"
     ]);
     for (const id of ["install", "env-ensure", "ai-install", "baseline-status", "base-head"]) {
       expect(byId[id]?.cwd).toBe("worktree");
@@ -230,6 +232,7 @@ describe("bootstrapPlan", () => {
     );
     expect(install?.argv).not.toContain("--skill");
     expect(install?.argv).not.toContain("--mcp");
+    expect(install?.argv).not.toContain("--serena-interface");
   });
 
   it.each([
