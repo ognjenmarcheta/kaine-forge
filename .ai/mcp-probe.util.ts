@@ -7,6 +7,11 @@ import { controllerEnvironment } from "./agent-run.util";
 import { type McpServer, type McpSource } from "./ai.util";
 import { stopProcessTree, type CleanupStatus } from "./process-cleanup.util";
 
+/** A `uvx --from` source pinned to a Git commit or an exact PyPI release. */
+export const isPinnedUvxSource = (source: string | undefined): source is string =>
+  source !== undefined &&
+  (/^git\+\S+@[a-f0-9]{40}$/.test(source) || /^[A-Za-z0-9][\w.-]*==\d+\.\d+\.\d+$/.test(source));
+
 export function validateMcpPins(source: McpSource): string[] {
   const problems: string[] = [];
   for (const [name, server] of Object.entries(source.mcpServers)) {
@@ -14,6 +19,12 @@ export function validateMcpPins(source: McpSource): string[] {
       const specifier = server.args?.find((arg) => !arg.startsWith("-"));
       if (!specifier || !/@\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(specifier))
         problems.push(`${name}: pin the npm package to an exact version`);
+    }
+    if (server.command === "uvx") {
+      const args = server.args ?? [];
+      const from = args.indexOf("--from");
+      if (from >= 0 && !isPinnedUvxSource(args[from + 1]))
+        problems.push(`${name}: pin the uvx source to a commit or an exact version`);
     }
     for (const arg of server.args ?? []) {
       if (arg.startsWith("git+") && !/@[a-f0-9]{40}$/.test(arg))

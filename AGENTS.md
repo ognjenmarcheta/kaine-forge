@@ -195,7 +195,9 @@ In the final response for substantive work, state what you actually verified, no
 - Inspect references before changing shared code. In this monorepo, independently check callers across package boundaries: TypeScript reference results can omit other configured projects. An empty or short result does not prove that a symbol has no callers.
 - Prefer symbol edits for whole definitions and reference-aware renames when caller coverage is verified. Use ordinary tools for prose, configuration, builds, tests, and small edits that symbolic replacement does not suit.
 - Verify public exports after a rename. TypeScript can preserve the old barrel name with an alias; complete an intended API rename across that export and its consumers, then check that the old API name is absent.
-- Read relevant Serena memories on demand. Keep stable shared facts in canonical `.ai/serena-memories/` sources and regenerate them; do not write over generated memories through Serena.
+- Read relevant Serena memories on demand, starting with `mem:core`, which says when to read each one. Installed memories are read-only. Keep stable shared facts in canonical `.ai/serena-memories/` sources and regenerate them.
+- Local Claude and Codex sessions use Serena's REPL (`serena_repl`). Pass the session ID from `initial_instructions`, get API details with `s.info(...)`, and combine related lookups in one call. Use REPL code only through `s.lsp`, `s.edit`, read-only `s.fs`, and memory reads. REPL code runs outside the guarded-command hooks: do not run shell commands, subprocesses, or direct file or memory writes in it. Run commands with the agent's own shell so the hooks apply.
+- After a REPL symbol edit, check that symbol with `s.lsp.get_diagnostics_for_symbol(...)` before running wider checks. When references look stale after a tsconfig or package change, call `s.lsp.restart_language_server()` once, then re-check the result with grep.
 - The parent agent performs Serena lookups requested by `kaine-explorer`; its read/search allowlist remains unchanged. Successful tool calls do not replace the repository's required tests and checks.
 - Use `docs/agents/serena-verification.md` to verify tool choice, correctness, caller coverage, and retrieval overhead. Dashboard counts show activity, not task success.
 
@@ -231,7 +233,7 @@ This index is generated from canonical skill metadata:
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
-- `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
+- `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, record the verdict in the harness-eval ledger, and choose a better wording for a rule marked tighten.
 - `kaine-intake`: Assess a new issue for implementation readiness, specification work, missing information, or human handling without implementing it.
 - `kaine-open-pr`: Create a task branch or prepare a draft pull request using Kaine Forge branch naming, checks, changeset rules, and GitHub flow.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.

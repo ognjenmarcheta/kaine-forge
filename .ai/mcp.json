@@ -16,17 +16,24 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/oraios/serena@7a2968335f2198b966864de1ce3655c8e485a653",
+        "serena-agent==2.0.0",
         "serena",
         "start-mcp-server",
         "--project-from-cwd",
         "--context",
         "ide",
+        "--agent-interface",
+        "tools",
+        "--open-web-dashboard",
+        "False",
         "--mode",
         "editing",
         "--mode",
         "interactive"
-      ]
+      ],
+      "env": {
+        "SERENA_USAGE_REPORTING": "false"
+      }
     },
     "firecrawl": {
       "command": "npx",

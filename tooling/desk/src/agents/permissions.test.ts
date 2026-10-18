@@ -224,7 +224,8 @@ describe("permissionsFor (claude)", () => {
           "Bash(pnpm db:push:*)",
           "Bash(pnpm dev:*)",
           "mcp__serena__write_memory",
-          "mcp__serena__onboarding"
+          "mcp__serena__onboarding",
+          "mcp__serena__serena_repl"
         ])
       );
     }

@@ -212,7 +212,9 @@ describe("pipeline runner: setup", () => {
       "--skill",
       "kaine-review,kaine-test,kaine-write-plan",
       "--mcp",
-      "serena"
+      "serena",
+      "--serena-interface",
+      "tools"
     ]);
   });
 });
