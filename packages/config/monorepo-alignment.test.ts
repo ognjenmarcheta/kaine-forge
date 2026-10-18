@@ -873,11 +873,33 @@ describe("monorepo alignment", () => {
       "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
       "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
       "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
+      "$TURBO_ROOT$/tooling/*/*.{ts,tsx}",
+      "$TURBO_ROOT$/tooling/*/{src,tests}/**/*.{ts,tsx}",
       "$TURBO_ROOT$/packages/ui/src/styles/globals.css"
     ]) {
       expect(configInputs, `packages/config/turbo.json test.inputs must hash ${input}`).toContain(
         input
       );
+    }
+
+    // tooling/desk tests read these repository files (issue #490).
+    const deskInputs = readTestInputs("tooling/desk/turbo.json");
+    for (const input of [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/.github/pull_request_template.md",
+      "$TURBO_ROOT$/.github/workflows/ci-pr.yml",
+      "$TURBO_ROOT$/.github/ISSUE_TEMPLATE/*",
+      "$TURBO_ROOT$/docs/agents/day-one.md",
+      "$TURBO_ROOT$/docs/agents/issue-format.md",
+      "$TURBO_ROOT$/package.json",
+      "$TURBO_ROOT$/commitlint.config.mjs",
+      "$TURBO_ROOT$/scripts/no-ai-coauthor.mjs",
+      "$TURBO_ROOT$/.ai/permissions.json",
+      "$TURBO_ROOT$/.ai/skills/*.md",
+      "$TURBO_ROOT$/.ai/agents/*.md",
+      "$TURBO_ROOT$/.ai/review.md"
+    ]) {
+      expect(deskInputs, `tooling/desk/turbo.json test.inputs must hash ${input}`).toContain(input);
     }
 
     const uiInputs = readTestInputs("packages/ui/turbo.json");
