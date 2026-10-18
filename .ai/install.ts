@@ -43,6 +43,7 @@ import {
   renderGrokSessionStartHook,
   renderGrokSkill,
   renderMcpJson,
+  renderOpencodeAgentDefinition,
   renderOpencodeConfig,
   renderOpencodeGuardrailPlugin,
   removeLegacyOpencodeGuardrail,
@@ -498,18 +499,13 @@ const installAgent = (
         : content;
     writeGenerated(file, updated, output);
   };
-  if (agent === "claude") {
-    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
-    writeConfig(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
-
-    const agentsDirAbs = join(REPO_ROOT, ".claude", "agents");
+  const installAgentDefinitions = (
+    agentsDirAbs: string,
+    render: (definition: AgentDefinition) => string
+  ) => {
     const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
     for (const definition of agentDefinitions) {
-      writeGenerated(
-        join(agentsDirAbs, `${definition.name}.md`),
-        renderClaudeAgentDefinition(definition),
-        results
-      );
+      writeGenerated(join(agentsDirAbs, `${definition.name}.md`), render(definition), results);
     }
 
     if (existsSync(agentsDirAbs)) {
@@ -527,6 +523,11 @@ const installAgent = (
         removedSkills.push(`${agent}: ${entry.name}`);
       }
     }
+  };
+  if (agent === "claude") {
+    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
+    writeConfig(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
+    installAgentDefinitions(join(REPO_ROOT, ".claude", "agents"), renderClaudeAgentDefinition);
   }
   if (agent === "codex") {
     writeConfig(
@@ -554,6 +555,7 @@ const installAgent = (
       results
     );
     removeLegacyOpencodeGuardrail(REPO_ROOT);
+    installAgentDefinitions(join(REPO_ROOT, ".opencode", "agents"), renderOpencodeAgentDefinition);
   }
   if (agent === "grok") {
     writeConfig(
@@ -571,32 +573,7 @@ const installAgent = (
       renderGrokPreToolUseHook(),
       results
     );
-
-    const agentsDirAbs = join(REPO_ROOT, ".grok", "agents");
-    const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
-    for (const definition of agentDefinitions) {
-      writeGenerated(
-        join(agentsDirAbs, `${definition.name}.md`),
-        renderGrokAgentDefinition(definition),
-        results
-      );
-    }
-
-    if (existsSync(agentsDirAbs)) {
-      for (const entry of readdirSync(agentsDirAbs, { withFileTypes: true })) {
-        if (
-          !entry.isFile() ||
-          !entry.name.endsWith(".md") ||
-          !entry.name.startsWith(KAINE_PREFIX) ||
-          expectedAgentDefs.has(entry.name.replace(/\.md$/, ""))
-        ) {
-          continue;
-        }
-
-        rmSync(join(agentsDirAbs, entry.name), { force: true });
-        removedSkills.push(`${agent}: ${entry.name}`);
-      }
-    }
+    installAgentDefinitions(join(REPO_ROOT, ".grok", "agents"), renderGrokAgentDefinition);
   }
 
   writeInstallSelection(agent, {

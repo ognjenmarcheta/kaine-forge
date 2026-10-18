@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical guarded-command policy. Rendered into per-agent hook configs and AGENTS.md by pnpm ai:install. `command` matches leading normalized command tokens; `flag` matches an option token, excluding supported argument values and tokens after --. Supported literal syntax and limitations are documented in docs/agents/agent-engineering.md. `deny` blocks matched calls on agents that honour the hook; `ask` is a three-state verdict on Claude and Cursor and degrades to an advisory elsewhere.",
+  "$comment": "Canonical guarded-command policy. Rendered into per-agent hook configs and AGENTS.md by pnpm ai:install. `command` matches leading normalized command tokens; `flag` matches an option token, excluding supported argument values and tokens after --. Supported literal syntax and limitations are documented in docs/agents/agent-engineering.md. `deny` blocks matched calls on agents that honour the hook; `ask` is a three-state verdict on Claude, Cursor, and OpenCode (OpenCode: rules without a flag) and degrades to an advisory elsewhere.",
   "rules": [
     {
       "id": "db-push",

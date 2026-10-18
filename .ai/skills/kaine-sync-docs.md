@@ -34,6 +34,7 @@ Use this skill when `.ai/` sources changed or when local installed assistant fil
 - `.grok/agents/<name>.md`
 - `.cursor/rules/kaine-rules.mdc`
 - `opencode.json`
+- `.opencode/agents/<name>.md`
 - `.serena/project.yml`
 - `.serena/memories/*.md`
 

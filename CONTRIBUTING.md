@@ -157,7 +157,7 @@ pnpm ai:install
 pnpm ai:doctor
 ```
 
-Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/settings.json`, and `.serena/memories/*`. Canonical review guidance lives in `.ai/review.md` and is installed to tracked `REVIEW.md`. Local gitignored outputs include `.claude/skills/*`, `.claude/agents/*`, `.claude/hooks/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.cursor/hooks.json`, `.grok/skills/*`, `.grok/hooks/*`, `.grok/agents/*`, `.opencode/skills/*`, `.opencode/plugins/*`, `.serena/project.yml`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, `.grok/config.toml`, and `opencode.json`.
+Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/settings.json`, and `.serena/memories/*`. Canonical review guidance lives in `.ai/review.md` and is installed to tracked `REVIEW.md`. Local gitignored outputs include `.claude/skills/*`, `.claude/agents/*`, `.claude/hooks/*`, `.agents/skills/*`, `.cursor/skills/*`, `.cursor/rules/*`, `.cursor/hooks.json`, `.grok/skills/*`, `.grok/hooks/*`, `.grok/agents/*`, `.opencode/skills/*`, `.opencode/plugins/*`, `.opencode/agents/*`, `.serena/project.yml`, `.mcp.json`, `.codex/config.toml`, `.cursor/mcp.json`, `.grok/config.toml`, and `opencode.json`.
 
 `pnpm ai:install` keeps each agent's recorded skill selection in `.ai.local/installations/<agent>.json`. A reinstall also adds default skills that the team added since that record, and keeps any skill you removed. `pnpm ai:doctor` reports a new team skill as missing until you reinstall.
 

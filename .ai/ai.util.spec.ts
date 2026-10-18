@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkSerenaProjectSemantics,
   claudePermissionEntries,
+  opencodePermissionEntries,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   lintAgentDefinitionsDir,
@@ -35,6 +36,7 @@ import {
   renderGrokSkill,
   renderGuardedCommandsSection,
   renderMcpJson,
+  renderOpencodeAgentDefinition,
   renderOpencodeConfig,
   renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
@@ -682,14 +684,31 @@ describe("renderOpencodeConfig", () => {
     expect(parsed.mcp.foo).toEqual({
       type: "local",
       command: ["foo-bin", "--flag"],
-      enabled: true
+      enabled: true,
+      timeout: 30000
     });
     expect(parsed.mcp.bar).toEqual({
       type: "local",
       command: ["bar-bin"],
       enabled: true,
+      timeout: 30000,
       environment: { KEY: "value" }
     });
+  });
+
+  it("enforces the guarded-command policy through native bash permissions", () => {
+    const parsed = JSON.parse(renderOpencodeConfig({ mcpServers: {} })) as {
+      permission: { bash: Record<string, string> };
+    };
+    const bash = parsed.permission.bash;
+
+    expect(bash["pnpm db:push"]).toBe("deny");
+    expect(bash["pnpm db:push *"]).toBe("deny");
+    expect(bash["git reset --hard *"]).toBe("ask");
+    // OpenCode is last-match-wins; a generated catch-all would override personal rules.
+    expect(bash).not.toHaveProperty("*");
+    // Flag rules stay with the plugin: a glob cannot constrain a flag by name.
+    expect(Object.keys(bash).some((pattern) => pattern.startsWith("git push"))).toBe(false);
   });
 
   it("skips servers without a command", () => {
@@ -810,6 +829,41 @@ describe("renderClaudeAgentDefinition", () => {
       "---\nname: kaine-implementer\ndescription: Does agent things.\nmodel: inherit\n---\nSystem prompt.\n"
     );
     expect(output.endsWith("\n")).toBe(true);
+  });
+});
+
+describe("renderOpencodeAgentDefinition", () => {
+  it("turns a Claude tool allowlist into OpenCode subagent denials", () => {
+    const def = parseAgentDefinitionFile(
+      "kaine-explorer",
+      agentDef("kaine-explorer", "Reads.", "Explore.").replace(
+        "model: inherit",
+        "model: inherit\ntools: Read, Grep, Glob"
+      )
+    );
+    expect(renderOpencodeAgentDefinition(def)).toBe(
+      [
+        "---",
+        'description: "Reads."',
+        "mode: subagent",
+        "permission:",
+        "  edit: deny",
+        "  bash: deny",
+        "  webfetch: deny",
+        "  websearch: deny",
+        "  task: deny",
+        "---",
+        "Explore.",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("leaves permissions to the caller when the source has no tool allowlist", () => {
+    const def = parseAgentDefinitionFile("kaine-implementer", agentDef("kaine-implementer"));
+    expect(renderOpencodeAgentDefinition(def)).toBe(
+      '---\ndescription: "Does agent things."\nmode: subagent\n---\nSystem prompt.\n'
+    );
   });
 });
 
@@ -1012,6 +1066,23 @@ describe("claudePermissionEntries", () => {
 
     expect(entries.deny).toEqual([]);
     expect(entries.ask).toEqual([]);
+  });
+});
+
+describe("opencodePermissionEntries", () => {
+  it("maps command-only rules to exact and trailing-argument globs and omits flag rules", () => {
+    expect(
+      opencodePermissionEntries([
+        { id: "a", decision: "deny", command: "pnpm db:push", reason: "r" },
+        { id: "b", decision: "ask", command: "pnpm db:seed", reason: "r" },
+        { id: "c", decision: "deny", command: "git", flag: "--no-verify", reason: "r" }
+      ])
+    ).toEqual({
+      "pnpm db:push": "deny",
+      "pnpm db:push *": "deny",
+      "pnpm db:seed": "ask",
+      "pnpm db:seed *": "ask"
+    });
   });
 });
 

@@ -20,6 +20,7 @@ import {
   readLocalMcpEnv,
   readMcpSource,
   readPersonalMcpSource,
+  renderOpencodeAgentDefinition,
   REPO_ROOT,
   shouldFailDoctor
 } from "./ai.util";
@@ -106,6 +107,7 @@ const main = (): void => {
     ["Cursor rules", ".cursor/rules"],
     ["OpenCode skills", ".opencode/skills"],
     ["OpenCode config", "opencode.json"],
+    ["OpenCode agents", ".opencode/agents"],
     ["Grok skills", ".grok/skills"],
     ["Grok MCP config", ".grok/config.toml"],
     ["Grok session hook", ".grok/hooks/kaine-session-start.json"],
@@ -175,6 +177,11 @@ const main = (): void => {
       agentDefinitions,
       join(REPO_ROOT, ".grok", "agents")
     );
+    const opencodeAgentDrift = computeAgentDefinitionDrift(
+      agentDefinitions,
+      join(REPO_ROOT, ".opencode", "agents"),
+      renderOpencodeAgentDefinition
+    );
     const reportAgentDrift = (
       label: string,
       agentDrift: ReturnType<typeof computeAgentDefinitionDrift>,
@@ -212,7 +219,10 @@ const main = (): void => {
       claudeAgentDrift.orphan.length > 0 ||
       grokAgentDrift.missing.length > 0 ||
       grokAgentDrift.stale.length > 0 ||
-      grokAgentDrift.orphan.length > 0;
+      grokAgentDrift.orphan.length > 0 ||
+      opencodeAgentDrift.missing.length > 0 ||
+      opencodeAgentDrift.stale.length > 0 ||
+      opencodeAgentDrift.orphan.length > 0;
 
     if (
       fileDrift.length === 0 &&
@@ -236,6 +246,9 @@ const main = (): void => {
         existsSync(join(REPO_ROOT, ".grok", "config.toml"))
       ) {
         reportAgentDrift("grok agents", grokAgentDrift, ".grok/agents/<name>.md");
+      }
+      if (existsSync(join(REPO_ROOT, "opencode.json"))) {
+        reportAgentDrift("opencode agents", opencodeAgentDrift, ".opencode/agents/<name>.md");
       }
       // Local-install drift (skills, hooks, agents, settings) stays advisory:
       // those artifacts are gitignored and absent in CI checkouts. Under
