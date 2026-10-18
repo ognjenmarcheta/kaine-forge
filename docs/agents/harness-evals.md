@@ -32,6 +32,12 @@ construction, because the two are not comparable. The `kaine-harness-eval` skill
 holds the protocol, and the behavioural probe that verifies an arm before it is
 paid for — asking an agent what its context contains returns false negatives.
 
+A rule marked `tighten` gets a candidate screen before its next run. Up to three
+rewordings, each aimed at a failure a recorded trial shows, run once each on the
+same task. A screen only ranks the candidates, so it never enters the data block;
+the chosen wording then gets a full protocol 2 run. The skill holds this
+procedure too.
+
 ## What it can and cannot tell you
 
 It can tell you whether a rule changes output, in which direction, with a

@@ -1,6 +1,6 @@
 ---
 name: kaine-harness-eval
-description: Measure whether a specific guide or agent-definition rule actually changes agent output, and record the verdict in the harness-eval ledger.
+description: Measure whether a specific guide or agent-definition rule actually changes agent output, record the verdict in the harness-eval ledger, and choose a better wording for a rule marked tighten.
 argument-hint: the rule to measure, or "next" to take the first unmeasured one
 ---
 
@@ -109,6 +109,34 @@ not back:
 
 Record every new run as protocol 2. Older runs stay as they were recorded.
 
+## Propose rewordings for a `tighten` rule
+
+A `tighten` action says the wording must change, but not to what. Use this
+procedure to choose the new wording before you pay for a full run.
+
+- **Entry condition.** Use it only for a rule whose latest run is `tighten`, or
+  for a lesson that `pnpm desk lessons` reports in several issues. It never
+  creates a rule from nothing.
+- **Propose.** Write at most three candidate wordings. Each candidate must aim at
+  a failure that a recorded trial shows. Cite the trial and the metric, for
+  example `redGreenProof: 0` in a without-arm trial, or flow prose that repeats
+  the diagram in a `kaine-explain` flow trial. Drop a candidate that cites no
+  failure.
+- **Screen.** Run each candidate once, prompt-carried, in one session, on the
+  same task as the run that asked for `tighten`. Score only the mechanical
+  metrics that the cited failures name. Do not give a 1–5 verdict. One trial is
+  below any noise floor, so a screen ranks the candidates and proves nothing.
+- **Compose.** When two candidates each fix a different cited failure, merge
+  them into one wording. A merged wording is a new candidate: it gets no
+  shortcut past the full run.
+- **Measure.** Run the chosen wording as a normal protocol 2 run against an
+  existing calibration. Give its `rule` a version, for example
+  `kaine-explain v2, prompt-carried: flow`. Only this run enters the
+  `harness-eval:data` block. Write the screen transcripts and the reason for the
+  choice in the ledger prose above the block.
+- **Adopt.** Edit only the canonical `.ai/` source, run `pnpm ai:install`, and
+  follow workflow step 9.
+
 ## Which rules are worth measuring
 
 Only rules whose efficacy is genuinely in doubt **and** that reach the trial
@@ -180,7 +208,8 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    ```
 
 8. Act on the result. `keep` needs no follow-up. `tighten` means the effect is
-   real but weak — re-word the rule and say what changed. A **first** measured
+   real but weak — choose the new wording with _Propose rewordings_ above, re-word
+   the rule, and say what changed. A **first** measured
    no-op records `tighten` with a note that one run cannot justify deletion, and
    files an issue for the second run; `delete` needs two no-op runs, and only
    then open a PR removing the rule. `promote-to-lint` means file an issue naming
@@ -198,6 +227,7 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
 
 State the rule, the file it was stripped from, the construction used, the
 per-arm verdict means and the delta, the calibration and its noise floor, the
-conclusion, and the action. Say plainly
+conclusion, and the action. For a reworded rule, also name the candidates
+screened and why the chosen one won. Say plainly
 that `n = 3` detects only large effects, and name the model, the agent and the
 CLI version — a result for one does not transfer to another.
