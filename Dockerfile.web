@@ -18,7 +18,6 @@ WORKDIR /app
 
 ARG VITE_API_URL
 ARG VITE_GRAPHQL_URL
-ARG VITE_ORGANIZATIONS_VISIBLE
 
 COPY --from=pruner /app/.npmrc ./
 COPY --from=pruner /app/out/json/ ./
