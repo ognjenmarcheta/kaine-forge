@@ -33,6 +33,14 @@ RUN pnpm turbo run build --filter=@repo/web... \
 
 FROM nginxinc/nginx-unprivileged:alpine@sha256:6a23acdfca2b9cfbcec61419e3f1426bcbedb91362f2f19306a8567423bb4612 AS runner
 
+# Alpine security fixes land before the pinned nginx image is rebuilt (issue #491).
+# CI passes the ISO week as APT_REFRESH, as for Dockerfile.api, so this layer reruns weekly.
+ARG APT_REFRESH
+USER root
+RUN apk upgrade --no-cache
+# The base image's unprivileged nginx user.
+USER 101
+
 RUN rm /etc/nginx/conf.d/default.conf
 COPY apps/web/nginx.conf /etc/nginx/default.conf.template
 COPY --from=builder /app/apps/web/dist/ /usr/share/nginx/html/
