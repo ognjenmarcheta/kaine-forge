@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { isScalar, isSeq, parse as parseYaml, parseDocument } from "yaml";
 
 export const generatedTextEqual = (actual: string, expected: string): boolean =>
@@ -46,6 +47,7 @@ export const REVIEW_REQUIRED_HEADINGS = [
 export const CONTEXT_REQUIRED_HEADINGS = ["Language", "Relationships", "Example dialogue"] as const;
 
 export const REQUIRED_SERENA_MEMORIES = [
+  "core.md",
   "architecture_patterns.md",
   "coding_standards.md",
   "domain_overview.md",
@@ -912,23 +914,52 @@ export const renderCursorRulesFile = (cursorRulesSrc: string): string => {
 export const renderSerenaProject = (source: string): string =>
   `${TOML_HEADER}\n\n${source.trim()}\n`;
 
-export const mergeSerenaWorkspaceFolders = (
+/** Seed keys the installer owns in `.serena/project.yml`; `project.local.yml` stays the personal override. */
+const SERENA_SEED_MANAGED_KEYS = [
+  "line_ending",
+  "excluded_apis",
+  "included_apis",
+  "read_only_memory_patterns"
+] as const;
+
+/**
+ * Apply the seed to an installed Serena project. Managed keys take the seed value, the
+ * deprecated `base_modes` key is removed, and missing workspace roots are appended. Serena's
+ * own migrations, comments, and personal keys are kept.
+ */
+export const mergeSerenaProjectSeed = (
   seedSource: string,
   installedContent: string,
   root = REPO_ROOT
 ): string => {
   const seed: unknown = parseYaml(seedSource);
   if (!isRecord(seed)) throw new Error("Invalid Serena project seed");
+  const document = parseDocument(installedContent);
+  if (document.errors.length) throw new Error("Invalid installed Serena project YAML");
+  const installed: unknown = document.toJS();
+  let changed = false;
+  for (const key of SERENA_SEED_MANAGED_KEYS) {
+    if (
+      key in seed &&
+      !isDeepStrictEqual(isRecord(installed) ? installed[key] : undefined, seed[key])
+    ) {
+      document.set(key, seed[key]);
+      changed = true;
+    }
+  }
+  if (document.has("base_modes")) {
+    document.delete("base_modes");
+    changed = true;
+  }
+  const result = () => (changed ? document.toString() : installedContent);
   const requested: unknown = seed.ls_additional_workspace_folders;
-  if (requested === undefined) return installedContent;
+  if (requested === undefined) return result();
   if (
     !Array.isArray(requested) ||
     !requested.every((entry): entry is string => typeof entry === "string")
   ) {
     throw new Error("Invalid Serena workspace folders in seed");
   }
-  const document = parseDocument(installedContent);
-  if (document.errors.length) throw new Error("Invalid installed Serena project YAML");
   const existing: unknown = document.get("ls_additional_workspace_folders", true);
   if (
     existing != null &&
@@ -943,7 +974,7 @@ export const mergeSerenaWorkspaceFolders = (
   const missing = requested.filter(
     (folder) => existsSync(join(root, folder, "tsconfig.json")) && !configured.includes(folder)
   );
-  if (!missing.length) return installedContent;
+  if (!missing.length) return result();
   if (isSeq(existing)) {
     for (const folder of missing) existing.add(folder);
   } else {
@@ -986,6 +1017,11 @@ export const checkSerenaProjectSemantics = (
   for (const language of expectedLanguages) {
     if (!installedLanguages.includes(language)) {
       problems.push(`language server "${language}" is not configured`);
+    }
+  }
+  for (const key of SERENA_SEED_MANAGED_KEYS) {
+    if (key in seed && !isDeepStrictEqual(installed[key], seed[key])) {
+      problems.push(`${key} differs from the seed`);
     }
   }
   const expectedFolders = asStringList(seed.ls_additional_workspace_folders);

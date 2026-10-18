@@ -51,14 +51,14 @@ transports have no passing startup claim. Probes stay out of hooks and ordinary 
 in repository-owned hook launch definitions. Updates follow the existing
 [dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
 
-| Server     | Exact launch dependency                               | Verification on 2026-09-27                  |
-| ---------- | ----------------------------------------------------- | ------------------------------------------- |
-| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31`   | initialization passed                       |
-| context7   | `@upstash/context7-mcp@4.1.1`                         | initialization passed                       |
-| playwright | `@playwright/mcp@0.0.82`                              | initialization passed                       |
-| serena     | Git commit `4c4268f9c0adf8743a75e6dda2ef1fa635f34cc3` | v2.0.0; initialization passed on 2026-10-18 |
-| firecrawl  | `firecrawl-mcp@3.25.5`                                | unselected; not probed                      |
-| graphify   | local `graphify-mcp` executable                       | optional; not probed                        |
+| Server     | Exact launch dependency                             | Verification on 2026-09-27          |
+| ---------- | --------------------------------------------------- | ----------------------------------- |
+| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31` | initialization passed               |
+| context7   | `@upstash/context7-mcp@4.1.1`                       | initialization passed               |
+| playwright | `@playwright/mcp@0.0.82`                            | initialization passed               |
+| serena     | PyPI `serena-agent==2.0.0` through `uvx`            | initialization passed on 2026-10-18 |
+| firecrawl  | `firecrawl-mcp@3.25.5`                              | unselected; not probed              |
+| graphify   | local `graphify-mcp` executable                     | optional; not probed                |
 
 Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
 process from the persisted Windows PATH makes both local readiness checks pass.
@@ -68,7 +68,7 @@ The installer selects Serena's native `codex` and `claude-code` contexts and add
 the other packages. See [Serena verification](serena-verification.md) for the
 independent coverage check and guided current/improved trials.
 Serena's first cold initialization exceeded the 10-second limit. Explicit preparation
-now uses `pnpm ai:install --agent claude --prepare-serena`. It derives the Git commit from
+now uses `pnpm ai:install --agent claude --prepare-serena`. It derives the pinned source from
 the selected launch configuration, rejects unsupported overrides, and bounds preparation
 to 60 seconds and 64 KiB of combined output. Successful prompts are saved atomically in
 `.ai.local/serena/`; failed preparation retains the previous cache.
@@ -82,6 +82,38 @@ its role allowlists and memory-write guard keep working; the desk also denies an
 guarded-command hooks, and `read_only` or excluded APIs do not contain it. The guide
 limits REPL code to symbol, edit, read, and memory-read APIs; that limit is guidance,
 not enforcement. Cursor, OpenCode, and Grok keep the canonical `tools` value.
+
+`uvx --from` sources must be a commit-pinned Git URL or an exact `package==x.y.z`
+release. Serena launches from PyPI because a Git source builds from source on a cold
+cache. The launch adds `--open-web-dashboard False`, so no browser tab opens per
+session or worktree; the dashboard still runs. `SERENA_USAGE_REPORTING=false` turns
+off Serena's anonymous startup telemetry.
+
+The installer owns these keys in `.serena/project.yml` and resets them from the seed
+on every install; `.serena/project.local.yml` remains the personal override:
+
+- `line_ending: lf`, because Serena's default `native` writes CRLF on Windows.
+- `excluded_apis: [shell, fs.create_text_file]`, which steers the REPL to the agent's
+  own shell and editors. It is not enforcement.
+- `included_apis: [lsp.get_diagnostics_for_symbol, lsp.restart_language_server]`, two
+  optional REPL operations for per-symbol checks and stale tsserver recovery.
+- `read_only_memory_patterns: [".*"]`, because memories are generated from
+  `.ai/serena-memories/`. `mem:core` is their entry point.
+
+The installer also removes the deprecated `base_modes` key, and doctor reports a
+managed key that differs from the seed.
+
+Not adopted, with reasons:
+
+- `serena-hooks remind` denies Grep and Read after three uses. The guide prefers
+  ordinary tools for prose, configuration, and small edits, and Serena's own
+  evaluations find built-in edits smaller for one- to three-line changes.
+- `serena-hooks auto-approve` auto-allows `serena_repl`, which runs arbitrary Python.
+- The Codex `plan-guard` hook blocks `serena_repl` in plan mode.
+- Project trust and project `ls_specific_settings`: Serena's managed TypeScript 5.9.3
+  matches the repo, and the caller check found complete cross-package references.
+- `ext` and `query-projects` (one repository), and the paid JetBrains backend.
+- `initial_prompt` with `embed_memory`, because `AGENTS.md` is already loaded.
 
 Claude startup uses the existing bounded local inspector. It launches no Serena process
 and performs no download. It emits cached content only when Serena is selected, enabled,

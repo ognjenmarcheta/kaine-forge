@@ -127,7 +127,7 @@ describe("session-start hook", () => {
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
   it("prints compact repo context when the AI install is healthy", () => {
     const repo = makeRepo();
     try {

@@ -21,7 +21,7 @@ import {
   mcpEnvValue,
   type McpSource,
   mergeMcpSources,
-  mergeSerenaWorkspaceFolders,
+  mergeSerenaProjectSeed,
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
@@ -393,14 +393,14 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
   }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
-    // Preserve Serena's schema migrations and local settings; only append missing
-    // canonical workspace roots to existing projects.
+    // Preserve Serena's schema migrations and local settings; apply only the seed-owned
+    // keys and missing canonical workspace roots to existing projects.
     const serenaProjectPath = join(REPO_ROOT, ".serena", "project.yml");
     const seed = readFileSync(SERENA_PROJECT_SRC, "utf8");
     writeGenerated(
       serenaProjectPath,
       existsSync(serenaProjectPath)
-        ? mergeSerenaWorkspaceFolders(seed, readFileSync(serenaProjectPath, "utf8"))
+        ? mergeSerenaProjectSeed(seed, readFileSync(serenaProjectPath, "utf8"))
         : renderSerenaProject(seed),
       results
     );

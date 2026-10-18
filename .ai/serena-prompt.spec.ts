@@ -69,6 +69,13 @@ it("prepares the selected commit and only emits a current cache", async () => {
   expect(
     inspectSerenaPrompt(root, { ...server, args: [...server.args, "--agent-interface", "REPL"] })
   ).toEqual({ status: "not-applicable" });
+  const fromPyPI = (source: string) => ({
+    ...server,
+    args: ["--from", source, ...server.args.slice(2)]
+  });
+  // An exact PyPI release is a supported pin; its cache is stale only because the launch changed.
+  expect(inspectSerenaPrompt(root, fromPyPI("serena-agent==2.0.0"))).toEqual({ status: "stale" });
+  expect(inspectSerenaPrompt(root, fromPyPI("serena-agent"))).toEqual({ status: "unsupported" });
   expect(inspectSerenaPrompt(root, { command: "personal" })).toEqual({ status: "unsupported" });
   await expect(prepareSerenaPrompt(root, { command: "personal" })).rejects.toThrow("Unsupported");
   expect(mocks.spawn).toHaveBeenCalledTimes(1);

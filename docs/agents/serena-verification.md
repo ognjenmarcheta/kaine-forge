@@ -32,6 +32,17 @@ pnpm ai:doctor --agent codex --local --probe-mcp --json
 pnpm ai:doctor --agent claude --local --probe-mcp --json
 ```
 
+Prove capability on the real project with Serena's health check. It runs a symbol
+overview, `find_symbol`, and `find_referencing_symbols` on one file, writes logs to
+`.serena/logs/health-checks/`, and exits 1 on failure:
+
+```sh
+PYTHONUTF8=1 uvx --from serena-agent==2.0.0 serena project health-check
+```
+
+On Windows, `PYTHONUTF8=1` is required: without it, Serena 2.0.0 passes the check but
+fails with exit 1 while printing its success mark to a cp1252 console.
+
 Claude's cached startup prompt becomes stale when the launch arguments change.
 Refresh it explicitly with `pnpm ai:install --agent claude --prepare-serena`.
 Cached startup content does not establish that Serena is connected.
@@ -48,7 +59,8 @@ the nearest ancestor with a `.serena/project.yml` or `.git` marker. Verify the
 absolute project path, including when starting from a workspace subdirectory.
 
 The project seed lists additional TypeScript workspace roots. The installer adds
-missing existing roots to installed projects. It preserves migrated fields,
+missing existing roots to installed projects and resets the seed-owned keys listed in
+[agent engineering](agent-engineering.md). It preserves migrated fields,
 comments, and custom roots. `.serena/project.local.yml` remains a personal override;
 it can override the installed list. Add new TypeScript workspace roots to the
 canonical seed when extending the template.
@@ -56,6 +68,17 @@ canonical seed when extending the template.
 Serena documents [contexts](https://oraios.github.io/serena/02-usage/050_configuration.html)
 and [project startup](https://oraios.github.io/serena/02-usage/040_workflow.html).
 Check options against the pinned version before changing them.
+
+## Serena's own evaluation
+
+Serena ships an evaluation prompt: `docs/04-evaluation/020_prompts/010_evaluation-prompt.md`
+in `oraios/serena` at the pinned tag. In one fresh session, the agent runs about 20 tasks
+twice, once with Serena and once with its built-in tools. It measures calls, payload
+size, and follow-up checks, and reverts every edit. Run it in a disposable worktree.
+Write the report to `.ai.local/serena-checks/<run-id>/serena-evaluation.md`, not to the
+repository root. Record the interface, model, and cold-start time of the first symbol
+query. The agent grades its own work, so treat the report as a quick signal. The
+guided sessions below remain the comparison for setup changes.
 
 ## Prepare comparable guided sessions
 
