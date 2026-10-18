@@ -33,7 +33,8 @@ The committed AI setup is split into shared canonical sources and local install 
 | `.codex/config.toml`                                              | Installed Codex MCP, SessionStart and PreToolUse hook config.                |
 | `.cursor/mcp.json`, `.cursor/rules/`, `.cursor/hooks.json`        | Installed Cursor config, rules and shell guardrail.                          |
 | `.opencode/plugins/kaine-guardrail.ts`                            | Installed OpenCode guardrail plugin.                                         |
-| `opencode.json`                                                   | Installed OpenCode MCP config.                                               |
+| `.opencode/agents/kaine-<name>.md`                                | Installed OpenCode subagents.                                                |
+| `opencode.json`                                                   | Installed OpenCode MCP config and `permission.bash` guard rules.             |
 | `.ai.local/mcp.env`                                               | Personal env-var values for `${VAR}` substitution.                           |
 | `.ai.local/mcp.json`                                              | Personal MCP servers, merged into every per-tool config.                     |
 | `.claude/settings.local.json`, `.claude/hooks/`, `.claude/plans/` | Personal Claude runtime state.                                               |
@@ -84,9 +85,13 @@ run. `pnpm ai:install` fans it out three ways:
 - **Cursor** gets `.cursor/hooks.json` on its `beforeShellExecution` event,
   which is the granular equivalent of a shell `PreToolUse`.
 - **OpenCode** has no JSON hook format — a `PreToolUse` block there is silently
-  ignored — so it gets a `.opencode/plugins/kaine-guardrail.ts` plugin on
-  `tool.execute.before`. It imports the same matcher rather than restating the
-  policy.
+  ignored — so it gets two layers. `opencode.json` carries a native
+  `permission.bash` block with the rules that have no `flag`, as exact and
+  trailing-argument globs, like the Claude `permissions` block. A
+  `.opencode/plugins/kaine-guardrail.ts` plugin on `tool.execute.before`
+  imports the same matcher and covers the flag rules. It also keeps `deny`
+  enforced if a personal glob later in `permission.bash` overrides a generated
+  one, because OpenCode lets the last matching rule win.
 
 Every target also sees the generated AGENTS.md **Guarded Commands** table, which
 is the human-readable contract and the fallback for anyone who has not run
@@ -98,9 +103,10 @@ Two tiers, and the difference matters:
   code 2 as well as structured output. Codex uses a structured denial with exit
   0 because Windows wrappers can remap exit 2 into a hook error. OpenCode blocks
   by throwing from its `tool.execute.before` callback.
-- `ask` is a real verdict on Claude and Cursor. OpenCode's callback blocks by
-  throwing, and the Codex and Grok integrations have no ask verdict, so
-  these three emit an advisory. That is deliberate — `git push --force` is on the ask list
+- `ask` is a real verdict on Claude and Cursor, and on OpenCode for rules
+  without a flag (native `permission.bash`). OpenCode's plugin can only block by
+  throwing, so flag `ask` rules there emit an advisory, as do Codex and Grok,
+  which have no ask verdict. That is deliberate — `git push --force` is on the ask list
   and `kaine-rebase` needs it — but it means **anything irreversible belongs in
   `deny`**.
 
@@ -111,7 +117,9 @@ The proposed commands are test data; they are never executed. Doctor also warns
 about missing or stale hooks in optional Cursor and OpenCode installations.
 
 The contracts follow [Cursor hooks](https://cursor.com/docs/hooks) and
-[OpenCode plugins](https://opencode.ai/docs/plugins/). These automated checks do
+[OpenCode plugins](https://opencode.ai/docs/plugins/) and
+[permissions](https://opencode.ai/docs/permissions/); the OpenCode renders were
+checked against the v1.19.3 docs. These automated checks do
 not prove a host loads its integration. Record live verification separately;
 Cursor, OpenCode, and Grok remain pending. A live check must use harmless stub
 commands in an isolated fixture, with no real database or remote push target.

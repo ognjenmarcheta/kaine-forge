@@ -15,6 +15,8 @@ import {
   readMcpSource,
   readPersonalMcpSource,
   readLocalMcpEnv,
+  renderClaudeAgentDefinition,
+  renderOpencodeAgentDefinition,
   resolveMcpServerForAgent,
   REPO_ROOT
 } from "./ai.util";
@@ -125,10 +127,11 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
       .filter((entry) => entry.label.startsWith(prefixes[agent]))
       .map((entry) => `${entry.label}: ${entry.status}`)
   );
-  if (agent === "claude" || agent === "grok") {
+  if (agent === "claude" || agent === "grok" || agent === "opencode") {
     const drift = computeAgentDefinitionDrift(
       discoverAgentDefinitions(),
-      path.join(REPO_ROOT, `.${agent}`, "agents")
+      path.join(REPO_ROOT, `.${agent}`, "agents"),
+      agent === "opencode" ? renderOpencodeAgentDefinition : renderClaudeAgentDefinition
     );
     problems.push(
       ...drift.missing.map((name) => `Missing agent definition: ${name}`),

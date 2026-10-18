@@ -277,7 +277,8 @@ This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus `docs/
 
 The hook `.ai/hooks/pre-tool-use.mjs` applies `.ai/permissions.json` to supported
 literal command forms. `deny` blocks matched calls on agents that honour the hook.
-`ask` is a real verdict on Claude and Cursor and degrades to an advisory elsewhere.
+`ask` is a real verdict on Claude, Cursor, and OpenCode (OpenCode: rules without a
+flag) and degrades to an advisory elsewhere.
 Hooks are guardrails, not a complete security boundary. Supported syntax and
 failure behavior are documented in `docs/agents/agent-engineering.md`.
 

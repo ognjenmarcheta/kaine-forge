@@ -87,6 +87,8 @@ export interface Skill {
 export interface AgentDefinition {
   name: string;
   description: string;
+  /** Claude Code tool allowlist; absent means the agent inherits every tool. */
+  tools?: string[];
   frontmatterRaw: string;
   body: string;
 }
@@ -382,9 +384,18 @@ export const parseAgentDefinitionFile = (name: string, content: string): AgentDe
     throw new Error(`${name}: body is empty`);
   }
 
+  const tools =
+    typeof frontmatter.tools === "string"
+      ? frontmatter.tools
+          .split(",")
+          .map((tool) => tool.trim())
+          .filter(Boolean)
+      : undefined;
+
   return {
     name: frontmatter.name,
     description: frontmatter.description,
+    ...(tools ? { tools } : {}),
     frontmatterRaw,
     body
   };
@@ -450,7 +461,8 @@ export const lintAgentDefinitionsDir = (dir: string = AGENTS_SRC_DIR): LintIssue
 
 export const computeAgentDefinitionDrift = (
   definitions: AgentDefinition[],
-  dir: string
+  dir: string,
+  render: (definition: AgentDefinition) => string = renderClaudeAgentDefinition
 ): AgentDefinitionDrift => {
   const expectedNames = new Set(definitions.map((definition) => definition.name));
   const missing: string[] = [];
@@ -467,9 +479,7 @@ export const computeAgentDefinitionDrift = (
       missing.push(definition.name);
       continue;
     }
-    if (
-      !generatedTextEqual(readFileSync(filePath, "utf8"), renderClaudeAgentDefinition(definition))
-    ) {
+    if (!generatedTextEqual(readFileSync(filePath, "utf8"), render(definition))) {
       stale.push(definition.name);
     }
   }
@@ -721,6 +731,25 @@ export const claudePermissionEntries = (rules: GuardRule[]): { ask: string[]; de
 };
 
 /**
+ * OpenCode `permission.bash` globs for the same command-only rules. OpenCode
+ * matches parsed commands with `*` wildcards and lets the last matching rule
+ * win, so the exact/trailing pair mirrors the Claude form and no catch-all is
+ * emitted. Flag rules stay with the guardrail plugin.
+ * Contract: https://opencode.ai/docs/permissions/
+ */
+export const opencodePermissionEntries = (
+  rules: GuardRule[]
+): Record<string, GuardRule["decision"]> =>
+  Object.fromEntries(
+    rules
+      .filter((rule) => rule.flag === undefined)
+      .flatMap((rule) => [
+        [rule.command, rule.decision],
+        [`${rule.command} *`, rule.decision]
+      ])
+  );
+
+/**
  * The human-readable half of the policy. Reaches every agent through AGENTS.md,
  * including the ones whose config carries no permissions primitive, and cannot
  * drift from the enforced half because pnpm ai:doctor --strict gates AGENTS.md.
@@ -740,7 +769,8 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
     "",
     "The hook `.ai/hooks/pre-tool-use.mjs` applies `.ai/permissions.json` to supported",
     "literal command forms. `deny` blocks matched calls on agents that honour the hook.",
-    "`ask` is a real verdict on Claude and Cursor and degrades to an advisory elsewhere.",
+    "`ask` is a real verdict on Claude, Cursor, and OpenCode (OpenCode: rules without a",
+    "flag) and degrades to an advisory elsewhere.",
     "Hooks are guardrails, not a complete security boundary. Supported syntax and",
     "failure behavior are documented in `docs/agents/agent-engineering.md`.",
     "",
@@ -896,6 +926,36 @@ export const renderCodexSkill = renderClaudeSkill;
 export const renderCursorSkill = renderClaudeSkill;
 export const renderGrokSkill = renderClaudeSkill;
 export const renderGrokAgentDefinition = renderClaudeAgentDefinition;
+
+/** Claude tool names that unlock each OpenCode permission an allowlist can deny. */
+const OPENCODE_AGENT_PERMISSION_TOOLS = {
+  edit: ["Edit", "Write", "NotebookEdit"],
+  bash: ["Bash"],
+  webfetch: ["WebFetch"],
+  websearch: ["WebSearch"],
+  task: ["Agent", "Task"]
+} as const;
+
+/**
+ * OpenCode agents take `mode` and `permission` instead of Claude's `model`
+ * and `tools`. Omitting `model` makes a subagent use its caller's model,
+ * which matches `model: inherit`. Contract: https://opencode.ai/docs/agents/
+ */
+export const renderOpencodeAgentDefinition = (definition: AgentDefinition): string => {
+  const { tools } = definition;
+  const denied = tools
+    ? Object.entries(OPENCODE_AGENT_PERMISSION_TOOLS)
+        .filter(([, unlocking]) => !unlocking.some((tool) => tools.includes(tool)))
+        .map(([permission]) => `  ${permission}: deny`)
+    : [];
+  const frontmatter = [
+    `description: ${JSON.stringify(definition.description)}`,
+    "mode: subagent",
+    ...(denied.length > 0 ? ["permission:", ...denied] : [])
+  ];
+  const body = definition.body.endsWith("\n") ? definition.body : `${definition.body}\n`;
+  return `---\n${frontmatter.join("\n")}\n---\n${body}`;
+};
 
 export const renderOpencodeSkill = (skill: Skill): string =>
   `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n${HTML_HEADER}\n\n${skill.body}`;
@@ -1382,6 +1442,9 @@ export const removeLegacyOpencodeGuardrail = (repoRoot: string): boolean => {
   return true;
 };
 
+/** OpenCode's 5000 ms default is shorter than a first-run `npx -y` or `uvx --from git+` fetch. */
+const OPENCODE_MCP_TIMEOUT_MS = 30_000;
+
 export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};
 
@@ -1394,11 +1457,13 @@ export const renderOpencodeConfig = (source: McpSource): string => {
       type: "local",
       command: [server.command, ...(server.args ?? [])],
       enabled: true,
+      timeout: OPENCODE_MCP_TIMEOUT_MS,
       ...(server.env ? { environment: server.env } : {})
     };
   }
 
-  return `${JSON.stringify({ $schema: "https://opencode.ai/config.json", mcp }, null, 2)}\n`;
+  const permission = { bash: opencodePermissionEntries(readPermissionsSource()) };
+  return `${JSON.stringify({ $schema: "https://opencode.ai/config.json", permission, mcp }, null, 2)}\n`;
 };
 
 export const writeGenerated = (
