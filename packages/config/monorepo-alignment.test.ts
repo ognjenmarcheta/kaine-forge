@@ -687,6 +687,39 @@ describe("monorepo alignment", () => {
     expect(missing).toEqual([]);
   });
 
+  it("runs every workspace's tests on the pull request path", () => {
+    // Pull requests run apps and packages tests through the coverage projects
+    // and tooling tests through Check Fast. A workspace in neither first runs
+    // its tests in Release, after merge (issue #489).
+    const coverageConfig = readText("vitest.coverage.config.ts");
+    const projectsBlock = /projects:\s*\[([^\]]*)\]/.exec(coverageConfig)?.[1] ?? "";
+    const coverageProjects = new Set([...projectsBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+    expect(coverageProjects.size).toBeGreaterThan(0);
+
+    const workflow = readText(".github/workflows/ci-pr.yml");
+    const toolingStep =
+      "pnpm exec turbo run test --filter=\"$FILTER\" --filter='!./apps/*' --filter='!./packages/*'";
+    expect(workflow, "ci-pr.yml Check Fast must run tooling tests on pull requests").toContain(
+      toolingStep
+    );
+
+    // apps/e2e is Playwright, run by the E2E shards rather than a vitest project.
+    const ownPrJob = new Set(["apps/e2e"]);
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const uncovered: string[] = [];
+    for (const manifest of tracked.filter((file) =>
+      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+    )) {
+      const workspaceDir = manifest.replace(/\/package\.json$/, "");
+      const packageJson = readJson(manifest) as { scripts?: Record<string, string> };
+      if (!packageJson.scripts?.test) continue;
+      if (workspaceDir.startsWith("tooling/") || ownPrJob.has(workspaceDir)) continue;
+      if (!coverageProjects.has(workspaceDir)) uncovered.push(workspaceDir);
+    }
+
+    expect(uncovered, "workspaces whose tests never run on a pull request").toEqual([]);
+  });
+
   it("documents web vs mobile React version policy", () => {
     const monorepoGuide = readText("MONOREPO_GUIDE.md");
 
