@@ -696,12 +696,27 @@ describe("monorepo alignment", () => {
     const coverageProjects = new Set([...projectsBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
     expect(coverageProjects.size).toBeGreaterThan(0);
 
-    const workflow = readText(".github/workflows/ci-pr.yml");
     const toolingStep =
       "pnpm exec turbo run test --filter=\"$FILTER\" --filter='!./apps/*' --filter='!./packages/*'";
-    expect(workflow, "ci-pr.yml Check Fast must run tooling tests on pull requests").toContain(
-      toolingStep
+    const toolingCommand = readText(".github/workflows/ci-pr.yml")
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.startsWith(toolingStep));
+    expect(
+      toolingCommand,
+      "ci-pr.yml Check Fast must run tooling tests on pull requests"
+    ).toBeTruthy();
+    // Read every exclusion on the full command, so a later filter cannot drop a tooling workspace.
+    const exclusions = [...(toolingCommand ?? "").matchAll(/--filter=(["'])!([^"']+)\1/g)].map(
+      (match) => match[2] ?? ""
     );
+    const isExcluded = (workspaceDir: string, name: string | undefined): boolean =>
+      exclusions.some(
+        (filter) =>
+          filter === name ||
+          filter === `./${workspaceDir}` ||
+          (filter.endsWith("/*") && `./${workspaceDir}`.startsWith(filter.slice(0, -1)))
+      );
 
     // apps/e2e is Playwright, run by the E2E shards rather than a vitest project.
     const ownPrJob = new Set(["apps/e2e"]);
@@ -711,10 +726,12 @@ describe("monorepo alignment", () => {
       /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
     )) {
       const workspaceDir = manifest.replace(/\/package\.json$/, "");
-      const packageJson = readJson(manifest) as { scripts?: Record<string, string> };
-      if (!packageJson.scripts?.test) continue;
-      if (workspaceDir.startsWith("tooling/") || ownPrJob.has(workspaceDir)) continue;
-      if (!coverageProjects.has(workspaceDir)) uncovered.push(workspaceDir);
+      const packageJson = readJson(manifest) as { name?: string; scripts?: Record<string, string> };
+      if (!packageJson.scripts?.test || ownPrJob.has(workspaceDir)) continue;
+      const runsOnPr = workspaceDir.startsWith("tooling/")
+        ? !isExcluded(workspaceDir, packageJson.name)
+        : coverageProjects.has(workspaceDir);
+      if (!runsOnPr) uncovered.push(workspaceDir);
     }
 
     expect(uncovered, "workspaces whose tests never run on a pull request").toEqual([]);
