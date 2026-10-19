@@ -16,6 +16,7 @@ import { bearer, organization } from "better-auth/plugins";
 
 import { assertProductionAuthSecret, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
+import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { hashPassword, verifyPassword } from "./auth.password";
 import {
   ensurePersonalOrganizationForUser,
@@ -110,6 +111,9 @@ export function createAuthInstance() {
   assertProductionAuthSecret(process.env.BETTER_AUTH_SECRET);
 
   const config = getServerAuthConfig();
+  // Secure (and the __Secure- name prefix) follows the public base URL, so
+  // local http://localhost keeps working; production serves https.
+  const secureCookies = config.baseUrl.startsWith("https://");
 
   return betterAuth({
     baseURL: config.baseUrl,
@@ -130,6 +134,8 @@ export function createAuthInstance() {
     }),
     emailAndPassword: {
       enabled: true,
+      // One minimum for the web/mobile forms and the server.
+      minPasswordLength: AUTH_PASSWORD_MIN_LENGTH,
       // Custom scrypt hooks preserve every stored hash produced by the
       // previous custom auth implementation (scrypt$N$r$p$salt$hash and
       // legacy unsalted sha256 hex).
@@ -173,6 +179,14 @@ export function createAuthInstance() {
     rateLimit: { enabled: false },
     advanced: {
       cookiePrefix: "kaine",
+      // Stated rather than inherited from better-auth defaults, so a library
+      // upgrade cannot weaken them silently.
+      useSecureCookies: secureCookies,
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: secureCookies
+      },
       database: {
         // Keep uuid primary-key continuity with the existing schema.
         generateId: () => crypto.randomUUID()
