@@ -149,7 +149,8 @@ test("a member of one organization cannot read or mutate another organization's 
   await createOrganization(page, otherOrgName);
   await selectOrganization(page, otherOrgName);
 
-  // Reads: the note is neither fetchable by id nor listed, even by search.
+  // Reads: the note is not fetchable by id, not in the unfiltered list, and not
+  // found by searching for its title.
   const read = await graphql(
     page,
     `
@@ -157,7 +158,11 @@ test("a member of one organization cannot read or mutate another organization's 
         note(id: $id) {
           id
         }
-        notes(search: $search) {
+        listed: notes {
+          id
+          organizationId
+        }
+        searched: notes(search: $search) {
           id
           organizationId
         }
@@ -167,10 +172,15 @@ test("a member of one organization cannot read or mutate another organization's 
   );
   expect(read.errors).toEqual([]);
   expect(read.data?.note).toBeNull();
-  const listed = Array.isArray(read.data?.notes) ? read.data.notes : [];
-  expect(listed.map((note: unknown) => (isRecord(note) ? note.id : note))).not.toContain(noteId);
-  for (const note of listed) {
-    expect(isRecord(note) ? note.organizationId : note).not.toBe(personalOrganizationId);
+  for (const key of ["listed", "searched"]) {
+    const rows = Array.isArray(read.data?.[key]) ? read.data[key] : [];
+    expect(
+      rows.map((note: unknown) => (isRecord(note) ? note.id : note)),
+      key
+    ).not.toContain(noteId);
+    for (const note of rows) {
+      expect(isRecord(note) ? note.organizationId : note, key).not.toBe(personalOrganizationId);
+    }
   }
 
   // Writes: updateNote scopes by the session's organization and finds nothing.
@@ -192,6 +202,10 @@ test("a member of one organization cannot read or mutate another organization's 
   // The UI agrees with the API.
   await page.getByRole("link", { name: NAV_LABELS.notes }).click();
   await expect(page).toHaveURL(/\/notes$/);
+  // The new organization has no notes, so its empty state proves the list
+  // finished loading; only then is the absence check meaningful.
+  await expect(page.getByText(/^(No notes yet\.|notes\.empty)$/)).toBeVisible();
+  await expect(page.getByRole("status", { name: /^(Loading…|notes\.loading)$/ })).toHaveCount(0);
   await expect(page.getByText(noteTitle)).toHaveCount(0);
 
   // Positive control, and back on Personal for the other specs.
