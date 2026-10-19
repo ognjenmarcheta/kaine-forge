@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers/auth";
+import { NAV_LABELS, signIn } from "./helpers/auth";
 
-const NOTES_NAV = /^(Notes|navigation\.notes)$/;
+const NOTES_NAV = NAV_LABELS.notes;
 const NOTES_CREATE = /^(New note|notes\.create)$/;
 
 test("creates a note and lists it", async ({ page }) => {
