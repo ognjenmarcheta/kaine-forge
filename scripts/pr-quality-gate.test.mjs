@@ -383,4 +383,20 @@ describe("Hand-kept alignments", () => {
     }
     assert.deepEqual(unknown, [], "add the root script or fix the documented command");
   });
+
+  it("decides the changeset gate from live labels, not the event payload (#520)", () => {
+    // GitHub captures github.event.pull_request when the PR opens; Dependabot adds
+    // release:skip-changeset a second later and a re-run replays the same payload,
+    // so a snapshot check failed every first run (#501). #515 reads the labels live.
+    const job = ciPr.jobs["changeset-required"];
+    const texts = [job.if ?? "", ...job.steps.flatMap((step) => [step.if ?? "", step.run ?? ""])];
+    for (const text of texts) {
+      assert.doesNotMatch(text, /github\.event\.pull_request\.labels/);
+    }
+    const enforce = job.steps.find((step) => step.name === "Enforce release metadata");
+    assert.match(enforce.run, /gh api "repos\/\$GITHUB_REPOSITORY\/issues\/\$PR_NUMBER\/labels"/);
+    assert.match(enforce.run, /grep -qx 'release:skip-changeset'/);
+    assert.equal(enforce.env.GH_TOKEN, "${{ github.token }}");
+    assert.equal(enforce.env.PR_NUMBER, "${{ github.event.pull_request.number }}");
+  });
 });

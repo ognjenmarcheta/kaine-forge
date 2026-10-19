@@ -51,13 +51,22 @@
     },
     "apps/desktop": {
       "entry": ["vitest.config.ts", "**/*.test.ts"],
-      "ignore": ["src/index.ts"]
+      "ignore": ["src/index.ts"],
+      "ignoreDependencies": ["@repo/web"]
     },
     "apps/e2e": {
       "entry": ["playwright.config.ts", "vitest.config.ts", "tests/**/*.e2e.ts"]
     },
     "packages/*": {
       "entry": ["src/index.ts", "**/*.{test,spec}.{ts,tsx}", "vitest.config.ts"]
+    },
+    "packages/auth": {
+      "entry": ["src/index.ts", "**/*.{test,spec}.{ts,tsx}", "vitest.config.ts"],
+      "ignoreDependencies": ["zod"]
+    },
+    "packages/db": {
+      "entry": ["src/index.ts", "**/*.{test,spec}.{ts,tsx}", "vitest.config.ts"],
+      "ignoreDependencies": ["zod"]
     },
     "packages/config": {
       "entry": [
@@ -110,7 +119,6 @@
   },
   "ignore": ["**/generated/**", "**/dist/**", "**/src-tauri/**", "graphify-out/**"],
   "ignoreDependencies": [
-    "@repo/config",
     "pino-pretty",
     "tailwindcss",
     "react-native-css-interop",
@@ -118,8 +126,7 @@
     "react-native-safe-area-context",
     "react-native-worklets",
     "expo-updates",
-    "expo-system-ui",
-    "zod"
+    "expo-system-ui"
   ],
   "ignoreBinaries": ["graphify", "gitleaks", "codex", "uvx"],
   "metro": false,

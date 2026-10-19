@@ -335,6 +335,9 @@ importers:
       '@repo/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@repo/web':
+        specifier: workspace:*
+        version: link:../web
       '@tauri-apps/cli':
         specifier: ^2.12.1
         version: 2.12.1
