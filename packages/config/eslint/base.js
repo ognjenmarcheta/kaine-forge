@@ -73,8 +73,15 @@ export default [
     }
   },
   {
-    // Web/desktop must not pull React Native UI primitives.
-    files: ["apps/web/**/*.{ts,tsx}", "apps/desktop/**/*.{ts,tsx}", "packages/ui/**/*.{ts,tsx}"],
+    // DOM clients (web, desktop, the shared UI, and the tooling UIs) must not pull
+    // React Native UI primitives or server-only entries.
+    files: [
+      "apps/web/**/*.{ts,tsx}",
+      "apps/desktop/**/*.{ts,tsx}",
+      "packages/ui/**/*.{ts,tsx}",
+      "tooling/desk-ui/**/*.{ts,tsx}",
+      "tooling/factory-ui/**/*.{ts,tsx}"
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
