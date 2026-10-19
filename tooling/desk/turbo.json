@@ -1,0 +1,24 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "description": "Desk tests read repository files outside this package, so those files are inputs too (issue #490): the PR template (ship), ci-pr.yml (changeset rule), the issue templates and docs/agents/issue-format.md (contract), docs/agents/day-one.md (snapshot fixture), the root package.json (image context), commitlint.config.mjs and the script it imports (commit messages), and the .ai/ permissions, skills, agents, and review files that role prompts and permissions load. .ai/hooks/** is read only by the DESK_LIVE suite.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/pull_request_template.md",
+        "$TURBO_ROOT$/.github/workflows/ci-pr.yml",
+        "$TURBO_ROOT$/.github/ISSUE_TEMPLATE/*",
+        "$TURBO_ROOT$/docs/agents/day-one.md",
+        "$TURBO_ROOT$/docs/agents/issue-format.md",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/commitlint.config.mjs",
+        "$TURBO_ROOT$/scripts/no-ai-coauthor.mjs",
+        "$TURBO_ROOT$/.ai/permissions.json",
+        "$TURBO_ROOT$/.ai/skills/*.md",
+        "$TURBO_ROOT$/.ai/agents/*.md",
+        "$TURBO_ROOT$/.ai/review.md"
+      ]
+    }
+  }
+}
