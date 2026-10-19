@@ -94,6 +94,12 @@ updates:
       # @types/node tracks the Node major in .nvmrc / engines / Dockerfiles.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # tailwindcss lives in two catalogs like React: web on v4 in the default
+      # catalog and mobile pinned to 3.4.17 in catalogs.mobile under the Expo SDK
+      # freeze (pnpm-workspace.yaml). A major bump would rewrite the mobile lane;
+      # Tailwind moves by intentional PR per lane (#520).
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
 
   # Workflows pin actions to commit SHAs with a `# vN` comment; Dependabot bumps
   # the SHA and keeps the comment current. Grouped: one PR per week.
