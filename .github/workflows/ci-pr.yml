@@ -110,12 +110,22 @@ jobs:
             changeset:
               - ".changeset/*.md"
 
+      # Labels are read live, not from github.event: Dependabot applies
+      # release:skip-changeset seconds after the `opened` event, so that payload
+      # lacks it, and a re-run replays the same payload.
       - name: Enforce release metadata
         if: |
           steps.changes.outputs.source == 'true' &&
-          steps.changes.outputs.changeset == 'false' &&
-          !contains(github.event.pull_request.labels.*.name, 'release:skip-changeset')
+          steps.changes.outputs.changeset == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' \
+            | grep -qx 'release:skip-changeset'; then
+            echo "Label 'release:skip-changeset' present; no changeset required."
+            exit 0
+          fi
           echo "Source changes detected without a .changeset entry."
           echo "Run 'pnpm changeset' and commit the generated file,"
           echo "or add label 'release:skip-changeset' for non-releasable changes."
