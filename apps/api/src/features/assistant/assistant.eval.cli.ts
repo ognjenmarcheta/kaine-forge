@@ -5,6 +5,13 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { z } from "zod";
 
+import {
+  appendEvalLedgerRun,
+  EVAL_LEDGER_PATH,
+  readEvalLedger,
+  summarizeEvalReport,
+  writeEvalLedger
+} from "./assistant.eval.ledger";
 import { EVAL_LIMITS, parseEvalOptions, selectedCredential } from "./assistant.eval.options";
 import {
   evalReportStatus,
@@ -45,6 +52,17 @@ async function main() {
     console.log(evalReportStatus(report));
     if (evalReportStatus(report) === "fail" || evalReportStatus(report) === "incomplete")
       process.exitCode = 1;
+    return;
+  }
+  if (args[0] === "record") {
+    const { values } = parseArgs({ args: args.slice(1), options: { report: { type: "string" } } });
+    const reportPath = z.string().min(1).parse(values.report);
+    const run = summarizeEvalReport(readEvalReport(reportPath));
+    writeEvalLedger(appendEvalLedgerRun(readEvalLedger(), run));
+    console.log(
+      `Recorded ${run.provider}/${run.model}: ${run.passed}/${run.scheduled} passed
+` + `Ledger: ${EVAL_LEDGER_PATH}`
+    );
     return;
   }
   const options = parseEvalOptions(args);

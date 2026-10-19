@@ -48,6 +48,8 @@ export default defineConfig({
         "packages/config/eslint/**",
         "packages/config/prettier/**",
         "packages/config/tailwind/**",
+        // Local developer and agent tooling, not shipped app code: no coverage
+        // floor. Its tests still gate pull requests through Check Fast (#489).
         "tooling/**",
         "apps/e2e/**",
         // App shell has almost no unit coverage (~3% lines measured). Tests still
