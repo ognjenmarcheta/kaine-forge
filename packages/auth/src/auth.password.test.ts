@@ -1,7 +1,12 @@
 import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { hashPassword, needsPasswordRehash, verifyPassword } from "./auth.password";
+import {
+  DUMMY_PASSWORD_HASH,
+  hashPassword,
+  needsPasswordRehash,
+  verifyPassword
+} from "./auth.password";
 
 describe("password hashing", () => {
   it("produces salted hashes (same password twice yields different hashes)", async () => {
@@ -9,7 +14,23 @@ describe("password hashing", () => {
     const second = await hashPassword("Secret123!");
 
     expect(first).not.toBe(second);
-    expect(first.startsWith("scrypt$16384$8$1$")).toBe(true);
+    // OWASP Password Storage Cheat Sheet minimum, 16 MiB variant (N=2^14, r=8, p=5).
+    expect(first.startsWith("scrypt$16384$8$5$")).toBe(true);
+  });
+
+  it("verifies a hash made at the previous cost and flags it for rehash", async () => {
+    const salt = randomBytes(16).toString("hex");
+    const hash = scryptSync("Secret123!", salt, 64, { N: 16384, r: 8, p: 1 }).toString("hex");
+    const previousCost = `scrypt$16384$8$1$${salt}$${hash}`;
+
+    expect(await verifyPassword("Secret123!", previousCost)).toBe(true);
+    expect(await verifyPassword("WrongPass!", previousCost)).toBe(false);
+    expect(needsPasswordRehash(previousCost)).toBe(true);
+  });
+
+  it("keeps the unknown-email dummy hash on the current recipe", async () => {
+    expect(needsPasswordRehash(DUMMY_PASSWORD_HASH)).toBe(false);
+    expect(await verifyPassword("not-the-dummy-password", DUMMY_PASSWORD_HASH)).toBe(false);
   });
 
   it("verifies a scrypt hash and rejects a wrong password", async () => {
@@ -31,8 +52,8 @@ describe("password hashing", () => {
 
   it("verifies a hash produced with the seed recipe from packages/db/src/seed/users.seed.ts", async () => {
     const salt = randomBytes(16).toString("hex");
-    const hash = scryptSync("Secret123!", salt, 64, { N: 16384, r: 8, p: 1 }).toString("hex");
-    const seedHash = `scrypt$16384$8$1$${salt}$${hash}`;
+    const hash = scryptSync("Secret123!", salt, 64, { N: 16384, r: 8, p: 5 }).toString("hex");
+    const seedHash = `scrypt$16384$8$5$${salt}$${hash}`;
 
     expect(await verifyPassword("Secret123!", seedHash)).toBe(true);
     expect(needsPasswordRehash(seedHash)).toBe(false);
