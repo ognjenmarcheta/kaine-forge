@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "description": "Desk tests read repository files outside this package, so those files are inputs too (issue #490): the PR template (ship), ci-pr.yml (changeset rule), the issue templates and docs/agents/issue-format.md (contract), docs/agents/day-one.md (snapshot fixture), the root package.json (image context), commitlint.config.mjs and the script it imports (commit messages), and the .ai/ permissions, skills, agents, and review files that role prompts and permissions load. .ai/hooks/** is read only by the DESK_LIVE suite.",
+      "description": "Desk tests read repository files outside this package, so those files are inputs too (issue #490): the PR template (ship), ci-pr.yml (changeset rule), the issue templates and docs/agents/issue-format.md (contract), docs/agents/day-one.md (snapshot fixture), the root package.json (image context), commitlint.config.mjs and the script it imports (commit messages), and the .ai/ permissions, skills, agents, review, and hooks files that role prompts, permissions, and the opt-in DESK_LIVE suite load (issue #516).",
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.github/pull_request_template.md",
@@ -17,7 +17,8 @@
         "$TURBO_ROOT$/.ai/permissions.json",
         "$TURBO_ROOT$/.ai/skills/*.md",
         "$TURBO_ROOT$/.ai/agents/*.md",
-        "$TURBO_ROOT$/.ai/review.md"
+        "$TURBO_ROOT$/.ai/review.md",
+        "$TURBO_ROOT$/.ai/hooks/**"
       ]
     }
   }

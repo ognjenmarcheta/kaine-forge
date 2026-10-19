@@ -504,6 +504,10 @@ jobs:
 
       # Base images are pinned by digest (Dockerfile.*); a CRITICAL finding here
       # is actionable on this PR rather than ambient base-image churn (issue #155).
+      # Second pass over the same image: reuse the binary, vulnerability DB and
+      # image analysis the SARIF pass left in the shared cache-dir instead of
+      # installing Trivy and restoring the DB cache again (about 25s on api).
+      # One pass cannot serve both: `severity` applies to the whole run.
       - name: Fail on fixable CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -512,6 +516,8 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
+          skip-setup-trivy: true
+          cache: false
 
       - name: Generate SBOM for ${{ matrix.app }}
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
