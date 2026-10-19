@@ -1,55 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { NAV_LABELS, signIn } from "./helpers/auth";
-
-const ORG_CREATE_TITLE = /^(Create organization|organizations\.create)$/;
-const ORG_NAME_LABEL = /^(Organization name|organizations\.name)$/;
-const BUTTON_SAVE = /^(Save|button\.save)$/;
-const PERSONAL_ORG_NAME = "Personal";
-
-interface GraphqlResult {
-  data: Record<string, unknown> | null;
-  errors: string[];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-/**
- * Same-origin GraphQL call: `/graphql` resolves against the web baseURL and the
- * Vite proxy forwards it to the API, so the browser context's session cookie
- * rides along and the API sees the same active organization as the UI.
- */
-async function graphql(
-  page: Page,
-  query: string,
-  variables: Record<string, unknown>
-): Promise<GraphqlResult> {
-  const response = await page.request.post("/graphql", { data: { query, variables } });
-  expect(response.ok(), `GraphQL HTTP ${String(response.status())}`).toBe(true);
-
-  const payload: unknown = await response.json();
-  if (!isRecord(payload)) {
-    throw new Error("GraphQL response is not an object");
-  }
-
-  const errors = Array.isArray(payload.errors)
-    ? payload.errors.map((error: unknown) =>
-        isRecord(error) && typeof error.message === "string" ? error.message : String(error)
-      )
-    : [];
-
-  return { data: isRecord(payload.data) ? payload.data : null, errors };
-}
-
-async function selectOrganization(page: Page, name: string): Promise<void> {
-  const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
-  await switcher.click();
-  await expect(page.getByRole("menuitem", { name })).toBeVisible({ timeout: 10_000 });
-  await page.getByRole("menuitem", { name }).click();
-  await expect(switcher).toContainText(name, { timeout: 10_000 });
-}
+import {
+  createOrganization,
+  graphql,
+  isRecord,
+  PERSONAL_ORG_NAME,
+  selectOrganization
+} from "./helpers/organizations";
 
 test("a member of one organization cannot read or mutate another organization's todo", async ({
   page
@@ -84,14 +42,7 @@ test("a member of one organization cannot read or mutate another organization's 
   const personalOrganizationId = createdTodo.organizationId;
 
   // Create a second organization and make it the active one.
-  const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
-  await switcher.click();
-  await page.getByRole("menuitem", { name: NAV_LABELS.organizationCreate }).click();
-  const dialog = page.getByRole("dialog", { name: ORG_CREATE_TITLE });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel(ORG_NAME_LABEL).fill(otherOrgName);
-  await dialog.getByRole("button", { name: BUTTON_SAVE }).click();
-  await expect(dialog).toHaveCount(0);
+  await createOrganization(page, otherOrgName);
   await selectOrganization(page, otherOrgName);
 
   // Reads: the todo is neither fetchable by id nor listed.
@@ -159,6 +110,124 @@ test("a member of one organization cannot read or mutate another organization's 
   const controlTodo = control.data?.todo;
   expect(isRecord(controlTodo) ? controlTodo.id : controlTodo).toBe(todoId);
   expect(isRecord(controlTodo) ? controlTodo.organizationId : controlTodo).toBe(
+    personalOrganizationId
+  );
+});
+
+test("a member of one organization cannot read or mutate another organization's note", async ({
+  page
+}) => {
+  const suffix = Date.now().toString(36);
+  const noteTitle = `Isolation note ${suffix}`;
+  const otherOrgName = `E2E Isolation Notes Org ${suffix}`;
+
+  await signIn(page);
+  await selectOrganization(page, PERSONAL_ORG_NAME);
+
+  // Create the note in the Personal organization.
+  const created = await graphql(
+    page,
+    `
+      mutation IsolationCreateNote($input: CreateNoteInput!) {
+        createNote(input: $input) {
+          id
+          title
+          organizationId
+        }
+      }
+    `,
+    { input: { title: noteTitle, body: "Scoped to Personal" } }
+  );
+  expect(created.errors).toEqual([]);
+  const createdNote = created.data?.createNote;
+  if (!isRecord(createdNote) || typeof createdNote.id !== "string") {
+    throw new Error("createNote did not return an id");
+  }
+  const noteId = createdNote.id;
+  const personalOrganizationId = createdNote.organizationId;
+
+  await createOrganization(page, otherOrgName);
+  await selectOrganization(page, otherOrgName);
+
+  // Reads: the note is not fetchable by id, not in the unfiltered list, and not
+  // found by searching for its title.
+  const read = await graphql(
+    page,
+    `
+      query IsolationReadNote($id: ID!, $search: String) {
+        note(id: $id) {
+          id
+        }
+        listed: notes {
+          id
+          organizationId
+        }
+        searched: notes(search: $search) {
+          id
+          organizationId
+        }
+      }
+    `,
+    { id: noteId, search: noteTitle }
+  );
+  expect(read.errors).toEqual([]);
+  expect(read.data?.note).toBeNull();
+  for (const key of ["listed", "searched"]) {
+    const rows = Array.isArray(read.data?.[key]) ? read.data[key] : [];
+    expect(
+      rows.map((note: unknown) => (isRecord(note) ? note.id : note)),
+      key
+    ).not.toContain(noteId);
+    for (const note of rows) {
+      expect(isRecord(note) ? note.organizationId : note, key).not.toBe(personalOrganizationId);
+    }
+  }
+
+  // Writes: updateNote scopes by the session's organization and finds nothing.
+  const mutated = await graphql(
+    page,
+    `
+      mutation IsolationUpdateNote($id: ID!, $input: UpdateNoteInput!) {
+        updateNote(id: $id, input: $input) {
+          id
+          title
+        }
+      }
+    `,
+    { id: noteId, input: { title: `${noteTitle} edited` } }
+  );
+  expect(mutated.data?.updateNote ?? null).toBeNull();
+  expect(mutated.errors.join("\n")).toMatch(/not found/i);
+
+  // The UI agrees with the API.
+  await page.getByRole("link", { name: NAV_LABELS.notes }).click();
+  await expect(page).toHaveURL(/\/notes$/);
+  // The new organization has no notes, so its empty state proves the list
+  // finished loading; only then is the absence check meaningful.
+  await expect(page.getByText(/^(No notes yet\.|notes\.empty)$/)).toBeVisible();
+  await expect(page.getByRole("status", { name: /^(Loading…|notes\.loading)$/ })).toHaveCount(0);
+  await expect(page.getByText(noteTitle)).toHaveCount(0);
+
+  // Positive control, and back on Personal for the other specs.
+  await selectOrganization(page, PERSONAL_ORG_NAME);
+  const control = await graphql(
+    page,
+    `
+      query IsolationControlNote($id: ID!) {
+        note(id: $id) {
+          id
+          title
+          organizationId
+        }
+      }
+    `,
+    { id: noteId }
+  );
+  expect(control.errors).toEqual([]);
+  const controlNote = control.data?.note;
+  expect(isRecord(controlNote) ? controlNote.id : controlNote).toBe(noteId);
+  expect(isRecord(controlNote) ? controlNote.title : controlNote).toBe(noteTitle);
+  expect(isRecord(controlNote) ? controlNote.organizationId : controlNote).toBe(
     personalOrganizationId
   );
 });
