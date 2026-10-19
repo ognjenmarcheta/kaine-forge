@@ -91,6 +91,7 @@ jobs:
             cargo-target-${{ runner.os }}-
 
       - name: Build desktop app
-        # Builds @repo/web first, then `tauri build --no-bundle` (compile only, no
-        # .dmg packaging or signing).
-        run: pnpm --filter @repo/desktop build
+        # Turbo builds @repo/web first through the declared devDependency edge
+        # (issue #516), then `tauri build --no-bundle` (compile only, no .dmg
+        # packaging or signing).
+        run: pnpm exec turbo run build --filter=@repo/desktop
