@@ -53,14 +53,19 @@ export async function signUp(
 
 /**
  * Same-origin better-auth call under /api/auth, with the page's session cookie.
- * Returns the parsed JSON body as an object.
+ * The request context sends no Origin header by itself and better-auth's CSRF
+ * check rejects that (MISSING_OR_NULL_ORIGIN), so send the page's own origin,
+ * as the browser would. Returns the parsed JSON body as an object.
  */
 export async function authApi(
   page: Page,
   path: string,
   body: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const response = await page.request.post(`/api/auth/${path}`, { data: body });
+  const response = await page.request.post(`/api/auth/${path}`, {
+    data: body,
+    headers: { origin: new URL(page.url()).origin }
+  });
   expect(response.ok(), `${path} HTTP ${String(response.status())}: ${await response.text()}`).toBe(
     true
   );
