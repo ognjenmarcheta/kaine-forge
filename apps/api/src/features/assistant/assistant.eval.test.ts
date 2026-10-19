@@ -30,15 +30,10 @@ const tools: ToolSet = createAssistantTools({
   }
 });
 
-const WRITE_TOOLS = [
-  "createTodo",
-  "updateTodo",
-  "deleteTodo",
-  "completeTodo",
-  "createNote",
-  "updateNote",
-  "addTodoToNote"
-];
+// The only tools exempt from the expected-call floor. Everything else the tool
+// set exposes is treated as a write, so a new tool is covered by default.
+const READ_ONLY_TOOLS = new Set(["listTodos", "listNotes"]);
+const WRITE_TOOLS = Object.keys(tools).filter((name) => !READ_ONLY_TOOLS.has(name));
 
 interface ParsableSchema {
   safeParse: (value: unknown) => { success: boolean };
@@ -76,23 +71,23 @@ describe("assistant golden set", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("covers every write tool", () => {
-    // The coverage floor, as a test: a new write tool ships with a case or this
-    // fails.
-    // Widened deliberately: WRITE_TOOLS is an independent list, so a tool added
-    // to the code but not to a golden case has to fail here rather than fail to
-    // compile against the literal union.
-    const mentioned = new Set<string>(
+  it("covers every write tool with an expected call and an input contract", () => {
+    // The coverage floor, as a test: a tool added to createAssistantTools ships
+    // with a golden case that expects it and a schema case, or a deliberate
+    // entry in READ_ONLY_TOOLS.
+    const expected = new Set<string>(
       assistantEvalCases.flatMap((evalCase) => evalCase.expectTools)
     );
     const schemaCovered = new Set<string>(
       assistantToolSchemaCases.map((schemaCase) => schemaCase.tool)
     );
 
+    for (const name of READ_ONLY_TOOLS) {
+      expect(Object.keys(tools), `READ_ONLY_TOOLS names unknown tool ${name}`).toContain(name);
+    }
     for (const name of WRITE_TOOLS) {
-      expect(mentioned.has(name) || schemaCovered.has(name), `no golden case covers ${name}`).toBe(
-        true
-      );
+      expect(expected.has(name), `no golden case expects ${name}`).toBe(true);
+      expect(schemaCovered.has(name), `no schema case covers ${name}`).toBe(true);
     }
   });
 

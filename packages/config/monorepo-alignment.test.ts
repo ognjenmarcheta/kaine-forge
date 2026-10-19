@@ -595,8 +595,10 @@ describe("monorepo alignment", () => {
     ]);
 
     const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    // The root manifest counts too: root-only tooling (eslint for .ai/*.ts)
+    // must not drift from the version the shared presets resolve.
     const manifests = tracked.filter((file) =>
-      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+      /^(?:(apps|packages|tooling)\/[^/]+\/)?package\.json$/.test(file)
     );
 
     const declarations = new Map<string, Array<{ manifest: string; value: string }>>();
@@ -685,6 +687,56 @@ describe("monorepo alignment", () => {
     }
 
     expect(missing).toEqual([]);
+  });
+
+  it("runs every workspace's tests on the pull request path", () => {
+    // Pull requests run apps and packages tests through the coverage projects
+    // and tooling tests through Check Fast. A workspace in neither first runs
+    // its tests in Release, after merge (issue #489).
+    const coverageConfig = readText("vitest.coverage.config.ts");
+    const projectsBlock = /projects:\s*\[([^\]]*)\]/.exec(coverageConfig)?.[1] ?? "";
+    const coverageProjects = new Set([...projectsBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+    expect(coverageProjects.size).toBeGreaterThan(0);
+
+    const toolingStep =
+      "pnpm exec turbo run test --filter=\"$FILTER\" --filter='!./apps/*' --filter='!./packages/*'";
+    const toolingCommand = readText(".github/workflows/ci-pr.yml")
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.startsWith(toolingStep));
+    expect(
+      toolingCommand,
+      "ci-pr.yml Check Fast must run tooling tests on pull requests"
+    ).toBeTruthy();
+    // Read every exclusion on the full command, so a later filter cannot drop a tooling workspace.
+    const exclusions = [...(toolingCommand ?? "").matchAll(/--filter=(["'])!([^"']+)\1/g)].map(
+      (match) => match[2] ?? ""
+    );
+    const isExcluded = (workspaceDir: string, name: string | undefined): boolean =>
+      exclusions.some(
+        (filter) =>
+          filter === name ||
+          filter === `./${workspaceDir}` ||
+          (filter.endsWith("/*") && `./${workspaceDir}`.startsWith(filter.slice(0, -1)))
+      );
+
+    // apps/e2e is Playwright, run by the E2E shards rather than a vitest project.
+    const ownPrJob = new Set(["apps/e2e"]);
+    const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    const uncovered: string[] = [];
+    for (const manifest of tracked.filter((file) =>
+      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+    )) {
+      const workspaceDir = manifest.replace(/\/package\.json$/, "");
+      const packageJson = readJson(manifest) as { name?: string; scripts?: Record<string, string> };
+      if (!packageJson.scripts?.test || ownPrJob.has(workspaceDir)) continue;
+      const runsOnPr = workspaceDir.startsWith("tooling/")
+        ? !isExcluded(workspaceDir, packageJson.name)
+        : coverageProjects.has(workspaceDir);
+      if (!runsOnPr) uncovered.push(workspaceDir);
+    }
+
+    expect(uncovered, "workspaces whose tests never run on a pull request").toEqual([]);
   });
 
   it("documents web vs mobile React version policy", () => {

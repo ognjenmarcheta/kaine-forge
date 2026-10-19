@@ -5,11 +5,14 @@
 // kaine-harness-eval, and nothing here executes a trial or calls a model.
 //
 // Modelled on scorecard-render.ts, and human-invoked for the same reason: this
-// measures judgment, so it must never gate a PR.
+// measures judgment, so it must never gate a PR. `--check` is the exception
+// that proves it: it only confirms the generated region still matches the data
+// block, which is arithmetic, and `ai:test` runs it so the two cannot drift.
 
 import chalk from "chalk";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { format as formatWithPrettier, resolveConfig } from "prettier";
 
 import { REPO_ROOT } from "./ai.util";
 import { extractRegion, replaceRegion } from "./scorecard.util";
@@ -384,10 +387,26 @@ export const renderLedgerMarkdown = (data: LedgerData): string => {
   ].join("\n\n");
 };
 
-const main = (): void => {
+const main = async (): Promise<void> => {
   const raw = readFileSync(LEDGER_PATH, "utf8");
   const data = parseLedger(raw);
-  const updated = replaceRegion(raw, GENERATED_MARKER, renderLedgerMarkdown(data));
+  // Formatted as the committed file is, or prettier's table alignment alone
+  // would read as drift.
+  const updated = await formatWithPrettier(
+    replaceRegion(raw, GENERATED_MARKER, renderLedgerMarkdown(data)),
+    {
+      ...(await resolveConfig(LEDGER_PATH)),
+      filepath: LEDGER_PATH
+    }
+  );
+
+  if (process.argv.includes("--check")) {
+    if (updated !== raw) {
+      throw new Error(`Generated region is stale: ${LEDGER_PATH}. Run pnpm harness:eval.`);
+    }
+    console.log(chalk.green(`Harness eval ledger is current. Runs: ${String(data.runs.length)}`));
+    return;
+  }
 
   if (updated !== raw) {
     writeFileSync(LEDGER_PATH, updated);
@@ -398,10 +417,8 @@ const main = (): void => {
 };
 
 if (process.argv[1] !== undefined && process.argv[1].endsWith("harness-eval.ts")) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error: unknown) => {
     console.error(chalk.red(error instanceof Error ? error.message : String(error)));
     process.exit(1);
-  }
+  });
 }

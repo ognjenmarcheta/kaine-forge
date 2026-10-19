@@ -62,6 +62,7 @@ Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.e
   - On `main` push, weekly schedule, and manual dispatch, `pnpm audit --audit-level high` **fails the job** on high or critical advisories (it no longer warns and continues).
   - Use `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` for an explicitly accepted advisory exception. Document the reason, affected paths, remaining risk, and removal trigger in the PR.
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
+- Code scanning alerts (CodeQL and Trivy): the repository owner triages open alerts on `main` weekly. Each alert is fixed, dismissed as a false positive with a reason, or dismissed as accepted risk with an issue link.
 - AI tooling health/drift check: `pnpm ai:doctor`.
 
 ### Accepted temporary audit exceptions
