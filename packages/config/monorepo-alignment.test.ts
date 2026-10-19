@@ -595,8 +595,10 @@ describe("monorepo alignment", () => {
     ]);
 
     const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
+    // The root manifest counts too: root-only tooling (eslint for .ai/*.ts)
+    // must not drift from the version the shared presets resolve.
     const manifests = tracked.filter((file) =>
-      /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file)
+      /^(?:(apps|packages|tooling)\/[^/]+\/)?package\.json$/.test(file)
     );
 
     const declarations = new Map<string, Array<{ manifest: string; value: string }>>();

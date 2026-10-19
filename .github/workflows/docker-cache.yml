@@ -16,6 +16,7 @@ on:
       - main
     # Same list as the `docker` path filter in ci-pr.yml, so docs-only pushes
     # skip the seed exactly when they would skip the PR image build.
+    # scripts/pr-quality-gate.test.mjs fails when the two lists differ.
     paths:
       - "Dockerfile.api"
       - "Dockerfile.web"
