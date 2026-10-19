@@ -22,11 +22,19 @@
       "preLaunchTask": null
     },
     {
-      "name": "Debug current Vitest file",
+      "name": "Debug current Vitest file (apps, packages)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["exec", "vitest", "run", "--no-coverage", "${relativeFile}"],
+      "runtimeArgs": [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-coverage",
+        "${relativeFile}"
+      ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "autoAttachChildProcesses": true,

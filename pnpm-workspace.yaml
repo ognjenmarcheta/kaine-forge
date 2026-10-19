@@ -41,6 +41,7 @@ catalog:
   "@testing-library/react": "^16.3.3"
   "@testing-library/user-event": "^14.6.7"
   typescript: "^5.9.2"
+  eslint: "^9.35.0"
   # Keep vitest and its UI/coverage companions on the same version (peer deps);
   # monorepo-alignment pins the lockstep and Dependabot groups them (#324).
   # 4.x: v8 coverage uses AST-aware remapping and only reports files it loads

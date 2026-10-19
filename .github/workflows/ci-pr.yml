@@ -216,7 +216,8 @@ jobs:
             pnpm run ai:typecheck
             pnpm run ai:test
             # scripts/* tests are not under vitest.coverage.config.ts projects.
-            # Keep this list aligned with the root "test" script.
+            # scripts/pr-quality-gate.test.mjs fails when this list differs from the
+            # root "test" script or from the tracked scripts/*.test.mjs files.
             node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs
           else
             echo "Non-PR event: running full quality gates (includes ai:*)"

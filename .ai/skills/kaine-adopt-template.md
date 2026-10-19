@@ -34,9 +34,11 @@ Use this skill when turning this template repository into a downstream product r
    rg -n "Kaine Forge|kaine-forge|kaineforge|kaine_forge|com\\.kaine\\.forge|ognjenmarcheta" \
      --glob '!**/CHANGELOG.md' \
      --glob '!**/graphql/generated/**' \
-     --glob '!apps/desktop/src-tauri/target/**' \
      --glob '!pnpm-lock.yaml'
    ```
+
+   `rg` skips gitignored paths, so Cargo output needs no glob: both `.tauri-target/` and the
+   pre-move `apps/desktop/src-tauri/target/` are gitignored.
 
 8. Replace `media/logo.jpg` with your own logo. Adoption already rewrites the README image alt text.
 9. Adoption empties `docs/agents/monorepo-scorecard.md` of the template's own run history and keeps the band descriptors, dimensions, and calibration heading. Record your first run with the `kaine-scorecard` skill.

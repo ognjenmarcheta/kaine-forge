@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { describe, it } from "node:test";
 import { data, Evaluator, Lexer, Parser } from "@actions/expressions";
@@ -328,5 +328,59 @@ ${check.run}`
     assert.equal(noDocker.status, 1);
     assert.match(noDocker.stdout, /access to a running Docker daemon/);
     assert.equal(preflight({ os: "macOS", missing: "docker", dockerStatus: "1" }).status, 0);
+  });
+});
+
+describe("Hand-kept alignments", () => {
+  const ciPr = parse(readFileSync(".github/workflows/ci-pr.yml", "utf8"));
+  const rootPackage = JSON.parse(readFileSync("package.json", "utf8"));
+
+  it("seeds the Docker cache on exactly the paths that trigger the PR image build", () => {
+    const filterStep = ciPr.jobs["detect-paths"].steps.find((step) => step.id === "filter");
+    const prDockerPaths = parse(filterStep.with.filters).docker;
+    const dockerCache = parse(readFileSync(".github/workflows/docker-cache.yml", "utf8"));
+    assert.deepEqual(dockerCache.on.push.paths, prDockerPaths);
+  });
+
+  it("runs every scripts/*.test.mjs in both the PR job and the root test script", () => {
+    const nodeTestFiles = (script) => /node --test ([^\n&]+)/.exec(script)[1].trim().split(/\s+/);
+    const qualityStep = ciPr.jobs["check-fast"].steps.find(
+      (step) => step.name === "Quality gates (affected packages)"
+    );
+    const tracked = spawnSync("git", ["ls-files", "scripts/*.test.mjs"], { encoding: "utf8" })
+      .stdout.trim()
+      .split("\n");
+    const ciFiles = nodeTestFiles(qualityStep.run);
+    assert.deepEqual(ciFiles, nodeTestFiles(rootPackage.scripts.test));
+    assert.deepEqual([...ciFiles].sort(), tracked.sort());
+  });
+
+  it("documents only pnpm commands that exist", () => {
+    // `pnpm <name>` runs a pnpm built-in, then a root script, then a root bin.
+    // Flag-led forms (`pnpm --filter <workspace> <script>`) target a workspace.
+    const builtins = new Set(["add", "audit", "dlx", "exec", "install"]);
+    const scripts = new Set(Object.keys(rootPackage.scripts));
+    const bins = new Set(
+      readdirSync("node_modules/.bin").map((name) => name.replace(/\.(cmd|ps1)$/i, ""))
+    );
+    const unknown = [];
+    for (const doc of ["README.md", "CONTRIBUTING.md", "docs/agents/day-one.md", "AGENTS.md"]) {
+      const text = readFileSync(doc, "utf8");
+      for (const [, block, span] of text.matchAll(/```[^\n]*\n([\s\S]*?)```|`([^`\n]+)`/g)) {
+        const tokens = (block ?? span).split(/[\s;&|()]+/);
+        tokens.forEach((token, index) => {
+          if (token !== "pnpm") return;
+          const next = tokens[index + 1] ?? "";
+          if (next.startsWith("-")) return;
+          if (next === "run") {
+            if (!scripts.has(tokens[index + 2]))
+              unknown.push(`${doc}: pnpm run ${tokens[index + 2]}`);
+          } else if (!builtins.has(next) && !scripts.has(next) && !bins.has(next)) {
+            unknown.push(`${doc}: pnpm ${next}`);
+          }
+        });
+      }
+    }
+    assert.deepEqual(unknown, [], "add the root script or fix the documented command");
   });
 });
