@@ -51,7 +51,8 @@
     },
     "apps/desktop": {
       "entry": ["vitest.config.ts", "**/*.test.ts"],
-      "ignore": ["src/index.ts"]
+      "ignore": ["src/index.ts"],
+      "ignoreDependencies": ["@repo/web"]
     },
     "apps/e2e": {
       "entry": ["playwright.config.ts", "vitest.config.ts", "tests/**/*.e2e.ts"]
