@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-03
+- Status update (2026-10-19, issue #492): the default cost is now N=16384, r=8, p=5, the 16 MiB variant of the OWASP Password Storage Cheat Sheet minimum. It equals N=2^17, r=8, p=1 in strength but keeps memory per concurrent login at 16 MiB instead of 128 MiB. Hashes at the old cost (p=1) still verify and are rehashed on the next login. The default is no longer below the OWASP minimum.
 
 ## Context
 
