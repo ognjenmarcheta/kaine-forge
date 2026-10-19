@@ -1088,6 +1088,47 @@ describe("monorepo alignment", () => {
     }
   });
 
+  it("applies the DOM client import block to every DOM workspace, tooling UIs included (issue #518)", async () => {
+    // react.js already treats tooling/desk-ui and tooling/factory-ui as DOM apps,
+    // but the server-only and mobile-ui import gates in base.js listed only
+    // apps/web, apps/desktop and packages/ui. Ask ESLint which rules a file in
+    // each workspace gets, so a glob typo fails here instead of passing silently.
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({ cwd: repoRoot });
+    const pattern = /SERVER_ONLY_ENTRY_PATTERN =\s*"([^"]+)"/.exec(
+      readText("packages/config/eslint/base.js")
+    )?.[1];
+    expect(pattern, "base.js must define SERVER_ONLY_ENTRY_PATTERN").toBeTruthy();
+    const serverOnlyGate = JSON.stringify(pattern);
+    const restrictedImportOptions = async (file: string): Promise<string> => {
+      const config: unknown = await eslint.calculateConfigForFile(resolve(repoRoot, file));
+      const rules =
+        typeof config === "object" && config !== null && "rules" in config
+          ? (config as { rules?: Record<string, unknown> }).rules
+          : undefined;
+      return JSON.stringify(rules?.["no-restricted-imports"] ?? null);
+    };
+
+    for (const workspace of [
+      "apps/web",
+      "apps/desktop",
+      "packages/ui",
+      "tooling/desk-ui",
+      "tooling/factory-ui"
+    ]) {
+      const options = await restrictedImportOptions(`${workspace}/src/probe.ts`);
+      expect(options, `${workspace} must block server-only entries`).toContain(serverOnlyGate);
+      expect(options, `${workspace} must block React Native primitives`).toContain(
+        '"@repo/mobile-ui"'
+      );
+    }
+    const mobile = await restrictedImportOptions("apps/mobile/src/probe.ts");
+    expect(mobile, "mobile must block server-only entries").toContain(serverOnlyGate);
+    expect(mobile, "mobile must block DOM primitives, not itself").not.toContain(
+      '"@repo/mobile-ui"'
+    );
+  });
+
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
     // tests still passes green. This gate keeps that flag safe by asserting the
