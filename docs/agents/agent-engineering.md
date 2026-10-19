@@ -133,7 +133,7 @@ No live session has certified explorer permissions; other harnesses need their o
 
 ## Assistant evaluations
 
-Run `pnpm eval:assistant` to validate selection and list all 14 cases without a
+Run `pnpm eval:assistant` to validate selection and list all 15 cases without a
 provider call. Use `--case <case-id>` repeatedly to select cases and `--repeat 1`
 through `--repeat 5` to repeat them. Default repetition is one.
 
@@ -180,6 +180,28 @@ requires a useful response to the request and clear explanations of refusals or
 limitations. Review binds to a result UUID and evidence hash. It never edits the
 case evidence; a second review is rejected. Modified evidence invalidates the
 recorded verdict. Reports and transcripts are local and gitignored.
+
+After every result has a current review, record the run's summary in the
+committed ledger, `apps/api/src/features/assistant/assistant.eval.ledger.json`:
+
+```sh
+pnpm eval:assistant:record --report <report.json>
+```
+
+The ledger keeps run ID, date, commit, provider, model, dataset and prompt
+hashes, and pass counts. It never holds prompts, replies, tool inputs or rows; a
+run with any other field does not parse. A run passes when it passes both the
+mechanical checks and both rubric verdicts. Within one provider, model and
+dataset hash, the pass rate must not fall from one recorded run to the next.
+`record` refuses a run that would fall, and `assistant.eval.ledger.test.ts`
+checks the committed ledger in CI with no provider call. A changed dataset or
+model starts a new series. A changed system prompt does not, because that is
+the change the gate catches. Record with `--repeat 3` or more, so that one
+nondeterministic reply does not decide the comparison.
+
+The offline golden-set test derives its coverage floor from the tool set: every
+tool that `createAssistantTools` returns, except the read-only allowlist, needs
+a golden case that expects it and a tool input contract.
 
 ## Local monitoring
 

@@ -62,6 +62,10 @@ Runs recorded before protocol 2 keep their original record. A rule change that
 passes here is also checked against the whole harness after it merges, with
 `pnpm desk stats --by-harness` (see the `kaine-harness-eval` skill).
 
+`pnpm ai:test` runs `pnpm harness:eval --check`. It writes nothing and fails
+when the generated region no longer matches the data block, so a hand edit of
+the rendered tables or a data change without a render cannot merge.
+
 ## Rubric
 
 Scored per trial, 1–5, against the paper's dimensions (task success, tool-use
