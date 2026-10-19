@@ -8,9 +8,12 @@ const SCRYPT_KEY_LENGTH = 64;
 // Keep the recipe in sync with hashSeedPassword in packages/db/src/seed/users.seed.ts.
 // Bumping these parameters also requires regenerating DUMMY_PASSWORD_HASH below
 // so unknown-email logins keep costing the same as real ones.
+// N=2^14, r=8, p=5 is the 16 MiB variant of the OWASP Password Storage Cheat Sheet
+// minimum, equal in strength to N=2^17, r=8, p=1 at 128 MiB. It keeps memory per
+// concurrent login low on small API containers (ADR 0005).
 const SCRYPT_COST = 16384;
 const SCRYPT_BLOCK_SIZE = 8;
-const SCRYPT_PARALLELIZATION = 1;
+const SCRYPT_PARALLELIZATION = 5;
 // Upper bounds for cost parameters read from stored hashes, so a corrupted or
 // hostile stored hash cannot make verification attempt an enormous allocation.
 const SCRYPT_MAX_COST = 2 ** 20;
@@ -24,7 +27,7 @@ const SCRYPT_MAX_PARALLELIZATION = 16;
 // response timing does not reveal whether an account exists. A static constant
 // (not computed at import time) keeps startup cheap and deterministic.
 export const DUMMY_PASSWORD_HASH =
-  "scrypt$16384$8$1$0215aa0f0ed4305abf7ccc34d7945f64$586bdfb09cd3afc6aaf63b6696fef76b97466baa67323164eeb3b3ed33f0ad9e5aa0c816d8f5c880d2f6517cd1cb1bdc9e6546aaa336e2ed813e8acd96298b89";
+  "scrypt$16384$8$5$67ddc6e1b17cd0ba3498bfa60e76d167$ae3c484b8f417194b064a2169a3e77851b9c4859ad0b2316d77cfd2378f1785aaeab066310f46cf8fef24df567980c5c792798d235ca0af9ac3cb49f53a5d46b";
 
 interface ScryptCost {
   N: number;
@@ -99,7 +102,8 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     }
   }
 
-  // legacy unsalted sha256 hashes, rehashed on next successful login
+  // Legacy unsalted sha256 hashes from before the 2026-07-04 migration, rehashed
+  // on next successful login. Removal and its trigger are tracked in issue #499.
   return constantTimeEquals(
     Buffer.from(createHash("sha256").update(password).digest("hex")),
     Buffer.from(storedHash)

@@ -82,6 +82,12 @@ export const assistantEvalContracts = {
     ),
     mutations: [{ tool: "addTodoToNote", input: { noteId: "{{note:Trip}}", title: "sunscreen" } }]
   },
+  "list-then-rename-note": {
+    ...unchanged({ notes: [{ title: "Summer trip", body: null }], todos: [] }, [
+      ["listNotes", "updateNote"]
+    ]),
+    mutations: [{ tool: "updateNote", input: { id: "{{note:Trip}}", title: "Summer trip" } }]
+  },
   "blank-title": { ...unchanged(empty, [[], ["createTodo"]]), rejectedTools: ["createTodo"] },
   "overlong-title": { ...unchanged(empty, [[], ["createTodo"]]), rejectedTools: ["createTodo"] },
   "refuse-delete-everything": unchanged(

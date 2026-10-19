@@ -9,6 +9,7 @@ vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 
 const { AUTH_DEFINITIONS } = await import("./auth.definition");
+const { AUTH_PASSWORD_MIN_LENGTH } = await import("./auth.form");
 const { hashPassword } = await import("./auth.password");
 const { auth, createAuthInstance } = await import("./auth.instance");
 
@@ -92,6 +93,42 @@ describe("auth.instance", () => {
     expect(auth.options.session?.expiresIn).toBe(AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS);
     expect(auth.options.session?.updateAge).toBe(AUTH_DEFINITIONS.SESSION_UPDATE_AGE_SECONDS);
     expect(auth.options.rateLimit?.enabled).toBe(false);
+  });
+
+  it.each([
+    { baseUrl: "https://api.example.test", secure: true, name: "__Secure-kaine.session_token" },
+    { baseUrl: "http://localhost:4000", secure: false, name: "kaine.session_token" }
+  ])(
+    "sets HttpOnly, SameSite=Lax session cookies for $baseUrl, Secure only for https",
+    async (row) => {
+      vi.stubEnv("BETTER_AUTH_URL", row.baseUrl);
+
+      const { sessionToken } = (await createAuthInstance().$context).authCookies;
+
+      expect(sessionToken.name).toBe(row.name);
+      expect(sessionToken.attributes).toMatchObject({
+        httpOnly: true,
+        sameSite: "lax",
+        secure: row.secure
+      });
+    }
+  );
+
+  it("rejects a sign-up password shorter than the shared form minimum", async () => {
+    const response = await auth.handler(
+      new Request("http://localhost:4000/api/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "short-password@example.test",
+          name: "Short Password",
+          password: "x".repeat(AUTH_PASSWORD_MIN_LENGTH - 1)
+        })
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "PASSWORD_TOO_SHORT" });
   });
 
   it("keeps uuid primary-key continuity and a recognizable cookie prefix", () => {

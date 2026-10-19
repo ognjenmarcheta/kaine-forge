@@ -116,6 +116,16 @@ pnpm boundaries
 
 `pnpm --filter @repo/desktop run clean` removes the current `.tauri-target/`. `pnpm bootstrap` never compiles the desktop app: it runs `turbo run build --filter=!@repo/desktop`, so only `pnpm --filter @repo/desktop build` (or a full `pnpm build`) produces Cargo output.
 
+## Windows host
+
+### `pnpm check` fails in `@repo/desk` on Windows
+
+**Symptom:** On a Windows host, `pnpm check` (or `pnpm test`) exits 1 because `@repo/desk#test` fails. The other workspaces pass.
+
+**Cause:** Some agent desk tests need Linux or macOS behavior: symbolic links, POSIX paths and file modes, process groups, shell quoting, and file names that Windows does not allow. CI runs on Linux, so these tests pass there.
+
+**Fix:** Use CI on Linux as the gate for `@repo/desk`. To run the checks locally, use a Linux environment, for example WSL or a Linux container. When the agent desk runs the checks, use Docker mode (`--isolation docker`). See [Docker isolation](agents/agent-desk.md#docker-isolation).
+
 ## AI assistant scaffold
 
 ### `pnpm ai:doctor` reports drift or missing skills

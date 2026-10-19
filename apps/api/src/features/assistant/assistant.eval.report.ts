@@ -63,6 +63,17 @@ export type EvalReport = z.infer<typeof reportSchema>;
 export const readEvalReport = (path: string): EvalReport =>
   reportSchema.parse(JSON.parse(readFileSync(path, "utf8")));
 
+/** The review bound to this exact evidence, or null when none is or the evidence changed. */
+export function currentReview(
+  report: EvalReport,
+  result: EvalResult
+): EvalReport["reviews"][number] | null {
+  const review = report.reviews.find((entry) => entry.resultId === result.id);
+  if (!review || review.resultHash !== digest(JSON.stringify(evalResultSchema.parse(result))))
+    return null;
+  return review;
+}
+
 export function evalReportStatus(
   report: EvalReport
 ): "incomplete" | "fail" | "review-required" | "pass" {
@@ -70,8 +81,8 @@ export function evalReportStatus(
   if (report.results.some((result) => result.mechanical === "fail")) return "fail";
   let pending = false;
   for (const result of report.results) {
-    const review = report.reviews.find((entry) => entry.resultId === result.id);
-    if (!review || review.resultHash !== digest(JSON.stringify(evalResultSchema.parse(result)))) {
+    const review = currentReview(report, result);
+    if (!review) {
       pending = true;
       continue;
     }

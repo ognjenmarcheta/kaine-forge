@@ -110,12 +110,22 @@ jobs:
             changeset:
               - ".changeset/*.md"
 
+      # Labels are read live, not from github.event: Dependabot applies
+      # release:skip-changeset seconds after the `opened` event, so that payload
+      # lacks it, and a re-run replays the same payload.
       - name: Enforce release metadata
         if: |
           steps.changes.outputs.source == 'true' &&
-          steps.changes.outputs.changeset == 'false' &&
-          !contains(github.event.pull_request.labels.*.name, 'release:skip-changeset')
+          steps.changes.outputs.changeset == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' \
+            | grep -qx 'release:skip-changeset'; then
+            echo "Label 'release:skip-changeset' present; no changeset required."
+            exit 0
+          fi
           echo "Source changes detected without a .changeset entry."
           echo "Run 'pnpm changeset' and commit the generated file,"
           echo "or add label 'release:skip-changeset' for non-releasable changes."
@@ -211,12 +221,17 @@ jobs:
             # Workspace tests run once in the coverage job (issue #143 option a).
             # Keep format/lint/typecheck affected-scoped; do not re-run turbo test.
             pnpm exec turbo run format:check lint typecheck --filter="$FILTER" --continue
+            # tooling/* workspaces are not coverage projects (vitest.coverage.config.ts),
+            # so their tests run here, affected-scoped (issue #489). The exclusions keep
+            # apps and packages tests in the coverage job only.
+            pnpm exec turbo run test --filter="$FILTER" --filter='!./apps/*' --filter='!./packages/*' --continue
             # Root AI package checks are not turbo workspace packages.
             pnpm run ai:lint
             pnpm run ai:typecheck
             pnpm run ai:test
             # scripts/* tests are not under vitest.coverage.config.ts projects.
-            # Keep this list aligned with the root "test" script.
+            # scripts/pr-quality-gate.test.mjs fails when this list differs from the
+            # root "test" script or from the tracked scripts/*.test.mjs files.
             node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs
           else
             echo "Non-PR event: running full quality gates (includes ai:*)"
@@ -482,7 +497,7 @@ jobs:
           always() &&
           (github.event.repository.visibility == 'public' ||
            vars.ENABLE_GITHUB_CODE_SCANNING == 'true')
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           sarif_file: trivy-${{ matrix.app }}.sarif
           category: trivy-${{ matrix.app }}

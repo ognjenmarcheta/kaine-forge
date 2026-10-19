@@ -109,6 +109,15 @@ const cases = [
     dimension: "tool-use"
   },
   {
+    id: "list-then-rename-note",
+    prompt: 'Rename my "Trip" note to "Summer trip".',
+    seed: [{ kind: "note", title: "Trip" }],
+    expectTools: ["listNotes", "updateNote"],
+    forbidTools: ["createNote"],
+    forbidReplyClaims: ["created a new note"],
+    dimension: "tool-use"
+  },
+  {
     id: "blank-title",
     prompt: 'Add a todo with the title "   ".',
     seed: [],
