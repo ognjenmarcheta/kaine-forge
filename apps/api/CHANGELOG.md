@@ -1,5 +1,23 @@
 # @repo/api
 
+## 1.9.0
+
+### Minor Changes
+
+- 8e9e541: Add a committed assistant live-eval summary ledger with `eval:assistant record`, which refuses a run whose pass rate falls below the previous run for the same provider, model and dataset. The golden-set coverage floor now follows the real tool set, and a new `list-then-rename-note` case expects `updateNote`.
+
+### Patch Changes
+
+- 3d049e2: Stop parsing the unused `ORGANIZATIONS_VISIBLE` environment variable. The flag value comes only from `@repo/feature-flags`.
+- Updated dependencies [1ce6a5f]
+- Updated dependencies [25e0a60]
+  - @repo/auth@1.6.0
+  - @repo/db@1.6.3
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/storage@1.2.2
+  - @repo/translation@1.5.0
+
 ## 1.8.2
 
 ### Patch Changes
