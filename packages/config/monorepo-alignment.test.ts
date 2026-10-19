@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -16,6 +16,301 @@ function readJson(relativePath: string): Record<string, unknown> {
 function readText(relativePath: string): string {
   return readFileSync(resolve(repoRoot, relativePath), "utf8");
 }
+
+// --- Static scan of the repository files a workspace test reads (issue #516) ---
+//
+// Turbo hashes a workspace's test task from the package's own files plus the
+// `inputs` in its turbo.json. A test that reads a file elsewhere in the repo
+// without such an input can stay green on a stale cache. The scan below folds
+// the path constants tests build (import.meta.dirname, fileURLToPath(new URL),
+// path.resolve/join chains, plain literals) and reads string literals passed
+// to fs calls. Computed strings and reads hidden in helpers escape it, so the
+// derived list is a floor, not a ceiling; dynamic walks register themselves in
+// DYNAMIC_READS with the inputs they need.
+
+type FoldedValue = { kind: "path"; value: string } | { kind: "literal"; value: string };
+
+const normalizeRepoPath = (value: string): string => {
+  const normalized = posix.normalize(value.replace(/\\/g, "/")).replace(/\/+$/, "");
+  return normalized === "." ? "" : normalized;
+};
+
+const joinRepoPath = (base: string, ...segments: string[]): string =>
+  normalizeRepoPath(posix.join(base === "" ? "." : base, ...segments));
+
+/** Split a call's argument text on top-level commas (outside quotes and brackets). */
+function splitTopLevelArgs(text: string): string[] {
+  const args: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let current = "";
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index] ?? "";
+    if (quote) {
+      current += char;
+      if (char === "\\") {
+        current += text[index + 1] ?? "";
+        index += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+    } else if (char === "(" || char === "[" || char === "{") {
+      depth += 1;
+    } else if (char === ")" || char === "]" || char === "}") {
+      depth -= 1;
+    } else if (char === "," && depth === 0) {
+      args.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim() !== "") args.push(current.trim());
+  return args;
+}
+
+/** The text between a call's opening parenthesis and its matching close, capped for safety. */
+function argumentWindow(source: string, openIndex: number): string {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let index = openIndex; index < source.length && index - openIndex < 400; index += 1) {
+    const char = source[index] ?? "";
+    if (quote) {
+      if (char === "\\") index += 1;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") quote = char;
+    else if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) return source.slice(openIndex + 1, index);
+    }
+  }
+  return "";
+}
+
+const SIMPLE_LITERAL = /^(["'])([^"'`]*)\1$/;
+const PATH_CALL = /^(?:path\.)?(?:resolve|join)\(([\s\S]*)\)$/;
+const URL_PATH = /^fileURLToPath\(new URL\((["'])([^"']+)\1,\s*import\.meta\.url\)\)$/;
+
+function foldExpression(
+  rawExpression: string,
+  fileDir: string,
+  constants: ReadonlyMap<string, FoldedValue>
+): FoldedValue | null {
+  const expression = rawExpression.trim();
+  if (expression === "import.meta.dirname" || expression === "__dirname") {
+    return { kind: "path", value: fileDir };
+  }
+  if (/^dirname\(fileURLToPath\(import\.meta\.url\)\)$/.test(expression)) {
+    return { kind: "path", value: fileDir };
+  }
+  const url = URL_PATH.exec(expression);
+  if (url) return { kind: "path", value: joinRepoPath(fileDir, url[2] ?? "") };
+  const literal = SIMPLE_LITERAL.exec(expression);
+  if (literal) return { kind: "literal", value: literal[2] ?? "" };
+  const call = PATH_CALL.exec(expression);
+  if (call) return foldPathCall(call[1] ?? "", fileDir, constants);
+  return constants.get(expression) ?? null;
+}
+
+function foldPathCall(
+  argumentsText: string,
+  fileDir: string,
+  constants: ReadonlyMap<string, FoldedValue>
+): FoldedValue | null {
+  const [baseArgument, ...segmentArguments] = splitTopLevelArgs(argumentsText);
+  if (baseArgument === undefined) return null;
+  const base = foldExpression(baseArgument, fileDir, constants);
+  if (base?.kind !== "path") return null;
+  const segments: string[] = [];
+  for (const argument of segmentArguments) {
+    const segment = foldExpression(argument, fileDir, constants);
+    if (segment?.kind !== "literal") return null;
+    segments.push(segment.value);
+  }
+  return { kind: "path", value: joinRepoPath(base.value, ...segments) };
+}
+
+/** Fold `const NAME = <expr>;` declarations to repo paths, to a fixpoint. */
+function foldConstants(source: string, fileDir: string): Map<string, FoldedValue> {
+  const constants = new Map<string, FoldedValue>();
+  const declaration = /\b(?:const|let)\s+([A-Za-z_$][\w$]*)(?::[^=;]+)?\s*=\s*([^;]+);/g;
+  for (let pass = 0; pass < 3; pass += 1) {
+    let changed = false;
+    for (const match of source.matchAll(declaration)) {
+      const name = match[1] ?? "";
+      if (constants.has(name)) continue;
+      const folded = foldExpression(match[2] ?? "", fileDir, constants);
+      if (folded) {
+        constants.set(name, folded);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return constants;
+}
+
+const READ_CALL =
+  /\b(readFileSync|readFile|readdirSync|readdir|existsSync|statSync|stat|access|cp|execFileSync|readText|readJson)\s*\(/g;
+const NESTED_PATH_CALL = /(?:path\.)?(?:resolve|join)\(([^()]*)\)/g;
+const NESTED_URL = /new URL\((["'])([^"']+)\1,\s*import\.meta\.url\)/g;
+const STRING_LITERAL = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'/g;
+const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
+
+/** Repository-relative paths a test source reads, as far as string literals reveal them. */
+function extractReads(source: string, fileDir: string): Set<string> {
+  const constants = foldConstants(source, fileDir);
+  // Only this file's helpers resolve their argument against the repo root.
+  const rootHelpers = source.includes("resolve(repoRoot, relativePath)");
+  const reads = new Set<string>();
+  const add = (candidate: string): void => {
+    const normalized = normalizeRepoPath(candidate);
+    if (normalized !== "" && !normalized.startsWith("..")) reads.add(normalized);
+  };
+
+  for (const match of source.matchAll(READ_CALL)) {
+    const name = match[1] ?? "";
+    let window = argumentWindow(source, match.index + match[0].length - 1);
+    if (name === "readText" || name === "readJson") {
+      const literal = SIMPLE_LITERAL.exec(splitTopLevelArgs(window)[0] ?? "");
+      if (rootHelpers && literal) add(literal[2] ?? "");
+      continue;
+    }
+    window = window.replace(NESTED_PATH_CALL, (_whole, args: string) => {
+      const folded = foldPathCall(args, fileDir, constants);
+      if (folded?.kind === "path") add(folded.value);
+      return " ";
+    });
+    window = window.replace(NESTED_URL, (_whole, _quote: string, target: string) => {
+      add(joinRepoPath(fileDir, target));
+      return " ";
+    });
+    for (const identifier of window.matchAll(IDENTIFIER)) {
+      const folded = constants.get(identifier[0]);
+      if (folded?.kind === "path") add(folded.value);
+    }
+    for (const literal of window.matchAll(STRING_LITERAL)) {
+      const value = literal[1] ?? literal[2] ?? "";
+      if (value.startsWith("./") || value.startsWith("../")) add(joinRepoPath(fileDir, value));
+    }
+  }
+  return reads;
+}
+
+/** Minimal glob support for turbo input patterns: `*`, `**`, `?`, `{a,b}`. */
+function globToRegExp(glob: string): RegExp {
+  let pattern = "";
+  let braceDepth = 0;
+  for (let index = 0; index < glob.length; index += 1) {
+    const char = glob[index] ?? "";
+    if (char === "*") {
+      if (glob[index + 1] === "*") {
+        if (glob[index + 2] === "/") {
+          pattern += "(?:.*/)?";
+          index += 2;
+        } else {
+          pattern += ".*";
+          index += 1;
+        }
+      } else {
+        pattern += "[^/]*";
+      }
+    } else if (char === "?") {
+      pattern += "[^/]";
+    } else if (char === "{") {
+      braceDepth += 1;
+      pattern += "(?:";
+    } else if (char === "}" && braceDepth > 0) {
+      braceDepth -= 1;
+      pattern += ")";
+    } else if (char === "," && braceDepth > 0) {
+      pattern += "|";
+    } else {
+      pattern += char.replace(/[.+^$()|[\]\\]/g, "\\$&");
+    }
+  }
+  return new RegExp(`^${pattern}$`);
+}
+
+const globLiteralPrefix = (glob: string): string => glob.split(/[*?{[]/, 1)[0] ?? "";
+
+/**
+ * Whether turbo `inputs` (as written in a workspace turbo.json) hash a repo path.
+ * `$TURBO_DEFAULT$` means the workspace's own files; `$TURBO_ROOT$/...` is a
+ * root-relative glob; anything else is workspace-relative; `!` subtracts.
+ */
+function inputsCover(
+  repoPath: string,
+  isDirectory: boolean,
+  inputs: readonly string[],
+  workspaceDir: string
+): boolean {
+  let covered = false;
+  for (const raw of inputs) {
+    const negated = raw.startsWith("!");
+    const entry = negated ? raw.slice(1) : raw;
+    const pattern =
+      entry === "$TURBO_DEFAULT$"
+        ? `${workspaceDir}/**`
+        : entry.startsWith("$TURBO_ROOT$/")
+          ? entry.slice("$TURBO_ROOT$/".length)
+          : `${workspaceDir}/${entry}`;
+    const regex = globToRegExp(pattern);
+    const hit = isDirectory
+      ? globLiteralPrefix(pattern).startsWith(`${repoPath}/`) || regex.test(`${repoPath}/x`)
+      : regex.test(repoPath);
+    if (!hit) continue;
+    if (negated) return false;
+    covered = true;
+  }
+  return covered;
+}
+
+/**
+ * Tests whose reads the literal scan cannot see: git walks and repository
+ * scripts run as child processes. Each entry names the inputs its workspace
+ * must hash for those reads; the inputs test below checks they are declared,
+ * and treats a directory read in a registered file as part of its walk.
+ */
+const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readonly string[] }> = [
+  {
+    file: "packages/config/monorepo-alignment.test.ts",
+    reason:
+      "walks git ls-files and reads every workspace manifest, turbo.json, vitest config and src tree",
+    needs: [
+      "$TURBO_ROOT$/{apps,packages,tooling}/*/package.json",
+      "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
+      "$TURBO_ROOT$/tooling/*/turbo.json",
+      "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
+      "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
+      "$TURBO_ROOT$/tooling/*/*.{ts,tsx}",
+      "$TURBO_ROOT$/tooling/*/{src,tests}/**/*.{ts,tsx}"
+    ]
+  },
+  {
+    file: "packages/ui/src/styles/mobile-tokens.contract.test.ts",
+    reason:
+      "runs scripts/sync-mobile-design-tokens.mjs, which diffs globals.css against the mobile CSS and token file",
+    needs: [
+      "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
+      "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
+      "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts"
+    ]
+  },
+  {
+    file: "tooling/desk/src/ship/ship.message.test.ts",
+    reason:
+      "runs pnpm exec commitlint from the repo root, which loads the commitlint config and the script it imports",
+    needs: ["$TURBO_ROOT$/commitlint.config.mjs", "$TURBO_ROOT$/scripts/no-ai-coauthor.mjs"]
+  }
+];
 
 function assertPackageHasExports(relativePath: string, expectedSubpaths: string[]): void {
   const packageJson = readJson(relativePath) as {
@@ -921,8 +1216,10 @@ describe("monorepo alignment", () => {
       "$TURBO_ROOT$/turbo.json",
       "$TURBO_ROOT$/tooling/dev-mobile-lan.ts",
       "$TURBO_ROOT$/{apps,packages,tooling}/*/package.json",
+      "$TURBO_ROOT$/vitest.coverage.config.ts",
       "$TURBO_ROOT$/{apps,packages}/*/tsconfig.build.json",
       "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
+      "$TURBO_ROOT$/tooling/*/turbo.json",
       "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
       "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
       "$TURBO_ROOT$/tooling/*/*.{ts,tsx}",
@@ -949,7 +1246,8 @@ describe("monorepo alignment", () => {
       "$TURBO_ROOT$/.ai/permissions.json",
       "$TURBO_ROOT$/.ai/skills/*.md",
       "$TURBO_ROOT$/.ai/agents/*.md",
-      "$TURBO_ROOT$/.ai/review.md"
+      "$TURBO_ROOT$/.ai/review.md",
+      "$TURBO_ROOT$/.ai/hooks/**"
     ]) {
       expect(deskInputs, `tooling/desk/turbo.json test.inputs must hash ${input}`).toContain(input);
     }
@@ -959,10 +1257,157 @@ describe("monorepo alignment", () => {
       "$TURBO_DEFAULT$",
       "$TURBO_ROOT$/DESIGN_SYSTEM.md",
       "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
-      "$TURBO_ROOT$/apps/mobile/src/styles/global.css"
+      "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
+      "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts"
     ]) {
       expect(uiInputs, `packages/ui/turbo.json test.inputs must hash ${input}`).toContain(input);
     }
+  });
+
+  it("hashes every repository file a workspace test reads outside its package (issue #516)", () => {
+    // The pin test above documents the reads by hand; this one derives them
+    // from the test sources, so a new read without an input fails here first.
+    // A read is hashed when it is inside the test's own workspace, inside a
+    // declared workspace dependency's build inputs (the ^build edge), a root
+    // global dependency, or matched by the workspace's test inputs.
+    const tracked = new Set(
+      execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n").filter(Boolean)
+    );
+    const isTrackedDirectory = (candidate: string): boolean => {
+      const prefix = `${candidate}/`;
+      for (const file of tracked) if (file.startsWith(prefix)) return true;
+      return false;
+    };
+
+    // Guard the hand-written glob matcher with patterns taken from the live configs.
+    expect(globToRegExp("{apps,packages}/*/turbo.json").test("apps/desktop/turbo.json")).toBe(true);
+    expect(globToRegExp("{apps,packages}/*/turbo.json").test("tooling/desk/turbo.json")).toBe(
+      false
+    );
+    expect(globToRegExp(".github/workflows/*.yml").test(".github/workflows/ci-pr.yml")).toBe(true);
+    expect(
+      globToRegExp("tooling/*/{src,tests}/**/*.{ts,tsx}").test("tooling/desk/src/a/b.ts")
+    ).toBe(true);
+    expect(globToRegExp("Dockerfile.*").test("Dockerfile.api")).toBe(true);
+    expect(globToRegExp("Dockerfile.*").test("packages/Dockerfile.api")).toBe(false);
+
+    const workspaceDirs = new Map<string, string>();
+    const workspaceDependencies = new Map<string, string[]>();
+    for (const manifest of tracked) {
+      if (!/^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(manifest)) continue;
+      const dir = manifest.replace(/\/package\.json$/, "");
+      const packageJson = readJson(manifest) as {
+        name?: string;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      if (packageJson.name) workspaceDirs.set(packageJson.name, dir);
+      workspaceDependencies.set(
+        dir,
+        Object.entries({ ...packageJson.dependencies, ...packageJson.devDependencies })
+          .filter(([, range]) => range.startsWith("workspace:"))
+          .map(([name]) => name)
+      );
+    }
+    const transitiveDependencyDirs = (dir: string): Set<string> => {
+      const seen = new Set<string>();
+      const queue = [dir];
+      while (queue.length > 0) {
+        const current = queue.shift() ?? "";
+        for (const name of workspaceDependencies.get(current) ?? []) {
+          const depDir = workspaceDirs.get(name);
+          if (depDir && !seen.has(depDir)) {
+            seen.add(depDir);
+            queue.push(depDir);
+          }
+        }
+      }
+      return seen;
+    };
+
+    const rootTurbo = readJson("turbo.json") as {
+      globalDependencies?: string[];
+      tasks?: Record<string, { inputs?: string[] }>;
+    };
+    const rootBuildInputs = rootTurbo.tasks?.build?.inputs ?? ["$TURBO_DEFAULT$"];
+    const globalFiles = new Set([
+      ...(rootTurbo.globalDependencies ?? []),
+      "turbo.json",
+      "pnpm-lock.yaml"
+    ]);
+    const taskInputs = (dir: string, task: "build" | "test"): string[] | undefined => {
+      const turboPath = `${dir}/turbo.json`;
+      if (!tracked.has(turboPath)) return undefined;
+      const config = readJson(turboPath) as { tasks?: Record<string, { inputs?: string[] }> };
+      return config.tasks?.[task]?.inputs;
+    };
+
+    const isHashed = (workspaceDir: string, repoPath: string): boolean => {
+      if (repoPath.startsWith(`${workspaceDir}/`)) return true;
+      if (globalFiles.has(repoPath)) return true;
+      const isDirectory = !tracked.has(repoPath) && isTrackedDirectory(repoPath);
+      for (const depDir of transitiveDependencyDirs(workspaceDir)) {
+        if (!repoPath.startsWith(`${depDir}/`)) continue;
+        if (
+          inputsCover(repoPath, isDirectory, taskInputs(depDir, "build") ?? rootBuildInputs, depDir)
+        ) {
+          return true;
+        }
+      }
+      return inputsCover(
+        repoPath,
+        isDirectory,
+        taskInputs(workspaceDir, "test") ?? [],
+        workspaceDir
+      );
+    };
+
+    const testFiles = [...tracked].filter(
+      (file) =>
+        /^(apps|packages|tooling)\/[^/]+\/.*\.test\.(ts|tsx|mjs)$/.test(file) ||
+        /^tooling\/[^/]+\/src\/testing\/.*\.ts$/.test(file)
+    );
+    expect(testFiles.length).toBeGreaterThan(100);
+
+    const dynamicFiles = new Set(DYNAMIC_READS.map((entry) => entry.file));
+    const violations: string[] = [];
+    for (const file of testFiles) {
+      const workspaceDir = file.split("/").slice(0, 2).join("/");
+      const packageName =
+        (readJson(`${workspaceDir}/package.json`) as { name?: string }).name ?? "";
+      const fileDir = posix.dirname(file);
+      for (const read of extractReads(readText(file), fileDir)) {
+        const isDirectory = !tracked.has(read) && isTrackedDirectory(read);
+        if (!tracked.has(read) && !isDirectory) continue;
+        if (isDirectory && dynamicFiles.has(file)) continue;
+        if (isHashed(workspaceDir, read)) continue;
+        violations.push(
+          `${file} reads ${read}, outside ${workspaceDir} and not hashed by ${packageName}#test. ` +
+            `Add "$TURBO_ROOT$/${read}" to ${workspaceDir}/turbo.json tasks.test.inputs ` +
+            `(create it with "extends": ["//"] if missing), or register the read in DYNAMIC_READS with a reason.`
+        );
+      }
+    }
+
+    for (const dynamic of DYNAMIC_READS) {
+      if (!tracked.has(dynamic.file)) {
+        violations.push(
+          `DYNAMIC_READS names ${dynamic.file}, which no longer exists; remove the entry.`
+        );
+        continue;
+      }
+      const workspaceDir = dynamic.file.split("/").slice(0, 2).join("/");
+      const inputs = taskInputs(workspaceDir, "test") ?? [];
+      for (const need of dynamic.needs) {
+        if (!inputs.includes(need)) {
+          violations.push(
+            `${dynamic.file} ${dynamic.reason}; ${workspaceDir}/turbo.json tasks.test.inputs must list "${need}".`
+          );
+        }
+      }
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
   });
 
   it("builds deployable images from turbo prune output only", () => {

@@ -114,7 +114,7 @@ rm -rf apps/desktop/src-tauri/target
 pnpm boundaries
 ```
 
-`pnpm --filter @repo/desktop run clean` removes the current `.tauri-target/`. `pnpm bootstrap` never compiles the desktop app: it runs `turbo run build --filter=!@repo/desktop`, so only `pnpm --filter @repo/desktop build` (or a full `pnpm build`) produces Cargo output.
+`pnpm --filter @repo/desktop run clean` removes the current `.tauri-target/`. `pnpm bootstrap` never compiles the desktop app: it runs `turbo run build --filter=!@repo/desktop`, so only `pnpm exec turbo run build --filter=@repo/desktop` (or a full `pnpm build`) produces Cargo output. Run it through Turbo: the desktop `build` script is `tauri build --no-bundle` alone, and the `@repo/web` build it needs comes from the declared dependency edge.
 
 ## Windows host
 
