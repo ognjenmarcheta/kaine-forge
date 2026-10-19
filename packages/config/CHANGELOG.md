@@ -1,5 +1,11 @@
 # @repo/config
 
+## 1.3.2
+
+### Patch Changes
+
+- 88f4600: Resolve `eslint` from the pnpm catalog. The root manifest and `@repo/config` now share one version, and the catalog contract test covers the root `package.json`.
+
 ## 1.3.1
 
 ### Patch Changes

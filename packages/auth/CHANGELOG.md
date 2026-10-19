@@ -1,5 +1,18 @@
 # @repo/auth
 
+## 1.6.0
+
+### Minor Changes
+
+- 25e0a60: Raise the default scrypt cost to N=16384, r=8, p=5, the 16 MiB variant of the OWASP minimum. Existing hashes keep verifying and are rehashed on the next login.
+
+### Patch Changes
+
+- 1ce6a5f: State the session cookie attributes (`Secure` from an `https://` base URL, `HttpOnly`, `SameSite=Lax`) and the server-side minimum password length (`AUTH_PASSWORD_MIN_LENGTH`, shared with the forms) in the better-auth config instead of inheriting library defaults. Behavior is unchanged for current deployments.
+- Updated dependencies [25e0a60]
+  - @repo/db@1.6.3
+  - @repo/email@1.2.0
+
 ## 1.5.2
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @repo/db
 
+## 1.6.3
+
+### Patch Changes
+
+- 25e0a60: Raise the default scrypt cost to N=16384, r=8, p=5, the 16 MiB variant of the OWASP minimum. Existing hashes keep verifying and are rehashed on the next login.
+- @repo/logger@1.1.0
+
 ## 1.6.2
 
 ### Patch Changes
