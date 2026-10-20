@@ -313,6 +313,21 @@ describe("renderPrFeedback", () => {
     expect(bounded?.body).not.toContain("bot metadata");
   });
 
+  it("leaves no comment opener or tag behind when the markup is nested", () => {
+    const [bounded] = boundPrFeedback({
+      comments: [
+        comment(
+          "a <!<!---->-- hidden --> b <details><summary><<script>script>x</summary>long</details> c"
+        )
+      ],
+      failingChecks: [],
+      skipped: []
+    }).comments;
+    expect(bounded?.body).not.toContain("<!--");
+    expect(bounded?.body).not.toMatch(/<\/?script/i);
+    expect(bounded?.body).toContain("[details folded: scriptx]");
+  });
+
   it("stays under the total cap and says how many items it left out", () => {
     const many = Array.from({ length: 20 }, (_, index) => comment(`${index} ${"y".repeat(3000)}`));
     const text = renderPrFeedback({ comments: many, failingChecks: [], skipped: [] });

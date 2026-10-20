@@ -280,23 +280,32 @@ const keepEnd = (text: string, max: number): string =>
     ? text
     : `[cut: ${text.length - max} earlier characters of the log]\n${text.slice(-max)}`;
 
-/** Each item redacted and cut to its own limit. This is also what `pr-feedback.json` keeps. */
+/** Removes HTML comments until none is left: one pass can join the halves of a nested one. */
+const dropHtmlComments = (text: string): string => {
+  let current = text;
+  let previous;
+  do {
+    previous = current;
+    current = current.replace(/<!--[\s\S]*?-->/g, "");
+  } while (current !== previous);
+  return current;
+};
+
 /**
  * Drops HTML comments and folds each `<details>` block to its summary. Review
  * bots put metadata and long analysis there, ahead of the finding, and the
- * 2 KB cut would otherwise keep only that.
+ * 2 KB cut would otherwise keep only that. A summary keeps no angle bracket.
  */
 const foldMarkup = (body: string): string =>
-  body
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(
-      /<details>\s*(?:<summary>([\s\S]*?)<\/summary>)?[\s\S]*?<\/details>/g,
-      (_all, summary) =>
-        typeof summary === "string" && summary.trim() !== ""
-          ? `[details folded: ${summary.replace(/<[^>]*>/g, "").trim()}]`
-          : "[details folded]"
-    );
+  dropHtmlComments(body).replace(
+    /<details>\s*(?:<summary>([\s\S]*?)<\/summary>)?[\s\S]*?<\/details>/g,
+    (_all, summary) => {
+      const title = typeof summary === "string" ? summary.replace(/<[^>]*>|[<>]/g, "").trim() : "";
+      return title === "" ? "[details folded]" : `[details folded: ${title}]`;
+    }
+  );
 
+/** Each item redacted and cut to its own limit. This is also what `pr-feedback.json` keeps. */
 export const boundPrFeedback = (selected: SelectedPrFeedback): SelectedPrFeedback => ({
   comments: selected.comments.map((comment) => ({
     ...comment,
