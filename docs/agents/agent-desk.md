@@ -294,6 +294,9 @@ agent. It runs only from `pr-review`, only with your explicit yes.
 - `ship <n>` without a flag: on a terminal it asks `Ship #n as a draft PR? [y/N]`. Without a
   terminal it refuses with exit 1.
 - `--dry-run` and `--confirm` do not go together.
+- An issue that writes nothing to GitHub (`--no-writeback` or a snapshot file) cannot ship: a
+  push and a PR are writes too. `ship --confirm` refuses (`ship-refused`) and changes nothing.
+  `--dry-run` still works.
 
 The gate must pass first. Every rule must hold, and a refusal lists all failed rules and
 changes nothing: you confirmed; the check report passed and matches the diff; `gh` is signed
@@ -339,7 +342,8 @@ GitHub (`--no-writeback` or a snapshot file), when it has no PR number, or when 
 fails. Outside `pr-open` it refuses with `invalid-transition`.
 
 `shipped` means one thing: the desk saw the PR merged during a `refresh` that you ran. The desk
-does not poll GitHub. At `pr-open`, as everywhere, it never merges, approves, marks the PR
+never polls the state of an issue's PR. (The server's once-a-minute `gh` query only refreshes the
+repository-wide **Open pull requests** list in the UI. It moves no issue.) At `pr-open`, as everywhere, it never merges, approves, marks the PR
 ready, enables auto-merge, or force-pushes.
 
 The issue state counts PR feedback rounds (`prRounds`). `maxPrRounds` in the config (default 3)

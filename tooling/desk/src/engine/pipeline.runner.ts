@@ -871,6 +871,14 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
+        // A push and a PR are writes too. A dry run writes nothing, so it stays available.
+        if (!dryRun && (deps.noWriteback === true || noWriteback.has(issue))) {
+          return refused(
+            "ship-refused",
+            `#${issue} writes nothing to GitHub (no write-back or a snapshot file), so it cannot ship. Nothing was changed.`,
+            session.state
+          );
+        }
         const execution = await executeShip(session, { dryRun, retry: false });
         if (execution.kind === "refused") {
           return refused(
