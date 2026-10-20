@@ -130,4 +130,4 @@ carries a security policy. Edit `.ai/permissions.json` and reinstall instead.
 
 ## Serena
 
-The Serena SessionStart hook is configured in `settings.json` so Claude automatically asks Serena for its system prompt override when available. Shared Serena project config and memories are generated from `.ai/serena-project.yml` and `.ai/serena-memories/`.
+The Kaine `SessionStart` hook injects Serena's cached prompt when `pnpm ai:install --agent claude --prepare-serena` has prepared it for the current launch configuration; it never starts Serena. Shared Serena project config and memories are generated from `.ai/serena-project.yml` and `.ai/serena-memories/`.

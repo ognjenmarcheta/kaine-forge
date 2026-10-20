@@ -873,6 +873,30 @@ const PRE_TOOL_USE_HOOK_COMMAND =
 /** Short: the hook only reads and matches against a small JSON file. */
 const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
 
+/**
+ * Read-only MCP tools that skip the permission prompt. Serena's REPL interface exposes only
+ * `initial_instructions`; the other names cover `--serena-interface tools`. Browser tools and
+ * `serena_repl` stay prompted because they reach external sites or run code.
+ */
+const CLAUDE_MCP_READ_ALLOW = [
+  ...["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`),
+  ...[
+    "initial_instructions",
+    "find_symbol",
+    "find_referencing_symbols",
+    "get_symbols_overview",
+    "search_for_pattern",
+    "list_dir",
+    "find_file",
+    "find_declaration",
+    "find_implementations",
+    "get_diagnostics_for_file",
+    "list_memories",
+    "read_memory",
+    "get_current_config"
+  ].map((tool) => `mcp__serena__${tool}`)
+];
+
 export const renderClaudeSettings = (): string => {
   const permissions = claudePermissionEntries(readPermissionsSource());
 
@@ -881,7 +905,7 @@ export const renderClaudeSettings = (): string => {
       // deny is evaluated before allow and rules merge across settings files by
       // type, so these survive a broader allow in an untracked
       // .claude/settings.local.json.
-      permissions: { ask: permissions.ask, deny: permissions.deny },
+      permissions: { allow: CLAUDE_MCP_READ_ALLOW, ask: permissions.ask, deny: permissions.deny },
       hooks: {
         PreToolUse: [
           {

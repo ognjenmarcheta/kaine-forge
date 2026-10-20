@@ -99,7 +99,7 @@ it("rejects malformed installed configuration and ignores disabled servers", () 
   }
 });
 
-it("requires exact repository npm, Git, and PyPI pins", () => {
+it("requires exact repository npm, Git, and PyPI pins and a workspace-free npx start", () => {
   expect(
     validateMcpPins(JSON.parse(readFileSync(path.join(REPO_ROOT, ".ai/mcp.json"), "utf8")))
   ).toEqual([]);
@@ -107,13 +107,14 @@ it("requires exact repository npm, Git, and PyPI pins", () => {
   expect(
     validateMcpPins({
       mcpServers: {
-        npm: { command: "npx", args: ["-y", "tool@latest"] },
+        npm: { command: "npx", args: ["--prefix=.ai", "-y", "tool@latest"] },
+        scan: { command: "npx", args: ["-y", "tool@1.2.3"] },
         git: { command: "uvx", args: ["git+https://example.test/tool"] },
         bare: uvx("tool"),
         range: uvx("tool>=1.0.0")
       }
     }).map((problem) => problem.split(":")[0])
-  ).toEqual(["npm", "git", "bare", "range"]);
+  ).toEqual(["npm", "scan", "git", "bare", "range"]);
   expect(validateMcpPins({ mcpServers: { pypi: uvx("tool==1.2.3") } })).toEqual([]);
 });
 

@@ -107,7 +107,8 @@ it.each([false, true])(
       expect(first?.schemaVersion).toBe(2);
       expect(first?.skills).toContain("kaine-test");
       expect(first?.skills).toContain("kaine-env-control");
-      expect(first?.mcps).toContain("filesystem");
+      expect(first?.mcps).toContain("context7");
+      expect(first?.mcps).not.toContain("filesystem");
       const skill = path.join(root, ".claude/skills/kaine-env-control/SKILL.md");
       expect(existsSync(skill)).toBe(false);
       install({ ...process.env, KAINE_TEST_SKILL_TOKEN: "synthetic" });

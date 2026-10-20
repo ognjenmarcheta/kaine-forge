@@ -2,7 +2,8 @@
 
 import { Buffer } from "node:buffer";
 import { execFileSync } from "node:child_process";
-import { basename, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
 const args = process.argv.slice(2);
@@ -79,6 +80,32 @@ const worktreeSummary = (repoRoot) => {
   return parts.join(", ");
 };
 
+const readMcpServers = (root) => {
+  try {
+    return JSON.stringify(JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8")).mcpServers);
+  } catch {
+    return undefined;
+  }
+};
+
+/** Claude worktree sessions load project MCP servers from the main checkout's `.mcp.json`. */
+const staleMainCheckoutMcp = (repoRoot) => {
+  try {
+    const commonDir = execGit(repoRoot, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-common-dir"
+    ]);
+    const gitDir = execGit(repoRoot, ["rev-parse", "--path-format=absolute", "--git-dir"]);
+    if (commonDir === gitDir || basename(commonDir) !== ".git") return null;
+    const mainRoot = resolve(dirname(commonDir));
+    const mainServers = readMcpServers(mainRoot);
+    return mainServers !== undefined && mainServers !== readMcpServers(repoRoot) ? mainRoot : null;
+  } catch {
+    return null;
+  }
+};
+
 const aiHealth = (repoRoot, hookAgent) => {
   try {
     const output = execFileSync(
@@ -138,6 +165,11 @@ const main = async () => {
     !["ready", "disabled", "not-applicable"].includes(health.serenaPrompt)
   )
     lines.push("- Serena prompt unavailable; run pnpm ai:install --agent claude --prepare-serena");
+  const mainRoot = agent === "claude" ? staleMainCheckoutMcp(repoRoot) : null;
+  if (mainRoot)
+    lines.push(
+      `- Warning: this worktree session may load MCP servers from ${join(mainRoot, ".mcp.json")}, which differs from this checkout; run pnpm ai:install --agent claude in ${mainRoot}`
+    );
   if (health.startupContext) lines.push(health.startupContext);
   if (issues.length > 0) {
     lines.push(`- Warning: ${issues.join("; ")}`);

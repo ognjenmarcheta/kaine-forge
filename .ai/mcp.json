@@ -2,15 +2,23 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem@2026.8.31", "."]
+      "args": ["--prefix=.ai", "-y", "@modelcontextprotocol/server-filesystem@2026.8.31", "."],
+      "default": false
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@4.1.1"]
+      "args": ["--prefix=.ai", "-y", "@upstash/context7-mcp@4.1.1"]
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@0.0.82"]
+      "args": [
+        "--prefix=.ai",
+        "-y",
+        "@playwright/mcp@0.0.82",
+        "--headless",
+        "--isolated",
+        "--output-dir=.ai.local/playwright"
+      ]
     },
     "serena": {
       "command": "uvx",
@@ -35,9 +43,22 @@
         "SERENA_USAGE_REPORTING": "false"
       }
     },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "--prefix=.ai",
+        "-y",
+        "chrome-devtools-mcp@1.10.1",
+        "--headless",
+        "--isolated",
+        "--no-usage-statistics",
+        "--no-performance-crux"
+      ],
+      "default": false
+    },
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "firecrawl-mcp@3.25.5"],
+      "args": ["--prefix=.ai", "-y", "firecrawl-mcp@3.25.5"],
       "default": false,
       "env": {
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"

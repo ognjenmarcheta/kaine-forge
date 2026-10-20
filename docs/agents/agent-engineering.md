@@ -41,7 +41,7 @@ Missing dependencies or failed inspection produce `not-verified` and a recovery
 command. Startup never certifies MCP connectivity or sandbox enforcement.
 
 `--probe-mcp` sends initialize/initialized only. Each stdio server has a bounded
-10-second startup and process-tree cleanup. Results include a separate `cleanup` status.
+30-second startup, which matches Claude Code's default `MCP_TIMEOUT`, and process-tree cleanup. Results include a separate `cleanup` status.
 Cleanup launch errors, nonzero termination, timeout or an unconfirmed exit prevent a pass.
 Initialization and cleanup failures are retained together. Raw server output and environment
 values are not printed. This proves initialization, not tool behavior. Other
@@ -51,14 +51,52 @@ transports have no passing startup claim. Probes stay out of hooks and ordinary 
 in repository-owned hook launch definitions. Updates follow the existing
 [dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
 
-| Server     | Exact launch dependency                             | Verification on 2026-09-27          |
-| ---------- | --------------------------------------------------- | ----------------------------------- |
-| filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31` | initialization passed               |
-| context7   | `@upstash/context7-mcp@4.1.1`                       | initialization passed               |
-| playwright | `@playwright/mcp@0.0.82`                            | initialization passed               |
-| serena     | PyPI `serena-agent==2.1.0` through `uvx`            | initialization passed on 2026-10-20 |
-| firecrawl  | `firecrawl-mcp@3.25.5`                              | unselected; not probed              |
-| graphify   | local `graphify-mcp` executable                     | optional; not probed                |
+| Server          | Exact launch dependency                             | Default | Verification on 2026-10-20 |
+| --------------- | --------------------------------------------------- | ------- | -------------------------- |
+| context7        | `@upstash/context7-mcp@4.1.1`                       | yes     | initialization passed      |
+| playwright      | `@playwright/mcp@0.0.82`                            | yes     | initialization passed      |
+| serena          | PyPI `serena-agent==2.1.0` through `uvx`            | yes     | initialization passed      |
+| chrome-devtools | `chrome-devtools-mcp@1.10.1`                        | opt-in  | initialization passed      |
+| filesystem      | `@modelcontextprotocol/server-filesystem@2026.8.31` | opt-in  | not probed                 |
+| firecrawl       | `firecrawl-mcp@3.25.5`                              | opt-in  | not probed                 |
+| graphify        | local `graphify-mcp` executable                     | opt-in  | not probed                 |
+
+Every `npx` launch starts with `--prefix=.ai`, and `validateMcpPins` enforces it. From the
+repository root, `npx` first scans the pnpm `node_modules` tree for a local copy. On Windows
+on 2026-10-20 this took 4–6 s per server with a warm npm cache and more than 90 s with a
+cold one, so Claude sessions hit the 30-second start-up limit and lost every server. `.ai`
+has no `node_modules`, so the scan is instant: warm Context7 initialization fell from
+about 5 s to about 1.2 s. Before the change, two probe runs (10-second limit) timed out on
+filesystem, Context7, Playwright and Serena. Serena alone needs about 10 s, which is why the
+probe limit is now 30 s. After the change, Context7, Playwright, Serena and Chrome DevTools
+passed in one 7-second run.
+
+Playwright runs `--headless --isolated --output-dir=.ai.local/playwright`: no window per
+session, no profile state shared between sessions, and screenshots stay in ignored local
+state. Chrome DevTools runs `--headless --isolated --no-usage-statistics
+--no-performance-crux`, which turns off Google usage statistics and the upload of trace
+URLs to the CrUX API. Add it with `pnpm ai:install --mcp chrome-devtools` for performance
+traces, Lighthouse audits, and network or console inspection that Playwright does not cover.
+
+Filesystem is opt-in because every supported agent has native file tools. Existing
+installs keep their recorded selection; drop it with an explicit selection, for example
+`pnpm ai:install --agent claude --mcp context7,playwright,serena`.
+
+Claude desktop worktree sessions load project MCP servers from the main checkout's
+`.mcp.json`, not the worktree's. The Claude `SessionStart` hook warns when the two differ
+and names the main checkout to reinstall.
+
+The generated `.claude/settings.json` allows the read-only Context7 tools and Serena's
+read-only tools without a prompt. `serena_repl`, Serena edit and memory-write tools, and
+all browser tools stay prompted.
+
+### MCP servers not adopted
+
+| Server              | Reason                                                                                                                                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub MCP          | Its merge and review tools would bypass the `gh pr merge` and `gh pr review --approve` denials, because the guarded-command hooks match only shell tools. `gh` with `--json <fields>` already returns compact output. |
+| Sequential Thinking | Current models reason natively. The server adds a tool definition and a round trip per thought, with no new information.                                                                                              |
+| Filesystem default  | Duplicates native file tools and Serena's read-only file access, and adds start-up time and tool-definition tokens to every session. It stays available as opt-in.                                                    |
 
 Both local agents retain Serena. `uvx 0.12.19` is now installed. Refreshing this
 process from the persisted Windows PATH makes both local readiness checks pass.
