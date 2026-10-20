@@ -2,7 +2,7 @@
 
 import { Buffer } from "node:buffer";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
@@ -80,9 +80,12 @@ const worktreeSummary = (repoRoot) => {
   return parts.join(", ");
 };
 
+/** `null` when `.mcp.json` is missing, `undefined` when it cannot be read or parsed. */
 const readMcpServers = (root) => {
+  const file = join(root, ".mcp.json");
+  if (!existsSync(file)) return null;
   try {
-    return JSON.stringify(JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8")).mcpServers);
+    return JSON.stringify(JSON.parse(readFileSync(file, "utf8")).mcpServers);
   } catch {
     return undefined;
   }
@@ -100,6 +103,7 @@ const staleMainCheckoutMcp = (repoRoot) => {
     if (commonDir === gitDir || basename(commonDir) !== ".git") return null;
     const mainRoot = resolve(dirname(commonDir));
     const mainServers = readMcpServers(mainRoot);
+    // A missing main config warns too: the session then gets none of this checkout's servers.
     return mainServers !== undefined && mainServers !== readMcpServers(repoRoot) ? mainRoot : null;
   } catch {
     return null;
@@ -168,7 +172,7 @@ const main = async () => {
   const mainRoot = agent === "claude" ? staleMainCheckoutMcp(repoRoot) : null;
   if (mainRoot)
     lines.push(
-      `- Warning: this worktree session may load MCP servers from ${join(mainRoot, ".mcp.json")}, which differs from this checkout; run pnpm ai:install --agent claude in ${mainRoot}`
+      `- Warning: this worktree session may load MCP servers from ${join(mainRoot, ".mcp.json")}, which is missing or differs from this checkout; run pnpm ai:install --agent claude in ${mainRoot}`
     );
   if (health.startupContext) lines.push(health.startupContext);
   if (issues.length > 0) {

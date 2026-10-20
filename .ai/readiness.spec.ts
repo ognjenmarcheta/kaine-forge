@@ -109,12 +109,13 @@ it("requires exact repository npm, Git, and PyPI pins and a workspace-free npx s
       mcpServers: {
         npm: { command: "npx", args: ["--prefix=.ai", "-y", "tool@latest"] },
         scan: { command: "npx", args: ["-y", "tool@1.2.3"] },
+        late: { command: "npx", args: ["-y", "tool@1.2.3", "--prefix=.ai"] },
         git: { command: "uvx", args: ["git+https://example.test/tool"] },
         bare: uvx("tool"),
         range: uvx("tool>=1.0.0")
       }
     }).map((problem) => problem.split(":")[0])
-  ).toEqual(["npm", "scan", "git", "bare", "range"]);
+  ).toEqual(["npm", "scan", "late", "git", "bare", "range"]);
   expect(validateMcpPins({ mcpServers: { pypi: uvx("tool==1.2.3") } })).toEqual([]);
 });
 

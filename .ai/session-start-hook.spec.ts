@@ -236,7 +236,7 @@ describe("session-start hook", () => {
     }
   });
 
-  it("warns a Claude worktree session when the main checkout's MCP servers differ", () => {
+  it("warns a Claude worktree session when the main checkout's MCP servers differ or are missing", () => {
     const repo = makeRepo();
     const worktree = `${repo}-wt`;
     try {
@@ -256,6 +256,9 @@ describe("session-start hook", () => {
 
       writeFile(worktree, ".mcp.json", JSON.stringify({ mcpServers: { old: { command: "old" } } }));
       expect(runHook(worktree, "claude").stdout).not.toContain(join(repo, ".mcp.json"));
+
+      rmSync(join(repo, ".mcp.json"));
+      expect(runHook(worktree, "claude").stdout).toContain(join(repo, ".mcp.json"));
     } finally {
       rmSync(worktree, { recursive: true, force: true });
       rmSync(repo, { recursive: true, force: true });

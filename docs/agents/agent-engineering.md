@@ -72,8 +72,10 @@ probe limit is now 30 s. After the change, Context7, Playwright, Serena and Chro
 passed in one 7-second run.
 
 Playwright runs `--headless --isolated --output-dir=.ai.local/playwright`: no window per
-session, no profile state shared between sessions, and screenshots stay in ignored local
-state. Chrome DevTools runs `--headless --isolated --no-usage-statistics
+session, and no profile state shared between sessions. `--output-dir` applies only to
+automatically named files: a screenshot with an explicit `filename` resolves against the
+workspace root, so give named captures a path under `.ai.local/playwright/` to keep them in
+ignored local state. Chrome DevTools runs `--headless --isolated --no-usage-statistics
 --no-performance-crux`, which turns off Google usage statistics and the upload of trace
 URLs to the CrUX API. Add it with `pnpm ai:install --mcp chrome-devtools` for performance
 traces, Lighthouse audits, and network or console inspection that Playwright does not cover.
