@@ -170,6 +170,41 @@ describe("refsSnapshot and compareRefs", () => {
     ).toBe(true);
   });
 
+  it("allows another branch to fast-forward to its remote, as a background branch sync does", async () => {
+    const start = await repo.git(["rev-parse", "HEAD"]);
+    await repo.write("a.txt", "a");
+    await repo.commit("upstream work");
+    const upstream = await repo.git(["rev-parse", "HEAD"]);
+    await repo.git(["reset", "--quiet", "--hard", start]);
+    await repo.git(["branch", "other", start]);
+    await repo.git(["update-ref", "refs/remotes/origin/other", upstream]);
+    await repo.git(["update-ref", "refs/remotes/origin/main", upstream]);
+    const before = await snapshot();
+
+    await repo.git(["update-ref", "refs/heads/other", upstream]);
+    expect(compareRefs(before, await snapshot())).toEqual([]);
+
+    // The branch of the run is never excused, even when it matches its remote.
+    await repo.git(["update-ref", "refs/heads/main", upstream]);
+    expect(compareRefs(before, await snapshot()).map((v) => [v.kind, v.subject])).toContainEqual([
+      "ref-moved",
+      "refs/heads/main"
+    ]);
+  });
+
+  it("still reports another branch that moves anywhere but its remote", async () => {
+    await repo.git(["branch", "other"]);
+    const before = await snapshot();
+    await repo.write("a.txt", "a");
+    await repo.commit("next");
+    await repo.git(["branch", "-f", "other", "HEAD"]);
+    expect(
+      compareRefs(before, await snapshot()).some(
+        (v) => v.kind === "ref-moved" && v.subject === "refs/heads/other"
+      )
+    ).toBe(true);
+  });
+
   it("detects a branch change", async () => {
     const before = await snapshot();
     await repo.git(["checkout", "--quiet", "-b", "other"]);

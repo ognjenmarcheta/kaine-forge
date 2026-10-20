@@ -22,11 +22,26 @@ const writeConfig = async (content: string): Promise<string> => {
 
 describe("loadDeskConfig", () => {
   it("returns the defaults when no path is given", async () => {
-    expect(await loadDeskConfig()).toEqual({
+    expect(await loadDeskConfig(undefined, "linux")).toEqual({
       ok: true,
       source: "defaults",
       config: deskConfigSchema.parse({})
     });
+  });
+
+  it("defaults to Docker isolation on a Windows host, where host checks cannot pass", async () => {
+    const result = await loadDeskConfig(await writeConfig("{}"), "win32");
+    expect(result.ok && result.config.isolation).toBe("docker");
+    const linux = await loadDeskConfig(await writeConfig("{}"), "linux");
+    expect(linux.ok && linux.config.isolation).toBe("host");
+  });
+
+  it("keeps an explicit host isolation on Windows", async () => {
+    const result = await loadDeskConfig(
+      await writeConfig(JSON.stringify({ isolation: "host" })),
+      "win32"
+    );
+    expect(result.ok && result.config.isolation).toBe("host");
   });
 
   it("returns the defaults when the optional file does not exist", async () => {

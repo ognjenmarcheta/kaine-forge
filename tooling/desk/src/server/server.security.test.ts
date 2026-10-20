@@ -1,4 +1,5 @@
 import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -50,6 +51,27 @@ describe("launch URL and token", () => {
       expect(other.desk.url).not.toBe(harness.desk.url);
     } finally {
       await other.cleanup();
+    }
+  });
+
+  it("says that a desk already runs on a taken port, and how to find it", async () => {
+    const port = Number(new URL(harness.desk.url).port);
+    await expect(createHarness({ port })).rejects.toThrow(
+      new RegExp(`Port ${port} is in use by another desk server.*netstat`)
+    );
+  });
+
+  it("tells a port taken by another program apart from a desk", async () => {
+    const other = createServer((_request, response) => response.end("not a desk"));
+    await new Promise<void>((resolve) => other.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = other.address();
+      const port = typeof address === "object" && address !== null ? address.port : 0;
+      await expect(createHarness({ port })).rejects.toThrow(
+        `Port ${port} is in use by another program`
+      );
+    } finally {
+      await new Promise((resolve) => other.close(resolve));
     }
   });
 

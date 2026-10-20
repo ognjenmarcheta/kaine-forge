@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CHECK_DATABASE_URL,
   CONTAINER_KINDS,
   ContainerPolicyError,
   agentContainer,
@@ -257,6 +258,18 @@ describe("other containers", () => {
     expect(args.slice(args.indexOf(IMAGE) + 1)).toEqual(["check:affected"]);
     expect(all(args, "--mount")).toEqual([`type=volume,src=${WS},dst=/workspace`]);
     expect(all(args, "--env")).toContain("NO_COLOR=1");
+    // Modules that import the DB client at load time need a URL; the container has no network.
+    expect(all(args, "--env")).toContain(`DATABASE_URL=${CHECK_DATABASE_URL}`);
+  });
+
+  it("keeps the loopback placeholder even when a check step passes its own DATABASE_URL", () => {
+    const spec = checkContainer({
+      ...base("check"),
+      workspaceVolume: WS,
+      argv: ["pnpm", "generate"],
+      env: { DATABASE_URL: "postgresql://user:secret@db.example.com/prod" }
+    });
+    expect(all(dockerRunArgs(spec), "--env")).toContain(`DATABASE_URL=${CHECK_DATABASE_URL}`);
   });
 
   it("fills the store with a writable workspace for the virtual store and only the socket for the network", () => {
@@ -358,6 +371,11 @@ describe("policy errors", () => {
     ["a forbidden variable GH_TOKEN", { env: { GH_TOKEN: "x" } }],
     ["a forbidden variable AWS_SECRET_ACCESS_KEY", { env: { AWS_SECRET_ACCESS_KEY: "x" } }],
     ["a forbidden variable SSH_AUTH_SOCK", { env: { SSH_AUTH_SOCK: "/x" } }],
+    ["a real DATABASE_URL", { env: { DATABASE_URL: "postgresql://u:p@db.example.com/prod" } }],
+    [
+      "the check DATABASE_URL placeholder on an agent",
+      { env: { DATABASE_URL: CHECK_DATABASE_URL } }
+    ],
     ["a forwarded GitHub token", { forwardEnv: ["GITHUB_TOKEN"] }],
     ["a forwarded variable that is not a provider key", { forwardEnv: ["HOME"] }],
     ["an entrypoint that looks like a flag", { entrypoint: "--privileged" }],

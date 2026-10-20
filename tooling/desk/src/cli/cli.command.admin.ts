@@ -8,7 +8,7 @@ import { formatDoctorReport, runDoctor, type DoctorCheck } from "../doctor/docto
 import { LABEL_DEFINITIONS, labelSyncCommands } from "../github/github.labels";
 import { dockerDoctorChecks } from "../isolation/docker.doctor";
 import { runIsolationProbes } from "../isolation/docker.probe";
-import { configPath, resolveRepoLocation } from "../store/store.root";
+import { configPath, resolveRepoLocation, type RepoLocation } from "../store/store.root";
 
 /** Repository-level commands that touch no issue: `labels sync` and `doctor`. */
 
@@ -57,12 +57,13 @@ export const commandDoctor: CliCommand = async (args, deps, io) => {
   });
   if (positionals.length > 0) throw new UsageError("Usage: pnpm desk doctor [--json] [--probe]");
 
-  let loadConfig = (): Promise<DeskConfigLoadResult> => loadDeskConfig();
+  let loadConfig = (): Promise<DeskConfigLoadResult> => loadDeskConfig(undefined, deps.platform);
   let dockerChecks: ((required: boolean) => Promise<DoctorCheck[]>) | undefined;
+  let location: RepoLocation | undefined;
   try {
-    const location = await resolveRepoLocation(deps.exec, deps.cwd);
+    location = await resolveRepoLocation(deps.exec, deps.cwd);
     const { repoRoot } = location;
-    loadConfig = () => loadDeskConfig(configPath(repoRoot));
+    loadConfig = () => loadDeskConfig(configPath(repoRoot), deps.platform);
     const loaded = await loadConfig();
     const isolation = loaded.ok ? dockerIsolationFor(deps, location, loaded.config) : undefined;
     if (isolation !== undefined && deps.docker !== undefined) {
@@ -87,6 +88,8 @@ export const commandDoctor: CliCommand = async (args, deps, io) => {
     exec: deps.exec,
     github: deps.createGitHub(deps.cwd),
     cwd: deps.cwd,
+    location,
+    platform: deps.platform,
     nodeVersion: deps.nodeVersion,
     loadConfig,
     dockerChecks

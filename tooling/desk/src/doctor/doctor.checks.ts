@@ -1,7 +1,14 @@
+import { access, readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { z } from "zod";
+
 import type { DeskConfigLoadResult } from "../config/config.load";
-import type { HealthFix, Provider } from "../contracts";
+import type { DeskConfig, HealthFix, Provider } from "../contracts";
+import { worktreeDirFor } from "../engine/pipeline.stage.setup";
 import { checkControllerIdentity } from "../github/github.identity";
+import { AGENT_LABELS } from "../github/github.labels";
 import type { Exec, GitHubPort } from "../ports";
+import type { RepoLocation } from "../store/store.root";
 
 export type CheckStatus = "ok" | "warn" | "error";
 
@@ -39,6 +46,10 @@ export interface DoctorDeps {
    * Docker isolation, which turns a missing daemon or image into an error.
    */
   readonly dockerChecks?: ((required: boolean) => Promise<DoctorCheck[]>) | undefined;
+  /** Where the checkout lives. With it, a Windows host gets the worktree path check. */
+  readonly location?: Pick<RepoLocation, "repoRoot" | "stateRoot"> | undefined;
+  /** Defaults to `process.platform`. */
+  readonly platform?: NodeJS.Platform | undefined;
 }
 
 const MIN_NODE_MAJOR = 22;
@@ -179,6 +190,220 @@ const checkGh = async (deps: DoctorDeps, owner: string | undefined): Promise<Doc
   return checks;
 };
 
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const labelListSchema = z.array(z.object({ name: z.string() }));
+
+/** The execution labels the desk sets on issues. Without them every label write fails. */
+const checkAgentLabels = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck> => {
+  const result = await exec({
+    argv: ["gh", "label", "list", "--json", "name", "--limit", "1000"],
+    cwd,
+    timeoutMs: 15_000
+  });
+  const parsed = labelListSchema.safeParse(result.code === 0 ? parseJson(result.stdout) : null);
+  if (!parsed.success) {
+    return check("agent-labels", "Agent labels", "warn", "gh could not list the labels");
+  }
+  const names = new Set(parsed.data.map((label) => label.name));
+  const missing = AGENT_LABELS.filter((label) => !names.has(label));
+  return missing.length === 0
+    ? check("agent-labels", "Agent labels", "ok", `${AGENT_LABELS.join(", ")} exist`)
+    : withRemedy(
+        check(
+          "agent-labels",
+          "Agent labels",
+          "warn",
+          `missing ${missing.join(", ")}: the desk cannot label its issues`
+        ),
+        { command: "pnpm desk labels sync --apply", fix: "agent-labels" }
+      );
+};
+
+const workspaceListSchema = z.array(z.object({ name: z.string().optional(), path: z.string() }));
+
+const entryPointsSchema = z.object({
+  main: z.unknown().optional(),
+  types: z.unknown().optional(),
+  exports: z.unknown().optional()
+});
+
+const entryStrings = (value: unknown): string[] =>
+  typeof value === "string"
+    ? [value]
+    : typeof value === "object" && value !== null
+      ? Object.values(value).flatMap(entryStrings)
+      : [];
+
+/** Does a manifest's `main`, `types` or `exports` point into `dist/`? */
+const resolvesThroughDist = (manifest: unknown): boolean => {
+  const parsed = entryPointsSchema.safeParse(manifest);
+  if (!parsed.success) return false;
+  const { main, types, exports } = parsed.data;
+  return entryStrings([main, types, exports]).some((entry) => /^(\.\/)?dist\//.test(entry));
+};
+
+const exists = (target: string): Promise<boolean> =>
+  access(target).then(
+    () => true,
+    () => false
+  );
+
+/**
+ * Workspaces whose package exports point into `dist/` but have no `dist`.
+ * Tests that import them fail until they are built. `null` when pnpm cannot list the workspaces.
+ */
+export const missingWorkspaceBuilds = async (exec: Exec, cwd: string): Promise<string[] | null> => {
+  const listed = await exec({
+    argv: ["pnpm", "ls", "-r", "--depth", "-1", "--json"],
+    cwd,
+    timeoutMs: 60_000
+  });
+  const parsed = workspaceListSchema.safeParse(listed.code === 0 ? parseJson(listed.stdout) : null);
+  if (!parsed.success) return null;
+  const missing: string[] = [];
+  for (const workspace of parsed.data) {
+    if (workspace.name === undefined) continue;
+    const manifest = parseJson(
+      await readFile(path.join(workspace.path, "package.json"), "utf8").catch(() => "")
+    );
+    if (resolvesThroughDist(manifest) && !(await exists(path.join(workspace.path, "dist")))) {
+      missing.push(workspace.name);
+    }
+  }
+  return missing.sort();
+};
+
+/** `pnpm turbo run build` for the given workspaces and what they depend on. */
+export const workspaceBuildArgv = (names: readonly string[]): string[] => [
+  "pnpm",
+  "turbo",
+  "run",
+  "build",
+  ...names.map((name) => `--filter=${name}`)
+];
+
+const checkWorkspaceBuilds = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck> => {
+  const missing = await missingWorkspaceBuilds(exec, cwd);
+  if (missing === null) {
+    return check("workspace-builds", "Workspace builds", "warn", "pnpm could not list workspaces");
+  }
+  return missing.length === 0
+    ? check("workspace-builds", "Workspace builds", "ok", "every built package has its dist")
+    : withRemedy(
+        check(
+          "workspace-builds",
+          "Workspace builds",
+          "warn",
+          `not built: ${missing.join(", ")}. Tests that import them fail until they are built`
+        ),
+        { command: workspaceBuildArgv(missing).join(" "), fix: "workspace-builds" }
+      );
+};
+
+/** Node reads nested manifests such as this one to pick a file's module type. */
+const NESTED_MANIFEST = path.join("cjs", "package.json");
+const WINDOWS_MAX_PATH = 260;
+
+/** The longest `<id>/node_modules/[@scope/]<name>` directory in a pnpm store, relative to it. */
+const longestPackageDir = async (store: string): Promise<string | null> => {
+  let ids: string[];
+  try {
+    ids = await readdir(store);
+  } catch {
+    return null;
+  }
+  let longest = "";
+  for (const id of ids) {
+    const modules = path.join(id, "node_modules");
+    const names = await readdir(path.join(store, modules)).catch((): string[] => []);
+    for (const name of names) {
+      const dirs = name.startsWith("@")
+        ? (await readdir(path.join(store, modules, name)).catch((): string[] => [])).map((inner) =>
+            path.join(name, inner)
+          )
+        : [name];
+      for (const dir of dirs) {
+        const relative = path.join(modules, dir);
+        if (relative.length > longest.length) longest = relative;
+      }
+    }
+  }
+  return longest === "" ? null : longest;
+};
+
+/**
+ * Windows only. An issue worktree repeats this checkout's `node_modules`. When
+ * its folder is deep, Node cannot read a nested `package.json` at 260
+ * characters and loads a CommonJS file as an ES module.
+ */
+const checkWorktreePath = async (
+  cwd: string,
+  location: Pick<RepoLocation, "repoRoot" | "stateRoot">,
+  config: DeskConfig
+): Promise<DoctorCheck | null> => {
+  const longest = await longestPackageDir(path.join(cwd, "node_modules", ".pnpm"));
+  if (longest === null) return null;
+  const root = worktreeDirFor({ config, location }, 99_999);
+  const length = path.join(root, "node_modules", ".pnpm", longest, NESTED_MANIFEST).length;
+  return length < WINDOWS_MAX_PATH
+    ? check(
+        "worktree-path",
+        "Worktree path",
+        "ok",
+        `${length} characters at most in ${path.dirname(root)}`
+      )
+    : check(
+        "worktree-path",
+        "Worktree path",
+        "error",
+        `issue worktrees in ${path.dirname(root)} reach ${length} characters in node_modules; Windows fails at ${WINDOWS_MAX_PATH}. Set "worktreesDir" in .ai.local/desk/config.json to a shorter folder.`
+      );
+};
+
+/** The same sandbox the Codex runner asks for on Windows, reading a file without a model call. */
+const CODEX_PROBE_ARGV = [
+  "codex",
+  "sandbox",
+  "-c",
+  'sandbox_mode="read-only"',
+  "-c",
+  'windows.sandbox="unelevated"',
+  "--",
+  "node",
+  "-e",
+  "process.stdout.write(String(require('node:fs').readFileSync('package.json').length))"
+];
+
+/** Windows only. `codex --help` passing says nothing about whether the sandbox can read. */
+const checkCodexSandbox = async (
+  { exec, cwd }: DoctorDeps,
+  required: boolean
+): Promise<DoctorCheck> => {
+  const result = await exec({ argv: CODEX_PROBE_ARGV, cwd, timeoutMs: 60_000 });
+  if (result.code === 0 && /^\d+$/.test(result.stdout.trim())) {
+    return check(
+      "codex-sandbox",
+      "Codex sandbox",
+      "ok",
+      "the Windows sandbox can read the checkout"
+    );
+  }
+  const reason = `${result.stderr}\n${result.stdout}`.trim().split("\n").at(-1) ?? "";
+  return check(
+    "codex-sandbox",
+    "Codex sandbox",
+    required ? "error" : "warn",
+    `the Windows sandbox cannot read the checkout, so a Codex agent cannot read the code (${reason || `exit ${result.code}`}). Set those roles to "claude" in providers.`
+  );
+};
+
 const checkConfig = async (
   deps: DoctorDeps
 ): Promise<{
@@ -186,6 +411,7 @@ const checkConfig = async (
   providers: ReadonlySet<Provider>;
   owner: string | undefined;
   docker: boolean;
+  config: DeskConfig | null;
 }> => {
   const loaded = await deps.loadConfig();
   if (!loaded.ok) {
@@ -194,7 +420,8 @@ const checkConfig = async (
       // Without a valid config every provider counts as required.
       providers: new Set<Provider>(["claude", "codex"]),
       owner: undefined,
-      docker: false
+      docker: false,
+      config: null
     };
   }
   const { config } = loaded;
@@ -207,7 +434,8 @@ const checkConfig = async (
     ),
     providers: new Set<Provider>(Object.values(config.providers)),
     owner: config.owner,
-    docker: config.isolation === "docker"
+    docker: config.isolation === "docker",
+    config
   };
 };
 
@@ -257,14 +485,26 @@ const checkProvider = async (
 /** Read-only environment checks. Nothing here writes to GitHub or to the repository. */
 export const runDoctor = async (deps: DoctorDeps): Promise<DoctorReport> => {
   const config = await checkConfig(deps);
+  const windows = (deps.platform ?? process.platform) === "win32";
+  const gh = await checkGh(deps, config.owner);
+  const codex = await checkProvider(deps, "codex", config.providers.has("codex"));
+  const codexRuns = codex.every((entry) => entry.status === "ok");
+  const worktreePath =
+    windows && deps.location !== undefined && config.config !== null
+      ? await checkWorktreePath(deps.cwd, deps.location, config.config)
+      : null;
   const checks: DoctorCheck[] = [
     checkNode(deps.nodeVersion),
     await checkPnpm(deps),
     ...(await checkGit(deps)),
-    ...(await checkGh(deps, config.owner)),
+    ...gh,
+    ...(gh.every((entry) => entry.status === "ok") ? [await checkAgentLabels(deps)] : []),
     config.check,
     ...(await checkProvider(deps, "claude", config.providers.has("claude"))),
-    ...(await checkProvider(deps, "codex", config.providers.has("codex"))),
+    ...codex,
+    ...(windows && codexRuns ? [await checkCodexSandbox(deps, config.providers.has("codex"))] : []),
+    ...(worktreePath === null ? [] : [worktreePath]),
+    await checkWorkspaceBuilds(deps),
     ...((await deps.dockerChecks?.(config.docker)) ?? [])
   ];
   return { ok: checks.every((entry) => entry.status !== "error"), checks };

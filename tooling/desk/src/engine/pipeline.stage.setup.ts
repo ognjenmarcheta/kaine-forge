@@ -25,15 +25,22 @@ export const parseDeskBranch = (
   return type === undefined || slug === undefined ? null : { type, slug };
 };
 
-/** `worktreesDir`, or the sibling `<repo>.worktrees` directory when it is `null`. */
+/**
+ * `worktreesDir`, or the sibling `<repo>.worktrees` directory of the main
+ * checkout when it is `null`. A desk run from a linked worktree would otherwise
+ * nest issue worktrees inside it, and Windows fails on paths of 260 characters.
+ */
 export const worktreeDirFor = (
   deps: Pick<PipelineDeps, "config" | "location">,
   issue: number
 ): string => {
-  const { repoRoot } = deps.location;
+  const { repoRoot, stateRoot } = deps.location;
+  // `stateRoot` is `<git-common-dir>/kaine-desk`; a `.git` common dir sits in the main checkout.
+  const gitCommonDir = path.dirname(stateRoot);
+  const main = path.basename(gitCommonDir) === ".git" ? path.dirname(gitCommonDir) : repoRoot;
   const parent =
     deps.config.worktreesDir === null
-      ? path.join(path.dirname(repoRoot), `${path.basename(repoRoot)}.worktrees`)
+      ? path.join(path.dirname(main), `${path.basename(main)}.worktrees`)
       : path.resolve(repoRoot, deps.config.worktreesDir);
   return path.join(parent, `KAINE-${issue}`);
 };

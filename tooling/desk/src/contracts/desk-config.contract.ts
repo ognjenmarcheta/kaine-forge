@@ -129,7 +129,7 @@ const dockerSchema = z
 
 export const deskConfigSchema = z
   .object({
-    /** `null` places worktrees in a sibling directory named after the repository. */
+    /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
     worktreesDir: z.string().min(1).nullable().default(null),
     copyIntoWorktree: z.array(copyPathSchema).default([]),
     checks: checksSchema.prefault({}),
@@ -144,6 +144,16 @@ export const deskConfigSchema = z
     notifyCommand: commandLineSchema.optional(),
     isolation: isolationSchema.default("host"),
     docker: dockerSchema.prefault({}),
+    /**
+     * Review bots whose PR comments reach the builder in `feedback --from-pr`, although
+     * GitHub gives them no trusted association. Exact GitHub App logins, for example
+     * `coderabbitai[bot]`. Their text is still fenced as untrusted data.
+     */
+    reviewBots: z
+      .array(
+        z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]*\[bot\]$/, "Use a bot login like name[bot]")
+      )
+      .default([]),
     /** GitHub login that may authorize runs. Set it explicitly for organization repositories. */
     owner: z
       .string()

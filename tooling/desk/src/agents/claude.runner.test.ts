@@ -29,7 +29,9 @@ describe("buildClaudeArgs", () => {
       }),
       { newSessionId: SESSION }
     );
-    expect(args.slice(0, 2)).toEqual(["-p", "PROMPT"]);
+    // The prompt goes on stdin: Windows limits a command line to 32,767 characters.
+    expect(args[0]).toBe("-p");
+    expect(args).not.toContain("PROMPT");
     expect(valueAfter(args, "--output-format")).toBe("stream-json");
     expect(args).toContain("--verbose");
     expect(valueAfter(args, "--permission-mode")).toBe("dontAsk");
@@ -44,15 +46,6 @@ describe("buildClaudeArgs", () => {
     expect(valueAfter(args, "--session-id")).toBe(SESSION);
     expect(args).not.toContain("--resume");
     expect(args).not.toContain("--agents");
-  });
-
-  it("puts the prompt right after -p, before any variadic tool flag", () => {
-    const args = buildClaudeArgs(
-      baseRequest({ prompt: "P", permissions: { allow: ["Read"], disallow: ["Edit"] } }),
-      { newSessionId: SESSION }
-    );
-    expect(args.indexOf("P")).toBe(1);
-    expect(args.indexOf("--allowedTools")).toBeGreaterThan(1);
   });
 
   it("never emits flags that skip policy or settings", () => {
@@ -243,6 +236,7 @@ describe("createClaudeRunner", () => {
     expect(result.result.trace.some((event) => event.type === "tool_call")).toBe(true);
     expect(calls[0]?.argv[0]).toBe("claude");
     expect(calls[0]?.cwd).toBe("/work/repo");
+    expect(calls[0]?.stdin).toBe(baseRequest().prompt);
   });
 
   it("streams events to onEvent as they arrive", async () => {
@@ -316,6 +310,34 @@ describe("createClaudeRunner", () => {
     const lines = fixtureLines("claude-structured.jsonl").slice(0, -1);
     const result = await run(lines).outcome;
     expect(result).toMatchObject({ ok: false, failure: { kind: "no-result" } });
+  });
+
+  it("starts a new session when the one to resume does not exist, for example after an isolation switch", async () => {
+    const calls: AgentProcessRequest[] = [];
+    const replies = [
+      { lines: [], code: 1, stderrTail: "No conversation found with session ID: gone-1" },
+      { lines: fixtureLines("claude-structured.jsonl"), code: 0, stderrTail: "" }
+    ];
+    const runner = createClaudeRunner({
+      newSessionId: () => SESSION,
+      process: (request) => {
+        calls.push(request);
+        const reply = replies[calls.length - 1] ?? replies[1]!;
+        for (const line of reply.lines) request.onLine(line);
+        return Promise.resolve({
+          code: reply.code,
+          timedOut: false,
+          aborted: false,
+          stderrTail: reply.stderrTail
+        });
+      }
+    });
+    const result = await runner.run(baseRequest({ resumeSessionId: "gone-1" }));
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect(valueAfter(calls[0]!.argv, "--resume")).toBe("gone-1");
+    expect(calls[1]!.argv).not.toContain("--resume");
+    expect(valueAfter(calls[1]!.argv, "--session-id")).toBe(SESSION);
   });
 
   it("reports a non-zero exit without a result as a process error with stderr", async () => {

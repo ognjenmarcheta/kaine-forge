@@ -810,12 +810,17 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           const selected = selectPrFeedback(raw, {
             headSha: head,
             since,
-            trusted: TRUSTED_ASSOCIATIONS
+            trusted: TRUSTED_ASSOCIATIONS,
+            trustedBots: config.reviewBots
           });
           const items = selected.comments.length + selected.failingChecks.length;
+          const skippedNote =
+            selected.skipped.length === 0
+              ? ""
+              : `; left out for trust: ${selected.skipped.join(", ")} (a review bot can be listed in reviewBots)`;
           if (items === 0 && ownerText === "") {
             return refuse(
-              `PR #${prNumber} has no failing check and no trusted comment on ${head.slice(0, 12)}, and you wrote no text.`
+              `PR #${prNumber} has no failing check and no trusted comment on ${head.slice(0, 12)}, and you wrote no text${skippedNote}.`
             );
           }
 
@@ -855,7 +860,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           collected = {
             text,
             head,
-            note: `round ${round + 1}: ${selected.comments.length} comment(s), ${selected.failingChecks.length} failing check(s)${ownerText === "" ? "" : ", owner note"}`
+            note: `round ${round + 1}: ${selected.comments.length} comment(s), ${selected.failingChecks.length} failing check(s)${ownerText === "" ? "" : ", owner note"}${skippedNote}`
           };
           return null;
         }

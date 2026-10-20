@@ -81,6 +81,7 @@ const open = async (): Promise<Harness> => {
     clock: { now: () => CLI_NOW },
     cwd: clone.dir,
     nodeVersion: "v24.12.0",
+    platform: "linux",
     createGitHub: () => github,
     git: createGitPort(pnpm.exec),
     runnerFor: () => runner,

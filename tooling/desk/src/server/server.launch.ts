@@ -13,12 +13,18 @@ import {
   type DeskServerDeps,
   type HealthFixOutcome
 } from "./server.http";
-import { runDoctor, type DoctorReport } from "../doctor/doctor.checks";
+import {
+  missingWorkspaceBuilds,
+  runDoctor,
+  workspaceBuildArgv,
+  type DoctorReport
+} from "../doctor/doctor.checks";
 import { repoFingerprint } from "../engine/harness.fingerprint";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
 import { diffAgainstBase, createGitPort } from "../git";
 import { createGhClient } from "../github/github.gh";
+import { AGENT_LABELS, LABEL_DEFINITIONS } from "../github/github.labels";
 import { fetchOpenWork, type OpenWork } from "../github/github.lists";
 import { createGitHubPort } from "../github/github.port";
 import { buildWorkerImage } from "../isolation/docker.admin";
@@ -141,6 +147,7 @@ export const createDefaultDeskRuntime =
           exec,
           github,
           cwd: location.repoRoot,
+          location,
           nodeVersion: process.version,
           loadConfig: () => loadDeskConfig(configPath(location.repoRoot)),
           dockerChecks: async (required) =>
@@ -158,6 +165,23 @@ export const createDefaultDeskRuntime =
           return result.ok
             ? { ok: true, detail: `Built ${result.tag}.` }
             : { ok: false, detail: result.reason };
+        },
+        "agent-labels": async () => {
+          for (const definition of LABEL_DEFINITIONS) await github.createLabel(definition);
+          return { ok: true, detail: `Created ${AGENT_LABELS.join(", ")}.` };
+        },
+        "workspace-builds": async () => {
+          const missing = await missingWorkspaceBuilds(exec, location.repoRoot);
+          if (missing === null) return { ok: false, detail: "pnpm could not list workspaces." };
+          if (missing.length === 0) return { ok: true, detail: "Every package is built." };
+          const result = await exec({
+            argv: workspaceBuildArgv(missing),
+            cwd: location.repoRoot,
+            timeoutMs: 15 * 60_000
+          });
+          return result.code === 0
+            ? { ok: true, detail: `Built ${missing.join(", ")}.` }
+            : { ok: false, detail: result.stderr.trim().split("\n").slice(-5).join("\n") };
         }
       },
       currentDiffHash: async (state) => {

@@ -151,6 +151,7 @@ export const createDockerAgentRunner = (
             socketVolume: socket,
             stagingDir: staging,
             argv: processRequest.argv,
+            ...(processRequest.stdin === undefined ? {} : { stdin: "pipe" as const }),
             env: processRequest.env ?? {},
             forwardEnv: deps.forwardEnv
           });

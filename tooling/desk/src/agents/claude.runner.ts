@@ -23,8 +23,9 @@ export type { ClaudeFinal, ClaudeStreamParser, ClaudeStreamSummary } from "./cla
  * - `--setting-sources project`: the user's own settings and hooks stay out.
  *   `--bare` is not used: it skips hooks and `CLAUDE.md` and needs an API key.
  * - `--strict-mcp-config`: only the MCP config the engine passes.
- * - The prompt follows `-p` directly. `--allowedTools` and friends accept many
- *   values, so a prompt placed after them would be read as a tool rule.
+ * - The prompt goes on stdin, not on the command line: Windows limits a command
+ *   line to 32,767 characters, and a review prompt (ticket and plan) passed it.
+ *   A positional prompt would also be read as a value of `--allowedTools`.
  */
 export const buildClaudeArgs = <T>(
   request: AgentRunRequest<T>,
@@ -32,7 +33,6 @@ export const buildClaudeArgs = <T>(
 ): string[] => {
   const args = [
     "-p",
-    request.prompt,
     "--output-format",
     "stream-json",
     "--verbose",
@@ -89,131 +89,144 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
   const binary = deps.binary ?? "claude";
   const newSessionId = deps.newSessionId ?? randomUUID;
 
+  const runOnce = async <T>(request: AgentRunRequest<T>): Promise<AgentRunOutcome<T>> => {
+    const empty = { trace: [], sessionId: null, denials: [] } as const;
+    if (request.provider !== "claude") {
+      return {
+        ok: false,
+        failure: {
+          kind: "process-error",
+          message: `The Claude runner cannot run a ${request.provider} request.`,
+          exitCode: null,
+          stderrTail: ""
+        },
+        partial: empty
+      };
+    }
+    if (Buffer.byteLength(request.prompt, "utf8") > MAX_PROMPT_BYTES) {
+      return {
+        ok: false,
+        failure: {
+          kind: "process-error",
+          message: `The prompt is larger than ${MAX_PROMPT_BYTES} bytes. Pass large content as a file path.`,
+          exitCode: null,
+          stderrTail: ""
+        },
+        partial: empty
+      };
+    }
+
+    const parser = createClaudeStreamParser();
+    const run = await spawnProcess({
+      argv: [binary, ...buildClaudeArgs(request, { newSessionId: newSessionId() })],
+      stdin: request.prompt,
+      cwd: request.cwd,
+      env: request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath },
+      timeoutMs: request.timeoutMs,
+      signal: request.signal,
+      onSpawn: request.onSpawn,
+      onLine: (line) => {
+        for (const event of parser.push(line)) request.onEvent?.(event);
+      }
+    });
+    const summary = parser.finish();
+    const partial = {
+      trace: summary.events,
+      sessionId: summary.sessionId,
+      denials: summary.denials
+    };
+
+    if (run.aborted) return { ok: false, failure: { kind: "aborted" }, partial };
+    if (run.timedOut) {
+      return { ok: false, failure: { kind: "timeout", timeoutMs: request.timeoutMs }, partial };
+    }
+    if (run.spawnError !== undefined) {
+      return {
+        ok: false,
+        failure: {
+          kind: "process-error",
+          message: `Cannot start ${binary}: ${run.spawnError}`,
+          exitCode: null,
+          stderrTail: run.stderrTail
+        },
+        partial
+      };
+    }
+    const final = summary.final;
+    if (final === null) {
+      return {
+        ok: false,
+        failure:
+          run.code === 0
+            ? { kind: "no-result", message: "The stream ended without a result line." }
+            : {
+                kind: "process-error",
+                message: `${binary} exited with code ${run.code} and no result line.`,
+                exitCode: run.code,
+                stderrTail: run.stderrTail
+              },
+        partial
+      };
+    }
+    if (final.isError || final.subtype !== "success") {
+      return {
+        ok: false,
+        failure: {
+          kind: "process-error",
+          message: `${binary} ended with ${final.subtype}: ${final.resultText || "no message"}`,
+          exitCode: run.code,
+          stderrTail: run.stderrTail
+        },
+        partial
+      };
+    }
+
+    const candidate = final.structured ?? jsonFromText(final.resultText);
+    if (candidate === undefined) {
+      return {
+        ok: false,
+        failure: {
+          kind: "schema-mismatch",
+          issues: [{ path: "", message: "The agent returned no structured output." }]
+        },
+        partial
+      };
+    }
+    const parsed = request.parse.safeParse(candidate);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        failure: { kind: "schema-mismatch", issues: schemaIssues(parsed.error) },
+        partial
+      };
+    }
+    return {
+      ok: true,
+      result: {
+        structured: parsed.data,
+        sessionId: summary.sessionId ?? "",
+        usage: final.usage,
+        costUsd: final.costUsd,
+        turns: final.turns,
+        denials: final.denials,
+        trace: summary.events,
+        resultText: final.resultText
+      }
+    };
+  };
+
   return {
     run: async <T>(request: AgentRunRequest<T>): Promise<AgentRunOutcome<T>> => {
-      const empty = { trace: [], sessionId: null, denials: [] } as const;
-      if (request.provider !== "claude") {
-        return {
-          ok: false,
-          failure: {
-            kind: "process-error",
-            message: `The Claude runner cannot run a ${request.provider} request.`,
-            exitCode: null,
-            stderrTail: ""
-          },
-          partial: empty
-        };
-      }
-      if (Buffer.byteLength(request.prompt, "utf8") > MAX_PROMPT_BYTES) {
-        return {
-          ok: false,
-          failure: {
-            kind: "process-error",
-            message: `The prompt is larger than ${MAX_PROMPT_BYTES} bytes. Pass large content as a file path.`,
-            exitCode: null,
-            stderrTail: ""
-          },
-          partial: empty
-        };
-      }
-
-      const parser = createClaudeStreamParser();
-      const run = await spawnProcess({
-        argv: [binary, ...buildClaudeArgs(request, { newSessionId: newSessionId() })],
-        cwd: request.cwd,
-        env:
-          request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath },
-        timeoutMs: request.timeoutMs,
-        signal: request.signal,
-        onSpawn: request.onSpawn,
-        onLine: (line) => {
-          for (const event of parser.push(line)) request.onEvent?.(event);
-        }
-      });
-      const summary = parser.finish();
-      const partial = {
-        trace: summary.events,
-        sessionId: summary.sessionId,
-        denials: summary.denials
-      };
-
-      if (run.aborted) return { ok: false, failure: { kind: "aborted" }, partial };
-      if (run.timedOut) {
-        return { ok: false, failure: { kind: "timeout", timeoutMs: request.timeoutMs }, partial };
-      }
-      if (run.spawnError !== undefined) {
-        return {
-          ok: false,
-          failure: {
-            kind: "process-error",
-            message: `Cannot start ${binary}: ${run.spawnError}`,
-            exitCode: null,
-            stderrTail: run.stderrTail
-          },
-          partial
-        };
-      }
-      const final = summary.final;
-      if (final === null) {
-        return {
-          ok: false,
-          failure:
-            run.code === 0
-              ? { kind: "no-result", message: "The stream ended without a result line." }
-              : {
-                  kind: "process-error",
-                  message: `${binary} exited with code ${run.code} and no result line.`,
-                  exitCode: run.code,
-                  stderrTail: run.stderrTail
-                },
-          partial
-        };
-      }
-      if (final.isError || final.subtype !== "success") {
-        return {
-          ok: false,
-          failure: {
-            kind: "process-error",
-            message: `${binary} ended with ${final.subtype}: ${final.resultText || "no message"}`,
-            exitCode: run.code,
-            stderrTail: run.stderrTail
-          },
-          partial
-        };
-      }
-
-      const candidate = final.structured ?? jsonFromText(final.resultText);
-      if (candidate === undefined) {
-        return {
-          ok: false,
-          failure: {
-            kind: "schema-mismatch",
-            issues: [{ path: "", message: "The agent returned no structured output." }]
-          },
-          partial
-        };
-      }
-      const parsed = request.parse.safeParse(candidate);
-      if (!parsed.success) {
-        return {
-          ok: false,
-          failure: { kind: "schema-mismatch", issues: schemaIssues(parsed.error) },
-          partial
-        };
-      }
-      return {
-        ok: true,
-        result: {
-          structured: parsed.data,
-          sessionId: summary.sessionId ?? "",
-          usage: final.usage,
-          costUsd: final.costUsd,
-          turns: final.turns,
-          denials: final.denials,
-          trace: summary.events,
-          resultText: final.resultText
-        }
-      };
+      const outcome = await runOnce(request);
+      // A session lives in one Claude store: the host's, or a container's auth volume. After an
+      // isolation switch or a pruned volume it is gone. The stage prompt carries the plan and the
+      // feedback, so a new session can do the work.
+      const lost =
+        !outcome.ok &&
+        request.resumeSessionId !== undefined &&
+        outcome.failure.kind === "process-error" &&
+        outcome.failure.stderrTail.includes("No conversation found with session ID");
+      return lost ? runOnce({ ...request, resumeSessionId: undefined }) : outcome;
     }
   };
 };

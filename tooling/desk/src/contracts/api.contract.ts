@@ -383,7 +383,7 @@ export type LogResponse = z.infer<typeof logResponseSchema>;
  * Repairs the desk runs itself, each a fixed command in the engine. No agent decides what
  * runs, and nothing here needs a login or a secret.
  */
-export const HEALTH_FIXES = ["docker-build"] as const;
+export const HEALTH_FIXES = ["docker-build", "agent-labels", "workspace-builds"] as const;
 export const healthFixSchema = z.enum(HEALTH_FIXES);
 export type HealthFix = z.infer<typeof healthFixSchema>;
 

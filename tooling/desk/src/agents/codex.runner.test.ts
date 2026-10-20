@@ -77,6 +77,15 @@ describe("buildCodexArgs", () => {
     expect(configValues(args)).toContain("sandbox_workspace_write.network_access=false");
   });
 
+  it("uses the unelevated Windows sandbox on a Windows host, where the default denies every read", () => {
+    const reviewer = codexRequest({ role: "reviewer" });
+    const sandbox = 'windows.sandbox="unelevated"';
+    expect(configValues(buildCodexArgs(reviewer, files, { platform: "win32" }))).toContain(sandbox);
+    expect(configValues(buildCodexArgs(reviewer, files, { platform: "linux" }))).not.toContain(
+      sandbox
+    );
+  });
+
   it("refuses a builder without the opt-in", () => {
     expect(() => buildCodexArgs(codexRequest({ role: "builder" }), files)).toThrow(/disabled/);
   });

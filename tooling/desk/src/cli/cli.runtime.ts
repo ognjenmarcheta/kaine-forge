@@ -97,7 +97,7 @@ export const openRuntime = async (
   options: RuntimeOptions
 ): Promise<OpenRuntimeResult> => {
   const location = await resolveRepoLocation(deps.exec, deps.cwd);
-  const loaded = await loadDeskConfig(configPath(location.repoRoot));
+  const loaded = await loadDeskConfig(configPath(location.repoRoot), deps.platform);
   if (!loaded.ok) {
     return { ok: false, message: `Config error (${loaded.reason}): ${loaded.detail}` };
   }

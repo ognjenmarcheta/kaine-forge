@@ -110,7 +110,8 @@ const env = {
   ...(bridge ? proxyEnvironment() : {}),
   [configVariable]: configDir
 };
-const child = spawn(program, args, { env, stdio: ["ignore", "inherit", "inherit"] });
+// The runner writes the prompt to stdin (`docker run --interactive`). Without that flag stdin is closed.
+const child = spawn(program, args, { env, stdio: "inherit" });
 for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => child.kill(signal));
 child.once("error", (error) => {
   console.error(`cannot start ${program}: ${error.message}`);
