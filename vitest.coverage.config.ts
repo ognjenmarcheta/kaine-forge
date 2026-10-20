@@ -67,11 +67,13 @@ export default defineConfig({
       // and `include` above keeps untested files at 0% as before. Measured at
       // 4.1.11: lines 49.9 / statements 49.2 / functions 43.2 / branches 42.3
       // (vitest 3.2.7 read 52.2 / 52.2 / 62.5 / 78.4 for the same tree).
+      // Raised 2026-10-19 (#526) after PR CI measured lines 62.15 / statements
+      // 61.1 / functions 49.3 / branches 47.3 on main (run 39166806480).
       thresholds: {
-        branches: 38,
-        functions: 40,
-        lines: 45,
-        statements: 45,
+        branches: 42,
+        functions: 45,
+        lines: 50,
+        statements: 50,
         // High-risk packages held to a stricter, per-package bar. Folds in the
         // former `coverage:core` run so tests are not executed a third time.
         // Measured at 4.1.11: auth 83.4 / 83.1 / 88.6 / 79.4.

@@ -1,23 +1,74 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers/auth";
+import { authApi, signIn, signUp } from "./helpers/auth";
+import { isRecord, selectOrganization } from "./helpers/organizations";
 
 /**
- * Gaps documented intentionally (template CI constraints):
+ * The template shell has no invite UI and the console email adapter only logs,
+ * so the owner side runs through the better-auth organization routes under
+ * /api/auth with the page's session cookie. The invited user still signs up
+ * through the real UI and accepts by invitation id (ADR 0007: the invited email
+ * may accept before verifying it). Recipient binding (a different signed-in
+ * email is refused) stays with the packages/auth invitation security tests.
  *
- * - Invitation accept needs a real email delivery path or a seeded invitation
- *   row + matching signed-in user. Soft console email only logs tokens; there
- *   is no members invite UI in the template shell. Recipient binding is covered
- *   by packages/auth invitation security unit tests.
- *
- * - Todo attachment upload requires S3/MinIO (CI only provides Postgres).
- *   Set E2E_STORAGE_ENABLED=1 to run the real storage flow below.
+ * Todo attachment upload requires S3/MinIO (CI only provides Postgres).
+ * Set E2E_STORAGE_ENABLED=1 to run the real storage flow below.
  */
-test.describe("invitation and attachment (documented gaps)", () => {
-  test.skip(
-    true,
-    "Invitation happy path needs email adapter + invite UI; see packages/auth invitation-security tests"
-  );
+test("an invited user becomes a member and sees the organization after accepting", async ({
+  page,
+  browser,
+  baseURL
+}) => {
+  const suffix = Date.now().toString(36);
+  const organizationName = `E2E Invite Org ${suffix}`;
+  const invitee = {
+    email: `invitee-${suffix}@test.test`,
+    name: `Invitee ${suffix}`,
+    password: "ChangeMe123!"
+  } as const;
+
+  // The seeded owner creates the organization and the invitation.
+  await signIn(page);
+  const organization = await authApi(page, "organization/create", {
+    name: organizationName,
+    slug: `e2e-invite-${suffix}`
+  });
+  if (typeof organization.id !== "string") {
+    throw new Error("organization/create did not return an id");
+  }
+  const invitation = await authApi(page, "organization/invite-member", {
+    email: invitee.email,
+    role: "member",
+    organizationId: organization.id
+  });
+  if (typeof invitation.id !== "string") {
+    throw new Error("organization/invite-member did not return an id");
+  }
+
+  // The invited person registers in a separate browser context, so the owner's
+  // session and the seeded user's active organization stay untouched.
+  const inviteeContext = await browser.newContext(baseURL ? { baseURL } : {});
+  try {
+    const inviteePage = await inviteeContext.newPage();
+    await signUp(inviteePage, invitee);
+
+    const accepted = await authApi(inviteePage, "organization/accept-invitation", {
+      invitationId: invitation.id
+    });
+    const member = accepted.member;
+    expect(isRecord(member) ? member.organizationId : member).toBe(organization.id);
+    const acceptedInvitation = accepted.invitation;
+    expect(isRecord(acceptedInvitation) ? acceptedInvitation.status : acceptedInvitation).toBe(
+      "accepted"
+    );
+
+    // Membership shows up in the UI: the switcher lists the organization and can
+    // make it active.
+    await inviteePage.goto("/dashboard");
+    await selectOrganization(inviteePage, organizationName);
+  } finally {
+    await inviteeContext.close();
+  }
 });
 
 test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
