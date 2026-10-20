@@ -239,9 +239,29 @@ const compareRecords = (
 };
 
 /**
+ * A local branch other than the run's own that moved to the commit of its
+ * remote-tracking branch. An IDE or Git client that fast-forwards every branch
+ * in the background does this while an agent runs; an agent cannot write refs.
+ */
+const syncedToRemote = (
+  violation: RefViolation,
+  branch: string | null,
+  refs: Readonly<Record<string, string>>
+): boolean => {
+  if (violation.kind !== "ref-moved" || !violation.subject.startsWith("refs/heads/")) return false;
+  const name = violation.subject.slice("refs/heads/".length);
+  if (name === branch) return false;
+  return Object.entries(refs).some(
+    ([ref, sha]) =>
+      ref.startsWith("refs/remotes/") && ref.endsWith(`/${name}`) && sha === violation.after
+  );
+};
+
+/**
  * The engine invariant: an agent stage must not change HEAD, the branch, any
  * ref (tags, branches, remote-tracking, stash), or a remote's config. Returns
- * every difference; an empty list means the stage left them alone.
+ * every difference; an empty list means the stage left them alone. A branch
+ * that only caught up with its remote is not a difference (`syncedToRemote`).
  */
 export const compareRefs = (before: RefsSnapshot, after: RefsSnapshot): RefViolation[] => {
   const violations: RefViolation[] = [];
@@ -266,7 +286,7 @@ export const compareRefs = (before: RefsSnapshot, after: RefsSnapshot): RefViola
       added: "ref-added",
       moved: "ref-moved",
       deleted: "ref-deleted"
-    }),
+    }).filter((violation) => !syncedToRemote(violation, before.branch, after.refs)),
     ...compareRecords(before.remotes, after.remotes, {
       added: "remote-changed",
       moved: "remote-changed",

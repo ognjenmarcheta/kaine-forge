@@ -227,7 +227,9 @@ export const createDockerIsolation = (deps: DockerIsolationDeps): DockerIsolatio
 
   const preflight: IsolationPort["preflight"] = async () => {
     const daemon = await docker.reachable();
-    if (!daemon.ok) return `Docker is not reachable: ${daemon.detail}`;
+    if (!daemon.ok) {
+      return `Docker is not reachable: ${daemon.detail}. Start Docker Desktop, or set "isolation": "host" in .ai.local/desk/config.json.`;
+    }
     return requireImage();
   };
 

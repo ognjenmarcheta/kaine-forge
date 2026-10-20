@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { DeskConfigLoadResult } from "../config/config.load";
@@ -10,6 +13,7 @@ import {
   runDoctor,
   type DoctorReport
 } from "./doctor.checks";
+import { AGENT_LABELS } from "../github/github.labels";
 import { fail, fakeExec, ok, type FakeRoute } from "../testing/exec.fake";
 import { fakeGitHub } from "../testing/github.fake";
 
@@ -54,12 +58,24 @@ const healthy: FakeRoute[] = [
   { argv: ["claude", "--version"], reply: ok("2.1.282 (Claude Code)\n") },
   { argv: ["claude", "--help"], reply: ok(CLAUDE_HELP) },
   { argv: ["codex", "--version"], reply: ok("codex-cli 0.147.0\n") },
-  { argv: ["codex", "exec", "--help"], reply: ok(CODEX_HELP) }
+  { argv: ["codex", "exec", "--help"], reply: ok(CODEX_HELP) },
+  {
+    argv: ["gh", "label", "list"],
+    reply: ok(JSON.stringify(AGENT_LABELS.map((name) => ({ name }))))
+  },
+  { argv: ["pnpm", "ls"], reply: ok("[]") }
 ];
 
 const run = (
   routes: FakeRoute[] = healthy,
-  over: { nodeVersion?: string; load?: () => Promise<DeskConfigLoadResult>; viewer?: string } = {}
+  over: {
+    nodeVersion?: string;
+    load?: () => Promise<DeskConfigLoadResult>;
+    viewer?: string;
+    cwd?: string;
+    platform?: NodeJS.Platform;
+    location?: { repoRoot: string; stateRoot: string };
+  } = {}
 ) => {
   const fake = fakeExec(routes);
   return {
@@ -67,9 +83,11 @@ const run = (
     report: runDoctor({
       exec: fake.exec,
       github: fakeGitHub({ viewer: over.viewer ?? "octo-owner" }),
-      cwd: "/repo",
+      cwd: over.cwd ?? "/repo",
       nodeVersion: over.nodeVersion ?? "v24.12.0",
-      loadConfig: over.load ?? loaded()
+      loadConfig: over.load ?? loaded(),
+      platform: over.platform ?? "linux",
+      location: over.location
     })
   };
 };
@@ -114,17 +132,120 @@ describe("runDoctor", () => {
       "git-worktree",
       "gh",
       "gh-identity",
+      "agent-labels",
       "config",
       "claude",
       "claude-flags",
       "codex",
-      "codex-flags"
+      "codex-flags",
+      "workspace-builds"
     ]);
     // Only read-only probes ran.
     for (const call of fake.calls) {
       expect(call.argv.slice(0, 2)).not.toEqual(["git", "push"]);
-      expect(call.argv).not.toContain("label");
+      if (call.argv[1] === "label") expect(call.argv[2]).toBe("list");
     }
+  });
+
+  it("warns about missing execution labels and offers the sync", async () => {
+    const result = await run([
+      { argv: ["gh", "label", "list"], reply: ok(JSON.stringify([{ name: "agent:working" }])) },
+      ...healthy
+    ]).report;
+    expect(result.checks.find((check) => check.id === "agent-labels")).toMatchObject({
+      status: "warn",
+      detail: expect.stringContaining("agent:needs-you, agent:pr-open"),
+      command: "pnpm desk labels sync --apply",
+      fix: "agent-labels"
+    });
+  });
+
+  it("warns about a workspace whose exports point into a missing dist", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "desk-doctor-"));
+    try {
+      const built = path.join(dir, "built");
+      const unbuilt = path.join(dir, "unbuilt");
+      const source = path.join(dir, "source");
+      for (const [pkg, manifest] of [
+        [built, { name: "@repo/built", main: "dist/index.js" }],
+        [unbuilt, { name: "@repo/unbuilt", exports: { ".": { default: "./dist/index.js" } } }],
+        [source, { name: "@repo/source", main: "src/index.ts" }]
+      ] as const) {
+        await mkdir(pkg, { recursive: true });
+        await writeFile(path.join(pkg, "package.json"), JSON.stringify(manifest));
+      }
+      await mkdir(path.join(built, "dist"));
+      const listed = [built, unbuilt, source].map((pkg) => ({ path: pkg }));
+      const result = await run([
+        {
+          argv: ["pnpm", "ls"],
+          reply: ok(
+            JSON.stringify(
+              listed.map((entry, index) => ({
+                ...entry,
+                name: ["@repo/built", "@repo/unbuilt", "@repo/source"][index]
+              }))
+            )
+          )
+        },
+        ...healthy
+      ]).report;
+      expect(result.checks.find((check) => check.id === "workspace-builds")).toMatchObject({
+        status: "warn",
+        detail: expect.stringContaining("not built: @repo/unbuilt."),
+        command: "pnpm turbo run build --filter=@repo/unbuilt",
+        fix: "workspace-builds"
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  describe("on a Windows host", () => {
+    const PROBE: FakeRoute["argv"] = ["codex", "sandbox"];
+
+    it("fails when the Codex sandbox cannot read the checkout and a role uses Codex", async () => {
+      const result = await run(
+        [{ argv: PROBE, reply: fail("Error: EPERM: operation not permitted", 1) }, ...healthy],
+        { platform: "win32" }
+      ).report;
+      expect(statusOf(result, "codex-sandbox")).toBe("error");
+      expect(result.ok).toBe(false);
+    });
+
+    it("passes when the probe reads the checkout, and skips it on other platforms", async () => {
+      const routes = [{ argv: PROBE, reply: ok("6781") }, ...healthy];
+      expect(statusOf(await run(routes, { platform: "win32" }).report, "codex-sandbox")).toBe("ok");
+      expect(statusOf(await run(routes).report, "codex-sandbox")).toBeUndefined();
+    });
+
+    it("fails when issue worktrees would push node_modules past 260 characters", async () => {
+      const dir = await mkdtemp(path.join(tmpdir(), "desk-doctor-"));
+      try {
+        const pkg = path.join(dir, "node_modules", ".pnpm", `pkg@1.0.0_${"h".repeat(32)}`);
+        await mkdir(path.join(pkg, "node_modules", "@scope", "name"), { recursive: true });
+        const routes = [{ argv: PROBE, reply: ok("1") }, ...healthy];
+        const at = (main: string) => ({
+          repoRoot: main,
+          stateRoot: path.join(main, ".git", "kaine-desk")
+        });
+        const deep = path.join(dir, "d".repeat(180), "repo");
+        const deepResult = await run(routes, { platform: "win32", cwd: dir, location: at(deep) })
+          .report;
+        expect(deepResult.checks.find((check) => check.id === "worktree-path")).toMatchObject({
+          status: "error",
+          detail: expect.stringContaining("worktreesDir")
+        });
+        const shallow = await run(routes, {
+          platform: "win32",
+          cwd: dir,
+          location: at(path.join(dir, "repo"))
+        }).report;
+        expect(statusOf(shallow, "worktree-path")).toBe("ok");
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it("fails on an old Node", async () => {

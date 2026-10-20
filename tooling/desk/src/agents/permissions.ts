@@ -300,8 +300,11 @@ export const permissionsFor = async (
   if (role === "builder") {
     allow.push("Edit", "Write", bash("pnpm generate"), ...SERENA_EDIT);
     for (const workspace of workspaces) {
-      for (const script of WORKSPACE_SCRIPTS)
+      for (const script of WORKSPACE_SCRIPTS) {
         allow.push(bash(`pnpm --filter ${workspace} ${script}`));
+        // A fresh worktree has no built packages. Turbo's `test` builds the dependencies first.
+        allow.push(bash(`pnpm turbo run ${script} --filter=${workspace}`));
+      }
     }
     if (skills.includes("kaine-create-feature")) allow.push(bash("pnpm create:feature"));
   }

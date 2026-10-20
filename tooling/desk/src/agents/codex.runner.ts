@@ -71,6 +71,8 @@ export interface CodexArgFiles {
 export interface CodexArgOptions {
   /** True only for a runner that starts Codex inside a Docker container. */
   readonly insideContainer?: boolean;
+  /** The host platform. Defaults to `process.platform`. */
+  readonly platform?: NodeJS.Platform;
 }
 
 /**
@@ -113,6 +115,10 @@ export const buildCodexArgs = <T>(
     if (resuming) args.push("-c", `sandbox_mode="${sandbox}"`);
     if (sandbox === "workspace-write")
       args.push("-c", "sandbox_workspace_write.network_access=false");
+    // `--ignore-user-config` drops the user's `[windows] sandbox`. Without it, and with
+    // `elevated`, the sandbox cannot read the worktree or `.git` (codex-cli 0.154.0).
+    if ((options.platform ?? process.platform) === "win32")
+      args.push("-c", 'windows.sandbox="unelevated"');
   }
   args.push(
     "--ignore-user-config",

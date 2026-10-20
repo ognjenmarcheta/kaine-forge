@@ -129,7 +129,7 @@ const dockerSchema = z
 
 export const deskConfigSchema = z
   .object({
-    /** `null` places worktrees in a sibling directory named after the repository. */
+    /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
     worktreesDir: z.string().min(1).nullable().default(null),
     copyIntoWorktree: z.array(copyPathSchema).default([]),
     checks: checksSchema.prefault({}),

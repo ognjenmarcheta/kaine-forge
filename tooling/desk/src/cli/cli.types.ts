@@ -40,6 +40,8 @@ export interface CliDeps {
   readonly clock: Clock;
   readonly cwd: string;
   readonly nodeVersion: string;
+  /** Host platform for config defaults. Defaults to `process.platform`. */
+  readonly platform?: NodeJS.Platform | undefined;
   readonly createGitHub: (cwd: string) => GitHubPort;
   readonly git: GitPort;
   readonly runnerFor: (provider: Provider) => AgentRunner;

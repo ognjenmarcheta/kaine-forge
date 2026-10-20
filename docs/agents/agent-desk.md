@@ -262,7 +262,10 @@ a row stops early. A review with blocking findings goes back to `build` up to
 `runAgentStage` (`pipeline.agent.ts`) is the only place an agent runs. Around every
 agent stage it checks these rules, whether the run succeeded or not:
 
-- HEAD, the branch, every ref, each remote, and the stash are the same after the run.
+- HEAD, the branch, every ref, each remote, and the stash are the same after the run. One
+  exception: another local branch that moved to the commit of its remote-tracking branch. An IDE
+  or Git client that fast-forwards every branch in the background does this. The run's own
+  branch has no exception.
 - A read-only role (planner, reviewer) leaves the worktree diff hash unchanged.
 - The run shows its skill evidence: a `Skill` call, or a read of `SKILL.md`.
 - No forbidden command, no permission denial, no claimed check that did not run.
@@ -570,11 +573,32 @@ It also checks Docker: the daemon, the worker image, and the provider logins. Wi
 `isolation: "host"` a missing daemon or image is a warning. With `isolation: "docker"` it is an
 error. `desk doctor --probe` and `desk docker doctor` also run the isolation probes.
 
+It checks the repository too. Both rows are warnings, and the UI offers a **Fix** button for each:
+
+- **Agent labels**: the `agent:*` execution labels exist on GitHub. The fix is
+  `pnpm desk labels sync --apply`.
+- **Workspace builds**: each workspace whose `main`, `types` or `exports` points into `dist/` has a
+  `dist` folder in this checkout. The fix is the printed `pnpm turbo run build --filter=...`
+  command.
+
+On a Windows host it adds two rows:
+
+- **Codex sandbox**: `codex sandbox` reads `package.json` in the same sandbox that the Codex runner
+  uses. No model runs. A failure is an error when a role uses Codex. See "Codex on a Windows host".
+- **Worktree path**: the issue worktree folder, the longest package folder in
+  `node_modules/.pnpm`, and a nested `cjs/package.json` must stay below 260 characters. At 260
+  characters Node cannot read that `package.json` and loads a CommonJS file as an ES module.
+
 ## Config
 
 Optional file: `.ai.local/desk/config.json` (gitignored). Without it, the desk uses
 defaults. A file that exists but is invalid is an error. Fields are listed in
 `tooling/desk/src/contracts/desk-config.contract.ts`.
+
+- On a Windows host the default `isolation` is `docker` (see "Docker isolation"). Set
+  `"isolation": "host"` to keep host mode.
+- Issue worktrees go in `<main checkout>.worktrees/KAINE-<n>`, next to the main checkout. This is
+  also true when the desk runs from a linked worktree. Set `worktreesDir` to use another folder.
 
 The `docker` block sets the limits of the containers. All fields are optional:
 
@@ -635,6 +659,10 @@ the server and exits 0. A running action is not cancelled: the next start marks 
 
 `pnpm desk:run [--port N] [--no-open]` builds the UI, then runs `pnpm desk serve` with the
 same options. Use it to start the desk with one command and a fresh UI build.
+
+When the port of `--port N` is taken, `serve` says whether another desk server holds it. On Windows,
+stopping `pnpm desk:run` can leave its node process serving the port. Open its URL, or find its
+pid with `netstat -ano | findstr :N` and stop it.
 
 The server serves the built UI from `tooling/desk-ui/dist`. When that folder has no
 `index.html`, `serve` builds it first with `pnpm --filter @repo/desk-ui build` and says so.
@@ -801,10 +829,16 @@ overrides the config for one issue.
 
 See [ADR 0011](../adr/0011-local-agent-desk.md) for the decision.
 
-On a Windows host, use Docker mode. In host mode the builder and the checks run on Windows, and
-some repository tests (the desk's own, for example) pass only on Linux and macOS. Docker mode runs
-the builder and every check on Linux, as CI does. Docker Desktop must be running. On Linux and
-macOS, host mode is enough for the checks; Docker mode adds the security boundary.
+On a Windows host, use Docker mode. It is the default there. In host mode the builder and the
+checks run on Windows, and some repository tests (the desk's own, for example) pass only on Linux
+and macOS, so the ship check (`pnpm check`) cannot pass. Docker mode runs the builder and every
+check on Linux, as CI does. Docker Desktop must be running. On Linux and macOS, host mode is enough
+for the checks; Docker mode adds the security boundary.
+
+A check container gets `DATABASE_URL` set to the loopback placeholder that CI uses
+(`postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev`). `pnpm generate` and some tests
+import the database client at load time and need a URL. The container has no network, so nothing
+connects. No container gets any other `DATABASE_URL`.
 
 Git on Windows ignores the exec bit on disk (`core.fileMode=false`) and keeps it in the index. The
 desk writes the exec bits of a container patch into the index, and ship keeps them through its
@@ -913,6 +947,14 @@ the container is the sandbox. In Docker mode the Codex builder runs with
 hold: the request has `containerSandbox`, and the runner was created by the Docker isolation.
 A host runner refuses such a request. The flag is only for the builder. A Codex builder in Docker
 needs no `allowCodexBuilder` opt-in. A Codex builder on the host still needs it.
+
+### Codex on a Windows host
+
+The planner and the reviewer run on the host in both modes. The runner passes
+`--ignore-user-config`, so Codex does not read `[windows] sandbox` from `~/.codex/config.toml`. On
+Windows the runner adds `-c windows.sandbox="unelevated"`. With the default sandbox Codex refuses
+every command. The `elevated` sandbox cannot read the worktree or `.git` (codex-cli 0.154.0).
+`desk doctor` checks this sandbox with a token-free probe.
 
 ### Cleanup and recovery
 

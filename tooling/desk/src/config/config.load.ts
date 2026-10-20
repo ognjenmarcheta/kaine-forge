@@ -10,12 +10,22 @@ export type DeskConfigLoadResult =
       readonly detail: string;
     };
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
  * Defaults plus an optional override file. The caller supplies the path. A
  * missing file means "use defaults": the default location is optional. An
  * unreadable, malformed, or invalid file is an error, never a silent fallback.
+ *
+ * On a Windows host the default isolation is `docker`: in host mode some
+ * repository tests fail on Windows, so the ship check (`pnpm check`) cannot
+ * pass. An explicit `"isolation": "host"` still wins.
  */
-export const loadDeskConfig = async (overridePath?: string): Promise<DeskConfigLoadResult> => {
+export const loadDeskConfig = async (
+  overridePath?: string,
+  platform: NodeJS.Platform = process.platform
+): Promise<DeskConfigLoadResult> => {
   let raw: string | null = null;
   if (overridePath !== undefined) {
     try {
@@ -45,6 +55,9 @@ export const loadDeskConfig = async (overridePath?: string): Promise<DeskConfigL
     }
   }
 
+  if (platform === "win32" && isObject(json) && !("isolation" in json)) {
+    json = { ...json, isolation: "docker" };
+  }
   const parsed = deskConfigSchema.safeParse(json);
   if (!parsed.success) {
     return {

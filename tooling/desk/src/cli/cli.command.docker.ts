@@ -71,7 +71,7 @@ export const commandDocker: CliCommand = async (args, deps, io) => {
     return 1;
   }
   const location = await resolveRepoLocation(deps.exec, deps.cwd);
-  const loaded = await loadDeskConfig(configPath(location.repoRoot));
+  const loaded = await loadDeskConfig(configPath(location.repoRoot), deps.platform);
   if (!loaded.ok) {
     io.err(`Config error (${loaded.reason}): ${loaded.detail}\n`);
     return 1;

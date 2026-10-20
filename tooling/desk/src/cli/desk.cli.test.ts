@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runCli } from "./desk.cli";
+import { AGENT_LABELS } from "../github/github.labels";
 import { createCliEnv, type CliEnv, type CliEnvOptions } from "../testing/cli.testing";
 import { fail, fakeExec, ok, type FakeRoute } from "../testing/exec.fake";
 
@@ -155,7 +156,12 @@ describe("doctor", () => {
       reply: ok(
         "  resume\n  -s, --sandbox\n  -C, --cd\n  --ignore-user-config\n  --output-schema\n  --json\n"
       )
-    }
+    },
+    {
+      argv: ["gh", "label", "list"],
+      reply: ok(JSON.stringify(AGENT_LABELS.map((name) => ({ name }))))
+    },
+    { argv: ["pnpm", "ls"], reply: ok("[]") }
   ];
 
   it("prints a table and exits 0 when healthy", async () => {

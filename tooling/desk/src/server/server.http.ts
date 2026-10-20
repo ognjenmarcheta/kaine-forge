@@ -208,6 +208,24 @@ const errorOf = (code: ApiErrorCode, detail: string | null) => errorEnvelope(cod
  * port. See `docs/agents/agent-desk-api.md` for the routes and
  * `server.security.ts` for the security model.
  */
+/**
+ * Says what holds a port the desk cannot bind. A desk answers an API call
+ * without a session with this 401 message. On Windows, stopping
+ * `pnpm desk:run` can leave its node process serving the old port.
+ */
+const portTakenMessage = async (port: number): Promise<string> => {
+  const desk = await fetch(`http://127.0.0.1:${port}/api/issues`, {
+    signal: AbortSignal.timeout(2_000)
+  }).then(
+    async (response) =>
+      response.status === 401 && (await response.text()).includes("Open the launch URL"),
+    () => false
+  );
+  return desk
+    ? `Port ${port} is in use by another desk server. Open http://127.0.0.1:${port}/, or stop it first. A stopped 'pnpm desk:run' can leave it running; 'netstat -ano | findstr :${port}' (Windows) or 'lsof -i :${port}' shows its pid.`
+    : `Port ${port} is in use by another program. Pick another --port, or leave it out to take a free port.`;
+};
+
 export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer> => {
   const clock = deps.clock ?? systemClock;
   const maxBodyBytes = deps.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
@@ -593,6 +611,10 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(deps.port ?? 0, "127.0.0.1", resolve);
+  }).catch(async (error: unknown) => {
+    const taken = error instanceof Error && "code" in error && error.code === "EADDRINUSE";
+    if (taken && deps.port !== undefined) throw new Error(await portTakenMessage(deps.port));
+    throw error;
   });
   const address = server.address();
   if (address === null || typeof address === "string") {

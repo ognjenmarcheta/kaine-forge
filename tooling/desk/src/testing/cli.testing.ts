@@ -92,6 +92,7 @@ export const createCliEnv = async (options: CliEnvOptions = {}): Promise<CliEnv>
     clock: { now: () => CLI_NOW },
     cwd: repo,
     nodeVersion: "v24.12.0",
+    platform: "linux",
     createGitHub: () => github,
     git: git.port,
     runnerFor: () => runner,

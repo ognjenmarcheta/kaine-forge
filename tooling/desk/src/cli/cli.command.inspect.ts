@@ -184,7 +184,7 @@ export const commandResume: CliCommand = async (args, deps, io) => {
     return 1;
   }
 
-  const loaded = await loadDeskConfig(configPath(location.repoRoot));
+  const loaded = await loadDeskConfig(configPath(location.repoRoot), deps.platform);
   if (!loaded.ok) {
     io.err(`Config error (${loaded.reason}): ${loaded.detail}\n`);
     return 1;
