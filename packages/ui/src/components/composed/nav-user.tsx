@@ -18,7 +18,6 @@ export interface NavUserData {
 }
 
 export interface NavUserProps {
-  ariaLabel?: string;
   className?: string;
   logoutLabel: string;
   onLogout: () => void;
@@ -37,7 +36,7 @@ export function resolveNavUserInitials(displayName: string): string {
   return `${first}${second || ""}`.toUpperCase();
 }
 
-export function NavUser({ ariaLabel, className, logoutLabel, onLogout, user }: NavUserProps) {
+export function NavUser({ className, logoutLabel, onLogout, user }: NavUserProps) {
   const { isMobile } = useSidebar();
   const initials = resolveNavUserInitials(user.name);
 
@@ -46,7 +45,8 @@ export function NavUser({ ariaLabel, className, logoutLabel, onLogout, user }: N
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton aria-label={ariaLabel ?? user.name} className={className} size="lg">
+            {/* Named by its visible text (initials, name, email); see WCAG 2.5.3 (#545). */}
+            <SidebarMenuButton className={className} size="lg">
               <Avatar className="h-8 w-8 rounded-lg">
                 {user.avatar ? <AvatarImage alt={user.name} src={user.avatar} /> : null}
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>

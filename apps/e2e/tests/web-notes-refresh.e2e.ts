@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { NAV_LABELS } from "./helpers/auth";
 import { mockNotes } from "./helpers/notes";
 
 async function openNote(page: Page, title = "Release planning") {
@@ -180,7 +181,7 @@ test("search preserves drafts and translated long content fits short viewports",
   await page.getByLabel("Body", { exact: true }).fill("LongWord".repeat(300));
   await page.getByRole("searchbox", { name: "Search notes" }).fill("Design");
   await expect(page.locator(".ui-notes__rows").getByRole("link")).toHaveCount(2);
-  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page.getByRole("button", { name: /^Language\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
   await expect(page.locator('[data-slot="dropdown-menu-content"]')).toHaveCount(0);
   await page.setViewportSize({ width: 1024, height: 400 });
@@ -242,7 +243,7 @@ test("Organization changes wait for saves and warn about newer drafts", async ({
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(() => fixture.state.saves).toBe(1);
   await page.getByLabel("Body", { exact: true }).fill("Newer draft");
-  await page.getByRole("button", { name: "Organization", exact: true }).click();
+  await page.getByRole("button", { name: NAV_LABELS.organization }).click();
   await page.getByRole("menuitem", { name: "Second Organization", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Leave unsaved drafts?" });
   await expect(dialog.getByRole("button", { name: "Discard drafts and leave" })).toBeDisabled();

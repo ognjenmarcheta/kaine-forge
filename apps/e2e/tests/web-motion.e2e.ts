@@ -52,11 +52,9 @@ for (const theme of ["light", "dark"]) {
       const preferences = rail.locator(".ui-sidebar-preferences-footer");
       const footerBefore = await preferences.boundingBox();
       const languageBefore = await preferences
-        .getByRole("button", { name: "Language", exact: true })
+        .getByRole("button", { name: /^Language\b/ })
         .boundingBox();
-      const themeBefore = await preferences
-        .getByRole("button", { name: "Theme", exact: true })
-        .boundingBox();
+      const themeBefore = await preferences.getByRole("button", { name: /^Theme\b/ }).boundingBox();
       await page.locator('[data-slot="sidebar-trigger"]').evaluate((element) => {
         if (element instanceof HTMLElement) element.click();
       });
@@ -76,7 +74,9 @@ for (const theme of ["light", "dark"]) {
       expect(labelOpacity).toBeGreaterThan(0);
       expect(labelOpacity).toBeLessThan(1);
       for (const label of ["Language", "Theme"]) {
-        const box = await rail.getByRole("button", { name: label, exact: true }).boundingBox();
+        const box = await rail
+          .getByRole("button", { name: new RegExp(`^${label}\\b`) })
+          .boundingBox();
         expect(box).not.toBeNull();
         expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(middle.x + middle.width);
         expect(box?.y).toBe(label === "Language" ? languageBefore?.y : themeBefore?.y);
@@ -179,7 +179,7 @@ test("menus and tooltips animate entry and exit, then follow reduced motion", as
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await signIn(page);
   await page.locator('[data-slot="sidebar-trigger"]').click();
-  const theme = page.getByRole("button", { name: "Theme", exact: true });
+  const theme = page.getByRole("button", { name: /^Theme\b/ });
   await theme.hover();
   const tooltip = page.locator('[data-slot="tooltip-content"]');
   expect((await midpoint(tooltip)).opacity).toBeLessThan(1);
@@ -218,11 +218,11 @@ test.describe("motion review captures", () => {
       });
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await signIn(page);
-      await page.getByRole("button", { name: "Theme", exact: true }).click();
+      await page.getByRole("button", { name: /^Theme\b/ }).click();
       await page
         .getByRole("menuitemradio", { name: theme === "light" ? "Light" : "Dark", exact: true })
         .click();
-      await page.getByRole("button", { name: "Language", exact: true }).click();
+      await page.getByRole("button", { name: /^Language\b/ }).click();
       await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
       for (const width of [360, 768, 1440]) {
         await page.setViewportSize({ width, height: 900 });

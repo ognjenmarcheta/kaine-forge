@@ -20,7 +20,8 @@ export const AUTH_LABELS = {
 export const NAV_LABELS = {
   todos: /^(Todos|navigation\.todos)$/,
   notes: /^(Notes|navigation\.notes)$/,
-  organization: /^(Organization|navigation\.organization)$/,
+  // Named by its visible text: "<organization name> Organization" (#545).
+  organization: /(Organization|navigation\.organization)$/,
   organizationCreate: /^(Create organization|navigation\.organizationCreate)$/
 } as const;
 

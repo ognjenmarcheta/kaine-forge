@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers/auth";
+import { signIn, NAV_LABELS } from "./helpers/auth";
 
 test("Organization menus scroll within a short viewport", async ({ page }) => {
   await signIn(page);
   await page.setViewportSize({ width: 1440, height: 128 });
-  const switcher = page.getByRole("button", { name: "Organization", exact: true });
+  const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
   await switcher.click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
@@ -107,7 +107,7 @@ test("Note checklist retries additions and confirms pending deletions", async ({
 test("Organization switches clear Assistant state and ignore late replies", async ({ page }) => {
   await signIn(page);
   const name = `Redesign scope ${Date.now()}`;
-  const switcher = page.getByRole("button", { name: "Organization", exact: true });
+  const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
   await switcher.click();
   await page.getByRole("menuitem", { name: "Create organization", exact: true }).click();
   const create = page.getByRole("dialog", { name: "Create organization", exact: true });
@@ -144,10 +144,10 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
   const composer = page.locator("#assistant-message");
   await composer.fill("Organization draft");
-  await page.getByRole("button", { name: "Theme", exact: true }).click();
+  await page.getByRole("button", { name: /^Theme\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(composer).toHaveValue("Organization draft");
-  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page.getByRole("button", { name: /^Language\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
   await expect(composer).toHaveValue("Organization draft");
   await page.getByRole("button", { name: "Sprache", exact: true }).click();
