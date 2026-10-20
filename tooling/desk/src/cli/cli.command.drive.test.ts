@@ -322,7 +322,8 @@ describe("feedback", () => {
     ["no text", ["feedback", "7", "--to", "plan"]],
     ["blank text", ["feedback", "7", "--to", "plan", "  "]],
     ["words and a file", ["feedback", "7", "--to", "plan", "--file", "x", "words"]],
-    ["no issue", ["feedback", "--to", "plan", "words"]]
+    ["no issue", ["feedback", "--to", "plan", "words"]],
+    ["--from-pr with --to", ["feedback", "7", "--from-pr", "--to", "build", "words"]]
   ])("exits 2 for %s", async (_name, argv) => {
     const e = await open();
     const result = await e.run(...argv);
@@ -335,6 +336,16 @@ describe("feedback", () => {
     const result = await e.run("feedback", "7", "--to", "plan", "--file", "nope.txt");
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Cannot read nope.txt");
+  });
+
+  it("sends --from-pr, with or without words, to the PR feedback action", async () => {
+    const e = await open({ steps: [planStep()] });
+    await e.run("start", "7");
+    for (const argv of [["--from-pr"], ["--from-pr", "Keep", "the", "name"]]) {
+      const result = await e.run("feedback", "7", ...argv);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("'pr-feedback' is not valid in 'plan-gate'");
+    }
   });
 
   it("refuses a target the stage does not allow", async () => {

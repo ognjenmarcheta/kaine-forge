@@ -40,7 +40,8 @@ export const nextSteps = (state: IssueState): string[] => {
       return [
         ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
         "review it and merge it yourself on GitHub. The desk never merges.",
-        `after you merge or close it, run: pnpm desk refresh ${n}`
+        `after you merge or close it, run: pnpm desk refresh ${n}`,
+        `or send the PR feedback back to build: pnpm desk feedback ${n} --from-pr "[your words]"`
       ];
     default:
       return [];
@@ -154,10 +155,16 @@ const describeDryRun = (issue: number, result: ShipDryRunResult): ResultView => 
 export const describeResult = (issue: number, result: ShipActionResult): ResultView => {
   if (result.outcome === "dry-run") return describeDryRun(issue, result);
   if (result.outcome === "refused") {
+    // A refused PR feedback round leaves the issue at pr-open: say what still works there.
+    const steps =
+      result.refusal === "pr-refused" && result.state !== null ? nextSteps(result.state) : [];
+    const after = steps.map((step) => `  ${step}\n`).join("");
     return {
       code: 1,
       toStderr: true,
-      text: `#${issue}: refused (${result.refusal}). ${result.reason}\n`,
+      text: `#${issue}: refused (${result.refusal}). ${result.reason}\n${
+        after === "" ? "" : `The issue still waits at ${result.state?.stage ?? ""}. Next:\n${after}`
+      }`,
       json: {
         ok: false,
         issue,

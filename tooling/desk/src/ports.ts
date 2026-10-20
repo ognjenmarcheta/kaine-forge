@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 import type { LabelChange, LabelDefinition } from "./github/github.labels";
+import type { PullRequestFeedbackRaw } from "./github/github.pr-feedback";
 import type {
   CreatePullRequestRequest,
   PullRequestInfo,
@@ -59,6 +60,11 @@ export interface GitHubPort {
   readonly createPullRequest: (request: CreatePullRequestRequest) => Promise<PullRequestInfo>;
   /** Read one PR: its state (open, closed, merged) and its head. Read-only. */
   readonly viewPullRequest: (pr: number) => Promise<PullRequestView>;
+  /** Reviews, comments, and failing checks of one PR head, for a feedback round. Read-only. */
+  readonly fetchPullRequestFeedback: (
+    pr: number,
+    headSha: string
+  ) => Promise<PullRequestFeedbackRaw>;
   readonly addPullRequestLabel: (pr: number, label: string) => Promise<void>;
   /** Replace the issue body. Only the owner's confirmed apply of an intake draft calls it. */
   readonly editIssueBody: (issueNumber: number, body: string) => Promise<void>;

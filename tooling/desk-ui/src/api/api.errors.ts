@@ -21,6 +21,7 @@ export const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
   "ship-refused": "desk.error.ship-refused",
   "draft-refused": "desk.error.draft-refused",
   "refresh-refused": "desk.error.refresh-refused",
+  "pr-refused": "desk.error.pr-refused",
   "already-started": "desk.error.already-started",
   "intake-refused": "desk.error.intake-refused",
   authorization: "desk.error.authorization",

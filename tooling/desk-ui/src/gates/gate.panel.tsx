@@ -90,6 +90,7 @@ function MoreMenu({
   mode,
   trigger,
   busy,
+  requestChangesLabel,
   onRequestChanges,
   onCloseAutoFocus,
   onCancel,
@@ -98,6 +99,7 @@ function MoreMenu({
   readonly mode: GateMode;
   readonly trigger: RefObject<HTMLButtonElement | null>;
   readonly busy: boolean;
+  readonly requestChangesLabel: string;
   /** Set when the secondary action has no room in the bar: it moves into the menu. */
   readonly onRequestChanges: (() => void) | null;
   readonly onCloseAutoFocus: (event: Event) => void;
@@ -121,7 +123,7 @@ function MoreMenu({
         {onRequestChanges !== null && (
           <>
             <DropdownMenuItem disabled={busy} onSelect={onRequestChanges}>
-              {t("desk.gate.requestChanges")}
+              {requestChangesLabel}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -196,7 +198,10 @@ export function useGatePanel({
   const decides = DECIDE.has(mode);
   const hasPrimary = decides || (mode === "shipped" && prUrl !== null);
   const withBar = layout !== "side" && hasPrimary;
-  const hasSecondary = mode === "plan-gate" || mode === "pr-review";
+  const hasSecondary = mode === "plan-gate" || mode === "pr-review" || mode === "pr-open";
+  const secondaryLabel = t(
+    mode === "pr-open" ? "desk.gate.prOpen.sendFeedback" : "desk.gate.requestChanges"
+  );
   const secondaryInMenu = hasSecondary && withBar && layout === "bar-narrow";
 
   /** Run an action, and move focus to the heading when it worked: the pressed button may be gone. */
@@ -237,6 +242,24 @@ export function useGatePanel({
       />
     ) : null;
 
+  /** At pr-open the desk collects the PR feedback. The engineer's words are optional. */
+  const prFeedback = feedbackOpen ? (
+    <FeedbackForm
+      id={feedbackId}
+      targets={[]}
+      fromPr
+      busy={actions.busy}
+      onCancel={() => setFeedbackOpen(false)}
+      onSend={async (_to, text) => {
+        const sent = await send(
+          text.trim() === "" ? { action: "pr-feedback" } : { action: "pr-feedback", text }
+        );
+        if (sent) setFeedbackOpen(false);
+        return sent;
+      }}
+    />
+  ) : null;
+
   const secondaryChanges = hasSecondary && !secondaryInMenu && (
     <Button
       appearance="secondary"
@@ -245,7 +268,7 @@ export function useGatePanel({
       aria-controls={feedbackOpen ? feedbackId : undefined}
       onClick={() => setFeedbackOpen((open) => !open)}
     >
-      {t("desk.gate.requestChanges")}
+      {secondaryLabel}
     </Button>
   );
 
@@ -254,6 +277,7 @@ export function useGatePanel({
       mode={mode}
       trigger={moreButton}
       busy={actions.busy}
+      requestChangesLabel={secondaryLabel}
       onRequestChanges={
         secondaryInMenu
           ? () => {
@@ -442,6 +466,7 @@ export function useGatePanel({
 
       {mode === "plan-gate" && requestChanges(PLAN_TARGETS)}
       {mode === "pr-review" && requestChanges(PR_REVIEW_TARGETS)}
+      {mode === "pr-open" && prFeedback}
 
       {layout === "side" && (
         <div className="desk-gate__row">
@@ -452,6 +477,7 @@ export function useGatePanel({
 
       <ShipDialog
         issueNumber={summary.issueNumber}
+        pullRequest={detail.state.prNumber ?? null}
         open={shipOpen}
         onOpenChange={setShipOpen}
         actions={actions}

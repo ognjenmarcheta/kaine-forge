@@ -48,7 +48,7 @@ const ENTERED_BY: Readonly<Partial<Record<Stage, readonly string[]>>> = {
   intake: ["intake-started", "intake-restarted"],
   "plan-gate": ["plan-ready"],
   "pr-review": ["review-approved"],
-  "pr-open": ["pr-opened"],
+  "pr-open": ["pr-opened", "pr-updated"],
   // `shipped` entered `shipped` before the `pr-open` stage existed.
   shipped: ["shipped", "pr-merged"],
   "needs-you": ["needs-you", "interrupted"],

@@ -125,6 +125,7 @@ export const createDefaultDeskRuntime =
         remove: runner.remove,
         ship: runner.ship,
         refreshPr: runner.refreshPr,
+        feedbackFromPr: runner.feedbackFromPr,
         draft: runner.draft,
         applyDraft: runner.applyDraft
       },

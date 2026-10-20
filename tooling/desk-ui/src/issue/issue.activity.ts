@@ -38,6 +38,8 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "ship-started": "started",
   shipped: "done",
   "pr-opened": "waiting",
+  "pr-feedback": "back",
+  "pr-updated": "waiting",
   "pr-merged": "done",
   "pr-closed": "stopped",
   cancelled: "stopped",

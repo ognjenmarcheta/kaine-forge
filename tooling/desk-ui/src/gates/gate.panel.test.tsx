@@ -192,6 +192,27 @@ describe("GatePanel after the ship", () => {
     expect(await screen.findByRole("menuitem", { name: "Cancel run" })).toBeTruthy();
   });
 
+  it("at pr-open: sends the PR feedback to build, without words or with the engineer's words", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-open", status: "waiting", prNumber: 9 }, actions);
+    const open = () => userEvent.click(screen.getByRole("button", { name: "Send PR feedback" }));
+    const box = () => screen.getByRole("textbox", { name: "Your note for the builder (optional)" });
+    const send = () => userEvent.click(screen.getByRole("button", { name: "Send to build" }));
+
+    await open();
+    expect(document.activeElement).toBe(box());
+    await send();
+    expect(actions.run).toHaveBeenLastCalledWith({ action: "pr-feedback" });
+
+    await open();
+    await userEvent.type(box(), "  Keep the old name  ");
+    await send();
+    expect(actions.run).toHaveBeenLastCalledWith({
+      action: "pr-feedback",
+      text: "  Keep the old name  "
+    });
+  });
+
   it("after the merge: links the pull request and has no run to cancel", async () => {
     show({ stage: "shipped", status: "done", prUrl: "https://github.com/o/r/pull/9" }, actionsOf());
     const link = screen.getByRole("link", { name: "Open the pull request" });

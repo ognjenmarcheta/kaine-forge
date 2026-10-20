@@ -24,6 +24,7 @@ take many minutes, so the command prints live progress (see "Live output").
 | `draft <n> [--snapshot-file P] \| --apply [--confirm]`                                   | For an issue that stopped at intake: draft it in the issue format, then apply the draft to GitHub after your yes. See "Draft the issue format".                         |
 | `ship <n> [--confirm \| --dry-run]`                                                      | At `pr-review`: commit, push, and open a draft PR. The issue moves to `pr-open`. See "Ship". The desk never merges.                                                     |
 | `refresh <n>`                                                                            | At `pr-open`: read the PR on GitHub once. Merged ends the issue at `shipped`, closed without a merge ends it at `cancelled`, open changes nothing. See "Open PR".       |
+| `feedback <n> --from-pr [TEXT...]`                                                       | At `pr-open`: send the failing checks and the trusted review comments on the PR head, and your own words, back to `build`. See "PR feedback".                           |
 
 - Every driving command also takes `--json` and `--no-writeback`.
 - `--no-writeback` writes no label and no comment to GitHub. The issue remembers it
@@ -86,8 +87,8 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
 
 A refusal prints `#12: refused (invalid-transition). <reason>` on stderr and changes nothing.
 The refusals are `leased`, `unknown-issue`, `unreadable`, `invalid-transition`,
-`ship-refused`, `refresh-refused`, `already-started`, `intake-refused`, `authorization`,
-`worktree-dirty`, and `remove-failed`.
+`ship-refused`, `refresh-refused`, `pr-refused`, `already-started`, `intake-refused`,
+`authorization`, `worktree-dirty`, and `remove-failed`.
 
 ### Live output
 
@@ -228,6 +229,7 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 | `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                         |
 | `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".      |
 | `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR". |
+| `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".          |
 
 Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
@@ -247,7 +249,7 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 | `review`    | reviewer | Fresh, read-only session. Reads `diff.patch`. Default provider is the other one than the builder.                                      |
 | `pr-review` | you      | Feedback goes to `build`, `review`, or `plan`. Then `ship`.                                                                            |
 | `ship`      | engine   | Commit, push, and open the draft PR. See "Ship".                                                                                       |
-| `pr-open`   | you      | The draft PR is on GitHub. You review and merge it there, then run `refresh`. See "Open PR".                                           |
+| `pr-open`   | you      | The draft PR is on GitHub. You merge it there and run `refresh`, or send its feedback back to `build`. See "Open PR".                  |
 | `shipped`   | nobody   | The end: the desk saw the PR merged when you ran `refresh`.                                                                            |
 | `needs-you` | you      | Every failure lands here with a reason and a `resumeStage`.                                                                            |
 
@@ -308,6 +310,23 @@ hooks, a rebase onto `origin/main` if needed (with the checks again), a push of 
 and `gh pr create --draft`. It sets the label `agent:pr-open` and edits the status comment
 with the PR link. The issue moves to `pr-open`.
 
+The ship of a PR feedback round is an update of the open PR, not a new one:
+
+- No fetch and no rebase. The commit goes on top of the pushed head, so the reviewers see one
+  new commit. Its header is `fix: address PR feedback (round <n>)`.
+- A plain `git push -u origin <branch>` to the same branch. Never a forced push. A branch that
+  has a commit the desk does not know rejects the push (`push-rejected`).
+- No `gh pr create` and no edit of the PR title or text. The open PR for the branch must be the
+  PR on record, or the ship stops with `pr-changed`.
+- No second changeset: the diff already holds the file of the first ship.
+- The gate reads the PR with `gh pr view` before any change and again right before the push.
+  It refuses, with the remote untouched, when the read fails (`pr-unavailable`), the PR is not
+  open (`pr-not-open`), its head is not the head the desk pushed or read (`pr-head-moved`), or
+  it is on another branch (`pr-mismatch`). A ship that resumes after its push went through
+  accepts its own commit as the head and does not push again.
+- Success records `pr-updated` (the first ship records `pr-opened`), sets `prHeadSha` to the new
+  commit, and moves the issue back to `pr-open`.
+
 Safety rules:
 
 - The PR is always a draft against `main`. The desk never merges, approves, enables
@@ -344,8 +363,41 @@ ready, enables auto-merge, or force-pushes.
 
 The issue state counts PR feedback rounds (`prRounds`). `maxPrRounds` in the config (default 3)
 is their limit. The status comment shows `PR rounds: n of max` while the issue is at `pr-open`.
-The step that sends PR review feedback back to `build` is tracked in #555. A `needs-you` with
-the reason `pr-round-limit` keeps `pr-open` as its resume stage, so `continue` returns there.
+
+### PR feedback
+
+`pnpm desk feedback <n> --from-pr [text]` (or `--file <path>`; **Send PR feedback** in the UI)
+sends what the open PR says back to `build`. Your own text is optional. It does not go with
+`--to`. The desk reads, with read-only `gh` calls:
+
+- the reviews and the inline review comments on the PR head commit;
+- the conversation comments made after the last `pr-opened` or `pr-updated` event;
+- the check runs of the PR head that end in `failure`, `timed_out`, `cancelled`, or
+  `action_required`, and for a failed GitHub Actions run the tail of `gh run view --log-failed`.
+
+Trust rules: only text whose `author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`
+reaches the builder. A bot counts only through such an association. Reviews and inline
+comments on an older commit are left out. All PR text is third-party data: the desk redacts
+token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB, and the
+whole to 24 KB (every cut is marked), and wraps it in the untrusted-data fence. A fence marker
+inside a comment is removed, so a comment cannot close the fence. Your own text goes first,
+outside the fence, as the owner's note.
+
+Head binding: the PR head must be the worktree HEAD, and the worktree must be clean. The
+builder then works on exactly the code the reviewers saw.
+
+On success the desk writes `pr-feedback.json` (the selected items, the head, and the time),
+adds the text to `feedback.md`, renames `ship-record.json` to `ship-record.round-<n>.json`
+(so the next ship starts clean), counts a round, and runs `build`, `check`, and `review` to
+`pr-review`. Ship again from there: see "Ship" for the update ship.
+
+It refuses with `pr-refused` and changes nothing when the issue writes nothing to GitHub
+(`--no-writeback` or a snapshot file), it has no PR number or no worktree, the PR read fails,
+the PR is not open, the PR head is not the worktree HEAD, the worktree has uncommitted
+changes, the feedback read fails, or there is no failing check, no trusted comment, and no
+text of yours. Outside `pr-open` it refuses with `invalid-transition`. At the round limit it
+reads nothing from GitHub: the issue goes to `needs-you` with the reason `pr-round-limit` and
+keeps `pr-open` as its resume stage, so `continue` returns there.
 
 ### Why these checks exist
 
@@ -392,7 +444,8 @@ Under `<state>/issues/<n>/artifacts/`: `ticket.md`, `issue.json`, `plan.json`, `
 (the review and the findings the engine rejected), `agent-<role>.json` (session, usage,
 denials, tool calls), `receipts-<role>.jsonl`, and `run-settings-<role>.json`.
 Ship adds `refs-baseline.json`, `ship-plan.json`, `pr-body.md`, `commit-message.txt`,
-`ship-record.json` (what the ship did so far), and `ship/check-report.json`.
+`ship-record.json` (what the ship did so far), and `ship/check-report.json`. A PR feedback
+round adds `pr-feedback.json` and keeps the earlier ship record as `ship-record.round-<n>.json`.
 
 ### Development path without GitHub
 
@@ -651,8 +704,8 @@ developer tooling. It has four views:
     proposed body and the issue now as plain text in tabs. **Copy** copies the body. **Apply to
     GitHub…** asks a second time; only that yes sends `apply-draft` with `confirm: true`. While an agent runs:
     a spinner, the stage, and the time in it. At the open PR: **Check the PR** (sends
-    `refresh-pr`), the PR link, the PR feedback rounds, and, once on the page, the note that you
-    merge it yourself. After the merge: the PR link. **Cancel run** and **Remove** sit in a **More** menu
+    `refresh-pr`), **Send PR feedback** (a form with an optional note; sends `pr-feedback`), the
+    PR link, the PR feedback rounds, and, once on the page, the note that you merge it yourself. After the merge: the PR link. **Cancel run** and **Remove** sit in a **More** menu
     beside the decision title. Both ask first, and focus returns to the menu button. Remove has
     a force box for a worktree with changes. Controls that start work are disabled while an
     action runs; Cancel and Remove stay enabled. Every result is a toast, and focus moves to
@@ -660,7 +713,8 @@ developer tooling. It has four views:
   - **Ship as draft PR…** opens a dialog with two steps. Step 1 runs the dry run, which
     changes nothing, and shows the gate result, the commit message, the PR title, the
     changeset decision, the files, and the PR text. Step 2 asks for the final yes. Only that
-    yes sends `confirm: true`. A failed gate rule disables step 2.
+    yes sends `confirm: true`. A failed gate rule disables step 2. For an issue that already
+    has a PR, the dialog says that the ship pushes to that PR and opens none.
 - **Health.** The doctor report with a status in words for every check. A failed check shows the
   command that repairs it, with a **Copy** button: a login or an install stays with the engineer,
   who runs it in a terminal. When the desk has its own repair for the check (today: build the

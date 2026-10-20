@@ -34,7 +34,12 @@ describe("action request", () => {
       input: { action: "ship", confirm: false, dryRun: true },
       expected: { action: "ship", confirm: false, dryRun: true }
     },
-    { input: { action: "refresh-pr" }, expected: { action: "refresh-pr" } }
+    { input: { action: "refresh-pr" }, expected: { action: "refresh-pr" } },
+    { input: { action: "pr-feedback" }, expected: { action: "pr-feedback" } },
+    {
+      input: { action: "pr-feedback", text: "  keep the name  " },
+      expected: { action: "pr-feedback", text: "keep the name" }
+    }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -53,7 +58,13 @@ describe("action request", () => {
     { name: "a ship without confirm field", input: { action: "ship" } },
     { name: "a string where a boolean belongs", input: { action: "remove", force: "yes" } },
     // The engine reads the PR number from the issue state, never from the client.
-    { name: "a refresh that names a PR", input: { action: "refresh-pr", pr: 9 } }
+    { name: "a refresh that names a PR", input: { action: "refresh-pr", pr: 9 } },
+    { name: "PR feedback that names a PR", input: { action: "pr-feedback", pr: 9 } },
+    { name: "blank PR feedback text", input: { action: "pr-feedback", text: "  " } },
+    {
+      name: "PR feedback text over the limit",
+      input: { action: "pr-feedback", text: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
+    }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
   });

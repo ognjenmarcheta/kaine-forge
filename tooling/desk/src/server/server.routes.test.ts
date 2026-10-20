@@ -607,6 +607,17 @@ describe("POST /api/issues/:n/actions", () => {
       check: (h: Harness) => expect(h.runner.refreshPr).toHaveBeenCalledWith(3)
     },
     {
+      name: "pr-feedback",
+      body: { action: "pr-feedback" },
+      check: (h: Harness) => expect(h.runner.feedbackFromPr).toHaveBeenCalledWith(3, {})
+    },
+    {
+      name: "pr-feedback with the owner's words",
+      body: { action: "pr-feedback", text: " keep the name " },
+      check: (h: Harness) =>
+        expect(h.runner.feedbackFromPr).toHaveBeenCalledWith(3, { text: "keep the name" })
+    },
+    {
       name: "draft",
       body: { action: "draft" },
       check: (h: Harness) => expect(h.runner.draft).toHaveBeenCalledWith(3)

@@ -714,6 +714,41 @@ describe("buildFlowModel loops and feedback", () => {
     expect(edge(result, "pr-review->plan")).toMatchObject({ feedbackCount: 1 });
   });
 
+  it("draws PR feedback as a loop from pr-open to build, and counts the update as a pr-open run", () => {
+    const sent: Step = ["pr-open", "pr-feedback", "round 1: 1 comment(s), 0 failing check(s)"];
+    const building = model({
+      stage: "build",
+      status: "running",
+      steps: [...TO_PR_OPEN, sent, BUILD[0]!]
+    });
+    expect(edge(building, "pr-open->build")).toMatchObject({
+      state: "active",
+      loopKind: "feedback",
+      feedbackCount: 1
+    });
+    expect(node(building, "pr-open").status).toBe("looped");
+
+    const updated = model({
+      stage: "pr-open",
+      status: "waiting",
+      steps: [
+        ...TO_PR_OPEN,
+        sent,
+        ...BUILD,
+        ...CHECK_PASS,
+        ...REVIEW_OK,
+        ["pr-review", "ship-confirmed"],
+        ["ship", "stage-started"],
+        ["ship", "pr-updated", "https://github.com/o/r/pull/9"]
+      ]
+    });
+    expect(node(updated, "pr-open")).toMatchObject({ status: "waiting", metrics: { runs: 2 } });
+    expect(edge(updated, "pr-open->build")).toMatchObject({
+      state: "traversed",
+      feedbackCount: 1
+    });
+  });
+
   it("ignores a feedback event with a note it cannot read", () => {
     const result = model({
       stage: "pr-review",

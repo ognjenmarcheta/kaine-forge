@@ -70,11 +70,14 @@ export const activeProcessSchema = z
   .strict();
 export type ActiveProcess = z.infer<typeof activeProcessSchema>;
 
-/** Input for the next run of a stage: engineer feedback, a check failure, or review findings. */
+/**
+ * Input for the next run of a stage: engineer feedback, a check failure, review findings, or
+ * feedback from the open PR (`pr`, added with the PR feedback loop).
+ */
 export const pendingFeedbackSchema = z
   .object({
     target: feedbackTargetSchema,
-    source: z.enum(["human", "check", "review"]),
+    source: z.enum(["human", "check", "review", "pr"]),
     text: z.string().min(1)
   })
   .strict();
