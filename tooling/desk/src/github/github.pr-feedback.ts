@@ -280,13 +280,13 @@ const keepEnd = (text: string, max: number): string =>
     ? text
     : `[cut: ${text.length - max} earlier characters of the log]\n${text.slice(-max)}`;
 
-/** Removes HTML comments until none is left: one pass can join the halves of a nested one. */
-const dropHtmlComments = (text: string): string => {
+/** Removes `pattern` until nothing matches: one pass can join the halves of a nested match. */
+const removeAll = (text: string, pattern: RegExp): string => {
   let current = text;
   let previous;
   do {
     previous = current;
-    current = current.replace(/<!--[\s\S]*?-->/g, "");
+    current = current.replace(pattern, "");
   } while (current !== previous);
   return current;
 };
@@ -297,10 +297,15 @@ const dropHtmlComments = (text: string): string => {
  * 2 KB cut would otherwise keep only that. A summary keeps no angle bracket.
  */
 const foldMarkup = (body: string): string =>
-  dropHtmlComments(body).replace(
+  removeAll(body, /<!--[\s\S]*?-->/g).replace(
     /<details>\s*(?:<summary>([\s\S]*?)<\/summary>)?[\s\S]*?<\/details>/g,
     (_all, summary) => {
-      const title = typeof summary === "string" ? summary.replace(/<[^>]*>|[<>]/g, "").trim() : "";
+      const title =
+        typeof summary === "string"
+          ? removeAll(summary, /<[^>]*>/g)
+              .replace(/[<>]/g, "")
+              .trim()
+          : "";
       return title === "" ? "[details folded]" : `[details folded: ${title}]`;
     }
   );
