@@ -389,7 +389,7 @@ association `NONE`. To let its comments through, list its exact login in `review
 end in `[bot]`, and GitHub must report the account as a bot. The desk names every author it
 left out in the event note and in a refusal. Reviews and inline comments on an older commit are
 left out. All PR text is third-party data: the desk redacts
-token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB, and the
+token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB (after it drops HTML comments and folds `<details>` blocks to their summary, where review bots put long analysis ahead of the finding), and the
 whole to 24 KB (every cut is marked), and wraps it in the untrusted-data fence. A fence marker
 inside a comment is removed, so a comment cannot close the fence. Your own text goes first,
 outside the fence, as the owner's note.

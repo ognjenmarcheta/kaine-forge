@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createGitHubPort } from "./github.port";
 import {
+  boundPrFeedback,
   renderPrFeedback,
   selectPrFeedback,
   type PullRequestFeedbackRaw,
@@ -297,6 +298,19 @@ describe("renderPrFeedback", () => {
     expect(text).toMatch(/\[cut: \d+ earlier characters of the log\]/);
     expect(text).toMatch(/\[cut: \d+ more characters\]/);
     expect(text.split("early line").length - 1).toBeLessThan(600);
+  });
+
+  it("folds HTML comments and details blocks before the cut, so a bot's finding survives", () => {
+    const analysis = `<details>\n<summary>Script executed</summary>\n\n${"git diff ...\n".repeat(300)}</details>`;
+    const body = `<!-- bot metadata ${"m".repeat(500)} -->\n**Major**\n${analysis}\n\nCONFIRM THE REMOVAL TRIGGER.`;
+    const [bounded] = boundPrFeedback({
+      comments: [comment(body)],
+      failingChecks: [],
+      skipped: []
+    }).comments;
+    expect(bounded?.body).toContain("CONFIRM THE REMOVAL TRIGGER.");
+    expect(bounded?.body).toContain("[details folded: Script executed]");
+    expect(bounded?.body).not.toContain("bot metadata");
   });
 
   it("stays under the total cap and says how many items it left out", () => {

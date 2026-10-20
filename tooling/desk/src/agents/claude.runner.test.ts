@@ -312,6 +312,34 @@ describe("createClaudeRunner", () => {
     expect(result).toMatchObject({ ok: false, failure: { kind: "no-result" } });
   });
 
+  it("starts a new session when the one to resume does not exist, for example after an isolation switch", async () => {
+    const calls: AgentProcessRequest[] = [];
+    const replies = [
+      { lines: [], code: 1, stderrTail: "No conversation found with session ID: gone-1" },
+      { lines: fixtureLines("claude-structured.jsonl"), code: 0, stderrTail: "" }
+    ];
+    const runner = createClaudeRunner({
+      newSessionId: () => SESSION,
+      process: (request) => {
+        calls.push(request);
+        const reply = replies[calls.length - 1] ?? replies[1]!;
+        for (const line of reply.lines) request.onLine(line);
+        return Promise.resolve({
+          code: reply.code,
+          timedOut: false,
+          aborted: false,
+          stderrTail: reply.stderrTail
+        });
+      }
+    });
+    const result = await runner.run(baseRequest({ resumeSessionId: "gone-1" }));
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect(valueAfter(calls[0]!.argv, "--resume")).toBe("gone-1");
+    expect(calls[1]!.argv).not.toContain("--resume");
+    expect(valueAfter(calls[1]!.argv, "--session-id")).toBe(SESSION);
+  });
+
   it("reports a non-zero exit without a result as a process error with stderr", async () => {
     const result = await run([], { code: 2, stderrTail: "boom" }).outcome;
     expect(result).toMatchObject({

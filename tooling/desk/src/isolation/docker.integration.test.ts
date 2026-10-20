@@ -50,6 +50,8 @@ const attempt = (name, action) => {
   }
 };
 
+// The runner sends the prompt on stdin, through \`docker run --interactive\` and the entry script.
+attempt("prompt", () => readFileSync(0, "utf8"));
 attempt("uid", () => process.getuid());
 attempt("cwd", () => process.cwd());
 attempt("isNumber", () => createRequire("/workspace/package.json")("is-number")(5));
@@ -489,6 +491,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
 
     // What the agent saw inside the container.
     const seen = await observed(w.repo);
+    expect(seen.prompt).toBe("Do the task.");
     expect(seen.uid).toBe(1000);
     expect(seen.cwd).toBe("/workspace");
     expect(seen.isNumber).toBe(true);

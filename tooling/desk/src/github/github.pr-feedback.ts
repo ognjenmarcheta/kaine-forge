@@ -281,10 +281,26 @@ const keepEnd = (text: string, max: number): string =>
     : `[cut: ${text.length - max} earlier characters of the log]\n${text.slice(-max)}`;
 
 /** Each item redacted and cut to its own limit. This is also what `pr-feedback.json` keeps. */
+/**
+ * Drops HTML comments and folds each `<details>` block to its summary. Review
+ * bots put metadata and long analysis there, ahead of the finding, and the
+ * 2 KB cut would otherwise keep only that.
+ */
+const foldMarkup = (body: string): string =>
+  body
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(
+      /<details>\s*(?:<summary>([\s\S]*?)<\/summary>)?[\s\S]*?<\/details>/g,
+      (_all, summary) =>
+        typeof summary === "string" && summary.trim() !== ""
+          ? `[details folded: ${summary.replace(/<[^>]*>/g, "").trim()}]`
+          : "[details folded]"
+    );
+
 export const boundPrFeedback = (selected: SelectedPrFeedback): SelectedPrFeedback => ({
   comments: selected.comments.map((comment) => ({
     ...comment,
-    body: keepStart(redact(comment.body).trim(), COMMENT_MAX)
+    body: keepStart(redact(foldMarkup(comment.body)).trim(), COMMENT_MAX)
   })),
   failingChecks: selected.failingChecks.map((check) => ({
     ...check,
