@@ -15,7 +15,7 @@ import { redact } from "../log/log.redact";
  * `renderPrFeedback` redacts, cuts, and fences it before it reaches a prompt.
  */
 
-const actorSchema = z.object({ login: z.string() }).nullable();
+const actorSchema = z.object({ login: z.string(), type: z.string().optional() }).nullable();
 
 const reviewSchema = z.object({
   id: z.number().int(),
@@ -154,6 +154,8 @@ export interface PrFeedbackCheck {
 export interface SelectedPrFeedback {
   readonly comments: readonly PrFeedbackComment[];
   readonly failingChecks: readonly PrFeedbackCheck[];
+  /** `login (association)` of each author whose text on the head was left out for trust. */
+  readonly skipped: readonly string[];
 }
 
 export interface PrFeedbackFilter {
@@ -163,26 +165,40 @@ export interface PrFeedbackFilter {
   readonly since: string | null;
   /** `author_association` values whose text may reach a prompt. */
   readonly trusted: readonly string[];
+  /**
+   * GitHub App logins, such as `coderabbitai[bot]`, whose text may reach a
+   * prompt without a trusted association. The owner lists them in `reviewBots`.
+   */
+  readonly trustedBots: readonly string[];
 }
 
+type Actor = z.infer<typeof actorSchema>;
+
 /**
- * Keep what the builder may read: text of a trusted association only (a bot
- * counts only through its association), reviews and inline comments on the
- * head commit, conversation comments after `since`, and failing checks on the
- * head.
+ * Keep what the builder may read: text of a trusted association, or of a
+ * review bot the owner allowed (a GitHub App account, matched by exact login);
+ * reviews and inline comments on the head commit, conversation comments after
+ * `since`, and failing checks on the head. Every author left out for trust is
+ * named in `skipped`, so a round never drops a reviewer silently.
  */
 export const selectPrFeedback = (
   raw: PullRequestFeedbackRaw,
   filter: PrFeedbackFilter
 ): SelectedPrFeedback => {
-  const trusted = (association: string): boolean => filter.trusted.includes(association);
+  const skipped = new Set<string>();
+  const author = (user: Actor): string => user?.login ?? "ghost";
+  const trusted = (user: Actor, association: string): boolean => {
+    const allowedBot = user?.type === "Bot" && filter.trustedBots.includes(user.login);
+    if (filter.trusted.includes(association) || allowedBot) return true;
+    skipped.add(`${author(user)} (${association})`);
+    return false;
+  };
   const since = filter.since === null ? null : Date.parse(filter.since);
-  const author = (user: { readonly login: string } | null): string => user?.login ?? "ghost";
 
   const reviews = raw.reviews.flatMap((review): PrFeedbackComment[] =>
-    trusted(review.author_association) &&
     review.commit_id === filter.headSha &&
-    (review.body ?? "").trim() !== ""
+    (review.body ?? "").trim() !== "" &&
+    trusted(review.user, review.author_association)
       ? [
           {
             kind: "review",
@@ -196,7 +212,7 @@ export const selectPrFeedback = (
       : []
   );
   const inline = raw.inlineComments.flatMap((comment): PrFeedbackComment[] =>
-    trusted(comment.author_association) && comment.commit_id === filter.headSha
+    comment.commit_id === filter.headSha && trusted(comment.user, comment.author_association)
       ? [
           {
             kind: "inline",
@@ -211,9 +227,9 @@ export const selectPrFeedback = (
       : []
   );
   const conversation = raw.conversationComments.flatMap((comment): PrFeedbackComment[] =>
-    trusted(comment.author_association) &&
     (since === null || Date.parse(comment.created_at) > since) &&
-    (comment.body ?? "").trim() !== ""
+    (comment.body ?? "").trim() !== "" &&
+    trusted(comment.user, comment.author_association)
       ? [
           {
             kind: "conversation",
@@ -243,7 +259,11 @@ export const selectPrFeedback = (
     }
   );
 
-  return { comments: [...reviews, ...inline, ...conversation], failingChecks };
+  return {
+    comments: [...reviews, ...inline, ...conversation],
+    failingChecks,
+    skipped: [...skipped]
+  };
 };
 
 // --- rendering -------------------------------------------------------------
@@ -270,7 +290,8 @@ export const boundPrFeedback = (selected: SelectedPrFeedback): SelectedPrFeedbac
     ...check,
     summary: check.summary === null ? null : keepStart(redact(check.summary).trim(), COMMENT_MAX),
     log: check.log === null ? null : keepEnd(redact(check.log).trimEnd(), LOG_TAIL_MAX)
-  }))
+  })),
+  skipped: selected.skipped
 });
 
 const describeComment = (comment: PrFeedbackComment): string => {

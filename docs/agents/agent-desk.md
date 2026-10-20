@@ -383,8 +383,12 @@ sends what the open PR says back to `build`. Your own text is optional. It does 
   `action_required`, and for a failed GitHub Actions run the tail of `gh run view --log-failed`.
 
 Trust rules: only text whose `author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`
-reaches the builder. A bot counts only through such an association. Reviews and inline
-comments on an older commit are left out. All PR text is third-party data: the desk redacts
+reaches the builder. A review bot such as CodeRabbit is a GitHub App, and GitHub gives it the
+association `NONE`. To let its comments through, list its exact login in `reviewBots` in
+`.ai.local/desk/config.json`, for example `"reviewBots": ["coderabbitai[bot]"]`. The login must
+end in `[bot]`, and GitHub must report the account as a bot. The desk names every author it
+left out in the event note and in a refusal. Reviews and inline comments on an older commit are
+left out. All PR text is third-party data: the desk redacts
 token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB, and the
 whole to 24 KB (every cut is marked), and wraps it in the untrusted-data fence. A fence marker
 inside a comment is removed, so a comment cannot close the fence. Your own text goes first,

@@ -20,7 +20,8 @@ describe("desk config contract", () => {
         check: { memory: "6g", cpus: 4, pidsLimit: 2048 },
         maxPatchBytes: 8 * 1024 * 1024,
         forwardEnv: []
-      }
+      },
+      reviewBots: []
     });
   });
 
@@ -34,6 +35,7 @@ describe("desk config contract", () => {
 
   it.each([
     ["a GitHub token to forward", { docker: { forwardEnv: ["GH_TOKEN"] } }],
+    ["a review bot that is a person, not a GitHub App", { reviewBots: ["octo-owner"] }],
     ["a cloud key to forward", { docker: { forwardEnv: ["AWS_SECRET_ACCESS_KEY"] } }],
     ["a bad memory size", { docker: { agent: { memory: "lots" } } }],
     ["a zero memory size", { docker: { check: { memory: "0g" } } }],
