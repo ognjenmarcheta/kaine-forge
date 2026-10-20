@@ -1109,25 +1109,33 @@ describe("monorepo alignment", () => {
       return JSON.stringify(rules?.["no-restricted-imports"] ?? null);
     };
 
-    for (const workspace of [
+    const domWorkspaces = [
       "apps/web",
       "apps/desktop",
       "packages/ui",
       "tooling/desk-ui",
       "tooling/factory-ui"
-    ]) {
-      const options = await restrictedImportOptions(`${workspace}/src/probe.ts`);
+    ];
+    // Each config resolution loads the whole flat config; resolve them together.
+    const [mobile, ...domOptions] = await Promise.all(
+      ["apps/mobile", ...domWorkspaces].map((workspace) =>
+        restrictedImportOptions(`${workspace}/src/probe.ts`)
+      )
+    );
+    domWorkspaces.forEach((workspace, index) => {
+      const options = domOptions[index] ?? "";
       expect(options, `${workspace} must block server-only entries`).toContain(serverOnlyGate);
       expect(options, `${workspace} must block React Native primitives`).toContain(
         '"@repo/mobile-ui"'
       );
-    }
-    const mobile = await restrictedImportOptions("apps/mobile/src/probe.ts");
+    });
     expect(mobile, "mobile must block server-only entries").toContain(serverOnlyGate);
     expect(mobile, "mobile must block DOM primitives, not itself").not.toContain(
       '"@repo/mobile-ui"'
     );
-  });
+    // Loading ESLint and the repo's flat config took 8s on a busy Release runner
+    // (run 39399822538), past vitest's 5s default.
+  }, 30_000);
 
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
