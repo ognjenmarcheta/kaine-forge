@@ -400,6 +400,31 @@ describe("Hand-kept alignments", () => {
     assert.equal(enforce.env.PR_NUMBER, "${{ github.event.pull_request.number }}");
   });
 
+  it("keeps every Dependabot pattern group whole against the npm catch-all group (#543)", () => {
+    // Dependabot gives a dependency to its most specific matching group, and a
+    // group without patterns outranks a wildcard pattern. Unless the catch-all
+    // excludes them, `@better-auth/*` and `@vitest/*` land there and each pair
+    // splits across two PRs that fail CI alone (#531/#534, #532/#534).
+    const dependabot = parse(readFileSync(".github/dependabot.yml", "utf8"));
+    const npm = dependabot.updates.find((entry) => entry["package-ecosystem"] === "npm");
+    const groups = Object.entries(npm.groups ?? {});
+    const patterned = groups.filter(([, group]) => group.patterns?.length);
+    const catchAll = groups.filter(([, group]) => !group.patterns?.length);
+    assert.ok(patterned.length > 0 && catchAll.length > 0, "expected pattern and catch-all groups");
+
+    const missing = [];
+    for (const [catchAllName, group] of catchAll) {
+      const excluded = new Set(group["exclude-patterns"] ?? []);
+      for (const [name, { patterns }] of patterned) {
+        for (const pattern of patterns) {
+          if (!excluded.has(pattern))
+            missing.push(`${catchAllName} must exclude ${pattern} (${name})`);
+        }
+      }
+    }
+    assert.deepEqual(missing, []);
+  });
+
   it("keeps Dependabot off every package that lives in both catalogs (#535)", () => {
     // Dependabot cannot target catalogs.mobile; an update to a dual-catalog
     // package rewrites one lane to the other's line (#534 turned the web
