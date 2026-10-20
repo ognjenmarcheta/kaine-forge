@@ -22,8 +22,14 @@ updates:
     # `pnpm update` step cannot pull a release the gated install rejects (#356).
     versioning-strategy: increase
     groups:
+      # A dependency goes to the most specific matching group, not the first one:
+      # an exact pattern outranks a group without patterns, which outranks a
+      # wildcard pattern (dependabot-core PatternSpecificityCalculator). So
+      # non-major must exclude every pattern below, or it takes the scoped
+      # companions (@better-auth/expo, @vitest/*) and splits each pair (#543).
+      #
       # better-auth and its Expo companion sit on one catalog line and must
-      # move together. A dependency joins the first group it matches.
+      # move together.
       better-auth:
         patterns:
           - "better-auth"
@@ -39,6 +45,11 @@ updates:
         update-types:
           - minor
           - patch
+        exclude-patterns:
+          - "better-auth"
+          - "@better-auth/*"
+          - "vitest"
+          - "@vitest/*"
     # Mobile Expo/RN singleton graph moves only with intentional Expo SDK
     # upgrades (catalogs.mobile + monorepo-alignment tests, issue #198). Scoped
     # `@expo/*` packages need their own entry: `expo-*` does not match them.
