@@ -126,3 +126,45 @@ describe("addPullRequestLabel", () => {
     await expect(port.addPullRequestLabel(12, "x")).rejects.toThrow(/not found/);
   });
 });
+
+describe("viewPullRequest", () => {
+  const view = {
+    number: 101,
+    url: "https://github.com/o/r/pull/101",
+    state: "MERGED",
+    headRefName: "KAINE-7-feat-x",
+    headRefOid: "a".repeat(40),
+    mergedAt: "2026-10-20T12:00:00Z",
+    isDraft: false
+  };
+
+  // The exact argv also proves the read carries no merge, ready, approve, auto, or force flag.
+  it("reads one PR with gh pr view and parses its state at the boundary", async () => {
+    const { fake, port } = portWith([
+      { argv: ["gh", "pr", "view"], reply: ok(JSON.stringify(view)) }
+    ]);
+    await expect(port.viewPullRequest(101)).resolves.toEqual({
+      number: 101,
+      url: "https://github.com/o/r/pull/101",
+      state: "MERGED",
+      headRefName: "KAINE-7-feat-x",
+      headRefOid: "a".repeat(40),
+      mergedAt: "2026-10-20T12:00:00Z"
+    });
+    expect(lastGh(fake.calls)).toEqual([
+      "gh",
+      "pr",
+      "view",
+      "101",
+      "--json",
+      "number,url,state,headRefName,headRefOid,mergedAt"
+    ]);
+  });
+
+  it("rejects a state it does not know", async () => {
+    const { port } = portWith([
+      { argv: ["gh", "pr", "view"], reply: ok(JSON.stringify({ ...view, state: "LOCKED" })) }
+    ]);
+    await expect(port.viewPullRequest(101)).rejects.toThrow(/unexpected shape at state/);
+  });
+});

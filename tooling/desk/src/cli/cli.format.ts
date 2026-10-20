@@ -36,13 +36,13 @@ export const nextSteps = (state: IssueState): string[] => {
         `or send feedback: pnpm desk feedback ${n} --to build "<text>"`
       ];
     }
-    case "shipped":
-      return state.prUrl
-        ? [
-            `open the draft PR: ${state.prUrl}`,
-            "review it and merge it yourself on GitHub. The desk never merges."
-          ]
-        : [];
+    case "pr-open":
+      return [
+        ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
+        "review it and merge it yourself on GitHub. The desk never merges.",
+        `after you merge or close it, run: pnpm desk refresh ${n}`,
+        `or send the PR feedback back to build: pnpm desk feedback ${n} --from-pr "[your words]"`
+      ];
     default:
       return [];
   }
@@ -74,7 +74,7 @@ export type ResultJson =
       readonly stage: Stage;
       readonly status: IssueStatus;
       readonly message: string | null;
-      /** The draft PR, once the issue is shipped. */
+      /** The draft PR, once the ship opened it. */
       readonly prUrl: string | null;
       readonly next: readonly string[];
     };
@@ -155,10 +155,16 @@ const describeDryRun = (issue: number, result: ShipDryRunResult): ResultView => 
 export const describeResult = (issue: number, result: ShipActionResult): ResultView => {
   if (result.outcome === "dry-run") return describeDryRun(issue, result);
   if (result.outcome === "refused") {
+    // A refused PR feedback round leaves the issue at pr-open: say what still works there.
+    const steps =
+      result.refusal === "pr-refused" && result.state !== null ? nextSteps(result.state) : [];
+    const after = steps.map((step) => `  ${step}\n`).join("");
     return {
       code: 1,
       toStderr: true,
-      text: `#${issue}: refused (${result.refusal}). ${result.reason}\n`,
+      text: `#${issue}: refused (${result.refusal}). ${result.reason}\n${
+        after === "" ? "" : `The issue still waits at ${result.state?.stage ?? ""}. Next:\n${after}`
+      }`,
       json: {
         ok: false,
         issue,

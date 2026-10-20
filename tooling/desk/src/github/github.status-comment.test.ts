@@ -33,13 +33,18 @@ const state = (over: Partial<IssueState> = {}): IssueState => ({
 });
 
 describe("renderStatusComment", () => {
-  it("links the draft PR once the issue is shipped, and not before", () => {
+  it("links the draft PR and counts PR rounds once the ship opened it, and not before", () => {
     const url = "https://github.com/octo-owner/repo/pull/101";
-    expect(renderStatusComment({ state: state() })).not.toContain("Draft PR");
-    const shipped = renderStatusComment({
-      state: state({ stage: "shipped", status: "done", prUrl: url, prNumber: 101 })
+    const before = renderStatusComment({ state: state() });
+    expect(before).not.toContain("Draft PR");
+    expect(before).not.toContain("PR rounds");
+    const open = renderStatusComment({
+      state: state({ stage: "pr-open", status: "waiting", prUrl: url, prNumber: 101, prRounds: 1 })
     });
-    expect(shipped).toContain(`Draft PR: ${url}`);
+    expect(open).toContain(`Draft PR: ${url}`);
+    expect(open).toContain("- PR rounds: 1 of 3");
+    expect(open).toContain("- `ship`: done");
+    expect(open).toContain("- `pr-open`: waiting");
   });
 
   it("starts with the marker and describes stage, timeline, loops and authorization", () => {
@@ -100,9 +105,9 @@ describe("renderStatusComment", () => {
   });
 
   it("uses custom loop limits", () => {
-    expect(renderStatusComment({ state: state(), limits: { check: 5, review: 4 } })).toContain(
-      "- check: 1 of 5"
-    );
+    expect(
+      renderStatusComment({ state: state(), limits: { check: 5, review: 4, prRounds: 3 } })
+    ).toContain("- check: 1 of 5");
   });
 });
 

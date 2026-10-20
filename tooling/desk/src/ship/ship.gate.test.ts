@@ -4,7 +4,8 @@ import {
   evaluateShipGate,
   SHIP_GATE_FAILURES,
   type ShipGateFailureKind,
-  type ShipGateInput
+  type ShipGateInput,
+  type ShipGatePullRequest
 } from "./ship.gate";
 import { checkReportOf, sha256 } from "./ship.testing";
 import { OWNER, repositoryOf } from "../testing/github.fake";
@@ -25,6 +26,26 @@ const passing = (): ShipGateInput => ({
   review: { verdict: "approve", blockingFindings: 0, diffHash: HASH },
   expectedReviewDiffHash: HASH
 });
+
+const PUSHED = "a".repeat(40);
+const OURS = "b".repeat(40);
+
+/** An update ship: the PR is open, on the issue branch, at the head the desk pushed. */
+const openPr = (view: Partial<Exclude<ShipGatePullRequest["view"], { error: string }>> = {}) =>
+  ({
+    number: 101,
+    branch: BRANCH,
+    allowedHeads: [PUSHED, OURS],
+    view: {
+      number: 101,
+      url: "https://github.com/o/r/pull/101",
+      state: "OPEN",
+      headRefName: BRANCH,
+      headRefOid: PUSHED,
+      mergedAt: null,
+      ...view
+    }
+  }) satisfies ShipGatePullRequest;
 
 const kindsOf = (input: ShipGateInput): ShipGateFailureKind[] =>
   evaluateShipGate(input).failures.map((failure) => failure.kind);
@@ -108,7 +129,17 @@ describe("evaluateShipGate", () => {
         ...input,
         review: { verdict: "approve", blockingFindings: 0, diffHash: sha256("older") }
       })
-    ]
+    ],
+    [
+      "pr-unavailable",
+      (input) => ({ ...input, pullRequest: { ...openPr(), view: { error: "HTTP 502" } } })
+    ],
+    ["pr-not-open", (input) => ({ ...input, pullRequest: openPr({ state: "CLOSED" }) })],
+    [
+      "pr-head-moved",
+      (input) => ({ ...input, pullRequest: openPr({ headRefOid: "c".repeat(40) }) })
+    ],
+    ["pr-mismatch", (input) => ({ ...input, pullRequest: openPr({ headRefName: "other" }) })]
   ];
 
   it("has a row for every failure kind", () => {
@@ -173,6 +204,12 @@ describe("evaluateShipGate", () => {
       expectedReviewDiffHash: null
     };
     expect(kindsOf(input)).toEqual([]);
+  });
+
+  it("passes an update whose PR is open at the pushed head or at the commit this run pushed", () => {
+    expect(kindsOf({ ...passing(), pullRequest: openPr() })).toEqual([]);
+    expect(kindsOf({ ...passing(), pullRequest: openPr({ headRefOid: OURS }) })).toEqual([]);
+    expect(kindsOf({ ...passing(), pullRequest: null })).toEqual([]);
   });
 
   it("does not ship an approving review that still has blocking findings", () => {

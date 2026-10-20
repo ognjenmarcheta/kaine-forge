@@ -37,6 +37,11 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "ship-confirmed": "done",
   "ship-started": "started",
   shipped: "done",
+  "pr-opened": "waiting",
+  "pr-feedback": "back",
+  "pr-updated": "waiting",
+  "pr-merged": "done",
+  "pr-closed": "stopped",
   cancelled: "stopped",
   interrupted: "stopped"
 };
@@ -54,7 +59,8 @@ const NODE_OF_STAGE: Readonly<Record<Stage, FlowNodeId | null>> = {
   review: "review",
   "pr-review": "pr-review",
   ship: "ship",
-  shipped: "ship",
+  "pr-open": "pr-open",
+  shipped: "pr-open",
   "needs-you": null,
   cancelled: null
 };

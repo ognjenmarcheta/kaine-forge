@@ -274,13 +274,13 @@ describe("ship, end to end with real git", () => {
     });
     expect(await readFile(stateFile, "utf8")).toBe(before);
 
-    // The ship.
+    // The ship. The issue then waits at `pr-open` until the owner merges on GitHub.
     const result = await h.pipeline.ship(ISSUE, { confirm: true });
-    expect(result).toMatchObject({ outcome: "stopped", stop: "shipped" });
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
     const shipped = await h.state();
     expect(shipped).toMatchObject({
-      stage: "shipped",
-      status: "done",
+      stage: "pr-open",
+      status: "waiting",
       shipConfirmed: true,
       prNumber: 101,
       prUrl: "https://github.com/octo-owner/repo/pull/101",
@@ -292,6 +292,7 @@ describe("ship, end to end with real git", () => {
     expect(await commitCount(h, shipped)).toBe(1);
     const head = await h.env.deps.git.headSha(worktree);
     expect(shipped.commitSha).toBe(head);
+    expect(shipped.prHeadSha).toBe(head);
     expect(
       (await h.env.clone?.git(["show", "--name-only", "--format=", "HEAD"], worktree))
         ?.split("\n")
@@ -315,8 +316,8 @@ describe("ship, end to end with real git", () => {
       "Draft PR: https://github.com/octo-owner/repo/pull/101"
     );
     expect(h.env.notifications.at(-1)).toMatchObject({
-      kind: "done",
-      stage: "shipped",
+      kind: "gate",
+      stage: "pr-open",
       message: "Draft PR: https://github.com/octo-owner/repo/pull/101"
     });
     expectSafeCalls(h.env);
@@ -327,13 +328,36 @@ describe("ship, end to end with real git", () => {
     expect(shipped.history.map((entry) => `${entry.stage}:${entry.event}`).slice(-3)).toEqual([
       "pr-review:ship-confirmed",
       "ship:stage-started",
-      "ship:shipped"
+      "ship:pr-opened"
     ]);
 
     // The ship steps went to the persistent log. It holds no secret.
     const log = await h.flushLog();
     expect(log).toContain("ship push done");
     expect(log).toContain("ship pull-request done");
+
+    // A refresh while the PR is open changes nothing.
+    const waiting = await readFile(stateFile, "utf8");
+    expect(await h.pipeline.refreshPr(ISSUE)).toMatchObject({
+      outcome: "stopped",
+      stop: "gate",
+      message: "PR #101 is still open: https://github.com/octo-owner/repo/pull/101"
+    });
+    expect(await readFile(stateFile, "utf8")).toBe(waiting);
+
+    // The owner merges on GitHub. The next refresh ends the issue and drops the desk label.
+    h.env.github.setPullRequestState("MERGED");
+    expect(await h.pipeline.refreshPr(ISSUE)).toMatchObject({
+      outcome: "stopped",
+      stop: "shipped"
+    });
+    expect(await h.state()).toMatchObject({ stage: "shipped", status: "done" });
+    expect(h.env.github.labelEdits.at(-1)?.change).toEqual({ add: [], remove: ["agent:pr-open"] });
+    expect(h.env.notifications.at(-1)).toMatchObject({
+      kind: "done",
+      message: "PR merged: https://github.com/octo-owner/repo/pull/101"
+    });
+    expect(h.env.github.pullRequestViews).toEqual([101, 101]);
 
     // A shipped issue accepts no more ship.
     expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
@@ -390,9 +414,9 @@ describe("ship, end to end with real git", () => {
     // Fix the hook, continue: no second commit, no second hook run for the commit, one PR.
     await h.failHook("pre-push", null);
     const retried = await h.pipeline.continueFrom(ISSUE);
-    expect(retried).toMatchObject({ outcome: "stopped", stop: "shipped" });
+    expect(retried).toMatchObject({ outcome: "stopped", stop: "gate" });
     const shipped = await h.state();
-    expect(shipped).toMatchObject({ stage: "shipped", status: "done", prNumber: 101 });
+    expect(shipped).toMatchObject({ stage: "pr-open", status: "waiting", prNumber: 101 });
     expect(await commitCount(h, shipped)).toBe(1);
     expect(shipped.commitSha).toBe(stopped.commitSha);
     expect(await remoteBranches(h)).toEqual([branch, "main"].sort());
@@ -416,7 +440,8 @@ describe("ship in Docker mode", () => {
 
     expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
       outcome: "stopped",
-      stop: "shipped"
+      stop: "gate",
+      state: { stage: "pr-open" }
     });
     expect(docker.checks.map((request) => [request.kind, request.issue])).toEqual([
       ["loop", ISSUE],
@@ -437,5 +462,93 @@ describe("ship in Docker mode", () => {
     );
     expect(h.env.pnpm.calls.filter((call) => call.argv.join(" ") === "pnpm check")).toEqual([]);
     expect(await commitCount(h, state)).toBe(0);
+  });
+});
+
+describe("refresh at pr-open", () => {
+  const PR_URL = "https://github.com/octo-owner/repo/pull/101";
+  const prOpen = (over: Partial<IssueState> = {}): IssueState => ({
+    schemaVersion: 1,
+    issueNumber: ISSUE,
+    stage: "pr-open",
+    status: "waiting",
+    resumeStage: null,
+    branch: "KAINE-7-feat-export-reports",
+    worktreePath: null,
+    sessions: {},
+    loops: { check: 0, review: 0 },
+    lastCheckFingerprint: null,
+    history: [{ at: "2026-10-07T09:00:00Z", stage: "ship", event: "pr-opened", note: PR_URL }],
+    authorization: null,
+    prUrl: PR_URL,
+    prNumber: 101,
+    createdAt: "2026-10-07T09:00:00Z",
+    updatedAt: "2026-10-07T09:00:00Z",
+    ...over
+  });
+  const seeded = async (state: IssueState, options: { noWriteback?: boolean } = {}) => {
+    env = await createPipelineEnv(options);
+    await env.store.write(state);
+    return env;
+  };
+
+  it("ends the issue at cancelled when the owner closed the PR without a merge", async () => {
+    const e = await seeded(prOpen());
+    e.github.setPullRequestState("CLOSED");
+    expect(await e.pipeline.refreshPr(ISSUE)).toMatchObject({
+      outcome: "stopped",
+      stop: "cancelled"
+    });
+    const read = await e.store.read(ISSUE);
+    expect(read.status === "ok" && read.state).toMatchObject({
+      stage: "cancelled",
+      status: "done"
+    });
+    expect(read.status === "ok" && read.state.history.at(-1)).toMatchObject({
+      stage: "pr-open",
+      event: "pr-closed"
+    });
+  });
+
+  it("refuses a real ship for an issue that writes nothing to GitHub, and changes nothing", async () => {
+    // Shipping would push and open a PR, and a later refresh could never end the issue.
+    const e = await seeded(prOpen({ stage: "pr-review", prNumber: null, prUrl: null }), {
+      noWriteback: true
+    });
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    const result = await e.pipeline.ship(ISSUE, { confirm: true });
+    expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
+    if (result.outcome === "refused") expect(result.reason).toContain("writes nothing to GitHub");
+    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
+    expect(e.github.createdPullRequests).toEqual([]);
+  });
+
+  it("does not let continue park an issue without a PR at pr-open", async () => {
+    const e = await seeded(
+      prOpen({ stage: "needs-you", resumeStage: "build", prNumber: null, prUrl: null })
+    );
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    expect(await e.pipeline.continueFrom(ISSUE, "pr-open")).toMatchObject({
+      outcome: "refused",
+      refusal: "invalid-transition"
+    });
+    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
+  });
+
+  it.each([
+    {
+      name: "outside pr-open",
+      state: prOpen({ stage: "pr-review" }),
+      refusal: "invalid-transition"
+    },
+    { name: "without a PR number", state: prOpen({ prNumber: null }), refusal: "refresh-refused" },
+    { name: "without write-back", state: prOpen(), noWriteback: true, refusal: "refresh-refused" }
+  ])("refuses $name, reads no PR, and changes nothing", async ({ state, noWriteback, refusal }) => {
+    const e = await seeded(state, { noWriteback: noWriteback === true });
+    e.github.setPullRequestState("MERGED");
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    expect(await e.pipeline.refreshPr(ISSUE)).toMatchObject({ outcome: "refused", refusal });
+    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
+    expect(e.github.pullRequestViews).toEqual([]);
   });
 });

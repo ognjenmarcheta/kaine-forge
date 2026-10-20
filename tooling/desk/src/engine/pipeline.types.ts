@@ -84,6 +84,13 @@ export const REFUSALS = [
   "ship-refused",
   /** Applying an intake draft refused: no confirmation, no draft, a changed issue. */
   "draft-refused",
+  /** Reading the PR at `pr-open` refused: no write-back, no PR number, a failed GitHub read. */
+  "refresh-refused",
+  /**
+   * Sending PR feedback refused: no write-back, no PR, a PR that is not open or whose head is
+   * not the worktree HEAD, a dirty worktree, a failed GitHub read, or nothing to send.
+   */
+  "pr-refused",
   /** `start` found state that is past intake. */
   "already-started",
   /** Intake could not run (identity, GitHub, closed state, bad snapshot file). */
@@ -124,6 +131,12 @@ export interface ShipOptions {
   readonly confirm: boolean;
   /** Write the ship plan and the PR body to the artifacts folder. Nothing else changes. */
   readonly dryRun?: boolean | undefined;
+}
+
+/** What the PR feedback action takes. */
+export interface PrFeedbackOptions {
+  /** The owner's own words for the builder. Sent as the owner's, outside the untrusted fence. */
+  readonly text?: string | undefined;
 }
 
 /** A dry run changed no state. It wrote the plan and the PR body. */
@@ -183,6 +196,7 @@ export type StatePatch = Partial<
     | "commitSha"
     | "prUrl"
     | "prNumber"
+    | "prHeadSha"
   >
 >;
 

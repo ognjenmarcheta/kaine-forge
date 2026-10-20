@@ -156,11 +156,12 @@ describe("desk ship", () => {
     const shipped = await h.run("terminal", "ship", "7");
     expect(h.questions).toEqual(["Ship #7 as a draft PR? [y/N] ", "Ship #7 as a draft PR? [y/N] "]);
     expect(shipped.code).toBe(0);
-    expect(shipped.stdout).toContain("#7: shipped (stage shipped, done)");
+    expect(shipped.stdout).toContain("#7: waiting for you (stage pr-open, waiting)");
     expect(shipped.stdout).toContain(
       "open the draft PR: https://github.com/octo-owner/repo/pull/101"
     );
     expect(shipped.stdout).toContain("merge it yourself on GitHub. The desk never merges.");
+    expect(shipped.stdout).toContain("after you merge or close it, run: pnpm desk refresh 7");
     expect(h.github.createdPullRequests).toHaveLength(1);
     expect(h.github.createdPullRequests[0]).toMatchObject({ draft: true, base: "main" });
     expect((await branches(h)).length).toBe(2);
@@ -176,11 +177,17 @@ describe("desk ship", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: true,
       outcome: "stopped",
-      stop: "shipped",
-      stage: "shipped",
+      stop: "gate",
+      stage: "pr-open",
       prUrl: "https://github.com/octo-owner/repo/pull/101"
     });
     expect(h.questions).toEqual([]);
     expect(h.github.createdPullRequests).toHaveLength(1);
+
+    // The owner merged on GitHub. `refresh` reads it once and ends the issue.
+    h.github.setPullRequestState("MERGED");
+    const refreshed = await h.run("refresh", "7");
+    expect(refreshed.code).toBe(0);
+    expect(refreshed.stdout).toContain("#7: shipped (stage shipped, done)");
   });
 });

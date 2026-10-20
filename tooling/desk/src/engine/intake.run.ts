@@ -1,14 +1,18 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
 import {
   DEFAULT_LOOP_LIMITS,
+  fitConfidence,
+  intakeFitRecordSchema,
   type DeskConfig,
   type IssueState,
   type LoopLimits,
   type Stage
 } from "../contracts";
+import { readArtifactJson } from "./pipeline.artifacts";
 import { transition, type MachineState, type Trigger } from "./pipeline.machine";
 import { authorize, fenceUntrusted, trustedComments } from "../github/github.authorization";
 import { formatContract, parseContract, type ContractReport } from "../github/github.contract";
@@ -64,11 +68,35 @@ export type IssueSummary = z.infer<typeof issueSummarySchema>;
 
 const NOTE_READY_FOR_SETUP = "ready for setup";
 
+/** The fit score of the latest intake draft (`IntakeFitRecord`). It outlives the draft. */
+export const INTAKE_FIT_FILE = "intake-fit.json";
+
+export const bodyHash = (body: string): string =>
+  createHash("sha256").update(body, "utf8").digest("hex");
+
+/**
+ * The warning for a low fit score, when the latest draft scored the body the issue has now.
+ * Advice only: the owner decided readiness, so the run goes on.
+ */
+const lowFitWarning = async (artifacts: string, body: string): Promise<string | null> => {
+  const stored = await readArtifactJson(artifacts, INTAKE_FIT_FILE, intakeFitRecordSchema);
+  if (stored.status !== "ok") return null;
+  const { fit, originalBodyHash, draftBodyHash } = stored.value;
+  const hash = bodyHash(body);
+  if (hash !== originalBodyHash && hash !== draftBodyHash) return null;
+  if (fitConfidence(fit) > 1) return null;
+  const weak = (["clarity", "complexity", "verifiability"] as const)
+    .filter((axis) => fit[axis].score === 1)
+    .map((axis) => `${axis}: ${fit[axis].reason}`);
+  return `Fit confidence is 1 of 3. ${weak.join("; ")}`;
+};
+
 const machineOf = (state: IssueState): MachineState => ({
   stage: state.stage,
   resumeStage: state.resumeStage,
   loops: state.loops,
-  lastCheckFingerprint: state.lastCheckFingerprint
+  lastCheckFingerprint: state.lastCheckFingerprint,
+  prRounds: state.prRounds ?? 0
 });
 
 const describe = (error: unknown): string =>
@@ -233,6 +261,12 @@ export const runIntake = async (
     renderTicket(snapshot, owner, contract),
     "utf8"
   );
+
+  const warning = await lowFitWarning(artifacts, snapshot.body);
+  if (warning !== null) {
+    log(`#${issueNumber}: ${warning}`);
+    await record("intake", "fit-warning", warning);
+  }
 
   state = { ...state, authorization: authorization.snapshot };
   move(apply({ type: "stage-complete", stage: "intake", outcome: "ok" }), "waiting");

@@ -169,21 +169,68 @@ describe("GatePanel when the desk needs you", () => {
 });
 
 describe("GatePanel after the ship", () => {
-  it("links the pull request and says that the engineer merges it", async () => {
-    show({ stage: "shipped", status: "done", prUrl: "https://github.com/o/r/pull/9" }, actionsOf());
+  it("at pr-open: links the draft PR, shows the PR rounds, says that the engineer merges it, and checks the PR", async () => {
+    const actions = actionsOf();
+    show(
+      {
+        stage: "pr-open",
+        status: "waiting",
+        prUrl: "https://github.com/o/r/pull/9",
+        prNumber: 9,
+        prRounds: 1
+      },
+      actions
+    );
     const link = screen.getByRole("link", { name: "Open the draft pull request" });
     expect(link.getAttribute("href")).toBe("https://github.com/o/r/pull/9");
     expect(link.getAttribute("rel")).toContain("noreferrer");
+    expect(screen.getByText("PR feedback rounds: 1 of 3")).toBeTruthy();
     expect(screen.getAllByText(/You merge it yourself/)).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Check the PR" }));
+    expect(actions.run).toHaveBeenCalledWith({ action: "refresh-pr" });
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Cancel run" })).toBeTruthy();
+  });
+
+  it("at pr-open: sends the PR feedback to build, without words or with the engineer's words", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-open", status: "waiting", prNumber: 9 }, actions);
+    const open = () => userEvent.click(screen.getByRole("button", { name: "Send PR feedback" }));
+    const box = () => screen.getByRole("textbox", { name: "Your note for the builder (optional)" });
+    const send = () => userEvent.click(screen.getByRole("button", { name: "Send to build" }));
+
+    await open();
+    expect(document.activeElement).toBe(box());
+    await send();
+    expect(actions.run).toHaveBeenLastCalledWith({ action: "pr-feedback" });
+
+    await open();
+    await userEvent.type(box(), "  Keep the old name  ");
+    await send();
+    expect(actions.run).toHaveBeenLastCalledWith({
+      action: "pr-feedback",
+      text: "  Keep the old name  "
+    });
+  });
+
+  it("after the merge: links the pull request and has no run to cancel", async () => {
+    show({ stage: "shipped", status: "done", prUrl: "https://github.com/o/r/pull/9" }, actionsOf());
+    const link = screen.getByRole("link", { name: "Open the pull request" });
+    expect(link.getAttribute("href")).toBe("https://github.com/o/r/pull/9");
+    expect(screen.queryByRole("button", { name: "Check the PR" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "More actions" }));
     expect(await screen.findByRole("menuitem", { name: "Remove" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Cancel run" })).toBeNull();
   });
 
-  it("never links an address that is not a web link", () => {
-    show({ stage: "shipped", status: "done", prUrl: "javascript:alert(1)" }, actionsOf());
-    expect(screen.queryByRole("link")).toBeNull();
-  });
+  it.each(["pr-open", "shipped"] as const)(
+    "never links an address that is not a web link (%s)",
+    (stage) => {
+      const status = stage === "shipped" ? "done" : "waiting";
+      show({ stage, status, prUrl: "javascript:alert(1)" }, actionsOf());
+      expect(screen.queryByRole("link")).toBeNull();
+    }
+  );
 });
 
 describe("GatePanel dialogs", () => {

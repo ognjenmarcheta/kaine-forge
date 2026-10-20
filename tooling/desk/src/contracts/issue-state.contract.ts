@@ -70,11 +70,14 @@ export const activeProcessSchema = z
   .strict();
 export type ActiveProcess = z.infer<typeof activeProcessSchema>;
 
-/** Input for the next run of a stage: engineer feedback, a check failure, or review findings. */
+/**
+ * Input for the next run of a stage: engineer feedback, a check failure, review findings, or
+ * feedback from the open PR (`pr`, added with the PR feedback loop).
+ */
 export const pendingFeedbackSchema = z
   .object({
     target: feedbackTargetSchema,
-    source: z.enum(["human", "check", "review"]),
+    source: z.enum(["human", "check", "review", "pr"]),
     text: z.string().min(1)
   })
   .strict();
@@ -127,6 +130,17 @@ export const issueStateSchema = z
      * `desk start --isolation`. Without it the config default applies.
      */
     isolation: isolationSchema.optional(),
+    /**
+     * Added with the `pr-open` stage. PR feedback rounds that went back to `build`.
+     * `feedback` and `continue` never reset it. A reader treats a missing field like 0.
+     */
+    prRounds: z.number().int().nonnegative().optional(),
+    /** The PR head commit the desk last pushed or read. */
+    prHeadSha: z
+      .string()
+      .regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/)
+      .nullable()
+      .optional(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema
   })

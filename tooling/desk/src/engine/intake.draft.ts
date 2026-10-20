@@ -1,10 +1,14 @@
-import { createHash } from "node:crypto";
-
-import { renderTicket } from "./intake.run";
+import { INTAKE_FIT_FILE, bodyHash, renderTicket } from "./intake.run";
 import { runAgentStage } from "./pipeline.agent";
 import { ARTIFACTS, writeArtifactJson, writeArtifactText } from "./pipeline.artifacts";
 import type { StageContext } from "./pipeline.types";
-import { intakeOutputSchema, issueDraftSchema, type IssueDraft } from "../contracts";
+import {
+  intakeFitRecordSchema,
+  intakeOutputSchema,
+  issueDraftSchema,
+  type IntakeFitRecord,
+  type IssueDraft
+} from "../contracts";
 import { parseContract } from "../github/github.contract";
 import { renderIssueBody } from "../github/github.format";
 import type { IssueSnapshot } from "../github/github.types";
@@ -13,8 +17,9 @@ import type { IssueSnapshot } from "../github/github.types";
  * The intake draft: for an issue that stopped at intake, the read-only intake agent sorts the
  * author's facts into the six sections of `docs/agents/issue-format.md`, and the engine renders
  * the new body. It runs in the main checkout, because no worktree exists before setup, with the
- * same invariants as every agent stage. It writes only `issue-draft.json` (and `ticket.md`, the
- * fenced issue text the agent reads). It never writes to GitHub.
+ * same invariants as every agent stage. It writes only `issue-draft.json`, `intake-fit.json` (the
+ * fit score, which outlives the draft), and `ticket.md` (the fenced issue text the agent reads).
+ * It never writes to GitHub.
  */
 
 export type DraftOutcome =
@@ -22,9 +27,6 @@ export type DraftOutcome =
   | { readonly ok: false; readonly reason: string; readonly aborted: boolean };
 
 export const ISSUE_DRAFT_FILE = "issue-draft.json";
-
-export const bodyHash = (body: string): string =>
-  createHash("sha256").update(body, "utf8").digest("hex");
 
 export const draftIssueFormat = async (
   context: StageContext,
@@ -74,11 +76,24 @@ export const draftIssueFormat = async (
     acceptanceCriteria: contract.acceptanceCriteria.length,
     recommendation: output.recommendation,
     reasons: output.reasons,
+    fit: output.fit,
     unknowns: output.unknowns,
     plainLanguage: output.plainLanguage,
     provider: deps.config.providers.intake,
     model: deps.config.models.intake ?? null
   } satisfies IssueDraft);
   await writeArtifactJson(context.artifactsDir, ISSUE_DRAFT_FILE, draft);
+  await writeArtifactJson(
+    context.artifactsDir,
+    INTAKE_FIT_FILE,
+    intakeFitRecordSchema.parse({
+      schema: 1,
+      issue: snapshot.number,
+      createdAt: draft.createdAt,
+      originalBodyHash: draft.originalBodyHash,
+      draftBodyHash: bodyHash(body),
+      fit: output.fit
+    } satisfies IntakeFitRecord)
+  );
   return { ok: true, draft };
 };

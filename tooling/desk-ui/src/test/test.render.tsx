@@ -92,6 +92,8 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     status: state.status,
     branch: state.branch,
     loops: state.loops,
+    prRound: state.prRounds ?? 0,
+    prRoundLimit: 3,
     needsYouReason: null,
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,

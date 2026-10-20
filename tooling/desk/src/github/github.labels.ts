@@ -57,10 +57,10 @@ export const planLabelChange = (
 export const isEmptyChange = (change: LabelChange): boolean =>
   change.add.length === 0 && change.remove.length === 0;
 
-/** The execution label that matches an issue's state, or `null` for none. */
+/** The execution label that matches an issue's state, or `null` for none (also after the merge). */
 export const labelForState = (state: IssueState): AgentLabel | null => {
-  if (state.stage === "shipped") return "agent:pr-open";
-  if (state.stage === "cancelled") return null;
+  if (state.stage === "pr-open") return "agent:pr-open";
+  if (state.stage === "shipped" || state.stage === "cancelled") return null;
   if (state.stage === "needs-you" || HUMAN_GATES.some((gate) => gate === state.stage)) {
     return "agent:needs-you";
   }

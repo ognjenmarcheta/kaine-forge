@@ -20,6 +20,8 @@ export const STATUS_BY_CODE: Readonly<Record<ApiErrorCode, number>> = {
   "invalid-transition": 409,
   "ship-refused": 409,
   "draft-refused": 409,
+  "refresh-refused": 409,
+  "pr-refused": 409,
   "already-started": 409,
   "intake-refused": 409,
   authorization: 409,

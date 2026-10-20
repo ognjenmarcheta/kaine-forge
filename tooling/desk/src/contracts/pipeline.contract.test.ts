@@ -30,6 +30,7 @@ describe("pipeline contract", () => {
         "pr-review>build",
         "pr-review>plan",
         "pr-review>review",
+        "pr-open>build",
         "review>build"
       ].sort()
     );

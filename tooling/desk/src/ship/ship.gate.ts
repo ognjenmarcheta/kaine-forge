@@ -2,6 +2,7 @@ import type { CheckKind, CheckReport } from "../check";
 import { isValidBranchName } from "../engine/worktree.bootstrap";
 import type { RecheckResult } from "../github/github.authorization";
 import type { ControllerIdentity } from "../github/github.identity";
+import type { PullRequestView } from "../github/github.pull-request";
 import { protectedPathReason } from "../policy";
 
 /**
@@ -18,7 +19,9 @@ import { protectedPathReason } from "../policy";
  * 5. the authorization snapshot still holds (issue open, text unchanged);
  * 6. HEAD, the branch and the remotes are as the last agent stage left them;
  * 7. no protected path is in the diff, and the diff is not empty;
- * 8. the engineer approved the plan, and the reviewer approved the code that ships.
+ * 8. the engineer approved the plan, and the reviewer approved the code that ships;
+ * 9. for an update of an open PR (a PR feedback round): a fresh read of the PR
+ *    shows it open, on the issue branch, at a head the desk knows.
  */
 
 export const SHIP_GATE_FAILURES = [
@@ -40,7 +43,11 @@ export const SHIP_GATE_FAILURES = [
   "plan-not-approved",
   "review-missing",
   "review-not-approved",
-  "review-stale"
+  "review-stale",
+  "pr-unavailable",
+  "pr-not-open",
+  "pr-head-moved",
+  "pr-mismatch"
 ] as const;
 export type ShipGateFailureKind = (typeof SHIP_GATE_FAILURES)[number];
 
@@ -61,6 +68,20 @@ export interface ShipGateReview {
   readonly blockingFindings: number;
   /** Hash of the diff the reviewer read. */
   readonly diffHash: string;
+}
+
+/** An update ship pushes to the PR the first ship opened. The gate reads it again first. */
+export interface ShipGatePullRequest {
+  readonly number: number;
+  /** The branch the PR must have as its head. */
+  readonly branch: string;
+  /**
+   * Heads the PR may have: the head the desk pushed or read last, and a commit this run
+   * already pushed (a run that resumes after the push).
+   */
+  readonly allowedHeads: readonly string[];
+  /** A fresh read of the PR, or why the read failed. */
+  readonly view: PullRequestView | { readonly error: string };
 }
 
 export interface ShipGateInput {
@@ -85,7 +106,39 @@ export interface ShipGateInput {
   readonly review: ShipGateReview | null;
   /** The diff hash the review must carry, or `null` to skip that comparison (after a rebase). */
   readonly expectedReviewDiffHash: string | null;
+  /** The open PR an update ship pushes to. Absent or `null` for the first ship. */
+  readonly pullRequest?: ShipGatePullRequest | null | undefined;
 }
+
+/** Rule 9 alone. The executor asks it again right before an update push. */
+export const pullRequestFailures = (pr: ShipGatePullRequest): ShipGateFailure[] => {
+  const { view } = pr;
+  if ("error" in view) {
+    return [
+      { kind: "pr-unavailable", message: `PR #${pr.number} could not be read: ${view.error}` }
+    ];
+  }
+  const failures: ShipGateFailure[] = [];
+  if (view.number !== pr.number || view.headRefName !== pr.branch) {
+    failures.push({
+      kind: "pr-mismatch",
+      message: `PR #${view.number} has the head '${view.headRefName}', but the issue records PR #${pr.number} on '${pr.branch}'.`
+    });
+  }
+  if (view.state !== "OPEN") {
+    failures.push({
+      kind: "pr-not-open",
+      message: `PR #${pr.number} is ${view.state.toLowerCase()}. Run refresh.`
+    });
+  }
+  if (!pr.allowedHeads.includes(view.headRefOid)) {
+    failures.push({
+      kind: "pr-head-moved",
+      message: `The head of PR #${pr.number} moved to ${short(view.headRefOid)}. Someone else pushed to the branch.`
+    });
+  }
+  return failures;
+};
 
 export interface ShipGateResult {
   readonly ok: boolean;
@@ -187,6 +240,8 @@ export const evaluateShipGate = (input: ShipGateInput): ShipGateResult => {
       );
     }
   }
+
+  if (input.pullRequest != null) failures.push(...pullRequestFailures(input.pullRequest));
 
   return { ok: failures.length === 0, failures };
 };

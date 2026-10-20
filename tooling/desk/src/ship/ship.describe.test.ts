@@ -45,6 +45,17 @@ describe("describeShipFailure", () => {
     });
     expect(text).toContain("subject may not be empty");
   });
+
+  it("lists what changed on the PR of an update ship", () => {
+    const text = describeShipFailure({
+      kind: "pr-changed",
+      message: "PR #101 changed before the push. Nothing was pushed.",
+      failures: [{ kind: "pr-head-moved", message: "The head of PR #101 moved to dddddddddddd." }],
+      progress: null
+    });
+    expect(text).toContain("Ship failed (pr-changed)");
+    expect(text).toContain("- pr-head-moved: The head of PR #101 moved to dddddddddddd.");
+  });
 });
 
 describe("describeShipFailure for failed checks", () => {
