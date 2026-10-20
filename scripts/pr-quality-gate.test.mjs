@@ -399,4 +399,31 @@ describe("Hand-kept alignments", () => {
     assert.equal(enforce.env.GH_TOKEN, "${{ github.token }}");
     assert.equal(enforce.env.PR_NUMBER, "${{ github.event.pull_request.number }}");
   });
+
+  it("keeps Dependabot off every package that lives in both catalogs (#535)", () => {
+    // Dependabot cannot target catalogs.mobile; an update to a dual-catalog
+    // package rewrites one lane to the other's line (#534 turned the web
+    // tailwindcss ^4.3.3 into ^3.4.19 on a patch). Only a full ignore stops it.
+    const workspace = parse(readFileSync("pnpm-workspace.yaml", "utf8"));
+    const mobile = new Set(Object.keys(workspace.catalogs?.mobile ?? {}));
+    const dualCatalog = Object.keys(workspace.catalog ?? {}).filter((name) => mobile.has(name));
+    assert.ok(dualCatalog.length > 0, "expected at least one package in both catalogs");
+
+    const dependabot = parse(readFileSync(".github/dependabot.yml", "utf8"));
+    const npm = dependabot.updates.find((entry) => entry["package-ecosystem"] === "npm");
+    const fullIgnores = (npm.ignore ?? [])
+      .filter((entry) => !entry["update-types"] && !entry.versions)
+      .map((entry) => entry["dependency-name"]);
+    const ignoredFully = (name) =>
+      fullIgnores.some(
+        (pattern) =>
+          pattern === name || (pattern.endsWith("*") && name.startsWith(pattern.slice(0, -1)))
+      );
+
+    assert.deepEqual(
+      dualCatalog.filter((name) => !ignoredFully(name)),
+      [],
+      "add a full npm ignore entry (no update-types) in .github/dependabot.yml"
+    );
+  });
 });
