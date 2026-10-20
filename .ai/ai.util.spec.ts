@@ -605,6 +605,20 @@ describe("renderGrokSkill", () => {
 });
 
 describe("renderClaudeSettings", () => {
+  it("auto-allows read-only MCP lookups but keeps code-running and browser tools prompted", () => {
+    const { permissions } = JSON.parse(renderClaudeSettings()) as {
+      permissions: { allow: string[] };
+    };
+
+    expect(permissions.allow).toEqual(
+      expect.arrayContaining(["mcp__context7__query-docs", "mcp__serena__initial_instructions"])
+    );
+    // Wildcards, whole servers, code execution, memory writes, and browser servers stay prompted.
+    const prompted =
+      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|^mcp__(?!context7__|serena__)/;
+    expect(permissions.allow.filter((rule) => prompted.test(rule))).toEqual([]);
+  });
+
   it("installs only local AI context SessionStart hooks", () => {
     const settings = JSON.parse(renderClaudeSettings()) as {
       hooks: {

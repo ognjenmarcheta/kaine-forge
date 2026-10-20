@@ -236,6 +236,34 @@ describe("session-start hook", () => {
     }
   });
 
+  it("warns a Claude worktree session when the main checkout's MCP servers differ or are missing", () => {
+    const repo = makeRepo();
+    const worktree = `${repo}-wt`;
+    try {
+      execFileSync(
+        "git",
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init"],
+        { cwd: repo, stdio: "ignore" }
+      );
+      execFileSync("git", ["worktree", "add", worktree], { cwd: repo, stdio: "ignore" });
+      writeFile(repo, ".mcp.json", JSON.stringify({ mcpServers: { old: { command: "old" } } }));
+      writeFile(worktree, ".mcp.json", JSON.stringify({ mcpServers: { new: { command: "new" } } }));
+
+      const stale = runHook(worktree, "claude").stdout;
+      expect(stale).toContain(join(repo, ".mcp.json"));
+      expect(stale).toContain("run pnpm ai:install --agent claude in");
+      expect(runHook(worktree, "codex").stdout).not.toContain(join(repo, ".mcp.json"));
+
+      writeFile(worktree, ".mcp.json", JSON.stringify({ mcpServers: { old: { command: "old" } } }));
+      expect(runHook(worktree, "claude").stdout).not.toContain(join(repo, ".mcp.json"));
+
+      rmSync(join(repo, ".mcp.json"));
+      expect(runHook(worktree, "claude").stdout).toContain(join(repo, ".mcp.json"));
+    } finally {
+      rmSync(worktree, { recursive: true, force: true });
+      rmSync(repo, { recursive: true, force: true });
+    }
+  }, 30_000);
   it("exits cleanly outside a git repository", () => {
     const cwd = mkdtempSync(join(tmpdir(), "kaine-hook-no-repo-"));
     try {

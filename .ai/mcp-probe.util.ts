@@ -16,9 +16,16 @@ export function validateMcpPins(source: McpSource): string[] {
   const problems: string[] = [];
   for (const [name, server] of Object.entries(source.mcpServers)) {
     if (server.command === "npx") {
-      const specifier = server.args?.find((arg) => !arg.startsWith("-"));
+      const args = server.args ?? [];
+      const specifierAt = args.findIndex((arg) => !arg.startsWith("-"));
+      const specifier = args[specifierAt];
       if (!specifier || !/@\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(specifier))
         problems.push(`${name}: pin the npm package to an exact version`);
+      // From the repo root, npx scans the pnpm node_modules tree first: seconds warm, past the
+      // agents' 30 s start-up limit cold. `.ai` has no node_modules, so the scan is instant.
+      // npx hands options after the package to the server, so the prefix must come first.
+      if (!args.slice(0, specifierAt < 0 ? args.length : specifierAt).includes("--prefix=.ai"))
+        problems.push(`${name}: start npx with --prefix=.ai to skip the workspace scan`);
     }
     if (server.command === "uvx") {
       const args = server.args ?? [];
@@ -71,9 +78,10 @@ const initializeResponse = z.object({
     serverInfo: z.object({ name: z.string(), version: z.string() })
   })
 });
+/** Defaults to Claude Code's 30 s MCP start-up limit; Serena alone needs about 10 s. */
 export async function probeMcp(
   server: McpServer,
-  timeoutMs = 10_000
+  timeoutMs = 30_000
 ): Promise<{ status: "passed" | "failed"; reason: string; cleanup: CleanupStatus }> {
   let child: ChildProcess | undefined;
   let outcome: { status: "passed" | "failed"; reason: string };
