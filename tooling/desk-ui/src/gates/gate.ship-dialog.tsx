@@ -18,6 +18,8 @@ export type ShipPhase =
 
 export interface ShipDialogProps {
   readonly issueNumber: number;
+  /** The open PR of an earlier round. The ship then pushes to it and opens none. */
+  readonly pullRequest: number | null;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly actions: IssueActions;
@@ -30,7 +32,13 @@ const SHIP = { action: "ship", confirm: true, dryRun: false } as const;
  * Two steps before a ship. The dry run changes nothing and shows what the ship would do
  * and which gate rules fail. A second screen asks for the final yes. Only that yes sends `confirm: true`.
  */
-export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDialogProps) {
+export function ShipDialog({
+  issueNumber,
+  pullRequest,
+  open,
+  onOpenChange,
+  actions
+}: ShipDialogProps) {
   const t = useT();
   const { api } = useDesk();
   const [phase, setPhase] = useState<ShipPhase>({ kind: "checking" });
@@ -65,7 +73,7 @@ export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDia
     const settled = await run.current(SHIP);
     if (settled.kind === "error") {
       setPhase({ kind: "failed", code: settled.code, detail: settled.detail });
-    } else if (settled.kind === "done" && settled.outcome.stop !== "shipped") {
+    } else if (settled.kind === "done" && settled.outcome.stage !== "pr-open") {
       // The ship stopped before the PR (a hook failed): the issue is in needs-you.
       setPhase({ kind: "failed", code: "ship-refused", detail: settled.outcome.message });
     } else {
@@ -141,13 +149,16 @@ export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDia
             <span>{t("desk.ship.checking")}</span>
           </p>
         )}
-        {phase.kind === "review" && <ShipReview plan={phase.plan} prBody={phase.prBody} />}
+        {phase.kind === "review" && (
+          <ShipReview plan={phase.plan} prBody={phase.prBody} pullRequest={pullRequest} />
+        )}
         {phase.kind === "confirm" && (
           <>
             <p>
-              {t("desk.ship.confirmText", {
+              {t(pullRequest === null ? "desk.ship.confirmText" : "desk.ship.updateText", {
                 count: phase.plan.files.length,
-                branch: phase.plan.branch ?? t("desk.common.unknown")
+                branch: phase.plan.branch ?? t("desk.common.unknown"),
+                pr: pullRequest ?? 0
               })}
             </p>
             <p className="desk-note">{t("desk.ship.youMerge")}</p>
@@ -161,7 +172,11 @@ export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDia
         )}
         {phase.kind === "shipped" && (
           <>
-            <p className="desk-note">{t("desk.ship.done")}</p>
+            <p className="desk-note">
+              {pullRequest === null
+                ? t("desk.ship.done")
+                : t("desk.ship.updated", { pr: pullRequest })}
+            </p>
             <p className="desk-muted">{t("desk.ship.youMerge")}</p>
           </>
         )}
@@ -173,10 +188,12 @@ export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDia
 
 function ShipReview({
   plan,
-  prBody
+  prBody,
+  pullRequest
 }: {
   readonly plan: ShipPlanView;
   readonly prBody: string | null;
+  readonly pullRequest: number | null;
 }) {
   const t = useT();
   return (
@@ -208,8 +225,14 @@ function ShipReview({
         </p>
       </Section>
       <Section title={t("desk.ship.pullRequest")}>
-        <p>{plan.pullRequest.title}</p>
-        <p className="desk-muted">{t("desk.ship.draft")}</p>
+        {pullRequest === null ? (
+          <>
+            <p>{plan.pullRequest.title}</p>
+            <p className="desk-muted">{t("desk.ship.draft")}</p>
+          </>
+        ) : (
+          <p>{t("desk.ship.updatesPr", { pr: pullRequest })}</p>
+        )}
       </Section>
       <Section title={t("desk.ship.changeset")}>
         <p>

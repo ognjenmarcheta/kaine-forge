@@ -1,4 +1,4 @@
-import { appendFile, mkdir, rm, rmdir } from "node:fs/promises";
+import { appendFile, mkdir, rename, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -14,7 +14,7 @@ import {
 } from "../contracts";
 import { ISSUE_DRAFT_FILE, draftIssueFormat } from "./intake.draft";
 import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
-import { ARTIFACTS, readArtifactJson, readPlan } from "./pipeline.artifacts";
+import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
 import { recoverIssue, stopLeftoverProcess, type RecoveryDeps } from "./pipeline.recovery";
@@ -40,6 +40,7 @@ import type {
   ApplyDraftOptions,
   DraftActionResult,
   DraftOptions,
+  PrFeedbackOptions,
   Refusal,
   ShipActionResult,
   ShipDryRunResult,
@@ -59,13 +60,21 @@ import {
   planLabelChange
 } from "../github/github.labels";
 import {
+  boundPrFeedback,
+  renderPrFeedback,
+  selectPrFeedback,
+  type PullRequestFeedbackRaw
+} from "../github/github.pr-feedback";
+import type { PullRequestView } from "../github/github.pull-request";
+import {
   SnapshotFileError,
   createSnapshotGitHubPort,
   readSnapshotFile
 } from "../github/github.snapshot-file";
 import { renderStatusComment } from "../github/github.status-comment";
-import type { IssueSnapshot } from "../github/github.types";
+import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
+import { SHIP_RECORD_FILE } from "../ship/ship.contract";
 import {
   describeGateFailures,
   describeShipEvent,
@@ -134,6 +143,20 @@ export interface PipelineRunner {
    */
   readonly ship: (issue: number, options: ShipOptions) => Promise<ShipActionResult>;
   /**
+   * At `pr-open`: read the draft PR on GitHub once. Merged ends the issue at `shipped`,
+   * closed ends it at `cancelled`, open changes nothing. Only the owner runs it: the desk
+   * never polls, and it never merges, approves, or marks the PR ready.
+   */
+  readonly refreshPr: (issue: number) => Promise<PipelineResult>;
+  /**
+   * At `pr-open`: collect the failing checks and the trusted reviews and comments on the PR
+   * head, add the owner's own text, and send it all to `build`. Then drive to `pr-review`.
+   * It refuses, and changes nothing, unless the PR is open, its head is the clean worktree
+   * HEAD, and there is something to send. At the round limit it stops at `needs-you` and
+   * reads nothing.
+   */
+  readonly feedbackFromPr: (issue: number, options?: PrFeedbackOptions) => Promise<PipelineResult>;
+  /**
    * For an issue that stopped at intake: the read-only intake agent drafts the issue in the
    * format of `docs/agents/issue-format.md`, into `issue-draft.json`. The issue stays at
    * `needs-you`, and nothing is written to GitHub.
@@ -181,7 +204,11 @@ const refused = (refusal: Refusal, reason: string, state: IssueState | null = nu
 export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const { store, clock, config, github } = deps;
   const scheduler = deps.scheduler ?? createScheduler(config.maxConcurrentAgents);
-  const limits: LoopLimits = { check: config.maxTestLoops, review: config.maxReviewLoops };
+  const limits: LoopLimits = {
+    check: config.maxTestLoops,
+    review: config.maxReviewLoops,
+    prRounds: config.maxPrRounds
+  };
   const controllers = new Map<number, AbortController>();
   const knownLabels = new Map<number, readonly string[]>();
   /** Issues read from a snapshot file: nothing of theirs goes to GitHub. */
@@ -306,6 +333,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       if (review.status !== "ok") return null;
       return `Review approved with ${review.value.review.findings.length} finding(s). ${review.value.review.plainLanguage}`;
     }
+    if (state.stage === "pr-open" && state.prUrl) return `Draft PR: ${state.prUrl}`;
     return null;
   };
 
@@ -324,9 +352,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const describeStop = (
     reason: NeedsYouReason | null,
     from: Stage,
-    outcome: StageOutcome
+    outcome: StageOutcome | null
   ): string => {
-    if (outcome.kind === "needs-you") return outcome.reason;
+    if (outcome?.kind === "needs-you") return outcome.reason;
+    if (reason === "pr-round-limit") {
+      return `PR feedback went back to build ${limits.prRounds} round(s). Finish the PR by hand, or continue.`;
+    }
     if (reason === "same-failure") {
       return "The same check failure came back after a fix attempt. Read check-report.json in the artifacts folder, then give feedback to build or continue.";
     }
@@ -372,7 +403,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     else if (isGate(state.stage))
       notify(state, "gate", (await gateMessage(state)) ?? "Waiting for you.");
     else if (state.stage === "shipped") {
-      notify(state, "done", state.prUrl ? `Draft PR: ${state.prUrl}` : "Done.");
+      notify(state, "done", state.prUrl ? `PR merged: ${state.prUrl}` : "Done.");
     }
   };
 
@@ -625,8 +656,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     trigger: Trigger,
     options: {
       readonly event: string;
-      readonly note?: string;
-      readonly patch?: StatePatch;
+      /** A function is read after `prepare`, so it can use what `prepare` found. */
+      readonly note?: string | (() => string | undefined);
+      readonly patch?: StatePatch | (() => StatePatch | undefined);
       readonly prepare?: (session: Session) => Promise<PipelineResult | null>;
       readonly after?: (session: Session) => Promise<void>;
     }
@@ -641,11 +673,18 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         if (early) return early;
 
         const from = session.state.stage;
-        const moved = move(session, trigger, options.patch);
+        const patch = typeof options.patch === "function" ? options.patch() : options.patch;
+        const note = typeof options.note === "function" ? options.note() : options.note;
+        const moved = move(session, trigger, patch);
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
-        await record(session, from, options.event, options.note);
+        await record(session, from, options.event, note);
         await options.after?.(session);
-        await finishMove(session, null);
+        let reason: string | null = null;
+        if (session.state.stage === "needs-you") {
+          reason = describeStop(moved.reasonCode, from, null);
+          await record(session, "needs-you", "needs-you", reason);
+        }
+        await finishMove(session, reason);
         return drive(session);
       },
       { needsState: true }
@@ -702,6 +741,128 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       }
     );
 
+  const feedbackFromPr: PipelineRunner["feedbackFromPr"] = (issue, options = {}) => {
+    const ownerText = options.text?.trim() ?? "";
+    let collected: { readonly text: string; readonly note: string; readonly head: string } | null =
+      null;
+    return humanAction(
+      issue,
+      { type: "pr-feedback" },
+      {
+        event: "pr-feedback",
+        note: () => collected?.note,
+        patch: () =>
+          collected === null
+            ? undefined
+            : {
+                pendingFeedback: { target: "build", source: "pr", text: collected.text },
+                prHeadSha: collected.head,
+                shipConfirmed: false
+              },
+        prepare: async (session) => {
+          // At the round limit the machine stops the issue. Nothing is read from GitHub.
+          const limit = transition(machineOf(session.state), { type: "pr-feedback" }, limits);
+          if (limit.ok && limit.nextStage === "needs-you") return null;
+
+          const refuse = (reason: string): PipelineResult =>
+            refused("pr-refused", `${reason} Nothing was changed.`, session.state);
+          if (deps.noWriteback === true || noWriteback.has(issue)) {
+            return refuse(
+              `#${issue} reads nothing from GitHub (no write-back or a snapshot file).`
+            );
+          }
+          const prNumber = session.state.prNumber ?? null;
+          if (prNumber === null) return refuse(`#${issue} has no pull request number.`);
+          const worktree = session.state.worktreePath;
+          if (worktree === null) return refuse(`#${issue} has no worktree.`);
+
+          let pr: PullRequestView;
+          try {
+            pr = await github.viewPullRequest(prNumber);
+          } catch (error) {
+            return refuse(`GitHub read failed: ${message(error)}.`);
+          }
+          if (pr.state !== "OPEN") {
+            return refuse(`PR #${prNumber} is ${pr.state.toLowerCase()}. Run refresh.`);
+          }
+          // The builder works on the worktree. Feedback on another head is about other code.
+          const head = await deps.git.headSha(worktree);
+          if (pr.headRefOid !== head) {
+            return refuse(
+              `The head of PR #${prNumber} (${pr.headRefOid.slice(0, 12)}) is not the worktree HEAD (${head.slice(0, 12)}). Someone else pushed to the branch.`
+            );
+          }
+          if ((await deps.git.statusPorcelain(worktree)).trim() !== "") {
+            return refuse("The worktree has uncommitted changes.");
+          }
+
+          let raw: PullRequestFeedbackRaw;
+          try {
+            raw = await github.fetchPullRequestFeedback(prNumber, head);
+          } catch (error) {
+            return refuse(`GitHub read failed: ${message(error)}.`);
+          }
+          const since =
+            [...session.state.history]
+              .reverse()
+              .find((entry) => entry.event === "pr-opened" || entry.event === "pr-updated")?.at ??
+            null;
+          const selected = selectPrFeedback(raw, {
+            headSha: head,
+            since,
+            trusted: TRUSTED_ASSOCIATIONS
+          });
+          const items = selected.comments.length + selected.failingChecks.length;
+          if (items === 0 && ownerText === "") {
+            return refuse(
+              `PR #${prNumber} has no failing check and no trusted comment on ${head.slice(0, 12)}, and you wrote no text.`
+            );
+          }
+
+          const text = [
+            ...(ownerText === "" ? [] : [`### The owner's note\n\n${ownerText}`]),
+            ...(items === 0
+              ? []
+              : [
+                  `### From PR #${prNumber} at ${head.slice(0, 12)}\n\n${renderPrFeedback(selected)}`
+                ])
+          ].join("\n\n");
+          const dir = store.artifactsDir(issue);
+          await mkdir(dir, { recursive: true });
+          await writeArtifactJson(dir, ARTIFACTS.prFeedback, {
+            version: 1,
+            prNumber,
+            headSha: head,
+            since,
+            collectedAt: stamp(),
+            ...boundPrFeedback(selected)
+          });
+          await appendFile(
+            path.join(dir, ARTIFACTS.feedback),
+            `\n## ${stamp()} to build from PR #${prNumber}\n\n${text}\n`,
+            "utf8"
+          );
+          // The ship of this round starts clean. The record of the last ship stays readable.
+          const round = session.state.prRounds ?? 0;
+          await rename(
+            path.join(dir, SHIP_RECORD_FILE),
+            path.join(dir, `ship-record.round-${round}.json`)
+          ).catch((error: unknown) => {
+            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+              throw error;
+            }
+          });
+          collected = {
+            text,
+            head,
+            note: `round ${round + 1}: ${selected.comments.length} comment(s), ${selected.failingChecks.length} failing check(s)${ownerText === "" ? "" : ", owner note"}`
+          };
+          return null;
+        }
+      }
+    );
+  };
+
   const continueFrom: PipelineRunner["continueFrom"] = (issue, stage) =>
     withLease(
       issue,
@@ -723,6 +884,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           return refused(
             "ship-refused",
             `A ship starts only from 'pr-review', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
+            session.state
+          );
+        }
+        if (target === "pr-open" && (session.state.prNumber ?? null) === null) {
+          return refused(
+            "invalid-transition",
+            `#${issue} has no pull request to wait for. Continue from another stage.`,
             session.state
           );
         }
@@ -752,7 +920,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   /**
    * Run the ship executor for a session. A real run enters the `ship` stage
    * only after the gate passed, so a refusal changes nothing. A retry starts
-   * inside `ship`. Success ends the issue at `shipped`; any failure after
+   * inside `ship`. Success moves the issue to `pr-open`; any failure after
    * the first change ends it at `needs-you` with `resumeStage: "ship"`.
    */
   const executeShip = async (
@@ -823,12 +991,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         await begin();
         await applyOutcome(session, "ship", {
           kind: "complete",
-          event: "shipped",
+          event: result.updated ? "pr-updated" : "pr-opened",
           note: result.prUrl,
           patch: {
             prUrl: result.prUrl,
             prNumber: result.prNumber,
             commitSha: result.commitSha,
+            prHeadSha: result.commitSha,
             baseSha: result.baseSha
           }
         });
@@ -851,6 +1020,14 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
+        // A push and a PR are writes too. A dry run writes nothing, so it stays available.
+        if (!dryRun && (deps.noWriteback === true || noWriteback.has(issue))) {
+          return refused(
+            "ship-refused",
+            `#${issue} writes nothing to GitHub (no write-back or a snapshot file), so it cannot ship. Nothing was changed.`,
+            session.state
+          );
+        }
         const execution = await executeShip(session, { dryRun, retry: false });
         if (execution.kind === "refused") {
           return refused(
@@ -863,6 +1040,49 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           const { plan, files } = execution.result;
           return { outcome: "dry-run", state: session.state, plan, files };
         }
+        return stopped(session.state);
+      },
+      { needsState: true }
+    );
+
+  const refreshPr: PipelineRunner["refreshPr"] = (issue) =>
+    withLease(
+      issue,
+      async (loaded): Promise<PipelineResult> => {
+        const session = requireSession(loaded);
+        const check = transition(
+          machineOf(session.state),
+          { type: "pr-closed", merged: true },
+          limits
+        );
+        if (!check.ok) return refused("invalid-transition", check.reason, session.state);
+        const refuse = (reason: string): PipelineResult =>
+          refused("refresh-refused", `${reason} Nothing was changed.`, session.state);
+        if (deps.noWriteback === true || noWriteback.has(issue)) {
+          return refuse(`#${issue} reads nothing from GitHub (no write-back or a snapshot file).`);
+        }
+        const prNumber = session.state.prNumber ?? null;
+        if (prNumber === null) return refuse(`#${issue} has no pull request number.`);
+
+        let pr: PullRequestView;
+        try {
+          pr = await github.viewPullRequest(prNumber);
+        } catch (error) {
+          return refuse(`GitHub read failed: ${message(error)}.`);
+        }
+        if (pr.state === "OPEN") {
+          return {
+            outcome: "stopped",
+            stop: "gate",
+            state: session.state,
+            message: `PR #${prNumber} is still open: ${pr.url}`
+          };
+        }
+        const merged = pr.state === "MERGED";
+        const moved = move(session, { type: "pr-closed", merged });
+        if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
+        await record(session, "pr-open", merged ? "pr-merged" : "pr-closed", pr.url);
+        await finishMove(session, null);
         return stopped(session.state);
       },
       { needsState: true }
@@ -1104,6 +1324,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     feedback,
     continueFrom,
     ship,
+    refreshPr,
+    feedbackFromPr,
     draft,
     applyDraft,
     cancel,

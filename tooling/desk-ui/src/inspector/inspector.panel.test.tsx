@@ -255,7 +255,7 @@ describe("stage selection", () => {
   it("selects a stage from the stepper and marks the current one", async () => {
     renderDesk(<Selectable issueNumber={102} kind="stepper" />);
     const list = screen.getByRole("list", { name: "Stages and their status" });
-    expect(within(list).getAllByRole("button")).toHaveLength(8);
+    expect(within(list).getAllByRole("button")).toHaveLength(9);
     const current = within(list).getByRole("button", { name: /PR review/ });
     expect(current.getAttribute("aria-current")).toBe("step");
     expect(current.getAttribute("aria-pressed")).toBe("true");

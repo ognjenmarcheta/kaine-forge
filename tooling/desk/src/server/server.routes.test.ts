@@ -139,7 +139,12 @@ describe("GET /api/issues", () => {
   });
 
   it("lists readable and unreadable issues with their title from issue.json", async () => {
-    await harness.seed(3, { stage: "build", status: "running", loops: { check: 1, review: 0 } });
+    await harness.seed(3, {
+      stage: "build",
+      status: "running",
+      loops: { check: 1, review: 0 },
+      prRounds: 1
+    });
     await harness.artifact(
       3,
       "issue.json",
@@ -179,10 +184,12 @@ describe("GET /api/issues", () => {
       needsYouReason: null,
       resumeStage: null,
       prUrl: null,
+      prRound: 1,
+      prRoundLimit: 3,
       contract: { found: 5, total: 6 },
       // The build has not written its start yet, so the history cannot say when it began.
       stageEnteredAt: null,
-      progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle"],
+      progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],
       currentNode: "build"
     });
     expect(list.issues[1]).toMatchObject({
@@ -193,7 +200,7 @@ describe("GET /api/issues", () => {
       resumeStage: "check",
       contract: null,
       stageEnteredAt: "2026-03-01T10:00:00.000Z",
-      progress: ["idle", "idle", "idle", "idle", "failed", "idle", "idle", "idle"],
+      progress: ["idle", "idle", "idle", "idle", "failed", "idle", "idle", "idle", "idle"],
       currentNode: "check"
     });
     expect(list.issues[2]).toMatchObject({
@@ -593,6 +600,22 @@ describe("POST /api/issues/:n/actions", () => {
       body: { action: "ship", confirm: false, dryRun: true },
       check: (h: Harness) =>
         expect(h.runner.ship).toHaveBeenCalledWith(3, { confirm: false, dryRun: true })
+    },
+    {
+      name: "refresh-pr",
+      body: { action: "refresh-pr" },
+      check: (h: Harness) => expect(h.runner.refreshPr).toHaveBeenCalledWith(3)
+    },
+    {
+      name: "pr-feedback",
+      body: { action: "pr-feedback" },
+      check: (h: Harness) => expect(h.runner.feedbackFromPr).toHaveBeenCalledWith(3, {})
+    },
+    {
+      name: "pr-feedback with the owner's words",
+      body: { action: "pr-feedback", text: " keep the name " },
+      check: (h: Harness) =>
+        expect(h.runner.feedbackFromPr).toHaveBeenCalledWith(3, { text: "keep the name" })
     },
     {
       name: "draft",

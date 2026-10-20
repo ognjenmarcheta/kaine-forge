@@ -47,6 +47,16 @@ describe("activityGroups", () => {
     expect(rows.find((row) => row.event === "build-complete")?.outcome).toBe("done");
   });
 
+  it("reads PR feedback as a loop back and the update push as a new wait at the PR", () => {
+    const rows = activityGroups(
+      [event(0, "pr-open", "pr-feedback", "round 1"), event(1, "ship", "pr-updated")],
+      T0,
+      false
+    ).flatMap((group) => group.rows);
+    expect(rows.find((row) => row.event === "pr-feedback")?.outcome).toBe("back");
+    expect(rows.find((row) => row.event === "pr-updated")?.outcome).toBe("waiting");
+  });
+
   it("keeps a stop as its own group and an unknown event as information", () => {
     const groups = activityGroups(
       [event(0, "check", "check-failed"), event(1, "needs-you", "needs-you", "Stopped:\nreason")],

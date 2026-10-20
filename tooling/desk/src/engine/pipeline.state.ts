@@ -14,7 +14,8 @@ export const machineOf = (state: IssueState): MachineState => ({
   stage: state.stage,
   resumeStage: state.resumeStage,
   loops: state.loops,
-  lastCheckFingerprint: state.lastCheckFingerprint
+  lastCheckFingerprint: state.lastCheckFingerprint,
+  prRounds: state.prRounds ?? 0
 });
 
 export const isGate = (stage: Stage): boolean => HUMAN_GATES.some((gate) => gate === stage);
@@ -47,9 +48,11 @@ const ENTERED_BY: Readonly<Partial<Record<Stage, readonly string[]>>> = {
   intake: ["intake-started", "intake-restarted"],
   "plan-gate": ["plan-ready"],
   "pr-review": ["review-approved"],
-  shipped: ["shipped"],
+  "pr-open": ["pr-opened", "pr-updated"],
+  // `shipped` entered `shipped` before the `pr-open` stage existed.
+  shipped: ["shipped", "pr-merged"],
   "needs-you": ["needs-you", "interrupted"],
-  cancelled: ["cancelled"]
+  cancelled: ["cancelled", "pr-closed"]
 };
 
 const enteredStage = (event: HistoryEvent): Stage | null =>

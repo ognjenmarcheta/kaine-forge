@@ -13,7 +13,9 @@ export const ARTIFACTS = {
   build: "build.json",
   review: "review.json",
   diff: "diff.patch",
-  feedback: "feedback.md"
+  feedback: "feedback.md",
+  /** What the last PR feedback round collected: the selected items, the head, and when. */
+  prFeedback: "pr-feedback.json"
 } as const;
 
 export const artifactPath = (dir: string, name: string): string => path.join(dir, name);

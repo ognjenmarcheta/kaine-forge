@@ -11,7 +11,7 @@ import type { ShipActionResult } from "../engine/pipeline.types";
 
 /**
  * Commands that change an issue and may drive it: `start`, `approve`,
- * `feedback`, `continue`, `cancel`, `ship`, and `remove`. Each one opens the
+ * `feedback`, `continue`, `cancel`, `ship`, `refresh`, and `remove`. Each one opens the
  * runtime (config, runner, log, notifier), recovers interrupted issues, makes
  * one runner call, and prints where the issue stopped.
  */
@@ -125,6 +125,11 @@ export const commandCancel = simple("pnpm desk cancel <issue>", (runner, issue) 
   runner.cancel(issue)
 );
 
+/** Read the PR of an issue at `pr-open` once. Only the owner runs it: the desk never polls. */
+export const commandRefresh = simple("pnpm desk refresh <issue>", (runner, issue) =>
+  runner.refreshPr(issue)
+);
+
 const SHIP_USAGE = "pnpm desk ship <issue> [--confirm | --dry-run] [--json]";
 
 /**
@@ -191,19 +196,28 @@ export const commandContinue: CliCommand = (args, deps, io) => {
   );
 };
 
-const FEEDBACK_USAGE = `pnpm desk feedback <issue> --to ${FEEDBACK_TARGETS.join("|")} <text...> | --file <path>`;
+const FEEDBACK_USAGE = `pnpm desk feedback <issue> --to ${FEEDBACK_TARGETS.join("|")} <text...> | --file <path>, or pnpm desk feedback <issue> --from-pr [text...] [--file <path>]`;
 
+/**
+ * `--to` sends the engineer's words to one stage. `--from-pr` sends the feedback on the open
+ * PR to `build`, with optional words of the engineer's own.
+ */
 export const commandFeedback: CliCommand = async (args, deps, io) => {
   const { values, positionals } = parse(args, {
     to: { type: "string" },
+    "from-pr": { type: "boolean" },
     file: { type: "string" },
     "no-writeback": { type: "boolean" },
     json: { type: "boolean" }
   });
   const [first, ...words] = positionals;
   const issue = parseIssueNumber(first);
+  const fromPr = values["from-pr"] === true;
+  if (fromPr && values.to !== undefined) {
+    throw new UsageError(`Use --to or --from-pr, not both. Usage: ${FEEDBACK_USAGE}`);
+  }
   const target = feedbackTargetSchema.safeParse(values.to);
-  if (!target.success) throw new UsageError(`Usage: ${FEEDBACK_USAGE}`);
+  if (!fromPr && !target.success) throw new UsageError(`Usage: ${FEEDBACK_USAGE}`);
   const fromFile = values.file;
   if (fromFile !== undefined && words.length > 0) {
     throw new UsageError("Give the feedback as words or with --file, not both.");
@@ -221,13 +235,23 @@ export const commandFeedback: CliCommand = async (args, deps, io) => {
       return 1;
     }
   }
-  if (text === "") throw new UsageError(`Feedback needs text. Usage: ${FEEDBACK_USAGE}`);
-
+  if (fromPr) {
+    return drive(
+      deps,
+      io,
+      { issue, json: values.json === true, noWriteback: values["no-writeback"] === true },
+      (runner) => runner.feedbackFromPr(issue, text === "" ? {} : { text })
+    );
+  }
+  if (!target.success || text === "") {
+    throw new UsageError(`Feedback needs text. Usage: ${FEEDBACK_USAGE}`);
+  }
+  const to = target.data;
   return drive(
     deps,
     io,
     { issue, json: values.json === true, noWriteback: values["no-writeback"] === true },
-    (runner) => runner.feedback(issue, target.data, text)
+    (runner) => runner.feedback(issue, to, text)
   );
 };
 

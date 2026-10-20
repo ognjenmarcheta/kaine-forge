@@ -67,6 +67,8 @@ export interface DeskServerDeps {
   readonly githubTtlMs?: number | undefined;
   /** `runs.jsonl`, for `GET /api/stats` and the runs in the issue detail. Absent: no runs. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
+  /** `maxPrRounds` of the config, for the issue summaries. Absent: the default. */
+  readonly prRoundLimit?: number | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
@@ -229,7 +231,8 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     clock,
     isBusy: (issueNumber) => dispatcher.isBusy(issueNumber),
     currentDiffHash: deps.currentDiffHash,
-    readRuns: deps.readRuns
+    readRuns: deps.readRuns,
+    prRoundLimit: deps.prRoundLimit
   };
 
   const publishIssue = async (issueNumber: number): Promise<void> => {

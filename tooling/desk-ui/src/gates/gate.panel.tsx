@@ -39,8 +39,14 @@ const PR_REVIEW_TARGETS: readonly FeedbackTarget[] = ["build", "review", "plan"]
 const PLAN_TARGETS: readonly FeedbackTarget[] = ["plan"];
 const AUTO_STAGE = "auto";
 const PR_LINK = buttonVariants({ appearance: "default" });
+const PR_SECONDARY_LINK = buttonVariants({ appearance: "secondary" });
 /** The modes where the issue waits for the engineer's decision. */
-const DECIDE: ReadonlySet<GateMode> = new Set<GateMode>(["plan-gate", "pr-review", "needs-you"]);
+const DECIDE: ReadonlySet<GateMode> = new Set<GateMode>([
+  "plan-gate",
+  "pr-review",
+  "pr-open",
+  "needs-you"
+]);
 /** The complements of the stylesheet's `min-width` rules: the layout is exact at 64 and 40 rem. */
 const COMPACT_QUERY = "not all and (min-width: 64rem)";
 const NARROW_QUERY = "not all and (min-width: 40rem)";
@@ -84,6 +90,7 @@ function MoreMenu({
   mode,
   trigger,
   busy,
+  requestChangesLabel,
   onRequestChanges,
   onCloseAutoFocus,
   onCancel,
@@ -92,6 +99,7 @@ function MoreMenu({
   readonly mode: GateMode;
   readonly trigger: RefObject<HTMLButtonElement | null>;
   readonly busy: boolean;
+  readonly requestChangesLabel: string;
   /** Set when the secondary action has no room in the bar: it moves into the menu. */
   readonly onRequestChanges: (() => void) | null;
   readonly onCloseAutoFocus: (event: Event) => void;
@@ -115,7 +123,7 @@ function MoreMenu({
         {onRequestChanges !== null && (
           <>
             <DropdownMenuItem disabled={busy} onSelect={onRequestChanges}>
-              {t("desk.gate.requestChanges")}
+              {requestChangesLabel}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -190,7 +198,10 @@ export function useGatePanel({
   const decides = DECIDE.has(mode);
   const hasPrimary = decides || (mode === "shipped" && prUrl !== null);
   const withBar = layout !== "side" && hasPrimary;
-  const hasSecondary = mode === "plan-gate" || mode === "pr-review";
+  const hasSecondary = mode === "plan-gate" || mode === "pr-review" || mode === "pr-open";
+  const secondaryLabel = t(
+    mode === "pr-open" ? "desk.gate.prOpen.sendFeedback" : "desk.gate.requestChanges"
+  );
   const secondaryInMenu = hasSecondary && withBar && layout === "bar-narrow";
 
   /** Run an action, and move focus to the heading when it worked: the pressed button may be gone. */
@@ -231,6 +242,24 @@ export function useGatePanel({
       />
     ) : null;
 
+  /** At pr-open the desk collects the PR feedback. The engineer's words are optional. */
+  const prFeedback = feedbackOpen ? (
+    <FeedbackForm
+      id={feedbackId}
+      targets={[]}
+      fromPr
+      busy={actions.busy}
+      onCancel={() => setFeedbackOpen(false)}
+      onSend={async (_to, text) => {
+        const sent = await send(
+          text.trim() === "" ? { action: "pr-feedback" } : { action: "pr-feedback", text }
+        );
+        if (sent) setFeedbackOpen(false);
+        return sent;
+      }}
+    />
+  ) : null;
+
   const secondaryChanges = hasSecondary && !secondaryInMenu && (
     <Button
       appearance="secondary"
@@ -239,7 +268,7 @@ export function useGatePanel({
       aria-controls={feedbackOpen ? feedbackId : undefined}
       onClick={() => setFeedbackOpen((open) => !open)}
     >
-      {t("desk.gate.requestChanges")}
+      {secondaryLabel}
     </Button>
   );
 
@@ -248,6 +277,7 @@ export function useGatePanel({
       mode={mode}
       trigger={moreButton}
       busy={actions.busy}
+      requestChangesLabel={secondaryLabel}
       onRequestChanges={
         secondaryInMenu
           ? () => {
@@ -303,6 +333,16 @@ export function useGatePanel({
             }}
           >
             {t("desk.gate.needsYou.continue")}
+          </Button>
+        );
+      case "pr-open":
+        return (
+          <Button
+            className="desk-gate__primary"
+            disabled={actions.busy}
+            onClick={() => void send({ action: "refresh-pr" })}
+          >
+            {t("desk.gate.prOpen.check")}
           </Button>
         );
       case "shipped":
@@ -405,10 +445,28 @@ export function useGatePanel({
         </p>
       )}
 
-      {mode === "shipped" && <p className="desk-note">{t("desk.gate.shipped.youMerge")}</p>}
+      {mode === "pr-open" && (
+        <>
+          {prUrl !== null && (
+            <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_SECONDARY_LINK}>
+              <GitPullRequest aria-hidden="true" className="desk-icon" />
+              {t("desk.gate.prOpen.openPr")}
+              <ExternalLink aria-hidden="true" className="desk-icon" />
+            </a>
+          )}
+          <p className="desk-muted">
+            {t("desk.gate.prOpen.rounds", {
+              round: summary.prRound,
+              limit: summary.prRoundLimit
+            })}
+          </p>
+          <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+        </>
+      )}
 
       {mode === "plan-gate" && requestChanges(PLAN_TARGETS)}
       {mode === "pr-review" && requestChanges(PR_REVIEW_TARGETS)}
+      {mode === "pr-open" && prFeedback}
 
       {layout === "side" && (
         <div className="desk-gate__row">
@@ -419,6 +477,7 @@ export function useGatePanel({
 
       <ShipDialog
         issueNumber={summary.issueNumber}
+        pullRequest={detail.state.prNumber ?? null}
         open={shipOpen}
         onOpenChange={setShipOpen}
         actions={actions}

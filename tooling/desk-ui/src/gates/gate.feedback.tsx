@@ -11,19 +11,29 @@ export interface FeedbackFormProps {
   readonly onSend: (target: FeedbackTarget, text: string) => Promise<boolean>;
   /** Close the form without sending. The draft is dropped. */
   readonly onCancel: () => void;
+  /** PR feedback: the text is optional, and the form says what the desk adds to it. */
+  readonly fromPr?: boolean;
 }
 
 /**
  * Feedback goes to one stage, chosen in a segmented control. The text is kept until the send
- * works, so a refusal loses nothing. The box takes focus when the form opens.
+ * works, so a refusal loses nothing. The box takes focus when the form opens. With `fromPr`
+ * the desk collects the feedback on the PR, and the engineer's words are optional.
  */
-export function FeedbackForm({ id: formId, targets, busy, onSend, onCancel }: FeedbackFormProps) {
+export function FeedbackForm({
+  id: formId,
+  targets,
+  busy,
+  onSend,
+  onCancel,
+  fromPr = false
+}: FeedbackFormProps) {
   const t = useT();
   const id = useId();
   const first = targets[0] ?? FEEDBACK_TARGETS[0];
   const [target, setTarget] = useState<FeedbackTarget>(first);
   const [text, setText] = useState("");
-  const empty = text.trim() === "";
+  const empty = text.trim() === "" && !fromPr;
   useEffect(() => {
     document.getElementById(`${id}-text`)?.focus();
   }, [id]);
@@ -68,7 +78,10 @@ export function FeedbackForm({ id: formId, targets, busy, onSend, onCancel }: Fe
           </RadioGroup>
         </fieldset>
       )}
-      <Label htmlFor={`${id}-text`}>{t("desk.feedback.label")}</Label>
+      {fromPr && <p className="desk-muted">{t("desk.prFeedback.intro")}</p>}
+      <Label htmlFor={`${id}-text`}>
+        {t(fromPr ? "desk.prFeedback.label" : "desk.feedback.label")}
+      </Label>
       <Textarea
         id={`${id}-text`}
         value={text}
@@ -85,7 +98,7 @@ export function FeedbackForm({ id: formId, targets, busy, onSend, onCancel }: Fe
           {t("desk.common.cancel")}
         </Button>
         <Button type="submit" appearance="secondary" disabled={busy || empty}>
-          {t("desk.feedback.send")}
+          {t(fromPr ? "desk.prFeedback.send" : "desk.feedback.send")}
         </Button>
       </div>
     </form>

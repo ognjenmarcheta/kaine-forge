@@ -62,6 +62,7 @@ function StageContent({
         </>
       );
     case "ship":
+    case "pr-open":
       return <DiffArtifact issueNumber={issueNumber} revision={revision} />;
   }
 }

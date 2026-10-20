@@ -95,7 +95,8 @@ const machineOf = (state: IssueState): MachineState => ({
   stage: state.stage,
   resumeStage: state.resumeStage,
   loops: state.loops,
-  lastCheckFingerprint: state.lastCheckFingerprint
+  lastCheckFingerprint: state.lastCheckFingerprint,
+  prRounds: state.prRounds ?? 0
 });
 
 const describe = (error: unknown): string =>

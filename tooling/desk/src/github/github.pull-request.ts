@@ -4,9 +4,10 @@ import type { GhClient } from "./github.gh";
 import { GhError } from "./github.gh";
 
 /**
- * Pull request calls for the ship step. The desk only ever opens a draft PR:
- * there is no merge, no auto-merge, no review and no ready-for-review call
- * here, and `CreatePullRequestRequest.draft` has the type `true`.
+ * Pull request calls for the ship step and the `pr-open` stage. The desk only
+ * ever opens and reads a draft PR: there is no merge, no auto-merge, no review
+ * and no ready-for-review call here, and `CreatePullRequestRequest.draft` has
+ * the type `true`.
  */
 
 export interface PullRequestInfo {
@@ -29,6 +30,29 @@ const listedPullRequestSchema = z.object({
   url: z.string().min(1),
   headRefName: z.string()
 });
+
+const pullRequestViewSchema = z.object({
+  number: z.number().int().positive(),
+  url: z.string().min(1),
+  state: z.enum(["OPEN", "CLOSED", "MERGED"]),
+  headRefName: z.string(),
+  headRefOid: z.string(),
+  mergedAt: z.string().nullable()
+});
+
+/** One read of a PR: whether it is open, closed, or merged, and its head. */
+export type PullRequestView = z.infer<typeof pullRequestViewSchema>;
+
+const viewPullRequestArgv = (pr: number): string[] => [
+  "pr",
+  "view",
+  String(pr),
+  "--json",
+  "number,url,state,headRefName,headRefOid,mergedAt"
+];
+
+export const viewPullRequest = (gh: GhClient, pr: number): Promise<PullRequestView> =>
+  gh.json(pullRequestViewSchema, viewPullRequestArgv(pr));
 
 const PR_URL = /^https:\/\/[^\s/]+\/[^\s/]+\/[^\s/]+\/pull\/(\d+)$/;
 

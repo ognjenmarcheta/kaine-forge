@@ -33,6 +33,7 @@ export const describeShipFailure = (failure: ShipFailure): string => {
   if (failure.kind === "checks-failed") {
     lines.push("Read ship/check-report.json in the artifacts folder.");
   }
+  if (failure.kind === "pr-changed") lines.push(describeGateFailures(failure.failures));
   if (output !== "") lines.push(output);
   lines.push("A new ship run continues where this one stopped. Fix the cause, then continue.");
   return redact(lines.join("\n"));

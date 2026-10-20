@@ -254,6 +254,7 @@ export function StageSection(props: SectionProps) {
       return <ReviewSection {...props} />;
     case "pr-review":
     case "ship":
+    case "pr-open":
       return <ShipSection {...props} />;
   }
 }

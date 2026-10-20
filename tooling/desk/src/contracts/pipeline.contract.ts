@@ -14,6 +14,7 @@ export const STAGES = [
   "review",
   "pr-review",
   "ship",
+  "pr-open",
   "shipped",
   "needs-you",
   "cancelled"
@@ -27,11 +28,18 @@ export const NODE_KINDS = ["source", "agent", "human", "script"] as const;
 export const nodeKindSchema = z.enum(NODE_KINDS);
 export type NodeKind = z.infer<typeof nodeKindSchema>;
 
-/** Stages where the engineer decides. Nothing runs while the issue waits here. */
-export const HUMAN_GATES = ["plan-gate", "pr-review"] as const satisfies readonly Stage[];
+/**
+ * Stages where the engineer decides. Nothing runs while the issue waits here. At `pr-open`
+ * the draft PR is on GitHub: the owner reviews and merges it there, then runs `refresh`.
+ */
+export const HUMAN_GATES = [
+  "plan-gate",
+  "pr-review",
+  "pr-open"
+] as const satisfies readonly Stage[];
 export type HumanGate = (typeof HUMAN_GATES)[number];
 
-/** Stages that accept no further triggers. */
+/** Stages that accept no further triggers. `shipped`: the desk saw the PR merged. */
 export const TERMINAL_STAGES = ["shipped", "cancelled"] as const satisfies readonly Stage[];
 
 /** Stages the engine drives. These are the only valid `continue` targets. */
@@ -55,10 +63,13 @@ export type FeedbackTarget = z.infer<typeof feedbackTargetSchema>;
 export const LOOP_NAMES = ["check", "review"] as const;
 export type LoopName = (typeof LOOP_NAMES)[number];
 
-export type LoopLimits = Readonly<Record<LoopName, number>>;
+export type LoopLimits = Readonly<Record<LoopName, number>> & {
+  /** PR feedback rounds from `pr-open` back to `build`. */
+  readonly prRounds: number;
+};
 
 /** Loop-backs to `build` that the engine allows before it asks the engineer. */
-export const DEFAULT_LOOP_LIMITS: LoopLimits = { check: 3, review: 2 };
+export const DEFAULT_LOOP_LIMITS: LoopLimits = { check: 3, review: 2, prRounds: 3 };
 
 export interface PipelineNode {
   readonly id: ActiveStage | HumanGate;
@@ -92,7 +103,8 @@ export const PIPELINE: PipelineDefinition = {
     { id: "check", kind: "script" },
     { id: "review", kind: "agent" },
     { id: "pr-review", kind: "human" },
-    { id: "ship", kind: "script" }
+    { id: "ship", kind: "script" },
+    { id: "pr-open", kind: "human" }
   ],
   forwardEdges: [
     { from: "intake", to: "setup" },
@@ -103,7 +115,8 @@ export const PIPELINE: PipelineDefinition = {
     { from: "check", to: "review" },
     { from: "review", to: "pr-review" },
     { from: "pr-review", to: "ship" },
-    { from: "ship", to: "shipped" }
+    { from: "ship", to: "pr-open" },
+    { from: "pr-open", to: "shipped" }
   ],
   humanGates: [...HUMAN_GATES],
   loopEdges: [
@@ -112,6 +125,7 @@ export const PIPELINE: PipelineDefinition = {
     { from: "review", to: "build", counter: "review" },
     { from: "pr-review", to: "build", counter: null },
     { from: "pr-review", to: "review", counter: null },
-    { from: "pr-review", to: "plan", counter: null }
+    { from: "pr-review", to: "plan", counter: null },
+    { from: "pr-open", to: "build", counter: null }
   ]
 };

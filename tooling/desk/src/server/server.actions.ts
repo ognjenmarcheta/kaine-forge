@@ -11,6 +11,8 @@ export interface ServerRunner {
   readonly cancel: PipelineRunner["cancel"];
   readonly remove: PipelineRunner["remove"];
   readonly ship: PipelineRunner["ship"];
+  readonly refreshPr: PipelineRunner["refreshPr"];
+  readonly feedbackFromPr: PipelineRunner["feedbackFromPr"];
   readonly draft: PipelineRunner["draft"];
   readonly applyDraft: PipelineRunner["applyDraft"];
 }
@@ -116,6 +118,13 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.remove(issueNumber, { force: request.force });
       case "ship":
         return runner.ship(issueNumber, { confirm: request.confirm, dryRun: request.dryRun });
+      case "refresh-pr":
+        return runner.refreshPr(issueNumber);
+      case "pr-feedback":
+        return runner.feedbackFromPr(
+          issueNumber,
+          request.text === undefined ? {} : { text: request.text }
+        );
       case "draft":
         return runner.draft(issueNumber);
       case "apply-draft":

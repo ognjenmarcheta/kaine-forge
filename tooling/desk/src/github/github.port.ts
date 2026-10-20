@@ -2,7 +2,13 @@ import type { Exec, GitHubPort } from "../ports";
 import { createGhClient, fetchRepository, fetchViewer } from "./github.gh";
 import { fetchIssueSnapshot } from "./github.issue";
 import { labelCreateArgv } from "./github.labels";
-import { addPullRequestLabelArgv, createPullRequest, findPullRequest } from "./github.pull-request";
+import { fetchPullRequestFeedback } from "./github.pr-feedback";
+import {
+  addPullRequestLabelArgv,
+  createPullRequest,
+  findPullRequest,
+  viewPullRequest
+} from "./github.pull-request";
 import { upsertStatusComment } from "./github.status-comment";
 import type { RepositoryInfo } from "./github.types";
 
@@ -56,6 +62,8 @@ export const createGitHubPort = ({ exec, cwd }: GitHubPortOptions): GitHubPort =
     },
     findPullRequest: (branch) => findPullRequest(gh, branch),
     createPullRequest: (request) => createPullRequest(gh, request),
+    viewPullRequest: (pr) => viewPullRequest(gh, pr),
+    fetchPullRequestFeedback: (pr, headSha) => fetchPullRequestFeedback(gh, pr, headSha),
     addPullRequestLabel: async (pr, label) => {
       await gh.text(addPullRequestLabelArgv(pr, label));
     },

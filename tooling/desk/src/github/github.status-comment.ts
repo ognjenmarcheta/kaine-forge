@@ -67,6 +67,9 @@ export const renderStatusComment = ({
     "### Loops",
     `- check: ${state.loops.check} of ${limits.check}`,
     `- review: ${state.loops.review} of ${limits.review}`,
+    ...(state.stage === "pr-open"
+      ? [`- PR rounds: ${state.prRounds ?? 0} of ${limits.prRounds}`]
+      : []),
     ""
   );
 
