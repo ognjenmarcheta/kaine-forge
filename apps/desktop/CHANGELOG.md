@@ -1,5 +1,11 @@
 # @repo/desktop
 
+## 1.1.2
+
+### Patch Changes
+
+- c8dfead: Build `@repo/web` through the Turbo dependency edge instead of an inline `pnpm --filter` call. Run the desktop build with `pnpm exec turbo run build --filter=@repo/desktop`.
+
 ## 1.1.1
 
 ### Patch Changes
