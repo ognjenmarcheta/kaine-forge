@@ -37,10 +37,10 @@ overview, `find_symbol`, and `find_referencing_symbols` on one file, writes logs
 `.serena/logs/health-checks/`, and exits 1 on failure:
 
 ```sh
-PYTHONUTF8=1 uvx --from serena-agent==2.0.0 serena project health-check
+PYTHONUTF8=1 uvx --from serena-agent==2.1.0 serena project health-check
 ```
 
-On Windows, `PYTHONUTF8=1` is required: without it, Serena 2.0.0 passes the check but
+On Windows, `PYTHONUTF8=1` is required: without it, Serena 2.1.0 passes the check but
 fails with exit 1 while printing its success mark to a cp1252 console.
 
 Claude's cached startup prompt becomes stale when the launch arguments change.

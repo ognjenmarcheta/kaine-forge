@@ -56,7 +56,7 @@ in repository-owned hook launch definitions. Updates follow the existing
 | filesystem | `@modelcontextprotocol/server-filesystem@2026.8.31` | initialization passed               |
 | context7   | `@upstash/context7-mcp@4.1.1`                       | initialization passed               |
 | playwright | `@playwright/mcp@0.0.82`                            | initialization passed               |
-| serena     | PyPI `serena-agent==2.0.0` through `uvx`            | initialization passed on 2026-10-18 |
+| serena     | PyPI `serena-agent==2.1.0` through `uvx`            | initialization passed on 2026-10-20 |
 | firecrawl  | `firecrawl-mcp@3.25.5`                              | unselected; not probed              |
 | graphify   | local `graphify-mcp` executable                     | optional; not probed                |
 
@@ -97,7 +97,7 @@ on every install; `.serena/project.local.yml` remains the personal override:
   own shell and editors. It is not enforcement.
 - `included_apis: [lsp.get_diagnostics_for_symbol, lsp.restart_language_server]`, two
   optional REPL operations for per-symbol checks and stale tsserver recovery. In
-  Serena 2.0.0, diagnostics return an empty result when their 5-second wait times out,
+  Serena 2.1.0, diagnostics return an empty result when their 5-second wait times out,
   for example on the first call after start. Empty diagnostics are therefore not proof
   of a clean file; the guide requires `git diff` and the package typecheck instead.
 - `read_only_memory_patterns: [".*"]`, because memories are generated from
@@ -115,6 +115,9 @@ Not adopted, with reasons:
 - The Codex `plan-guard` hook blocks `serena_repl` in plan mode.
 - Project trust and project `ls_specific_settings`: Serena's managed TypeScript 5.9.3
   matches the repo, and the caller check found complete cross-package references.
+- The `typescript_tsgo` language server (v2.1.0), which runs the TypeScript 7 native
+  server. The workspace catalog pins TypeScript 5.9, and a TypeScript 7 server can change
+  reference and diagnostic results. Reconsider it when the catalog moves to TypeScript 7.
 - `ext` and `query-projects` (one repository), and the paid JetBrains backend.
 - `initial_prompt` with `embed_memory`, because `AGENTS.md` is already loaded.
 
@@ -125,7 +128,7 @@ Serena's prompt override names classic tools only. With the REPL interface, `ser
 is `not-applicable`, startup emits no Serena prompt, and `--prepare-serena` skips preparation.
 `serenaPrompt` reports availability separately from installation and runtime results.
 Installation removes only the exact former repository-generated Serena hook; personal
-hooks remain. The v2.0.0 prompt prepared successfully on this host with `tools` selected.
+hooks remain. The v2.1.0 prompt override command succeeded on this host.
 
 The canonical explorer has a `Read`, `Grep`, `Glob` allowlist. Shell, MCP, editing and
 delegation checks return to the parent. Tests verify the rendered Claude definition.
