@@ -1,5 +1,13 @@
 # @repo/translation
 
+## 1.6.0
+
+### Minor Changes
+
+- 5786f03: Intake drafts grade the issue's fit for an agent run: clarity, complexity, and verifiability from 1 to 3, with the lowest grade as the confidence. `desk draft` and the draft dialog show the grades, and `desk start` warns, without blocking, when the scored body has confidence 1.
+- 078f259: Send PR feedback back to the builder after ship. At `pr-open`, `pnpm desk feedback <n> --from-pr [text]` (and the `pr-feedback` action, **Send PR feedback** in the UI) reads the failing checks with their log tail and the reviews and comments of trusted accounts on the PR head, redacts, cuts, and fences that text, adds the owner's optional note, and runs build, check, and review again. It refuses with `pr-refused` and changes nothing unless the PR is open, its head is the clean worktree HEAD, and there is something to send. The ship of such a round updates the open PR: no rebase, a plain push to the same branch, no new PR, and a fresh read of the PR right before the push.
+- 078f259: Add a `pr-open` stage after `ship`. The desk waits there while the owner reviews and merges the draft PR on GitHub. `pnpm desk refresh <n>` (and the `refresh-pr` action, **Check the PR** in the UI) reads the PR once: merged ends the issue at `shipped`, closed ends it at `cancelled`, open changes nothing. The desk does not poll, and it never merges, approves, marks a PR ready, enables auto-merge, or force-pushes. The issue state counts PR feedback rounds against the new `maxPrRounds` config (default 3).
+
 ## 1.5.0
 
 ### Minor Changes
