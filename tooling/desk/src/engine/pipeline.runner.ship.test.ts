@@ -510,6 +510,19 @@ describe("refresh at pr-open", () => {
     });
   });
 
+  it("refuses a real ship for an issue that writes nothing to GitHub, and changes nothing", async () => {
+    // Shipping would push and open a PR, and a later refresh could never end the issue.
+    const e = await seeded(prOpen({ stage: "pr-review", prNumber: null, prUrl: null }), {
+      noWriteback: true
+    });
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    const result = await e.pipeline.ship(ISSUE, { confirm: true });
+    expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
+    if (result.outcome === "refused") expect(result.reason).toContain("writes nothing to GitHub");
+    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
+    expect(e.github.createdPullRequests).toEqual([]);
+  });
+
   it("does not let continue park an issue without a PR at pr-open", async () => {
     const e = await seeded(
       prOpen({ stage: "needs-you", resumeStage: "build", prNumber: null, prUrl: null })
