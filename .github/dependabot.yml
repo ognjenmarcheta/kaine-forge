@@ -96,10 +96,10 @@ updates:
         update-types: ["version-update:semver-major"]
       # tailwindcss lives in two catalogs like React: web on v4 in the default
       # catalog and mobile pinned to 3.4.17 in catalogs.mobile under the Expo SDK
-      # freeze (pnpm-workspace.yaml). A major bump would rewrite the mobile lane;
-      # Tailwind moves by intentional PR per lane (#520).
+      # freeze (pnpm-workspace.yaml). Any update can rewrite one lane to the
+      # other's line (#534 turned web ^4.3.3 into ^3.4.19 on a patch), so it is
+      # ignored fully; Tailwind moves by intentional PR per lane (#520, #535).
       - dependency-name: "tailwindcss"
-        update-types: ["version-update:semver-major"]
 
   # Workflows pin actions to commit SHAs with a `# vN` comment; Dependabot bumps
   # the SHA and keeps the comment current. Grouped: one PR per week.
