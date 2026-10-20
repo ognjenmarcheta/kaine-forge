@@ -361,7 +361,7 @@ Under `<state>/issues/<n>/artifacts/`: `ticket.md`, `issue.json`, `plan.json`, `
 `feedback.md`, `build.json`, `check-report.json`, `diff.patch`, `review.json`
 (the review and the findings the engine rejected), `agent-<role>.json` (session, usage,
 denials, tool calls), `receipts-<role>.jsonl`, and `run-settings-<role>.json`.
-Ship adds `refs-baseline.json`, `ship-plan.json`, `pr-body.md`, `commit-message.txt`,
+A draft adds `issue-draft.json` and `intake-fit.json`. Ship adds `refs-baseline.json`, `ship-plan.json`, `pr-body.md`, `commit-message.txt`,
 `ship-record.json` (what the ship did so far), and `ship/check-report.json`.
 
 ### Development path without GitHub
@@ -381,7 +381,9 @@ See "Try it without GitHub".
 4. Read the issue body against the six-heading contract in
    [`triage-labels.md`](triage-labels.md). The desk reports "contract N/6". It does
    not decide readiness: `kaine-intake` or a human does.
-5. Write `artifacts/ticket.md`, then move the issue to `setup` with status `waiting`.
+5. Write `artifacts/ticket.md`. When the latest draft scored this body (see "Fit score"), and its
+   confidence is 1, log the warning and record `fit-warning`. The run goes on.
+6. Move the issue to `setup` with status `waiting`.
 
 Intake reads the issue by the headings of [`issue-format.md`](issue-format.md). It needs at
 least one acceptance criterion. Without one, the issue goes to `needs-you` with the reason.
@@ -418,6 +420,25 @@ The body goes to `gh issue edit --body-file -` through stdin. Then the draft is 
 history records `draft-applied`, and the issue waits for `start`. The desk still never adds
 `ready-for-agent`. A new draft deletes the old one first, so a failed redraft leaves none to
 apply. The desk UI offers the same steps on the issue page.
+
+### Fit score
+
+The draft also grades how well the issue suits an unattended agent run. The agent gives each axis
+a grade from 1 to 3 with a one-line reason, and 3 is the best fit on every axis:
+
+| Axis          | 3                                            | 1                                                             |
+| ------------- | -------------------------------------------- | ------------------------------------------------------------- |
+| Clarity       | One reading only.                            | Two reasonable readings give different code.                  |
+| Complexity    | Low: a bounded change in one workspace.      | High: cross-cutting, a migration, or an unknown blast radius. |
+| Verifiability | Every criterion maps to a command or a test. | The result needs a person's judgment.                         |
+
+The engine takes the lowest grade as the confidence. No agent supplies it. `draft` prints the
+grades, and the desk UI shows them in the draft. The score goes to `artifacts/intake-fit.json`
+with the hash of the body the draft started from and of the drafted body. Applying the draft keeps
+this file. When `start` reads one of these two bodies and the confidence is 1, it logs a warning
+and records `fit-warning`, and the run goes on. A changed body makes the score stale: `start` then
+ignores it. The score is advice. It never blocks `start` and never changes a label: you decided
+readiness when you applied `ready-for-agent`.
 
 ## State
 

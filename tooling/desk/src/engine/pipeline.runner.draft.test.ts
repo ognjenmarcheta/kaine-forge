@@ -3,7 +3,14 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ISSUE_DRAFT_FILE } from "./intake.draft";
-import { issueDraftSchema, type IntakeOutput, type IssueState } from "../contracts";
+import { INTAKE_FIT_FILE } from "./intake.run";
+import {
+  intakeFitRecordSchema,
+  issueDraftSchema,
+  type IntakeFit,
+  type IntakeOutput,
+  type IssueState
+} from "../contracts";
 import { parseContract } from "../github/github.contract";
 import { snapshotOf } from "../testing/github.fake";
 import {
@@ -34,6 +41,11 @@ const OLD_BODY = [
 const intakeOutput = (over: Partial<IntakeOutput> = {}): IntakeOutput => ({
   recommendation: "needs-info",
   reasons: ["It waits for a fixed upstream release."],
+  fit: {
+    clarity: { score: 3, reason: "One reading only." },
+    complexity: { score: 2, reason: "One config file, with a release to wait for." },
+    verifiability: { score: 3, reason: "pnpm audit proves the criterion." }
+  },
   draft: {
     outcome: "pnpm audit passes without the node-forge exception.",
     acceptanceCriteria: ["GHSA-86w9-cpqp-85rv is not in auditConfig.ignoreGhsas"],
@@ -74,6 +86,20 @@ const stateOf = async (e: PipelineEnv): Promise<IssueState> => {
 const draftFile = (e: PipelineEnv): string =>
   path.join(e.store.artifactsDir(ISSUE), ISSUE_DRAFT_FILE);
 
+const fitFile = (e: PipelineEnv): string => path.join(e.store.artifactsDir(ISSUE), INTAKE_FIT_FILE);
+
+/** Clear and checkable, but cross-cutting: confidence 1. */
+const LOW_FIT: IntakeFit = {
+  clarity: { score: 3, reason: "One reading only." },
+  complexity: { score: 1, reason: "Touches every workspace." },
+  verifiability: { score: 2, reason: "One criterion needs a manual check." }
+};
+
+const fitWarnings = async (e: PipelineEnv): Promise<string[]> =>
+  (await stateOf(e)).history
+    .filter((entry) => entry.event === "fit-warning")
+    .map((entry) => entry.note ?? "");
+
 const exists = (file: string): Promise<boolean> =>
   stat(file).then(
     () => true,
@@ -96,7 +122,14 @@ describe("draft", () => {
       contract: { found: 6, total: 6 },
       acceptanceCriteria: 1,
       recommendation: "needs-info",
+      fit: intakeOutput().fit,
       provider: "claude"
+    });
+    // The score outlives the draft, for the body it was scored on.
+    const record = intakeFitRecordSchema.parse(JSON.parse(await readFile(fitFile(e), "utf8")));
+    expect(record).toMatchObject({
+      fit: intakeOutput().fit,
+      originalBodyHash: draft.originalBodyHash
     });
     // Every fact of the author stays, as a quote that no section reads.
     expect(draft.body).toContain("> ## Removal trigger and acceptance");
@@ -198,7 +231,49 @@ describe("applyDraft", () => {
       outcome: "stopped",
       stop: "gate"
     });
+    // Confidence 2: no warning.
+    expect(await fitWarnings(e)).toEqual([]);
     expect((await stateOf(e)).stage).toBe("plan-gate");
+  });
+
+  it("warns at start when the applied draft scored confidence 1, and still runs the issue", async () => {
+    const e = await stoppedAtIntake({
+      steps: [
+        intakeStep({ output: intakeOutput({ fit: LOW_FIT }) }),
+        { role: "planner", output: planOutput() }
+      ]
+    });
+    expect((await e.pipeline.draft(ISSUE)).outcome).toBe("drafted");
+    expect((await e.pipeline.applyDraft(ISSUE, { confirm: true })).outcome).toBe("stopped");
+    expect(await exists(fitFile(e))).toBe(true);
+
+    expect(await e.pipeline.start(ISSUE, { override: true })).toMatchObject({
+      outcome: "stopped",
+      stop: "gate"
+    });
+
+    const warnings = await fitWarnings(e);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("Fit confidence is 1 of 3");
+    expect(warnings[0]).toContain("complexity: Touches every workspace.");
+    expect((await stateOf(e)).stage).toBe("plan-gate");
+  });
+
+  it("ignores a fit score for a body that changed after the draft", async () => {
+    const e = await stoppedAtIntake({
+      steps: [
+        intakeStep({ output: intakeOutput({ fit: LOW_FIT }) }),
+        { role: "planner", output: planOutput() }
+      ]
+    });
+    expect((await e.pipeline.draft(ISSUE)).outcome).toBe("drafted");
+    const draft = issueDraftSchema.parse(JSON.parse(await readFile(draftFile(e), "utf8")));
+    e.github.setIssueBody(`${draft.body}\n\nThe owner narrowed the scope by hand.`);
+
+    expect((await e.pipeline.start(ISSUE, { override: true })).outcome).toBe("stopped");
+
+    expect((await stateOf(e)).stage).toBe("plan-gate");
+    expect(await fitWarnings(e)).toEqual([]);
   });
 
   it.each([["without confirmation", { confirm: false }, "explicit confirmation"]] as const)(

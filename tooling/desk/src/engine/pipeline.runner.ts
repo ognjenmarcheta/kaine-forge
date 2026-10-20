@@ -2,6 +2,7 @@ import { appendFile, mkdir, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  fitConfidence,
   issueDraftSchema,
   type ActiveStage,
   type Isolation,
@@ -11,8 +12,8 @@ import {
   type LoopLimits,
   type Stage
 } from "../contracts";
-import { ISSUE_DRAFT_FILE, bodyHash, draftIssueFormat } from "./intake.draft";
-import { runIntake } from "./intake.run";
+import { ISSUE_DRAFT_FILE, draftIssueFormat } from "./intake.draft";
+import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
@@ -914,6 +915,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
         // A new draft replaces the old one, also when it fails: no stale draft stays to apply.
         await rm(path.join(store.artifactsDir(issue), ISSUE_DRAFT_FILE), { force: true });
+        await rm(path.join(store.artifactsDir(issue), INTAKE_FIT_FILE), { force: true });
         await record(session, "needs-you", "draft-started");
         await save(session);
         const result = await draftIssueFormat(contextFor(session), { snapshot, owner });
@@ -933,7 +935,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           session,
           "needs-you",
           "draft-ready",
-          `contract ${drafted.contract.found}/${drafted.contract.total}; ${drafted.recommendation}`
+          `contract ${drafted.contract.found}/${drafted.contract.total}; ${drafted.recommendation}${drafted.fit === undefined ? "" : `; fit confidence ${fitConfidence(drafted.fit)}`}`
         );
         await save(session);
         return { outcome: "drafted", state: session.state, draft: drafted };

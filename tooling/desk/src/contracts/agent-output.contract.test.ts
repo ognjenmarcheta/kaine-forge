@@ -6,6 +6,7 @@ import {
   agentOutputJsonSchema,
   agentOutputSchemas,
   builderOutputSchema,
+  fitConfidence,
   intakeOutputSchema,
   plannerOutputSchema,
   reviewerOutputSchema,
@@ -149,6 +150,11 @@ describe("intake output", () => {
   const output = {
     recommendation: "needs-info",
     reasons: ["clear"],
+    fit: {
+      clarity: { score: 3, reason: "One reading only." },
+      complexity: { score: 2, reason: "Two workspaces." },
+      verifiability: { score: 3, reason: "Each criterion maps to a test." }
+    },
     draft: {
       outcome: "Reports export as CSV.",
       acceptanceCriteria: ["The button downloads a CSV"],
@@ -187,6 +193,44 @@ describe("intake output", () => {
         unknowns: [{ section: "context", question: "x" }]
       }).success
     ).toBe(false);
+  });
+});
+
+describe("intake fit", () => {
+  const fit = (clarity: number, complexity: number, verifiability: number) => ({
+    clarity: { score: clarity, reason: "c" },
+    complexity: { score: complexity, reason: "x" },
+    verifiability: { score: verifiability, reason: "v" }
+  });
+  const base = {
+    recommendation: "ready-for-agent",
+    reasons: ["clear"],
+    draft: {
+      outcome: "o",
+      acceptanceCriteria: ["a"],
+      scope: "s",
+      validation: "v",
+      evidence: "e",
+      outOfScope: []
+    },
+    unknowns: [],
+    plainLanguage: "p"
+  };
+
+  it.each([
+    ["a score of 0", { fit: fit(0, 2, 2) }],
+    ["a score of 4", { fit: fit(3, 4, 2) }],
+    ["a fractional score", { fit: fit(2.5, 2, 2) }],
+    ["a missing reason", { fit: { ...fit(3, 3, 3), verifiability: { score: 3, reason: "" } } }],
+    ["no fit", {}]
+  ])("rejects %s", (_name, over) => {
+    expect(intakeOutputSchema.safeParse({ ...base, ...over }).success).toBe(false);
+  });
+
+  it("is confident only as far as the weakest grade", () => {
+    expect(fitConfidence(fit(3, 3, 3))).toBe(3);
+    expect(fitConfidence(fit(3, 1, 2))).toBe(1);
+    expect(fitConfidence(fit(2, 3, 3))).toBe(2);
   });
 });
 
