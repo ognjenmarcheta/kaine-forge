@@ -195,7 +195,11 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await switcher.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Leave unsaved drafts?" })).toBeVisible();
-  await expect(page.locator('button[aria-label="Organization"]')).toContainText("Personal");
+  // The modal makes the page inert to role queries, so find the switcher by structure:
+  // it is the dropdown trigger in the sidebar header (named by its text since #545).
+  await expect(
+    page.locator('[data-sidebar="header"] [data-slot="dropdown-menu-trigger"]')
+  ).toContainText("Personal");
   releaseNote();
   await expect.poll(() => noteDelivered).toBe(true);
   await expect(switcher).toContainText(name);
