@@ -76,6 +76,7 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `remove`      | `force?: boolean`                                        | `remove(n, { force })`                                |
 | `ship`        | `confirm: boolean`, `dryRun?: boolean`                   | `ship(n, { confirm, dryRun })`                        |
 | `refresh-pr`  | none                                                     | `refreshPr(n)`: read the PR at `pr-open` once         |
+| `pr-feedback` | `text?` (1 to 20000 characters after trim)               | `feedbackFromPr(n, { text })`                         |
 | `draft`       | none                                                     | `draft(n)`: done means `needs-you` with "Draft ready" |
 | `apply-draft` | `confirm: true` (anything else is `400`)                 | `applyDraft(n, { confirm })`                          |
 
@@ -84,6 +85,10 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
   close without a merge. It never writes to the PR.
+- `pr-feedback` takes no PR number either. At `pr-open` it collects the failing checks and the
+  trusted review comments on the PR head, adds `text` as the owner's note, and drives the issue
+  through `build`, `check`, and `review` to `pr-review`. A refusal is `409 pr-refused` and
+  changes nothing. The rules are in "PR feedback" in `agent-desk.md`.
 - A real `ship` needs `confirm: true`. A dry run may omit it. A dry run changes no state:
   it answers `done` at the gate, with the failed gate rules as the message, and writes
   `ship-plan.json` and `pr-body.md`. Read `pr-body.md` with the artifact id `pr-body` and `ship-plan.json` with `ship-plan`
@@ -108,7 +113,7 @@ The body is `{ "error": { "code": "<code>", "detail": "<raw text or null>" } }`.
 | `method-not-allowed`                                                                             | 405    |
 | `busy`                                                                                           | 409    |
 | `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `draft-refused`, `already-started` | 409    |
-| `refresh-refused`                                                                                | 409    |
+| `refresh-refused`, `pr-refused`                                                                  | 409    |
 | `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`                             | 409    |
 | `payload-too-large`                                                                              | 413    |
 | `unsupported-media-type`                                                                         | 415    |

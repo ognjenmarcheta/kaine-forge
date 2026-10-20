@@ -290,6 +290,10 @@ const buildRunner = (
       record(issue, "refresh-pr", {});
       const state = await readState(store, issue);
       return gate(state, `PR #${String(state.prNumber ?? 0)} is still open.`);
+    },
+    feedbackFromPr: async (issue, feedbackOptions) => {
+      record(issue, "pr-feedback", feedbackOptions ?? {});
+      return reviewReady(issue);
     }
   };
 };

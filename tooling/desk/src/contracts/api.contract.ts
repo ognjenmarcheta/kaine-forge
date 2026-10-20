@@ -25,6 +25,7 @@ export const REFUSAL_CODES = [
   "ship-refused",
   "draft-refused",
   "refresh-refused",
+  "pr-refused",
   "already-started",
   "intake-refused",
   "authorization",
@@ -266,6 +267,7 @@ export const ACTION_NAMES = [
   "remove",
   "ship",
   "refresh-pr",
+  "pr-feedback",
   "draft",
   "apply-draft"
 ] as const;
@@ -301,6 +303,13 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     }),
   // Reads the PR once. It never writes to the PR.
   z.object({ action: z.literal("refresh-pr") }).strict(),
+  // Reads the PR and sends its feedback to build. The PR number comes from the issue state.
+  z
+    .object({
+      action: z.literal("pr-feedback"),
+      text: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS).optional()
+    })
+    .strict(),
   z.object({ action: z.literal("draft") }).strict(),
   // Applying replaces the issue body on GitHub. Only an explicit yes reaches the engine.
   z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict()

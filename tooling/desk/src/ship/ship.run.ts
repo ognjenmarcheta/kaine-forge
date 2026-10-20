@@ -36,7 +36,13 @@ import {
   type ShipResult,
   type ShipStep
 } from "./ship.contract";
-import { evaluateShipGate, type AuthorizationCheck, type ShipGateInput } from "./ship.gate";
+import {
+  evaluateShipGate,
+  pullRequestFailures,
+  type AuthorizationCheck,
+  type ShipGateInput,
+  type ShipGatePullRequest
+} from "./ship.gate";
 import {
   commitStaged,
   conflictedFiles,
@@ -73,6 +79,7 @@ import {
 } from "../git";
 import { recheckAuthorization } from "../github/github.authorization";
 import { checkControllerIdentity, type ControllerIdentity } from "../github/github.identity";
+import type { PullRequestInfo } from "../github/github.pull-request";
 import { isProtectedPath } from "../policy";
 import type { Clock, Exec, GitHubPort } from "../ports";
 import { writeJsonAtomic } from "../store/store.atomic";
@@ -99,6 +106,13 @@ import type { IssueStore } from "../store/store.issue";
  * checked hash and the committed hash, so the gate stays exact after the
  * commit. `git add -A` appears only inside `diffAgainstBase`, on a temporary
  * index; the real index only ever receives an explicit file list.
+ *
+ * An issue that already has a PR (a PR feedback round) gets an update ship:
+ * no fetch and no rebase, the commit goes on top of the pushed head, a plain
+ * push to the same branch, and no new PR. The gate reads the PR before any
+ * change and again right before the push; a closed PR or a head that someone
+ * else moved stops the run with the remote untouched. The PR body is not
+ * edited.
  */
 
 const BASE_BRANCH = "main";
@@ -229,6 +243,8 @@ const stepOf = (failure: ShipFailure): ShipStep => {
       return "push";
     case "pull-request-failed":
       return "pull-request";
+    case "pr-changed":
+      return "push";
     case "state":
     case "error":
       return "gate";
@@ -272,6 +288,15 @@ const runShip = async (
   if (worktree === null || stateBase === null || stateBase === undefined) {
     return stop({ kind: "state", message: "There is no worktree or base commit to ship from." });
   }
+  /** The open PR of an earlier round. Its ship is an update: same branch, same PR, no rebase. */
+  const update =
+    state.prNumber == null
+      ? null
+      : {
+          number: state.prNumber,
+          round: Math.max(1, state.prRounds ?? 0),
+          pushedHead: state.prHeadSha ?? null
+        };
   const artifactsDir = deps.store.artifactsDir(request.issue);
   const shipDir = path.join(artifactsDir, SHIP_CHECK_DIR);
   const recordFile = path.join(artifactsDir, SHIP_RECORD_FILE);
@@ -358,6 +383,24 @@ const runShip = async (
     }
   }
 
+  /** A fresh read of the PR for the gate. `ours` is a commit this run made and may have pushed. */
+  const readPullRequest = async (ours: string | null): Promise<ShipGatePullRequest | null> => {
+    if (update === null) return null;
+    let view: ShipGatePullRequest["view"];
+    try {
+      view = await github.viewPullRequest(update.number);
+    } catch (error) {
+      view = { error: errorMessage(error) };
+    }
+    return {
+      number: update.number,
+      branch: state.branch ?? branchNow ?? "",
+      allowedHeads: [update.pushedHead, ours].filter((sha): sha is string => sha !== null),
+      view
+    };
+  };
+  const pullRequestNow = await readPullRequest(resumedFrom?.commitSha ?? null);
+
   const baseline = await readRefsBaseline(artifactsDir);
   const refViolations = async (): Promise<string[] | null> => {
     if (baseline === null || branchNow === null) return baseline === null ? null : [];
@@ -411,7 +454,8 @@ const runShip = async (
               .length,
             diffHash: reviewArtifact.diffHash
           },
-    expectedReviewDiffHash: over.reviewHash
+    expectedReviewDiffHash: over.reviewHash,
+    pullRequest: pullRequestNow
   });
 
   // --- gate (before any change) -------------------------------------------
@@ -496,11 +540,17 @@ const runShip = async (
     return stop({ kind: "state", message: `${TEMPLATE_PATH} is missing in the worktree.` });
   }
   const commit = buildCommitMessage(
-    commitInputFor({
-      plan: planned,
-      reviewTitle: reviewArtifact?.review.prDraft.title,
-      issue: request.issue
-    })
+    update === null
+      ? commitInputFor({
+          plan: planned,
+          reviewTitle: reviewArtifact?.review.prDraft.title,
+          issue: request.issue
+        })
+      : {
+          type: "fix",
+          subject: `address PR feedback (round ${update.round})`,
+          issue: request.issue
+        }
   );
   const render = (reports: readonly CheckReport[]) =>
     buildPrBody({
@@ -868,17 +918,24 @@ const runShip = async (
     }
   }
   // --- fetch and rebase ---------------------------------------------------------------------
-  step("fetch", "start");
-  try {
-    await git.fetch(worktree, "origin", BASE_BRANCH);
-  } catch (error) {
-    return stop({ kind: "fetch-failed", message: errorMessage(error) });
-  }
-  step("fetch", "done");
-
   let baseNow = base;
   let rebased = currentRecord.rebased;
-  if (await git.isAncestor(worktree, `origin/${BASE_BRANCH}`, "HEAD")) {
+  if (update === null) {
+    step("fetch", "start");
+    try {
+      await git.fetch(worktree, "origin", BASE_BRANCH);
+    } catch (error) {
+      return stop({ kind: "fetch-failed", message: errorMessage(error) });
+    }
+    step("fetch", "done");
+  } else {
+    // The reviewers read the pushed head. A rebase would rewrite it and need a forced push.
+    step("fetch", "skipped", "an update commits on the pushed head");
+  }
+
+  if (update !== null) {
+    step("rebase", "skipped", "an update never rebases");
+  } else if (await git.isAncestor(worktree, `origin/${BASE_BRANCH}`, "HEAD")) {
     step("rebase", "skipped", "the branch is up to date");
   } else {
     step("rebase", "start");
@@ -950,8 +1007,29 @@ const runShip = async (
   }
 
   // --- push ------------------------------------------------------------------------------------
-  step("push", "start");
-  const pushed = await pushBranch(exec, worktree, branch, timeouts.pushMs);
+  let alreadyPushed = false;
+  if (update !== null) {
+    // Read the PR again: it may have closed, or someone may have pushed, since the gate.
+    const before = await readPullRequest(commitSha);
+    const changed = before === null ? [] : pullRequestFailures(before);
+    if (changed.length > 0) {
+      return stop({
+        kind: "pr-changed",
+        message: `PR #${update.number} changed before the push. Nothing was pushed.`,
+        failures: changed
+      });
+    }
+    alreadyPushed =
+      before !== null && !("error" in before.view) && before.view.headRefOid === commitSha;
+  }
+  step(
+    "push",
+    alreadyPushed ? "skipped" : "start",
+    alreadyPushed ? "the PR head is this commit" : undefined
+  );
+  const pushed = alreadyPushed
+    ? { ok: true, log: "" }
+    : await pushBranch(exec, worktree, branch, timeouts.pushMs);
   if (!pushed.ok) {
     if (looksRejected(pushed.log)) {
       return stop({
@@ -969,28 +1047,55 @@ const runShip = async (
         })
       : stop({ kind: "push-failed", message: "git push failed.", log: pushed.log });
   }
-  step("push", "done");
+  if (!alreadyPushed) step("push", "done");
 
   // --- draft pull request --------------------------------------------------------------------------
   step("pull-request", "start");
   let pullRequest: { number: number; url: string };
   let reused = false;
-  try {
-    const existing = await github.findPullRequest(branch);
-    if (existing === null) {
-      pullRequest = await github.createPullRequest({
-        base: BASE_BRANCH,
-        head: branch,
-        title: commit.header,
-        bodyFile: path.join(artifactsDir, PR_BODY_FILE),
-        draft: true
-      });
-    } else {
-      pullRequest = existing;
-      reused = true;
+  if (update !== null) {
+    // An update never opens a PR. The branch must still belong to the PR on record.
+    let found: PullRequestInfo | null;
+    try {
+      found = await github.findPullRequest(branch);
+    } catch (error) {
+      return stop({ kind: "pull-request-failed", message: errorMessage(error) });
     }
-  } catch (error) {
-    return stop({ kind: "pull-request-failed", message: errorMessage(error) });
+    if (found?.number !== update.number) {
+      return stop({
+        kind: "pr-changed",
+        message: `The open PR for '${branch}' is not PR #${update.number}. No PR was opened.`,
+        failures: [
+          {
+            kind: "pr-mismatch",
+            message:
+              found === null
+                ? `No open PR has the head '${branch}'.`
+                : `PR #${found.number} has the head '${branch}'.`
+          }
+        ]
+      });
+    }
+    pullRequest = found;
+    reused = true;
+  } else {
+    try {
+      const existing = await github.findPullRequest(branch);
+      if (existing === null) {
+        pullRequest = await github.createPullRequest({
+          base: BASE_BRANCH,
+          head: branch,
+          title: commit.header,
+          bodyFile: path.join(artifactsDir, PR_BODY_FILE),
+          draft: true
+        });
+      } else {
+        pullRequest = existing;
+        reused = true;
+      }
+    } catch (error) {
+      return stop({ kind: "pull-request-failed", message: errorMessage(error) });
+    }
   }
   await persist({ pullRequest });
   step("pull-request", "done", reused ? `reused #${pullRequest.number}` : `#${pullRequest.number}`);
@@ -1019,6 +1124,7 @@ const runShip = async (
     prUrl: pullRequest.url,
     prNumber: pullRequest.number,
     reusedPullRequest: reused,
+    updated: update !== null,
     commitSha,
     branch,
     baseSha: baseNow,

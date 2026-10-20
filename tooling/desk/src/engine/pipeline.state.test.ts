@@ -76,6 +76,12 @@ describe("stageEnteredAt", () => {
       at(9)
     ],
     [
+      "the update push of a PR feedback round",
+      "pr-open",
+      [event(8, "ship", "stage-started"), event(9, "ship", "pr-updated")],
+      at(9)
+    ],
+    [
       "the merge the owner made",
       "shipped",
       [event(9, "ship", "pr-opened"), event(10, "pr-open", "pr-merged")],

@@ -61,7 +61,8 @@ describe("nextSteps", () => {
     ).toEqual([
       "open the draft PR: https://github.com/o/r/pull/101",
       "review it and merge it yourself on GitHub. The desk never merges.",
-      "after you merge or close it, run: pnpm desk refresh 12"
+      "after you merge or close it, run: pnpm desk refresh 12",
+      'or send the PR feedback back to build: pnpm desk feedback 12 --from-pr "[your words]"'
     ]);
   });
 
@@ -95,6 +96,24 @@ describe("describeResult", () => {
       stage: "pr-review",
       status: "waiting"
     });
+  });
+
+  it("names what still works after a refused PR feedback round", () => {
+    const view = refused({
+      refusal: "pr-refused",
+      reason: "The worktree has uncommitted changes. Nothing was changed.",
+      state: stateAt("pr-open", { prNumber: 101 })
+    });
+    expect(view.text).toBe(
+      [
+        "#12: refused (pr-refused). The worktree has uncommitted changes. Nothing was changed.",
+        "The issue still waits at pr-open. Next:",
+        "  review it and merge it yourself on GitHub. The desk never merges.",
+        "  after you merge or close it, run: pnpm desk refresh 12",
+        '  or send the PR feedback back to build: pnpm desk feedback 12 --from-pr "[your words]"',
+        ""
+      ].join("\n")
+    );
   });
 
   it("prints the PR URL once the ship opened it, and in the JSON", () => {

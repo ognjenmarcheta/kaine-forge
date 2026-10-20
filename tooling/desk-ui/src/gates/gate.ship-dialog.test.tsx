@@ -31,7 +31,8 @@ const setup = (
   ship: ActionSettled = {
     kind: "done",
     outcome: { stop: "gate", stage: "pr-open", message: null }
-  }
+  },
+  pullRequest: number | null = null
 ) => {
   const run = vi.fn<IssueActions["run"]>((request) =>
     Promise.resolve(request.action === "ship" && request.dryRun !== true ? ship : DONE)
@@ -42,7 +43,13 @@ const setup = (
   });
   const onOpenChange = vi.fn();
   renderDesk(
-    <ShipDialog issueNumber={7} open onOpenChange={onOpenChange} actions={{ busy: false, run }} />,
+    <ShipDialog
+      issueNumber={7}
+      pullRequest={pullRequest}
+      open
+      onOpenChange={onOpenChange}
+      actions={{ busy: false, run }}
+    />,
     api
   );
   return { run, onOpenChange };
@@ -74,6 +81,19 @@ describe("ShipDialog", () => {
     await screen.findByText("Shipped. The draft pull request is open.");
     expect(run).toHaveBeenLastCalledWith({ action: "ship", confirm: true, dryRun: false });
     expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("says that the ship of a PR feedback round pushes to the open PR and opens none", async () => {
+    setup(plan({ pullRequest: { title: "fix: address PR feedback (round 1)" } }), undefined, 101);
+    const dialog = await screen.findByRole("dialog");
+    await screen.findByText("Every ship rule passes.");
+    expect(dialog.textContent).toContain("Pushes to PR #101");
+    expect(dialog.textContent).not.toContain("A draft against main");
+
+    await userEvent.click(screen.getByRole("button", { name: "Continue to confirm" }));
+    expect(screen.getByText(/pushes to PR #101/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm and ship" }));
+    expect(await screen.findByText("Pushed. PR #101 has the new commit.")).toBeTruthy();
   });
 
   it("blocks the confirm step while a gate rule fails, and lists the failure", async () => {

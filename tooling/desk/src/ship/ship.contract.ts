@@ -190,6 +190,7 @@ export const SHIP_FAILURE_KINDS = [
   "push-rejected",
   "push-failed",
   "pull-request-failed",
+  "pr-changed",
   "error"
 ] as const;
 export type ShipFailureKind = (typeof SHIP_FAILURE_KINDS)[number];
@@ -214,6 +215,11 @@ export type ShipFailure = {
   | { readonly kind: "commit-failed" | "push-failed"; readonly log: string }
   | { readonly kind: "rebase-conflict"; readonly files: readonly string[]; readonly log: string }
   | { readonly kind: "push-rejected"; readonly log: string }
+  /**
+   * An update ship found the open PR changed before the push (closed, another head, another
+   * branch) or after it (another PR for the branch). The push did not happen, or no PR changed.
+   */
+  | { readonly kind: "pr-changed"; readonly failures: readonly ShipGateFailure[] }
 );
 
 export type ShipChangesetResult =
@@ -241,6 +247,8 @@ export type ShipResult =
       readonly prNumber: number;
       /** True when a PR for the branch already existed. */
       readonly reusedPullRequest: boolean;
+      /** True for the ship of a PR feedback round: it pushed to the PR an earlier ship opened. */
+      readonly updated: boolean;
       readonly commitSha: string;
       readonly branch: string;
       readonly baseSha: string;

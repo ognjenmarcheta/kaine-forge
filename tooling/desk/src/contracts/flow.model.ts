@@ -241,7 +241,8 @@ const isRunStart = (node: FlowNodeId, event: HistoryEvent): boolean => {
     case "pr-review":
       return event.event === "review-approved";
     case "pr-open":
-      return event.event === "pr-opened";
+      // The first ship opens the PR. The ship of a PR feedback round updates it.
+      return event.event === "pr-opened" || event.event === "pr-updated";
     case "ship":
       return (
         (event.event === "stage-started" || event.event === "ship-started") &&
@@ -270,7 +271,8 @@ const DECISIONS: Readonly<
     looped: "review-changes-requested"
   },
   "plan-gate": { events: ["plan-approved", "feedback"], looped: "feedback" },
-  "pr-review": { events: ["feedback"], looped: "feedback" }
+  "pr-review": { events: ["feedback"], looped: "feedback" },
+  "pr-open": { events: ["pr-feedback"], looped: "pr-feedback" }
 };
 
 const FEEDBACK_NOTE = /^to (plan|build|review)$/;
@@ -437,6 +439,8 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
       const blocking = BLOCKING_NOTE.exec(event.note ?? "")?.[1];
       entry.blocking = blocking === undefined ? null : Number(blocking);
     }
+    // PR feedback always goes from the open PR back to build.
+    if (event.event === "pr-feedback") statsOf("pr-open->build").feedbackCount += 1;
     if (event.event !== "feedback") return;
     const target = FEEDBACK_NOTE.exec(event.note ?? "")?.[1];
     if (target === undefined) return;
