@@ -222,6 +222,11 @@ describe("intake fit", () => {
     ["a score of 4", { fit: fit(3, 4, 2) }],
     ["a fractional score", { fit: fit(2.5, 2, 2) }],
     ["a missing reason", { fit: { ...fit(3, 3, 3), verifiability: { score: 3, reason: "" } } }],
+    ["a blank reason", { fit: { ...fit(3, 3, 3), clarity: { score: 3, reason: "   " } } }],
+    [
+      "a reason over two lines",
+      { fit: { ...fit(3, 3, 3), complexity: { score: 3, reason: "One file.\nAlso a migration." } } }
+    ],
     ["no fit", {}]
   ])("rejects %s", (_name, over) => {
     expect(intakeOutputSchema.safeParse({ ...base, ...over }).success).toBe(false);

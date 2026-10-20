@@ -84,7 +84,11 @@ export type IntakeDraft = z.infer<typeof intakeDraftSchema>;
 
 /** One grade of the fit score: 3 fits an unattended agent run best, 1 worst. */
 export const fitAxisSchema = z
-  .object({ score: z.number().int().min(1).max(3), reason: nonEmpty })
+  .object({
+    score: z.number().int().min(1).max(3),
+    /** One line with text: `start` puts it into its log line and the history note. */
+    reason: z.string().regex(/^[^\r\n]*\S[^\r\n]*$/, "Use one line of text")
+  })
   .strict();
 
 /**
