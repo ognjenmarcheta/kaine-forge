@@ -25,6 +25,18 @@ Return exactly one recommendation:
 - `needs-info`: name each missing fact and the question that resolves it.
 - `ready-for-human`: explain the human action or unsupported environment required.
 
+Grade the fit for an unattended agent run, 1 to 3 on each axis, with a one-line reason. On
+every axis 3 is the best fit:
+
+- Clarity: 3 when the issue has one reading only; 1 when two reasonable readings give
+  different code.
+- Complexity: 3 for low complexity, a bounded change in one workspace; 1 for high
+  complexity, such as a cross-cutting change, a migration, or an unknown blast radius.
+- Verifiability: 3 when every acceptance criterion maps to a command or a test; 1 when the
+  result needs a person's judgment.
+
+Confidence is the lowest grade. It is advice for the owner and never decides readiness.
+
 Return supporting evidence and no file changes. Do not apply ready-for-agent,
 close issues, or start implementation. The owner authorizes implementation.
 Existing findings use kaine-triage-issue instead.

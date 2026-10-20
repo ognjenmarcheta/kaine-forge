@@ -2,16 +2,25 @@ import { parse, requireIssue } from "./cli.args";
 import { describeResult } from "./cli.format";
 import { openRuntime } from "./cli.runtime";
 import { UsageError, type CliCommand } from "./cli.types";
-import type { IssueDraft } from "../contracts";
+import { fitConfidence, type IntakeFit, type IssueDraft } from "../contracts";
 import type { PipelineResult } from "../engine/pipeline.types";
 
 const USAGE = "pnpm desk draft <issue> [--snapshot-file <path>] | --apply [--confirm] [--json]";
+
+/** 3 is the best fit on every axis: for complexity it means low complexity. */
+const describeFit = (fit: IntakeFit): string[] => [
+  `Fit confidence: ${fitConfidence(fit)}/3${fitConfidence(fit) === 1 ? " ('start' warns)" : ""}`,
+  `  - clarity ${fit.clarity.score}/3: ${fit.clarity.reason}`,
+  `  - low complexity ${fit.complexity.score}/3: ${fit.complexity.reason}`,
+  `  - verifiability ${fit.verifiability.score}/3: ${fit.verifiability.reason}`
+];
 
 const describeDraft = (issue: number, draft: IssueDraft): string =>
   [
     `#${issue}: draft ready (contract ${draft.contract.found}/${draft.contract.total}, ${draft.acceptanceCriteria} acceptance criteria).`,
     `Recommendation: ${draft.recommendation}`,
     ...draft.reasons.map((reason) => `  - ${reason}`),
+    ...(draft.fit === undefined ? [] : describeFit(draft.fit)),
     ...(draft.unknowns.length === 0
       ? []
       : ["Unknown:", ...draft.unknowns.map((entry) => `  - ${entry.section}: ${entry.question}`)]),
