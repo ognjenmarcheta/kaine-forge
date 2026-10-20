@@ -62,12 +62,12 @@ describe("auth.instance", () => {
     await expect(verify?.({ hash: stored, password: "WrongPass!" })).resolves.toBe(false);
   });
 
-  it("verifies legacy unsalted sha256 hashes through the configured hook", async () => {
+  it("rejects legacy unsalted sha256 hashes through the configured hook", async () => {
     const legacy = createHash("sha256").update("Secret123!").digest("hex");
     const verify = auth.options.emailAndPassword?.password?.verify;
 
-    await expect(verify?.({ hash: legacy, password: "Secret123!" })).resolves.toBe(true);
-    await expect(verify?.({ hash: legacy, password: "WrongPass!" })).resolves.toBe(false);
+    expect(verify).toBeTypeOf("function");
+    await expect(verify?.({ hash: legacy, password: "Secret123!" })).resolves.toBe(false);
   });
 
   it("registers the expo, organization, and bearer plugins", () => {

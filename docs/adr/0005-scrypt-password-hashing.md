@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-03
 - Status update (2026-10-19, issue #492): the default cost is now N=16384, r=8, p=5, the 16 MiB variant of the OWASP Password Storage Cheat Sheet minimum. It equals N=2^17, r=8, p=1 in strength but keeps memory per concurrent login at 16 MiB instead of 128 MiB. Hashes at the old cost (p=1) still verify and are rehashed on the next login. The default is no longer below the OWASP minimum.
+- Status update (2026-10-21, issue #499): the legacy unsalted SHA-256 verify path is removed. `verifyPassword` now returns false for any stored hash that is not `scrypt$N$r$p$salt$hash`, so a remaining SHA-256 hash fails login and its user must reset the password. `needsPasswordRehash` still flags such hashes. This supersedes the Decision bullet that says legacy SHA-256 hashes continue to verify.
 
 ## Context
 
