@@ -1744,6 +1744,464 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Unchanged (.vscode/launch.json:28-30)"
         }
       ]
+    },
+    {
+      "date": "2026-10-20",
+      "commit": "9cf8364f919d60c402691d317959ae5ddec85a8b",
+      "mode": "fan-out",
+      "agent": "claude",
+      "overall": 8,
+      "dimensions": {
+        "1": {
+          "score": 8,
+          "evidence": "The DOM client import block covers apps/web, apps/desktop, packages/ui, tooling/desk-ui and tooling/factory-ui (packages/config/eslint/base.js:78-84), proven by an ESLint calculateConfigForFile contract per workspace (monorepo-alignment.test.ts:1091-1138, #519, 30s timeout after #549); knip global zod/@repo/config ignores removed, zod scoped to packages/auth and packages/db, @repo/web scoped to desktop with its reason (knip.json:55,63-70); pnpm boundaries exit 0 (988 files, 22 packages) and knip exit 0, both on every PR (ci-pr.yml:245-246). Not 9: MONOREPO_GUIDE.md does not describe the client-safe versus server-only entry rule (only the .server.ts suffix at :112); the DOM workspace list in the test and the base.js globs are both hand-kept; turbo tag rules were declined (calibration note below)"
+        },
+        "2": {
+          "score": 8,
+          "evidence": "Raise condition met: tooling/desk/turbo.json declares every root file desk tests read (#497); a derived inputs-versus-reads contract (monorepo-alignment.test.ts:1316-1454, #517) folds path constants in every tracked test and accepts a read only inside the package, a global dependency, a workspace dependency's build inputs, or the package's test inputs, naming the fix on failure; it surfaced and closed four gaps; desktop build now reaches @repo/web through a turbo edge (apps/desktop/package.json:8,22) and Deep Checks built it green through that edge (run 39406169156). Not 9: the check is a floor, and the probe found a read it misses (the ESLint contract's new ESLint({ cwd: repoRoot }) loads root eslint.config.mjs, which packages/config/turbo.json does not hash); DYNAMIC_READS is self-registered with exact-string needs; MONOREPO_GUIDE.md does not document the inputs rule"
+        },
+        "3": {
+          "score": 8,
+          "evidence": "Both 10-18 conditions met: docker-cache paths pinned to the PR docker filter and the node --test list pinned to the root test script and tracked files by tests (scripts/pr-quality-gate.test.mjs:338-356, #513); tooling tests run affected-scoped on the PR path (ci-pr.yml:224-227, #498); the Trivy gate pass reuses setup and DB (ci-pr.yml:507-520, #525: 27-29s to under 1s); changeset gate reads labels live, pinned by a test (#515, #521); rulesets require PR Quality Gate and Analyze TypeScript. CI PR on main (all jobs) 10m22s wall; full-path PRs 7-10 min. Not 9: Docker build inputs (context, file, build-args, cache scope) still match by comment across ci-pr.yml:465-479, docker-cache.yml:64-80 and security.yml:81-96; PNPM_VERSION duplicated in four workflows with a comment guard; SBOM is still a separate image pass (ci-pr.yml:522-528)"
+        },
+        "4": {
+          "score": 8,
+          "evidence": "Raise condition met: tooling tests gate PRs (ci-pr.yml:224-227) with a contract test (monorepo-alignment.test.ts:990-997) and the coverage exclusion records its reason (vitest.coverage.config.ts:51-53). Also landed: cross-organization e2e for notes beside todos (web-organization-isolation.e2e.ts:117, #529), invitation acceptance e2e through the auth API with a second browser context (web-invitation-attachment.e2e.ts, #529), schema-level tenancy contract across every organization-scoped field (apps/api/src/server.tenancy.test.ts:257-303, #514), rendered login-form and organization-create-dialog tests replacing source-text ones (#527). Coverage on main run 39406173469: 165 files, statements 64.21 / branches 50.78 / functions 53.51 / lines 65.31 against floors 50/42/45/50 (raised in #527). Not 9: the attachment e2e still skips in CI without E2E_STORAGE_ENABLED; floors trail measured by up to 15 points; only two web components have rendered tests"
+        },
+        "5": {
+          "score": 8,
+          "evidence": "The npm non-major group excludes every pattern group (dependabot.yml:44-52) and every dual-catalog package is fully ignored (:108-113), each pinned by a contract test (scripts/pr-quality-gate.test.mjs:403-453, #544, #536) after Dependabot split the better-auth and vitest pairs (#531/#532/#534, recreated as #540); the catalog gate covers the root manifest and eslint is declared once (monorepo-alignment.test.ts:893, #513); minimumReleaseAge 4320 matches the Dependabot cooldown; pnpm audit --audit-level high exit 0 with two tracked ignores (#457, #469); Dependabot alerts high 1 (node-forge, accepted) / medium 5 / low 1. Not 9: transitive security fixes rely on hand-kept override floors with no stale-floor check (pnpm-workspace.yaml:97-133); audit ignores have issue links but no expiry; the queue needed hand repair this week"
+        },
+        "6": {
+          "score": 9,
+          "evidence": "The 09-10 condition for 9 is met: runReleaseApps (.ai/release-apps.util.ts:217-252, #523) is pure git against a given repo root, and .ai/release-apps.util.spec.ts:53-186 drives it against a real seed, bare origin, and clone (create then fast-forward, skip unchanged, dry run, behind-origin no-op, non-ancestor refusal, off-main and dirty refusal), proven red by disabling the fast-forward guard, and runs on every PR through ai:test (ci-pr.yml:231). Release queues and never cancels and runs check:ci, build:core and test:e2e first (release.yml:9-13,80-91); Release green on 57f0092, 6bc0ac2 and 9cf8364 after #549 fixed a contract-test timeout on e047bf0; Dockerfiles digest-pinned. Watch: release-branch pushes run one by one (release-apps.util.ts:246-249), so a mid-loop failure can move release/api without release/web"
+        },
+        "7": {
+          "score": 7,
+          "evidence": "Two of three raise conditions met: scrypt N=16384 r=8 p=5, the OWASP 16 MiB variant, with bounded stored costs and rehash on login (packages/auth/src/auth.password.ts:14-21, #496); the web runner upgrades Alpine packages weekly (Dockerfile.web:39, #495; web Trivy findings 13 to 0). Also landed: explicit httpOnly/sameSite/secure cookies and a server password minimum (auth.instance.ts:116,138,181-188, #511); a schema-wide tenancy contract (#514); weekly Trivy rescan of main images with SARIF (security.yml, #510), which closed 11 stale alerts; SECURITY.md:65 names the triager and the dispositions. Held at 7 because the third condition is only partly met: Trivy #23 (decode-uri-component 0.2.2) and #24 (uuid 7.0.3) in the api image, fixed only in new majors and reached through the Expo toolchain under @repo/auth, have neither a fix nor a recorded disposition, which SECURITY.md:65 itself requires; CodeQL #3 stays open on purpose, linked to #499. Toward 9: the PR image gate fails only on CRITICAL"
+        },
+        "8": {
+          "score": 8,
+          "evidence": "Both observed gaps closed by #513: .vscode/launch.json:29-38 passes the root coverage config, and docs/troubleshooting.md:119-127 documents the Windows-host @repo/desk failure with Linux, WSL, or desk Docker isolation as the path; README.md:92 and troubleshooting.md:117 name the turbo desktop build (#517); a test checks every documented pnpm command against built-ins, root scripts, and bins (scripts/pr-quality-gate.test.mjs:358-385) on every PR. Not 9: no preflight warns a Windows user before pnpm check fails in @repo/desk; nothing exercises the launch config or bootstrap path"
+        },
+        "9": {
+          "score": 8,
+          "evidence": "ai:doctor --strict exit 0; the doc-command test now derives command facts from manifests for README, CONTRIBUTING, day-one and AGENTS (#513); kaine-adopt-template.md:40-41 explains the legacy glob; MONOREPO_GUIDE.md:24-52 matches the 22 manifests; 11 ADRs indexed (docs/README.md:26-36); Dependabot grouping comments match the config. Not 9: docs/adr/0005-scrypt-password-hashing.md:15 still says p=1 and :35 says the default is below OWASP, contradicting its own status update at :5 and the code (a #496 miss); no test derives the guide's workspace tree or README's package count; .ai/context-audit.ts:99 reports guide size without a ceiling; the command test skips MONOREPO_GUIDE.md and troubleshooting.md"
+        },
+        "10": {
+          "score": 8,
+          "evidence": "Every baseline gap now has a gate (#512): a committed eval ledger with an offline regression check that refuses a lower-scoring run in the same provider/model/dataset series (apps/api/src/features/assistant/assistant.eval.ledger.ts:88-112, proven by a 14/15 to 13/15 case in .ledger.test.ts:42-50) and a strict summary-only schema that rejects prompt content; coverage derived from createAssistantTools minus a read-only allowlist (assistant.eval.test.ts:22-36); an updateNote golden case (assistant.eval.data.ts:115); a telemetry test proving the model-call log line is bound to organizationId and carries no prompt (apps/api/src/ai.telemetry.scope.test.ts:80-95); harness:eval --check in ai:test on PRs; desk run records with a harness fingerprint. Not 9: assistant.eval.ledger.json holds no reviewed live run, so the regression gate has never compared real data, and nothing requires a fresh run when the prompt or dataset hash changes"
+        }
+      },
+      "findings": [
+        {
+          "slug": "trivy-api-uuid-decode-uri-untriaged",
+          "title": "security: trivy #23 and #24 in the api image have no fix or recorded disposition",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "observed",
+          "reason": "Proposed for filing on 2026-10-20; awaiting owner go-ahead"
+        },
+        {
+          "slug": "release-push-non-atomic",
+          "title": "release: release:apps pushes release branches one by one, so a failure can split the api and web pair",
+          "dimension": 6,
+          "ladderRank": 2,
+          "disposition": "observed",
+          "reason": "Proposed for filing on 2026-10-20; awaiting owner go-ahead"
+        },
+        {
+          "slug": "adr-0005-stale-cost-defaults",
+          "title": "docs: adr 0005 body still states p=1 and a below-owasp default, contradicting its status line and the code",
+          "dimension": 9,
+          "ladderRank": 3,
+          "disposition": "observed",
+          "reason": "Proposed for filing on 2026-10-20; awaiting owner go-ahead"
+        },
+        {
+          "slug": "eslint-contract-reads-unhashed-root-config",
+          "title": "build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits",
+          "dimension": 2,
+          "ladderRank": 3,
+          "disposition": "observed",
+          "reason": "Proposed for filing on 2026-10-20; awaiting owner go-ahead"
+        },
+        {
+          "slug": "docker-build-inputs-untested",
+          "title": "ci: docker build inputs in ci-pr, docker-cache and security match by comment only",
+          "dimension": 3,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Proposed for filing on 2026-10-20; awaiting owner go-ahead"
+        },
+        {
+          "slug": "assistant-eval-ledger-empty",
+          "title": "eval: the committed assistant eval ledger holds no reviewed live run",
+          "dimension": 10,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Recording a run needs paid model calls and owner review; owner decision"
+        },
+        {
+          "slug": "assistant-eval-prompt-drift-unrecorded",
+          "title": "eval: no check requires a fresh ledger run when the prompt or dataset hash changes",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Depends on a first recorded run"
+        },
+        {
+          "slug": "legacy-sha256-verify-no-sunset",
+          "title": "auth: the unsalted sha256 verify fallback has no removal plan",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "open",
+          "issue": 499,
+          "reason": "Kept by owner decision until 2027-01-04 or zero legacy hashes"
+        },
+        {
+          "slug": "server-only-split-undocumented",
+          "title": "docs: monorepo guide does not describe the client-safe versus server-only entry rule",
+          "dimension": 1,
+          "ladderRank": 6,
+          "disposition": "observed"
+        },
+        {
+          "slug": "inputs-rule-undocumented-in-guide",
+          "title": "docs: monorepo guide does not explain the turbo test-inputs contract",
+          "dimension": 2,
+          "ladderRank": 6,
+          "disposition": "observed"
+        },
+        {
+          "slug": "dynamic-reads-self-registration",
+          "title": "build: DYNAMIC_READS depends on authors registering git walks and subprocess tests",
+          "dimension": 2,
+          "ladderRank": 7,
+          "disposition": "observed"
+        },
+        {
+          "slug": "transitive-security-via-manual-overrides",
+          "title": "deps: transitive security fixes rely on hand-kept override floors with no stale-floor check",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed"
+        },
+        {
+          "slug": "audit-ignores-no-expiry",
+          "title": "deps: audit ignores have issue links but no expiry",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "invitation-attachment-e2e-skipped-in-ci",
+          "title": "testing: the attachment e2e skips in ci without e2e_storage_enabled",
+          "dimension": 4,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Needs S3/MinIO in CI"
+        },
+        {
+          "slug": "coverage-floors-far-below-measured",
+          "title": "testing: global floors trail measured coverage by up to 15 points",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "web-rendered-tests-thin",
+          "title": "testing: only two web components have rendered tests",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "trivy-pr-gate-critical-only",
+          "title": "security: high image vulnerabilities do not fail pull requests",
+          "dimension": 7,
+          "ladderRank": 7,
+          "disposition": "observed"
+        },
+        {
+          "slug": "pnpm-version-duplicated",
+          "title": "ci: pnpm version is repeated in four workflows with a comment guard",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "sbom-separate-pass",
+          "title": "ci: the sbom step reanalyses the image instead of reusing the trivy cache",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "tag-release-steps-untested",
+          "title": "release: tag push and github release steps are inline bash without a test",
+          "dimension": 6,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "windows-desk-no-preflight",
+          "title": "dx: no preflight warns windows users before pnpm check fails in @repo/desk",
+          "dimension": 8,
+          "ladderRank": 8,
+          "disposition": "observed"
+        },
+        {
+          "slug": "guide-size-budget-unenforced",
+          "title": "ai: the context audit reports guide size but enforces no ceiling",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed"
+        },
+        {
+          "slug": "workspace-tree-not-derived",
+          "title": "docs: no test derives the guide workspace tree or readme package count from manifests",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed"
+        },
+        {
+          "slug": "dom-workspace-list-hand-maintained",
+          "title": "lint: the dom workspace list in base.js and its contract test are both hand-kept",
+          "dimension": 1,
+          "ladderRank": 9,
+          "disposition": "observed"
+        },
+        {
+          "slug": "e2e-shard-comment-stale",
+          "title": "ci: the e2e shard comment says 5 spec files, there are 15",
+          "dimension": 4,
+          "ladderRank": 10,
+          "disposition": "observed"
+        },
+        {
+          "slug": "ci-tooling-tests-skip-pr-gate",
+          "title": "ci: tooling workspace tests never run on pull requests, so desk regressions first fail after merge",
+          "dimension": 4,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 489,
+          "reason": "#498"
+        },
+        {
+          "slug": "desk-test-inputs-missing-root-files",
+          "title": "build: the tooling/desk test hash omits the root files its tests read",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "issue": 490,
+          "reason": "#497"
+        },
+        {
+          "slug": "web-image-os-packages-not-refreshed",
+          "title": "security: the web image ships fixable high alpine cves because its runner stage never upgrades packages",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "issue": 491,
+          "reason": "#495; web Trivy findings 13 to 0"
+        },
+        {
+          "slug": "scrypt-cost-below-owasp",
+          "title": "auth: the scrypt cost n=16384 is below the owasp minimum",
+          "dimension": 7,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 492,
+          "reason": "#496 (N=2^14, r=8, p=5)"
+        },
+        {
+          "slug": "code-scanning-alerts-untriaged",
+          "title": "security: 28 code scanning alerts sit untriaged on the public repository",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "issue": 493,
+          "reason": "14 CodeQL dismissed with reasons, 11 stale Trivy closed by the main rescan; two new Trivy findings tracked as trivy-api-uuid-decode-uri-untriaged"
+        },
+        {
+          "slug": "main-trivy-alerts-stale-no-main-scan",
+          "title": "security: main-branch trivy alerts come only from manual runs, so they never close",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "issue": 493,
+          "reason": "#510 weekly rescan; 11 alerts closed on 2026-10-20"
+        },
+        {
+          "slug": "test-input-coverage-not-gated",
+          "title": "build: no automated check that files a test reads appear in its turbo inputs",
+          "dimension": 2,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#517 derived check (a floor; see eslint-contract-reads-unhashed-root-config)"
+        },
+        {
+          "slug": "desktop-build-hash-omits-web",
+          "title": "build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output",
+          "dimension": 2,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "reason": "#517 turbo edge; Deep Checks green"
+        },
+        {
+          "slug": "tenancy-enforced-by-convention",
+          "title": "security: no contract test or lint guarantees every resolver resolves scope from session",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#514 schema-wide tenancy contract"
+        },
+        {
+          "slug": "auth-cookie-password-policy-implicit",
+          "title": "security: cookie attributes and server password minimum rely on better-auth defaults",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "reason": "#511"
+        },
+        {
+          "slug": "e2e-cross-org-todos-only",
+          "title": "testing: cross-organization isolation is asserted for todos only",
+          "dimension": 4,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#529 notes case"
+        },
+        {
+          "slug": "client-import-block-skips-tooling-ui",
+          "title": "eslint: the server-only import restriction skips desk-ui and factory-ui",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#519"
+        },
+        {
+          "slug": "knip-ignore-stale-and-laundering",
+          "title": "tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#519"
+        },
+        {
+          "slug": "docker-cache-path-list-comment-only",
+          "title": "ci: docker-cache.yml path list and pins match ci-pr.yml by comment only",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#513 (paths); build inputs remain, see docker-build-inputs-untested"
+        },
+        {
+          "slug": "ci-scripts-test-list-comment-only",
+          "title": "ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#513"
+        },
+        {
+          "slug": "eslint-duplicate-resolution",
+          "title": "deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#513 catalog gate on the root manifest"
+        },
+        {
+          "slug": "majors-uncovered-by-ignore-or-287",
+          "title": "deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#521/#536 tailwindcss fully ignored; @clack/prompts left as single owner-reviewed PRs by decision"
+        },
+        {
+          "slug": "launch-json-vitest-config-broken",
+          "title": "dx: .vscode/launch.json vitest debug config runs from the root without a vitest config",
+          "dimension": 8,
+          "ladderRank": 10,
+          "disposition": "fixed",
+          "reason": "#513"
+        },
+        {
+          "slug": "windows-desk-tests-undocumented-for-check",
+          "title": "dx: windows-host pnpm check fails in @repo/desk with no troubleshooting entry or guard",
+          "dimension": 8,
+          "ladderRank": 7,
+          "disposition": "fixed",
+          "reason": "#513 troubleshooting entry; guard tracked as windows-desk-no-preflight"
+        },
+        {
+          "slug": "doc-script-refs-not-gated",
+          "title": "docs: documented pnpm scripts are not checked against package.json",
+          "dimension": 9,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#513"
+        },
+        {
+          "slug": "adopt-template-dead-tauri-glob",
+          "title": "skills: kaine-adopt-template keeps the legacy src-tauri/target glob unexplained",
+          "dimension": 9,
+          "ladderRank": 10,
+          "disposition": "fixed",
+          "reason": "#513"
+        },
+        {
+          "slug": "eval-no-regression-baseline",
+          "title": "eval: live assistant quality has no committed baseline or regression gate",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#512 ledger and gate; data tracked as assistant-eval-ledger-empty"
+        },
+        {
+          "slug": "eval-write-tools-hand-list",
+          "title": "eval: the assistant write-tool floor checks a hand-kept list",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#512"
+        },
+        {
+          "slug": "eval-update-note-no-golden-call",
+          "title": "eval: updateNote has no expected-call golden case",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#512"
+        },
+        {
+          "slug": "harness-ledger-render-drift-ungated",
+          "title": "harness-eval: generated ledger region drift is not checked",
+          "dimension": 10,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#512 harness:eval --check in ai:test"
+        },
+        {
+          "slug": "telemetry-org-scope-untested",
+          "title": "telemetry: organization scope on model-call logs is not asserted",
+          "dimension": 10,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#512 ai.telemetry.scope.test.ts"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Covered by override floors; see transitive-security-via-manual-overrides"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -1951,6 +2409,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Dims | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | ---- | -------------- |
+| 2026-10-20 | `9cf8364` | fan-out    | claude   | **8**   | 10   | 7              |
 | 2026-10-18 | `c794e07` | fan-out    | claude   | **7.6** | 10   | 11             |
 | 2026-09-10 | `cd623ee` | fan-out    | claude   | **7.8** | 9    | 14             |
 | 2026-09-09 | `7e867a9` | fan-out    | claude   | **7.7** | 9    | 4              |
@@ -1960,69 +2419,79 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 9    | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 9    | 2              |
 
-### Latest scorecard — 2026-10-18 (`c794e07`, fan-out)
+### Latest scorecard — 2026-10-20 (`9cf8364`, fan-out)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --- | ------------------------ | ----- | ------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | 0   | New tooling workspaces follow @repo/* naming; @repo/desk declares exports (tooling/desk/package.json:6-9), @repo/factory-ui exports only ./contracts (tooling/factory-ui/package.json:6-8), @repo/desk-ui is a leaf Vite app; 0 deep @repo/*/src imports, no app or package imports tooling; knip has explicit entries per new workspace (knip.json:83-109); pnpm boundaries exit 0 (984 files, 22 packages), knip exit 0. Observed: the server-only client import block (packages/config/eslint/base.js:77) does not cover tooling/desk-ui and tooling/factory-ui although react.js:56-57 treats them as DOM apps (no violation today); turbo boundaries runs without tag rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 2   | Build & Cache            | 7.0   | `███████░░░` | ▼-1 | Down 1 with reproduced cause: turbo run test --filter=@repo/desk --dry=json hashes 310 inputs and none of the root files its tests read (.github/pull_request_template.md read at tooling/desk/src/ship/ship.pr-body.test.ts:12, .github/workflows/ci-pr.yml at ship.changeset.test.ts:122, docs/agents/day-one.md at github.snapshot-fixture.test.ts:14, root commitlint.config.mjs via ship.message.test.ts:16-19); no tooling/_/turbo.json exists, and the Release run on c794e07 reported 32 of 35 test-phase tasks cached, so a stale desk result can pass on main. @repo/config#test scans tooling sources (monorepo-alignment.test.ts:909) but hashes only {apps,packages}/_/src/** (packages/config/turbo.json:27). Global hash still minimal (turbo.json:5). Observed carry-over: @repo/desktop#build builds @repo/web inline without an edge (apps/desktop/package.json:8,21); no automated inputs-versus-reads check                                                                                                                                                                                                                                                                                                                                                                             |
-| 3   | CI Topology & Speed      | 8.0   | `████████░░` | ▲+1 | Binding hold lifted: rulesets 12994169 and 23204248 are active on main and require PR Quality Gate + Analyze TypeScript (gh api repos/.../rules/branches/main); the rule file .github/rulesets/main.json:31-34 is contract-tested against job names (scripts/pr-quality-gate.test.mjs:122-153, monorepo-alignment.test.ts:185-219) and the gate needs every job (pr-quality-gate.test.mjs:104-120); every job has timeout-minutes and every workflow a concurrency block; #456 runs-on expression evaluated for every job (pr-quality-gate.test.mjs:194-254). PR 39166806480 wall clock 6m37s, Docker Image (api) 4m18s on the critical path. Observed: docker-cache.yml:17-31 path list and the ci-pr.yml:218-220 node --test list stay aligned by comment only; two Trivy passes plus SBOM in the image job (ci-pr.yml:469-507); tooling tests are absent from the PR path (see dim 4)                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 4   | Testing & Coverage       | 7.0   | `███████░░░` | ▼-1 | Down 1 with cause: PR CI never runs tooling workspace tests: Check Fast runs only format:check/lint/typecheck on pull_request (ci-pr.yml:206-213), the coverage projects list has no tooling/* entry (vitest.coverage.config.ts:5-22) and coverage excludes tooling/** without a reason (:51); the PR 488 log has 0 @repo/desk:test lines, while Release on main runs them (cache miss line in run 39166160803), so about 2,200 desk tests first run after merge. The 09-10 conditions for 9 are otherwise met: notes.tenancy.test.ts:1-17,225-345 drives real GraphQL over HTTP through Yoga with a session, and assistant-composer.test.tsx:61-62 renders a component. Coverage on PR 39166806480: 163 files, statements 61.1 / branches 47.32 / functions 49.32 / lines 62.15 vs floors 45/45/40/38. Observed: cross-org e2e still todos-only (web-organization-isolation.e2e.ts:54); invitation e2e skipped (web-invitation-attachment.e2e.ts:17-20); 5 of 17 web tests read source text; floors 13-17 points below measured                                                                                                                                                                                                                                                                            |
-| 5   | Dependency Hygiene       | 8.0   | `████████░░` | ▲+1 | Binding raise condition met: #356 closed and the grouped npm updater run succeeded on 2026-10-12 (26 updates, merged as #471); minimumReleaseAge 4320 matches the Dependabot cooldown (pnpm-workspace.yaml:71-80, dependabot.yml:19-22); catalog gate requires catalog: for any dependency in two or more workspaces (monorepo-alignment.test.ts:574-642); every ignoreGhsas entry has a reason and an issue (#457, #469; pnpm-workspace.yaml:82-92) and both advisories still list no patched version; overrides are caret floors bar the documented metro>image-size pin (:97); five ecosystems with groups and ignores (dependabot.yml:10-178); pnpm audit --audit-level high exit 0 (2 ignored); Dependabot alerts 1 high (node-forge, accepted) / 6 medium / 2 low. Observed: individual security-update runs fail for six transitive packages; the catalog gate skips the root manifest so eslint ^9.35.0 is declared twice (package.json:108, packages/config/package.json:38); tailwindcss and @clack/prompts majors outside ignores                                                                                                                                                                                                                                                                |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | Release green on the last five main commits (latest 39166160803 at c794e07) and version PR #486 merged; release:apps runs after check:ci, build:core and test:e2e (release.yml:80-91); #376 no-op is a tested pure function (originSyncState, .ai/release.util.spec.ts:81); Dockerfile.api:5 and Dockerfile.web:5,34 digest-pinned with Dependabot digest updates and Node-major ignores (dependabot.yml:121-135); new tooling packages are private and not deployable (only Dockerfile.api and Dockerfile.web exist). Not 9: the git path of .ai/release-apps.ts:168-306 (fetch, merge-base, update-ref, push) still has no test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 7   | Security Posture         | 7.0   | `███████░░░` | ▼-1 | Down 1 with cause: the repository is public and code scanning holds 28 open alerts created 2026-09-13..27 with no triage (15 CodeQL, 13 Trivy); the main-branch Trivy alerts come only from manual workflow_dispatch runs (09-13, 09-27) because ci-pr.yml runs on pull_request/merge_group/workflow_dispatch only, so main's image state is never rescanned; the web runner stage (Dockerfile.web:34) never upgrades Alpine packages, unlike Dockerfile.api:7-11, and PR 488's scan shows 5 fixable HIGH OS CVEs (pcre2, tiff, libexpat x2, libx11) that pass because the gate fails only on CRITICAL (ci-pr.yml:492-499); scrypt cost N=16384 (packages/auth/src/auth.password.ts:11) is below the OWASP floor of 2^17 and an unsalted SHA-256 verify fallback has no sunset (:102-106). Still strong: audit exit 0, Gitleaks green, secret scanning + push protection on with 0 alerts, Dependency Review on PRs (ci-pr.yml:124-146), production CORS fails closed (server.config.ts:53-58), notes tenancy proven over HTTP. Most CodeQL highs checked are false positives (auth.util.ts slug regex, notes.hook.ts computed keys, client-only email regex). Observed carry-over: cookie attributes and server password minimum implicit (auth.instance.ts:131-152,174-176); no sweeping tenancy contract |
-| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | Every pnpm script named in README.md, CONTRIBUTING.md and docs/agents/day-one.md exists in package.json; bootstrap excludes the Tauri build (package.json:45, monorepo-alignment.test.ts:171); scripts/doctor.mjs:146-172 warns on missing Rust and checks Docker (:274-289); #406 Windows setup fixes; create:feature generator (#385). Observed: .vscode/launch.json:28-30 vitest debug still runs from the root with no workspace config; on a Windows host pnpm check fails in @repo/desk (29 tests: symlinks, POSIX paths) and only docs/agents/agent-desk.md:693-696 says so, with no troubleshooting entry and no platform guard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | pnpm ai:doctor --strict exit 0 (all five agent contracts pass); 09-10 Serena drift fixed (.ai/serena-memories/task_completion_checklist.md:14, suggested_commands.md:14-15); MONOREPO_GUIDE.md:47-49,280 and README.md:35 describe the desk and factory; ADR 0010 and 0011 added; 24 skills match the AGENTS.md index; some facts are manifest-derived (monorepo-alignment.test.ts:94,420-455,690). Not 9: no test checks documented script names or the guide's workspace tree against manifests. Observed: kaine-adopt-template.md:37 keeps the legacy src-tauri/target glob unexplained; .ai/context-audit.ts:99 counts guide words but enforces no ceiling (.ai/guide.md 251 lines)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 10  | AI & Agent Quality       | 7.0   | `███████░░░` | —   | Baseline. Offline tier gated in CI: the assistant golden set covers 8 of 9 tools (assistant.tools.ts:30-138 vs assistant.eval.data.ts:54-109), assistant.eval.test.ts:57-126 asserts tool existence, refusals and rubric coverage, assistant.ai-runtime.test.ts pins the system prompt (:217), scope forwarding (:227), an 8-step cap (:239) and call/result pairing (:292), and foreign-organization writes are rejected through real adapters (assistant.eval.fixture.test.ts:79); telemetry records provider, model, tokens, duration, steps, tool calls and failure category (apps/api/src/ai.telemetry.ts:9-18) with an exact-key test that blocks content (assistant.ai-runtime.test.ts:414-438); harness ledger holds 4 runs / 24 trials validated by .ai/harness-eval.spec.ts:55-59 in ai:test; desk run records carry a harness fingerprint (tooling/desk/src/contracts/run-metrics.contract.ts:20-77). Not 9: live evals are opt-in and write to gitignored .ai.local/ (assistant.eval.cli.ts:53-61), so no committed baseline or regression gate exists; the write-tool floor is a hand-kept list (assistant.eval.test.ts:33-41); updateNote has no expected-call case                                                                                                                           |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ------------------------ | ----- | ------------ | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | 0   | The DOM client import block covers apps/web, apps/desktop, packages/ui, tooling/desk-ui and tooling/factory-ui (packages/config/eslint/base.js:78-84), proven by an ESLint calculateConfigForFile contract per workspace (monorepo-alignment.test.ts:1091-1138, #519, 30s timeout after #549); knip global zod/@repo/config ignores removed, zod scoped to packages/auth and packages/db, @repo/web scoped to desktop with its reason (knip.json:55,63-70); pnpm boundaries exit 0 (988 files, 22 packages) and knip exit 0, both on every PR (ci-pr.yml:245-246). Not 9: MONOREPO_GUIDE.md does not describe the client-safe versus server-only entry rule (only the .server.ts suffix at :112); the DOM workspace list in the test and the base.js globs are both hand-kept; turbo tag rules were declined (calibration note below)                                                                                                                                                                                                        |
+| 2   | Build & Cache            | 8.0   | `████████░░` | ▲+1 | Raise condition met: tooling/desk/turbo.json declares every root file desk tests read (#497); a derived inputs-versus-reads contract (monorepo-alignment.test.ts:1316-1454, #517) folds path constants in every tracked test and accepts a read only inside the package, a global dependency, a workspace dependency's build inputs, or the package's test inputs, naming the fix on failure; it surfaced and closed four gaps; desktop build now reaches @repo/web through a turbo edge (apps/desktop/package.json:8,22) and Deep Checks built it green through that edge (run 39406169156). Not 9: the check is a floor, and the probe found a read it misses (the ESLint contract's new ESLint({ cwd: repoRoot }) loads root eslint.config.mjs, which packages/config/turbo.json does not hash); DYNAMIC_READS is self-registered with exact-string needs; MONOREPO_GUIDE.md does not document the inputs rule                                                                                                                            |
+| 3   | CI Topology & Speed      | 8.0   | `████████░░` | 0   | Both 10-18 conditions met: docker-cache paths pinned to the PR docker filter and the node --test list pinned to the root test script and tracked files by tests (scripts/pr-quality-gate.test.mjs:338-356, #513); tooling tests run affected-scoped on the PR path (ci-pr.yml:224-227, #498); the Trivy gate pass reuses setup and DB (ci-pr.yml:507-520, #525: 27-29s to under 1s); changeset gate reads labels live, pinned by a test (#515, #521); rulesets require PR Quality Gate and Analyze TypeScript. CI PR on main (all jobs) 10m22s wall; full-path PRs 7-10 min. Not 9: Docker build inputs (context, file, build-args, cache scope) still match by comment across ci-pr.yml:465-479, docker-cache.yml:64-80 and security.yml:81-96; PNPM_VERSION duplicated in four workflows with a comment guard; SBOM is still a separate image pass (ci-pr.yml:522-528)                                                                                                                                                                     |
+| 4   | Testing & Coverage       | 8.0   | `████████░░` | ▲+1 | Raise condition met: tooling tests gate PRs (ci-pr.yml:224-227) with a contract test (monorepo-alignment.test.ts:990-997) and the coverage exclusion records its reason (vitest.coverage.config.ts:51-53). Also landed: cross-organization e2e for notes beside todos (web-organization-isolation.e2e.ts:117, #529), invitation acceptance e2e through the auth API with a second browser context (web-invitation-attachment.e2e.ts, #529), schema-level tenancy contract across every organization-scoped field (apps/api/src/server.tenancy.test.ts:257-303, #514), rendered login-form and organization-create-dialog tests replacing source-text ones (#527). Coverage on main run 39406173469: 165 files, statements 64.21 / branches 50.78 / functions 53.51 / lines 65.31 against floors 50/42/45/50 (raised in #527). Not 9: the attachment e2e still skips in CI without E2E_STORAGE_ENABLED; floors trail measured by up to 15 points; only two web components have rendered tests                                                 |
+| 5   | Dependency Hygiene       | 8.0   | `████████░░` | 0   | The npm non-major group excludes every pattern group (dependabot.yml:44-52) and every dual-catalog package is fully ignored (:108-113), each pinned by a contract test (scripts/pr-quality-gate.test.mjs:403-453, #544, #536) after Dependabot split the better-auth and vitest pairs (#531/#532/#534, recreated as #540); the catalog gate covers the root manifest and eslint is declared once (monorepo-alignment.test.ts:893, #513); minimumReleaseAge 4320 matches the Dependabot cooldown; pnpm audit --audit-level high exit 0 with two tracked ignores (#457, #469); Dependabot alerts high 1 (node-forge, accepted) / medium 5 / low 1. Not 9: transitive security fixes rely on hand-kept override floors with no stale-floor check (pnpm-workspace.yaml:97-133); audit ignores have issue links but no expiry; the queue needed hand repair this week                                                                                                                                                                             |
+| 6   | Release & Deploy         | 9.0   | `█████████░` | ▲+1 | The 09-10 condition for 9 is met: runReleaseApps (.ai/release-apps.util.ts:217-252, #523) is pure git against a given repo root, and .ai/release-apps.util.spec.ts:53-186 drives it against a real seed, bare origin, and clone (create then fast-forward, skip unchanged, dry run, behind-origin no-op, non-ancestor refusal, off-main and dirty refusal), proven red by disabling the fast-forward guard, and runs on every PR through ai:test (ci-pr.yml:231). Release queues and never cancels and runs check:ci, build:core and test:e2e first (release.yml:9-13,80-91); Release green on 57f0092, 6bc0ac2 and 9cf8364 after #549 fixed a contract-test timeout on e047bf0; Dockerfiles digest-pinned. Watch: release-branch pushes run one by one (release-apps.util.ts:246-249), so a mid-loop failure can move release/api without release/web                                                                                                                                                                                       |
+| 7   | Security Posture         | 7.0   | `███████░░░` | 0   | Two of three raise conditions met: scrypt N=16384 r=8 p=5, the OWASP 16 MiB variant, with bounded stored costs and rehash on login (packages/auth/src/auth.password.ts:14-21, #496); the web runner upgrades Alpine packages weekly (Dockerfile.web:39, #495; web Trivy findings 13 to 0). Also landed: explicit httpOnly/sameSite/secure cookies and a server password minimum (auth.instance.ts:116,138,181-188, #511); a schema-wide tenancy contract (#514); weekly Trivy rescan of main images with SARIF (security.yml, #510), which closed 11 stale alerts; SECURITY.md:65 names the triager and the dispositions. Held at 7 because the third condition is only partly met: Trivy #23 (decode-uri-component 0.2.2) and #24 (uuid 7.0.3) in the api image, fixed only in new majors and reached through the Expo toolchain under @repo/auth, have neither a fix nor a recorded disposition, which SECURITY.md:65 itself requires; CodeQL #3 stays open on purpose, linked to #499. Toward 9: the PR image gate fails only on CRITICAL |
+| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | Both observed gaps closed by #513: .vscode/launch.json:29-38 passes the root coverage config, and docs/troubleshooting.md:119-127 documents the Windows-host @repo/desk failure with Linux, WSL, or desk Docker isolation as the path; README.md:92 and troubleshooting.md:117 name the turbo desktop build (#517); a test checks every documented pnpm command against built-ins, root scripts, and bins (scripts/pr-quality-gate.test.mjs:358-385) on every PR. Not 9: no preflight warns a Windows user before pnpm check fails in @repo/desk; nothing exercises the launch config or bootstrap path                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | ai:doctor --strict exit 0; the doc-command test now derives command facts from manifests for README, CONTRIBUTING, day-one and AGENTS (#513); kaine-adopt-template.md:40-41 explains the legacy glob; MONOREPO_GUIDE.md:24-52 matches the 22 manifests; 11 ADRs indexed (docs/README.md:26-36); Dependabot grouping comments match the config. Not 9: docs/adr/0005-scrypt-password-hashing.md:15 still says p=1 and :35 says the default is below OWASP, contradicting its own status update at :5 and the code (a #496 miss); no test derives the guide's workspace tree or README's package count; .ai/context-audit.ts:99 reports guide size without a ceiling; the command test skips MONOREPO_GUIDE.md and troubleshooting.md                                                                                                                                                                                                                                                                                                          |
+| 10  | AI & Agent Quality       | 8.0   | `████████░░` | ▲+1 | Every baseline gap now has a gate (#512): a committed eval ledger with an offline regression check that refuses a lower-scoring run in the same provider/model/dataset series (apps/api/src/features/assistant/assistant.eval.ledger.ts:88-112, proven by a 14/15 to 13/15 case in .ledger.test.ts:42-50) and a strict summary-only schema that rejects prompt content; coverage derived from createAssistantTools minus a read-only allowlist (assistant.eval.test.ts:22-36); an updateNote golden case (assistant.eval.data.ts:115); a telemetry test proving the model-call log line is bound to organizationId and carries no prompt (apps/api/src/ai.telemetry.scope.test.ts:80-95); harness:eval --check in ai:test on PRs; desk run records with a harness fingerprint. Not 9: assistant.eval.ledger.json holds no reviewed live run, so the regression gate has never compared real data, and nothing requires a fresh run when the prompt or dataset hash changes                                                                   |
 
-**Overall: 7.6** (▼-0.2)
+**Overall: 8** (▲+0.4)
 
 ### Findings
 
-| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                     |
-| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | --------------------------------------------------------------------------------------------------------- |
-| `ci-tooling-tests-skip-pr-gate`                       | 4         | 1      | open        | #489  | ci: tooling workspace tests never run on pull requests, so desk regressions first fail after merge        |
-| `desk-test-inputs-missing-root-files`                 | 2         | 1      | open        | #490  | build: the tooling/desk test hash omits the root files its tests read                                     |
-| `dependabot-npm-updater-red-types-node`               | 5         | 1      | fixed       | #356  | deps: the Dependabot npm updater job ends in error on @types/node every run                               |
-| `red-prs-merged-without-required-checks`              | 3         | 1      | fixed       | #325  | process: pull requests with failing checks reach main because required checks are not enforced            |
-| `desktop-build-hash-omits-web`                        | 2         | 1      | observed    | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output |
-| `web-image-os-packages-not-refreshed`                 | 7         | 2      | open        | #491  | security: the web image ships fixable high alpine cves because its runner stage never upgrades packages   |
-| `code-scanning-alerts-untriaged`                      | 7         | 2      | open        | #493  | security: 28 code scanning alerts sit untriaged on the public repository                                  |
-| `auth-cookie-password-policy-implicit`                | 7         | 2      | observed    | —     | security: cookie attributes and server password minimum rely on better-auth defaults                      |
-| `scrypt-cost-below-owasp`                             | 7         | 3      | open        | #492  | auth: the scrypt cost n=16384 is below the owasp minimum                                                  |
-| `legacy-sha256-verify-no-sunset`                      | 7         | 4      | open        | #492  | auth: the unsalted sha256 verify fallback has no removal plan                                             |
-| `config-test-inputs-omit-tooling-sources`             | 2         | 4      | open        | #490  | build: the packages/config test hash omits tooling sources its vitest scan reads                          |
-| `no-schema-level-graphql-test`                        | 4         | 4      | fixed       | —     | testing: no test runs a session-scoped feature operation through the schema                               |
-| `test-input-coverage-not-gated`                       | 2         | 4      | observed    | —     | build: no automated check that files a test reads appear in its turbo inputs                              |
-| `e2e-cross-org-todos-only`                            | 4         | 4      | observed    | —     | testing: cross-organization isolation is asserted for todos only                                          |
-| `web-tests-source-string-assertions`                  | 4         | 4      | observed    | —     | testing: web feature tests assert on source text, no rendered component tests                             |
-| `tenancy-enforced-by-convention`                      | 7         | 4      | observed    | —     | security: no contract test or lint guarantees every resolver resolves scope from session                  |
-| `coverage-tooling-exclusion-unexplained`              | 4         | 5      | open        | #489  | testing: tooling/** is excluded from coverage with no recorded reason                                     |
-| `main-trivy-alerts-stale-no-main-scan`                | 7         | 5      | open        | #493  | security: main-branch trivy alerts come only from manual runs, so they never close                        |
-| `eval-no-regression-baseline`                         | 10        | 5      | observed    | —     | eval: live assistant quality has no committed baseline or regression gate                                 |
-| `required-status-checks-not-enforced`                 | 3         | 5      | fixed       | —     | ci: no required status checks, the ruleset is not imported on this repository                             |
-| `code-scanning-uploads-disabled`                      | 7         | 5      | fixed       | —     | security: code scanning not enabled, so CodeQL and Trivy results never reach the Security tab             |
-| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible       |
-| `cors-429-reflects-origin-without-allowlist`          | 7         | 6      | observed    | —     | api: the rate-limit 429 path reflects any origin with credentials when no allowlist is set                |
-| `release-apps-git-path-untested`                      | 6         | 6      | observed    | —     | release: release:apps fetch, ancestry and push path has no test                                           |
-| `docker-image-job-dominated-by-scan-export`           | 3         | 6      | observed    | —     | ci: the api image job spends about 3m40s on image load, two Trivy passes, and SBOM after a 30s compile    |
-| `windows-desk-tests-undocumented-for-check`           | 8         | 7      | observed    | —     | dx: windows-host pnpm check fails in @repo/desk with no troubleshooting entry or guard                    |
-| `client-import-block-skips-tooling-ui`                | 1         | 8      | observed    | —     | eslint: the server-only import restriction skips desk-ui and factory-ui                                   |
-| `doc-script-refs-not-gated`                           | 9         | 8      | observed    | —     | docs: documented pnpm scripts are not checked against package.json                                        |
-| `eval-write-tools-hand-list`                          | 10        | 8      | observed    | —     | eval: the assistant write-tool floor checks a hand-kept list                                              |
-| `eval-update-note-no-golden-call`                     | 10        | 8      | observed    | —     | eval: updateNote has no expected-call golden case                                                         |
-| `docker-cache-path-list-comment-only`                 | 3         | 8      | observed    | —     | ci: docker-cache.yml path list and pins match ci-pr.yml by comment only                                   |
-| `ci-scripts-test-list-comment-only`                   | 3         | 8      | observed    | —     | ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment       |
-| `majors-uncovered-by-ignore-or-287`                   | 5         | 8      | observed    | —     | deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287                        |
-| `eslint-duplicate-resolution`                         | 5         | 8      | observed    | —     | deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile                                        |
-| `knip-ignore-stale-and-laundering`                    | 1         | 8      | observed    | —     | tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep                        |
-| `harness-ledger-render-drift-ungated`                 | 10        | 9      | observed    | —     | harness-eval: generated ledger region drift is not checked                                                |
-| `telemetry-org-scope-untested`                        | 10        | 9      | observed    | —     | telemetry: organization scope on model-call logs is not asserted                                          |
-| `deep-checks-red-until-next-schedule`                 | 3         | 9      | fixed       | —     | ci: Deep Checks is red on its last runs, all before the mobile export fix                                 |
-| `adopt-template-dead-tauri-glob`                      | 9         | 10     | observed    | —     | skills: kaine-adopt-template keeps the legacy src-tauri/target glob unexplained                           |
-| `ai-guide-no-size-budget`                             | 9         | 10     | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                          |
-| `serena-memories-minor-drift`                         | 9         | 10     | fixed       | —     | docs: serena task_completion_checklist omits boundaries/knip and suggested_commands omits pnpm preflight  |
-| `launch-json-vitest-config-broken`                    | 8         | 10     | observed    | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                    |
+| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                      |
+| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | ---------------------------------------------------------------------------------------------------------- |
+| `ci-tooling-tests-skip-pr-gate`                       | 4         | 1      | fixed       | #489  | ci: tooling workspace tests never run on pull requests, so desk regressions first fail after merge         |
+| `desk-test-inputs-missing-root-files`                 | 2         | 1      | fixed       | #490  | build: the tooling/desk test hash omits the root files its tests read                                      |
+| `desktop-build-hash-omits-web`                        | 2         | 1      | fixed       | —     | build: apps/desktop build task hash excludes @repo/web sources and its tauri output is not a turbo output  |
+| `trivy-api-uuid-decode-uri-untriaged`                 | 7         | 2      | observed    | —     | security: trivy #23 and #24 in the api image have no fix or recorded disposition                           |
+| `release-push-non-atomic`                             | 6         | 2      | observed    | —     | release: release:apps pushes release branches one by one, so a failure can split the api and web pair      |
+| `web-image-os-packages-not-refreshed`                 | 7         | 2      | fixed       | #491  | security: the web image ships fixable high alpine cves because its runner stage never upgrades packages    |
+| `code-scanning-alerts-untriaged`                      | 7         | 2      | fixed       | #493  | security: 28 code scanning alerts sit untriaged on the public repository                                   |
+| `auth-cookie-password-policy-implicit`                | 7         | 2      | fixed       | —     | security: cookie attributes and server password minimum rely on better-auth defaults                       |
+| `adr-0005-stale-cost-defaults`                        | 9         | 3      | observed    | —     | docs: adr 0005 body still states p=1 and a below-owasp default, contradicting its status line and the code |
+| `eslint-contract-reads-unhashed-root-config`          | 2         | 3      | observed    | —     | build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits     |
+| `scrypt-cost-below-owasp`                             | 7         | 3      | fixed       | #492  | auth: the scrypt cost n=16384 is below the owasp minimum                                                   |
+| `docker-build-inputs-untested`                        | 3         | 4      | observed    | —     | ci: docker build inputs in ci-pr, docker-cache and security match by comment only                          |
+| `assistant-eval-ledger-empty`                         | 10        | 4      | observed    | —     | eval: the committed assistant eval ledger holds no reviewed live run                                       |
+| `legacy-sha256-verify-no-sunset`                      | 7         | 4      | open        | #499  | auth: the unsalted sha256 verify fallback has no removal plan                                              |
+| `test-input-coverage-not-gated`                       | 2         | 4      | fixed       | —     | build: no automated check that files a test reads appear in its turbo inputs                               |
+| `tenancy-enforced-by-convention`                      | 7         | 4      | fixed       | —     | security: no contract test or lint guarantees every resolver resolves scope from session                   |
+| `e2e-cross-org-todos-only`                            | 4         | 4      | fixed       | —     | testing: cross-organization isolation is asserted for todos only                                           |
+| `assistant-eval-prompt-drift-unrecorded`              | 10        | 5      | observed    | —     | eval: no check requires a fresh ledger run when the prompt or dataset hash changes                         |
+| `transitive-security-via-manual-overrides`            | 5         | 5      | observed    | —     | deps: transitive security fixes rely on hand-kept override floors with no stale-floor check                |
+| `main-trivy-alerts-stale-no-main-scan`                | 7         | 5      | fixed       | #493  | security: main-branch trivy alerts come only from manual runs, so they never close                         |
+| `eval-no-regression-baseline`                         | 10        | 5      | fixed       | —     | eval: live assistant quality has no committed baseline or regression gate                                  |
+| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible        |
+| `server-only-split-undocumented`                      | 1         | 6      | observed    | —     | docs: monorepo guide does not describe the client-safe versus server-only entry rule                       |
+| `inputs-rule-undocumented-in-guide`                   | 2         | 6      | observed    | —     | docs: monorepo guide does not explain the turbo test-inputs contract                                       |
+| `invitation-attachment-e2e-skipped-in-ci`             | 4         | 6      | observed    | —     | testing: the attachment e2e skips in ci without e2e_storage_enabled                                        |
+| `dynamic-reads-self-registration`                     | 2         | 7      | observed    | —     | build: DYNAMIC_READS depends on authors registering git walks and subprocess tests                         |
+| `trivy-pr-gate-critical-only`                         | 7         | 7      | observed    | —     | security: high image vulnerabilities do not fail pull requests                                             |
+| `windows-desk-tests-undocumented-for-check`           | 8         | 7      | fixed       | —     | dx: windows-host pnpm check fails in @repo/desk with no troubleshooting entry or guard                     |
+| `audit-ignores-no-expiry`                             | 5         | 8      | observed    | —     | deps: audit ignores have issue links but no expiry                                                         |
+| `coverage-floors-far-below-measured`                  | 4         | 8      | observed    | —     | testing: global floors trail measured coverage by up to 15 points                                          |
+| `web-rendered-tests-thin`                             | 4         | 8      | observed    | —     | testing: only two web components have rendered tests                                                       |
+| `pnpm-version-duplicated`                             | 3         | 8      | observed    | —     | ci: pnpm version is repeated in four workflows with a comment guard                                        |
+| `sbom-separate-pass`                                  | 3         | 8      | observed    | —     | ci: the sbom step reanalyses the image instead of reusing the trivy cache                                  |
+| `tag-release-steps-untested`                          | 6         | 8      | observed    | —     | release: tag push and github release steps are inline bash without a test                                  |
+| `windows-desk-no-preflight`                           | 8         | 8      | observed    | —     | dx: no preflight warns windows users before pnpm check fails in @repo/desk                                 |
+| `client-import-block-skips-tooling-ui`                | 1         | 8      | fixed       | —     | eslint: the server-only import restriction skips desk-ui and factory-ui                                    |
+| `knip-ignore-stale-and-laundering`                    | 1         | 8      | fixed       | —     | tooling: knip.json ignoreDependencies hides two undeclared deps and one unused dep                         |
+| `docker-cache-path-list-comment-only`                 | 3         | 8      | fixed       | —     | ci: docker-cache.yml path list and pins match ci-pr.yml by comment only                                    |
+| `ci-scripts-test-list-comment-only`                   | 3         | 8      | fixed       | —     | ci: the scripts test list in Check Fast duplicates the root test script with comment-only alignment        |
+| `eslint-duplicate-resolution`                         | 5         | 8      | fixed       | —     | deps: eslint ^9.35.0 resolves to 9.39.2 and 9.39.5 in one lockfile                                         |
+| `majors-uncovered-by-ignore-or-287`                   | 5         | 8      | fixed       | —     | deps: @clack/prompts and the mobile tailwindcss major sit outside ignores and #287                         |
+| `doc-script-refs-not-gated`                           | 9         | 8      | fixed       | —     | docs: documented pnpm scripts are not checked against package.json                                         |
+| `eval-write-tools-hand-list`                          | 10        | 8      | fixed       | —     | eval: the assistant write-tool floor checks a hand-kept list                                               |
+| `eval-update-note-no-golden-call`                     | 10        | 8      | fixed       | —     | eval: updateNote has no expected-call golden case                                                          |
+| `guide-size-budget-unenforced`                        | 9         | 9      | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                           |
+| `workspace-tree-not-derived`                          | 9         | 9      | observed    | —     | docs: no test derives the guide workspace tree or readme package count from manifests                      |
+| `dom-workspace-list-hand-maintained`                  | 1         | 9      | observed    | —     | lint: the dom workspace list in base.js and its contract test are both hand-kept                           |
+| `harness-ledger-render-drift-ungated`                 | 10        | 9      | fixed       | —     | harness-eval: generated ledger region drift is not checked                                                 |
+| `telemetry-org-scope-untested`                        | 10        | 9      | fixed       | —     | telemetry: organization scope on model-call logs is not asserted                                           |
+| `e2e-shard-comment-stale`                             | 4         | 10     | observed    | —     | ci: the e2e shard comment says 5 spec files, there are 15                                                  |
+| `launch-json-vitest-config-broken`                    | 8         | 10     | fixed       | —     | dx: .vscode/launch.json vitest debug config runs from the root without a vitest config                     |
+| `adopt-template-dead-tauri-glob`                      | 9         | 10     | fixed       | —     | skills: kaine-adopt-template keeps the legacy src-tauri/target glob unexplained                            |
 
 <!-- scorecard:generated:end -->
 
@@ -2105,3 +2574,14 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Dim 2 → 7 with reproduced cause.** `turbo run test --filter=@repo/desk --dry=json` shows that no root file the desk tests read is hashed, and Release caches most test tasks. Same class as #353/#366, reintroduced by new workspaces. Raise back to 8 when tooling test inputs are declared; 9 still needs the automated inputs-versus-reads check.
 - **Dim 7 → 7 with cause.** The public flip turned on code scanning; 28 alerts sat untriaged for up to five weeks, the web runner stage ships fixable HIGH Alpine CVEs, and the scrypt cost is below the OWASP floor. Most CodeQL highs checked are false positives; dismissing them with a reason is part of the fix. Raise back to 8 when alerts are triaged, the web image refreshes OS packages, and the scrypt cost meets the floor.
 - **Dims 1, 6, 8, 9 held at 8.** New tooling workspaces respect boundaries; release mechanics stay proven; onboarding scripts all resolve; doc coverage of desk and factory landed with ADRs 0010/0011. The 09-10 conditions for 9 are unchanged.
+
+### 2026-10-20 — ninth run (`9cf8364`, fan-out: five explorer probes covering all ten dimensions)
+
+- **Like-for-like with 10-18.** Same ten dimensions and probe split (dims 1/2, 4/7, 3/5/6, 8/9, 10), so deltas compare directly. Overall 7.6 → 8.0 on 29 merged PRs (#488–#549). Main is green on every workflow; CI PR and Deep Checks were dispatched on main and passed (runs 39406173469, 39406169156).
+- **Dim 2 → 8, not 9, by a strict reading.** The 10-18 raise condition (tooling test inputs declared, #497) is met, and the automated inputs-versus-reads check that 9 required exists (#517). It is held at 8 because the probe found a read the check misses — the ESLint contract test loads root `eslint.config.mjs`, which `packages/config/turbo.json` does not hash — and because `MONOREPO_GUIDE.md` does not document the inputs rule. Raise to 9 when that read is hashed (or registered) and the rule is in the guide. Do not count the check as proving completeness: it is a floor by design.
+- **Dim 6 → 9 with cause.** The 09-10 condition — a test of the `release:apps` git path — is met by #523 against a real seed, bare origin, and clone, proven red by disabling the fast-forward guard. Hold at 9 only while pushes stay consistent: the non-atomic push loop (`release-push-non-atomic`) is the first thing to fix; if a split release ever ships, drop to 8.
+- **Dim 4 → 8 and dim 10 → 8 with cause.** Dim 4: tooling tests gate PRs (#498) and the exclusion is recorded. Dim 10: every baseline gap now has a gate (#512); 9 needs at least one reviewed live run in the committed ledger, which costs money and needs the owner.
+- **Dim 7 held at 7 (binding).** Two of three raise conditions are met (#495, #496), and alert triage is mostly done (14 CodeQL dismissed with reasons, 11 stale Trivy closed by the main rescan, #510). The two api-image Trivy findings (uuid 7.0.3, decode-uri-component 0.2.2, fixed only in new majors under the Expo toolchain) have no disposition, which `SECURITY.md:65` requires. Raise to 8 when each has a fix or a recorded accepted-risk disposition.
+- **Dims 1, 3, 5, 8, 9 held at 8.** Their earlier observed gaps closed (#513, #519, #521, #536, #544), and the band-9 gaps are now documentation, a remaining comment-only alignment (Docker build inputs), hand-kept override floors, a Windows preflight, and manifest-derived doc facts. Dim 9 picked up a new defect from this round: ADR 0005's body contradicts its own status line (`adr-0005-stale-cost-defaults`).
+- **Turbo tag rules: declined on purpose.** ESLint already enforces the client/server split at subpath granularity (`packages/config/eslint/base.js:14-15`), which package-level tags cannot express, because web and mobile import client-safe subpaths of `@repo/auth` and `@repo/storage`. Do not score their absence as a gap.
+- **Corrected probe finding.** `Dockerfile.api` builds its runner from the `base` stage, which runs `apt-get upgrade` on the weekly key; the api image does refresh OS packages. Not recorded as a finding.
