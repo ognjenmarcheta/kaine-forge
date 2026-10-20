@@ -136,9 +136,8 @@ export function createAuthInstance() {
       enabled: true,
       // One minimum for the web/mobile forms and the server.
       minPasswordLength: AUTH_PASSWORD_MIN_LENGTH,
-      // Custom scrypt hooks preserve every stored hash produced by the
-      // previous custom auth implementation (scrypt$N$r$p$salt$hash and
-      // legacy unsalted sha256 hex).
+      // Custom scrypt hooks verify stored scrypt$N$r$p$salt$hash values.
+      // Legacy unsalted sha256 hashes no longer verify (ADR 0005, issue #499).
       password: {
         hash: hashPassword,
         verify: ({ hash, password }) => verifyPassword(password, hash)

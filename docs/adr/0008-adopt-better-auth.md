@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-04
+- Status update (2026-10-21, issue #499): the legacy unsalted SHA-256 verify path is removed; only `scrypt$N$r$p$salt$hash` hashes verify. See ADR 0005.
 
 ## Context
 
