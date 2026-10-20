@@ -82,11 +82,34 @@ export const intakeDraftSchema = z
   .strict();
 export type IntakeDraft = z.infer<typeof intakeDraftSchema>;
 
+/** One grade of the fit score: 3 fits an unattended agent run best, 1 worst. */
+export const fitAxisSchema = z
+  .object({
+    score: z.number().int().min(1).max(3),
+    /** One line with text: `start` puts it into its log line and the history note. */
+    reason: z.string().regex(/^[^\r\n]*\S[^\r\n]*$/, "Use one line of text")
+  })
+  .strict();
+
+/**
+ * How well the issue fits an unattended agent run. Every axis grades fit, not size:
+ * `complexity` 3 means low complexity, 1 means high complexity.
+ */
+export const intakeFitSchema = z
+  .object({ clarity: fitAxisSchema, complexity: fitAxisSchema, verifiability: fitAxisSchema })
+  .strict();
+export type IntakeFit = z.infer<typeof intakeFitSchema>;
+
+/** Confidence is the weakest grade. The engine computes it; no agent supplies it. */
+export const fitConfidence = (fit: IntakeFit): number =>
+  Math.min(fit.clarity.score, fit.complexity.score, fit.verifiability.score);
+
 /** The intake agent: whether the issue is ready, and the issue in the format the desk reads. */
 export const intakeOutputSchema = z
   .object({
     recommendation: z.enum(INTAKE_RECOMMENDATIONS),
     reasons: z.array(nonEmpty).min(1),
+    fit: intakeFitSchema,
     draft: intakeDraftSchema,
     unknowns: z.array(z.object({ section: issueSectionSchema, question: nonEmpty }).strict()),
     plainLanguage: nonEmpty

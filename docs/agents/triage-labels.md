@@ -36,6 +36,10 @@ carries all six of these. Missing any one makes it `needs-info`, not
 [`issue-format.md`](issue-format.md) gives the six headings to write them under. The agent desk
 reads an issue by those headings, so content under other headings counts as missing.
 
+An intake draft also grades the issue's fit for an agent run (clarity, complexity,
+verifiability; see [Fit score](agent-desk.md#fit-score)). That score is advice. It does not
+decide readiness and does not replace these six fields.
+
 ## Bootstrapping the labels
 
 GitHub labels are repository state, not files, so a repo generated from this template starts without them. Create the set once per repository:

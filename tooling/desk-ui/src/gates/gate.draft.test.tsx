@@ -19,6 +19,11 @@ const DRAFT: IssueDraft = {
   acceptanceCriteria: 1,
   recommendation: "needs-info",
   reasons: ["It waits for an upstream fix."],
+  fit: {
+    clarity: { score: 3, reason: "One reading only." },
+    complexity: { score: 1, reason: "Touches every workspace." },
+    verifiability: { score: 2, reason: "One manual check." }
+  },
   unknowns: [{ section: "evidence", question: "Which release fixes it?" }],
   plainLanguage: "Remove an exception later.",
   provider: "claude",
@@ -68,6 +73,11 @@ describe("Draft the issue format", () => {
     expect(within(dialog).getByText("Contract 6/6")).toBeTruthy();
     expect(within(dialog).getByText("Needs information")).toBeTruthy();
     expect(within(dialog).getByText("Which release fixes it?")).toBeTruthy();
+    // The fit score: confidence is the weakest grade, and it warns at 1.
+    expect(within(dialog).getByText("Confidence 1/3")).toBeTruthy();
+    expect(within(dialog).getByText("Low complexity 1/3:")).toBeTruthy();
+    expect(within(dialog).getByText("Touches every workspace.")).toBeTruthy();
+    expect(within(dialog).getByText(/The desk warns when this issue starts/)).toBeTruthy();
     // Issue text stays text: no element is made from it.
     const proposed = within(dialog)
       .getAllByLabelText("Proposed body")
