@@ -1,4 +1,9 @@
-import { issueDraftSchema, type IssueDraft } from "@repo/desk/contracts";
+import {
+  fitConfidence,
+  issueDraftSchema,
+  type IntakeFit,
+  type IssueDraft
+} from "@repo/desk/contracts";
 import { Badge, Modal, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,7 +13,7 @@ import { toApiError, type FailureCode } from "../api/api.client";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, ItemList, List, Muted, Pre, Section } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { appearanceOf, passTone } from "../status/status.model";
+import { appearanceOf, passTone, type Tone } from "../status/status.model";
 
 type DraftPhase =
   | { readonly kind: "loading" }
@@ -25,6 +30,41 @@ export interface DraftDialogProps {
 }
 
 const APPLY = { action: "apply-draft", confirm: true } as const;
+
+const FIT_AXES = [
+  "clarity",
+  "complexity",
+  "verifiability"
+] as const satisfies readonly (keyof IntakeFit)[];
+
+const confidenceTone = (confidence: number): Tone =>
+  confidence >= 3 ? "success" : confidence === 2 ? "warning" : "danger";
+
+/** The three grades of the fit score. 3 is the best fit on every axis, also for complexity. */
+function FitScore({ fit }: { readonly fit: IntakeFit }) {
+  const t = useT();
+  const confidence = fitConfidence(fit);
+  return (
+    <Section title={t("desk.draft.fit")}>
+      <p className="desk-draft__facts">
+        <Badge appearance={appearanceOf(confidenceTone(confidence))}>
+          {t("desk.draft.confidence", { score: confidence })}
+        </Badge>
+      </p>
+      <ItemList
+        items={FIT_AXES}
+        empty={t("desk.common.none")}
+        render={(axis) => (
+          <>
+            <strong>{t(`desk.draft.fitAxis.${axis}`, { score: fit[axis].score })}</strong>{" "}
+            {fit[axis].reason}
+          </>
+        )}
+      />
+      {confidence === 1 && <Muted>{t("desk.draft.lowConfidence")}</Muted>}
+    </Section>
+  );
+}
 
 function DraftReview({
   draft,
@@ -46,6 +86,7 @@ function DraftReview({
       <Section title={t("desk.draft.reasons")}>
         <List items={draft.reasons} empty={t("desk.common.none")} />
       </Section>
+      {draft.fit !== undefined && <FitScore fit={draft.fit} />}
       <Section title={t("desk.draft.unknowns")}>
         <ItemList
           items={draft.unknowns}
