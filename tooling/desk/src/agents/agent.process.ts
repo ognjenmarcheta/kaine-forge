@@ -8,6 +8,8 @@ export interface AgentProcessRequest {
   readonly cwd: string;
   /** Added on top of the allowlisted parent environment. */
   readonly env?: Readonly<Record<string, string>> | undefined;
+  /** Written to the child's stdin, which is then closed. Without it the child reads EOF at once. */
+  readonly stdin?: string | undefined;
   readonly timeoutMs: number;
   readonly signal?: AbortSignal | undefined;
   /** Called once with the child pid, right after the process starts. */
@@ -79,7 +81,7 @@ const tail = (text: string, limit: number): string =>
   text.length > limit ? text.slice(text.length - limit) : text;
 
 /**
- * The real `AgentProcess`. It spawns without a shell, closes stdin, passes an
+ * The real `AgentProcess`. It spawns without a shell, writes `stdin` and closes it, passes an
  * allowlisted environment and splits stdout into lines as they arrive. On
  * timeout or abort it stops the whole process tree before it resolves. It
  * never rejects.
@@ -116,11 +118,14 @@ export const createAgentProcess =
         cwd: request.cwd,
         env: agentEnv(parentEnv, request.env),
         detached: process.platform !== "win32",
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true
       });
 
       if (child.pid !== undefined) request.onSpawn?.(child.pid);
+      // A child that exits before it reads stdin raises EPIPE here; the exit code reports it.
+      child.stdin.on("error", () => undefined);
+      child.stdin.end(request.stdin);
 
       const emitLines = (flush: boolean) => {
         let newline = pending.indexOf("\n");

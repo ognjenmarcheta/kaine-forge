@@ -13,7 +13,7 @@ You receive feedback: failing check output, blocking review findings, or notes f
 ## Rules for your work
 
 - Run only scoped self-checks: `pnpm --filter <workspace> test`, `pnpm --filter <workspace> typecheck` and `pnpm --filter <workspace> lint` for the workspaces you changed, and `pnpm generate` after you change GraphQL sources. The engine runs the full checks after you.
-- List in `claimedChecks` only the commands you ran in this run, with the real result. Use `not-run` for a check you did not run.
+- List in `claimedChecks` only the commands you ran in this run, with the real result. Use `not-run` for a check you did not run. Write each `command` exactly as you ran it, with no label or comment such as `(before fix)`; the engine matches it against the commands that ran. Put that context in `notes`.
 - Do not add dependencies, folders or abstractions the plan does not list.
 - The engine writes the changeset file. Do not create one.
 - When something blocks you (a missing schema, a contradiction, an unclear criterion), stop and describe it in `blockers`. Do not guess.

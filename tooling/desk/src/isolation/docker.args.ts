@@ -83,6 +83,16 @@ export class ContainerPolicyError extends Error {
 const FORBIDDEN_ENV =
   /^(GH_|GITHUB_|GITLAB_|AWS_|AZURE_|GOOGLE_|GCP_|GCLOUD_|NPM_TOKEN|NODE_AUTH_TOKEN|SSH_|DOCKER_|DATABASE_URL|BETTER_AUTH)/i;
 
+/**
+ * The public loopback URL that CI's quality gates use. `pnpm generate` and some
+ * tests import the DB client at load time, which throws without a URL. A check
+ * container has no network, so nothing connects. It is the only allowed value.
+ */
+export const CHECK_DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev";
+
+const allowedEnv = (spec: ContainerSpec, name: string): boolean =>
+  spec.kind === "check" && name === "DATABASE_URL" && spec.env[name] === CHECK_DATABASE_URL;
+
 const VOLUME_TARGETS: ReadonlySet<string> = new Set([WORKSPACE, STATE, STORE, SOCKET, AUTH]);
 const MEMORY = /^[1-9]\d*[mMgG]$/;
 /**
@@ -125,7 +135,9 @@ const validate = (spec: ContainerSpec): void => {
     }
   }
   for (const name of Object.keys(spec.env)) {
-    if (FORBIDDEN_ENV.test(name)) fail(`Refusing the environment variable '${name}'.`);
+    if (FORBIDDEN_ENV.test(name) && !allowedEnv(spec, name)) {
+      fail(`Refusing the environment variable '${name}'.`);
+    }
   }
   for (const name of spec.forwardEnv ?? []) {
     if (!FORWARDABLE_ENV.some((allowed) => allowed === name)) {
@@ -274,6 +286,8 @@ export interface AgentContainerInput extends ContainerBase {
   readonly stagingDir: string;
   /** The provider CLI and its arguments, as the Claude or Codex runner built them. */
   readonly argv: readonly string[];
+  /** `pipe` when the runner writes the prompt to stdin. */
+  readonly stdin?: "pipe" | undefined;
   readonly env: Readonly<Record<string, string>>;
   readonly forwardEnv: readonly string[];
 }
@@ -297,7 +311,8 @@ export const agentContainer = (input: AgentContainerInput): ContainerSpec => ({
   forwardEnv: input.forwardEnv,
   workdir: WORKSPACE,
   entrypoint: NODE,
-  command: [script("desk-entry.mjs"), "agent", input.provider, "--", ...input.argv]
+  command: [script("desk-entry.mjs"), "agent", input.provider, "--", ...input.argv],
+  ...(input.stdin === undefined ? {} : { stdin: input.stdin })
 });
 
 export interface CheckContainerInput extends ContainerBase {
@@ -319,7 +334,7 @@ export const checkContainer = (input: CheckContainerInput): ContainerSpec => {
     resources: input.resources,
     mounts: [vol(input.workspaceVolume, WORKSPACE, false)],
     execTmpfs: true,
-    env: { HOME: "/home/desk", ...input.env },
+    env: { HOME: "/home/desk", ...input.env, DATABASE_URL: CHECK_DATABASE_URL },
     workdir: WORKSPACE,
     entrypoint: program ?? "",
     command: rest

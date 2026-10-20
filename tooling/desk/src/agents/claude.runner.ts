@@ -23,8 +23,9 @@ export type { ClaudeFinal, ClaudeStreamParser, ClaudeStreamSummary } from "./cla
  * - `--setting-sources project`: the user's own settings and hooks stay out.
  *   `--bare` is not used: it skips hooks and `CLAUDE.md` and needs an API key.
  * - `--strict-mcp-config`: only the MCP config the engine passes.
- * - The prompt follows `-p` directly. `--allowedTools` and friends accept many
- *   values, so a prompt placed after them would be read as a tool rule.
+ * - The prompt goes on stdin, not on the command line: Windows limits a command
+ *   line to 32,767 characters, and a review prompt (ticket and plan) passed it.
+ *   A positional prompt would also be read as a value of `--allowedTools`.
  */
 export const buildClaudeArgs = <T>(
   request: AgentRunRequest<T>,
@@ -32,7 +33,6 @@ export const buildClaudeArgs = <T>(
 ): string[] => {
   const args = [
     "-p",
-    request.prompt,
     "--output-format",
     "stream-json",
     "--verbose",
@@ -120,6 +120,7 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
       const parser = createClaudeStreamParser();
       const run = await spawnProcess({
         argv: [binary, ...buildClaudeArgs(request, { newSessionId: newSessionId() })],
+        stdin: request.prompt,
         cwd: request.cwd,
         env:
           request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath },

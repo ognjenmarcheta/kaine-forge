@@ -233,9 +233,8 @@ describe("createDockerAgentRunner with Claude", () => {
       })
     );
     expect(staged).toBe("# Ticket\n");
-    expect(requests[0]?.argv[requests[0].argv.indexOf("-p") + 1]).toBe(
-      "Read the ticket at /desk/in/artifacts/ticket.md now."
-    );
+    expect(requests[0]?.stdin).toBe("Read the ticket at /desk/in/artifacts/ticket.md now.");
+    expect(requests[0]?.argv).toContain("--interactive");
   });
 
   it("removes a container that a killed client left behind and verifies it", async () => {

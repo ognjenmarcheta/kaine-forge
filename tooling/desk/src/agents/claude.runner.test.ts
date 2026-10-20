@@ -29,7 +29,9 @@ describe("buildClaudeArgs", () => {
       }),
       { newSessionId: SESSION }
     );
-    expect(args.slice(0, 2)).toEqual(["-p", "PROMPT"]);
+    // The prompt goes on stdin: Windows limits a command line to 32,767 characters.
+    expect(args[0]).toBe("-p");
+    expect(args).not.toContain("PROMPT");
     expect(valueAfter(args, "--output-format")).toBe("stream-json");
     expect(args).toContain("--verbose");
     expect(valueAfter(args, "--permission-mode")).toBe("dontAsk");
@@ -44,15 +46,6 @@ describe("buildClaudeArgs", () => {
     expect(valueAfter(args, "--session-id")).toBe(SESSION);
     expect(args).not.toContain("--resume");
     expect(args).not.toContain("--agents");
-  });
-
-  it("puts the prompt right after -p, before any variadic tool flag", () => {
-    const args = buildClaudeArgs(
-      baseRequest({ prompt: "P", permissions: { allow: ["Read"], disallow: ["Edit"] } }),
-      { newSessionId: SESSION }
-    );
-    expect(args.indexOf("P")).toBe(1);
-    expect(args.indexOf("--allowedTools")).toBeGreaterThan(1);
   });
 
   it("never emits flags that skip policy or settings", () => {
@@ -243,6 +236,7 @@ describe("createClaudeRunner", () => {
     expect(result.result.trace.some((event) => event.type === "tool_call")).toBe(true);
     expect(calls[0]?.argv[0]).toBe("claude");
     expect(calls[0]?.cwd).toBe("/work/repo");
+    expect(calls[0]?.stdin).toBe(baseRequest().prompt);
   });
 
   it("streams events to onEvent as they arrive", async () => {

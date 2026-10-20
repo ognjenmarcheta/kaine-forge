@@ -18,6 +18,21 @@ describe("createAgentProcess", () => {
     expect(result).toMatchObject({ code: 0, timedOut: false, aborted: false });
   });
 
+  it("writes stdin to the child and closes it", async () => {
+    const lines: string[] = [];
+    const result = await run({
+      argv: node(
+        'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>process.stdout.write(s.length+":"+s.slice(-4)))'
+      ),
+      cwd: process.cwd(),
+      stdin: `${"x".repeat(40_000)}tail`,
+      timeoutMs: 10_000,
+      onLine: (line) => lines.push(line)
+    });
+    expect(lines).toEqual(["40004:tail"]);
+    expect(result.code).toBe(0);
+  });
+
   it("reports the child pid once, right after the process starts", async () => {
     const pids: number[] = [];
     const result = await run({

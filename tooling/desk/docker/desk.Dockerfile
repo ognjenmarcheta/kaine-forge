@@ -9,7 +9,7 @@ ARG CLAUDE_VERSION
 ARG CODEX_VERSION
 ENV COREPACK_HOME=/opt/corepack
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ \
+    && apt-get install -y --no-install-recommends git ca-certificates procps python3 make g++ \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable \
     && corepack prepare pnpm@${PNPM_VERSION} --activate \
