@@ -150,7 +150,7 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await page.getByRole("button", { name: /^Language\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
   await expect(composer).toHaveValue("Organization draft");
-  await page.getByRole("button", { name: "Sprache", exact: true }).click();
+  await page.getByRole("button", { name: /^Sprache\b/ }).click();
   await page.getByRole("menuitemradio", { name: "English", exact: true }).click();
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".ui-assistant__status")).toHaveText("Thinking…");

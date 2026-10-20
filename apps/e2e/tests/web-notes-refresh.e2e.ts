@@ -192,7 +192,7 @@ test("search preserves drafts and translated long content fits short viewports",
     path: testInfo.outputPath("german-short.png"),
     contentType: "image/png"
   });
-  await page.getByRole("button", { name: "Sprache", exact: true }).click();
+  await page.getByRole("button", { name: /^Sprache\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Srpski", exact: true }).click();
   await expect(page.locator('[data-slot="dropdown-menu-content"]')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 540 });

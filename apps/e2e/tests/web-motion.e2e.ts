@@ -246,7 +246,7 @@ test.describe("motion review captures", () => {
           await page.screenshot({ path: testInfo.outputPath(`${theme}-${width}-expanded.png`) });
         }
       }
-      await page.getByRole("button", { name: "Sprache", exact: true }).click();
+      await page.getByRole("button", { name: /^Sprache\b/ }).click();
       await page.getByRole("menuitemradio", { name: "English", exact: true }).click();
       await page.getByRole("link", { name: "Todos", exact: true }).click();
       await page.getByRole("button", { name: "Add details", exact: true }).click();

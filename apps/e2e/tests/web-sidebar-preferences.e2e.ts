@@ -21,11 +21,11 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   await page.keyboard.press("End");
   await expect(page.getByRole("menuitemradio", { name: "Deutsch", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
-  const germanLanguage = footer.getByRole("button", { name: "Sprache", exact: true });
+  const germanLanguage = footer.getByRole("button", { name: /^Sprache\b/ });
   await expect(germanLanguage).toContainText("Deutsch");
   await expect(germanLanguage).toBeFocused();
   await expect(composer).toHaveValue("Preferences must preserve this draft");
-  const theme = footer.getByRole("button", { name: "Design", exact: true });
+  const theme = footer.getByRole("button", { name: /^Design\b/ });
   await theme.click();
   await page.getByRole("menuitemradio", { name: "Dunkel", exact: true }).click();
   await expect(theme).toBeFocused();
@@ -56,9 +56,7 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   );
   await expect(composer).toHaveValue("Preferences must preserve this draft");
   await page.reload();
-  await expect(footer.getByRole("button", { name: "Sprache", exact: true })).toContainText(
-    "Deutsch"
-  );
+  await expect(footer.getByRole("button", { name: /^Sprache\b/ })).toContainText("Deutsch");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
