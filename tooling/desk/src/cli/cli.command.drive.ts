@@ -11,7 +11,7 @@ import type { ShipActionResult } from "../engine/pipeline.types";
 
 /**
  * Commands that change an issue and may drive it: `start`, `approve`,
- * `feedback`, `continue`, `cancel`, `ship`, and `remove`. Each one opens the
+ * `feedback`, `continue`, `cancel`, `ship`, `refresh`, and `remove`. Each one opens the
  * runtime (config, runner, log, notifier), recovers interrupted issues, makes
  * one runner call, and prints where the issue stopped.
  */
@@ -123,6 +123,11 @@ export const commandApprove = simple("pnpm desk approve <issue>", (runner, issue
 
 export const commandCancel = simple("pnpm desk cancel <issue>", (runner, issue) =>
   runner.cancel(issue)
+);
+
+/** Read the PR of an issue at `pr-open` once. Only the owner runs it: the desk never polls. */
+export const commandRefresh = simple("pnpm desk refresh <issue>", (runner, issue) =>
+  runner.refreshPr(issue)
 );
 
 const SHIP_USAGE = "pnpm desk ship <issue> [--confirm | --dry-run] [--json]";

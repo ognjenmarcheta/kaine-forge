@@ -272,19 +272,24 @@ const buildRunner = (
       }
       // A real ship takes a while (hooks, push), so the page sees `accepted` and then the event.
       await new Promise((resolve) => setTimeout(resolve, 700));
-      const shipped = await change(
+      const opened = await change(
         store,
         issue,
         {
-          stage: "shipped",
-          status: "done",
+          stage: "pr-open",
+          status: "waiting",
           prUrl: "https://github.com/owner/kaine-forge/pull/321",
           prNumber: 321
         },
         event("pr-review", "ship-started"),
-        event("shipped", "shipped")
+        event("ship", "pr-opened")
       );
-      return { outcome: "stopped", stop: "shipped", state: shipped, message: null };
+      return gate(opened);
+    },
+    refreshPr: async (issue) => {
+      record(issue, "refresh-pr", {});
+      const state = await readState(store, issue);
+      return gate(state, `PR #${String(state.prNumber ?? 0)} is still open.`);
     }
   };
 };

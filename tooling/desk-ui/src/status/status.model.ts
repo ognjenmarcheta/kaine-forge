@@ -69,7 +69,14 @@ export const SEVERITY_TONE = {
 
 /** What the engineer can do about an issue now. It follows the stage, never a guess. */
 export type GateMode =
-  "plan-gate" | "pr-review" | "needs-you" | "working" | "shipped" | "cancelled" | "idle";
+  | "plan-gate"
+  | "pr-review"
+  | "pr-open"
+  | "needs-you"
+  | "working"
+  | "shipped"
+  | "cancelled"
+  | "idle";
 
 export type ReadableSummary = Extract<IssueSummary, { readonly readable: true }>;
 
@@ -82,6 +89,7 @@ export function gateModeOf(summary: ReadableSummary): GateMode {
   }
   if (summary.stage === "plan-gate") return "plan-gate";
   if (summary.stage === "pr-review") return "pr-review";
+  if (summary.stage === "pr-open") return "pr-open";
   return "idle";
 }
 
@@ -195,6 +203,10 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   }
   if (gateMode === "pr-review") {
     return status("waiting", "warning", inStage(summary.stage, "waiting-for-you"), "review-ship");
+  }
+  if (gateMode === "pr-open") {
+    const action = summary.prUrl === null ? "open" : "open-pr";
+    return status("waiting", "warning", inStage(summary.stage, "waiting-for-you"), action);
   }
   return status("running", "neutral", inStage(summary.stage, summary.status), "open");
 }

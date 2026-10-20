@@ -20,6 +20,8 @@ export interface MachineState {
   readonly resumeStage: Stage | null;
   readonly loops: LoopCounters;
   readonly lastCheckFingerprint: string | null;
+  /** PR feedback rounds that went back to `build`. Human input never resets it. */
+  readonly prRounds: number;
 }
 
 export type Trigger =
@@ -37,6 +39,10 @@ export type Trigger =
   | { readonly type: "review-approve" }
   | { readonly type: "review-changes" }
   | { readonly type: "ship-confirm" }
+  /** New review feedback on the open PR sends the work back to `build`. */
+  | { readonly type: "pr-feedback" }
+  /** The owner merged or closed the PR on GitHub. */
+  | { readonly type: "pr-closed"; readonly merged: boolean }
   | { readonly type: "error" }
   | { readonly type: "continue"; readonly from?: Stage }
   | { readonly type: "cancel" };
@@ -44,7 +50,7 @@ export type Trigger =
 export type TriggerType = Trigger["type"];
 
 /** Why an issue moved to `needs-you`. */
-export type NeedsYouReason = "loop-limit" | "same-failure" | "blocked" | "error";
+export type NeedsYouReason = "loop-limit" | "same-failure" | "blocked" | "error" | "pr-round-limit";
 
 /**
  * Preconditions the runner must verify before it applies the transition.
@@ -69,7 +75,7 @@ const FORWARD_ON_OK: Readonly<Partial<Record<Stage, Stage>>> = {
   setup: "plan",
   plan: "plan-gate",
   build: "check",
-  ship: "shipped"
+  ship: "pr-open"
 };
 
 const FEEDBACK_FROM: Readonly<Record<FeedbackTarget, readonly Stage[]>> = {
@@ -88,7 +94,7 @@ const reject = (reason: string): TransitionResult => ({ ok: false, reason });
 const move = (
   state: MachineState,
   nextStage: Stage,
-  patch: Partial<Pick<MachineState, "loops" | "lastCheckFingerprint">> = {},
+  patch: Partial<Pick<MachineState, "loops" | "lastCheckFingerprint" | "prRounds">> = {},
   extra: { guard?: TransitionGuard; reason?: NeedsYouReason } = {}
 ): TransitionResult => ({
   ok: true,
@@ -102,7 +108,8 @@ const move = (
     lastCheckFingerprint:
       patch.lastCheckFingerprint === undefined
         ? state.lastCheckFingerprint
-        : patch.lastCheckFingerprint
+        : patch.lastCheckFingerprint,
+    prRounds: patch.prRounds ?? state.prRounds
   }
 });
 
@@ -187,6 +194,19 @@ export const transition = (
     case "ship-confirm":
       return requireStage(state, ["pr-review"], trigger.type) ?? move(state, "ship");
 
+    case "pr-feedback": {
+      const wrong = requireStage(state, ["pr-open"], trigger.type);
+      if (wrong) return wrong;
+      if (state.prRounds >= limits.prRounds) return needsYou(state, "pr-round-limit");
+      return move(state, "build", { ...FRESH_BUDGET, prRounds: state.prRounds + 1 });
+    }
+
+    case "pr-closed":
+      return (
+        requireStage(state, ["pr-open"], trigger.type) ??
+        move(state, trigger.merged ? "shipped" : "cancelled")
+      );
+
     case "error":
       return isActive(state.stage)
         ? needsYou(state, "error")
@@ -197,7 +217,10 @@ export const transition = (
       if (wrong) return wrong;
       const target = trigger.from ?? state.resumeStage;
       if (target === null) return reject("'continue' needs a stage: none is recorded to resume");
-      if (!isActive(target)) return reject(`'continue' cannot restart '${target}'`);
+      // `pr-open` only waits for the owner: continuing there runs nothing.
+      if (!isActive(target) && target !== "pr-open") {
+        return reject(`'continue' cannot restart '${target}'`);
+      }
       return move(state, target, FRESH_BUDGET);
     }
 

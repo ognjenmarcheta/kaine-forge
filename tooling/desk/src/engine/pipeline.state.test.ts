@@ -63,7 +63,30 @@ describe("stageEnteredAt", () => {
       at(5)
     ],
     ["the cancel", "cancelled", [...toPlanGate, event(7, "plan-gate", "cancelled")], at(7)],
-    ["the ship", "shipped", [event(8, "ship", "stage-started"), event(9, "ship", "shipped")], at(9)]
+    [
+      "a ship recorded before the pr-open stage existed",
+      "shipped",
+      [event(8, "ship", "stage-started"), event(9, "ship", "shipped")],
+      at(9)
+    ],
+    [
+      "the opened PR for the pr-open gate",
+      "pr-open",
+      [event(8, "ship", "stage-started"), event(9, "ship", "pr-opened")],
+      at(9)
+    ],
+    [
+      "the merge the owner made",
+      "shipped",
+      [event(9, "ship", "pr-opened"), event(10, "pr-open", "pr-merged")],
+      at(10)
+    ],
+    [
+      "a PR closed without a merge",
+      "cancelled",
+      [event(9, "ship", "pr-opened"), event(10, "pr-open", "pr-closed")],
+      at(10)
+    ]
   ] as const)("reads %s", (_name, stage, history, expected) => {
     expect(stageEnteredAt(state(stage, [...history]))).toBe(expected);
   });

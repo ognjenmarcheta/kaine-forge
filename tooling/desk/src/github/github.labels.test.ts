@@ -88,7 +88,8 @@ describe("labelForState", () => {
     [{ stage: "needs-you", status: "waiting", resumeStage: "build" }, "agent:needs-you"],
     [{ stage: "setup", status: "waiting" }, "agent:needs-you"],
     [{ stage: "check", status: "failed" }, "agent:needs-you"],
-    [{ stage: "shipped", status: "done" }, "agent:pr-open"],
+    [{ stage: "pr-open", status: "waiting" }, "agent:pr-open"],
+    [{ stage: "shipped", status: "done" }, null],
     [{ stage: "cancelled", status: "done" }, null],
     [{ stage: "intake", status: "idle" }, null]
   ] as const)("maps %j to %s", (over, expected) => {

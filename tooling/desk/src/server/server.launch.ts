@@ -46,6 +46,8 @@ export interface DeskRuntime {
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
   /** `runs.jsonl` of the desk state. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
+  /** `maxPrRounds` of the config. */
+  readonly prRoundLimit?: number | undefined;
   /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** The built UI, when the runtime knows where it is. */
@@ -122,10 +124,12 @@ export const createDefaultDeskRuntime =
         cancel: runner.cancel,
         remove: runner.remove,
         ship: runner.ship,
+        refreshPr: runner.refreshPr,
         draft: runner.draft,
         applyDraft: runner.applyDraft
       },
       readRuns: () => readRunRecords(location.stateRoot),
+      prRoundLimit: config.maxPrRounds,
       lessons: async () =>
         aggregateLessons(await readLessonRecords(location.stateRoot), {
           currentRepo: await repoFingerprint(location.repoRoot).catch(() => null)
@@ -246,6 +250,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       openWork: runtime.openWork,
       currentDiffHash: runtime.currentDiffHash,
       readRuns: runtime.readRuns,
+      prRoundLimit: runtime.prRoundLimit,
       lessons: runtime.lessons,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,

@@ -10,6 +10,7 @@ describe("desk config contract", () => {
       checks: { loop: [["pnpm", "check:affected"]], ship: [["pnpm", "check"]] },
       maxTestLoops: 3,
       maxReviewLoops: 2,
+      maxPrRounds: 3,
       maxConcurrentAgents: 2,
       providers: { intake: "claude", planner: "claude", builder: "claude", reviewer: "codex" },
       models: {},
@@ -38,7 +39,8 @@ describe("desk config contract", () => {
     ["a zero memory size", { docker: { check: { memory: "0g" } } }],
     ["a pids limit that is too small", { docker: { agent: { pidsLimit: 4 } } }],
     ["a patch limit above 32 MiB", { docker: { maxPatchBytes: 64 * 1024 * 1024 } }],
-    ["an unknown Docker key", { docker: { privileged: true } }]
+    ["an unknown Docker key", { docker: { privileged: true } }],
+    ["zero PR rounds", { maxPrRounds: 0 }]
   ])("rejects %s", (_name, input) => {
     expect(deskConfigSchema.safeParse(input).success).toBe(false);
   });

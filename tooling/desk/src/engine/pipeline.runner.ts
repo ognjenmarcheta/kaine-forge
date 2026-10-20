@@ -57,6 +57,7 @@ import {
   labelForState,
   planLabelChange
 } from "../github/github.labels";
+import type { PullRequestView } from "../github/github.pull-request";
 import {
   SnapshotFileError,
   createSnapshotGitHubPort,
@@ -133,6 +134,12 @@ export interface PipelineRunner {
    */
   readonly ship: (issue: number, options: ShipOptions) => Promise<ShipActionResult>;
   /**
+   * At `pr-open`: read the draft PR on GitHub once. Merged ends the issue at `shipped`,
+   * closed ends it at `cancelled`, open changes nothing. Only the owner runs it: the desk
+   * never polls, and it never merges, approves, or marks the PR ready.
+   */
+  readonly refreshPr: (issue: number) => Promise<PipelineResult>;
+  /**
    * For an issue that stopped at intake: the read-only intake agent drafts the issue in the
    * format of `docs/agents/issue-format.md`, into `issue-draft.json`. The issue stays at
    * `needs-you`, and nothing is written to GitHub.
@@ -180,7 +187,11 @@ const refused = (refusal: Refusal, reason: string, state: IssueState | null = nu
 export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const { store, clock, config, github } = deps;
   const scheduler = deps.scheduler ?? createScheduler(config.maxConcurrentAgents);
-  const limits: LoopLimits = { check: config.maxTestLoops, review: config.maxReviewLoops };
+  const limits: LoopLimits = {
+    check: config.maxTestLoops,
+    review: config.maxReviewLoops,
+    prRounds: config.maxPrRounds
+  };
   const controllers = new Map<number, AbortController>();
   const knownLabels = new Map<number, readonly string[]>();
   /** Issues read from a snapshot file: nothing of theirs goes to GitHub. */
@@ -305,6 +316,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       if (review.status !== "ok") return null;
       return `Review approved with ${review.value.review.findings.length} finding(s). ${review.value.review.plainLanguage}`;
     }
+    if (state.stage === "pr-open" && state.prUrl) return `Draft PR: ${state.prUrl}`;
     return null;
   };
 
@@ -371,7 +383,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     else if (isGate(state.stage))
       notify(state, "gate", (await gateMessage(state)) ?? "Waiting for you.");
     else if (state.stage === "shipped") {
-      notify(state, "done", state.prUrl ? `Draft PR: ${state.prUrl}` : "Done.");
+      notify(state, "done", state.prUrl ? `PR merged: ${state.prUrl}` : "Done.");
     }
   };
 
@@ -725,6 +737,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
+        if (target === "pr-open" && (session.state.prNumber ?? null) === null) {
+          return refused(
+            "invalid-transition",
+            `#${issue} has no pull request to wait for. Continue from another stage.`,
+            session.state
+          );
+        }
         const trigger: Trigger = {
           type: "continue",
           ...(stage === undefined ? {} : { from: stage })
@@ -751,7 +770,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   /**
    * Run the ship executor for a session. A real run enters the `ship` stage
    * only after the gate passed, so a refusal changes nothing. A retry starts
-   * inside `ship`. Success ends the issue at `shipped`; any failure after
+   * inside `ship`. Success moves the issue to `pr-open`; any failure after
    * the first change ends it at `needs-you` with `resumeStage: "ship"`.
    */
   const executeShip = async (
@@ -822,12 +841,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         await begin();
         await applyOutcome(session, "ship", {
           kind: "complete",
-          event: "shipped",
+          event: "pr-opened",
           note: result.prUrl,
           patch: {
             prUrl: result.prUrl,
             prNumber: result.prNumber,
             commitSha: result.commitSha,
+            prHeadSha: result.commitSha,
             baseSha: result.baseSha
           }
         });
@@ -862,6 +882,49 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           const { plan, files } = execution.result;
           return { outcome: "dry-run", state: session.state, plan, files };
         }
+        return stopped(session.state);
+      },
+      { needsState: true }
+    );
+
+  const refreshPr: PipelineRunner["refreshPr"] = (issue) =>
+    withLease(
+      issue,
+      async (loaded): Promise<PipelineResult> => {
+        const session = requireSession(loaded);
+        const check = transition(
+          machineOf(session.state),
+          { type: "pr-closed", merged: true },
+          limits
+        );
+        if (!check.ok) return refused("invalid-transition", check.reason, session.state);
+        const refuse = (reason: string): PipelineResult =>
+          refused("refresh-refused", `${reason} Nothing was changed.`, session.state);
+        if (deps.noWriteback === true || noWriteback.has(issue)) {
+          return refuse(`#${issue} reads nothing from GitHub (no write-back or a snapshot file).`);
+        }
+        const prNumber = session.state.prNumber ?? null;
+        if (prNumber === null) return refuse(`#${issue} has no pull request number.`);
+
+        let pr: PullRequestView;
+        try {
+          pr = await github.viewPullRequest(prNumber);
+        } catch (error) {
+          return refuse(`GitHub read failed: ${message(error)}.`);
+        }
+        if (pr.state === "OPEN") {
+          return {
+            outcome: "stopped",
+            stop: "gate",
+            state: session.state,
+            message: `PR #${prNumber} is still open: ${pr.url}`
+          };
+        }
+        const merged = pr.state === "MERGED";
+        const moved = move(session, { type: "pr-closed", merged });
+        if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
+        await record(session, "pr-open", merged ? "pr-merged" : "pr-closed", pr.url);
+        await finishMove(session, null);
         return stopped(session.state);
       },
       { needsState: true }
@@ -1102,6 +1165,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     feedback,
     continueFrom,
     ship,
+    refreshPr,
     draft,
     applyDraft,
     cancel,

@@ -127,6 +127,17 @@ export const issueStateSchema = z
      * `desk start --isolation`. Without it the config default applies.
      */
     isolation: isolationSchema.optional(),
+    /**
+     * Added with the `pr-open` stage. PR feedback rounds that went back to `build`.
+     * `feedback` and `continue` never reset it. A reader treats a missing field like 0.
+     */
+    prRounds: z.number().int().nonnegative().optional(),
+    /** The PR head commit the desk last pushed or read. */
+    prHeadSha: z
+      .string()
+      .regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/)
+      .nullable()
+      .optional(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema
   })

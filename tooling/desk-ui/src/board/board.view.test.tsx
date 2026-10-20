@@ -58,7 +58,7 @@ describe("BoardView columns", () => {
       within(waiting).getByText("Plan approval · waiting for you", { selector: ".desk-chip" })
     ).toBeTruthy();
     expect(
-      within(waiting).getByRole("img", { name: "Stage 3 of 8: Plan approval (Waiting for you)" })
+      within(waiting).getByRole("img", { name: "Stage 3 of 9: Plan approval (Waiting for you)" })
     ).toBeTruthy();
     expect(
       within(column(/^Running/)).getByText("Build · running", { selector: ".desk-chip" })

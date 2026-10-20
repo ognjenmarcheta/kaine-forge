@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACTIVE_STAGES,
+  DEFAULT_LOOP_LIMITS,
   FEEDBACK_TARGETS,
   PIPELINE,
   STAGES,
@@ -16,6 +17,7 @@ const stateAt = (stage: Stage, over: Partial<MachineState> = {}): MachineState =
     resumeStage: stage === "needs-you" ? "build" : null,
     loops: { check: 0, review: 0 },
     lastCheckFingerprint: null,
+    prRounds: 0,
     ...over
   });
 
@@ -50,6 +52,9 @@ const LEGAL: readonly { trigger: Trigger; stages: readonly Stage[] }[] = [
   { trigger: { type: "review-approve" }, stages: ["review"] },
   { trigger: { type: "review-changes" }, stages: ["review"] },
   { trigger: { type: "ship-confirm" }, stages: ["pr-review"] },
+  { trigger: { type: "pr-feedback" }, stages: ["pr-open"] },
+  { trigger: { type: "pr-closed", merged: true }, stages: ["pr-open"] },
+  { trigger: { type: "pr-closed", merged: false }, stages: ["pr-open"] },
   { trigger: { type: "error" }, stages: [...ACTIVE_STAGES] },
   { trigger: { type: "continue" }, stages: ["needs-you"] },
   {
@@ -106,7 +111,7 @@ describe("pipeline machine: every stage x trigger", () => {
 });
 
 describe("pipeline machine: forward path", () => {
-  it("walks the happy path from intake to shipped", () => {
+  it("walks the happy path from intake to a merged PR", () => {
     const steps: readonly [Trigger, Stage][] = [
       [{ type: "start" }, "intake"],
       [{ type: "stage-complete", stage: "intake", outcome: "ok" }, "setup"],
@@ -117,7 +122,8 @@ describe("pipeline machine: forward path", () => {
       [{ type: "check-pass" }, "review"],
       [{ type: "review-approve" }, "pr-review"],
       [{ type: "ship-confirm" }, "ship"],
-      [{ type: "stage-complete", stage: "ship", outcome: "ok" }, "shipped"]
+      [{ type: "stage-complete", stage: "ship", outcome: "ok" }, "pr-open"],
+      [{ type: "pr-closed", merged: true }, "shipped"]
     ];
     let state = stateAt("intake");
     for (const [trigger, expected] of steps) {
@@ -178,7 +184,7 @@ describe("pipeline machine: check loop", () => {
     const result = transition(
       stateAt("check", { loops: { check: 1, review: 0 } }),
       { type: "check-fail", fingerprint: "x" },
-      { check: 1, review: 2 }
+      { ...DEFAULT_LOOP_LIMITS, check: 1 }
     );
     expect(result).toMatchObject({ ok: true, nextStage: "needs-you", reason: "loop-limit" });
   });
@@ -302,7 +308,8 @@ describe("pipeline machine: needs-you and continue", () => {
       stage: "check",
       resumeStage: null,
       loops: { check: 0, review: 0 },
-      lastCheckFingerprint: null
+      lastCheckFingerprint: null,
+      prRounds: 0
     });
   });
 
@@ -314,7 +321,7 @@ describe("pipeline machine: needs-you and continue", () => {
     expect(result.nextStage).toBe("build");
   });
 
-  it("refuses to continue into a gate, needs-you, or a terminal stage", () => {
+  it("refuses to continue into a decision gate, needs-you, or a terminal stage", () => {
     for (const from of ["plan-gate", "pr-review", "needs-you", "shipped", "cancelled"] as const) {
       expect(transition(stateAt("needs-you"), { type: "continue", from }).ok).toBe(false);
     }
@@ -329,5 +336,61 @@ describe("pipeline machine: needs-you and continue", () => {
   it("clears resumeStage on cancel", () => {
     const result = accepted(stateAt("needs-you", { resumeStage: "check" }), { type: "cancel" });
     expect(result.state).toMatchObject({ stage: "cancelled", resumeStage: null });
+  });
+});
+
+describe("pipeline machine: open PR", () => {
+  const spent = { loops: { check: 3, review: 2 }, lastCheckFingerprint: "stuck" } as const;
+
+  it("sends PR feedback to build with a fresh loop budget and one more PR round", () => {
+    const result = accepted(stateAt("pr-open", { ...spent, prRounds: 1 }), {
+      type: "pr-feedback"
+    });
+    expect(result.state).toEqual({
+      stage: "build",
+      resumeStage: null,
+      loops: { check: 0, review: 0 },
+      lastCheckFingerprint: null,
+      prRounds: 2
+    });
+  });
+
+  it("stops at the PR round limit and keeps pr-open to resume", () => {
+    const atCap = stateAt("pr-open", { prRounds: DEFAULT_LOOP_LIMITS.prRounds });
+    const result = accepted(atCap, { type: "pr-feedback" });
+    expect(result).toMatchObject({ nextStage: "needs-you", reason: "pr-round-limit" });
+    expect(result.state).toMatchObject({ resumeStage: "pr-open", prRounds: 3 });
+
+    const custom = transition(
+      stateAt("pr-open", { prRounds: 1 }),
+      { type: "pr-feedback" },
+      { ...DEFAULT_LOOP_LIMITS, prRounds: 1 }
+    );
+    expect(custom).toMatchObject({ ok: true, nextStage: "needs-you", reason: "pr-round-limit" });
+  });
+
+  it("ends at shipped when the PR merged and at cancelled when it closed", () => {
+    expect(accepted(stateAt("pr-open"), { type: "pr-closed", merged: true }).nextStage).toBe(
+      "shipped"
+    );
+    expect(accepted(stateAt("pr-open"), { type: "pr-closed", merged: false }).nextStage).toBe(
+      "cancelled"
+    );
+  });
+
+  it("continues into pr-open from the round limit and keeps the round count", () => {
+    const result = accepted(stateAt("needs-you", { resumeStage: "pr-open", prRounds: 3 }), {
+      type: "continue"
+    });
+    expect(result.state).toMatchObject({ stage: "pr-open", prRounds: 3 });
+    expect(result.guard).toBe("none");
+  });
+
+  it("never resets the PR round count on feedback", () => {
+    const result = accepted(stateAt("needs-you", { resumeStage: "pr-open", prRounds: 3 }), {
+      type: "feedback",
+      target: "build"
+    });
+    expect(result.state).toMatchObject({ stage: "build", prRounds: 3 });
   });
 });

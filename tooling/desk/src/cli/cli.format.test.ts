@@ -50,18 +50,18 @@ describe("nextSteps", () => {
     ]);
   });
 
-  it("names the draft PR after a ship and says that the engineer merges", () => {
+  it("names the draft PR at pr-open, says that the engineer merges, and names refresh", () => {
     expect(
       nextSteps(
-        stateAt("shipped", {
-          status: "done",
+        stateAt("pr-open", {
           prUrl: "https://github.com/o/r/pull/101",
           prNumber: 101
         })
       )
     ).toEqual([
       "open the draft PR: https://github.com/o/r/pull/101",
-      "review it and merge it yourself on GitHub. The desk never merges."
+      "review it and merge it yourself on GitHub. The desk never merges.",
+      "after you merge or close it, run: pnpm desk refresh 12"
     ]);
   });
 
@@ -97,19 +97,18 @@ describe("describeResult", () => {
     });
   });
 
-  it("prints the PR URL in the shipped result and in the JSON", () => {
-    const state = stateAt("shipped", {
-      status: "done",
+  it("prints the PR URL once the ship opened it, and in the JSON", () => {
+    const state = stateAt("pr-open", {
       prUrl: "https://github.com/o/r/pull/101",
       prNumber: 101
     });
-    const view = describeResult(12, { outcome: "stopped", stop: "shipped", state, message: null });
+    const view = describeResult(12, { outcome: "stopped", stop: "gate", state, message: null });
     expect(view.code).toBe(0);
-    expect(view.text).toContain("#12: shipped (stage shipped, done)");
+    expect(view.text).toContain("#12: waiting for you (stage pr-open, waiting)");
     expect(view.text).toContain("open the draft PR: https://github.com/o/r/pull/101");
     expect(view.json).toMatchObject({
       ok: true,
-      stop: "shipped",
+      stop: "gate",
       prUrl: "https://github.com/o/r/pull/101"
     });
   });

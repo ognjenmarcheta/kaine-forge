@@ -36,13 +36,12 @@ export const nextSteps = (state: IssueState): string[] => {
         `or send feedback: pnpm desk feedback ${n} --to build "<text>"`
       ];
     }
-    case "shipped":
-      return state.prUrl
-        ? [
-            `open the draft PR: ${state.prUrl}`,
-            "review it and merge it yourself on GitHub. The desk never merges."
-          ]
-        : [];
+    case "pr-open":
+      return [
+        ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
+        "review it and merge it yourself on GitHub. The desk never merges.",
+        `after you merge or close it, run: pnpm desk refresh ${n}`
+      ];
     default:
       return [];
   }
@@ -74,7 +73,7 @@ export type ResultJson =
       readonly stage: Stage;
       readonly status: IssueStatus;
       readonly message: string | null;
-      /** The draft PR, once the issue is shipped. */
+      /** The draft PR, once the ship opened it. */
       readonly prUrl: string | null;
       readonly next: readonly string[];
     };

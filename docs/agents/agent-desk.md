@@ -1,7 +1,8 @@
 # Agent desk
 
 The agent desk drives a GitHub issue through intake, plan, build, check, and review
-to a draft PR. The owner approves at two gates and merges every PR. See
+to a draft PR. The owner approves at two gates and merges every PR. The issue then waits at
+`pr-open` until the owner runs `refresh` after the merge. See
 [ADR 0011](../adr/0011-local-agent-desk.md).
 
 ## Commands
@@ -21,7 +22,8 @@ take many minutes, so the command prints live progress (see "Live output").
 | `cancel <n>`                                                                             | End the issue. The worktree stays.                                                                                                                                      |
 | `remove <n> [--force] [--keep-worktree]`                                                 | Delete the desk state and the worktree. It refuses a dirty worktree unless `--force`. The branch stays.                                                                 |
 | `draft <n> [--snapshot-file P] \| --apply [--confirm]`                                   | For an issue that stopped at intake: draft it in the issue format, then apply the draft to GitHub after your yes. See "Draft the issue format".                         |
-| `ship <n> [--confirm \| --dry-run]`                                                      | At `pr-review`: commit, push, and open a draft PR. See "Ship". The desk never merges.                                                                                   |
+| `ship <n> [--confirm \| --dry-run]`                                                      | At `pr-review`: commit, push, and open a draft PR. The issue moves to `pr-open`. See "Ship". The desk never merges.                                                     |
+| `refresh <n>`                                                                            | At `pr-open`: read the PR on GitHub once. Merged ends the issue at `shipped`, closed without a merge ends it at `cancelled`, open changes nothing. See "Open PR".       |
 
 - Every driving command also takes `--json` and `--no-writeback`.
 - `--no-writeback` writes no label and no comment to GitHub. The issue remembers it
@@ -76,16 +78,16 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
 
 ### Exit codes
 
-| Code | Meaning                                                                        |
-| ---- | ------------------------------------------------------------------------------ |
-| 0    | The issue stopped at a human gate, or it is done (`shipped`, `cancelled`).     |
-| 1    | The issue needs you, the call was refused, or the command failed.              |
-| 2    | Usage error: a bad flag, a missing number, a bad stage, or an unknown command. |
+| Code | Meaning                                                                                     |
+| ---- | ------------------------------------------------------------------------------------------- |
+| 0    | The issue stopped at a human gate (also `pr-open`), or it is done (`shipped`, `cancelled`). |
+| 1    | The issue needs you, the call was refused, or the command failed.                           |
+| 2    | Usage error: a bad flag, a missing number, a bad stage, or an unknown command.              |
 
 A refusal prints `#12: refused (invalid-transition). <reason>` on stderr and changes nothing.
 The refusals are `leased`, `unknown-issue`, `unreadable`, `invalid-transition`,
-`ship-refused`, `already-started`, `intake-refused`, `authorization`, `worktree-dirty`,
-and `remove-failed`.
+`ship-refused`, `refresh-refused`, `already-started`, `intake-refused`, `authorization`,
+`worktree-dirty`, and `remove-failed`.
 
 ### Live output
 
@@ -214,17 +216,18 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 `state.json`, appends to `events.jsonl`, sets labels and the status comment, and calls
 `notify` at a gate or a stop.
 
-| Call                                  | What it does                                                                      |
-| ------------------------------------- | --------------------------------------------------------------------------------- |
-| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.            |
-| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                  |
-| `approvePlan(n)`                      | At `plan-gate`: rename the branch if the planner chose another name, then drive.  |
-| `feedback(n, target, text)`           | Send feedback to `plan`, `build`, or `review`. Loop budgets reset. Then drive.    |
-| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.          |
-| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                        |
-| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays. |
-| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                    |
-| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship". |
+| Call                                  | What it does                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.                 |
+| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                       |
+| `approvePlan(n)`                      | At `plan-gate`: rename the branch if the planner chose another name, then drive.       |
+| `feedback(n, target, text)`           | Send feedback to `plan`, `build`, or `review`. Loop budgets reset. Then drive.         |
+| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.               |
+| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                             |
+| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.      |
+| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                         |
+| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".      |
+| `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR". |
 
 Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
@@ -243,6 +246,9 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 | `check`     | engine   | `pnpm generate`, drift check, then the configured loop checks. One check runs at a time.                                               |
 | `review`    | reviewer | Fresh, read-only session. Reads `diff.patch`. Default provider is the other one than the builder.                                      |
 | `pr-review` | you      | Feedback goes to `build`, `review`, or `plan`. Then `ship`.                                                                            |
+| `ship`      | engine   | Commit, push, and open the draft PR. See "Ship".                                                                                       |
+| `pr-open`   | you      | The draft PR is on GitHub. You review and merge it there, then run `refresh`. See "Open PR".                                           |
+| `shipped`   | nobody   | The end: the desk saw the PR merged when you ran `refresh`.                                                                            |
 | `needs-you` | you      | Every failure lands here with a reason and a `resumeStage`.                                                                            |
 
 A check failure goes back to `build` up to `maxTestLoops` times. The same failure twice in
@@ -300,7 +306,7 @@ After the gate, the engine enters the `ship` stage and runs: the ship checks (`p
 the changeset file or the `release:skip-changeset` label, a commit through the repository
 hooks, a rebase onto `origin/main` if needed (with the checks again), a push of the branch,
 and `gh pr create --draft`. It sets the label `agent:pr-open` and edits the status comment
-with the PR link. The issue is `shipped`.
+with the PR link. The issue moves to `pr-open`.
 
 Safety rules:
 
@@ -316,6 +322,30 @@ moves the issue to `needs-you` with `resumeStage: ship`. The reason has the fail
 redacted tail of the output. Fix the cause, then run `pnpm desk continue <n>`. The ship
 continues where it stopped: it makes no second commit and no second PR. `continue` retries a
 ship only if you confirmed it before. A new `ship --confirm` is not valid there.
+
+### Open PR
+
+At `pr-open` the draft PR is on GitHub and the desk waits for you. Nothing runs. Review the
+PR, mark it ready, and merge it yourself on GitHub. Then run `pnpm desk refresh <n>` (or
+**Check the PR** in the UI). It reads the PR once with `gh pr view`:
+
+- Merged: the issue ends at `shipped`. The desk removes its `agent:pr-open` label and adds no
+  other.
+- Closed without a merge: the issue ends at `cancelled`.
+- Still open: nothing changes. The command prints the PR link.
+
+`refresh` refuses (`refresh-refused`) and changes nothing when the issue writes nothing to
+GitHub (`--no-writeback` or a snapshot file), when it has no PR number, or when the GitHub read
+fails. Outside `pr-open` it refuses with `invalid-transition`.
+
+`shipped` means one thing: the desk saw the PR merged during a `refresh` that you ran. The desk
+does not poll GitHub. At `pr-open`, as everywhere, it never merges, approves, marks the PR
+ready, enables auto-merge, or force-pushes.
+
+The issue state counts PR feedback rounds (`prRounds`). `maxPrRounds` in the config (default 3)
+is their limit. The status comment shows `PR rounds: n of max` while the issue is at `pr-open`.
+The step that sends PR review feedback back to `build` is tracked in #555. A `needs-you` with
+the reason `pr-round-limit` keeps `pr-open` as its resume stage, so `continue` returns there.
 
 ### Why these checks exist
 
@@ -560,12 +590,12 @@ developer tooling. It has four views:
     text.
   - A compact card reads only the summary, never the detail: the number and title (two lines,
     full title in a tooltip when cut), **one status chip** that joins stage and state ("Plan
-    approval · waiting for you", "Build · running", "Needs you", "Shipped"), an 8-segment
+    approval · waiting for you", "Build · running", "Needs you", "Shipped"), a 9-segment
     progress bar of the flow nodes (the current segment is taller; its name says "Stage 4 of
-    8: Build (Running)"), the needs-you reason, the branch, the time in the current stage (one
+    9: Build (Running)"), the needs-you reason, the branch, the time in the current stage (one
     shared clock for the page), a PR icon link, and the next action: **Continue** (needs you),
     **Review plan** or **Review and ship** (open the issue), a spinner while it runs, or
-    **Open PR** once shipped. Only the title and the buttons are interactive.
+    **Open PR** once the ship opened it. Only the title and the buttons are interactive.
   - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the
     column, the tone, the chip words, the gate mode, and the next action, and from a node
     status to its tone. It also cuts an engine reason to its first sentence, joining a line
@@ -620,8 +650,9 @@ developer tooling. It has four views:
     review shows the score, the agent's recommendation and reasons, the open questions, and the
     proposed body and the issue now as plain text in tabs. **Copy** copies the body. **Apply to
     GitHub…** asks a second time; only that yes sends `apply-draft` with `confirm: true`. While an agent runs:
-    a spinner, the stage, and the time in it. After a ship: the PR link and, once on the page,
-    the note that you merge it yourself. **Cancel run** and **Remove** sit in a **More** menu
+    a spinner, the stage, and the time in it. At the open PR: **Check the PR** (sends
+    `refresh-pr`), the PR link, the PR feedback rounds, and, once on the page, the note that you
+    merge it yourself. After the merge: the PR link. **Cancel run** and **Remove** sit in a **More** menu
     beside the decision title. Both ask first, and focus returns to the menu button. Remove has
     a force box for a worktree with changes. Controls that start work are disabled while an
     action runs; Cancel and Remove stay enabled. Every result is a toast, and focus moves to

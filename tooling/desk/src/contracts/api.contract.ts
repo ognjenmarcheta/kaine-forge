@@ -24,6 +24,7 @@ export const REFUSAL_CODES = [
   "invalid-transition",
   "ship-refused",
   "draft-refused",
+  "refresh-refused",
   "already-started",
   "intake-refused",
   "authorization",
@@ -111,11 +112,14 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       status: issueStatusSchema,
       branch: z.string().nullable(),
       loops: loopCountersSchema,
+      /** PR feedback rounds that went back to `build`, and the config limit for them. */
+      prRound: z.number().int().nonnegative(),
+      prRoundLimit: z.number().int().positive(),
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
       resumeStage: stageSchema.nullable(),
-      /** The draft PR, once the issue shipped. */
+      /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
       contract: z
@@ -261,6 +265,7 @@ export const ACTION_NAMES = [
   "cancel",
   "remove",
   "ship",
+  "refresh-pr",
   "draft",
   "apply-draft"
 ] as const;
@@ -294,6 +299,8 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
       message: "A ship that is not a dry run needs confirm: true",
       path: ["confirm"]
     }),
+  // Reads the PR once. It never writes to the PR.
+  z.object({ action: z.literal("refresh-pr") }).strict(),
   z.object({ action: z.literal("draft") }).strict(),
   // Applying replaces the issue body on GitHub. Only an explicit yes reaches the engine.
   z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict()

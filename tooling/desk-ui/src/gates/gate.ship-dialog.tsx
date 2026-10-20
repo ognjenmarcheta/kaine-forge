@@ -65,7 +65,7 @@ export function ShipDialog({ issueNumber, open, onOpenChange, actions }: ShipDia
     const settled = await run.current(SHIP);
     if (settled.kind === "error") {
       setPhase({ kind: "failed", code: settled.code, detail: settled.detail });
-    } else if (settled.kind === "done" && settled.outcome.stop !== "shipped") {
+    } else if (settled.kind === "done" && settled.outcome.stage !== "pr-open") {
       // The ship stopped before the PR (a hook failed): the issue is in needs-you.
       setPhase({ kind: "failed", code: "ship-refused", detail: settled.outcome.message });
     } else {

@@ -30,7 +30,7 @@ const setup = (
   shipPlan: ShipPlanView,
   ship: ActionSettled = {
     kind: "done",
-    outcome: { stop: "shipped", stage: "shipped", message: null }
+    outcome: { stop: "gate", stage: "pr-open", message: null }
   }
 ) => {
   const run = vi.fn<IssueActions["run"]>((request) =>

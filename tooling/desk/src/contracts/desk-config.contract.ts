@@ -135,6 +135,8 @@ export const deskConfigSchema = z
     checks: checksSchema.prefault({}),
     maxTestLoops: z.number().int().nonnegative().default(DEFAULT_LOOP_LIMITS.check),
     maxReviewLoops: z.number().int().nonnegative().default(DEFAULT_LOOP_LIMITS.review),
+    /** PR feedback rounds from `pr-open` back to `build` before the engine asks the owner. */
+    maxPrRounds: z.number().int().min(1).default(DEFAULT_LOOP_LIMITS.prRounds),
     maxConcurrentAgents: z.number().int().positive().default(2),
     providers: providersSchema.prefault({}),
     models: modelsSchema.prefault({}),

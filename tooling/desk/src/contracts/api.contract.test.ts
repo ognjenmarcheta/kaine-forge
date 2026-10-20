@@ -33,7 +33,8 @@ describe("action request", () => {
     {
       input: { action: "ship", confirm: false, dryRun: true },
       expected: { action: "ship", confirm: false, dryRun: true }
-    }
+    },
+    { input: { action: "refresh-pr" }, expected: { action: "refresh-pr" } }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -50,7 +51,9 @@ describe("action request", () => {
     { name: "continue from a gate", input: { action: "continue", from: "plan-gate" } },
     { name: "a real ship without confirm", input: { action: "ship", confirm: false } },
     { name: "a ship without confirm field", input: { action: "ship" } },
-    { name: "a string where a boolean belongs", input: { action: "remove", force: "yes" } }
+    { name: "a string where a boolean belongs", input: { action: "remove", force: "yes" } },
+    // The engine reads the PR number from the issue state, never from the client.
+    { name: "a refresh that names a PR", input: { action: "refresh-pr", pr: 9 } }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
   });
@@ -96,12 +99,14 @@ describe("issue summary", () => {
     status: "running",
     branch: null,
     loops: { check: 0, review: 0 },
+    prRound: 0,
+    prRoundLimit: 3,
     needsYouReason: null,
     resumeStage: null,
     prUrl: null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: "2026-03-01T10:00:00.000Z",
-    progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle"],
+    progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],
     currentNode: "build",
     busy: false,
     createdAt: "2026-03-01T10:00:00.000Z",

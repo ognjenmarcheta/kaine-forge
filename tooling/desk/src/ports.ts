@@ -2,7 +2,11 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 import type { LabelChange, LabelDefinition } from "./github/github.labels";
-import type { CreatePullRequestRequest, PullRequestInfo } from "./github/github.pull-request";
+import type {
+  CreatePullRequestRequest,
+  PullRequestInfo,
+  PullRequestView
+} from "./github/github.pull-request";
 import type { IssueSnapshot, RepositoryInfo, StatusCommentResult } from "./github/github.types";
 import { stopProcessTree } from "./process/process.tree";
 
@@ -53,6 +57,8 @@ export interface GitHubPort {
   readonly findPullRequest: (branch: string) => Promise<PullRequestInfo | null>;
   /** Open a DRAFT PR. The request type allows no other value. */
   readonly createPullRequest: (request: CreatePullRequestRequest) => Promise<PullRequestInfo>;
+  /** Read one PR: its state (open, closed, merged) and its head. Read-only. */
+  readonly viewPullRequest: (pr: number) => Promise<PullRequestView>;
   readonly addPullRequestLabel: (pr: number, label: string) => Promise<void>;
   /** Replace the issue body. Only the owner's confirmed apply of an intake draft calls it. */
   readonly editIssueBody: (issueNumber: number, body: string) => Promise<void>;

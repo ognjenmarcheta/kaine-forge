@@ -84,6 +84,8 @@ export const REFUSALS = [
   "ship-refused",
   /** Applying an intake draft refused: no confirmation, no draft, a changed issue. */
   "draft-refused",
+  /** Reading the PR at `pr-open` refused: no write-back, no PR number, a failed GitHub read. */
+  "refresh-refused",
   /** `start` found state that is past intake. */
   "already-started",
   /** Intake could not run (identity, GitHub, closed state, bad snapshot file). */
@@ -183,6 +185,7 @@ export type StatePatch = Partial<
     | "commitSha"
     | "prUrl"
     | "prNumber"
+    | "prHeadSha"
   >
 >;
 

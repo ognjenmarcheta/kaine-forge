@@ -170,7 +170,8 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
         ready === READINESS_KEYS.length ? "success" : "warning"
       );
     }
-    case "ship": {
+    case "ship":
+    case "pr-open": {
       const { prNumber, commitSha } = detail.state;
       if (prNumber !== null && prNumber !== undefined) {
         return tile("pr", "desk.inspector.kpi.pullRequest", {

@@ -94,6 +94,11 @@ const TO_PLAN_GATE: Step[] = [...INTAKE, ...SETUP, ...PLAN];
 const TO_BUILD: Step[] = [...TO_PLAN_GATE, ...APPROVE];
 const TO_REVIEW: Step[] = [...TO_BUILD, ...BUILD, ...CHECK_PASS];
 const TO_PR_REVIEW: Step[] = [...TO_REVIEW, ...REVIEW_OK];
+const TO_PR_OPEN: Step[] = [
+  ...TO_PR_REVIEW,
+  ["ship", "stage-started"],
+  ["ship", "pr-opened", "https://github.com/o/r/pull/9"]
+];
 
 // --- helpers --------------------------------------------------------------
 
@@ -138,7 +143,8 @@ describe("buildFlowModel structure", () => {
       "build->check",
       "check->review",
       "review->pr-review",
-      "pr-review->ship"
+      "pr-review->ship",
+      "ship->pr-open"
     ]);
   });
 
@@ -154,6 +160,8 @@ describe("buildFlowModel structure", () => {
     expect(node(fresh, "check").x).toBe(node(fresh, "review").x);
     expect(node(fresh, "check").y).toBeLessThan(0);
     expect(node(fresh, "review").y).toBeGreaterThan(0);
+    expect(node(fresh, "pr-open").x).toBe(node(fresh, "ship").x);
+    expect(node(fresh, "pr-open").y).toBeGreaterThan(node(fresh, "ship").y);
     const xs = ["ticket", "plan", "plan-gate", "build", "check", "pr-review", "ship"].map(
       (id) => node(fresh, id as FlowNodeId).x
     );
@@ -188,6 +196,7 @@ describe("buildFlowModel statuses", () => {
     review: "idle",
     "pr-review": "idle",
     ship: "idle",
+    "pr-open": "idle",
     ...overrides
   });
 
@@ -323,13 +332,9 @@ describe("buildFlowModel statuses", () => {
       expected: idle({ ticket: "passed", plan: "running", "plan-gate": "looped" })
     },
     {
-      name: "shipped",
-      scenario: {
-        stage: "shipped",
-        status: "done",
-        steps: [...TO_PR_REVIEW, ["ship", "stage-started"], ["ship", "ship-complete"]]
-      },
-      current: "ship",
+      name: "waiting for the owner at pr-open",
+      scenario: { stage: "pr-open", status: "waiting", steps: TO_PR_OPEN },
+      current: "pr-open",
       expected: idle({
         ticket: "passed",
         plan: "passed",
@@ -338,7 +343,28 @@ describe("buildFlowModel statuses", () => {
         check: "passed",
         review: "passed",
         "pr-review": "passed",
-        ship: "passed"
+        ship: "passed",
+        "pr-open": "waiting"
+      })
+    },
+    {
+      name: "shipped: the PR is merged",
+      scenario: {
+        stage: "shipped",
+        status: "done",
+        steps: [...TO_PR_OPEN, ["pr-open", "pr-merged", "https://github.com/o/r/pull/9"]]
+      },
+      current: "pr-open",
+      expected: idle({
+        ticket: "passed",
+        plan: "passed",
+        "plan-gate": "passed",
+        build: "passed",
+        check: "passed",
+        review: "passed",
+        "pr-review": "passed",
+        ship: "passed",
+        "pr-open": "passed"
       })
     },
     {

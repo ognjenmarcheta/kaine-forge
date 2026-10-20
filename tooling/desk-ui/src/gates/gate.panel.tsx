@@ -39,8 +39,14 @@ const PR_REVIEW_TARGETS: readonly FeedbackTarget[] = ["build", "review", "plan"]
 const PLAN_TARGETS: readonly FeedbackTarget[] = ["plan"];
 const AUTO_STAGE = "auto";
 const PR_LINK = buttonVariants({ appearance: "default" });
+const PR_SECONDARY_LINK = buttonVariants({ appearance: "secondary" });
 /** The modes where the issue waits for the engineer's decision. */
-const DECIDE: ReadonlySet<GateMode> = new Set<GateMode>(["plan-gate", "pr-review", "needs-you"]);
+const DECIDE: ReadonlySet<GateMode> = new Set<GateMode>([
+  "plan-gate",
+  "pr-review",
+  "pr-open",
+  "needs-you"
+]);
 /** The complements of the stylesheet's `min-width` rules: the layout is exact at 64 and 40 rem. */
 const COMPACT_QUERY = "not all and (min-width: 64rem)";
 const NARROW_QUERY = "not all and (min-width: 40rem)";
@@ -305,6 +311,16 @@ export function useGatePanel({
             {t("desk.gate.needsYou.continue")}
           </Button>
         );
+      case "pr-open":
+        return (
+          <Button
+            className="desk-gate__primary"
+            disabled={actions.busy}
+            onClick={() => void send({ action: "refresh-pr" })}
+          >
+            {t("desk.gate.prOpen.check")}
+          </Button>
+        );
       case "shipped":
         return prUrl === null ? null : (
           <a
@@ -405,7 +421,24 @@ export function useGatePanel({
         </p>
       )}
 
-      {mode === "shipped" && <p className="desk-note">{t("desk.gate.shipped.youMerge")}</p>}
+      {mode === "pr-open" && (
+        <>
+          {prUrl !== null && (
+            <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_SECONDARY_LINK}>
+              <GitPullRequest aria-hidden="true" className="desk-icon" />
+              {t("desk.gate.prOpen.openPr")}
+              <ExternalLink aria-hidden="true" className="desk-icon" />
+            </a>
+          )}
+          <p className="desk-muted">
+            {t("desk.gate.prOpen.rounds", {
+              round: summary.prRound,
+              limit: summary.prRoundLimit
+            })}
+          </p>
+          <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+        </>
+      )}
 
       {mode === "plan-gate" && requestChanges(PLAN_TARGETS)}
       {mode === "pr-review" && requestChanges(PR_REVIEW_TARGETS)}

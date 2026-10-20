@@ -163,3 +163,17 @@ Consequences: the image is about 2 GB and is rebuilt on purpose (`desk docker bu
 run of an issue is slower than on the host. No MCP server and no browser run in a container. Real-Docker tests are gated by `DESK_DOCKER=1`. A model run in a
 container needs a provider login, so it is verified by the owner with the checklist in
 [agent-desk.md](../agents/agent-desk.md).
+
+## Addendum 2026-10-20: the `pr-open` stage
+
+A successful ship no longer ends the issue. It moves the issue to `pr-open`, a human gate where
+nothing runs. The owner reviews the draft PR and merges it on GitHub. `shipped` keeps one
+meaning: the desk saw the PR merged during a `refresh` that the owner ran. A PR closed without a
+merge ends the issue at `cancelled`. The desk does not poll GitHub: it reads the PR only when the
+owner asks, with one read-only `gh pr view`. At `pr-open`, as at every other stage, the desk
+never merges, approves, marks a PR ready, enables auto-merge, or force-pushes.
+
+The state counts PR feedback rounds against `maxPrRounds` (default 3). Human feedback and
+`continue` never reset that count, so the limit holds across the life of one PR. At the limit
+the issue goes to `needs-you`, and `continue` may return it to `pr-open`, the only stage outside
+the engine-driven ones that `continue` accepts.

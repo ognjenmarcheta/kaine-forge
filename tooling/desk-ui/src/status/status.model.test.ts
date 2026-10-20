@@ -90,6 +90,16 @@ describe("issueStatusOf", () => {
       }
     ],
     [
+      "an open draft PR that waits for the merge",
+      summaryOf({ stage: "pr-open", status: "waiting" }, false, "https://github.com/o/r/pull/1"),
+      {
+        group: "waiting",
+        tone: "warning",
+        label: { kind: "stage", stage: "pr-open", state: "waiting-for-you" },
+        primaryAction: "open-pr"
+      }
+    ],
+    [
       "a gate whose action still runs",
       summaryOf({ stage: "plan-gate", status: "waiting" }, true),
       {
@@ -179,6 +189,8 @@ describe("gateModeOf", () => {
     [{ stage: "intake", status: "queued" }, false, "working"],
     [{ stage: "plan-gate", status: "waiting" }, false, "plan-gate"],
     [{ stage: "pr-review", status: "waiting" }, false, "pr-review"],
+    [{ stage: "pr-open", status: "waiting" }, false, "pr-open"],
+    [{ stage: "pr-open", status: "waiting" }, true, "working"],
     [{ stage: "check", status: "idle" }, false, "idle"]
   ] as const)("reads %j (busy: %s) as %s", (patch, busy, mode) => {
     expect(gateModeOf(summaryOf(patch, busy))).toBe(mode);
@@ -186,6 +198,7 @@ describe("gateModeOf", () => {
 
   it("offers cancel only while a run can still be stopped", () => {
     expect(canCancel("working")).toBe(true);
+    expect(canCancel("pr-open")).toBe(true);
     expect(canCancel("shipped")).toBe(false);
     expect(canCancel("cancelled")).toBe(false);
   });

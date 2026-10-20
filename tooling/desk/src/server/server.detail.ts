@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { checkReportSchema, type CheckReport } from "../check/check.contract";
 import {
+  DEFAULT_LOOP_LIMITS,
   buildFlowModel,
   type CheckSummary,
   type ContractProgress,
@@ -32,6 +33,8 @@ export interface DetailDeps {
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
   /** `runs.jsonl`. Absent: the detail shows no runs. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
+  /** `maxPrRounds` of the config. Absent: the default. */
+  readonly prRoundLimit?: number | undefined;
 }
 
 const parseJson = (bytes: Buffer): unknown => {
@@ -102,6 +105,8 @@ export const summarizeResult = async (
     status: state.status,
     branch: state.branch,
     loops: state.loops,
+    prRound: state.prRounds ?? 0,
+    prRoundLimit: deps.prRoundLimit ?? DEFAULT_LOOP_LIMITS.prRounds,
     needsYouReason: needsYouReason(state),
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,

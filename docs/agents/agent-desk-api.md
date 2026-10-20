@@ -15,7 +15,7 @@ import only Zod, so a browser can use them.
   `{ server, url, launchUrl, close, runtime }`.
 - `serveDesk({ ...same options, signal? })` does the same, then waits for SIGINT,
   SIGTERM, or `signal`, then closes. This is what `pnpm desk serve` calls.
-- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, lessons?, uiDir?, dispose? }`.
+- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, prRoundLimit?, lessons?, uiDir?, dispose? }`.
   Pass the given `onEvent` to `createPipelineRunner` as `PipelineDeps.onEvent`. The server
   listens to it for live logs and fast updates. Without a factory the server builds the
   real runtime (`createDefaultDeskRuntime`).
@@ -75,11 +75,15 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `cancel`      | none                                                     | `cancel(n)`                                           |
 | `remove`      | `force?: boolean`                                        | `remove(n, { force })`                                |
 | `ship`        | `confirm: boolean`, `dryRun?: boolean`                   | `ship(n, { confirm, dryRun })`                        |
+| `refresh-pr`  | none                                                     | `refreshPr(n)`: read the PR at `pr-open` once         |
 | `draft`       | none                                                     | `draft(n)`: done means `needs-you` with "Draft ready" |
 | `apply-draft` | `confirm: true` (anything else is `400`)                 | `applyDraft(n, { confirm })`                          |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
+- `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
+  at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
+  close without a merge. It never writes to the PR.
 - A real `ship` needs `confirm: true`. A dry run may omit it. A dry run changes no state:
   it answers `done` at the gate, with the failed gate rules as the message, and writes
   `ship-plan.json` and `pr-body.md`. Read `pr-body.md` with the artifact id `pr-body` and `ship-plan.json` with `ship-plan`
@@ -104,6 +108,7 @@ The body is `{ "error": { "code": "<code>", "detail": "<raw text or null>" } }`.
 | `method-not-allowed`                                                                             | 405    |
 | `busy`                                                                                           | 409    |
 | `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `draft-refused`, `already-started` | 409    |
+| `refresh-refused`                                                                                | 409    |
 | `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`                             | 409    |
 | `payload-too-large`                                                                              | 413    |
 | `unsupported-media-type`                                                                         | 415    |
@@ -119,13 +124,15 @@ board never reads one detail for each card. Besides the stage, status, branch, l
 `needsYouReason`, `busy`, and times, a readable summary has:
 
 - `resumeStage`: the stage `continue` re-runs while the issue is in `needs-you`, or `null`.
-- `prUrl`: the draft PR once shipped, or `null`.
+- `prUrl`: the draft PR once the ship opened it, or `null`.
+- `prRound` and `prRoundLimit`: the PR feedback rounds so far, and `maxPrRounds` of the config.
 - `contract`: `{ found, total }` from the readiness line of `ticket.md`, or `null`.
 - `stageEnteredAt`: when the issue entered its current stage. It is the latest history event
   that enters a stage (`stage-started`, `intake-started`, `plan-ready`, `review-approved`,
-  `needs-you`, `interrupted`, `cancelled`, `shipped`), if that stage is the current one;
+  `pr-opened`, `needs-you`, `interrupted`, `cancelled`, `pr-closed`, `pr-merged`, and
+  `shipped` from older histories), if that stage is the current one;
   otherwise `null` (for example while a queued stage has not written its start).
-- `progress`: the status of each of the 8 flow nodes, in `FLOW_NODE_IDS` order, from
+- `progress`: the status of each of the 9 flow nodes, in `FLOW_NODE_IDS` order, from
   `buildFlowModel`.
 - `currentNode`: the flow node that holds the issue now, or `null`.
 
@@ -157,7 +164,8 @@ opens, load `GET /api/issues` once to close the gap.
 draws. It reads only the issue state and its history. `IssueDetail.flow` holds the
 same result.
 
-- Nodes: `ticket`, `plan`, `plan-gate`, `build`, `check`, `review`, `pr-review`, `ship`.
+- Nodes: `ticket`, `plan`, `plan-gate`, `build`, `check`, `review`, `pr-review`, `ship`,
+  `pr-open` (below `ship` in its column; `shipped` reads as this node done).
   Each has `kind`, `role`, `status` (`idle`, `running`, `waiting`, `passed`, `looped`,
   `failed`), `current`, a fixed `x` and `y`, `metrics` (runs, last duration), `activity`,
   and `badge` (`needs-you` with the first line of the reason, or `cancelled`).

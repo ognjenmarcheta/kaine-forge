@@ -1,5 +1,9 @@
 import type { LabelChange, LabelDefinition } from "../github/github.labels";
-import type { CreatePullRequestRequest, PullRequestInfo } from "../github/github.pull-request";
+import type {
+  CreatePullRequestRequest,
+  PullRequestInfo,
+  PullRequestView
+} from "../github/github.pull-request";
 import type { IssueSnapshot, RepositoryInfo } from "../github/github.types";
 import type { GitHubPort } from "../ports";
 
@@ -72,6 +76,10 @@ export interface FakeGitHub extends GitHubPort {
   readonly bodyEdits: { issue: number; body: string }[];
   /** Someone else edits the issue on GitHub. */
   readonly setIssueBody: (body: string) => void;
+  /** PR numbers read with `viewPullRequest`. */
+  readonly pullRequestViews: number[];
+  /** The owner merges or closes the PR on GitHub. Every PR starts `OPEN`. */
+  readonly setPullRequestState: (state: PullRequestView["state"]) => void;
 }
 
 export interface FakeGitHubOptions {
@@ -85,6 +93,7 @@ export interface FakeGitHubOptions {
   readonly existingPullRequest?: PullRequestInfo;
   readonly failCreatePullRequest?: boolean;
   readonly failPullRequestLabel?: boolean;
+  readonly failViewPullRequest?: boolean;
 }
 
 export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
@@ -95,6 +104,8 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
   const pullRequestLabels: FakeGitHub["pullRequestLabels"] = [];
   const pullRequestLookups: string[] = [];
   const bodyEdits: FakeGitHub["bodyEdits"] = [];
+  const pullRequestViews: number[] = [];
+  let pullRequestState: PullRequestView["state"] = "OPEN";
   let body: string | null = null;
   return {
     labelEdits,
@@ -106,6 +117,10 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
     bodyEdits,
     setIssueBody: (next) => {
       body = next;
+    },
+    pullRequestViews,
+    setPullRequestState: (state) => {
+      pullRequestState = state;
     },
     repository: () => Promise.resolve(options.repository ?? repositoryOf()),
     viewer: () => Promise.resolve(options.viewer ?? OWNER),
@@ -149,6 +164,18 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
       createdPullRequests.push(request);
       const number = 100 + createdPullRequests.length;
       return Promise.resolve({ number, url: `https://github.com/${OWNER}/repo/pull/${number}` });
+    },
+    viewPullRequest: (pr) => {
+      pullRequestViews.push(pr);
+      if (options.failViewPullRequest) return Promise.reject(new Error("gh pr view failed"));
+      return Promise.resolve({
+        number: pr,
+        url: `https://github.com/${OWNER}/repo/pull/${pr}`,
+        state: pullRequestState,
+        headRefName: createdPullRequests[pr - 101]?.head ?? "unknown",
+        headRefOid: "0".repeat(40),
+        mergedAt: pullRequestState === "MERGED" ? "2026-10-20T12:00:00Z" : null
+      });
     },
     addPullRequestLabel: (pr, label) => {
       if (options.failPullRequestLabel) {

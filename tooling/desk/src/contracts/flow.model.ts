@@ -24,7 +24,8 @@ export const FLOW_NODE_IDS = [
   "check",
   "review",
   "pr-review",
-  "ship"
+  "ship",
+  "pr-open"
 ] as const;
 export const flowNodeIdSchema = z.enum(FLOW_NODE_IDS);
 export type FlowNodeId = z.infer<typeof flowNodeIdSchema>;
@@ -132,7 +133,9 @@ const POSITIONS: Readonly<Record<FlowNodeId, { readonly x: number; readonly y: n
   check: { x: column(4), y: -FLOW_LAYOUT.loopOffset },
   review: { x: column(4), y: FLOW_LAYOUT.loopOffset },
   "pr-review": { x: column(5), y: 0 },
-  ship: { x: column(6), y: 0 }
+  ship: { x: column(6), y: 0 },
+  // Below ship in its column, so the whole pipeline keeps its width.
+  "pr-open": { x: column(6), y: FLOW_LAYOUT.loopOffset }
 };
 
 interface Geometry {
@@ -143,6 +146,7 @@ interface Geometry {
 const STRAIGHT: Geometry = { handles: ["r", "l"], arc: null };
 const GEOMETRY: Readonly<Record<string, Geometry>> = {
   "check->review": { handles: ["bs", "tt"], arc: null },
+  "ship->pr-open": { handles: ["bs", "tt"], arc: null },
   "plan-gate->plan": { handles: ["ts", "tt"], arc: -70 },
   "check->build": { handles: ["ts", "tt"], arc: -50 },
   "review->build": { handles: ["bs", "bt"], arc: 50 },
@@ -167,7 +171,9 @@ const NODE_STAGES: Readonly<Record<FlowNodeId, readonly Stage[]>> = {
   check: ["check"],
   review: ["review"],
   "pr-review": ["pr-review"],
-  ship: ["ship", "shipped"]
+  ship: ["ship"],
+  // `shipped`: the desk saw the PR merged, so the PR node reads as done.
+  "pr-open": ["pr-open", "shipped"]
 };
 
 const NODE_ROLES: Readonly<Record<FlowNodeId, AgentStageRole | null>> = {
@@ -178,7 +184,8 @@ const NODE_ROLES: Readonly<Record<FlowNodeId, AgentStageRole | null>> = {
   check: null,
   review: "reviewer",
   "pr-review": null,
-  ship: null
+  ship: null,
+  "pr-open": null
 };
 
 const nodeOfStage = (stage: Stage | null | undefined): FlowNodeId | null =>
@@ -233,6 +240,8 @@ const isRunStart = (node: FlowNodeId, event: HistoryEvent): boolean => {
       return event.event === "plan-ready";
     case "pr-review":
       return event.event === "review-approved";
+    case "pr-open":
+      return event.event === "pr-opened";
     case "ship":
       return (
         (event.event === "stage-started" || event.event === "ship-started") &&
@@ -337,7 +346,9 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
   const statusOf = (node: FlowNodeId): NodeStatus => {
     if (node === current) {
       if (isFailed) return "failed";
-      if (state.stage === "plan-gate" || state.stage === "pr-review") return "waiting";
+      if (state.stage === "plan-gate" || state.stage === "pr-review" || state.stage === "pr-open") {
+        return "waiting";
+      }
       if (isDriven) return "running";
       if (state.status === "waiting") return "waiting";
       return state.status === "done" ? "passed" : "idle";
