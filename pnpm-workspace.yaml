@@ -47,7 +47,7 @@ catalog:
   # 4.x: v8 coverage uses AST-aware remapping and only reports files it loads
   # unless coverage.include is set; floors in vitest.coverage.config.ts are
   # baselined against that accounting (#329). Majors stay intentional.
-  vitest: "4.1.11"
+  vitest: "4.1.12"
   "@vitest/coverage-v8": "4.1.11"
   "@vitest/ui": "4.1.11"
   prettier: "^3.9.9"
