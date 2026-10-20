@@ -11,7 +11,7 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   const composer = page.locator("#assistant-message");
   await composer.fill("Preferences must preserve this draft");
   const footer = page.locator(".ui-sidebar-preferences-footer");
-  const language = footer.getByRole("button", { name: "Language", exact: true });
+  const language = footer.getByRole("button", { name: /^Language\b/ });
   await expect(language).toContainText("English");
   await language.focus();
   await page.keyboard.press("Enter");
@@ -21,11 +21,11 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   await page.keyboard.press("End");
   await expect(page.getByRole("menuitemradio", { name: "Deutsch", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
-  const germanLanguage = footer.getByRole("button", { name: "Sprache", exact: true });
+  const germanLanguage = footer.getByRole("button", { name: /^Sprache\b/ });
   await expect(germanLanguage).toContainText("Deutsch");
   await expect(germanLanguage).toBeFocused();
   await expect(composer).toHaveValue("Preferences must preserve this draft");
-  const theme = footer.getByRole("button", { name: "Design", exact: true });
+  const theme = footer.getByRole("button", { name: /^Design\b/ });
   await theme.click();
   await page.getByRole("menuitemradio", { name: "Dunkel", exact: true }).click();
   await expect(theme).toBeFocused();
@@ -56,9 +56,7 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   );
   await expect(composer).toHaveValue("Preferences must preserve this draft");
   await page.reload();
-  await expect(footer.getByRole("button", { name: "Sprache", exact: true })).toContainText(
-    "Deutsch"
-  );
+  await expect(footer.getByRole("button", { name: /^Sprache\b/ })).toContainText("Deutsch");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
@@ -69,13 +67,13 @@ test("responsive drawer keeps labeled preferences usable with reduced motion", a
   await page.locator('[data-slot="sidebar-trigger"]').click();
   const footer = page.locator(".ui-sidebar-preferences-footer");
   for (const label of ["Language", "Theme"]) {
-    const control = footer.getByRole("button", { name: label, exact: true });
+    const control = footer.getByRole("button", { name: new RegExp(`^${label}\\b`) });
     const box = await control.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
     expect(box?.width).toBeGreaterThanOrEqual(44);
     await expect(control).toContainText(label);
   }
-  const theme = footer.getByRole("button", { name: "Theme", exact: true });
+  const theme = footer.getByRole("button", { name: /^Theme\b/ });
   await theme.click();
   await expect(page.getByRole("menuitemradio", { name: "System", exact: true })).toBeChecked();
   await page.getByRole("menuitemradio", { name: "Light", exact: true }).click();

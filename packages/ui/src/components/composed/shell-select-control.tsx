@@ -111,8 +111,9 @@ export function ShellSelectControl({
   const displayText = selectedOption?.label ?? placeholder ?? "";
   const triggerButton = (
     <SidebarMenuButton
-      aria-label={ariaLabel ?? label}
-      aria-description={isCompact ? displayText : undefined}
+      // Only the icon-only trigger needs a name; the compact and full triggers are
+      // named by their visible label and value (WCAG 2.5.3 Label in Name, #545).
+      aria-label={isIconDisplay ? (ariaLabel ?? label) : undefined}
       className={cn(
         "data-[state=open]:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:text-[color:var(--ds-text)]",
         isIconDisplay &&

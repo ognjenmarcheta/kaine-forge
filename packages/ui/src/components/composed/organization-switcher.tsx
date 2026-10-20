@@ -26,7 +26,6 @@ export interface OrganizationSwitcherActionItem {
 
 export interface OrganizationSwitcherProps {
   actionItem?: OrganizationSwitcherActionItem;
-  ariaLabel?: string;
   className?: string;
   label: string;
   onValueChange: (value: string) => void;
@@ -36,7 +35,6 @@ export interface OrganizationSwitcherProps {
 
 export function OrganizationSwitcher({
   actionItem,
-  ariaLabel,
   className,
   label,
   onValueChange,
@@ -58,7 +56,9 @@ export function OrganizationSwitcher({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton aria-label={ariaLabel ?? label} className={className} size="lg">
+            {/* Named by its visible text (organization name and label): an aria-label that
+                replaces it fails WCAG 2.5.3 Label in Name (#545). */}
+            <SidebarMenuButton className={className} size="lg">
               <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
                 <ActiveIcon className="size-4" />
               </div>

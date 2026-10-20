@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+import { NAV_LABELS } from "./helpers/auth";
 import { mockTodos } from "./helpers/todos";
 
 test("successful detail creation restores quick-add focus", async ({ page }) => {
@@ -198,7 +199,7 @@ test("Organization changes wait for quick creation and discard drafts only on re
   await page.getByLabel("What needs to be done?").fill("Submitted Todo");
   await page.getByRole("button", { name: "Add Todo", exact: true }).click();
   await expect.poll(() => fixture.state.creates).toBe(1);
-  await page.getByRole("button", { name: "Organization", exact: true }).click();
+  await page.getByRole("button", { name: NAV_LABELS.organization }).click();
   await page.getByRole("menuitem", { name: "Second Organization", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Leave Todos?" });
   await expect(dialog.getByRole("button", { name: "Discard drafts and leave" })).toBeDisabled();
@@ -207,7 +208,7 @@ test("Organization changes wait for quick creation and discard drafts only on re
   await expect.poll(() => fixture.organization.organization).toBe("org-two");
   await expect(page.getByLabel("What needs to be done?")).toHaveValue("");
   await page.getByLabel("What needs to be done?").fill("Keep this one");
-  await page.getByRole("button", { name: "Organization", exact: true }).click();
+  await page.getByRole("button", { name: NAV_LABELS.organization }).click();
   await page.getByRole("menuitem", { name: "Create organization", exact: true }).click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Keep editing" }).click();
@@ -225,15 +226,15 @@ test("long content and drafts survive theme and language changes in short viewpo
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/todos");
   await page.getByLabel("What needs to be done?").fill("Keep my draft");
-  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page.getByRole("button", { name: /^Language\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Deutsch", exact: true }).click();
   await page.setViewportSize({ width: 1024, height: 400 });
   await expect(page.getByLabel("Was ist zu erledigen?")).toHaveValue("Keep my draft");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("german-short.png"), fullPage: true });
-  await page.getByRole("button", { name: "Sprache", exact: true }).click();
+  await page.getByRole("button", { name: /^Sprache\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Srpski", exact: true }).click();
-  await page.getByRole("button", { name: "Tema", exact: true }).click();
+  await page.getByRole("button", { name: /^Tema\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Tamna", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 540 });
   await expect(page.getByLabel("Šta treba uraditi?")).toHaveValue("Keep my draft");
