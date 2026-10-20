@@ -1,5 +1,11 @@
 # @repo/ui
 
+## 1.4.0
+
+### Minor Changes
+
+- e047bf0: Name the organization switcher, user menu, and compact/full shell select triggers by their visible text (WCAG 2.5.3 Label in Name). Removes the unused `ariaLabel` prop from `OrganizationSwitcher` and `NavUser`; `ShellSelectControl` applies `ariaLabel` only to its icon-only trigger.
+
 ## 1.3.1
 
 ### Patch Changes
