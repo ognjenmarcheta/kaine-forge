@@ -40,11 +40,10 @@ describe("password hashing", () => {
     expect(await verifyPassword("WrongPass!", stored)).toBe(false);
   });
 
-  it("verifies a legacy unsalted sha256 hash and flags it for rehash", async () => {
+  it("rejects a legacy unsalted sha256 hash but still flags it for rehash", async () => {
     const legacy = createHash("sha256").update("Secret123!").digest("hex");
 
-    expect(await verifyPassword("Secret123!", legacy)).toBe(true);
-    expect(await verifyPassword("WrongPass!", legacy)).toBe(false);
+    expect(await verifyPassword("Secret123!", legacy)).toBe(false);
     expect(needsPasswordRehash(legacy)).toBe(true);
     expect(needsPasswordRehash("scrypt$abc$def")).toBe(true);
     expect(needsPasswordRehash(await hashPassword("Secret123!"))).toBe(false);

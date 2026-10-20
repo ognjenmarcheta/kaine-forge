@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 const SCRYPT_PREFIX = "scrypt";
 const SCRYPT_KEY_LENGTH = 64;
@@ -102,12 +102,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     }
   }
 
-  // Legacy unsalted sha256 hashes from before the 2026-07-04 migration, rehashed
-  // on next successful login. Removal and its trigger are tracked in issue #499.
-  return constantTimeEquals(
-    Buffer.from(createHash("sha256").update(password).digest("hex")),
-    Buffer.from(storedHash)
-  );
+  return false;
 }
 
 export function needsPasswordRehash(storedHash: string): boolean {
