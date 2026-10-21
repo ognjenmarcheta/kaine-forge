@@ -88,7 +88,8 @@ export function shortcutHints(): readonly ShortcutHint[] {
 
 const ARROWS: Readonly<Record<string, string>> = { ArrowLeft: "←", ArrowRight: "→" };
 
-const keyLabel = (key: PageKey): string => ARROWS[key] ?? key.toUpperCase();
+/** How a key shows on a button or in the palette footer: a letter in upper case, an arrow as a glyph. */
+export const keyLabel = (key: PageKey): string => ARROWS[key] ?? key.toUpperCase();
 
 /** A `G` then one of these keys within this time goes to a page. */
 export const SEQUENCE_MS = 1200;

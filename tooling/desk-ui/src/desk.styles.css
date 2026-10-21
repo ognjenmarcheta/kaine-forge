@@ -622,8 +622,13 @@ main:focus {
 
 /* A phone: the mark only, icon-only search, no live pill, and 44 px (2.75 rem) touch targets. */
 @media (max-width: 40rem) {
-  .desk-topbar {
+  /* The controls at the end close up too, so the row fits 375 px with the count on Board. */
+  .desk-topbar,
+  .desk-topbar__end {
     gap: var(--ds-space-100);
+  }
+
+  .desk-topbar {
     padding: var(--ds-space-100) var(--ds-space-150);
   }
 
@@ -772,7 +777,6 @@ main:focus {
 .desk-steps,
 .desk-checks,
 .desk-cards,
-.desk-meta,
 .desk-legend,
 .desk-checklist,
 .desk-anomalies,
@@ -1870,57 +1874,100 @@ main:focus {
   font: var(--ds-font-body-small);
 }
 
+.desk-back::before {
+  content: "\2190";
+  margin-inline-end: var(--ds-space-075);
+}
+
 .desk-issue-head {
-  margin-block-end: var(--ds-space-300);
+  margin-block-end: var(--ds-space-050);
 }
 
 .desk-issue-head__title {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100) var(--ds-space-200);
+  align-items: flex-start;
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-150);
 }
 
 .desk-issue-head__title h1 {
+  flex: 1 1 auto;
+  min-width: 0;
   margin-block: var(--ds-space-050);
   overflow-wrap: anywhere;
 }
 
-/* Facts as one wrapping row of compact chips. */
-.desk-meta {
+/* The way back, and where this issue sits in Your turn with J and K to move through it. */
+.desk-crumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-100);
-  margin-block-start: var(--ds-space-100);
+  margin-block-end: var(--ds-space-100);
 }
 
-.desk-meta__item {
+.desk-crumbs__queue {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-075);
-  min-width: 0;
-  max-width: 100%;
-  min-height: var(--ds-control-small);
-  padding-inline: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-pill);
+  margin-inline-start: auto;
+}
+
+.desk-crumbs__where {
+  color: var(--ds-text-subtlest);
   font: var(--ds-font-body-small);
 }
 
-.desk-meta__item a {
+.desk-crumbs__queue .ui-button {
+  gap: var(--ds-space-075);
+}
+
+.desk-crumbs__prev::before {
+  content: "\2190";
+}
+
+.desk-crumbs__next::after {
+  content: "\2192";
+}
+
+.desk-issue-head__more.ui-button {
+  flex: none;
+  width: var(--ds-control-medium);
+  height: var(--ds-control-medium);
+  margin-inline-start: auto;
+  padding: 0;
+}
+
+/* One line of status: the chip, then facts joined by a quiet dot. */
+.desk-imeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) 0;
+  margin-block: 0 var(--ds-space-300);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-imeta .desk-chip {
+  margin-inline-end: var(--ds-space-150);
+}
+
+.desk-imeta__item {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-050);
+  min-width: 0;
+  max-width: 100%;
 }
 
-.desk-meta__branch {
-  padding-inline-end: var(--ds-space-025);
+.desk-imeta__item + .desk-imeta__item::before {
+  content: "·";
+  margin-inline: var(--ds-space-100);
+  color: var(--ds-text-subtlest);
 }
 
-.desk-meta__branch code {
+.desk-imeta__branch code {
   min-width: 0;
   overflow: hidden;
   color: var(--ds-text);
@@ -1929,46 +1976,56 @@ main:focus {
   overflow-wrap: normal;
 }
 
-.desk-meta__copy {
+.desk-imeta__copy.ui-button {
   width: var(--ds-control-xsmall);
-  min-height: var(--ds-control-xsmall);
   height: var(--ds-control-xsmall);
+  min-height: var(--ds-control-xsmall);
   padding: 0;
-  border-radius: var(--ds-radius-pill);
+  color: var(--ds-text-subtlest);
 }
 
-.desk-meta__bar {
-  width: var(--ds-space-600);
+.desk-imeta a {
+  color: var(--ds-text-subtle);
+  text-decoration: none;
 }
 
-.desk-issue-grid {
+.desk-imeta a:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
+}
+
+/* The decision and the history on the left, the selected stage on the right from 72 rem. */
+.desk-issue-cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--ds-space-300);
+  gap: var(--ds-space-250);
   align-items: start;
 }
 
 .desk-issue-main {
+  display: grid;
+  gap: var(--ds-space-250);
   min-width: 0;
 }
 
-/* Side by side from 64 rem: the inspector on the right, sticky, with its own scroll. */
-@media (min-width: 64rem) {
-  .desk-issue-grid {
-    grid-template-columns: minmax(0, 1fr) 24rem;
+.desk-issue-main > .desk-panel,
+.desk-history > .desk-panel {
+  margin: 0;
+}
+
+.desk-history:focus {
+  outline: none;
+}
+
+@media (min-width: 72rem) {
+  .desk-issue-cols {
+    grid-template-columns: minmax(0, 1fr) 22.5rem;
   }
 
-  .desk-issue-grid > .desk-inspector {
-    grid-column: 2;
-    grid-row: 1;
+  .desk-issue-cols > .desk-inspector {
     position: sticky;
     inset-block-start: var(--ds-space-200);
     max-height: calc(100dvh - var(--ds-space-400));
-  }
-
-  .desk-issue-grid > .desk-issue-main {
-    grid-column: 1;
-    grid-row: 1;
   }
 }
 
@@ -2005,101 +2062,104 @@ main:focus {
   background: var(--tone-solid);
 }
 
-/* Words for a screen reader beside the graph; on a phone the stepper takes its place. */
-.desk-stages-text {
-  position: absolute;
-  width: var(--ds-border-width);
-  height: var(--ds-border-width);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.desk-stepper {
-  display: none;
-}
-
+/* The graph needs room: a phone has the stepper only. */
 @media (max-width: 40rem) {
   .desk-flow,
-  .desk-stages-text,
   .desk-legend {
     display: none;
   }
+}
 
-  .desk-stepper {
-    display: grid;
-    gap: var(--ds-space-050);
-    margin-block-start: var(--ds-space-150);
-  }
+/* The stages as one compact row: a dot and a name each, joined by a line in the run's color. */
+.desk-stepper {
+  display: flex;
+  margin-block: 0 var(--ds-space-250);
+  overflow-x: auto;
 }
 
 .desk-stepper__item {
   position: relative;
+  flex: 1 1 0;
+  min-width: 5.25rem;
 }
 
-.desk-stepper .desk-stepper__button {
-  display: flex;
-  justify-content: flex-start;
-  height: auto;
-  font-weight: var(--ds-font-weight-regular);
-  align-items: flex-start;
-  gap: var(--ds-space-150);
+.desk-stepper__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--ds-space-150) - var(--ds-border-width));
+  inset-inline: -50% 50%;
+  height: calc(var(--ds-border-width) * 2);
+  background: var(--ds-border-strong);
+}
+
+.desk-stepper__item:first-child::before {
+  display: none;
+}
+
+.desk-stepper__item:not([data-status="idle"])::before {
+  background: var(--ds-background-success-bold);
+}
+
+.desk-stepper .desk-stepper__button.ui-button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--ds-space-075);
   width: 100%;
-  min-height: 2.75rem;
-  padding: var(--ds-space-100) var(--ds-space-150);
-  color: var(--ds-text);
-  text-align: start;
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-inline-start: var(--ds-border-width-thick) solid var(--tone-border);
+  height: auto;
+  min-height: 0;
+  padding: var(--ds-space-050) var(--ds-space-025) var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  background: none;
+  border: 0;
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-regular);
   cursor: pointer;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
 }
 
-.desk-stepper .desk-stepper__button:hover {
-  background: var(--ds-surface-raised-hovered);
+.desk-stepper .desk-stepper__button.ui-button:hover {
+  background: var(--ds-surface-sunken);
 }
 
 /* The selected stage is ink, not orange: selection is not an action. */
-.desk-stepper .desk-stepper__button[aria-pressed="true"] {
+.desk-stepper .desk-stepper__button.ui-button[aria-pressed="true"] {
   background: var(--ds-surface-raised);
-  border-color: var(--ds-text);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-text);
 }
 
-.desk-stepper__body {
-  display: grid;
-  gap: var(--ds-space-025);
-  min-width: 0;
+.desk-stepper__dot {
+  width: var(--ds-space-200);
+  height: var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border: calc(var(--ds-border-width) * 2) solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-round);
 }
 
-.desk-stepper__title {
-  font-weight: var(--ds-font-weight-semibold);
+.desk-stepper__item:not([data-status="idle"]) .desk-stepper__dot {
+  background: var(--tone-solid);
+  border-color: var(--tone-solid);
 }
 
-.desk-stepper__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-075);
-  color: var(--tone-fg);
+.desk-stepper__item[data-status="running"] .desk-stepper__dot,
+.desk-stepper__item[data-status="waiting"] .desk-stepper__dot,
+.desk-stepper__item[data-status="failed"] .desk-stepper__dot {
+  box-shadow: 0 0 0 var(--ds-space-050) var(--tone-bg);
+}
+
+.desk-stepper__item[data-status="running"] .desk-stepper__dot,
+.desk-stepper__item[data-status="waiting"] .desk-stepper__dot {
+  background: var(--ds-surface);
+}
+
+.desk-stepper__name {
   font: var(--ds-font-body-small);
+  white-space: nowrap;
+}
+
+.desk-stepper__button[aria-current="step"] .desk-stepper__name {
+  color: var(--ds-text);
   font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-stepper__meta,
-.desk-stepper__note {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
-
-.desk-stepper__note {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
 }
 
 /* ── Inspector ────────────────────────────────────────────────────────── */
@@ -2354,173 +2414,753 @@ main:focus {
   margin-block-start: var(--ds-space-025);
 }
 
-/* The decision stays at the bottom of the inspector while its body scrolls. */
-.desk-inspector__actions {
-  flex: none;
-  padding: var(--ds-space-200);
-  background: var(--ds-surface-raised);
+/* ── Decision card ────────────────────────────────────────────────────── */
+
+.desk-decision__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100) var(--ds-space-150);
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-decision__title {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+}
+
+.desk-decision__title:focus {
+  outline: none;
+}
+
+.desk-decision__by {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-code-small);
+}
+
+.desk-decision__open.ui-button {
+  margin-inline-start: auto;
+}
+
+/* A block of the card: a hairline above, its title small and bold. */
+.desk-sec {
+  display: grid;
+  gap: var(--ds-space-100);
+  padding-block: var(--ds-space-200);
   border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-250);
-  border-end-end-radius: var(--ds-radius-250);
 }
 
-/*
- * While the inspector reaches below the screen, its decision sticks to the bottom of the
- * screen, so the primary action is visible without scrolling.
- */
-.desk-inspector__actions {
-  position: sticky;
-  inset-block-end: 0;
-  z-index: 2;
+.desk-sec h3 {
+  margin: 0;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
-/*
- * Below 64 rem the decision is part of the inspector body, in the page flow. A frame keeps
- * it apart from the stage around it.
- */
-.desk-inspector__body > .desk-gate {
+.desk-plain {
+  max-width: 72ch;
+  margin-block: 0 var(--ds-space-200);
+  font: var(--ds-font-body-large);
+}
+
+.desk-reason {
+  margin-block: 0 var(--ds-space-200);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.desk-riskline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) var(--ds-space-150);
+  margin-block-end: var(--ds-space-200);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-record {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+/* What a new round changed: an information rule on the inside edge. */
+.desk-changed {
+  margin-block: var(--ds-space-150) var(--ds-space-200);
+  padding-inline-start: var(--ds-space-150);
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-information);
+}
+
+.desk-changed h3 {
+  margin: 0 0 var(--ds-space-050);
+  color: var(--ds-text-information);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-changed ul {
+  display: grid;
+  gap: var(--ds-space-025);
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+.desk-question {
+  display: grid;
+  gap: var(--ds-space-100);
   padding: var(--ds-space-150);
+  background: var(--ds-background-warning);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-200);
 }
 
+.desk-question__text {
+  margin: 0;
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-criteria {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-criteria li {
+  display: grid;
+  gap: var(--ds-space-025);
+  padding-inline-start: var(--ds-space-150);
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-success);
+}
+
+.desk-criteria .desk-criteria__missing {
+  border-inline-start-color: var(--ds-border-danger);
+}
+
+/* Folded by default: the details that matter less to the decision. */
+.desk-fold {
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-fold > summary {
+  padding-block: var(--ds-space-200);
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-medium);
+  cursor: pointer;
+}
+
+.desk-fold[open] > summary {
+  color: var(--ds-text);
+}
+
+.desk-files {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-files__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ds-space-150);
+  align-items: baseline;
+}
+
+.desk-path {
+  overflow-wrap: anywhere;
+}
+
+.desk-path__dir {
+  color: var(--ds-text-subtlest);
+}
+
+.desk-kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--ds-space-100) var(--ds-space-200);
+  margin: 0;
+}
+
+.desk-kv dt {
+  color: var(--ds-text-subtle);
+}
+
+.desk-kv dd {
+  margin: 0;
+}
+
 /*
- * Below 64 rem only the actions stick to the bottom of the screen: one row of controls,
- * clear of the home indicator, so the stage tiles stay visible above it.
+ * The decision's buttons: at the bottom of the card, sticky while the card scrolls past. On a
+ * phone they are a bar fixed to the bottom of the screen.
  */
-.desk-gate-bar {
+.desk-decide {
   position: sticky;
   inset-block-end: 0;
-  z-index: 2;
+  z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-100);
-  padding: var(--ds-space-100) var(--ds-space-200)
-    calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
+  margin: var(--ds-space-200) calc(var(--ds-space-250) * -1) calc(var(--ds-space-250) * -1);
+  padding: var(--ds-space-150) var(--ds-space-250);
   background: var(--ds-surface-raised);
   border-top: var(--ds-border-width) solid var(--ds-border);
   border-end-start-radius: var(--ds-radius-250);
   border-end-end-radius: var(--ds-radius-250);
-  box-shadow: var(--ds-shadow-overlay);
 }
 
-/* Focus and scrolling into view stop above the bar, so it never covers what they show. */
-html:has(.desk-gate-bar) {
-  scroll-padding-block-end: var(--ds-space-1000);
-}
-
-.desk-gate-bar .ui-button,
-.desk-gate-bar a {
-  min-height: 2.75rem;
+.desk-decide .ui-button,
+.desk-decide a {
+  gap: var(--ds-space-075);
   white-space: nowrap;
 }
 
-.desk-gate-bar .desk-gate__primary {
-  min-width: 0;
+.desk-decide .ui-button--primary .desk-kbd {
+  color: var(--ds-text-brand-inverse);
+  background: transparent;
+  border-color: var(--ds-text-brand-inverse);
 }
 
-@media (max-width: 30rem) {
-  .desk-gate-bar {
-    padding-inline: var(--ds-space-150);
-  }
-
-  .desk-gate-bar .ui-button {
-    padding-inline: var(--ds-space-150);
-  }
+.desk-decide__hint {
+  flex: 1 1 15rem;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
 }
 
-.desk-gate {
-  display: grid;
-  gap: var(--ds-space-100);
-}
-
-.desk-gate__head {
-  display: flex;
+.desk-vprog {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--ds-space-100);
+  margin-inline-end: var(--ds-space-150);
+  color: var(--ds-text);
 }
 
-.desk-gate__title {
-  margin: 0;
-  font: var(--ds-font-heading-xsmall);
+.desk-vprog__bar {
+  width: 5rem;
 }
 
-.desk-gate__title:focus {
-  outline: none;
+.desk-decision a.ui-button--primary,
+.desk-decision a.ui-button--primary:hover {
+  color: var(--ds-text-brand-inverse);
+  text-decoration: none;
 }
 
-.desk-gate__intro {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
-
-.desk-gate .desk-pre {
-  max-height: 8rem;
-  margin: 0;
-}
-
-.desk-gate .desk-field {
-  margin: 0;
+.desk-decision .ui-button:not(:disabled):active {
+  transform: scale(var(--ds-motion-press-scale));
 }
 
 .desk-gate__row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: var(--ds-space-150);
+  margin-block-start: var(--ds-space-150);
+}
+
+/* Running: what the agent does now, in one tinted line. */
+.desk-nowline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--ds-space-100);
+  margin-block: 0 var(--ds-space-150);
+  padding: var(--ds-space-150);
+  background: var(--ds-background-information);
+  border-radius: var(--ds-radius-200);
 }
 
-.desk-gate__row .ui-button,
-.desk-gate__row a {
-  white-space: nowrap;
+.desk-nowline__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.desk-gate__primary {
-  flex: 1 1 auto;
+.desk-nowline__text::before,
+.desk-nowline > .desk-muted::before {
+  content: "· ";
+}
+
+.desk-paused-note {
+  padding: var(--ds-space-025) var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-small);
+}
+
+/* Review: the verdict, ready to ship in one line, and the findings as links into the diff. */
+.desk-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--ds-space-100);
-  min-height: var(--ds-control-large);
+  margin-block: 0 var(--ds-space-150);
 }
 
-.desk-gate .desk-gate__more,
-.desk-gate-bar .desk-gate__more {
-  flex: none;
-  width: var(--ds-control-medium);
-  min-height: var(--ds-control-medium);
-  height: var(--ds-control-medium);
+.desk-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050);
+  margin-block: 0 var(--ds-space-100);
+  color: var(--ds-text-success);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-ready .desk-muted {
+  font: var(--ds-font-body-small);
+}
+
+.desk-ready__open {
+  margin: var(--ds-space-050) 0 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+.desk-finding-links {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin: 0;
   padding: 0;
+  list-style: none;
 }
 
-@media (max-width: 48rem) {
-  .desk-gate .desk-gate__more,
-  .desk-gate-bar .desk-gate__more {
-    width: 2.75rem;
-    min-height: 2.75rem;
-    height: 2.75rem;
+.desk-finding-link.ui-button {
+  display: grid;
+  justify-content: stretch;
+  height: auto;
+  white-space: normal;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ds-space-025) var(--ds-space-150);
+  width: 100%;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  text-align: start;
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  font: inherit;
+  cursor: pointer;
+}
+
+.desk-finding-link.ui-button:hover {
+  background: var(--ds-surface-raised-hovered);
+}
+
+.desk-finding-link__where {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-finding-link__section::before {
+  content: "\00B7\00A0";
+}
+
+.desk-finding-link__text {
+  grid-column: 2;
+}
+
+/* The diff: files in risk order on the left, one file's patch on the right. */
+.desk-diff {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  overflow: hidden;
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+@media (max-width: 47.5rem) {
+  .desk-diff {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.desk-gate a.ui-button--primary,
-.desk-gate a.ui-button--primary:hover,
-.desk-gate-bar a.ui-button--primary,
-.desk-gate-bar a.ui-button--primary:hover {
-  color: var(--ds-text-brand-inverse);
-  text-decoration: none;
+.desk-diff__tree {
+  display: grid;
+  gap: var(--ds-space-075);
+  align-content: start;
+  padding: var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-inline-end: var(--ds-border-width) solid var(--ds-border);
 }
 
-.desk-gate__working {
-  flex-wrap: wrap;
+.desk-diff__progress {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-diff__files {
+  display: grid;
+  gap: var(--ds-space-050);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.desk-gate__elapsed::before {
-  content: "·";
-  margin-inline-end: var(--ds-space-100);
+.desk-diff__group {
+  padding: var(--ds-space-100) var(--ds-space-100) 0;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.desk-gate .ui-button:not(:disabled):active,
-.desk-gate-bar .ui-button:not(:disabled):active {
-  transform: scale(var(--ds-motion-press-scale));
+.desk-diff__file {
+  display: grid;
+  gap: var(--ds-space-050);
+  padding: var(--ds-space-100);
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-100);
+}
+
+.desk-diff__file[data-current="true"] {
+  background: var(--ds-surface);
+  border-color: var(--ds-border-strong);
+}
+
+.desk-diff__name.ui-button {
+  justify-content: flex-start;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  white-space: normal;
+  color: var(--ds-text);
+  text-align: start;
+  background: none;
+  border: 0;
+  font: var(--ds-font-code-small);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.desk-diff__file[data-viewed="true"] .desk-diff__name {
+  color: var(--ds-text-subtlest);
+  text-decoration: line-through;
+}
+
+.desk-diff__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-diff__badge {
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-warning);
+  background: var(--ds-background-warning);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-diffstat {
+  font: var(--ds-font-code-small);
+}
+
+.desk-diffstat__add {
+  color: var(--ds-text-success);
+}
+
+.desk-diffstat__add::before {
+  content: "+";
+}
+
+.desk-diffstat__del {
+  color: var(--ds-text-danger);
+}
+
+.desk-diffstat__del::before {
+  content: "\2212";
+}
+
+.desk-viewed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-patch {
+  min-width: 0;
+  background: var(--ds-surface);
+}
+
+.desk-patch__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-patch__folded {
+  margin: 0;
+  padding: var(--ds-space-200);
+  color: var(--ds-text-subtle);
+}
+
+.desk-patch__lines {
+  overflow-x: auto;
+  font: var(--ds-font-code-small);
+}
+
+.desk-ln {
+  display: grid;
+  grid-template-columns: 2.75rem 1.125rem minmax(max-content, 1fr);
+  white-space: pre;
+}
+
+.desk-ln__no {
+  padding-inline-end: var(--ds-space-100);
+  color: var(--ds-text-subtlest);
+  text-align: end;
+  user-select: none;
+}
+
+.desk-ln--hunk {
+  color: var(--ds-text-subtlest);
+  background: var(--ds-surface-sunken);
+}
+
+.desk-ln--add {
+  background: var(--ds-background-success);
+}
+
+.desk-ln--del {
+  background: var(--ds-background-danger);
+}
+
+.desk-ln--lit {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: calc(var(--ds-border-width-focused) * -1);
+}
+
+.desk-inline-finding {
+  display: grid;
+  gap: var(--ds-space-050);
+  justify-items: start;
+  margin: var(--ds-space-075) var(--ds-space-150) var(--ds-space-100) 4rem;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body-small);
+  font-family: var(--ds-font-family-sans);
+  white-space: normal;
+}
+
+/* Needs you: the incident on a danger tint, then the ways on, each with what happens next. */
+.desk-incident {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin-block-end: var(--ds-space-100);
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) solid var(--ds-border-danger);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-incident__top {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-incident__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--ds-space-300);
+  height: var(--ds-space-300);
+  color: var(--ds-text-inverse);
+  background: var(--ds-background-danger-bold);
+  border-radius: var(--ds-radius-round);
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-incident__mark::before {
+  content: "!";
+}
+
+.desk-incident__head {
+  margin: 0;
+  font: var(--ds-font-heading-small);
+}
+
+.desk-incident__reason {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.desk-incident__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-why-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-space-300);
+  padding-inline: var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-small);
+}
+
+.desk-opts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+}
+
+@media (max-width: 56.25rem) {
+  .desk-opts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desk-opt {
+  display: grid;
+  gap: var(--ds-space-100);
+  align-content: start;
+  justify-items: start;
+  padding: var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-opt[data-recommended="true"] {
+  border-color: var(--ds-border-success);
+}
+
+.desk-opt > * {
+  max-width: 100%;
+}
+
+.desk-opt textarea,
+.desk-opt [role="combobox"] {
+  width: 100%;
+}
+
+.desk-opt h4 {
+  margin: 0;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-opt p {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-opt .desk-next {
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) dashed var(--ds-border-strong);
+  border-radius: var(--ds-radius-100);
+}
+
+.desk-recommended {
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-success);
+  background: var(--ds-background-success);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.desk-command {
+  display: block;
+  width: 100%;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-100);
+  overflow-wrap: anywhere;
+}
+
+/* The ship dialog says when files are not marked viewed. It warns; it does not block. */
+.desk-ship__unviewed {
+  display: grid;
+  gap: var(--ds-space-050);
+  color: var(--ds-text);
+  border: var(--ds-border-width) solid var(--ds-border-warning);
+}
+
+/*
+ * A phone: the decision's buttons are a bar fixed to the bottom of the screen, without the hint
+ * or the key hints. The page leaves room under its end, so the bar never covers it.
+ */
+@media (max-width: 40rem) {
+  .desk-decide {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 20;
+    margin: 0;
+    padding: var(--ds-space-100) var(--ds-space-200)
+      calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
+    border-radius: 0;
+    box-shadow: var(--ds-shadow-overlay);
+  }
+
+  .desk-decide .ui-button,
+  .desk-decide a {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .desk-decide__hint,
+  .desk-decide .desk-kbd,
+  .desk-crumbs .desk-kbd,
+  .desk-crumbs__where {
+    display: none;
+  }
+
+  main:has(.desk-decide) {
+    padding-block-end: 8rem;
+  }
+
+  html:has(.desk-decide) {
+    scroll-padding-block-end: 8rem;
+  }
+
+  .desk-files__row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .desk-files__row > .desk-muted {
+    grid-column: 1 / -1;
+  }
+
+  .desk-kv {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desk-issue-head__title h1 {
+    font: var(--ds-font-heading-large);
+  }
 }
 
 .desk-feedback {
@@ -2673,10 +3313,6 @@ html:has(.desk-gate-bar) {
 
 .desk-skeleton--block {
   height: 6rem;
-}
-
-.desk-skeleton--graph {
-  height: 23rem;
 }
 
 .desk-finding {
@@ -2888,7 +3524,6 @@ html:has(.desk-gate-bar) {
 }
 
 .desk-node__icon,
-.desk-stepper__icon,
 .desk-inspector__icon {
   display: inline-grid;
   flex: none;
@@ -2912,8 +3547,7 @@ html:has(.desk-gate-bar) {
 }
 
 /* The stage that holds the issue now has a solid icon, not only a color. */
-.desk-node[data-current="true"] .desk-node__icon,
-.desk-stepper__icon[data-current="true"] {
+.desk-node[data-current="true"] .desk-node__icon {
   color: var(--ds-text-inverse);
   background: var(--tone-solid);
 }
@@ -2954,8 +3588,7 @@ html:has(.desk-gate-bar) {
   white-space: nowrap;
 }
 
-.desk-node[data-status="running"] .desk-node__dot,
-.desk-stepper__item[data-status="running"] .desk-node__dot {
+.desk-node[data-status="running"] .desk-node__dot {
   animation: desk-pulse 1.4s var(--ds-motion-easing) infinite;
 }
 
@@ -3057,10 +3690,6 @@ html:has(.desk-gate-bar) {
     animation: none;
   }
 
-  .desk-stepper__item[data-status="running"] .desk-node__dot {
-    animation: none;
-  }
-
   .desk-card,
   .desk-nav a,
   .desk-node,
@@ -3071,8 +3700,7 @@ html:has(.desk-gate-bar) {
   }
 
   .desk-card__actions .ui-button:not(:disabled):active,
-  .desk-gate .ui-button:not(:disabled):active,
-  .desk-gate-bar .ui-button:not(:disabled):active {
+  .desk-decision .ui-button:not(:disabled):active {
     transform: none;
   }
 }

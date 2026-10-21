@@ -16,8 +16,6 @@ import { Anomalies } from "./inspector.parts";
 import { StageSection } from "./inspector.stage";
 import { StageIcon } from "../flow/flow.icon";
 import { nodeStatusText } from "../flow/flow.text";
-import type { IssueActions } from "../gates/gate.actions";
-import { useGatePanel, type GateLayout } from "../gates/gate.panel";
 import { useT, type Translate } from "../i18n/i18n.t";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
@@ -39,17 +37,12 @@ export interface InspectorProps {
   readonly selected: FlowNodeId;
   readonly onSelect: (id: FlowNodeId) => void;
   readonly revision: string;
-  readonly actions: IssueActions;
   readonly onOpenResult: () => void;
-  readonly onRemoved: () => void;
-  readonly layout: GateLayout;
 }
 
 /**
  * The selected stage in detail: who works there, its status, four tiles, its checklists,
- * what went wrong, and the full result in a drawer. The decision for the issue is pinned
- * at the bottom on a desktop, whatever stage is selected. Below 64 rem only its actions
- * stick to the bottom, and the decision itself sits above the tiles while the issue waits.
+ * what went wrong, and the full result in a drawer. The decision lives in its own card.
  */
 export function Inspector({
   detail,
@@ -58,15 +51,11 @@ export function Inspector({
   selected,
   onSelect,
   revision,
-  actions,
-  onOpenResult,
-  onRemoved,
-  layout
+  onOpenResult
 }: InspectorProps) {
   const t = useT();
   const id = useId();
   const { state } = useDesk();
-  const gate = useGatePanel({ detail, summary, actions, onRemoved, layout });
   const logs = state.logs[summary.issueNumber] ?? EMPTY;
   const node = flow.nodes.find((entry) => entry.id === selected) ?? flow.nodes[0];
   if (node === undefined) return null;
@@ -107,19 +96,13 @@ export function Inspector({
           </div>
           <StatusChip tone={tone}>{nodeStatusText(t, node)}</StatusChip>
         </div>
-        {gate.placement === "first" && gate.decision}
         <StageSection key={node.id} node={node} detail={detail} flow={flow} revision={revision} />
         <Anomalies anomalies={anomaliesOf(node, detail, flow, logs)} />
         <Button appearance="subtle" className="desk-inspector__open" onClick={onOpenResult}>
           <FileText aria-hidden="true" className="desk-icon" />
           {t("desk.inspector.openResult")}
         </Button>
-        {gate.placement === "last" && gate.decision}
       </div>
-      {gate.placement === "pinned" && (
-        <div className="desk-inspector__actions">{gate.decision}</div>
-      )}
-      {gate.bar}
     </aside>
   );
 }

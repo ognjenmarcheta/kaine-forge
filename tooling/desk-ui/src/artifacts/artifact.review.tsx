@@ -1,5 +1,5 @@
 import type { ReviewSummary } from "@repo/desk/contracts";
-import { Badge, Tag } from "@repo/ui";
+import { Badge, Button, Tag } from "@repo/ui";
 
 import { useT } from "../i18n/i18n.t";
 import { Muted, Section } from "../shell/shell.ui";
@@ -30,6 +30,61 @@ function FindingItem({ finding }: { readonly finding: Finding }) {
   );
 }
 
+const SEVERITIES = ["Critical", "Consider", "Nit", "FYI"] as const;
+
+/** The verdict and the counts in one line: "Approved · Blocking findings: 0 · Consider: 1". */
+export function ReviewVerdictLine({ review }: { readonly review: ReviewSummary }) {
+  const t = useT();
+  const counts = [
+    t("desk.review.blockingCount", { count: review.blocking }),
+    ...SEVERITIES.filter((severity) => review.bySeverity[severity] > 0).map(
+      (severity) =>
+        `${t(`desk.review.severity.${severity}`)}: ${String(review.bySeverity[severity])}`
+    )
+  ];
+  return (
+    <p className="desk-verdict">
+      <Badge appearance={appearanceOf(passTone(review.verdict === "approve"))}>
+        {t(`desk.review.verdict.${review.verdict}`)}
+      </Badge>
+      <span>{counts.join(" · ")}</span>
+    </p>
+  );
+}
+
+/** The findings as buttons: each opens its file in the diff at its line. */
+export function FindingLinks({
+  findings,
+  onGo
+}: {
+  readonly findings: ReviewSummary["findings"];
+  readonly onGo: (finding: Finding) => void;
+}) {
+  const t = useT();
+  if (findings.length === 0) return <Muted>{t("desk.review.noFindings")}</Muted>;
+  return (
+    <ul className="desk-finding-links">
+      {findings.map((finding, index) => {
+        const location = `${finding.file}:${String(finding.line)}`;
+        return (
+          <li key={index}>
+            <Button appearance="ghost" className="desk-finding-link" onClick={() => onGo(finding)}>
+              <Tag appearance={appearanceOf(SEVERITY_TONE[finding.severity])}>
+                {t(`desk.review.severity.${finding.severity}`)}
+              </Tag>
+              <span className="desk-finding-link__where">
+                <code>{location}</code>{" "}
+                <span className="desk-finding-link__section">{finding.section}</span>
+              </span>
+              <span className="desk-finding-link__text">{finding.summary}</span>
+            </Button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** The reviewer's verdict and findings. Each finding has a severity label, a file, and a line. */
 export function ReviewView({ review }: { readonly review: ReviewSummary }) {
   const t = useT();
@@ -44,12 +99,10 @@ export function ReviewView({ review }: { readonly review: ReviewSummary }) {
         </span>
       </p>
       <p className="desk-muted">
-        {(["Critical", "Consider", "Nit", "FYI"] as const)
-          .map(
-            (severity) =>
-              `${t(`desk.review.severity.${severity}`)}: ${String(review.bySeverity[severity])}`
-          )
-          .join(" · ")}
+        {SEVERITIES.map(
+          (severity) =>
+            `${t(`desk.review.severity.${severity}`)}: ${String(review.bySeverity[severity])}`
+        ).join(" · ")}
       </p>
       <Section title={t("desk.review.findings")}>
         {review.findings.length === 0 ? (

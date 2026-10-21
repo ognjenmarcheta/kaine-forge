@@ -18,8 +18,6 @@ import {
 } from "../../tests/fixture.data";
 import { FlowGraph } from "../flow/flow.graph";
 import { FlowStepper } from "../flow/flow.stepper";
-import type { IssueActions } from "../gates/gate.actions";
-import type { GateLayout } from "../gates/gate.panel";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const ARTIFACTS: Readonly<Record<string, string>> = {
@@ -71,14 +69,7 @@ const detailOf = (issueNumber: number, patch: Partial<IssueDetail> = {}) => {
   };
 };
 
-const actions: IssueActions = { busy: false, run: vi.fn() };
-
-const show = (
-  issueNumber: number,
-  selected: FlowNodeId,
-  patch: Partial<IssueDetail> = {},
-  layout: GateLayout = "side"
-) => {
+const show = (issueNumber: number, selected: FlowNodeId, patch: Partial<IssueDetail> = {}) => {
   const { detail, summary } = detailOf(issueNumber, patch);
   const onSelect = vi.fn();
   const onOpenResult = vi.fn();
@@ -90,10 +81,7 @@ const show = (
       selected={selected}
       onSelect={onSelect}
       revision="r1"
-      actions={actions}
       onOpenResult={onOpenResult}
-      onRemoved={vi.fn()}
-      layout={layout}
     />,
     api
   );
@@ -182,32 +170,6 @@ describe("Inspector", () => {
       "Needs you: Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
     );
     expect(region().textContent).toContain("The same check failure came back.");
-  });
-
-  it("pins the whole decision below the body on a desktop", () => {
-    show(103, "build");
-    const pinned = region().querySelector(".desk-inspector__actions");
-    expect(pinned?.textContent).toContain("The desk needs you");
-    expect(within(region()).queryByRole("group")).toBeNull();
-  });
-
-  it("below 64 rem puts the decision above the tiles and only the actions in the bar", () => {
-    show(103, "build", {}, "bar-narrow");
-    const decision = within(region()).getByRole("region", { name: "The desk needs you" });
-    const tiles = region().querySelector(".desk-kpis");
-    expect(tiles).not.toBeNull();
-    if (tiles === null) return;
-    // The decision comes first in the page, right above the tiles.
-    expect(decision.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(decision.nextElementSibling).toBe(tiles);
-    expect(decision.textContent).toContain("Two consecutive checks failed the same way");
-    within(decision).getByRole("combobox", { name: "Resume from" });
-    // The bar closes the inspector and holds the actions alone.
-    const bar = within(region()).getByRole("group", { name: "The desk needs you" });
-    expect(region().lastElementChild).toBe(bar);
-    within(bar).getByRole("button", { name: "Continue" });
-    within(bar).getByRole("button", { name: "More actions" });
-    expect(region().querySelector(".desk-inspector__actions")).toBeNull();
   });
 
   it("switches the stage from its select and opens the full result", async () => {

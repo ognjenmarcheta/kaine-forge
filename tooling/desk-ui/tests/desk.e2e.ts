@@ -76,6 +76,13 @@ const more = async (page: Page, item: string) => {
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: item }).click();
 };
+/** The decision card's buttons, named by the card's heading. */
+const decide = (page: Page, heading: string) => page.getByRole("group", { name: heading });
+/**
+ * Approve, feedback, continue, cancel, and remove wait 8 s for Undo before they are sent. A test
+ * that installed the page clock skips the wait; the request still goes out the normal way.
+ */
+const skipUndo = (page: Page) => page.clock.fastForward(8_000);
 
 test("opens the plain local URL and shows the four board columns", async ({ page, desk }) => {
   await desk.open();
@@ -248,6 +255,9 @@ test("opens an issue: the inspector shows the current stage beside a graph that 
   await expect(inspector(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
   await expect(inspector(page).getByRole("list", { name: "Ship readiness" })).toBeVisible();
 
+  // The graph opens from the More menu; the stepper under the header is always there.
+  await expect(page.getByRole("group", { name: "Pipeline graph" })).toHaveCount(0);
+  await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await expect(graph.getByRole("group", { name: /^PR review: Waiting for you/ })).toBeVisible();
   await expect(page.getByRole("list", { name: "What the colors mean" })).toContainText("Went back");
@@ -317,10 +327,11 @@ test("opens an issue: the inspector shows the current stage beside a graph that 
   expect(Math.min(...text.statuses, ...text.metrics)).toBeGreaterThanOrEqual(text.xsmall);
   expect(text.cut).toEqual([]);
 
-  // The stages in words, for a screen reader.
+  // The stepper names every stage with its status and marks the current one.
   const stages = page.getByRole("list", { name: "Stages and their status" });
-  await expect(stages.getByRole("listitem")).toHaveCount(8);
-  await expect(stages.getByRole("listitem").nth(6)).toHaveAttribute("aria-current", "step");
+  await expect(stages.getByRole("button")).toHaveCount(9);
+  await expect(stages.getByRole("button").nth(6)).toHaveAttribute("aria-current", "step");
+  await expect(stages.getByRole("button").nth(6)).toHaveAccessibleName("PR review Waiting for you");
 
   // The graph keeps its pan and zoom controls and cannot be edited.
   await expect(graph.getByRole("button", { name: "Zoom in" })).toBeVisible();
@@ -345,6 +356,7 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   desk
 }) => {
   await desk.open({}, "?issue=102");
+  await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await graph.getByRole("group", { name: /^Check: / }).click();
   await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
@@ -374,6 +386,7 @@ test("opens the full result of a stage in a drawer, with markup in the ticket ke
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await desk.open({}, "?issue=102");
+  await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await graph.getByRole("group", { name: /^Ticket: / }).click();
   const open = inspector(page).getByRole("button", { name: "Open full result" });
@@ -420,12 +433,16 @@ test("approves a plan and follows the issue to the next gate without a reload", 
   page,
   desk
 }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
   await expect(
     inspector(page).getByRole("heading", { name: "Plan approval", level: 2 })
   ).toBeVisible();
-  await inspector(page).getByRole("button", { name: "Approve plan" }).click();
+  await decide(page, "Approve the plan").getByRole("button", { name: "Approve plan" }).click();
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  expect(await desk.calls()).toEqual([]);
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   await expect(page.getByText(/^#101 · Plan approved\./)).toBeVisible();
   // The inspector follows the issue to its new stage.
@@ -433,12 +450,39 @@ test("approves a plan and follows the issue to the next gate without a reload", 
   expect(await desk.calls()).toEqual([{ issue: 101, action: "approve", payload: {} }]);
 });
 
-test("requests changes to the plan from the inspector", async ({ page, desk }) => {
+test("approves a plan with A, and the answer to the planner's question goes with it", async ({
+  page,
+  desk
+}) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
-  await inspector(page).getByRole("button", { name: "Request changes" }).click();
+  // The risk line: the planner's grade and why.
+  await expect(page.locator(".desk-riskline")).toContainText("Low risk");
+  await expect(page.locator(".desk-riskline")).toContainText(
+    "Two files, one of them new, and a test"
+  );
+  const card = page.getByRole("region", { name: "Approve the plan" });
+  await expect(card.getByText("Should the empty state link to the docs?")).toBeVisible();
+  await page.getByRole("textbox", { name: /Your answer/ }).fill("Yes, link the desk docs");
+  // A in a text box is a letter. Outside it, A approves.
+  await page.getByRole("heading", { name: "Approve the plan" }).click();
+  await page.keyboard.press("a");
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  await skipUndo(page);
+  await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
+  expect(await desk.calls()).toEqual([
+    { issue: 101, action: "approve", payload: { note: "Yes, link the desk docs" } }
+  ]);
+});
+
+test("requests changes to the plan from the decision card", async ({ page, desk }) => {
+  await page.clock.install();
+  await desk.open({}, "?issue=101");
+  await decide(page, "Approve the plan").getByRole("button", { name: "Request changes" }).click();
   await expect(page.getByRole("textbox", { name: "Feedback" })).toBeFocused();
   await page.getByRole("textbox", { name: "Feedback" }).fill("Cover the empty case");
   await page.getByRole("button", { name: "Send feedback" }).click();
+  await skipUndo(page);
   await expect(page.getByText("Feedback sent. The stage ran again.")).toBeVisible();
   expect(await desk.calls()).toEqual([
     { issue: 101, action: "feedback", payload: { to: "plan", text: "Cover the empty case" } }
@@ -450,7 +494,7 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
   desk
 }) => {
   await desk.open({}, "?issue=102");
-  await inspector(page).getByRole("button", { name: "Ship as draft PR…" }).click();
+  await decide(page, "Review the work").getByRole("button", { name: "Ship as draft PR…" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Ship to a draft pull request" });
   await expect(dialog.getByText("Every ship rule passes.")).toBeVisible();
@@ -478,10 +522,68 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
     "href",
     "https://github.com/owner/kaine-forge/pull/321"
   );
-  // The note appears once, in the inspector.
+  // The note appears once, in the decision card.
   await expect(
     page.getByText(/You merge it yourself. The desk never merges, approves/)
   ).toHaveCount(1);
+});
+
+test("keeps Ship secondary until every file is viewed, and the dialog says what is not", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=102");
+  const bar = decide(page, "Review the work");
+  const ship = bar.getByRole("button", { name: "Ship as draft PR…" });
+  await expect(
+    page.getByRole("region", { name: "Review the work" }).getByText("Ready to ship")
+  ).toBeVisible();
+  await expect(bar).toContainText("0 of 2 files viewed");
+  await expect(ship).toHaveClass(/ui-button--subtle/);
+
+  // Both files have a finding, so both sit under that group, each with its count.
+  const files = page.getByRole("navigation", { name: "Changed files" });
+  await expect(files.getByRole("listitem").nth(0)).toHaveText("Has findings");
+  await expect(files.getByRole("listitem").nth(1)).toContainText("apps/web/src/board.tsx");
+  await expect(files.getByRole("listitem").nth(1)).toContainText("Findings: 1");
+  await expect(files.getByRole("listitem").nth(2)).toContainText("apps/web/src/board.empty.tsx");
+  // The open file shows its finding under the line it names.
+  await expect(page.getByLabel("Patch of apps/web/src/board.tsx").getByRole("note")).toContainText(
+    "Import order differs from the rest of the file."
+  );
+
+  // S opens the dialog anyway: it warns and names the files, and does not block.
+  await page.keyboard.press("s");
+  const dialog = page.getByRole("dialog", { name: "Ship to a draft pull request" });
+  await expect(dialog.getByText("Not every file is marked viewed.")).toBeVisible();
+  await expect(dialog).toContainText("apps/web/src/board.empty.tsx");
+  await expect(dialog.getByRole("button", { name: "Continue to confirm" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Close", exact: true }).first().click();
+  await expect(dialog).toBeHidden();
+
+  // N opens the next unviewed file. Marking it viewed brings back the one still to read.
+  await page.keyboard.press("n");
+  const empty = page.getByLabel("Patch of apps/web/src/board.empty.tsx");
+  await expect(empty.getByRole("note")).toContainText("The heading level jumps from h1 to h3.");
+  await files.getByRole("checkbox", { name: "Viewed apps/web/src/board.empty.tsx" }).click();
+  await expect(page.getByLabel("Patch of apps/web/src/board.tsx")).toContainText("BoardEmpty");
+  await expect(bar).toContainText("1 of 2 files viewed");
+  // The last file folds once it is viewed.
+  await files.getByRole("checkbox", { name: "Viewed apps/web/src/board.tsx" }).click();
+  await expect(page.getByText("Marked as viewed.")).toBeVisible();
+
+  // Every file viewed: Ship leads, and Next unviewed file is gone.
+  await expect(bar).toContainText("2 of 2 files viewed");
+  await expect(ship).toHaveClass(/ui-button--primary/);
+  await expect(bar.getByRole("button", { name: "Next unviewed file" })).toHaveCount(0);
+  // The marks belong to this version of the diff and survive a reload.
+  await page.reload();
+  await expect(decide(page, "Review the work")).toContainText("2 of 2 files viewed");
+  await page.keyboard.press("s");
+  await expect(page.getByRole("dialog", { name: "Ship to a draft pull request" })).toContainText(
+    "Every ship rule passes."
+  );
+  await expect(page.getByText("Not every file is marked viewed.")).toHaveCount(0);
 });
 
 test("blocks the ship when a gate rule fails", async ({ page, desk }) => {
@@ -493,23 +595,29 @@ test("blocks the ship when a gate rule fails", async ({ page, desk }) => {
 });
 
 test("continues an issue that needs the engineer", async ({ page, desk }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=103");
   await expect(page.getByRole("heading", { name: "The desk needs you" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build stopped" })).toBeVisible();
   await expect(page.getByLabel("Reason from the engine")).toContainText(
     "FAIL apps/web/src/board.test.tsx"
   );
+  // The likely cause comes from facts: the builder's last run got stuck.
+  await expect(page.getByText("Likely cause: the agent got stuck")).toBeVisible();
   await expect(inspector(page)).toContainText(
     "Needs you: Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
   );
   await expect(page.getByRole("combobox", { name: "Resume from" })).toContainText(
     "Build (the engine remembers it)"
   );
-  await inspector(page).getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   expect(await desk.calls()).toEqual([{ issue: 103, action: "continue", payload: { from: null } }]);
 });
 
 test("cancels from the More menu only after a confirmation", async ({ page, desk }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
   await more(page, "Cancel run");
   await expect(page.getByRole("dialog", { name: "Cancel this run?" })).toBeVisible();
@@ -518,7 +626,26 @@ test("cancels from the More menu only after a confirmation", async ({ page, desk
   expect(await desk.calls()).toEqual([]);
   await more(page, "Cancel run");
   await page.getByRole("button", { name: "Cancel the run" }).click();
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Cancelled" }).first()).toBeVisible();
+});
+
+test("pauses a running issue with P, shows its latest log line, and resumes it", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=104");
+  await expect(page.getByRole("heading", { name: "Working" })).toBeVisible();
+  await desk.log(104, "Builder edits board.tsx");
+  await expect(page.locator(".desk-nowline")).toContainText("Builder edits board.tsx");
+  await page.keyboard.press("p");
+  await expect(page.getByText(/^Paused since/)).toBeVisible();
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  expect(await desk.calls()).toEqual([
+    { issue: 104, action: "pause", payload: {} },
+    { issue: 104, action: "resume", payload: {} }
+  ]);
 });
 
 test("removes an issue from the More menu and returns to the board", async ({ page, desk }) => {
@@ -613,8 +740,8 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
 
   await issues.getByRole("link", { name: "#102" }).click();
   await page
-    .getByRole("group", { name: "Pipeline graph" })
-    .getByRole("group", { name: /^Build: / })
+    .getByRole("list", { name: "Stages and their status" })
+    .getByRole("button", { name: /^Build/ })
     .click();
   await expect(
     inspector(page).getByRole("heading", { name: "Agent usage, all runs" })
@@ -712,26 +839,29 @@ test("switches language and theme without leaving the page", async ({ page, desk
   );
 
   await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  const prefs = page.getByRole("dialog", { name: "Preferences" });
+  await prefs.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(
     lightBackground
   );
 
-  await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Deutsch" }).click();
+  // The panel stays open: the next choice is one click away.
+  await prefs.getByRole("button", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   await expect(page.getByRole("button", { name: "Plan freigeben" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Übersicht", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Übersicht/ })).toBeVisible();
   // The draft in the feedback box survives the change.
   await expect(page.getByRole("textbox", { name: "Rückmeldung" })).toHaveValue(
     "A draft that must survive"
   );
 
-  await page.getByRole("button", { name: "Einstellungen" }).click();
-  await page.getByRole("menuitemradio", { name: "Srpski" }).click();
+  await page
+    .getByRole("dialog", { name: "Einstellungen" })
+    .getByRole("button", { name: "Srpski" })
+    .click();
   await expect(page.getByRole("button", { name: "Odobri plan" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Pregled", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Pregled/ })).toBeVisible();
 });
 
 test("follows the system dark theme until the engineer picks one", async ({ page, desk }) => {
@@ -741,7 +871,10 @@ test("follows the system dark theme until the engineer picks one", async ({ page
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  await page
+    .getByRole("dialog", { name: "Preferences" })
+    .getByRole("button", { name: "Dark" })
+    .click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(group(page, /^Needs you/)).toContainText("#103");
 });
@@ -753,18 +886,19 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
   await page.setViewportSize({ width: 375, height: 800 });
   await desk.open();
   await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
-  // Brand, navigation, live pill, and preferences share one row.
+  // Brand, navigation, search, and preferences share one row. A phone has no live pill.
+  await expect(page.locator(".desk-live")).toBeHidden();
   const rows = await page.evaluate(() => {
     const centre = (selector: string): number => {
       const box = document.querySelector(selector)?.getBoundingClientRect();
       return box === undefined ? Number.NaN : Math.round(box.top + box.height / 2);
     };
-    return [".desk-brand", ".desk-nav", ".desk-live", ".desk-icon-button"].map(centre);
+    return [".desk-brand", ".desk-nav", ".desk-cmdk", ".desk-icon-button"].map(centre);
   });
   expect(Math.max(...rows) - Math.min(...rows), String(rows)).toBeLessThanOrEqual(2);
   // Touch targets are at least 44 px high.
   for (const target of [
-    page.getByRole("link", { name: "Board", exact: true }),
+    page.getByRole("link", { name: /^Board/ }),
     page.getByRole("button", { name: "Preferences" }),
     group(page, /^Needs you/).getByRole("button", { name: "Continue" })
   ]) {
@@ -796,56 +930,50 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
   ).toBe(true);
 });
 
-test("on a phone only a compact action bar sticks, below the decision and the tiles", async ({
+test("on a phone the decision's buttons are a bar at the bottom, and the page ends above it", async ({
   page,
   desk
 }) => {
   await page.setViewportSize({ width: 375, height: 800 });
+  await page.clock.install();
   await desk.open({}, "?issue=103");
   await expect(page.getByRole("group", { name: "Pipeline graph" })).toBeHidden();
   const stepper = page.getByRole("list", { name: "Stages and their status" });
-  await expect(stepper.getByRole("button")).toHaveCount(8);
+  await expect(stepper.getByRole("button")).toHaveCount(9);
 
-  // The bar is one row of controls at the bottom of the screen.
-  const bar = inspector(page).getByRole("group", { name: "The desk needs you" });
-  const continueButton = bar.getByRole("button", { name: "Continue" });
-  await expect(continueButton).toBeInViewport();
-  expect((await continueButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const barBox = await bar.boundingBox();
-  expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(80);
-  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeCloseTo(800, 0);
-
-  // The reason and the choice are on screen at load, in the page flow, above the tiles.
-  const reason = page.getByLabel("Reason from the engine");
+  // The incident and the way on are on screen at load, in the page flow.
+  await expect(page.getByLabel("Reason from the engine")).toBeInViewport();
   const resume = page.getByRole("combobox", { name: "Resume from" });
-  await expect(reason).toBeInViewport();
-  await expect(resume).toBeInViewport();
-  // The stage tiles. An agent stage also has a second grid for agent usage below them.
-  const tiles = inspector(page).locator(".desk-kpis").first();
-  const resumeBox = await resume.boundingBox();
-  const tilesBox = await tiles.boundingBox();
-  expect((resumeBox?.y ?? 0) + (resumeBox?.height ?? 0)).toBeLessThanOrEqual(tilesBox?.y ?? 0);
-  // The tiles scroll into view above the bar, not under it.
-  await tiles.scrollIntoViewIfNeeded();
-  const scrolledTiles = await tiles.boundingBox();
-  const scrolledBar = await bar.boundingBox();
-  expect((scrolledTiles?.y ?? 0) + (scrolledTiles?.height ?? 0)).toBeLessThanOrEqual(
-    scrolledBar?.y ?? 0
-  );
 
   // The stepper selects a stage for the inspector; the decision stays.
   await stepper.getByRole("button", { name: /^Check/ }).click();
   await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
 
-  // Continue in the bar uses the stage chosen above, and focus moves to the next decision.
+  // Continue uses the stage chosen above, and focus moves to the next decision.
   await resume.click();
   await page.getByRole("option", { name: "Check" }).click();
-  await continueButton.click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await skipUndo(page);
   const next = page.getByRole("heading", { name: "Review the work" });
   await expect(next).toBeFocused();
   expect(await desk.calls()).toEqual([
     { issue: 103, action: "continue", payload: { from: "check" } }
   ]);
+
+  // At the review gate the buttons are a bar fixed to the bottom of the screen.
+  const bar = decide(page, "Review the work");
+  const ship = bar.getByRole("button", { name: "Ship as draft PR…" });
+  await expect(ship).toBeInViewport();
+  expect((await ship.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const barBox = await bar.boundingBox();
+  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeCloseTo(800, 0);
+  expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(130);
+  // The end of the page scrolls above the bar, not under it.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const end = await inspector(page).boundingBox();
+  const fixedBar = await bar.boundingBox();
+  expect((end?.y ?? 0) + (end?.height ?? 0)).toBeLessThanOrEqual(fixedBar?.y ?? 0);
+
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const overflow = await page.evaluate(

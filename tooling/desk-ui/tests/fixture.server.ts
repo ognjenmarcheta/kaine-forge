@@ -173,8 +173,8 @@ const buildRunner = (
         message: `The body of #${String(issue)} on GitHub is the draft now. Run 'start' again.`
       };
     },
-    approvePlan: async (issue) => {
-      record(issue, "approve", {});
+    approvePlan: async (issue, approveOptions) => {
+      record(issue, "approve", approveOptions ?? {});
       return reviewReady(issue);
     },
     feedback: async (issue, to, text) => {
@@ -194,11 +194,12 @@ const buildRunner = (
     },
     pause: async (issue) => {
       record(issue, "pause", {});
-      return gate(await readState(store, issue));
+      const state = await change(store, issue, { pauseRequested: true, pausedAt: now() });
+      return { outcome: "stopped", stop: "paused", state, message: null };
     },
     resume: async (issue) => {
       record(issue, "resume", {});
-      return gate(await readState(store, issue));
+      return gate(await change(store, issue, { pauseRequested: false, pausedAt: null }));
     },
     cancel: async (issue) => {
       record(issue, "cancel", {});
