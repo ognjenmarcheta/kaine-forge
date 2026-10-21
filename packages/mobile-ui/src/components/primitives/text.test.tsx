@@ -17,7 +17,7 @@ describe("Text", () => {
 
     const text = screen.getByText("Screen title");
     expect(text.className).toContain("text-2xl");
-    expect(text.className).toContain("font-semibold");
+    expect(text.className).toContain("font-medium");
   });
 
   it("lets a custom className win conflicting variant classes via cn", () => {

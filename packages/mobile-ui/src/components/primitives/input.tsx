@@ -2,13 +2,14 @@ import { forwardRef, type ElementRef } from "react";
 import { TextInput, type TextInputProps } from "react-native";
 
 import { cn } from "../../lib/cn";
+import { fontFamilies } from "../../lib/fonts";
 
 export type InputProps = TextInputProps & {
   className?: string;
 };
 
 export const Input = forwardRef<ElementRef<typeof TextInput>, InputProps>(
-  ({ className, placeholderTextColor, ...props }, ref) => (
+  ({ className, placeholderTextColor, style, ...props }, ref) => (
     <TextInput
       ref={ref}
       className={cn(
@@ -16,6 +17,7 @@ export const Input = forwardRef<ElementRef<typeof TextInput>, InputProps>(
         className
       )}
       placeholderTextColor={placeholderTextColor}
+      style={[{ fontFamily: fontFamilies.regular }, style]}
       {...props}
     />
   )

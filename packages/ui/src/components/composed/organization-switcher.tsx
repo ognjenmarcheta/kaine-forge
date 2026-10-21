@@ -59,7 +59,7 @@ export function OrganizationSwitcher({
             {/* Named by its visible text (organization name and label): an aria-label that
                 replaces it fails WCAG 2.5.3 Label in Name (#545). */}
             <SidebarMenuButton className={className} size="lg">
-              <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
+              <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-brand-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
                 <ActiveIcon className="size-4" />
               </div>
               <div className="grid flex-1 min-w-0 text-left leading-tight">

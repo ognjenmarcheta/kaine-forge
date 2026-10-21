@@ -156,7 +156,7 @@ small {
   place-items: center;
   width: var(--ds-control-medium);
   height: var(--ds-control-medium);
-  color: var(--ds-text-inverse);
+  color: var(--ds-text-brand-inverse);
   background: var(--ds-background-brand-bold);
   border-radius: var(--ds-radius-200);
   font-weight: var(--ds-font-weight-bold);
@@ -913,7 +913,7 @@ main:focus {
 
 .desk-card__actions a.ui-button--primary,
 .desk-card__actions a.ui-button--primary:hover {
-  color: var(--ds-text-inverse);
+  color: var(--ds-text-brand-inverse);
 }
 
 .desk-card__actions a.ui-button--subtle,
@@ -922,7 +922,7 @@ main:focus {
 }
 
 .desk-card__actions .ui-button:not(:disabled):active {
-  transform: translateY(var(--ds-motion-distance-press));
+  transform: scale(var(--ds-motion-press-scale));
 }
 
 @media (max-width: 48rem) {
@@ -1170,7 +1170,7 @@ main:focus {
   background: var(--ds-surface-raised);
   border: var(--ds-border-width) solid var(--ds-border);
   border-inline-start: var(--ds-border-width-thick) solid var(--tone-border);
-  border-radius: var(--ds-radius-200);
+  border-radius: var(--ds-radius-pill);
   font: var(--ds-font-body);
   cursor: pointer;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
@@ -1622,7 +1622,7 @@ html:has(.desk-gate-bar) {
 .desk-gate a.ui-button--primary:hover,
 .desk-gate-bar a.ui-button--primary,
 .desk-gate-bar a.ui-button--primary:hover {
-  color: var(--ds-text-inverse);
+  color: var(--ds-text-brand-inverse);
   text-decoration: none;
 }
 
@@ -1638,7 +1638,7 @@ html:has(.desk-gate-bar) {
 
 .desk-gate .ui-button:not(:disabled):active,
 .desk-gate-bar .ui-button:not(:disabled):active {
-  transform: translateY(var(--ds-motion-distance-press));
+  transform: scale(var(--ds-motion-press-scale));
 }
 
 .desk-feedback {

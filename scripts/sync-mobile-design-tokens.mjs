@@ -223,12 +223,15 @@ const nativeTokensSource =
   "export const motionDistances = " +
   JSON.stringify(
     Object.fromEntries(
-      ["dialog", "menu", "press"].map((name) => [
+      ["dialog", "menu"].map((name) => [
         name,
         Number.parseInt(rootVars.get("--ds-motion-distance-" + name), 10)
       ])
     )
   ) +
+  ";\n\n" +
+  "export const motionPressScale = " +
+  Number.parseFloat(rootVars.get("--ds-motion-press-scale")) +
   ";\n";
 
 const nativeTokens = await format(nativeTokensSource, {
