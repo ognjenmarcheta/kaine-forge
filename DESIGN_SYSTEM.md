@@ -160,6 +160,8 @@ Typography tokens define hierarchy and rhythm.
 | `--ds-font-body-xsmall`     | metadata                                  |
 | `--ds-font-code`            | code and monospaced labels                |
 
+Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
+
 The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
 
 Rules:
@@ -203,13 +205,14 @@ Shape:
 | `--ds-radius-050`  | 4px    | badges, tags, checkboxes                          |
 | `--ds-radius-100`  | 8px    | inputs, selects, menu items, list rows            |
 | `--ds-radius-200`  | 12px   | menus, popovers, panels                           |
+| `--ds-radius-250`  | 16px   | agent desk cards and panels                       |
 | `--ds-radius-300`  | 20px   | cards, dialogs, sheets                            |
 | `--ds-radius-400`  | 28px   | large feature surfaces                            |
 | `--ds-radius-pill` | 9999px | buttons, icon buttons, toggles, pagination, pills |
 
 Rules:
 
-- Buttons are pills. Cards and dialogs use `--ds-radius-300`. Inputs and selects use `--ds-radius-100`. Do not invent radii between the steps.
+- Buttons are pills. Cards and dialogs use `--ds-radius-300`; agent desk cards use `--ds-radius-250`. Inputs and selects use `--ds-radius-100`. Do not invent radii between the steps.
 - Use stable dimensions for grids, boards, toolbars, counters, icon buttons, and fixed-format UI.
 - Avoid layout shift when labels, loading states, badges, or hover states change.
 
@@ -250,6 +253,16 @@ The web/desktop AI Assistant uses a viewport-height split workspace. A 256px con
 The web/desktop Notes workspace shows a 288px searchable note rail from 1024px. Narrower screens show the list or editor according to the URL, with Back to Notes restoring list focus. The rail and document scroll independently; the workspace header and Save action remain visible. The plain-text writing column has a maximum width of 768px. New note opens a local draft; its first successful Save creates a saved URL. Title/body edits require Save (Ctrl/Cmd+S), while linked Todo checklist changes save immediately. Unsaved drafts remain reachable above search results and survive note, theme, and language changes within the workspace. Leaving with drafts requires an explicit discard decision; Organization changes wait for pending mutations. External changes never replace a dirty draft, and deleted notes retain recoverable draft text. Search covers saved titles and bodies across the Active Organization, with 50-note pages and Load more. Search does not include unsaved text. Drafts are in memory only and clear when the workspace or Active Organization changes.
 
 The web/desktop Todos workspace uses a single list with a maximum width of 1024px. Quick creation shares its title and optional description with the Add details dialog. A labeled search and All/Open/Completed controls filter saved titles and descriptions across the Active Organization, with 50-item pages and Load more. Search and status live in the URL; All is the default. The toolbar remains visible above an independently scrolling list from 768px on viewports at least 640px tall. Smaller or shorter screens use normal document scrolling. Rows separate completion checkboxes from title buttons, show a description preview and localized update date, and disclose attachments on demand. Menus contain deletion, AI generation, and form examples. Completion changes wait for confirmation; title/description saves never resend completion. Drafts survive filtering, theme, and language changes; leaving warns about unsaved text and waits for pending operations. Attachment uploads remain attached to their originating Todo even when filtered out. Errors stay beside the affected action, and uncertain creation is never retried automatically. Counts describe loaded results, not Organization-wide totals. The shared shell navigation guard preserves the same protection for Notes.
+
+### Agent desk calm accent
+
+The agent desk (`tooling/desk-ui`) uses orange only where the person acts. The rule keeps the eye on the next decision.
+
+- Use orange for the logo mark, primary action buttons, links, and a count of items that need the person. Make a count quiet (`.desk-count--quiet`, or `data-empty` for zero) when it asks for nothing.
+- Show selection in ink, not orange: the active page is a raised neutral pill (`--ds-surface-raised`, `--ds-border-strong`), and the active tab and the selected stage use `--ds-text`.
+- Frame cards with a `--ds-border` hairline, `--ds-radius-250`, and 20px padding. Do not add a shadow. Use `--ds-surface-sunken-bold` for quiet fills such as tags and neutral counts, and `--ds-surface-inverse` with `--ds-text-surface-inverse` for terminal output and toasts.
+- Give each status chip a glyph as well as its words (`.desk-chip__glyph`), so a status reads without color.
+- Remove animation and transitions when the person asks for reduced motion.
 
 ## 8. Theming
 

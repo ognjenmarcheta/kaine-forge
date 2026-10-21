@@ -66,6 +66,7 @@
   --ds-text-closed: #b42318;
   --ds-text-done: #1d7a4a;
   --ds-text-selected: #b8410f;
+  --ds-text-surface-inverse: #f5f6f8;
   --ds-link: var(--ds-base-light-link);
   --ds-link-pressed: var(--ds-base-light-link-pressed);
 
@@ -222,6 +223,8 @@
   /* ── Surface ── */
   --ds-surface: var(--ds-base-light-surface-default);
   --ds-surface-sunken: var(--ds-base-light-surface-sunken);
+  --ds-surface-sunken-bold: #eceef1;
+  --ds-surface-inverse: #121419;
   --ds-surface-raised: #ffffff;
   --ds-surface-raised-hovered: #f5f6f8;
   --ds-surface-raised-pressed: #eceef1;
@@ -231,6 +234,7 @@
 
   /* ── Border ── */
   --ds-border: var(--ds-base-light-border-default);
+  --ds-border-strong: #c9ced6;
   --ds-border-bold: #7d8491;
   --ds-border-focused: var(--ds-base-light-border-focused);
   --ds-border-selected: #f15a24;
@@ -247,6 +251,7 @@
   --ds-shadow-raised: 0px 1px 2px #1214190f, 0px 0px 1px #1214191f;
   --ds-shadow-overlay: 0px 1px 2px #1214190a, 0px 12px 32px #12141914;
   --ds-shadow-floating: 0px 2px 4px #1214190a, 0px 32px 64px #1214191f;
+  --ds-shadow-floating-bold: 0px 2px 4px #1214190a, 0px 32px 64px #12141929;
   --ds-shadow-overflow: 0px 0px 8px #12141914, 0px 0px 1px #1214191f;
 
   /* ── Blanket ── */
@@ -306,6 +311,13 @@
   --ds-font-body-small: 400 0.75rem/1.125rem var(--ds-font-family-sans);
   --ds-font-body-xsmall: 400 0.6875rem/1rem var(--ds-font-family-sans);
   --ds-font-code: 400 0.8125rem/1 var(--ds-font-family-mono);
+  /* Reading-first workspaces such as the agent desk: 15px body, 13px meta, 12.5px code. */
+  --ds-font-heading-page: 500 1.625rem/1.2 var(--ds-font-family-sans);
+  --ds-font-heading-row: 500 0.96875rem/1.55 var(--ds-font-family-sans);
+  --ds-font-body-comfortable: 400 0.9375rem/1.55 var(--ds-font-family-sans);
+  --ds-font-body-compact: 400 0.8125rem/1.55 var(--ds-font-family-sans);
+  --ds-font-code-small: 400 0.78125rem/1.6 var(--ds-font-family-mono);
+  --ds-letter-spacing-heading: -0.015em;
 
   /* ── Border width ── */
   --ds-border-width: 1px;
@@ -317,6 +329,7 @@
   --ds-radius-050: 4px;
   --ds-radius-100: 8px;
   --ds-radius-200: 12px;
+  --ds-radius-250: 16px;
   --ds-radius-300: 20px;
   --ds-radius-400: 28px;
   --ds-radius-round: 50%;
@@ -359,6 +372,7 @@
   --ds-text-closed: #ff8a7a;
   --ds-text-done: #5fc791;
   --ds-text-selected: #ff8a5c;
+  --ds-text-surface-inverse: #f2f3f5;
   --ds-link: var(--ds-base-dark-link);
   --ds-link-pressed: var(--ds-base-dark-link-pressed);
 
@@ -515,6 +529,8 @@
   /* ── Surface ── */
   --ds-surface: var(--ds-base-dark-surface-default);
   --ds-surface-sunken: var(--ds-base-dark-surface-sunken);
+  --ds-surface-sunken-bold: #1c2027;
+  --ds-surface-inverse: #22262e;
   --ds-surface-raised: #14171d;
   --ds-surface-raised-hovered: #1c2027;
   --ds-surface-raised-pressed: #22262e;
@@ -524,6 +540,7 @@
 
   /* ── Border ── */
   --ds-border: var(--ds-base-dark-border-default);
+  --ds-border-strong: #333943;
   --ds-border-bold: #6b7380;
   --ds-border-focused: var(--ds-base-dark-border-focused);
   --ds-border-selected: #ff6a33;
@@ -540,6 +557,7 @@
   --ds-shadow-raised: 0px 1px 2px #00000080, 0px 0px 1px #f2f3f514;
   --ds-shadow-overlay: 0px 1px 2px #00000080, 0px 12px 32px #00000073;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
+  --ds-shadow-floating-bold: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
   --ds-shadow-overflow: 0px 0px 8px #00000073, 0px 0px 1px #f2f3f514;
 
   /* ── Blanket ── */

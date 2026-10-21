@@ -8,7 +8,7 @@ body {
   margin: 0;
   color: var(--ds-text);
   background: var(--ds-surface-sunken);
-  font: var(--ds-font-body);
+  font: var(--ds-font-body-comfortable);
   font-family: var(--ds-font-family-sans);
 }
 
@@ -38,11 +38,13 @@ p {
 }
 
 h1 {
-  font: var(--ds-font-heading-large);
+  font: var(--ds-font-heading-page);
+  letter-spacing: var(--ds-letter-spacing-heading);
 }
 
 h2 {
   font: var(--ds-font-heading-medium);
+  letter-spacing: var(--ds-letter-spacing-heading);
 }
 
 h3 {
@@ -51,7 +53,7 @@ h3 {
 }
 
 code {
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   overflow-wrap: anywhere;
 }
 
@@ -133,9 +135,9 @@ small {
   align-items: center;
   gap: var(--ds-space-300);
   min-width: 0;
-  padding: var(--ds-space-100) var(--ds-space-300);
-  background: var(--ds-surface-raised);
-  box-shadow: var(--ds-shadow-raised);
+  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-300);
+  background: var(--ds-surface);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
   position: relative;
   z-index: 1;
 }
@@ -158,8 +160,8 @@ small {
   height: var(--ds-control-medium);
   color: var(--ds-text-brand-inverse);
   background: var(--ds-background-brand-bold);
-  border-radius: var(--ds-radius-200);
-  font-weight: var(--ds-font-weight-bold);
+  border-radius: var(--ds-radius-100);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
 .desk-brand__name {
@@ -184,9 +186,10 @@ small {
 .desk-nav {
   display: flex;
   flex: none;
-  gap: var(--ds-space-025);
-  padding: var(--ds-space-050);
-  background: var(--ds-background-neutral);
+  gap: var(--ds-space-050);
+  padding: calc(var(--ds-space-025) + var(--ds-border-width));
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-pill);
 }
 
@@ -194,9 +197,8 @@ small {
   display: inline-flex;
   align-items: center;
   min-height: var(--ds-control-medium);
-  padding-inline: var(--ds-space-200);
+  padding-inline: calc(var(--ds-space-150) + var(--ds-space-025));
   color: var(--ds-text-subtle);
-  font-weight: var(--ds-font-weight-medium);
   text-decoration: none;
   white-space: nowrap;
   border-radius: var(--ds-radius-pill);
@@ -210,12 +212,12 @@ small {
   background: var(--ds-background-neutral-hovered);
 }
 
-/* The selected roles keep the active pill readable on the track in both themes. */
+/* Calm accent: the active page is a raised neutral pill. Orange is kept for what you act on. */
 .desk-nav a[aria-current="page"] {
-  color: var(--ds-text-selected);
-  background: var(--ds-background-selected);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-selected);
-  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-topbar__end {
@@ -379,10 +381,13 @@ main:focus {
   border-radius: var(--ds-radius-200);
 }
 
+/* A card: a hairline frame and no shadow, so the page stays flat and calm. */
 .desk-panel {
-  padding: var(--ds-space-300);
+  padding: var(--ds-space-250);
   margin-block-end: var(--ds-space-300);
   background: var(--ds-surface-raised);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
 }
 
 .desk-panel > h2 {
@@ -440,7 +445,7 @@ main:focus {
   background: var(--ds-surface-sunken);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -503,15 +508,28 @@ main:focus {
   font-weight: var(--ds-font-weight-semibold);
 }
 
+/*
+ * A count of things to act on is orange. `--quiet` (or `data-empty`) makes it neutral, for a
+ * zero or a count that asks for nothing.
+ */
 .desk-count {
   display: inline-block;
-  min-width: var(--ds-space-300);
-  padding-inline: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-background-neutral);
+  min-width: var(--ds-space-250);
+  height: var(--ds-space-250);
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-brand-inverse);
+  background: var(--ds-background-brand-bold);
   border-radius: var(--ds-radius-pill);
   font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-space-250);
   text-align: center;
+}
+
+.desk-count--quiet,
+.desk-count[data-empty] {
+  color: var(--ds-text);
+  background: var(--ds-surface-sunken-bold);
 }
 
 .desk-session {
@@ -694,8 +712,8 @@ main:focus {
 
 .desk-pulls__row {
   display: grid;
-  gap: var(--ds-space-050);
-  padding-block: var(--ds-space-100);
+  gap: var(--ds-space-075);
+  padding-block: var(--ds-space-150);
   border-bottom: var(--ds-border-width) solid var(--ds-border);
 }
 
@@ -713,8 +731,8 @@ main:focus {
 }
 
 .desk-column__head {
-  padding-block-end: var(--ds-space-100);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
+  padding-block-end: var(--ds-space-150);
+  border-bottom: var(--ds-border-width) solid var(--ds-border-strong);
 }
 
 .desk-column__head h2 {
@@ -722,7 +740,8 @@ main:focus {
   align-items: center;
   gap: var(--ds-space-100);
   margin-block: 0 var(--ds-space-050);
-  font: var(--ds-font-heading-xsmall);
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-column__head p {
@@ -732,7 +751,7 @@ main:focus {
 
 .desk-column__body {
   display: grid;
-  gap: var(--ds-space-150);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
   align-content: start;
   padding-block: var(--ds-space-150);
 }
@@ -747,14 +766,11 @@ main:focus {
   font: var(--ds-font-body-small);
 }
 
-.desk-column[data-group="needs-you"] .desk-count:not([data-empty]) {
-  color: var(--ds-text-danger);
-  background: var(--ds-background-danger);
-}
-
-.desk-column[data-group="waiting"] .desk-count:not([data-empty]) {
-  color: var(--ds-text-warning);
-  background: var(--ds-background-warning);
+/* A column count is a neutral tally: the cards carry the status, not the header. */
+.desk-column__head .desk-count {
+  color: var(--ds-text-subtlest);
+  background: var(--ds-surface-sunken-bold);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 /* Side by side from 64 rem: a stable board height, and each column scrolls by itself. */
@@ -786,16 +802,17 @@ main:focus {
 
 .desk-cards {
   display: grid;
-  gap: var(--ds-space-150);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
 }
 
 /* A compact card. Only the title and the buttons are interactive, not the card itself. */
 .desk-card {
   display: grid;
   gap: var(--ds-space-100);
-  padding: var(--ds-space-150) var(--ds-space-200);
+  padding: calc(var(--ds-space-150) + var(--ds-space-025));
   background: var(--ds-surface-raised);
   border-radius: var(--ds-radius-200);
+  box-shadow: none;
   transition:
     background-color var(--ds-motion-control) var(--ds-motion-easing),
     border-color var(--ds-motion-control) var(--ds-motion-easing);
@@ -820,7 +837,7 @@ main:focus {
 .desk-card__title {
   margin: 0;
   font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-semibold);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-card__title a {
@@ -829,8 +846,9 @@ main:focus {
 }
 
 .desk-card__title a:hover {
-  color: var(--ds-link);
+  color: var(--ds-text);
   text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
 }
 
 .desk-card__clamp,
@@ -846,7 +864,7 @@ main:focus {
 .desk-card__reason {
   margin: 0;
   color: var(--ds-text-danger);
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body-compact);
 }
 
 .desk-card .desk-chip {
@@ -870,9 +888,9 @@ main:focus {
   overflow-wrap: normal;
   flex: 0 1 auto;
   padding: 0 var(--ds-space-050);
-  background: var(--ds-background-neutral);
+  background: var(--ds-surface-sunken-bold);
   border-radius: var(--ds-radius-050);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
 }
 
 .desk-card__meta time {
@@ -937,9 +955,11 @@ main:focus {
   }
 }
 
-/* The status of an issue: a pill with a dot of the same role, so color is never alone. */
+/* The status of an issue: a pill with a dot or a glyph of the same role, so color is never alone. */
 .desk-chip {
   gap: var(--ds-space-075);
+  min-height: var(--ds-control-xsmall);
+  padding-inline: calc(var(--ds-space-100) + var(--ds-border-width));
   white-space: nowrap;
 }
 
@@ -949,6 +969,56 @@ main:focus {
   border-radius: var(--ds-radius-round);
   background: currentcolor;
   flex: none;
+}
+
+/*
+ * Calm status glyph, in place of the dot: a shape for each tone of `.desk-chip[data-tone]`,
+ * so the status also reads without color. The element is `aria-hidden`; the words carry it.
+ */
+.desk-chip__glyph {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: var(--ds-space-150);
+  font: var(--ds-font-body-small);
+  line-height: 1;
+}
+
+.desk-chip[data-tone="success"] .desk-chip__glyph::before {
+  content: "¹3";
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-chip[data-tone="danger"] .desk-chip__glyph {
+  width: 0.875rem;
+  min-width: 0;
+  height: 0.875rem;
+  color: var(--ds-text-inverse);
+  background: var(--ds-background-danger-bold);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-chip[data-tone="danger"] .desk-chip__glyph::before {
+  content: "!";
+  font-size: 0.625rem;
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-chip[data-tone="warning"] .desk-chip__glyph::before {
+  content: "F7";
+}
+
+.desk-chip[data-tone="warning-subtle"] .desk-chip__glyph::before {
+  content: "BA";
+}
+
+.desk-chip[data-tone="information"] .desk-chip__glyph::before {
+  content: "BB";
+}
+
+.desk-chip[data-tone="neutral"] .desk-chip__glyph::before {
+  content: "3";
 }
 
 /* Eight segments, one for each flow node. The current one is taller, not only darker. */
@@ -1180,9 +1250,10 @@ main:focus {
   background: var(--ds-surface-raised-hovered);
 }
 
+/* The selected stage is ink, not orange: selection is not an action. */
 .desk-stepper .desk-stepper__button[aria-pressed="true"] {
-  background: var(--ds-background-selected);
-  border-color: var(--ds-border-selected);
+  background: var(--ds-surface-raised);
+  border-color: var(--ds-text);
 }
 
 .desk-stepper__body {
@@ -1227,8 +1298,7 @@ main:focus {
   min-width: 0;
   background: var(--ds-surface-raised);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
-  box-shadow: var(--ds-shadow-raised);
+  border-radius: var(--ds-radius-250);
 }
 
 .desk-inspector--loading {
@@ -1478,8 +1548,8 @@ main:focus {
   padding: var(--ds-space-200);
   background: var(--ds-surface-raised);
   border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-200);
-  border-end-end-radius: var(--ds-radius-200);
+  border-end-start-radius: var(--ds-radius-250);
+  border-end-end-radius: var(--ds-radius-250);
 }
 
 /*
@@ -1517,8 +1587,8 @@ main:focus {
     calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
   background: var(--ds-surface-raised);
   border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-200);
-  border-end-end-radius: var(--ds-radius-200);
+  border-end-start-radius: var(--ds-radius-250);
+  border-end-end-radius: var(--ds-radius-250);
   box-shadow: var(--ds-shadow-overlay);
 }
 
@@ -1667,7 +1737,8 @@ html:has(.desk-gate-bar) {
   display: flex;
   gap: var(--ds-space-025);
   padding: var(--ds-space-025);
-  background: var(--ds-background-neutral);
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-200);
 }
 
@@ -1688,10 +1759,11 @@ html:has(.desk-gate-bar) {
   cursor: pointer;
 }
 
+/* The chosen target is a raised neutral segment, like the active page: a choice, not an action. */
 .desk-segmented__item[data-checked="true"] {
-  color: var(--ds-text-selected);
-  background: var(--ds-background-selected);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-selected);
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
 }
 
 .desk-segmented__item:has(:focus-visible) {
@@ -1703,6 +1775,11 @@ html:has(.desk-gate-bar) {
 .desk-tabs__list {
   justify-content: flex-start;
   width: 100%;
+}
+
+/* The active tab is underlined in ink, not orange. */
+.desk-tabs__list [role="tab"][data-state="active"] {
+  border-color: var(--ds-text);
 }
 
 .desk-tabs__panel {
@@ -1730,9 +1807,9 @@ html:has(.desk-gate-bar) {
   align-items: center;
   gap: var(--ds-space-150);
   min-height: var(--ds-control-medium);
-  padding-block: var(--ds-space-050);
+  padding-block: calc(var(--ds-space-100) + var(--ds-border-width));
   border-bottom: var(--ds-border-width) solid var(--ds-border);
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body);
 }
 
 .desk-activity__time,
@@ -1810,7 +1887,7 @@ html:has(.desk-gate-bar) {
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--ds-space-050) var(--ds-space-150);
   align-items: center;
-  padding-block: var(--ds-space-150);
+  padding-block: calc(var(--ds-space-150) + var(--ds-space-025));
   border-bottom: var(--ds-border-width) solid var(--ds-border);
 }
 
@@ -1860,7 +1937,7 @@ html:has(.desk-gate-bar) {
   background: var(--ds-surface-sunken);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   line-height: var(--ds-space-250);
 }
 
@@ -1894,7 +1971,7 @@ html:has(.desk-gate-bar) {
   height: 28rem;
   margin-block-start: var(--ds-space-150);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
+  border-radius: var(--ds-radius-250);
   overflow: hidden;
 }
 
@@ -1984,11 +2061,11 @@ html:has(.desk-gate-bar) {
   border-style: dashed;
 }
 
-/* The selected stage drives the inspector: a thick outline in the selected role. */
+/* The selected stage drives the inspector: an ink outline, not orange, on a raised node. */
 .desk-node[data-selected="true"] {
-  background: var(--ds-background-selected);
-  outline: var(--ds-border-width-thick) solid var(--ds-border-selected);
-  outline-offset: var(--ds-space-025);
+  background: var(--ds-surface-raised);
+  outline: var(--ds-border-width-focused) solid var(--ds-text);
+  outline-offset: var(--ds-border-width);
 }
 
 .desk-node__head {
@@ -2174,7 +2251,8 @@ html:has(.desk-gate-bar) {
   .desk-nav a,
   .desk-node,
   .desk-stepper__button,
-  .desk-card__actions .ui-button {
+  .desk-card__actions .ui-button,
+  .desk-tabs__list [role="tab"] {
     transition: none;
   }
 
@@ -2199,21 +2277,23 @@ html:has(.desk-gate-bar) {
 .desk-table {
   width: 100%;
   border-collapse: collapse;
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body-compact);
   font-variant-numeric: tabular-nums;
 }
 
 .desk-table th,
 .desk-table td {
-  padding: var(--ds-space-075) var(--ds-space-150);
+  padding: calc(var(--ds-space-100) + var(--ds-border-width))
+    calc(var(--ds-space-100) + var(--ds-space-025));
   text-align: start;
   white-space: nowrap;
   border-block-end: var(--ds-border-width) solid var(--ds-border);
 }
 
 .desk-table thead th {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-xsmall);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-table tbody th {
