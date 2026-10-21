@@ -58,7 +58,7 @@ function ConnectionBanner() {
 }
 
 /** Pressed buttons in a pill: one choice of a few, all visible. */
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   label,
   value,
   options,

@@ -1272,6 +1272,508 @@ main:focus {
   }
 }
 
+/* ── Board: head, banner, onboarding, filters ─────────────────────────── */
+
+.desk-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-board-head__text {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.desk-board-head__text h1 {
+  margin-block: 0 var(--ds-space-050);
+}
+
+.desk-board-head__text p {
+  margin: 0;
+}
+
+.desk-board-head .desk-toolbar__start {
+  margin-inline-start: 0;
+}
+
+/* A failed health check: one quiet danger line on top of the board. */
+.desk-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  padding: var(--ds-space-100) calc(var(--ds-space-150) + var(--ds-space-025));
+  margin-block-end: var(--ds-space-200);
+  color: var(--ds-text);
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) solid var(--ds-border-danger);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body);
+}
+
+.desk-banner strong {
+  color: var(--ds-text-danger);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-banner a,
+.desk-banner .ui-button--link {
+  height: auto;
+  padding: 0;
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-banner__spacer {
+  flex: 1;
+}
+
+/* No issue yet: three steps and one way to start. */
+.desk-onboard {
+  display: grid;
+  gap: calc(var(--ds-space-150) + var(--ds-space-025));
+  max-width: 47.5rem;
+  margin: var(--ds-space-300) auto;
+  padding: var(--ds-space-400);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-onboard h2 {
+  margin: 0;
+  font: var(--ds-font-heading-large);
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-onboard p {
+  margin: 0;
+}
+
+.desk-onboard__steps {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+  list-style: decimal;
+}
+
+.desk-onboard__steps a {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-onboard__steps b {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/* Filter chips of the Columns layout: the chosen one is information blue. */
+.desk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+}
+
+.desk-chips .desk-chips__chip.ui-button {
+  gap: var(--ds-space-075);
+  height: var(--ds-control-small);
+  padding: 0 calc(var(--ds-space-150) - var(--ds-border-width));
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  border-color: var(--ds-border);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-chips .desk-chips__chip.ui-button[aria-pressed="true"] {
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+  border-color: var(--ds-border-information);
+}
+
+.desk-chips__count {
+  color: var(--ds-text-subtle);
+}
+
+.desk-chips__chip[aria-pressed="true"] .desk-chips__count {
+  color: inherit;
+}
+
+/* ── Board: Your turn ─────────────────────────────────────────────────── */
+
+.desk-inbox {
+  display: grid;
+  gap: var(--ds-space-250);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .desk-inbox {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+  }
+}
+
+.desk-turn {
+  overflow: hidden;
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-turn__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  padding: calc(var(--ds-space-150) + var(--ds-space-025)) var(--ds-space-250) var(--ds-space-100);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-turn__head h2 {
+  margin: 0;
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-turn__group[data-group="needs-you"] .desk-turn__head h2 {
+  color: var(--ds-text-danger);
+}
+
+.desk-turn__count {
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-turn__note {
+  flex: 1;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-turn__batch.ui-button {
+  height: auto;
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-turn__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Two lines: the title, then why it waits. The actions sit on the right. */
+.desk-turn__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-050) var(--ds-space-200);
+  padding: var(--ds-space-150) var(--ds-space-250);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-turn__group:last-of-type .desk-turn__row:last-child {
+  border-bottom: 0;
+}
+
+/* Next up: an orange bar on the inside edge, and a label. Not a fill. */
+.desk-turn__row[data-first] {
+  box-shadow: inset var(--ds-border-width-thick) 0 0 var(--ds-border-brand);
+}
+
+.desk-turn__main {
+  min-width: 0;
+}
+
+.desk-turn__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+}
+
+.desk-turn__next {
+  color: var(--ds-text-brand);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-space-250);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.desk-turn__title {
+  min-width: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-heading-row);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.desk-turn__title:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-turn__title .desk-issue-number {
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-turn__why {
+  margin: var(--ds-space-025) 0 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+  overflow-wrap: anywhere;
+}
+
+.desk-turn__row[data-group="needs-you"] .desk-turn__why {
+  color: var(--ds-text-danger);
+}
+
+.desk-turn__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-100);
+}
+
+.desk-turn__wait {
+  min-width: 2.75rem;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.desk-turn__acts a {
+  text-decoration: none;
+}
+
+.desk-turn__acts a.ui-button--primary,
+.desk-turn__acts a.ui-button--primary:hover {
+  color: var(--ds-text-brand-inverse);
+}
+
+/* Every row but the first asks quietly: an outline, no fill. */
+.desk-turn__acts .ui-button--subtle,
+.desk-turn__acts .ui-button--subtle:hover {
+  color: var(--ds-text);
+  background: transparent;
+  border-color: var(--ds-border-bold);
+}
+
+.desk-turn__acts .ui-button--subtle:hover:not(:disabled) {
+  border-color: var(--ds-text);
+}
+
+.desk-turn__acts .ui-button:not(:disabled):active {
+  transform: scale(var(--ds-motion-press-scale));
+}
+
+.desk-turn__empty {
+  margin: 0;
+  padding: var(--ds-space-500) var(--ds-space-250);
+  color: var(--ds-text-subtle);
+  text-align: center;
+}
+
+/* ── Board: side list ─────────────────────────────────────────────────── */
+
+.desk-side {
+  display: grid;
+  gap: var(--ds-space-200);
+}
+
+.desk-side__card {
+  padding: var(--ds-space-250);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-side__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-side__head .ui-button--link {
+  height: auto;
+  margin-inline-start: auto;
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-side__title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0 0 var(--ds-space-050);
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-side__count {
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-side__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-side__item {
+  display: grid;
+  gap: var(--ds-space-050);
+  padding-block: var(--ds-space-150);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-side__name {
+  min-width: 0;
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.desk-side__name:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-side__number {
+  color: var(--ds-text-brand);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-side__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+/* A running issue spins; a paused one shows two bars. The words say which. */
+.desk-side__glyph {
+  flex: none;
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+  border: calc(var(--ds-border-width) * 2) solid var(--ds-background-information);
+  border-top-color: var(--ds-text-information);
+  border-radius: var(--ds-radius-round);
+  animation: desk-spin 0.9s linear infinite;
+}
+
+.desk-side__meta[data-paused] .desk-side__glyph {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  animation: none;
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-side__meta[data-paused] .desk-side__glyph::before {
+  content: "\275A\275A";
+  font-size: 0.5625rem;
+  letter-spacing: -0.0625rem;
+}
+
+.desk-side__meta .desk-chip {
+  min-height: var(--ds-control-xsmall);
+}
+
+.desk-side__empty {
+  margin: 0;
+  padding-block-start: var(--ds-space-050);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-side__more.ui-button {
+  height: auto;
+  margin-block-start: var(--ds-space-100);
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+/* The low-risk plans a batch approves, listed in its dialog. */
+.desk-batch {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+/*
+ * A phone: Your turn only. The side list, the pull requests, and the layout switch go; each
+ * row stacks, and the next decision's buttons sit in a bar at the bottom of the screen.
+ */
+@media (max-width: 40rem) {
+  .desk-side,
+  .desk-board-head__layout,
+  .desk-board-page .desk-pulls {
+    display: none;
+  }
+
+  .desk-board-page[data-layout="turn"] {
+    padding-block-end: var(--ds-space-1000);
+  }
+
+  .desk-turn__row {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--ds-space-200);
+  }
+
+  .desk-turn__acts {
+    justify-content: stretch;
+  }
+
+  .desk-turn__acts > * {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .desk-turn__acts .ui-button,
+  .desk-turn__acts a {
+    min-height: 2.75rem;
+  }
+
+  .desk-turn__wait {
+    flex: 0 0 auto;
+  }
+
+  .desk-turn__row[data-first] .desk-turn__acts {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 20;
+    flex-wrap: nowrap;
+    padding: var(--ds-space-150) var(--ds-space-200);
+    background: var(--ds-surface-raised);
+    border-top: var(--ds-border-width) solid var(--ds-border);
+    box-shadow: var(--ds-shadow-overlay);
+  }
+}
+
 /* The status of an issue: a pill with a glyph of the same role, so color is never alone. */
 .desk-chip {
   gap: var(--ds-space-075);
@@ -1294,7 +1796,7 @@ main:focus {
 }
 
 .desk-chip[data-tone="success"] .desk-chip__glyph::before {
-  content: "¹3";
+  content: "\2713";
   font: var(--ds-font-body-xsmall);
   font-weight: var(--ds-font-weight-bold);
 }
@@ -1315,19 +1817,19 @@ main:focus {
 }
 
 .desk-chip[data-tone="warning"] .desk-chip__glyph::before {
-  content: "F7";
+  content: "\25F7";
 }
 
 .desk-chip[data-tone="warning-subtle"] .desk-chip__glyph::before {
-  content: "BA";
+  content: "\21BA";
 }
 
 .desk-chip[data-tone="information"] .desk-chip__glyph::before {
-  content: "BB";
+  content: "\21BB";
 }
 
 .desk-chip[data-tone="neutral"] .desk-chip__glyph::before {
-  content: "3";
+  content: "\2013";
 }
 
 /* Eight segments, one for each flow node. The current one is taller, not only darker. */
@@ -2550,7 +3052,8 @@ html:has(.desk-gate-bar) {
   .react-flow .desk-edge--active .desk-edge__path,
   .desk-node[data-status="running"] .desk-node__dot,
   .desk-live[data-connection="reconnecting"] .desk-live__dot,
-  .desk-connbar__spin {
+  .desk-connbar__spin,
+  .desk-side__glyph {
     animation: none;
   }
 

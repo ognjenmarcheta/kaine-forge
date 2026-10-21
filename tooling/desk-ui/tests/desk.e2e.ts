@@ -59,6 +59,18 @@ const test = base.extend<{ desk: Desk; problems: string[] }>({
 });
 
 const group = (page: Page, name: RegExp) => page.getByRole("region", { name });
+/** The board opens as Your turn; this switches it to the four columns. */
+const showColumns = async (page: Page) => {
+  await page
+    .getByRole("group", { name: "Board layout" })
+    .getByRole("button", { name: "Columns" })
+    .click();
+};
+/** One row of Your turn, found by its issue number. */
+const row = (page: Page, issue: number) =>
+  page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("link", { name: new RegExp(`^#${String(issue)} `) }) });
 const inspector = (page: Page) => page.getByRole("complementary");
 const more = async (page: Page, item: string) => {
   await page.getByRole("button", { name: "More actions" }).click();
@@ -67,7 +79,7 @@ const more = async (page: Page, item: string) => {
 
 test("opens the plain local URL and shows the four board columns", async ({ page, desk }) => {
   await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
   expect(page.url()).not.toContain("session");
   const cookies = await page.context().cookies();
   expect(cookies.find((cookie) => cookie.name.startsWith("desk_session_"))).toMatchObject({
@@ -75,6 +87,8 @@ test("opens the plain local URL and shows the four board columns", async ({ page
     sameSite: "Strict"
   });
 
+  await showColumns(page);
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
   await expect(group(page, /^Needs you/)).toContainText("#103");
   await expect(group(page, /^Needs you/)).toContainText(
     "Two consecutive checks failed the same way"
@@ -86,9 +100,9 @@ test("opens the plain local URL and shows the four board columns", async ({ page
   // One chip joins stage and state; the progress bar says where the issue is in words.
   await expect(group(page, /^Waiting for you/)).toContainText("Plan approval · waiting for you");
   await expect(
-    group(page, /^Waiting for you/).getByRole("img", {
-      name: "Stage 3 of 8: Plan approval (Waiting for you)"
-    })
+    group(page, /^Waiting for you/)
+      .getByRole("img", { name: "Stage 3 of 9: Plan approval (Waiting for you)" })
+      .first()
   ).toBeVisible();
   await expect(group(page, /^Running/)).toContainText("Build · running");
   await expect(group(page, /^Done/).getByRole("link", { name: "Open PR" })).toHaveAttribute(
@@ -107,20 +121,20 @@ test("opens the plain local URL and shows the four board columns", async ({ page
 
 test("shows an empty board with a way to start", async ({ page, desk }) => {
   await desk.open({ scenario: "empty" });
-  await expect(page.getByRole("heading", { name: "No issues yet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start issue" })).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "No issues on the desk yet" })).toBeVisible();
+  await page.getByRole("button", { name: "Start your first issue" }).click();
+  await expect(page.getByRole("dialog", { name: "Start an issue" })).toBeVisible();
 });
 
-test("filters the board by number or title, with / to focus the search", async ({ page, desk }) => {
+test("filters the board by number or title", async ({ page, desk }) => {
   await desk.open();
   await expect(page.getByRole("link", { name: /#101/ })).toBeVisible();
-  await page.keyboard.press("/");
   const search = page.getByRole("searchbox", { name: "Search issues" });
-  await expect(search).toBeFocused();
+  await search.fill("#999");
+  await expect(page.getByText("No issue here matches the search.")).toBeVisible();
   await search.fill("#103");
   await expect(page.getByRole("link", { name: /#101/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /#103/ })).toBeVisible();
-  await expect(group(page, /^Running/)).toContainText("No issue here matches the search.");
   await page.getByRole("button", { name: "Clear the search" }).click();
   await search.fill("loop counts");
   await expect(page.getByRole("link", { name: /#104/ })).toBeVisible();
@@ -135,18 +149,74 @@ test("continues a stopped issue from its card and shows the result as a toast", 
   await group(page, /^Needs you/)
     .getByRole("button", { name: "Continue" })
     .click();
-  await expect(page.getByText(/^#103 · Continued\./)).toBeVisible();
-  await expect(group(page, /^Waiting for you/)).toContainText("#103");
+  await expect(page.getByText("#103 · The run will continue.")).toBeVisible();
+  await expect(page.getByText(/^#103 · Continued\./)).toBeVisible({ timeout: 15_000 });
+  await expect(group(page, /^Your decisions/)).toContainText("#103");
   expect(await desk.calls()).toEqual([{ issue: 103, action: "continue", payload: { from: null } }]);
 });
 
 test("opens the plan gate from the card's next action", async ({ page, desk }) => {
   await desk.open();
-  await group(page, /^Waiting for you/)
-    .getByRole("link", { name: "Review plan" })
-    .click();
+  await row(page, 101).getByRole("link", { name: "Review plan" }).click();
   await expect(page).toHaveURL(/\?issue=101/);
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
+});
+
+test("approves a low-risk plan from Your turn, and Undo sends nothing", async ({ page, desk }) => {
+  await desk.open();
+  // Next up is the stopped issue; the plans wait below it, oldest first.
+  await expect(row(page, 103)).toContainText("Next up");
+  await expect(row(page, 101)).not.toContainText("Next up");
+  const approve = row(page, 101).getByRole("button", { name: "Approve the plan of #101" });
+
+  await approve.click();
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Undone. Nothing ran.")).toBeVisible();
+
+  await approve.click();
+  await expect(page.getByText(/^#101 · Plan approved\./)).toBeVisible({ timeout: 15_000 });
+  // One approve only: the undone one never reached the server.
+  expect(await desk.calls()).toEqual([{ issue: 101, action: "approve", payload: {} }]);
+});
+
+test("approves every low-risk plan in one undoable batch", async ({ page, desk }) => {
+  await desk.open();
+  await group(page, /^Your decisions/)
+    .getByRole("button", { name: "Approve 2 low-risk plans…" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Approve 2 low-risk plans?" });
+  await expect(dialog).toContainText("#101 Add an empty state to the board");
+  await expect(dialog).toContainText("#106 Translate the empty state");
+  await dialog.getByRole("button", { name: "Approve 2 plans" }).click();
+
+  await expect(page.getByText("#101, #106 · 2 low-risk plans will be approved.")).toBeVisible();
+  expect(await desk.calls()).toEqual([]);
+  await expect(page.getByText("Plans approved: #101, #106. The builds started.")).toBeVisible({
+    timeout: 15_000
+  });
+  expect(await desk.calls()).toEqual([
+    { issue: 101, action: "approve", payload: {} },
+    { issue: 106, action: "approve", payload: {} }
+  ]);
+});
+
+test("switches the board to columns with filters, and keeps the choice", async ({ page, desk }) => {
+  await desk.open();
+  await expect(page.getByRole("group", { name: "Filter" })).toHaveCount(0);
+  await showColumns(page);
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  for (const name of [/^Needs you/, /^Waiting for you/, /^Running/, /^Done/]) {
+    await expect(group(page, name)).toBeVisible();
+  }
+  const filters = page.getByRole("group", { name: "Filter" });
+  await filters.getByRole("button", { name: /^Running/ }).click();
+  await expect(group(page, /^Running/)).toContainText("#104");
+  await expect(page.getByRole("link", { name: /#101/ })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(group(page, /^Waiting for you/)).toContainText("#101");
 });
 
 test("opens the plain local URL in a second browser without a launch token", async ({
@@ -155,13 +225,13 @@ test("opens the plain local URL in a second browser without a launch token", asy
   desk
 }) => {
   const url = await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
 
   // A second browser has no cookie yet. Opening the local page issues one.
   const other = await browser.newContext();
   const stranger = await other.newPage();
   await stranger.goto(`${url}/`);
-  await expect(stranger.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(stranger.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
   await other.close();
 });
 
@@ -455,7 +525,9 @@ test("removes an issue from the More menu and returns to the board", async ({ pa
   await desk.open({}, "?issue=105");
   await more(page, "Remove");
   await page.getByRole("button", { name: "Remove the issue" }).click();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible({
+    timeout: 15_000
+  });
   await expect(page.getByRole("link", { name: /#105/ })).toHaveCount(0);
   expect(await desk.calls()).toEqual([{ issue: 105, action: "remove", payload: { force: false } }]);
 });
@@ -494,10 +566,10 @@ test("updates the board when a change comes from outside, and shows the live log
   desk
 }) => {
   await desk.open();
-  await expect(group(page, /^Waiting for you/)).toContainText("#101");
+  await expect(group(page, /^Your decisions/)).toContainText("#101");
   await desk.mutate(101);
   await expect(group(page, /^Running/)).toContainText("#101");
-  await expect(group(page, /^Waiting for you/)).not.toContainText("#101");
+  await expect(group(page, /^Your decisions/)).not.toContainText("#101");
 
   await page.getByRole("link", { name: /#101/ }).click();
   await page.getByRole("tab", { name: "Live log" }).click();
@@ -574,6 +646,9 @@ test("starts an issue picked from GitHub, and shows open pull requests read-only
   desk
 }) => {
   await desk.open();
+  // Your turn lists the pull request in short; the full list sits under the columns.
+  await expect(group(page, /^Open pull requests/)).toContainText("#321");
+  await showColumns(page);
   const pulls = page.getByRole("region", { name: "Open pull requests (1)" });
   await expect(pulls.getByRole("link", { name: "#321" })).toHaveAttribute(
     "href",
@@ -677,7 +752,7 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
 }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
   // Brand, navigation, live pill, and preferences share one row.
   const rows = await page.evaluate(() => {
     const centre = (selector: string): number => {

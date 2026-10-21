@@ -111,7 +111,8 @@ export const ticketText = (title: string, found = 6): string =>
     "- The text is escaped."
   ].join("\n");
 
-export const planArtifact = (): string =>
+/** A plan that the planner graded `risk`, or an ungraded one (written before the grade existed). */
+export const planArtifact = (risk: "low" | "medium" | "high" | null = null): string =>
   json({
     summary: "Add an empty state to the board and cover it with a test.",
     files: [
@@ -129,6 +130,7 @@ export const planArtifact = (): string =>
       { criterion: "An empty board explains how to start an issue", change: "board.empty.tsx" }
     ],
     risks: ["The copy needs a translation in three languages"],
+    ...(risk === null ? {} : { risk, riskReasons: ["Two files, one of them new, and a test"] }),
     openQuestions: ["Should the empty state link to the docs?"],
     changeset: { required: true, packages: ["@repo/web"], bump: "patch" },
     pr: { type: "feat", slug: "board-empty-state" },
@@ -345,11 +347,15 @@ export const draftArtifact = (issueNumber: number): string =>
     model: null
   })}\n`;
 
-export const planGateIssue = (issueNumber: number, title: string): SeedIssue => ({
+export const planGateIssue = (
+  issueNumber: number,
+  title: string,
+  risk: "low" | "medium" | "high" | null = null
+): SeedIssue => ({
   title,
   labels: ["ready-for-agent", "agent:working"],
   state: base(issueNumber, toPlan(), { stage: "plan-gate", status: "waiting" }),
-  artifacts: { "ticket.md": ticketText(title), "plan.json": planArtifact() }
+  artifacts: { "ticket.md": ticketText(title), "plan.json": planArtifact(risk) }
 });
 
 const runningIssue = (issueNumber: number, title: string): SeedIssue => {
@@ -405,13 +411,14 @@ const shippedIssue = (issueNumber: number, title: string): SeedIssue => {
   };
 };
 
-/** The default board: one issue in every group. */
+/** The default board: one issue in every group, and two low-risk plans for the batch. */
 export const scenarioBoard = (): SeedIssue[] => [
-  planGateIssue(101, "Add an empty state to the board"),
+  planGateIssue(101, "Add an empty state to the board", "low"),
   prReviewIssue(102, "Explain the review verdict in the issue header"),
   needsYouIssue(103, "Fix the check step that fails twice"),
   runningIssue(104, "Show loop counts on the flow graph"),
-  shippedIssue(105, "Open the draft pull request from the desk")
+  shippedIssue(105, "Open the draft pull request from the desk"),
+  planGateIssue(106, "Translate the empty state", "low")
 ];
 
 const run = (over: Partial<RunRecord> & Pick<RunRecord, "issue" | "role">): RunRecord => ({

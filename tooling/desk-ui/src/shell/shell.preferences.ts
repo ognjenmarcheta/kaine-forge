@@ -77,3 +77,32 @@ export function useNotifyPreference(): readonly [boolean, (on: boolean) => void]
   };
   return [on, choose] as const;
 }
+
+export const BOARD_LAYOUTS = ["turn", "columns"] as const;
+export type BoardLayout = (typeof BOARD_LAYOUTS)[number];
+
+const LAYOUT_KEY = "kaine-desk-board-layout";
+
+const isBoardLayout = (value: string | null): value is BoardLayout =>
+  BOARD_LAYOUTS.some((layout) => layout === value);
+
+/** The board as a "Your turn" inbox or as columns. Kept like the theme; Your turn by default. */
+export function useBoardLayout(): readonly [BoardLayout, (layout: BoardLayout) => void] {
+  const [layout, setLayout] = useState<BoardLayout>(() => {
+    try {
+      const stored = window.localStorage.getItem(LAYOUT_KEY);
+      return isBoardLayout(stored) ? stored : "turn";
+    } catch {
+      return "turn";
+    }
+  });
+  const choose = (next: BoardLayout): void => {
+    setLayout(next);
+    try {
+      window.localStorage.setItem(LAYOUT_KEY, next);
+    } catch {
+      // The choice still applies to this page.
+    }
+  };
+  return [layout, choose] as const;
+}

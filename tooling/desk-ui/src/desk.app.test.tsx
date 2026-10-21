@@ -37,8 +37,8 @@ describe("DeskApp session states", () => {
           Promise.resolve([makeSummary(makeState({ issueNumber: 42, stage: "plan-gate" }))])
       })
     );
-    expect(await screen.findByRole("heading", { name: "Issues" })).toBeTruthy();
-    expect(await screen.findByRole("heading", { name: /^Waiting for you/, level: 2 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Your turn · 1", level: 1 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /^Your decisions/, level: 2 })).toBeTruthy();
     expect(screen.getByRole("link", { name: /#42/ })).toBeTruthy();
   });
 });

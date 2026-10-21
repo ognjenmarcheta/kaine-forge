@@ -214,3 +214,33 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   }
   return status("running", "neutral", inStage(summary.stage, summary.status), "open");
 }
+
+// --- plan risk --------------------------------------------------------------
+
+export type PlanRisk = NonNullable<ReadableSummary["planRisk"]>;
+
+export const PLAN_RISK_TONE: Readonly<Record<PlanRisk, Tone>> = {
+  low: "success",
+  medium: "warning",
+  high: "danger"
+};
+
+export const PLAN_RISK_KEY: Readonly<Record<PlanRisk, string>> = {
+  low: "desk.risk.low",
+  medium: "desk.risk.medium",
+  high: "desk.risk.high"
+};
+
+/** The risk of the plan that waits for approval now; `null` away from the plan gate. */
+export const gatePlanRisk = (summary: IssueSummary): PlanRisk | null =>
+  summary.readable && gateModeOf(summary) === "plan-gate" ? summary.planRisk : null;
+
+/** A plan at its gate that the planner graded low risk: the board can approve it directly. */
+export const isLowRiskPlan = (summary: IssueSummary): boolean => gatePlanRisk(summary) === "low";
+
+/** Why a gate waits for the owner, in one line. A stopped issue shows the engine's reason instead. */
+export const GATE_REASON_KEY: Readonly<Partial<Record<GateMode, string>>> = {
+  "plan-gate": "desk.board.reason.plan-gate",
+  "pr-review": "desk.board.reason.pr-review",
+  "pr-open": "desk.board.reason.pr-open"
+};

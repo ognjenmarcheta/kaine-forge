@@ -73,17 +73,20 @@ describe("CommandPalette", () => {
     const search = await screen.findByRole("combobox", { name: "Search" });
     await waitFor(() => expect(document.activeElement).toBe(search));
 
-    // Without a search: the issue that waits on you, not the running one, then the pages.
+    // Without a search: the board's own actions, the issue that waits on you (not the running
+    // one), then the pages.
     const options = within(screen.getByRole("listbox")).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual([
+      "Start issue",
+      "Show the board as columns",
       "#42 Add an empty statePlan approval · waiting for you",
       "BoardG B",
       "HealthG H",
       "RunsG R"
     ]);
-    expect(selected()).toContain("#42");
+    expect(selected()).toContain("Start issue");
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
-    expect(selected()).toContain("Health");
+    expect(selected()).toContain("#42");
     await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}");
     expect(selected()).toContain("Runs");
 

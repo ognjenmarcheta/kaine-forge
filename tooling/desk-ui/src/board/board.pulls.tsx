@@ -93,3 +93,58 @@ export function OpenPullRequests() {
     </Card>
   );
 }
+
+/** The open pull requests in the side list of Your turn: a title and one quiet line each. */
+export function SidePullRequests() {
+  const t = useT();
+  const heading = useId();
+  const { language } = useLanguage();
+  const now = useNow();
+  const { state } = useGithubLists(true);
+  const pulls = state.status === "ok" && state.lists.ok ? state.lists.pulls : null;
+  return (
+    <Card className="desk-side__card" aria-labelledby={heading} role="region">
+      <h2 id={heading} className="desk-side__title">
+        {t("desk.pulls.title")}
+        {pulls !== null && <span className="desk-side__count">{pulls.length}</span>}
+      </h2>
+      {state.status === "loading" && <Loading />}
+      {(state.status === "error" || (state.status === "ok" && !state.lists.ok)) && (
+        <p className="desk-side__empty">{t("desk.github.unavailable")}</p>
+      )}
+      {pulls !== null && pulls.length === 0 && (
+        <p className="desk-side__empty">{t("desk.pulls.sideEmpty")}</p>
+      )}
+      {pulls !== null && pulls.length > 0 && (
+        <ul className="desk-side__list">
+          {pulls.map((pull) => {
+            const href = safeHttpUrl(pull.url);
+            const name = (
+              <>
+                <b className="desk-side__number">
+                  {t("desk.issue.number", { number: pull.number })}
+                </b>{" "}
+                {pull.title}
+              </>
+            );
+            const when = relativeTime(pull.updatedAt, now, language);
+            return (
+              <li key={pull.number} className="desk-side__item">
+                {href === null ? (
+                  <span className="desk-side__name">{name}</span>
+                ) : (
+                  <a className="desk-side__name" href={href} target="_blank" rel="noreferrer">
+                    {name}
+                  </a>
+                )}
+                <span className="desk-side__meta">
+                  {pull.draft ? t("desk.pulls.sideDraft", { when }) : when}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}

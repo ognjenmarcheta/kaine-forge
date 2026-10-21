@@ -2,15 +2,13 @@ import type { IssueSummary } from "@repo/desk/contracts";
 import { Button, Card, GitPullRequest, Spinner, buttonVariants } from "@repo/ui";
 import { useState } from "react";
 
+import { useContinueIssue } from "./board.actions";
 import { StageProgress } from "./board.progress";
 import { useT } from "../i18n/i18n.t";
 import { firstLine, safeHttpUrl } from "../shell/shell.format";
 import { OverflowTooltip, useOverflow } from "../shell/shell.overflow";
 import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
-import { toastSettled } from "../shell/shell.toast";
-import { runUndoable } from "../shell/shell.undo";
-import { useDesk } from "../state/desk.provider";
 import { IssueStatusChip } from "../status/status.chip";
 import {
   issueStatusOf,
@@ -22,19 +20,28 @@ import {
 const LINK_BUTTON = buttonVariants({ appearance: "default", spacing: "compact" });
 const SUBTLE_LINK_BUTTON = buttonVariants({ appearance: "subtle", spacing: "compact" });
 
-/** The next step of a card. Only these buttons and the title are interactive, not the card. */
-function NextAction({
+/**
+ * The next step of an issue. Only these buttons and the title are interactive, not the card.
+ * `primary` marks the one step the page asks for first; elsewhere it is a quiet button.
+ * `withOpen` adds an Open link beside Continue, for a card whose title is far away.
+ */
+export function NextAction({
   summary,
-  action
+  action,
+  primary = true,
+  withOpen = true
 }: {
   readonly summary: ReadableSummary;
   readonly action: PrimaryAction;
+  readonly primary?: boolean;
+  readonly withOpen?: boolean;
 }) {
   const t = useT();
-  const { act } = useDesk();
+  const continueIssue = useContinueIssue();
   const [pending, setPending] = useState(false);
   const issue = { view: "issue", issueNumber: summary.issueNumber } as const;
   const prUrl = safeHttpUrl(summary.prUrl);
+  const linkButton = primary ? LINK_BUTTON : SUBTLE_LINK_BUTTON;
 
   switch (action) {
     case "continue":
@@ -42,47 +49,37 @@ function NextAction({
         <>
           <Button
             spacing="compact"
+            appearance={primary ? "default" : "subtle"}
             disabled={pending || summary.busy}
             onClick={() => {
               setPending(true);
-              void runUndoable({
-                label: t("desk.undo.pending.continue"),
-                issues: [summary.issueNumber],
-                send: ({ keepalive }) =>
-                  keepalive
-                    ? act(summary.issueNumber, { action: "continue" }, { wait: false, keepalive })
-                    : act(summary.issueNumber, { action: "continue" }, { wait: false })
-              })
-                .then((outcome) => {
-                  if (outcome.kind === "sent") {
-                    toastSettled(t, summary.issueNumber, "continue", outcome.value);
-                  }
-                })
-                .finally(() => setPending(false));
+              void continueIssue(summary.issueNumber).finally(() => setPending(false));
             }}
           >
             {t("desk.gate.needsYou.continue")}
           </Button>
-          <RouteLink to={issue} className={SUBTLE_LINK_BUTTON}>
-            {t("desk.card.open")}
-          </RouteLink>
+          {withOpen && (
+            <RouteLink to={issue} className={SUBTLE_LINK_BUTTON}>
+              {t("desk.card.open")}
+            </RouteLink>
+          )}
         </>
       );
     case "restart":
       return (
-        <RouteLink to={issue} className={LINK_BUTTON}>
+        <RouteLink to={issue} className={linkButton}>
           {t("desk.card.startAgain")}
         </RouteLink>
       );
     case "review-plan":
       return (
-        <RouteLink to={issue} className={LINK_BUTTON}>
+        <RouteLink to={issue} className={linkButton}>
           {t("desk.card.reviewPlan")}
         </RouteLink>
       );
     case "review-ship":
       return (
-        <RouteLink to={issue} className={LINK_BUTTON}>
+        <RouteLink to={issue} className={linkButton}>
           {t("desk.card.reviewShip")}
         </RouteLink>
       );
@@ -101,7 +98,7 @@ function NextAction({
       );
     case "open":
       return (
-        <RouteLink to={issue} className={SUBTLE_LINK_BUTTON}>
+        <RouteLink to={issue} className={primary ? linkButton : SUBTLE_LINK_BUTTON}>
           {t("desk.card.open")}
         </RouteLink>
       );
@@ -170,7 +167,11 @@ function ReadableCard({
         )}
       </div>
       <div className="desk-card__actions">
-        <NextAction summary={summary} action={status.primaryAction} />
+        <NextAction
+          summary={summary}
+          action={status.primaryAction}
+          primary={status.group === "needs-you"}
+        />
       </div>
     </Card>
   );

@@ -91,3 +91,49 @@ export function RemoveDialog({ open, onOpenChange, onConfirm, ...rest }: RemoveD
     </Modal>
   );
 }
+
+export interface ApproveBatchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  /** The low-risk plans to approve, as "#12 Title" lines. */
+  readonly plans: readonly { readonly issueNumber: number; readonly title: string }[];
+  readonly onConfirm: () => void;
+}
+
+/** Approve every low-risk plan at once, after the owner has seen which ones. */
+export function ApproveBatchDialog({
+  open,
+  onOpenChange,
+  plans,
+  onConfirm
+}: ApproveBatchDialogProps) {
+  const t = useT();
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("desk.board.batch.title", { count: plans.length })}
+      description={t("desk.board.batch.description")}
+      closeButtonLabel={t("desk.common.close")}
+      size="sm"
+      actions={[
+        { appearance: "subtle", label: t("desk.common.back"), onClick: () => onOpenChange(false) },
+        {
+          label: t("desk.board.batch.confirm", { count: plans.length }),
+          onClick: () => {
+            onOpenChange(false);
+            onConfirm();
+          }
+        }
+      ]}
+    >
+      <ul className="desk-batch">
+        {plans.map((plan) => (
+          <li key={plan.issueNumber}>
+            {t("desk.issue.numbered", { number: plan.issueNumber, title: plan.title })}
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+}
