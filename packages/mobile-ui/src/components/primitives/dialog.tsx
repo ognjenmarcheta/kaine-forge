@@ -110,7 +110,7 @@ export function DialogContent({
       accessibilityViewIsModal
       className={cn(
         "bg-ds-surface p-5",
-        position === "bottom" ? "w-full rounded-t-md" : "w-full max-w-md rounded-md",
+        position === "bottom" ? "w-full rounded-t-xl" : "w-full max-w-md rounded-xl",
         className
       )}
     >

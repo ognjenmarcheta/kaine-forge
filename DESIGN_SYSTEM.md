@@ -106,9 +106,11 @@ Use emphasis to control contrast:
 | `bold`               | strong fill, usually paired with inverse text |
 | `bolder` / `boldest` | maximum emphasis                              |
 
-Text on bold backgrounds must use inverse tokens when contrast requires it.
+Text on bold backgrounds must use inverse tokens when contrast requires it. Brand and selected bold fills are bright orange, so text and icons on them use `--ds-text-brand-inverse` (dark ink in both themes), not `--ds-text-inverse`.
 
 ## 4. Color Rules
+
+The default palette is the Byteforge brand: one orange for actions, selection, links, and focus (`#f15a24` light, `#ff6a33` dark), on cool white and ink-black neutrals. Light and dark values come from the Byteforge website tokens. The `pnpm --filter @repo/ui test` contrast contract checks the key text and control pairs in both themes against the WCAG AA baseline in §12.
 
 Semantic roles:
 
@@ -158,6 +160,8 @@ Typography tokens define hierarchy and rhythm.
 | `--ds-font-body-xsmall`     | metadata                                  |
 | `--ds-font-code`            | code and monospaced labels                |
 
+The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
+
 Rules:
 
 - Do not scale font size with viewport width.
@@ -194,17 +198,18 @@ Control sizes:
 
 Shape:
 
-| Token              | Value  | Use                       |
-| ------------------ | ------ | ------------------------- |
-| `--ds-radius-050`  | 3px    | tiny controls             |
-| `--ds-radius-100`  | 4px    | default                   |
-| `--ds-radius-200`  | 8px    | larger surfaces and cards |
-| `--ds-radius-300`  | 12px   | large panels              |
-| `--ds-radius-pill` | 9999px | pills                     |
+| Token              | Value  | Use                                               |
+| ------------------ | ------ | ------------------------------------------------- |
+| `--ds-radius-050`  | 4px    | badges, tags, checkboxes                          |
+| `--ds-radius-100`  | 8px    | inputs, selects, menu items, list rows            |
+| `--ds-radius-200`  | 12px   | menus, popovers, panels                           |
+| `--ds-radius-300`  | 20px   | cards, dialogs, sheets                            |
+| `--ds-radius-400`  | 28px   | large feature surfaces                            |
+| `--ds-radius-pill` | 9999px | buttons, icon buttons, toggles, pagination, pills |
 
 Rules:
 
-- Keep cards and buttons at `8px` radius or less unless the design system explicitly defines a larger pattern.
+- Buttons are pills. Cards and dialogs use `--ds-radius-300`. Inputs and selects use `--ds-radius-100`. Do not invent radii between the steps.
 - Use stable dimensions for grids, boards, toolbars, counters, icon buttons, and fixed-format UI.
 - Avoid layout shift when labels, loading states, badges, or hover states change.
 
@@ -226,17 +231,17 @@ Do not pair `surface-raised` with `shadow-overlay` or default surface with raise
 
 Use CSS on web/desktop and Reanimated on native. Do not add an animation framework. Canonical duration tokens are `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms). Use small opacity/transform transitions, respect reduced motion, and never delay navigation. Theme changes are immediate and preserve drafts, focus, and scroll.
 
-- Use `--ds-motion-easing` for calm transitions without bounce. Sidebar rail and spacer resize together while labels fade; interrupted width transitions reverse from the current geometry. Footer preferences stay in fixed vertical slots above a stable-height profile row.
+- Use `--ds-motion-easing` (a quick ease-out, `cubic-bezier(0.23, 1, 0.32, 1)`) for calm transitions without bounce. Sidebar rail and spacer resize together while labels fade; interrupted width transitions reverse from the current geometry. Footer preferences stay in fixed vertical slots above a stable-height profile row.
 - Sheets enter and exit fully from their declared edge. Backdrops fade. Dialogs combine opacity with `--ds-motion-distance-dialog` (8px); anchored menus/tooltips use `--ds-motion-distance-menu` (4px). Preserve positioning transforms. Radix owns exit presence and focus restoration.
 - Attachment disclosures interpolate intrinsic content height with CSS grid. Keep their upload controls mounted; closed content is inert and becomes hidden after collapse. Do not animate message streams, list staggering, or route entry.
-- Enabled buttons use `--ds-motion-distance-press` (2px) for press feedback. Native buttons move their content inside a stable touch target and preserve caller styles and refs. Focus indicators remain immediate.
+- Enabled buttons scale to `--ds-motion-press-scale` (0.97) for press feedback. Native buttons scale their visible surface inside a stable touch target and preserve caller styles and refs. Focus indicators remain immediate.
 - Native dialogs use Reanimated timing with generated durations/easing/distances. Keep content mounted through exit, cancel interrupted animations, and ignore stale exit completions after reopening. Existing explicit `animationType="none"` disables motion; `slide` retains a full-height slide.
 - Follow device reduced motion, including runtime changes. Remove motion immediately rather than adding an app override. The native drawer keeps its clamped gesture animation, with a pnpm patch replacing its explicit reduced-motion opt-out in both source and compiled module. Remove that patch when the upstream package honors the system preference itself.
 - Test intermediate browser geometry and entry/exit lifetimes, not only final screenshots. Keep short motion recordings for review. Bundle exports cannot verify physical-device motion or accessibility.
 
 ### Workflow visual direction
 
-Use neutral white and charcoal surfaces with restrained blue primary actions. Keep the system font stack and 4–8px control radii. Use aligned rows and dividers for work lists. The dashboard links to existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
+Use cool white and ink-black surfaces with one Byteforge orange for primary actions, selection, and links. Use Geist and the §6 shape scale: pill buttons, 8px inputs, 20px cards and dialogs. Use aligned rows and dividers for work lists. The dashboard links to existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
 
 Web/desktop sidebar preferences use two neutral, labeled footer rows: Language, then Theme, with muted current values. Collapsing keeps both controls mounted in the same vertical positions and shows icon tooltips with their current values. Expanded menus open upward; collapsed menus open to the right, with viewport collision handling. Use native language names and radio selection semantics. The responsive web drawer keeps full labels and 48px control heights. `ShellSelectControl` supports an optional `compact` display and `NavPreferences` supports a `footer` layout; existing defaults remain available.
 
@@ -350,7 +355,7 @@ Baseline:
 ## 13. Asset and Visual Rules
 
 - Do not use decorative gradient orbs, bokeh blobs, or one-note palettes.
-- Avoid dominant purple/purple-blue gradients, beige/cream/sand/tan, dark blue/slate, and brown/orange/espresso themes unless a product-specific design decision overrides the template.
+- Avoid dominant purple/purple-blue gradients, beige/cream/sand/tan, dark blue/slate, and brown/orange/espresso themes unless a product-specific design decision overrides the template. The Byteforge brand is that decision for the orange accent: orange marks actions and selection only, never whole surfaces.
 - Use real images only when the experience calls for them; do not add marketing imagery to app/tool screens by default.
 - Avoid generic AI-generated frontend defaults: vague glassmorphism, context-free gradients, dramatic blur, fake stock atmosphere, and ornamental effects that do not explain the product.
 - Visual detail should come from the product domain, data, workflow, or brand direction rather than decoration.

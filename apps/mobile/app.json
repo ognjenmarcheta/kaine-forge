@@ -5,7 +5,35 @@
     "scheme": "kaineforge",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/icon.png",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff",
+        "dark": {
+          "image": "./assets/splash-icon-dark.png",
+          "backgroundColor": "#0c0e12"
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#121419"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff",
+        "dark": {
+          "image": "./assets/splash-icon-dark.png",
+          "backgroundColor": "#0c0e12"
+        }
+      }
+    },
     "plugins": ["expo-router", "expo-secure-store", "expo-web-browser"],
     "experiments": {
       "typedRoutes": true

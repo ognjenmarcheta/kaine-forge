@@ -135,7 +135,7 @@ export function ShellSelectControl({
         </>
       ) : (
         <>
-          <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-inverse)] flex shrink-0 aspect-square size-8 items-center justify-center rounded-lg">
+          <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-brand-inverse)] flex shrink-0 aspect-square size-8 items-center justify-center rounded-lg">
             {iconNode}
           </div>
           <div className="grid flex-1 min-w-0 text-left leading-tight">

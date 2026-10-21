@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-export const buttonVariants = cva("min-h-12 flex-row items-center justify-center rounded-md", {
+export const buttonVariants = cva("min-h-12 flex-row items-center justify-center rounded-full", {
   variants: {
     appearance: {
       default: "bg-ds-bg-brand-bold active:bg-ds-bg-brand-bold-pressed",
@@ -25,7 +25,7 @@ export const buttonVariants = cva("min-h-12 flex-row items-center justify-center
 export const buttonTextVariants = cva("font-medium", {
   variants: {
     appearance: {
-      default: "text-ds-text-inverse",
+      default: "text-ds-text-brand-inverse",
       secondary: "text-ds-text",
       subtle: "text-ds-text",
       ghost: "text-ds-text",
@@ -47,8 +47,8 @@ export const buttonTextVariants = cva("font-medium", {
 export const textVariants = cva("", {
   variants: {
     variant: {
-      heading: "text-2xl font-semibold text-ds-text",
-      subheading: "text-xl font-semibold text-ds-text",
+      heading: "text-2xl font-medium text-ds-text",
+      subheading: "text-xl font-medium text-ds-text",
       body: "text-base text-ds-text",
       caption: "text-sm text-ds-text-subtle",
       label: "text-sm font-medium text-ds-text-subtlest"
