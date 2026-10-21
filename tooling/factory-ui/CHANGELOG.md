@@ -1,5 +1,12 @@
 # @repo/factory-ui
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [6a30ea3]
+  - @repo/translation@1.7.0
+
 ## 0.1.3
 
 ### Patch Changes

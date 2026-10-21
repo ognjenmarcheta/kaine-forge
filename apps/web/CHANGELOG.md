@@ -1,5 +1,14 @@
 # @repo/web
 
+## 1.7.6
+
+### Patch Changes
+
+- Updated dependencies [6a30ea3]
+- Updated dependencies [850ba14]
+  - @repo/translation@1.7.0
+  - @repo/auth@2.0.0
+
 ## 1.7.5
 
 ### Patch Changes
