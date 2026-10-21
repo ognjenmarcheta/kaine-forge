@@ -9,6 +9,7 @@ import {
   parseConventionalHeader
 } from "./ship.message";
 import { createExec } from "../ports";
+import { planOutput } from "../testing/pipeline.testing";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../..");
 
@@ -116,6 +117,19 @@ describe("commitInputFor", () => {
     expect(commitInputFor({ plan: { ...plan, summary: "  " }, issue: 5 }).subject).toBe(
       "agent desk ship"
     );
+  });
+
+  it("builds the commit of a revised plan from the change summary, not the revision note", () => {
+    const revision = "Revision: one file is added, as the engineer asked.";
+    const revisedPlan = planOutput({
+      summary: "Add the ship library. It commits and opens a draft PR.",
+      revision,
+      pr: { type: "feat", slug: "agent-desk-ship" }
+    });
+    const message = buildCommitMessage(commitInputFor({ plan: revisedPlan, issue: 5 }));
+    expect(message.header).toBe("feat: add the ship library");
+    expect(message.text).toContain("Add the ship library. It commits and opens a draft PR.");
+    expect(message.text).not.toContain(revision);
   });
 
   it("ignores a scope that is not lower-case", () => {

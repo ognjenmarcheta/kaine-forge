@@ -224,15 +224,22 @@ describe("pipeline runner: plan gate", () => {
     const e = await open({
       steps: [
         planStep(planOutput({ openQuestions: ["CSV or XLSX?"] })),
-        planStep(planOutput({ summary: "Add a CSV export, no XLSX" }))
+        planStep(
+          planOutput({ summary: "Add a CSV export, no XLSX", revision: "Dropped the XLSX option." })
+        )
       ]
     });
     const first = await e.pipeline.start(ISSUE, { override: false });
     expect(first.outcome === "stopped" && first.message).toContain("- CSV or XLSX?");
+    expect(first.outcome === "stopped" && first.message).not.toContain("Revision:");
     const session = (await stateOf(e)).sessions.planner;
 
     const result = await e.pipeline.feedback(ISSUE, "plan", "CSV only, please.");
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    expect(result.outcome === "stopped" && result.message).toContain(
+      "Plan ready: Add a CSV export, no XLSX\nRevision: Dropped the XLSX option."
+    );
+    expect(await artifact(e, "plan.md")).toContain("## Revision\nDropped the XLSX option.");
     const state = await stateOf(e);
     expect(state.stage).toBe("plan-gate");
     expect(state.pendingFeedback).toBeNull();
@@ -245,6 +252,7 @@ describe("pipeline runner: plan gate", () => {
     expect(second?.resumeSessionId).toBe(session);
     expect(second?.prompt).toContain("CSV only, please.");
     expect(second?.prompt).toContain("Your previous plan:");
+    expect(second?.prompt).toContain("say in `revision` what changed");
   });
 
   it("renames the branch when the planner picks another type or slug", async () => {

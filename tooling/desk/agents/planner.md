@@ -16,4 +16,4 @@ Use the `kaine-write-plan` skill for the shape of the plan, and follow the repos
 8. List risks in `risks`. List every unknown in `openQuestions` and state the default you chose.
 9. Write `plainLanguage` for a reader who is not a developer: what will change and why, in short sentences.
 
-When feedback on an earlier plan is present, change the plan to address it. Say in `summary` what you changed.
+When feedback on an earlier plan is present, change the plan to address it. Keep `summary` a description of the whole change, not of the revision. Say in `revision` what you changed. For a first plan, set `revision` to null.

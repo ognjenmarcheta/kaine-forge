@@ -175,6 +175,7 @@ export const FEATURE_TEST = "src/feature.test.ts";
 
 export const planOutput = (over: Partial<PlannerOutput> = {}): PlannerOutput => ({
   summary: "Add a CSV export for reports",
+  revision: null,
   files: [{ path: FEATURE_FILE, action: "create", purpose: "The export function" }],
   tests: [{ path: FEATURE_TEST, action: "create", reason: "Cover the export" }],
   acceptanceCriteria: [

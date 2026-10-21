@@ -121,7 +121,13 @@ export type IntakeOutput = z.infer<typeof intakeOutputSchema>;
 
 export const plannerOutputSchema = z
   .object({
+    /** The whole change. A revised plan keeps it whole and puts the revision note in `revision`. */
     summary: nonEmpty,
+    /**
+     * What changed in this revision, or null for a first plan. The default keeps
+     * older `plan.json` artifacts without the field readable.
+     */
+    revision: nonEmpty.nullable().default(null),
     files: z.array(
       z
         .object({

@@ -55,6 +55,15 @@ describe("buildPrBody with the real template", () => {
     expect(body).toContain("Add a CSV export for reports");
   });
 
+  it("starts the summary of a revised plan with the change summary, not the revision note", async () => {
+    const revision = "Revision: one file is added, as the engineer asked.";
+    const { body } = buildPrBody(
+      await inputWith({ plan: planOutput({ summary: "Add a CSV export for reports.", revision }) })
+    );
+    expect(body).toMatch(/## Summary\n\nCloses #42\n\nAdd a CSV export for reports\.\n/);
+    expect(body).not.toContain(revision);
+  });
+
   it("lists the checks from the reports and nothing else", async () => {
     const { body } = buildPrBody(
       await inputWith({
