@@ -81,7 +81,7 @@ const AlertDialogAction = React.forwardRef<
   <AlertDialogPrimitive.Action
     ref={ref}
     className={cn(
-      "inline-flex h-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-200)] bg-[var(--ds-background-danger-bold)] px-4 text-body font-medium text-[color:var(--ds-text-inverse)] transition-colors hover:bg-[var(--ds-background-danger-bold-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] focus-visible:ring-offset-2",
+      "inline-flex h-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-pill)] bg-[var(--ds-background-danger-bold)] px-4 text-body font-medium text-[color:var(--ds-text-inverse)] transition-colors hover:bg-[var(--ds-background-danger-bold-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] focus-visible:ring-offset-2",
       className
     )}
     {...props}
@@ -96,7 +96,7 @@ const AlertDialogCancel = React.forwardRef<
   <AlertDialogPrimitive.Cancel
     ref={ref}
     className={cn(
-      "inline-flex h-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-200)] border border-[var(--ds-border)] bg-[var(--ds-surface)] px-4 text-body font-medium text-[color:var(--ds-text)] transition-colors hover:bg-[var(--ds-background-neutral-subtle-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] focus-visible:ring-offset-2",
+      "inline-flex h-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-pill)] border border-[var(--ds-border)] bg-[var(--ds-surface)] px-4 text-body font-medium text-[color:var(--ds-text)] transition-colors hover:bg-[var(--ds-background-neutral-subtle-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] focus-visible:ring-offset-2",
       className
     )}
     {...props}

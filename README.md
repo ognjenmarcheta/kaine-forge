@@ -4,7 +4,7 @@
 
 <!--
 <p align="center">
-  <img src="media/logo.jpg" width="640" alt="Kaine Forge logo" />
+  <img src="media/logo.png" width="640" alt="Kaine Forge logo" />
 </p>
 -->
 

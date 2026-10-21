@@ -4,6 +4,7 @@ import type { View } from "react-native";
 import { describe, expect, it, vi } from "vitest";
 
 import { Button } from "./button";
+import { motionPressScale } from "../../lib/design-tokens";
 import { motionTest } from "../../test/reanimated.stub";
 
 describe("Button", () => {
@@ -19,10 +20,10 @@ describe("Button", () => {
     expect(ref.current).not.toBeNull();
     await waitFor(() => {
       fireEvent.pointerDown(screen.getByRole("button"));
-      expect(motionTest.calls.at(-1)?.target).toBe(2);
+      expect(motionTest.calls.at(-1)?.target).toBe(motionPressScale);
     });
     fireEvent.pointerUp(screen.getByRole("button"));
-    expect(motionTest.calls.at(-1)?.target).toBe(0);
+    expect(motionTest.calls.at(-1)?.target).toBe(1);
     expect(onPressIn).toHaveBeenCalled();
     expect(onPressOut).toHaveBeenCalledOnce();
     rerender(
@@ -39,8 +40,8 @@ describe("Button", () => {
 
     const button = screen.getByRole("button");
     expect(button.textContent).toBe("Save");
-    expect(button.className).toContain("bg-ds-bg-brand-bold");
-    expect(button.className).toContain("px-4");
+    expect(button.firstElementChild?.className).toContain("bg-ds-bg-brand-bold");
+    expect(button.firstElementChild?.className).toContain("px-4");
   });
 
   it("fires onPress when pressed", () => {
@@ -64,7 +65,7 @@ describe("Button", () => {
     fireEvent.click(button);
 
     expect(onPress).not.toHaveBeenCalled();
-    expect(button.className).toContain("bg-ds-bg-neutral");
+    expect(button.firstElementChild?.className).toContain("bg-ds-bg-neutral");
   });
 
   it("applies appearance and spacing variant classes to button and label", () => {
@@ -76,8 +77,8 @@ describe("Button", () => {
 
     const button = screen.getByRole("button");
     const label = screen.getByText("Delete");
-    expect(button.className).toContain("bg-ds-bg-danger-bold");
-    expect(button.className).toContain("px-3");
+    expect(button.firstElementChild?.className).toContain("bg-ds-bg-danger-bold");
+    expect(button.firstElementChild?.className).toContain("px-3");
     expect(label.className).toContain("text-ds-text-inverse");
     expect(label.className).toContain("text-sm");
   });
