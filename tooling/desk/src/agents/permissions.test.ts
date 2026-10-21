@@ -105,7 +105,10 @@ describe("permissionsFor (claude)", () => {
         "Bash(git status:*)",
         "Bash(git log:*)",
         "Bash(git show:*)",
-        "mcp__serena__find_symbol"
+        "mcp__serena__find_symbol",
+        // Public library docs: AGENTS.md routes third-party API questions here.
+        "mcp__context7__resolve-library-id",
+        "mcp__context7__query-docs"
       ])
     );
     for (const forbidden of ["Edit", "Write"]) expect(allow).not.toContain(forbidden);
@@ -162,14 +165,16 @@ describe("permissionsFor (claude)", () => {
         "Bash(pnpm --filter @repo/desk test:*)",
         // Through turbo, `test` builds the workspace's dependencies first (^build).
         "Bash(pnpm turbo run test --filter=@repo/api:*)",
-        "Bash(pnpm turbo run typecheck --filter=@repo/desk:*)"
+        "Bash(pnpm turbo run typecheck --filter=@repo/desk:*)",
+        // One test file, for the red-first loop. Only vitest, never any other exec.
+        "Bash(pnpm --filter @repo/api exec vitest run:*)"
       ])
     );
     const pnpm = allow.filter((rule) => rule.startsWith("Bash(pnpm"));
-    expect(pnpm).toHaveLength(13);
+    expect(pnpm).toHaveLength(15);
     for (const rule of pnpm.filter((entry) => entry.includes("--filter"))) {
       expect(rule).toMatch(
-        /^Bash\(pnpm (--filter @repo\/(api|desk) (test|typecheck|lint)|turbo run (test|typecheck|lint) --filter=@repo\/(api|desk)):\*\)$/
+        /^Bash\(pnpm (--filter @repo\/(api|desk) (test|typecheck|lint|exec vitest run)|turbo run (test|typecheck|lint) --filter=@repo\/(api|desk)):\*\)$/
       );
     }
     for (const unsafe of ["pnpm exec", "pnpm dlx", "pnpm run", "pnpm install", "pnpm test"]) {

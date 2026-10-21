@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -219,6 +219,28 @@ describe("review loop", () => {
     expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     expect(await reasonOf(e)).toContain("blocking findings outside the diff");
     expect(await stateOf(e)).toMatchObject({ resumeStage: "review", loops: { review: 0 } });
+  });
+
+  it("starts a review only with a passing check report for the current diff", async () => {
+    const outside = reviewOutput({
+      verdict: "changes-requested",
+      findings: [critical({ file: "src/other.ts", line: 9 })]
+    });
+    const e = await open({ steps: [planStep(), buildStep(), reviewStep(outside)] });
+    await toBuild(e);
+    expect(await stateOf(e)).toMatchObject({ stage: "needs-you", resumeStage: "review" });
+    const worktree = (await stateOf(e)).worktreePath ?? "";
+
+    // The diff changed after the checks ran: the report no longer describes it.
+    await writeFile(path.join(worktree, FEATURE_FILE), "export const changedLater = 1;\n");
+    expect(await e.pipeline.continueFrom(ISSUE)).toMatchObject({ stop: "needs-you" });
+    expect(await reasonOf(e)).toContain("check report");
+    expect(await reasonOf(e)).toContain(`continue ${ISSUE} --from check`);
+
+    // No report at all, for example after `continue --from review` on a fresh state.
+    await rm(path.join(e.store.artifactsDir(ISSUE), "check-report.json"));
+    expect(await e.pipeline.continueFrom(ISSUE, "review")).toMatchObject({ stop: "needs-you" });
+    expect(await reasonOf(e)).toContain("check report");
   });
 
   it("asks for changes when the verdict says so even without a blocking finding", async () => {
