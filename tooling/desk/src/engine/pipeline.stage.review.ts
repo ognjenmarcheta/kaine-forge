@@ -1,6 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
 
+import { CHECK_REPORT_FILE, checkReportSchema } from "../check";
 import {
   reviewFindingSchema,
   reviewerOutputSchema,
@@ -9,7 +10,13 @@ import {
 } from "../contracts";
 import { diffAgainstBase } from "../git";
 import { runAgentStage } from "./pipeline.agent";
-import { ARTIFACTS, readPlan, writeArtifactJson, writeArtifactText } from "./pipeline.artifacts";
+import {
+  ARTIFACTS,
+  readArtifactJson,
+  readPlan,
+  writeArtifactJson,
+  writeArtifactText
+} from "./pipeline.artifacts";
 import { recordCheckoutLessons, reviewLessons } from "./pipeline.lessons";
 import { locateFindings } from "./pipeline.review-locations";
 import type { StageHandler } from "./pipeline.types";
@@ -82,6 +89,18 @@ export const reviewStage: StageHandler = async (context) => {
   }
   if (diff.patch.trim() === "") {
     return { kind: "needs-you", reason: "There is no change to review. Continue from build." };
+  }
+  // The reviewer reads the check results instead of running checks, so they must describe this diff.
+  const checks = await readArtifactJson(context.artifactsDir, CHECK_REPORT_FILE, checkReportSchema);
+  if (checks.status !== "ok" || !checks.value.passed || checks.value.diffHash !== diff.diffHash) {
+    return {
+      kind: "needs-you",
+      reason: `Review needs a passing check report for the current diff, and ${
+        checks.status === "ok"
+          ? "check-report.json is for another diff or failed"
+          : `check-report.json is ${checks.status}`
+      }. Run the checks again: pnpm desk continue ${context.issue} --from check`
+    };
   }
   await writeArtifactText(context.artifactsDir, ARTIFACTS.diff, diff.patch);
 
