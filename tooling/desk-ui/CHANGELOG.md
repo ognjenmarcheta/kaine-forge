@@ -1,5 +1,13 @@
 # @repo/desk-ui
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [6a30ea3]
+  - @repo/desk@0.3.0
+  - @repo/translation@1.7.0
+
 ## 0.2.0
 
 ### Minor Changes
