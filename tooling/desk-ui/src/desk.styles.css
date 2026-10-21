@@ -1170,7 +1170,7 @@ main:focus {
   background: var(--ds-surface-raised);
   border: var(--ds-border-width) solid var(--ds-border);
   border-inline-start: var(--ds-border-width-thick) solid var(--tone-border);
-  border-radius: var(--ds-radius-pill);
+  border-radius: var(--ds-radius-100);
   font: var(--ds-font-body);
   cursor: pointer;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);

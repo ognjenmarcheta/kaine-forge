@@ -1124,7 +1124,7 @@ body {
   align-items: center;
   background: var(--ds-surface);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-100);
+  border-radius: var(--ds-radius-050);
   color: var(--ds-text-brand-inverse);
   cursor: pointer;
   display: inline-flex;
