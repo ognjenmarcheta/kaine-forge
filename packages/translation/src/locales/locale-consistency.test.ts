@@ -74,6 +74,10 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.inspector.severityCount",
     "desk.json:desk.inspector.stateLabel",
     "desk.json:desk.inspector.kpi.empty",
+    "desk.json:desk.trace.kind.agent",
+    "desk.json:desk.trace.kind.script",
+    "desk.json:desk.trace.costNone",
+    "desk.json:desk.handoff.step",
 
     "common.json:common.appName",
     "common.json:common.notAvailable",
@@ -134,6 +138,9 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.inspector.severityCount",
     "desk.json:desk.inspector.stateLabel",
     "desk.json:desk.inspector.kpi.empty",
+    "desk.json:desk.trace.kind.agent",
+    "desk.json:desk.trace.costNone",
+    "desk.json:desk.handoff.step",
 
     "common.json:common.appName",
     "common.json:common.emailLabel",

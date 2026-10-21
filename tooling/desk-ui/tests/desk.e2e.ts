@@ -71,7 +71,11 @@ const row = (page: Page, issue: number) =>
   page
     .getByRole("listitem")
     .filter({ has: page.getByRole("link", { name: new RegExp(`^#${String(issue)} `) }) });
-const inspector = (page: Page) => page.getByRole("complementary");
+/** The stage side sheet: the one dialog that is not modal. */
+const sheet = (page: Page) => page.locator('[role="dialog"][aria-modal="false"]');
+/** A stage of the stepper under the issue header. */
+const stage = (page: Page, name: RegExp) =>
+  page.getByRole("list", { name: "Stages and their status" }).getByRole("button", { name });
 const more = async (page: Page, item: string) => {
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: item }).click();
@@ -242,7 +246,7 @@ test("opens the plain local URL in a second browser without a launch token", asy
   await other.close();
 });
 
-test("opens an issue: the inspector shows the current stage beside a graph that fits", async ({
+test("opens an issue: the stepper opens a stage in the side sheet, and the graph fits", async ({
   page,
   desk
 }) => {
@@ -252,8 +256,12 @@ test("opens an issue: the inspector shows the current stage beside a graph that 
   await expect(
     page.getByRole("heading", { name: /#102 Explain the review verdict/, level: 1 })
   ).toBeVisible();
-  await expect(inspector(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
-  await expect(inspector(page).getByRole("list", { name: "Ship readiness" })).toBeVisible();
+  await expect(sheet(page)).toHaveCount(0);
+  await stage(page, /^PR review/).click();
+  await expect(sheet(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("list", { name: "Ship readiness" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
 
   // The graph opens from the More menu; the stepper under the header is always there.
   await expect(page.getByRole("group", { name: "Pipeline graph" })).toHaveCount(0);
@@ -359,13 +367,13 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await graph.getByRole("group", { name: /^Check: / }).click();
-  await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
-  await expect(inspector(page)).toContainText("Check went back 1×");
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  await expect(sheet(page)).toContainText("Check went back 1×");
 
   await graph.getByRole("group", { name: /^Plan: / }).focus();
   await page.keyboard.press("Enter");
-  await expect(inspector(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
-  await expect(inspector(page).getByRole("list", { name: "Acceptance criteria" })).toContainText(
+  await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("list", { name: "Acceptance criteria" })).toContainText(
     "An empty board explains how to start an issue"
   );
 
@@ -377,50 +385,80 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   await page.waitForTimeout(300);
   expect(await viewport.getAttribute("style")).toBe(zoomed);
   // The selection persists while new data arrives.
-  await expect(inspector(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
 });
 
-test("opens the full result of a stage in a drawer, with markup in the ticket kept as text", async ({
+test("the side sheet holds a stage and its full result, steps with ← and →, and Esc closes it", async ({
   page,
   desk
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await desk.open({}, "?issue=102");
-  await more(page, "Show graph");
-  const graph = page.getByRole("group", { name: "Pipeline graph" });
-  await graph.getByRole("group", { name: /^Ticket: / }).click();
-  const open = inspector(page).getByRole("button", { name: "Open full result" });
-  await open.click();
-  const drawer = page.getByRole("dialog", { name: "Ticket" });
-  await expect(drawer).toContainText("<script>window.injected = true</script>");
-  await expect(drawer).toContainText("6 of 6 sections");
+  const ticket = stage(page, /^Ticket/);
+  await ticket.click();
+  const opened = sheet(page);
+  await expect(opened).toHaveAttribute("aria-modal", "false");
+  await expect(opened.getByRole("heading", { name: "Ticket", level: 2 })).toBeVisible();
+  await expect(opened).toContainText("Stage 1 of 9");
+  await expect(opened.getByRole("button", { name: "Previous stage" })).toBeDisabled();
+  await expect(opened).toContainText("<script>window.injected = true</script>");
+  await expect(opened).toContainText("6 of 6 sections");
   expect(await page.evaluate(() => "injected" in window)).toBe(false);
-  await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  await expect(open).toBeFocused();
+  await expect(ticket).toHaveAttribute("aria-pressed", "true");
 
-  await graph.getByRole("group", { name: /^Check: / }).click();
-  await open.click();
-  await expect(page.getByRole("dialog", { name: "Check" })).toContainText("Tasks: 6 successful");
-  await page.keyboard.press("Escape");
+  // From 1200 px the page makes room: the sheet starts below the top bar and covers nothing.
+  const box = await opened.boundingBox();
+  const main = await page.locator("main").boundingBox();
+  const masthead = await page.locator(".desk-masthead").boundingBox();
+  expect(box).not.toBeNull();
+  if (box !== null && main !== null && masthead !== null) {
+    expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
+    expect(box.y).toBeGreaterThanOrEqual(masthead.y + masthead.height - 1);
+    expect(box.y + box.height).toBeCloseTo(900, 0);
+  }
 
-  await graph.getByRole("group", { name: /^PR review: / }).click();
-  await open.click();
-  const review = page.getByRole("dialog", { name: "PR review" });
-  await expect(review).toContainText("The heading level jumps from h1 to h3.");
-  await expect(review).toContainText("apps/web/src/board.empty.tsx:14");
-  await expect(review).toContainText("Files: 2, lines added: 4, removed: 1");
+  // → and ← step through the stages; the buttons do the same.
+  await stage(page, /^Check/).click();
+  await expect(opened).toContainText("Tasks: 6 successful");
+  await page.keyboard.press("ArrowRight");
+  await expect(opened.getByRole("heading", { name: "Review", level: 2 })).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(opened.getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  await expect(opened).toContainText("The heading level jumps from h1 to h3.");
+  await expect(opened).toContainText("apps/web/src/board.empty.tsx:14");
+  await expect(opened).toContainText("Files: 2, lines added: 4, removed: 1");
+  await opened.getByRole("button", { name: "Previous stage" }).click();
+  await expect(opened.getByRole("heading", { name: "Review", level: 2 })).toBeVisible();
+
+  // Esc closes the sheet and focus goes back to where it opened.
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(ticket).toBeFocused();
 });
 
-test("shows the history as activity rows, newest first, with loop rounds", async ({
+test("shows the history as a trace of steps, every event on demand, and the handoffs", async ({
   page,
   desk
 }) => {
   await desk.open({}, "?issue=102");
-  await expect(page.getByRole("tab", { name: "Activity" })).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
+  // An issue that waits at a gate keeps its history folded, with a one-line summary.
+  const history = page.getByRole("region", { name: "History" });
+  await expect(history).toContainText("went back or stopped: 1");
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveCount(0);
+  await history.getByRole("button", { name: "Show" }).click();
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveAttribute("aria-selected", "true");
+  const steps = page.getByRole("list", { name: "Steps of this issue, newest first" });
+  const newest = steps.locator(":scope > li").first();
+  await expect(newest).toContainText("PR review");
+  await expect(newest).toContainText("Waiting for you");
+  await expect(steps).toContainText("Check · round 2");
+  await expect(steps).toContainText("Went back");
+  const handoffs = page.getByRole("region", { name: "Handoffs across the run" });
+  await expect(handoffs.getByRole("listitem").first()).toContainText("Intake");
+  await expect(handoffs).toContainText("Planner");
+  await expect(handoffs).toContainText("Reviewer");
+
+  await page.getByRole("checkbox", { name: "Show every event" }).check();
   const activity = page.getByRole("list", { name: "History of this issue" });
   await expect(activity.getByRole("heading", { level: 3 }).first()).toHaveText("Review");
   await expect(activity).toContainText("Check · round 2");
@@ -436,17 +474,15 @@ test("approves a plan and follows the issue to the next gate without a reload", 
   await page.clock.install();
   await desk.open({}, "?issue=101");
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
-  await expect(
-    inspector(page).getByRole("heading", { name: "Plan approval", level: 2 })
-  ).toBeVisible();
+  await expect(stage(page, /^Plan approval/)).toHaveAttribute("aria-current", "step");
   await decide(page, "Approve the plan").getByRole("button", { name: "Approve plan" }).click();
   await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
   expect(await desk.calls()).toEqual([]);
   await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   await expect(page.getByText(/^#101 · Plan approved\./)).toBeVisible();
-  // The inspector follows the issue to its new stage.
-  await expect(inspector(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  // The stepper follows the issue to its new stage.
+  await expect(stage(page, /^PR review/)).toHaveAttribute("aria-current", "step");
   expect(await desk.calls()).toEqual([{ issue: 101, action: "approve", payload: {} }]);
 });
 
@@ -604,9 +640,11 @@ test("continues an issue that needs the engineer", async ({ page, desk }) => {
   );
   // The likely cause comes from facts: the builder's last run got stuck.
   await expect(page.getByText("Likely cause: the agent got stuck")).toBeVisible();
-  await expect(inspector(page)).toContainText(
+  await stage(page, /^Build/).click();
+  await expect(sheet(page)).toContainText(
     "Needs you: Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
   );
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("combobox", { name: "Resume from" })).toContainText(
     "Build (the engine remembers it)"
   );
@@ -614,6 +652,40 @@ test("continues an issue that needs the engineer", async ({ page, desk }) => {
   await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   expect(await desk.calls()).toEqual([{ issue: 103, action: "continue", payload: { from: null } }]);
+});
+
+test("the incident jumps to the failure in the trace, and the filters narrow the steps", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=103");
+  // An issue that needs you opens its history at the trace.
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveAttribute("aria-selected", "true");
+  const steps = page.getByRole("list", { name: "Steps of this issue, newest first" });
+  // The rows, not the log lines inside an open row.
+  const rows = steps.locator(":scope > li");
+  await expect(rows).toHaveCount(8);
+  await desk.log(103, "FAIL apps/web/src/board.test.tsx again");
+
+  await page.getByRole("button", { name: "See it in the trace" }).click();
+  const failure = steps.getByRole("button", { name: /Needs you/ });
+  await expect(failure).toBeFocused();
+  await expect(failure).toHaveAttribute("aria-expanded", "true");
+  await expect(rows.first()).toContainText("FAIL apps/web/src/board.test.tsx again");
+
+  const filters = page.getByRole("group", { name: "Filter the trace" });
+  await filters.getByRole("button", { name: "Agents only" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(steps).not.toContainText("Needs you");
+  await filters.getByRole("button", { name: "Problems (3)" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(rows.last()).toContainText("Check");
+
+  // Jump from the trace, then inspect the stage the failure stopped in.
+  await page.getByRole("button", { name: "Jump to the failure" }).click();
+  await expect(failure).toBeFocused();
+  await steps.getByRole("button", { name: "Inspect this stage" }).click();
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
 });
 
 test("cancels from the More menu only after a confirmation", async ({ page, desk }) => {
@@ -743,10 +815,8 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
     .getByRole("list", { name: "Stages and their status" })
     .getByRole("button", { name: /^Build/ })
     .click();
-  await expect(
-    inspector(page).getByRole("heading", { name: "Agent usage, all runs" })
-  ).toBeVisible();
-  await expect(inspector(page).getByText("$1.25")).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Agent usage, all runs" })).toBeVisible();
+  await expect(sheet(page).getByText("$1.25").first()).toBeVisible();
 });
 
 test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
@@ -945,9 +1015,12 @@ test("on a phone the decision's buttons are a bar at the bottom, and the page en
   await expect(page.getByLabel("Reason from the engine")).toBeInViewport();
   const resume = page.getByRole("combobox", { name: "Resume from" });
 
-  // The stepper selects a stage for the inspector; the decision stays.
+  // On a phone the stage opens over the whole screen; Esc gives the decision back.
   await stepper.getByRole("button", { name: /^Check/ }).click();
-  await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  expect(await sheet(page).boundingBox()).toMatchObject({ x: 0, y: 0, width: 375, height: 800 });
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
 
   // Continue uses the stage chosen above, and focus moves to the next decision.
   await resume.click();
@@ -970,7 +1043,7 @@ test("on a phone the decision's buttons are a bar at the bottom, and the page en
   expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(130);
   // The end of the page scrolls above the bar, not under it.
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const end = await inspector(page).boundingBox();
+  const end = await page.getByRole("region", { name: "History" }).boundingBox();
   const fixedBar = await bar.boundingBox();
   expect((end?.y ?? 0) + (end?.height ?? 0)).toBeLessThanOrEqual(fixedBar?.y ?? 0);
 

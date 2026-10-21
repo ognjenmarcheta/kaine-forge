@@ -49,6 +49,9 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
 /** True for an event the page has words for (`desk.activity.event.<name>`). */
 export const isKnownEvent = (event: string): boolean => Object.hasOwn(EVENT_OUTCOME, event);
 
+/** What an event did. An event the page has no words for is a note. */
+export const eventOutcome = (event: string): Outcome => EVENT_OUTCOME[event] ?? "info";
+
 const NODE_OF_STAGE: Readonly<Record<Stage, FlowNodeId | null>> = {
   intake: "ticket",
   setup: "ticket",
@@ -122,7 +125,7 @@ export function activityGroups(
           : null
         : elapsed(event.at, Date.parse(next.at)),
       ongoing: last && running,
-      outcome: EVENT_OUTCOME[event.event] ?? "info"
+      outcome: eventOutcome(event.event)
     };
     const node = NODE_OF_STAGE[event.stage];
     const groupKey = node ?? event.stage;

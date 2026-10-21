@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
+import { TRACE_FILTERS } from "../issue/issue.trace";
 import { THEMES } from "../shell/shell.preferences";
 import { CHIP_STATES } from "../status/status.model";
 
@@ -123,7 +124,9 @@ describe("desk translations", () => {
       "desk.palette.section.": ["here", "recent", "turn", "goto", "issues"],
       "desk.incident.cause.": [...RUN_FAILURE_KINDS, "repeat"],
       "desk.diff.group.": FILE_GROUPS,
-      "desk.record.": PLAN_RISKS
+      "desk.record.": PLAN_RISKS,
+      "desk.trace.filter.": TRACE_FILTERS,
+      "desk.trace.kind.": NODE_KINDS
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

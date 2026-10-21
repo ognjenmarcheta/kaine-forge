@@ -38,6 +38,7 @@ export interface IssueHeaderProps {
   /** `undefined` while the detail loads: the stepper and the cost wait for it. */
   readonly detail: IssueDetail | undefined;
   readonly flow: FlowModel | undefined;
+  /** The stage open in the side sheet, or `null`. */
   readonly selected: FlowNodeId | null;
   readonly onSelect: (id: FlowNodeId) => void;
   readonly graphOpen: boolean;
@@ -269,7 +270,7 @@ export function IssueHeader({
           </span>
         )}
       </p>
-      {flow !== undefined && selected !== null && (
+      {flow !== undefined && (
         <FlowStepper
           model={flow}
           selected={selected}

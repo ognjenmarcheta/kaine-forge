@@ -25,7 +25,8 @@ export function FlowLegend() {
 
 export interface FlowStepperProps {
   readonly model: FlowModel;
-  readonly selected: FlowNodeId;
+  /** The stage open in the side sheet, or `null`. */
+  readonly selected: FlowNodeId | null;
   readonly onSelect: (id: FlowNodeId) => void;
   readonly needsYouReason: string | null;
 }

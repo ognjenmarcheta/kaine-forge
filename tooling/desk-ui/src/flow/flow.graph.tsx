@@ -62,7 +62,8 @@ const nodeOfEvent = (model: FlowModel, target: EventTarget): FlowNodeId | undefi
 
 export interface FlowGraphProps {
   readonly model: FlowModel;
-  readonly selected: FlowNodeId;
+  /** The stage open in the side sheet, or `null`. */
+  readonly selected: FlowNodeId | null;
   readonly onSelect: (id: FlowNodeId) => void;
   /** The full needs-you reason, for the tooltip of the stopped node. */
   readonly needsYouReason: string | null;

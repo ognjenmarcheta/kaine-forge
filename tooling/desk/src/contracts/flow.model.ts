@@ -188,7 +188,8 @@ const NODE_ROLES: Readonly<Record<FlowNodeId, AgentStageRole | null>> = {
   "pr-open": null
 };
 
-const nodeOfStage = (stage: Stage | null | undefined): FlowNodeId | null =>
+/** The flow node of a stage, or `null` for a stop (`needs-you`, `cancelled`). */
+export const nodeOfStage = (stage: Stage | null | undefined): FlowNodeId | null =>
   stage === null || stage === undefined
     ? null
     : (FLOW_NODE_IDS.find((id) => NODE_STAGES[id].includes(stage)) ?? null);
@@ -253,7 +254,8 @@ const isRunStart = (node: FlowNodeId, event: HistoryEvent): boolean => {
   }
 };
 
-const arrivalNode = (event: HistoryEvent): FlowNodeId | null => {
+/** The flow node a history event starts a run of (or, for a gate, arrives at), or `null`. */
+export const arrivalNode = (event: HistoryEvent): FlowNodeId | null => {
   if (isIntakeStart(event)) return "ticket";
   return FLOW_NODE_IDS.find((id) => isRunStart(id, event)) ?? null;
 };

@@ -598,6 +598,9 @@ small {
 }
 
 main {
+  /* The stage side sheet's width, and the room the page makes for it on a wide screen. */
+  --desk-sheet-width: 30rem;
+
   flex: 1;
   width: 100%;
   max-width: 96rem;
@@ -1994,14 +1997,7 @@ main:focus {
   text-decoration: underline;
 }
 
-/* The decision and the history on the left, the selected stage on the right from 72 rem. */
-.desk-issue-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ds-space-250);
-  align-items: start;
-}
-
+/* The decision and the history. A stage opens in a side sheet beside them. */
 .desk-issue-main {
   display: grid;
   gap: var(--ds-space-250);
@@ -2015,18 +2011,6 @@ main:focus {
 
 .desk-history:focus {
   outline: none;
-}
-
-@media (min-width: 72rem) {
-  .desk-issue-cols {
-    grid-template-columns: minmax(0, 1fr) 22.5rem;
-  }
-
-  .desk-issue-cols > .desk-inspector {
-    position: sticky;
-    inset-block-start: var(--ds-space-200);
-    max-height: calc(100dvh - var(--ds-space-400));
-  }
 }
 
 .desk-panel__head h2 {
@@ -2164,77 +2148,6 @@ main:focus {
 
 /* ── Inspector ────────────────────────────────────────────────────────── */
 
-.desk-inspector {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-250);
-}
-
-.desk-inspector--loading {
-  display: grid;
-  gap: var(--ds-space-200);
-  padding: var(--ds-space-200);
-}
-
-.desk-inspector__body {
-  display: grid;
-  gap: var(--ds-space-200);
-  align-content: start;
-  min-height: 0;
-  padding: var(--ds-space-200);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.desk-inspector__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-100);
-}
-
-.desk-eyebrow {
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-xsmall);
-  font-weight: var(--ds-font-weight-semibold);
-  text-transform: uppercase;
-}
-
-.desk-inspector__select {
-  width: auto;
-  min-width: 9rem;
-}
-
-.desk-inspector__head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ds-space-150);
-}
-
-.desk-inspector__icon {
-  width: var(--ds-control-large);
-  height: var(--ds-control-large);
-}
-
-.desk-inspector__icon .desk-icon {
-  width: var(--ds-space-250);
-  height: var(--ds-space-250);
-}
-
-.desk-inspector__name h2 {
-  margin: 0;
-  font: var(--ds-font-heading-small);
-}
-
-.desk-inspector__name p {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
-
 .desk-inspector__section h3 {
   margin: 0 0 var(--ds-space-100);
   color: var(--ds-text-subtle);
@@ -2251,11 +2164,6 @@ main:focus {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-075);
-}
-
-.desk-inspector__open {
-  justify-self: start;
-  gap: var(--ds-space-100);
 }
 
 /* Two tiles a row, each the same height, so a value that loads or ticks moves nothing. */
@@ -3307,10 +3215,6 @@ main:focus {
   height: var(--ds-space-400);
 }
 
-.desk-skeleton--tiles {
-  height: 9rem;
-}
-
 .desk-skeleton--block {
   height: 6rem;
 }
@@ -3360,22 +3264,6 @@ main:focus {
   border-radius: var(--ds-radius-100);
 }
 
-.desk-drawer {
-  width: min(100%, 44rem) !important;
-  max-width: none !important;
-  overflow: hidden;
-}
-
-.desk-drawer__status {
-  color: var(--tone-fg);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-drawer__body {
-  padding: 0 var(--ds-space-200) var(--ds-space-300);
-  overflow: auto;
-}
-
 /* ── Log ──────────────────────────────────────────────────────────────── */
 
 .desk-log {
@@ -3410,6 +3298,460 @@ main:focus {
   position: absolute;
   inset-inline-end: var(--ds-space-200);
   inset-block-end: var(--ds-space-150);
+}
+
+/* ── History: one line of summary, then the trace and the live log ──────── */
+
+.desk-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ds-space-050) var(--ds-space-150);
+}
+
+.desk-history__head h2 {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+}
+
+.desk-history__summary {
+  flex: 1 1 16rem;
+  min-width: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-history__toggle.ui-button {
+  margin-inline-start: auto;
+}
+
+.desk-history__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100) var(--ds-space-200);
+  margin-block-start: var(--ds-space-150);
+}
+
+.desk-history__bar .desk-tabs__list {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.desk-history__every {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+/* ── Trace: each step on one time axis, newest first ─────────────────────── */
+
+.desk-trace {
+  display: grid;
+  gap: var(--ds-space-150);
+}
+
+.desk-trace__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-100);
+}
+
+.desk-trace__top .desk-seg__item.ui-button {
+  padding: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
+  font: var(--ds-font-body-small);
+}
+
+/* Name, bar, duration, cost, outcome: the axis above shares the first two columns. */
+.desk-trace__axis,
+.desk-trace__row {
+  display: grid;
+  grid-template-columns: minmax(13.75rem, 18.75rem) minmax(0, 1fr) 6rem 3.5rem 7rem;
+  gap: var(--ds-space-100) calc(var(--ds-space-100) + var(--ds-space-025));
+  align-items: center;
+}
+
+.desk-trace__axis {
+  padding-inline: var(--ds-space-150);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-code-small);
+}
+
+.desk-trace__ticks {
+  display: flex;
+  justify-content: space-between;
+  padding-inline: var(--ds-space-050);
+}
+
+.desk-trace__steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-trace__step {
+  background: var(--ds-surface);
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-trace__step:last-child {
+  border-block-end: 0;
+}
+
+.desk-trace__step[data-problem="true"] {
+  background: color-mix(in srgb, var(--ds-background-warning) 50%, var(--ds-surface));
+}
+
+/* The step a jump brought into view. */
+.desk-trace__step[data-highlight="true"] {
+  box-shadow: inset var(--ds-border-width-focused) 0 0 var(--ds-border-brand);
+}
+
+.desk-trace__row {
+  padding: var(--ds-space-100) var(--ds-space-150);
+}
+
+.desk-trace__name.ui-button {
+  justify-content: flex-start;
+  gap: var(--ds-space-100);
+  min-width: 0;
+  height: auto;
+  min-height: var(--ds-control-small);
+  padding: 0;
+  color: var(--ds-text);
+  text-align: start;
+}
+
+.desk-trace__caret {
+  color: var(--ds-text-subtle);
+  transition: transform var(--ds-motion-control) var(--ds-motion-easing);
+}
+
+.desk-trace__name[aria-expanded="true"] .desk-trace__caret {
+  transform: rotate(90deg);
+}
+
+.desk-trace__kind {
+  flex: none;
+  padding: 0 var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-050);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+
+.desk-trace__kind[data-kind="agent"] {
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+}
+
+.desk-trace__kind[data-kind="human"],
+.desk-trace__kind[data-kind="stop"] {
+  color: var(--ds-text-warning);
+  background: var(--ds-background-warning);
+}
+
+.desk-trace__stage {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-trace__track {
+  display: block;
+  width: 100%;
+  height: var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-050);
+}
+
+.desk-trace__bar[data-bar="ok"] {
+  fill: var(--ds-background-success-bold);
+}
+
+.desk-trace__bar[data-bar="run"] {
+  fill: var(--ds-background-information-bold);
+}
+
+.desk-trace__bar[data-bar="back"] {
+  fill: var(--ds-background-warning-bold);
+}
+
+.desk-trace__bar[data-bar="stop"] {
+  fill: var(--ds-background-danger-bold);
+}
+
+/* Waiting on you: hatched in the pattern's own fill, with a solid edge. */
+.desk-trace__bar[data-bar="wait"] {
+  stroke: var(--ds-border-warning);
+  stroke-width: 1;
+}
+
+.desk-trace__hatch {
+  fill: var(--ds-border-warning);
+}
+
+.desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"] {
+  animation: desk-breathe 1.6s var(--ds-motion-easing) infinite;
+}
+
+.desk-trace__metric {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.desk-trace__outcome {
+  justify-self: end;
+}
+
+.desk-trace__lines {
+  display: grid;
+  gap: var(--ds-space-100);
+  padding: 0 var(--ds-space-150) var(--ds-space-150);
+}
+
+.desk-trace__log {
+  display: grid;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  font: var(--ds-font-code-small);
+}
+
+.desk-trace__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+  padding-block: var(--ds-space-050);
+  border-block-end: var(--ds-border-width) dashed var(--ds-border);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.desk-trace__line > span:first-of-type {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.desk-trace__line[data-kind="history"] > span:first-of-type {
+  color: var(--ds-text-information);
+}
+
+.desk-trace__bytime {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-trace__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  font: var(--ds-font-body-small);
+}
+
+.desk-trace__note {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+@media (max-width: 56rem) {
+  .desk-trace__axis {
+    display: none;
+  }
+
+  .desk-trace__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .desk-trace__track,
+  .desk-trace__metric {
+    display: none;
+  }
+}
+
+@keyframes desk-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── Handoffs: who handed the work to whom ───────────────────────────────── */
+
+.desk-handoffs {
+  margin-block-start: var(--ds-space-250);
+}
+
+.desk-handoffs h3 {
+  margin: 0 0 var(--ds-space-100);
+  font: var(--ds-font-heading-xsmall);
+}
+
+.desk-handoffs__chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--ds-space-075);
+  margin: 0 0 var(--ds-space-100);
+  padding: 0;
+  list-style: none;
+}
+
+.desk-handoffs__hop {
+  display: grid;
+  flex: 1 1 7.5rem;
+  gap: var(--ds-space-025);
+  min-width: 0;
+  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-150);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-handoffs__hop b {
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-handoffs__hop span {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-handoffs__hop[data-problem="true"] {
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) dashed var(--ds-border-danger);
+}
+
+.desk-handoffs__hop[data-problem="true"] span {
+  color: var(--ds-text-danger);
+}
+
+.desk-handoffs__hop[data-live="true"] {
+  border-color: var(--ds-border-strong);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
+}
+
+/* ── Stage side sheet: beside the page, never over the decision ──────────── */
+
+/*
+ * The sheet starts below the masthead. The sheet measures the masthead and sets
+ * `--desk-masthead`; the fallback here is the top bar's padding, its search control, and its
+ * border. From 75 rem the page makes room; on a phone the sheet is the whole screen.
+ */
+.desk-sheet {
+  --desk-masthead: calc(
+    var(--ds-space-200) + var(--ds-space-050) + var(--ds-control-medium) + var(--ds-space-050) +
+      var(--ds-border-width)
+  );
+
+  position: fixed;
+  inset-block: var(--desk-masthead) 0;
+  inset-inline-end: 0;
+  z-index: 28;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(var(--desk-sheet-width), 100%);
+  background: var(--ds-surface-raised);
+  border-inline-start: var(--ds-border-width) solid var(--ds-border);
+  box-shadow: var(--ds-shadow-overlay);
+}
+
+.desk-sheet:focus {
+  outline: none;
+}
+
+.desk-sheet:focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: calc(var(--ds-border-width-focused) * -1);
+}
+
+.desk-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-050);
+  padding: var(--ds-space-200) var(--ds-space-250);
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-sheet__title {
+  display: grid;
+  flex: 1 1 auto;
+  justify-items: start;
+  gap: var(--ds-space-050);
+  min-width: 0;
+}
+
+.desk-sheet__title h2 {
+  margin: 0;
+  font: var(--ds-font-heading-medium);
+}
+
+.desk-sheet__where {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-sheet__button.ui-button {
+  flex: none;
+  width: var(--ds-control-large);
+  height: var(--ds-control-large);
+  padding: 0;
+}
+
+.desk-icon--back {
+  transform: scaleX(-1);
+}
+
+.desk-sheet__body {
+  display: grid;
+  align-content: start;
+  gap: var(--ds-space-200);
+  padding: var(--ds-space-200) var(--ds-space-250) var(--ds-space-400);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.desk-sheet__sep {
+  margin: var(--ds-space-100) 0 0;
+  padding-block-start: var(--ds-space-200);
+  color: var(--ds-text-subtlest);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+/* The page makes room for the sheet instead of sliding under it. */
+@media (min-width: 75rem) {
+  main:has(.desk-sheet) {
+    width: auto;
+    max-width: none;
+    margin-inline-end: var(--desk-sheet-width);
+  }
+}
+
+@media (max-width: 40rem) {
+  .desk-sheet {
+    inset-block-start: 0;
+    z-index: 60;
+  }
 }
 
 /* ── Flow graph ───────────────────────────────────────────────────────── */
@@ -3523,8 +3865,7 @@ main:focus {
   min-width: 0;
 }
 
-.desk-node__icon,
-.desk-inspector__icon {
+.desk-node__icon {
   display: inline-grid;
   flex: none;
   place-items: center;
@@ -3686,7 +4027,8 @@ main:focus {
   .desk-node[data-status="running"] .desk-node__dot,
   .desk-live[data-connection="reconnecting"] .desk-live__dot,
   .desk-connbar__spin,
-  .desk-side__glyph {
+  .desk-side__glyph,
+  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"] {
     animation: none;
   }
 
@@ -3695,7 +4037,8 @@ main:focus {
   .desk-node,
   .desk-stepper__button,
   .desk-card__actions .ui-button,
-  .desk-tabs__list [role="tab"] {
+  .desk-tabs__list [role="tab"],
+  .desk-trace__caret {
     transition: none;
   }
 
