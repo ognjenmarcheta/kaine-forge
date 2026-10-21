@@ -212,7 +212,7 @@ describe("pipeline runner: setup", () => {
       "--skill",
       "kaine-review,kaine-test,kaine-write-plan",
       "--mcp",
-      "serena",
+      "serena,context7",
       "--serena-interface",
       "tools"
     ]);

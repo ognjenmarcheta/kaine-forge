@@ -107,7 +107,8 @@ export const setupStage: StageHandler = async (context) => {
           worktreeDir,
           agents,
           skills: skillsForRoles(["planner", "builder", "reviewer"]),
-          mcp: ["serena"]
+          // Host roles (planner, reviewer) use both; the Docker builder gets no MCP server.
+          mcp: ["serena", "context7"]
         }
       }
     );

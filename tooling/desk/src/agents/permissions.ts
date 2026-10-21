@@ -107,6 +107,9 @@ const SERENA_READ = [
   "get_current_config"
 ].map((tool) => `mcp__serena__${tool}`);
 
+/** Public library docs. Host runs only: the Docker builder has no MCP server. */
+const CONTEXT7_READ = ["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`);
+
 const SERENA_EDIT = [
   "replace_symbol_body",
   "insert_after_symbol",
@@ -295,7 +298,8 @@ export const permissionsFor = async (
     ...READ_TOOLS,
     ...skills.map((skill) => `Skill(skill:${skill})`),
     ...GIT_READ,
-    ...SERENA_READ
+    ...SERENA_READ,
+    ...CONTEXT7_READ
   ];
   if (role === "builder") {
     allow.push("Edit", "Write", bash("pnpm generate"), ...SERENA_EDIT);
@@ -305,6 +309,8 @@ export const permissionsFor = async (
         // A fresh worktree has no built packages. Turbo's `test` builds the dependencies first.
         allow.push(bash(`pnpm turbo run ${script} --filter=${workspace}`));
       }
+      // One test file for the red-first loop. A workspace `test` script may chain other commands.
+      allow.push(bash(`pnpm --filter ${workspace} exec vitest run`));
     }
     if (skills.includes("kaine-create-feature")) allow.push(bash("pnpm create:feature"));
   }

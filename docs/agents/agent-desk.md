@@ -238,20 +238,20 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 
 ### Stages
 
-| Stage       | Who      | What happens                                                                                                                           |
-| ----------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `intake`    | engine   | Read the issue, prove authorization, write `ticket.md` and `issue.json`.                                                               |
-| `setup`     | engine   | Pick the provisional branch (`fix` for a `bug` label, else `feat`). Run the worktree recipe. Record branch, worktree, and base commit. |
-| `plan`      | planner  | Read-only. Result: `plan.json` and `plan.md`. Open questions show at the gate.                                                         |
-| `plan-gate` | you      | Approve, or send feedback. Feedback resumes the planner session.                                                                       |
-| `build`     | builder  | Resumed session. Gets the plan, feedback, the last check failure, or the last blocking review findings.                                |
-| `check`     | engine   | `pnpm generate`, drift check, then the configured loop checks. One check runs at a time.                                               |
-| `review`    | reviewer | Fresh, read-only session. Reads `diff.patch`. Default provider is the other one than the builder.                                      |
-| `pr-review` | you      | Feedback goes to `build`, `review`, or `plan`. Then `ship`.                                                                            |
-| `ship`      | engine   | Commit, push, and open the draft PR. See "Ship".                                                                                       |
-| `pr-open`   | you      | The draft PR is on GitHub. You merge it there and run `refresh`, or send its feedback back to `build`. See "Open PR".                  |
-| `shipped`   | nobody   | The end: the desk saw the PR merged when you ran `refresh`.                                                                            |
-| `needs-you` | you      | Every failure lands here with a reason and a `resumeStage`.                                                                            |
+| Stage       | Who      | What happens                                                                                                                                   |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `intake`    | engine   | Read the issue, prove authorization, write `ticket.md` and `issue.json`.                                                                       |
+| `setup`     | engine   | Pick the provisional branch (`fix` for a `bug` label, else `feat`). Run the worktree recipe. Record branch, worktree, and base commit.         |
+| `plan`      | planner  | Read-only. Result: `plan.json` and `plan.md`. Open questions show at the gate.                                                                 |
+| `plan-gate` | you      | Approve, or send feedback. Feedback resumes the planner session.                                                                               |
+| `build`     | builder  | Resumed session. Gets the plan, feedback, the last check failure, or the last blocking review findings.                                        |
+| `check`     | engine   | `pnpm generate`, drift check, then the configured loop checks. One check runs at a time.                                                       |
+| `review`    | reviewer | Fresh, read-only session. Reads `diff.patch` and the check results in `check-report.json`. Default provider is the other one than the builder. |
+| `pr-review` | you      | Feedback goes to `build`, `review`, or `plan`. Then `ship`.                                                                                    |
+| `ship`      | engine   | Commit, push, and open the draft PR. See "Ship".                                                                                               |
+| `pr-open`   | you      | The draft PR is on GitHub. You merge it there and run `refresh`, or send its feedback back to `build`. See "Open PR".                          |
+| `shipped`   | nobody   | The end: the desk saw the PR merged when you ran `refresh`.                                                                                    |
+| `needs-you` | you      | Every failure lands here with a reason and a `resumeStage`.                                                                                    |
 
 A check failure goes back to `build` up to `maxTestLoops` times. The same failure twice in
 a row stops early. A review with blocking findings goes back to `build` up to
@@ -973,7 +973,13 @@ every command. The `elevated` sandbox cannot read the worktree or `.git` (codex-
 
 - The first run of an issue is slow: the import, then fetch and install of all dependencies. On
   macOS the volumes live in the Docker VM, and installs and tests are slower than on the host.
-- No MCP server (Serena) in a container: it needs a network or a host tool.
+- No MCP server in a container: it needs a network or a host tool. Setup installs Serena and
+  Context7 into the issue worktree, so host runs (the planner and the reviewer in both modes)
+  can use them. The Docker builder stays offline on purpose (see "Threat model") and reads the
+  installed package types in `node_modules` for library APIs.
+- A Codex role gets no MCP server, on the host too: run with the desk's flags
+  (`--ignore-user-config`), Codex lists none, although the worktree `.codex/config.toml` lists
+  Serena and Context7 (codex-cli 0.154.0). A Claude role gets both.
 - No browser or Playwright in the image. Checks that need a browser fail in a container.
 - The image is about 2 GB (Node, git, a C toolchain for native modules, Claude Code, Codex).
 - Checks run on Linux. A check that passes on macOS can fail in the container, and the other way

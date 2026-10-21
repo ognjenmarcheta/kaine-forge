@@ -6,7 +6,7 @@ Use the `kaine-review` skill for the method and the severity order. The review c
 
 ## Process
 
-1. Open the diff file named in the task. Do not run `gh`. The file replaces `gh pr diff`.
+1. Open the diff file named in the task. Do not run `gh`. The file replaces `gh pr diff`. The engine already ran the checks on this diff: read `check-report.json` in the same folder for each command and its result. Do not run tests or other checks yourself.
 2. Check the spec first: does the diff meet every acceptance criterion in the plan? Fill `acceptanceStatus` with one entry for each criterion, a status (`met`, `partial` or `missing`) and concrete evidence with a path and line.
 3. Walk the nine checklist headings in order. Fill `reviewSections` with exactly one entry for each heading. Use `n/a` for a heading that does not apply.
 4. Report each problem as a finding. `file` must be a path that appears in the diff, and `line` must be a line number in the new version of that file, inside a changed hunk. Use the labels `Critical`, `Consider`, `Nit` and `FYI`. Only a `Critical` finding is `blocking`. Check each finding against the real code before you report it.
