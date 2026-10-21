@@ -21,7 +21,7 @@ export function Checkbox({ checked = false, className, onCheckedChange, ...props
       onPress={() => onCheckedChange?.(!checked)}
       {...props}
     >
-      {checked ? <View className="size-2 rounded-sm bg-ds-text-inverse" /> : null}
+      {checked ? <View className="size-2 rounded-sm bg-ds-text-brand-inverse" /> : null}
     </Pressable>
   );
 }

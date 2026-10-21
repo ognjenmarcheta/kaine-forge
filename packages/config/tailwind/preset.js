@@ -9,7 +9,10 @@ export default {
           subtlest: "var(--ds-text-subtlest)",
           inverse: "var(--ds-text-inverse)",
           disabled: "var(--ds-text-disabled)",
-          brand: "var(--ds-text-brand)",
+          brand: {
+            DEFAULT: "var(--ds-text-brand)",
+            inverse: "var(--ds-text-brand-inverse)"
+          },
           success: "var(--ds-text-success)",
           danger: "var(--ds-text-danger)",
           warning: {
@@ -277,9 +280,9 @@ export default {
         none: "0",
         sm: "var(--ds-radius-050)",
         DEFAULT: "var(--ds-radius-100)",
-        md: "var(--ds-radius-200)",
-        lg: "var(--ds-radius-300)",
-        xl: "var(--ds-radius-400)",
+        md: "var(--ds-radius-100)",
+        lg: "var(--ds-radius-200)",
+        xl: "var(--ds-radius-300)",
         full: "9999px"
       },
       borderColor: {

@@ -11,7 +11,7 @@ import Animated, {
 import { Text } from "./text";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { cn } from "../../lib/cn";
-import { motionDistances, motionDurations, motionEasing } from "../../lib/design-tokens";
+import { motionDurations, motionEasing, motionPressScale } from "../../lib/design-tokens";
 import { buttonTextVariants, buttonVariants } from "../../lib/variants";
 
 export type ButtonProps = Omit<PressableProps, "children"> & {
@@ -38,17 +38,17 @@ export const Button = forwardRef<ElementRef<typeof Pressable>, ButtonProps>(
     ref
   ) => {
     const reducedMotion = useReducedMotion();
-    const offset = useSharedValue(0);
+    const scale = useSharedValue(1);
     useEffect(() => {
       if (disabled || reducedMotion) {
-        cancelAnimation(offset);
-        offset.value = 0;
+        cancelAnimation(scale);
+        scale.value = 1;
       }
-    }, [disabled, reducedMotion, offset]);
-    const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+    }, [disabled, reducedMotion, scale]);
+    const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
     function animatePress(pressed: boolean) {
       if (disabled || reducedMotion) return;
-      offset.value = withTiming(pressed ? motionDistances.press : 0, {
+      scale.value = withTiming(pressed ? motionPressScale : 1, {
         duration: motionDurations.control,
         easing: Easing.bezier(...motionEasing)
       });
@@ -56,11 +56,7 @@ export const Button = forwardRef<ElementRef<typeof Pressable>, ButtonProps>(
     return (
       <Pressable
         ref={ref}
-        className={cn(
-          buttonVariants({ appearance, spacing }),
-          disabled && "bg-ds-bg-neutral",
-          className
-        )}
+        className={cn(className)}
         disabled={disabled}
         {...props}
         style={style}
@@ -73,7 +69,10 @@ export const Button = forwardRef<ElementRef<typeof Pressable>, ButtonProps>(
           onPressOut?.(event);
         }}
       >
-        <Animated.View style={animatedStyle} className="flex-row items-center justify-center">
+        <Animated.View
+          style={animatedStyle}
+          className={cn(buttonVariants({ appearance, spacing }), disabled && "bg-ds-bg-neutral")}
+        >
           {typeof children === "string" ? (
             <Text
               className={cn(

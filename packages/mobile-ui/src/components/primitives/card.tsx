@@ -12,7 +12,7 @@ export function Card({ className, ...props }: CardProps) {
   return (
     <View
       className={cn(
-        "rounded-md border border-ds-border bg-ds-surface p-4 shadow-raised",
+        "rounded-xl border border-ds-border bg-ds-surface p-4 shadow-raised",
         className
       )}
       {...props}
