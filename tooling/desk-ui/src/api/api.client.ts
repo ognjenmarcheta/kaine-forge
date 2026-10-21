@@ -9,6 +9,8 @@ import {
   healthReportSchema,
   issueDetailSchema,
   issueListSchema,
+  lessonIssueCreatedSchema,
+  lessonIssueDraftSchema,
   lessonReportSchema,
   logResponseSchema,
   runStatsSchema,
@@ -21,6 +23,8 @@ import {
   type HealthReport,
   type IssueDetail,
   type IssueSummary,
+  type LessonIssueCreated,
+  type LessonIssueDraft,
   type LessonReport,
   type LogResponse,
   type RunStats
@@ -71,6 +75,14 @@ export interface DeskApi {
   readonly stats: () => Promise<RunStats>;
   /** Problems seen in several issues, from `lessons.jsonl`. */
   readonly lessons: () => Promise<LessonReport>;
+  /** Mark a lesson handled. A second promote replaces the note. */
+  readonly lessonPromote: (key: string, note: string | null) => Promise<LessonReport>;
+  /** Make a promoted lesson a candidate again. */
+  readonly lessonUnpromote: (key: string) => Promise<LessonReport>;
+  /** The exact title and body the desk would send to GitHub for a lesson. */
+  readonly lessonIssuePreview: (key: string) => Promise<LessonIssueDraft>;
+  /** Open the issue of a previewed lesson. Call it only after the owner said yes to that preview. */
+  readonly lessonIssue: (key: string, digest: string) => Promise<LessonIssueCreated>;
   /** Open issues and pull requests. `refresh` asks GitHub again instead of the server's cache. */
   readonly github: (refresh: boolean) => Promise<GithubLists>;
   readonly issues: () => Promise<IssueSummary[]>;
@@ -130,6 +142,23 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     return parsed.data;
   };
 
+  const postJson = async <B, T>(path: string, payload: B, schema: z.ZodType<T>): Promise<T> => {
+    const response = await send(path, {
+      method: "POST",
+      headers: WRITE_HEADERS,
+      body: JSON.stringify(payload)
+    });
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new DeskApiError("invalid-response", response.status, null);
+    }
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) throw new DeskApiError("invalid-response", response.status, null);
+    return parsed.data;
+  };
+
   const issuePath = (issueNumber: number): string => `/api/issues/${String(issueNumber)}`;
 
   return {
@@ -147,6 +176,13 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     health: () => getJson("/api/health", healthReportSchema),
     stats: () => getJson("/api/stats", runStatsSchema),
     lessons: () => getJson("/api/lessons", lessonReportSchema),
+    lessonPromote: (key, note) =>
+      postJson("/api/lessons/promote", note === null ? { key } : { key, note }, lessonReportSchema),
+    lessonUnpromote: (key) => postJson("/api/lessons/unpromote", { key }, lessonReportSchema),
+    lessonIssuePreview: (key) =>
+      getJson(`/api/lessons/issue-preview?key=${encodeURIComponent(key)}`, lessonIssueDraftSchema),
+    lessonIssue: (key, digest) =>
+      postJson("/api/lessons/issue", { key, digest, confirm: true }, lessonIssueCreatedSchema),
     github: (refresh) =>
       getJson(refresh ? "/api/github?refresh=1" : "/api/github", githubListsSchema),
     healthFix: async (fix) => {

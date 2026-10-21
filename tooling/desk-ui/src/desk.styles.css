@@ -3234,18 +3234,29 @@ main:focus {
   margin-block-end: var(--ds-space-150);
 }
 
+/* Health: the status in a fixed column, then the check, its detail, and its remedy. */
 .desk-checks li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--ds-space-050) var(--ds-space-150);
-  align-items: center;
+  grid-template-columns: 6.25rem minmax(0, 1fr);
+  gap: var(--ds-space-050) var(--ds-space-200);
+  align-items: start;
   padding-block: calc(var(--ds-space-150) + var(--ds-space-025));
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
 }
 
-.desk-checks .desk-muted,
-.desk-remedy {
-  grid-column: 2;
+.desk-checks li:first-child {
+  border-block-start: 0;
+}
+
+.desk-checks__body {
+  min-width: 0;
+}
+
+.desk-checks__detail {
+  margin-block: var(--ds-space-025) 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body);
+  overflow-wrap: anywhere;
 }
 
 /* The command to run by hand, a copy button, and the desk's own repair when it has one. */
@@ -3255,13 +3266,92 @@ main:focus {
   align-items: center;
   gap: var(--ds-space-100);
   min-width: 0;
+  margin-block-start: var(--ds-space-075);
+  padding: var(--ds-space-100) calc(var(--ds-space-100) + var(--ds-space-025));
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-100);
 }
 
-.desk-remedy code {
-  padding: var(--ds-space-050) var(--ds-space-100);
+.desk-remedy__command {
+  flex: 1 1 12rem;
+  min-width: 0;
   overflow-wrap: anywhere;
-  background: var(--ds-surface-sunken);
-  border-radius: var(--ds-radius-100);
+}
+
+.desk-health__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin-block: 0 var(--ds-space-100);
+  font: var(--ds-font-body-compact);
+}
+
+/* "Setup 4 of 6 ready": a native progress bar, so no style attribute sets its width. */
+.desk-setup {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-setup__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0;
+  font: var(--ds-font-body-compact);
+}
+
+.desk-setup__bar {
+  width: 100%;
+  height: var(--ds-space-075);
+  appearance: none;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-border);
+  overflow: hidden;
+}
+
+.desk-setup__bar::-webkit-progress-bar {
+  background: var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+}
+
+.desk-setup__bar::-webkit-progress-value {
+  background: var(--ds-background-success-bold);
+  border-radius: var(--ds-radius-pill);
+}
+
+.desk-setup__bar::-moz-progress-bar {
+  background: var(--ds-background-success-bold);
+  border-radius: var(--ds-radius-pill);
+}
+
+/* Placeholder lines while a report loads again. */
+.desk-skel {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  padding-block: var(--ds-space-200);
+}
+
+.desk-skel__now {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-skel__line {
+  height: calc(var(--ds-space-150) + var(--ds-space-025));
+  border-radius: var(--ds-radius-050);
+}
+
+.desk-skel__line:nth-child(even) {
+  width: 70%;
 }
 
 /* ── Log ──────────────────────────────────────────────────────────────── */
@@ -4028,7 +4118,8 @@ main:focus {
   .desk-live[data-connection="reconnecting"] .desk-live__dot,
   .desk-connbar__spin,
   .desk-side__glyph,
-  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"] {
+  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"],
+  .desk-skel__line {
     animation: none;
   }
 
@@ -4108,4 +4199,287 @@ main:focus {
 
 .desk-table tbody th code {
   overflow-wrap: anywhere;
+}
+
+.desk-lesson__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050) var(--ds-space-100);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-lesson__actions {
+  display: flex;
+  gap: var(--ds-space-050);
+}
+
+.desk-lesson__key {
+  display: block;
+  margin-block-end: var(--ds-space-150);
+}
+
+/* A rank in words, after a dot of its tone. */
+.desk-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-rank__dot {
+  flex: none;
+  width: var(--ds-space-100);
+  height: var(--ds-space-100);
+  border-radius: var(--ds-radius-round);
+  background: var(--tone-solid);
+}
+
+/* Runs: today in one line of pills. */
+.desk-digest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin-block-end: var(--ds-space-200);
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body);
+}
+
+.desk-digest__title {
+  margin: 0;
+  font: var(--ds-font-heading-xsmall);
+}
+
+.desk-digest__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-digest__items li {
+  padding: var(--ds-space-025) calc(var(--ds-space-100) + var(--ds-space-025));
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-pill);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Runs: the last seven days as cards with a line each. */
+.desk-week__title {
+  margin-block: 0 var(--ds-space-100);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-week__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-stat {
+  display: grid;
+  gap: var(--ds-space-075);
+  min-width: 0;
+  padding: var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-250);
+}
+
+.desk-stat__label,
+.desk-stat__note {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-stat__value {
+  font: var(--ds-font-heading-large);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-stat__spark {
+  width: 100%;
+  height: calc(var(--ds-space-400) + var(--ds-space-050));
+}
+
+.desk-stat__spark polyline {
+  fill: none;
+  stroke: var(--ds-border-information);
+  stroke-width: var(--ds-border-width-thick);
+  vector-effect: non-scaling-stroke;
+}
+
+/* Two cards side by side on a wide screen, one above the other on a narrow one. */
+/* The column can shrink below a wide table, which then scrolls inside its card. */
+.desk-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-300);
+}
+
+.desk-split > .desk-panel {
+  margin-block-end: 0;
+}
+
+.desk-split--inner {
+  margin-block: var(--ds-space-200) 0;
+}
+
+@media (min-width: 56.25rem) {
+  .desk-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Runs: the cost of each role as a bar, with the value written beside it. */
+.desk-bars {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin: 0 0 var(--ds-space-150);
+  padding: 0;
+  list-style: none;
+}
+
+.desk-bars__row {
+  display: grid;
+  grid-template-columns: 6.875rem minmax(0, 1fr) minmax(4.375rem, auto);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  align-items: center;
+  font: var(--ds-font-body-snug);
+}
+
+.desk-bars__track {
+  width: 100%;
+  height: var(--ds-space-100);
+}
+
+.desk-bars__rail {
+  fill: var(--ds-surface-sunken);
+}
+
+.desk-bars__fill {
+  fill: var(--ds-background-information-bold);
+}
+
+.desk-bars__value {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lessons: the rank help and the promoted lessons, each on a quiet card. */
+.desk-subpanel {
+  min-width: 0;
+  padding: var(--ds-space-250);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-250);
+}
+
+.desk-subpanel h3 {
+  margin-block-start: 0;
+}
+
+.desk-rank-help,
+.desk-promoted {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-rank-help li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
+  font: var(--ds-font-body-snug);
+}
+
+.desk-promoted li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-100);
+  align-items: start;
+  padding: calc(var(--ds-space-100) + var(--ds-border-width)) var(--ds-space-150);
+  background: var(--ds-surface-raised);
+  border-radius: calc(var(--ds-radius-100) + var(--ds-space-025));
+}
+
+.desk-promoted__icon {
+  display: grid;
+  place-items: center;
+  width: var(--ds-space-250);
+  height: var(--ds-space-250);
+  color: var(--ds-text-success);
+  background: var(--ds-background-success);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-promoted__icon svg {
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+}
+
+.desk-promoted__body {
+  min-width: 0;
+}
+
+.desk-promoted__body code {
+  overflow-wrap: anywhere;
+}
+
+.desk-promoted__note {
+  margin-block: var(--ds-space-025);
+  overflow-wrap: anywhere;
+}
+
+.desk-promoted__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050) var(--ds-space-100);
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+/* A phone is for triage: no week cards, one column, and 44 px (2.75 rem) touch targets. */
+@media (max-width: 40rem) {
+  .desk-week {
+    display: none;
+  }
+
+  .desk-checks li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desk-bars__row {
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  }
+
+  .desk-heading .ui-button,
+  .desk-remedy .ui-button,
+  .desk-lesson__actions .ui-button,
+  .desk-promoted .ui-button {
+    min-height: 2.75rem;
+  }
+
+  .desk-promoted li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .desk-promoted li > .ui-button {
+    grid-column: 1 / -1;
+  }
 }

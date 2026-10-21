@@ -8,7 +8,14 @@ import {
   type ServerRunner,
   type ShipActionResult
 } from "@repo/desk";
-import { issueDraftSchema, type HistoryEvent, type IssueState } from "@repo/desk/contracts";
+import {
+  issueDraftSchema,
+  type HistoryEvent,
+  type IssueState,
+  type LessonReport,
+  type PromotedLesson
+} from "@repo/desk/contracts";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -307,6 +314,90 @@ const buildRunner = (
   };
 };
 
+/** The issue number GitHub gives the issue a lesson opens. */
+const LESSON_ISSUE = 400;
+
+/**
+ * The owner's lesson actions over a fixed report, in memory. The engine's own rules (the issue
+ * body, the owner check) have their tests in `@repo/desk`; this keeps the HTTP shape and records
+ * what the page sent, so a test can prove that only a confirmed preview opens an issue.
+ */
+const lessonDesk = (base: LessonReport) => {
+  let promoted: PromotedLesson[] = [];
+  const report = (): LessonReport => ({
+    ...base,
+    candidates: base.candidates.filter((c) => !promoted.some((p) => p.key === c.key)),
+    promoted
+  });
+  const notFound = (key: string) => ({
+    ok: false as const,
+    code: "not-found" as const,
+    detail: `No lesson has the key '${key}'.`
+  });
+  const mark = (key: string, note: string | null, issue: number | null): LessonReport => {
+    promoted = [{ key, at: now(), note, issue }, ...promoted.filter((p) => p.key !== key)];
+    return report();
+  };
+  const draftOf = (key: string) => {
+    const candidate = base.candidates.find((c) => c.key === key);
+    if (candidate === undefined) return null;
+    const title = `Lesson: ${key}`;
+    const body = [
+      "### Outcome",
+      `The problem '${key}' stops coming back.`,
+      "### Evidence",
+      ...candidate.samples.map((sample) => `- #${String(sample.issue)} ${sample.detail}`)
+    ].join("\n");
+    const digest = createHash("sha256").update(`${title}\n${body}`).digest("hex");
+    return { key, title, body, digest };
+  };
+  return {
+    report: () => Promise.resolve(report()),
+    actions: {
+      promote: (key: string, note: string | null) =>
+        Promise.resolve(
+          base.candidates.some((c) => c.key === key)
+            ? {
+                ok: true as const,
+                value: mark(key, note, promoted.find((p) => p.key === key)?.issue ?? null)
+              }
+            : notFound(key)
+        ),
+      unpromote: (key: string) => {
+        if (!promoted.some((p) => p.key === key)) return Promise.resolve(notFound(key));
+        promoted = promoted.filter((p) => p.key !== key);
+        return Promise.resolve({ ok: true as const, value: report() });
+      },
+      issuePreview: (key: string) => {
+        const draft = draftOf(key);
+        return Promise.resolve(
+          draft === null ? notFound(key) : { ok: true as const, value: draft }
+        );
+      },
+      createIssue: (key: string, digest: string) => {
+        const draft = draftOf(key);
+        if (draft === null) return Promise.resolve(notFound(key));
+        calls.push({ issue: LESSON_ISSUE, action: "lesson-issue", payload: { key, digest } });
+        if (draft.digest !== digest) {
+          return Promise.resolve({
+            ok: false as const,
+            code: "lesson-refused" as const,
+            detail: "The lesson changed after the preview. No issue was opened."
+          });
+        }
+        return Promise.resolve({
+          ok: true as const,
+          value: {
+            issue: LESSON_ISSUE,
+            url: issueUrl(LESSON_ISSUE),
+            report: mark(key, promoted.find((p) => p.key === key)?.note ?? null, LESSON_ISSUE)
+          }
+        });
+      }
+    }
+  };
+};
+
 const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: string }> => {
   await desk?.close();
   if (root !== null) await rm(root, { recursive: true, force: true });
@@ -326,6 +417,18 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
       emit = onEvent;
       // The fixture's Docker image: missing until the page runs the repair.
       let imageBuilt = false;
+      const lessons = lessonDesk(
+        options.scenario === "empty"
+          ? {
+              candidates: [],
+              belowThreshold: 0,
+              minIssues: 2,
+              currentRepo: null,
+              promoted: [],
+              invalidLines: 0
+            }
+          : scenarioLessons()
+      );
       const log = (issue: number, message: string): void =>
         onEvent({ type: "log", issue, message });
       return Promise.resolve({
@@ -336,19 +439,8 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
             records: options.scenario === "empty" ? [] : scenarioRuns(),
             invalidLines: 0
           }),
-        lessons: () =>
-          Promise.resolve(
-            options.scenario === "empty"
-              ? {
-                  candidates: [],
-                  belowThreshold: 0,
-                  minIssues: 2,
-                  currentRepo: null,
-                  promoted: [],
-                  invalidLines: 0
-                }
-              : scenarioLessons()
-          ),
+        lessons: lessons.report,
+        lessonActions: lessons.actions,
         health: () =>
           Promise.resolve({
             ok: false,

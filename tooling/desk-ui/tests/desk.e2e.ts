@@ -1,4 +1,5 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Locator, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 const CONTROL = "http://127.0.0.1:4180";
@@ -806,7 +807,9 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
   await expect(issues.getByRole("row", { name: /#99 Removed/ })).toBeVisible();
   const lessons = page.getByRole("table", { name: "Lesson candidates" });
   await expect(
-    lessons.getByRole("row", { name: /review\/Correctness\/Consider Review finding #102 #103 3 1/ })
+    lessons.getByRole("row", {
+      name: /review\/Correctness\/Consider Review finding Medium #102 #103 3 1/
+    })
   ).toBeVisible();
   await expect(lessons.getByText("The export drops the header row")).toBeVisible();
 
@@ -817,6 +820,73 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
     .click();
   await expect(sheet(page).getByRole("heading", { name: "Agent usage, all runs" })).toBeVisible();
   await expect(sheet(page).getByText("$1.25").first()).toBeVisible();
+});
+
+test("promotes a lesson with a note and unpromotes it, and the server keeps the choice", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=stats");
+  const candidates = page.getByRole("table", { name: "Lesson candidates" });
+  await candidates.getByRole("button", { name: "Promote review/Correctness/Consider" }).click();
+  const dialog = page.getByRole("dialog", { name: "Promote this lesson?" });
+  await dialog.getByLabel("Note (optional)").fill("Added a header-row rule");
+  await dialog.getByRole("button", { name: "Promote", exact: true }).click();
+
+  await expect(candidates).toHaveCount(0);
+  const promoted = page.getByRole("listitem").filter({ hasText: "review/Correctness/Consider" });
+  await expect(promoted.getByText("Added a header-row rule")).toBeVisible();
+  // The server keeps it: a reload shows the same list.
+  await page.reload();
+  await expect(promoted.getByText("Added a header-row rule")).toBeVisible();
+
+  await promoted.getByRole("button", { name: "Unpromote review/Correctness/Consider" }).click();
+  await expect(
+    candidates.getByRole("row", { name: /review\/Correctness\/Consider/ })
+  ).toBeVisible();
+  await expect(page.getByText("No promoted lesson yet.")).toBeVisible();
+});
+
+test("turns a lesson into an issue only after a yes to the exact preview", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=stats");
+  const turn = page.getByRole("button", { name: "Turn review/Correctness/Consider into an issue" });
+  await turn.click();
+  const dialog = page.getByRole("dialog", { name: "Open this issue on GitHub?" });
+  await expect(dialog.getByLabel("Title")).toHaveText("Lesson: review/Correctness/Consider");
+  await expect(dialog.getByLabel("Body")).toHaveText(
+    [
+      "### Outcome",
+      "The problem 'review/Correctness/Consider' stops coming back.",
+      "### Evidence",
+      "- #103 The export drops the header row",
+      "- #102 The CSV has no header row"
+    ].join("\n")
+  );
+  await dialog.getByRole("button", { name: "Back" }).click();
+  expect(await desk.calls()).toEqual([]);
+
+  await turn.click();
+  const title = (await dialog.getByLabel("Title").textContent()) ?? "";
+  const body = (await dialog.getByLabel("Body").textContent()) ?? "";
+  await dialog.getByRole("button", { name: "Open the issue" }).click();
+
+  const link = page.getByRole("status").getByRole("link", { name: "Open #400 on GitHub" });
+  await expect(link).toHaveAttribute("href", "https://github.com/owner/kaine-forge/issues/400");
+  // One request, naming the preview the owner saw.
+  expect(await desk.calls()).toEqual([
+    {
+      issue: 400,
+      action: "lesson-issue",
+      payload: {
+        key: "review/Correctness/Consider",
+        digest: createHash("sha256").update(`${title}\n${body}`).digest("hex")
+      }
+    }
+  ]);
+  await expect(page.getByRole("table", { name: "Lesson candidates" })).toHaveCount(0);
 });
 
 test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
@@ -998,6 +1068,51 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
       return context.measureText(input.placeholder).width <= room;
     })
   ).toBe(true);
+});
+
+test("on a 390 px phone each view fits its loaded content, with 44 px targets on Health and Runs", async ({
+  page,
+  desk
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await desk.open();
+  const loaded: Record<string, () => Promise<void>> = {
+    "": () => expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible(),
+    "?issue=102": () => expect(page.getByRole("heading", { name: "History" })).toBeVisible(),
+    "?view=health": () =>
+      expect(page.getByRole("progressbar", { name: "Setup 1 of 3 ready" })).toBeVisible(),
+    "?view=stats": () =>
+      expect(page.getByRole("heading", { name: "Promoted lessons" })).toBeVisible()
+  };
+  for (const [path, ready] of Object.entries(loaded)) {
+    await page.goto(`/${path}`);
+    await ready();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
+
+  const tall = async (targets: readonly Locator[]): Promise<void> => {
+    for (const target of targets) {
+      expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+  };
+  // The loop ends on Runs. A phone is for triage: the week cards stay on a wide screen.
+  await expect(page.getByRole("heading", { name: "Last 7 days" })).toBeHidden();
+  await expect(page.getByRole("region", { name: "Today" })).toBeVisible();
+  await tall([
+    page.getByRole("button", { name: "Load again" }),
+    page.getByRole("button", { name: "Promote review/Correctness/Consider" })
+  ]);
+
+  await page.goto("/?view=health");
+  await expect(page.getByRole("progressbar", { name: "Setup 1 of 3 ready" })).toBeVisible();
+  await tall([
+    page.getByRole("button", { name: "Check again" }),
+    page.getByRole("button", { name: "Copy the command: pnpm desk docker build" }),
+    page.getByRole("button", { name: "Fix" })
+  ]);
 });
 
 test("on a phone the decision's buttons are a bar at the bottom, and the page ends above it", async ({
