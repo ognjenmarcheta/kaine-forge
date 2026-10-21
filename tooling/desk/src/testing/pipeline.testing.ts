@@ -182,6 +182,8 @@ export const planOutput = (over: Partial<PlannerOutput> = {}): PlannerOutput => 
     { criterion: "Export button downloads a CSV", change: `${FEATURE_FILE} builds the CSV` }
   ],
   risks: [],
+  risk: null,
+  riskReasons: [],
   openQuestions: [],
   changeset: { required: false, packages: [], bump: "patch" },
   pr: { type: "feat", slug: "export-reports" },
@@ -191,6 +193,7 @@ export const planOutput = (over: Partial<PlannerOutput> = {}): PlannerOutput => 
 
 export const builderOutput = (over: Partial<BuilderOutput> = {}): BuilderOutput => ({
   summary: "Added the export",
+  revision: null,
   filesChanged: [FEATURE_FILE],
   notes: [],
   blockers: [],

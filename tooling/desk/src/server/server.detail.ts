@@ -1,20 +1,29 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 
+import { resumeLine } from "../agents/agent.resume";
 import { checkReportSchema, type CheckReport } from "../check/check.contract";
 import {
   DEFAULT_LOOP_LIMITS,
   buildFlowModel,
+  builderOutputSchema,
+  providerSchema,
+  type AgentSession,
   type CheckSummary,
   type ContractProgress,
   type IssueDetail,
   type IssueState,
   type IssueSummary,
+  type PlannerOutput,
+  type Provider,
   type ReviewSummary,
+  type SessionResume,
   type ShipReadiness
 } from "../contracts";
 import { indexArtifacts, readArtifact } from "./server.artifacts";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
+import { ARTIFACTS, readArtifactJson, readPlan } from "../engine/pipeline.artifacts";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
 import { needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
@@ -71,6 +80,53 @@ const readArtifactFile = async (
   }
 };
 
+/** `plan.json`, or `null` when it is missing, malformed, or cannot be read. */
+const readPlanQuietly = async (
+  store: IssueStore,
+  issueNumber: number
+): Promise<PlannerOutput | null> => {
+  const plan = await readPlan(store.artifactsDir(issueNumber)).catch(() => null);
+  return plan?.status === "ok" ? plan.value : null;
+};
+
+/** The run summary the engine writes for each agent run. Only the provider is read. */
+const runProviderSchema = z.object({ provider: providerSchema });
+
+const sessionProvider = async (
+  store: IssueStore,
+  issueNumber: number,
+  role: AgentSession["role"]
+): Promise<Provider | null> => {
+  const file = await readArtifactFile(store, issueNumber, `agent-${role}.json`);
+  return file === null
+    ? null
+    : (runProviderSchema.safeParse(parseJson(file)).data?.provider ?? null);
+};
+
+/** The worktree and the agent sessions the owner can resume by hand, as `desk resume` lists them. */
+const sessionResume = async (store: IssueStore, state: IssueState): Promise<SessionResume> => {
+  const worktree = state.worktreePath;
+  const roles = ["builder", "planner"] as const;
+  const sessions = await Promise.all(
+    roles.map(async (role): Promise<AgentSession | null> => {
+      const sessionId = state.sessions[role];
+      if (sessionId === undefined) return null;
+      const provider = await sessionProvider(store, state.issueNumber, role);
+      return {
+        role,
+        sessionId,
+        provider,
+        command:
+          provider === null || worktree === null ? null : resumeLine(provider, worktree, sessionId)
+      };
+    })
+  );
+  return {
+    worktreePath: worktree,
+    sessions: sessions.filter((session): session is AgentSession => session !== null)
+  };
+};
+
 export const summarizeResult = async (
   deps: DetailDeps,
   issueNumber: number,
@@ -88,9 +144,10 @@ export const summarizeResult = async (
     };
   }
   const { state } = result;
-  const [info, ticket] = await Promise.all([
+  const [info, ticket, plan] = await Promise.all([
     readIssueInfo(deps.store, issueNumber),
-    readArtifact(deps.store, issueNumber, "ticket")
+    readArtifact(deps.store, issueNumber, "ticket"),
+    readPlanQuietly(deps.store, issueNumber)
   ]);
   const contract =
     ticket.status === "ok" ? parseContractProgress(ticket.bytes.toString("utf8")) : null;
@@ -115,6 +172,9 @@ export const summarizeResult = async (
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,
+    paused: state.pauseRequested === true,
+    pausedAt: state.pausedAt ?? null,
+    planRisk: plan?.risk ?? null,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -247,19 +307,24 @@ export const buildIssueDetail = async (
   if (result.status !== "ok" || !summary.readable) return { status: "unreadable", summary };
 
   const { state } = result;
-  const [artifacts, ticket, checkReport, reviewArtifact, runs] = await Promise.all([
-    indexArtifacts(deps.store, issueNumber),
-    readArtifact(deps.store, issueNumber, "ticket"),
-    readParsed(deps, issueNumber, "check-report", (json) => {
-      const parsed = checkReportSchema.safeParse(json);
-      return parsed.success ? parsed.data : null;
-    }),
-    readParsed(deps, issueNumber, "review", (json) => {
-      const parsed = reviewArtifactSchema.safeParse(json);
-      return parsed.success ? parsed.data : null;
-    }),
-    deps.readRuns?.() ?? Promise.resolve({ records: [], invalidLines: 0 })
-  ]);
+  const dir = deps.store.artifactsDir(issueNumber);
+  const [artifacts, ticket, checkReport, reviewArtifact, runs, plan, build, resume] =
+    await Promise.all([
+      indexArtifacts(deps.store, issueNumber),
+      readArtifact(deps.store, issueNumber, "ticket"),
+      readParsed(deps, issueNumber, "check-report", (json) => {
+        const parsed = checkReportSchema.safeParse(json);
+        return parsed.success ? parsed.data : null;
+      }),
+      readParsed(deps, issueNumber, "review", (json) => {
+        const parsed = reviewArtifactSchema.safeParse(json);
+        return parsed.success ? parsed.data : null;
+      }),
+      deps.readRuns?.() ?? Promise.resolve({ records: [], invalidLines: 0 }),
+      readPlanQuietly(deps.store, issueNumber),
+      readArtifactJson(dir, ARTIFACTS.build, builderOutputSchema).catch(() => null),
+      sessionResume(deps.store, state)
+    ]);
   const check = checkReport === null ? null : toCheckSummary(checkReport);
   const review = reviewArtifact === null ? null : toReviewSummary(reviewArtifact);
 
@@ -275,6 +340,13 @@ export const buildIssueDetail = async (
       check,
       review,
       ship: await shipReadiness(deps, state, check, review),
+      plan:
+        plan === null
+          ? null
+          : { risk: plan.risk, riskReasons: plan.riskReasons, revision: plan.revision },
+      buildRevision: build?.status === "ok" ? build.value.revision : null,
+      approveNote: state.approveNote ?? null,
+      resume,
       runs: runs.records.filter((record) => record.issue === issueNumber)
     }
   };

@@ -33,6 +33,7 @@ import {
 } from "./pipeline.state";
 import type {
   HandledStage,
+  ApproveOptions,
   NotifyKind,
   PipelineDeps,
   PipelineEvent,
@@ -125,8 +126,11 @@ export interface PipelineRunner {
   readonly start: (issue: number, options: StartOptions) => Promise<PipelineResult>;
   /** Drive from the current stage until a gate, `needs-you`, or the end. */
   readonly advance: (issue: number) => Promise<PipelineResult>;
-  /** Approve the plan at `plan-gate`, apply the branch rename, then drive. */
-  readonly approvePlan: (issue: number) => Promise<PipelineResult>;
+  /**
+   * Approve the plan at `plan-gate`, apply the branch rename, then drive. The note, when given,
+   * goes to the builder as the owner's answer to the plan's open questions.
+   */
+  readonly approvePlan: (issue: number, options?: ApproveOptions) => Promise<PipelineResult>;
   /** Send engineer feedback to `plan`, `build` or `review`, then drive. */
   readonly feedback: (
     issue: number,
@@ -168,6 +172,14 @@ export interface PipelineRunner {
    * from. A refusal changes nothing. The issue stays at `needs-you`: start it again.
    */
   readonly applyDraft: (issue: number, options: ApplyDraftOptions) => Promise<PipelineResult>;
+  /**
+   * Hold the issue. A running stage ends as usual; then the engine starts no next stage, and
+   * an action that would drive the issue stops before its first stage. It never stops an agent.
+   * When this process drives the issue, it takes effect at once, without waiting for the lease.
+   */
+  readonly pause: (issue: number) => Promise<PipelineResult>;
+  /** Clear the hold and drive on from where the issue stopped. Refused when it is not paused. */
+  readonly resume: (issue: number) => Promise<PipelineResult>;
   /** Stop the running agent (if this process drives the issue) and end the issue. The worktree stays. */
   readonly cancel: (issue: number) => Promise<PipelineResult>;
   /** Delete the issue's desk state and its worktree (unless `keepWorktree`). The branch stays. */
@@ -210,6 +222,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     prRounds: config.maxPrRounds
   };
   const controllers = new Map<number, AbortController>();
+  /** The session each action of this process works on. `pause` changes it in place. */
+  const live = new Map<number, Session>();
   const knownLabels = new Map<number, readonly string[]>();
   /** Issues read from a snapshot file: nothing of theirs goes to GitHub. */
   const noWriteback = new Set<number>();
@@ -479,6 +493,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   };
 
   const drive = async (session: Session): Promise<PipelineResult> => {
+    live.set(session.state.issueNumber, session);
     for (;;) {
       const { stage } = session.state;
       if (session.controller.signal.aborted) return stopped(session.state);
@@ -488,6 +503,21 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           await save(session);
         }
         return stopped(session.state);
+      }
+      // The hold: the stage before has ended, and this one does not start until `resume`.
+      if (session.state.pauseRequested === true) {
+        if (session.state.status !== "waiting") {
+          session.state = { ...session.state, status: "waiting", updatedAt: stamp() };
+          await record(session, stage, "paused", `before '${stage}'`);
+          await save(session);
+          await writeBack(session);
+        }
+        return {
+          outcome: "stopped",
+          stop: "paused",
+          state: session.state,
+          message: `Paused before '${stage}'. Resume to run it.`
+        };
       }
       if (stage === "ship") {
         // A retry after `continue`: the engineer confirmed this ship before.
@@ -544,12 +574,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             `State for #${issue} is unreadable (${read.reason}): ${read.detail}`
           );
         }
-        return await body(
-          read.status === "ok" ? { state: read.state, controller } : null,
-          controller
-        );
+        const session: Session | null =
+          read.status === "ok" ? { state: read.state, controller } : null;
+        if (session !== null) live.set(issue, session);
+        return await body(session, controller);
       } finally {
         controllers.delete(issue);
+        live.delete(issue);
         await leased.lease.release();
         // A refused `start` leaves the directory that the lease created. Drop it while it is empty.
         if (!options.needsState) await rmdir(store.issueDir(issue)).catch(() => undefined);
@@ -691,12 +722,15 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
-  const approvePlan: PipelineRunner["approvePlan"] = (issue) =>
+  const approvePlan: PipelineRunner["approvePlan"] = (issue, options = {}) =>
     humanAction(
       issue,
       { type: "approve-plan" },
       {
         event: "plan-approved",
+        ...(options.note?.trim() ? { note: "with a note" } : {}),
+        // A new approval replaces the note of an earlier one.
+        patch: { approveNote: options.note?.trim() || null },
         prepare: async (session) => {
           const plan = await readPlan(store.artifactsDir(issue));
           if (plan.status !== "ok") {
@@ -1235,7 +1269,11 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
         const leftover = await stopLeftoverProcess(session.state, recoveryDeps);
         const from = session.state.stage;
-        const moved = move(session, { type: "cancel" }, { activeProcess: null });
+        const moved = move(
+          session,
+          { type: "cancel" },
+          { activeProcess: null, pauseRequested: false, pausedAt: null }
+        );
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
         await record(session, from, "cancelled", leftover ?? undefined);
         await finishMove(session, null);
@@ -1244,6 +1282,70 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
   };
+
+  // --- pause ---------------------------------------------------------------
+
+  const requestPause = async (session: Session): Promise<PipelineResult> => {
+    const { stage } = session.state;
+    if (isTerminalStage(stage)) {
+      return refused(
+        "invalid-transition",
+        `#${session.state.issueNumber} has ended at '${stage}'. There is nothing to pause.`,
+        session.state
+      );
+    }
+    if (session.state.pauseRequested !== true) {
+      const at = stamp();
+      session.state = { ...session.state, pauseRequested: true, pausedAt: at, updatedAt: at };
+      await record(session, stage, "pause-requested");
+      await save(session);
+    }
+    const running = session.state.status === "running" || session.state.status === "queued";
+    return {
+      outcome: "stopped",
+      stop: "paused",
+      state: session.state,
+      message: running
+        ? `Pauses once '${stage}' ends.`
+        : "Paused. The engine starts no stage until you resume."
+    };
+  };
+
+  const pause: PipelineRunner["pause"] = (issue) => {
+    // An action of this process drives the issue: change its session now. The drive loop reads
+    // the flag before the next stage. Waiting for the lease would wait for the whole drive.
+    const running = live.get(issue);
+    if (running !== undefined) return requestPause(running);
+    return withLease(issue, (loaded) => requestPause(requireSession(loaded)), {
+      needsState: true
+    });
+  };
+
+  const resume: PipelineRunner["resume"] = (issue) =>
+    withLease(
+      issue,
+      async (loaded) => {
+        const session = requireSession(loaded);
+        if (session.state.pauseRequested !== true) {
+          return refused("invalid-transition", `#${issue} is not paused.`, session.state);
+        }
+        const { stage } = session.state;
+        const held = !(stage === "needs-you" || isGate(stage) || isTerminalStage(stage));
+        session.state = {
+          ...session.state,
+          pauseRequested: false,
+          pausedAt: null,
+          // A held stage is next to run again.
+          ...(held ? { status: "queued" } : {}),
+          updatedAt: stamp()
+        };
+        await record(session, stage, "resumed");
+        await save(session);
+        await writeBack(session);
+        return drive(session);
+      },
+      { needsState: true }
+    );
 
   const remove: PipelineRunner["remove"] = async (issue, options = {}) => {
     controllers.get(issue)?.abort();
@@ -1334,6 +1436,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     feedbackFromPr,
     draft,
     applyDraft,
+    pause,
+    resume,
     cancel,
     remove,
     status

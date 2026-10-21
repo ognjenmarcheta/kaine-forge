@@ -5,7 +5,8 @@ import {
   lessonRecordSchema,
   type LessonCandidate,
   type LessonRecord,
-  type LessonReport
+  type LessonReport,
+  type PromotedLesson
 } from "../contracts";
 import { appendJsonl } from "../store/store.atomic";
 
@@ -34,6 +35,8 @@ export interface LessonOptions {
   readonly minIssues?: number;
   /** The `repo` instruction hash of the repository now. Splits the counts before and after a change. */
   readonly currentRepo?: string | null;
+  /** Lessons the owner promoted. Their keys leave the candidates and the count below the threshold. */
+  readonly promoted?: readonly PromotedLesson[];
 }
 
 const candidateOf = (
@@ -59,16 +62,30 @@ const candidateOf = (
   };
 };
 
+/** Every observation of one key as a candidate, whatever its spread. `null` for an unseen key. */
+export const lessonCandidateFor = (
+  records: readonly LessonRecord[],
+  key: string,
+  currentRepo: string | null = null
+): LessonCandidate | null => {
+  const matching = records.filter((record) => record.key === key);
+  return matching.length === 0 ? null : candidateOf(matching, currentRepo);
+};
+
 /**
  * Groups the observations by key. A key seen in at least `minIssues` distinct issues is a
  * candidate for `kaine-encode-knowledge`. Candidates come most widespread first, then newest.
  */
 export const aggregateLessons = (
   { records, invalidLines }: LessonRecords,
-  { minIssues = DEFAULT_MIN_ISSUES, currentRepo = null }: LessonOptions = {}
+  { minIssues = DEFAULT_MIN_ISSUES, currentRepo = null, promoted = [] }: LessonOptions = {}
 ): LessonReport => {
+  const handled = new Set(promoted.map((lesson) => lesson.key));
   const byKey = new Map<string, LessonRecord[]>();
-  for (const record of records) byKey.set(record.key, [...(byKey.get(record.key) ?? []), record]);
+  for (const record of records) {
+    if (handled.has(record.key)) continue;
+    byKey.set(record.key, [...(byKey.get(record.key) ?? []), record]);
+  }
   const all = [...byKey.values()].map((group) => candidateOf(group, currentRepo));
   const candidates = all
     .filter((candidate) => candidate.issues.length >= minIssues)
@@ -79,6 +96,7 @@ export const aggregateLessons = (
     );
   return {
     candidates,
+    promoted: [...promoted].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)),
     belowThreshold: all.length - candidates.length,
     minIssues,
     currentRepo,

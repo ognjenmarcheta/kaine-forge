@@ -33,7 +33,7 @@ import { createDockerIsolation } from "../isolation/isolation.docker";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { ensureUiBuilt } from "./server.ui";
-import { aggregateLessons, readLessonRecords } from "../stats/stats.lessons";
+import { createLessonDesk, type LessonActions } from "../stats/stats.lesson-desk";
 import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
 import { configPath, resolveRepoLocation } from "../store/store.root";
@@ -56,6 +56,8 @@ export interface DeskRuntime {
   readonly prRoundLimit?: number | undefined;
   /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
+  /** Promote, unpromote, and open an issue for a lesson. */
+  readonly lessonActions?: LessonActions | undefined;
   /** The built UI, when the runtime knows where it is. */
   readonly uiDir?: string | null | undefined;
   /** Wait for background work (notify commands, log writes) before the process exits. */
@@ -107,6 +109,13 @@ export const createDefaultDeskRuntime =
     });
 
     await recoverInterrupted(store, { clock: systemClock, log });
+    const lessonDesk = createLessonDesk({
+      stateRoot: location.stateRoot,
+      clock: systemClock,
+      github,
+      owner: config.owner,
+      currentRepo: () => repoFingerprint(location.repoRoot)
+    });
     const runner = createPipelineRunner({
       exec,
       git: createGitPort(exec),
@@ -133,14 +142,14 @@ export const createDefaultDeskRuntime =
         refreshPr: runner.refreshPr,
         feedbackFromPr: runner.feedbackFromPr,
         draft: runner.draft,
-        applyDraft: runner.applyDraft
+        applyDraft: runner.applyDraft,
+        pause: runner.pause,
+        resume: runner.resume
       },
       readRuns: () => readRunRecords(location.stateRoot),
       prRoundLimit: config.maxPrRounds,
-      lessons: async () =>
-        aggregateLessons(await readLessonRecords(location.stateRoot), {
-          currentRepo: await repoFingerprint(location.repoRoot).catch(() => null)
-        }),
+      lessons: lessonDesk.report,
+      lessonActions: lessonDesk.actions,
       openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),
       health: () =>
         runDoctor({
@@ -277,6 +286,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       readRuns: runtime.readRuns,
       prRoundLimit: runtime.prRoundLimit,
       lessons: runtime.lessons,
+      lessonActions: runtime.lessonActions,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,
       ...options.tuning

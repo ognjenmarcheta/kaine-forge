@@ -4,6 +4,9 @@ import type { AddressInfo } from "node:net";
 import {
   actionRequestSchema,
   healthFixRequestSchema,
+  lessonIssueRequestSchema,
+  lessonPromoteRequestSchema,
+  lessonUnpromoteRequestSchema,
   sessionRequestSchema,
   type ActionName,
   type ActionResponse,
@@ -45,6 +48,7 @@ import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
 import { toGithubLists, type OpenWork } from "../github/github.lists";
 import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
+import type { LessonActionResult, LessonActions } from "../stats/stats.lesson-desk";
 import { aggregateLessons } from "../stats/stats.lessons";
 import type { RunRecords } from "../stats/stats.runs";
 import type { IssueStore } from "../store/store.issue";
@@ -71,6 +75,8 @@ export interface DeskServerDeps {
   readonly prRoundLimit?: number | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
+  /** Promote, unpromote, and open an issue for a lesson. Absent: those routes answer `404`. */
+  readonly lessonActions?: LessonActions | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
   readonly uiDir?: string | null | undefined;
   /** Default 0: the system picks a free port. */
@@ -124,6 +130,10 @@ type Route =
         | "github"
         | "stats"
         | "lessons"
+        | "lesson-promote"
+        | "lesson-unpromote"
+        | "lesson-issue-preview"
+        | "lesson-issue"
         | "events"
         | "issues"
         | "unknown";
@@ -140,6 +150,12 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
   if (segments.length === 2 && resource === "lessons") return { kind: "lessons" };
+  if (segments.length === 3 && resource === "lessons") {
+    if (id === "promote") return { kind: "lesson-promote" };
+    if (id === "unpromote") return { kind: "lesson-unpromote" };
+    if (id === "issue-preview") return { kind: "lesson-issue-preview" };
+    if (id === "issue") return { kind: "lesson-issue" };
+  }
   if (segments.length === 2 && resource === "github") return { kind: "github" };
   if (segments.length === 2 && resource === "events") return { kind: "events" };
   if (resource !== "issues") return { kind: "unknown" };
@@ -162,6 +178,10 @@ const METHOD_OF: Readonly<Record<Route["kind"], "GET" | "POST">> = {
   github: "GET",
   stats: "GET",
   lessons: "GET",
+  "lesson-promote": "POST",
+  "lesson-unpromote": "POST",
+  "lesson-issue-preview": "GET",
+  "lesson-issue": "POST",
   events: "GET",
   issues: "GET",
   issue: "GET",
@@ -464,6 +484,64 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     }
   };
 
+  // --- lessons --------------------------------------------------------------
+
+  const requireLessonActions = (): LessonActions => {
+    if (deps.lessonActions === undefined) {
+      throw new HttpError("not-found", "This desk cannot change lessons.");
+    }
+    return deps.lessonActions;
+  };
+
+  const lessonValue = <T>(result: LessonActionResult<T>): T => {
+    if (!result.ok) throw new HttpError(result.code, result.detail);
+    return result.value;
+  };
+
+  const handleLesson = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    url: URL,
+    kind: "lesson-promote" | "lesson-unpromote" | "lesson-issue-preview" | "lesson-issue"
+  ): Promise<void> => {
+    const actions = requireLessonActions();
+    switch (kind) {
+      case "lesson-issue-preview": {
+        const parsed = lessonUnpromoteRequestSchema.safeParse({ key: url.searchParams.get("key") });
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        sendJson(response, 200, lessonValue(await actions.issuePreview(parsed.data.key)));
+        return;
+      }
+      case "lesson-promote": {
+        const parsed = lessonPromoteRequestSchema.safeParse(
+          await readJsonBody(request, maxBodyBytes)
+        );
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        const { key, note } = parsed.data;
+        sendJson(response, 200, lessonValue(await actions.promote(key, note ?? null)));
+        return;
+      }
+      case "lesson-unpromote": {
+        const parsed = lessonUnpromoteRequestSchema.safeParse(
+          await readJsonBody(request, maxBodyBytes)
+        );
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        sendJson(response, 200, lessonValue(await actions.unpromote(parsed.data.key)));
+        return;
+      }
+      case "lesson-issue": {
+        // Opening an issue writes to GitHub. Only an explicit yes and the previewed text pass.
+        const parsed = lessonIssueRequestSchema.safeParse(
+          await readJsonBody(request, maxBodyBytes)
+        );
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        const { key, digest } = parsed.data;
+        sendJson(response, 200, lessonValue(await actions.createIssue(key, digest)));
+        return;
+      }
+    }
+  };
+
   const handleArtifact = async (
     response: ServerResponse,
     issueNumber: number,
@@ -509,7 +587,9 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         return;
       case "stats": {
         const runs = (await deps.readRuns?.()) ?? { records: [], invalidLines: 0 };
-        const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()));
+        const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()), {
+          now: clock.now()
+        });
         sendJson(response, 200, stats);
         return;
       }
@@ -519,6 +599,12 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         sendJson(response, 200, report);
         return;
       }
+      case "lesson-promote":
+      case "lesson-unpromote":
+      case "lesson-issue-preview":
+      case "lesson-issue":
+        await handleLesson(request, response, url, found.kind);
+        return;
       case "events":
         // Take the baseline first: a change after "connected" must not be missed.
         await watcher.start();

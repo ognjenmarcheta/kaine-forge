@@ -77,6 +77,22 @@ describe("issue state contract", () => {
     expect(parsed.pendingFeedback).toBeUndefined();
   });
 
+  it("round-trips the approval note and the pause, which a file without them leaves unset", () => {
+    const held: IssueState = {
+      ...valid(),
+      approveNote: "CSV only.",
+      pauseRequested: true,
+      pausedAt: "2026-10-07T10:05:00Z"
+    };
+    expect(issueStateSchema.parse(held)).toEqual(held);
+    const parsed = issueStateSchema.parse(valid());
+    expect([parsed.approveNote, parsed.pauseRequested, parsed.pausedAt]).toEqual([
+      undefined,
+      undefined,
+      undefined
+    ]);
+  });
+
   it("round-trips the Phase 2 fields", () => {
     const phase2: IssueState = {
       ...valid(),

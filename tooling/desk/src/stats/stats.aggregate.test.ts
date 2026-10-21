@@ -26,6 +26,7 @@ const record = (over: Partial<RunRecord> = {}): RunRecord => ({
   failedToolCalls: 1,
   denials: 0,
   harness: null,
+  planRisk: null,
   ...over
 });
 
@@ -144,6 +145,76 @@ describe("aggregateRuns by harness", () => {
   });
 });
 
+describe("aggregateRuns outcomes per plan risk", () => {
+  it("counts each issue once at its latest risk, with what shipped and what was sent back", () => {
+    const loops = (review: number) => ({ check: 0, review });
+    const stats = aggregate(
+      [
+        // #1: low, shipped, never sent back.
+        record({ issue: 1, role: "planner", planRisk: "low" }),
+        record({ issue: 1, planRisk: "low" }),
+        // #2: first graded medium, then planned again as high after feedback at the gate.
+        record({ issue: 2, role: "planner", planRisk: "medium" }),
+        record({ issue: 2, role: "planner", planRisk: "high" }),
+        // #3: high, a review sent the work back once. The issue was removed since.
+        record({ issue: 3, role: "planner", planRisk: "high" }),
+        record({ issue: 3, planRisk: "high", loops: loops(1) }),
+        // #4: a failed planner run is no second plan; ungraded runs do not count.
+        record({ issue: 4, role: "planner", planRisk: null, accepted: false }),
+        record({ issue: 4, role: "planner", planRisk: "low" }),
+        record({ issue: 5, role: "planner", planRisk: null })
+      ],
+      [
+        { issue: 1, stage: "pr-open", loops: loops(0) },
+        { issue: 2, stage: "shipped", loops: loops(0) },
+        { issue: 4, stage: "plan-gate", loops: loops(0) },
+        { issue: 5, stage: "plan-gate", loops: loops(0) }
+      ]
+    );
+    expect(stats.riskOutcomes).toEqual([
+      { risk: "low", issues: 2, shipped: 1, sentBack: 0 },
+      { risk: "medium", issues: 0, shipped: 0, sentBack: 0 },
+      { risk: "high", issues: 2, shipped: 1, sentBack: 2 }
+    ]);
+  });
+});
+
+describe("aggregateRuns day series", () => {
+  it("covers the last seven UTC days up to today, with runs, cost when known, and PRs opened", () => {
+    const stats = aggregateRuns(
+      {
+        records: [
+          record({ at: "2026-10-13T23:59:00.000Z", costUsd: 1.25 }),
+          record({ at: "2026-10-13T08:00:00.000Z", costUsd: null }),
+          record({ at: "2026-10-11T08:00:00.000Z", provider: "codex", costUsd: null }),
+          // Older than the window.
+          record({ at: "2026-10-06T08:00:00.000Z", costUsd: 9 })
+        ],
+        invalidLines: 0
+      },
+      [
+        {
+          issue: 1,
+          stage: "pr-open",
+          loops: { check: 0, review: 0 },
+          shippedAt: "2026-10-12T15:00:00.000Z"
+        },
+        { issue: 2, stage: "build", loops: { check: 0, review: 0 }, shippedAt: null }
+      ],
+      { now: new Date("2026-10-13T12:00:00.000Z") }
+    );
+    expect(stats.days).toEqual([
+      { date: "2026-10-07", runs: 0, costUsd: null, shipped: 0 },
+      { date: "2026-10-08", runs: 0, costUsd: null, shipped: 0 },
+      { date: "2026-10-09", runs: 0, costUsd: null, shipped: 0 },
+      { date: "2026-10-10", runs: 0, costUsd: null, shipped: 0 },
+      { date: "2026-10-11", runs: 1, costUsd: null, shipped: 0 },
+      { date: "2026-10-12", runs: 0, costUsd: null, shipped: 1 },
+      { date: "2026-10-13", runs: 2, costUsd: 1.25, shipped: 0 }
+    ]);
+  });
+});
+
 describe("aggregateRuns with skipped lines", () => {
   it("passes the count of skipped lines through", () => {
     expect(aggregateRuns({ records: [], invalidLines: 3 }, []).invalidLines).toBe(3);
@@ -164,12 +235,14 @@ describe("parseRunRecords", () => {
     expect(parsed.invalidLines).toBe(2);
   });
 
-  it("reads a line written before the harness field existed as harness null", () => {
-    const older = JSON.stringify(record(), (key, value: unknown) =>
-      key === "harness" ? undefined : value
+  it("reads a line written before the harness and plan risk fields existed as null", () => {
+    const older = JSON.stringify(record({ planRisk: "high" }), (key, value: unknown) =>
+      key === "harness" || key === "planRisk" ? undefined : value
     );
     const parsed = parseRunRecords(older);
-    expect(parsed.records).toEqual([expect.objectContaining({ issue: 12, harness: null })]);
+    expect(parsed.records).toEqual([
+      expect.objectContaining({ issue: 12, harness: null, planRisk: null })
+    ]);
     expect(parsed.invalidLines).toBe(0);
   });
 });

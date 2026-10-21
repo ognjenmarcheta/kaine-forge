@@ -14,6 +14,10 @@ Use the `kaine-write-plan` skill for the shape of the plan, and follow the repos
 6. Decide the changeset: `changeset.required` is true when a releasable `apps/**`, `packages/**` or `tooling/**` change needs one. Name the packages and the bump.
 7. Set `pr.type` to a Conventional Commit type and `pr.slug` to a short lowercase hyphen-separated slug. The branch name derives from them.
 8. List risks in `risks`. List every unknown in `openQuestions` and state the default you chose.
-9. Write `plainLanguage` for a reader who is not a developer: what will change and why, in short sentences.
+9. Grade the change in `risk` and give the reasons in `riskReasons`, one short line each:
+   - `low`: a small, contained change in code that tests already cover.
+   - `medium`: anything between low and high.
+   - `high`: a migration, auth, data or tenancy, a change across packages, or a public API.
+10. Write `plainLanguage` for a reader who is not a developer: what will change and why, in short sentences.
 
 When feedback on an earlier plan is present, change the plan to address it. Keep `summary` a description of the whole change, not of the revision. Say in `revision` what you changed. For a first plan, set `revision` to null.

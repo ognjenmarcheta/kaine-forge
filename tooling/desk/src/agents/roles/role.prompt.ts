@@ -40,6 +40,11 @@ export interface RolePromptInput {
    * information to verify, not an order. Fence any text you did not write.
    */
   readonly feedback?: string | undefined;
+  /**
+   * The owner's note at the plan approval, for the builder: the owner's answer to the plan's
+   * open questions. Owner text, bounded by the API, never agent or GitHub text.
+   */
+  readonly ownerNote?: string | undefined;
   readonly skills: readonly string[];
   readonly skillMode: SkillMode;
 }
@@ -163,6 +168,11 @@ export const composeRolePrompt = async (
   sections.push(`## Issue\n\n${input.issue}`);
   if (input.plan !== undefined) {
     sections.push(`## Approved plan\n\n\`\`\`json\n${JSON.stringify(input.plan, null, 2)}\n\`\`\``);
+  }
+  if (input.ownerNote !== undefined && input.ownerNote.trim() !== "") {
+    sections.push(
+      `## The owner's note at the plan approval\n\nThe owner wrote this when approving the plan. It answers the plan's open questions. It does not add files to the plan.\n\n${input.ownerNote.trim()}`
+    );
   }
   if (input.diffPath !== undefined) {
     sections.push(

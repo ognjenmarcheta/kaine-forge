@@ -101,7 +101,7 @@ describe("run records", () => {
     const e = await open({
       config: { models: { builder: "opus" } },
       steps: [
-        { role: "planner", output: planOutput() },
+        { role: "planner", output: planOutput({ risk: "high", riskReasons: ["Touches auth."] }) },
         {
           role: "builder",
           output: builderOutput(),
@@ -123,12 +123,19 @@ describe("run records", () => {
 
     const { records, invalidLines } = await readRunRecords(e.stateRoot);
     expect(invalidLines).toBe(0);
+    // Each run names the risk of the plan it worked from: its own result, or the plan it got.
     expect(
-      records.map((record) => [record.issue, record.role, record.model, record.accepted])
+      records.map((record) => [
+        record.issue,
+        record.role,
+        record.model,
+        record.accepted,
+        record.planRisk
+      ])
     ).toEqual([
-      [ISSUE, "planner", null, true],
-      [ISSUE, "builder", "opus", true],
-      [ISSUE, "reviewer", null, true]
+      [ISSUE, "planner", null, true, "high"],
+      [ISSUE, "builder", "opus", true, "high"],
+      [ISSUE, "reviewer", null, true, "high"]
     ]);
     expect(records[1]).toMatchObject({ provider: "claude", isolation: "host", editCalls: 1 });
   });

@@ -103,7 +103,8 @@ export const REFUSALS = [
 ] as const;
 export type Refusal = (typeof REFUSALS)[number];
 
-export type StopKind = "gate" | "needs-you" | "shipped" | "cancelled";
+/** `paused`: the owner holds the issue. Nothing more runs until `resume`. */
+export type StopKind = "gate" | "needs-you" | "shipped" | "cancelled" | "paused";
 
 /**
  * What an API call returns. `stopped`: the call did its work and the issue
@@ -131,6 +132,12 @@ export interface ShipOptions {
   readonly confirm: boolean;
   /** Write the ship plan and the PR body to the artifacts folder. Nothing else changes. */
   readonly dryRun?: boolean | undefined;
+}
+
+/** What the plan approval takes. */
+export interface ApproveOptions {
+  /** The owner's answer to the plan's open questions. The builder reads it. */
+  readonly note?: string | undefined;
 }
 
 /** What the PR feedback action takes. */
@@ -197,6 +204,9 @@ export type StatePatch = Partial<
     | "prUrl"
     | "prNumber"
     | "prHeadSha"
+    | "approveNote"
+    | "pauseRequested"
+    | "pausedAt"
   >
 >;
 

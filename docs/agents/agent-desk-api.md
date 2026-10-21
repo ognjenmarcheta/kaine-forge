@@ -15,7 +15,7 @@ import only Zod, so a browser can use them.
   `{ server, url, launchUrl, close, runtime }`.
 - `serveDesk({ ...same options, signal? })` does the same, then waits for SIGINT,
   SIGTERM, or `signal`, then closes. This is what `pnpm desk serve` calls.
-- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, prRoundLimit?, lessons?, uiDir?, dispose? }`.
+- `depsFactory(onEvent)` returns a `DeskRuntime`: `{ runner, store, health, healthFixes?, openWork?, currentDiffHash?, readRuns?, prRoundLimit?, lessons?, lessonActions?, uiDir?, dispose? }`.
   Pass the given `onEvent` to `createPipelineRunner` as `PipelineDeps.onEvent`. The server
   listens to it for live logs and fast updates. Without a factory the server builds the
   real runtime (`createDefaultDeskRuntime`).
@@ -53,6 +53,10 @@ import only Zod, so a browser can use them.
 | GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs. Cached 60 s; `ok: false` + reason.    |
 | GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue.   |
 | GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
+| POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.          |
+| POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.      |
+| GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.     |
+| POST   | `/api/lessons/issue`             | `LessonIssueCreated`. Body: `{ key, digest, confirm: true }`. See below.  |
 | GET    | `/api/events`                    | Event stream. See "Events".                                               |
 | GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.   |
 | GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.           |
@@ -69,7 +73,7 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `action`      | Extra fields                                             | Runner call                                           |
 | ------------- | -------------------------------------------------------- | ----------------------------------------------------- |
 | `start`       | `override?: boolean`                                     | `start(n, { override })`                              |
-| `approve`     | none                                                     | `approvePlan(n)`                                      |
+| `approve`     | `note?` (1 to 20000 characters after trim)               | `approvePlan(n, { note })`                            |
 | `feedback`    | `to: plan\|build\|review`, `text`                        | `feedback(n, to, text)`                               |
 | `continue`    | `from?: intake\|setup\|plan\|build\|check\|review\|ship` | `continueFrom(n, from)`                               |
 | `cancel`      | none                                                     | `cancel(n)`                                           |
@@ -79,8 +83,21 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `pr-feedback` | `text?` (1 to 20000 characters after trim)               | `feedbackFromPr(n, { text })`                         |
 | `draft`       | none                                                     | `draft(n)`: done means `needs-you` with "Draft ready" |
 | `apply-draft` | `confirm: true` (anything else is `400`)                 | `applyDraft(n, { confirm })`                          |
+| `pause`       | none                                                     | `pause(n)`: hold the issue after the running stage    |
+| `resume`      | none                                                     | `resume(n)`: clear the hold and drive on              |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
+- `approve` with a `note` stores it as `approveNote` in the issue state. A new approval replaces
+  it. Every later build gets it in its prompt, under "The owner's note at the plan approval", as
+  the owner's answer to the plan's open questions. It never widens the plan's file list.
+- `pause` sets `pauseRequested` and `pausedAt` in the issue state. It never stops an agent:
+  the running stage ends as usual, and then the engine starts no next stage. The issue waits at
+  that stage with status `waiting`. An action that would drive a paused issue (`approve`,
+  `feedback`, `continue`) stops before its first stage. The answer is `stop: "paused"`. The pause
+  is in the state file, so a restarted desk keeps it. `pause` refuses an issue at `shipped` or
+  `cancelled` (`409 invalid-transition`). A second `pause` changes nothing.
+- `resume` clears the pause and drives on from the stage where the issue waits. It refuses an
+  issue that is not paused (`409 invalid-transition`). `cancel` clears a pause.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
@@ -97,8 +114,10 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   answer is `200 { status: "done", outcome }`. A refusal is an error answer. If the call
   is still running, the answer is `202 { status: "accepted" }`. The result then arrives
   as an `action-result` event.
-- One issue runs one action at a time. A second one gets `409 busy`. `cancel` and
-  `remove` are the exception: they exist to stop a running action.
+- One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`, and
+  `pause` are the exception: they act on a running action. `pause` changes the running action's
+  state at once, so it answers `done` with `stop: "paused"` while the stage still runs.
+- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `removed`, or `paused`.
 
 ## Errors
 
@@ -111,7 +130,7 @@ The body is `{ "error": { "code": "<code>", "detail": "<raw text or null>" } }`.
 | `forbidden`                                                                                      | 403    |
 | `not-found`, `artifact-missing`, `unknown-issue`                                                 | 404    |
 | `method-not-allowed`                                                                             | 405    |
-| `busy`                                                                                           | 409    |
+| `busy`, `lesson-refused`                                                                         | 409    |
 | `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `draft-refused`, `already-started` | 409    |
 | `refresh-refused`, `pr-refused`                                                                  | 409    |
 | `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`                             | 409    |
@@ -140,9 +159,66 @@ board never reads one detail for each card. Besides the stage, status, branch, l
 - `progress`: the status of each of the 9 flow nodes, in `FLOW_NODE_IDS` order, from
   `buildFlowModel`.
 - `currentNode`: the flow node that holds the issue now, or `null`.
+- `paused` and `pausedAt`: the owner paused the issue. With `busy`, the running stage still
+  ends; then the issue waits until `resume`.
+- `planRisk`: `low`, `medium`, or `high` from `plan.json`, or `null` before a graded plan exists.
+
+## Issue detail
+
+`IssueDetail` (`GET /api/issues/:n`) holds the summary, the full `state`, the flow model, the
+artifact index, the contract, the check and review summaries, ship readiness, and `runs`. Also:
+
+- `plan`: `{ risk, riskReasons, revision }` from `plan.json`, or `null` before the plan exists.
+  A plan written before the risk fields reads as `risk: null` and `riskReasons: []`.
+- `buildRevision`: what the latest build changed since the build before, from `build.json`.
+  `null` for a first build and for a `build.json` without the field.
+- `approveNote`: the owner's note at the plan approval, or `null`.
+- `resume`: `{ worktreePath, sessions }`. Each session is `{ role, sessionId, provider, command }`
+  for `builder` and `planner`, builder first. `provider` comes from the role's run summary
+  (`agent-<role>.json`), or `null` when the issue has none. `command` is the line
+  `pnpm desk resume` prints, `cd <worktree> && claude --resume <id>` or `... && codex resume <id>`,
+  or `null` without a provider or a worktree.
 
 A `LogEntry` has `at` (ISO time) and `text`. The text has no time in it: the UI shows `at` in
-the reader's zone and language. The CLI still prints a UTC `HH:MM:SS` before each line.
+the reader's zone and language. The CLI still prints a UTC `HH:MM:SS` before each line. `stage`
+is the stage of a history event, or else the stage of the issue's latest state event in this
+server. It is `null` when the server has not seen one, and absent on entries from before the
+field existed.
+
+## Stats
+
+`RunStats` (`GET /api/stats`, `desk stats --json`) has `groups`, `issues`, and `invalidLines`,
+and also:
+
+- `riskOutcomes`: one `{ risk, issues, shipped, sentBack }` for each of `low`, `medium`, `high`.
+  An issue counts at the risk of its latest graded run (`RunRecord.planRisk`). `shipped`: the
+  desk opened its PR (`pr-open` or `shipped` now). `sentBack`: the plan was made again (two or
+  more accepted planner runs) or a review sent the work back to `build`.
+- `days`: the last 7 UTC days, oldest first, the last one today. Each is
+  `{ date, runs, costUsd, shipped }`. `costUsd` is `null` when no run of the day reported a cost.
+  `shipped` counts the issues whose latest `pr-opened` or `pr-updated` event fell on that day.
+
+Every `RunRecord` has `planRisk`: the risk of the plan the run worked from (the planner's own
+result, or the plan a builder or reviewer got). A line written before the field reads as `null`.
+
+## Lessons
+
+`LessonReport` has `candidates` (without the promoted keys), `promoted` (newest first),
+`belowThreshold`, `minIssues`, `currentRepo`, and `invalidLines`. A `PromotedLesson` is
+`{ key, at, note, issue }`. The desk keeps them in `<state>/lessons-promoted.json`, beside
+`lessons.jsonl`, written atomically. `pnpm desk lessons` leaves the promoted keys out too.
+
+- `promote` marks a key handled. A second `promote` replaces the note and keeps the issue.
+- `issue-preview` answers the exact title and body the desk sends: the six sections of
+  [issue-format.md](issue-format.md), then `## Origin` with the owner's note. Lesson text is
+  data from agent runs: the body quotes the samples in a code block that they cannot close, and
+  no lesson text goes into a prompt. `digest` is the SHA-256 of the title, a newline, and the body.
+- `issue` needs `confirm: true` (anything else is `400`) and the `digest` of the preview the owner
+  saw. It checks that `gh` is signed in as the owner, opens the issue with `gh issue create`, and
+  promotes the key with the new issue number. A lesson that changed since the preview, a key that
+  already has an issue, a wrong `gh` login, or a GitHub failure is `409 lesson-refused`, and no
+  issue is opened.
+- A desk without `lessonActions` answers these routes with `404`.
 
 ## Events
 
@@ -157,6 +233,9 @@ line in `data:`. The server sends `: ping` every 15 s.
 | `log`           | `{ entry: LogEntry }`                                     |
 | `health`        | `{ report: HealthReport }`                                |
 | `health-fix`    | `{ result: { fix, ok, detail } }` when a repair ends      |
+
+A `pause` and a `resume` write the state and a history event (`pause-requested`, `paused`,
+`resumed`), so they reach the page as `issue-updated` and `log` like any other change.
 
 Two sources feed `issue-updated`: the runner's events (fast), and a comparison of the
 store every 2 s with `fs.watch` as a trigger. The comparison shows changes from a CLI

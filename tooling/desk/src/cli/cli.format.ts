@@ -91,7 +91,8 @@ const STOP_TITLE: Readonly<Record<StopKind, string>> = {
   gate: "waiting for you",
   "needs-you": "needs you",
   shipped: "shipped",
-  cancelled: "cancelled"
+  cancelled: "cancelled",
+  paused: "paused"
 };
 
 const changesetLine = (plan: ShipPlan): string => {

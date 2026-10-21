@@ -1,6 +1,6 @@
 import type { Exec, GitHubPort } from "../ports";
 import { createGhClient, fetchRepository, fetchViewer } from "./github.gh";
-import { fetchIssueSnapshot } from "./github.issue";
+import { createIssue, fetchIssueSnapshot } from "./github.issue";
 import { labelCreateArgv } from "./github.labels";
 import { fetchPullRequestFeedback } from "./github.pr-feedback";
 import {
@@ -70,6 +70,7 @@ export const createGitHubPort = ({ exec, cwd }: GitHubPortOptions): GitHubPort =
     // The body goes through stdin: no shell, no temporary file, no length limit of argv.
     editIssueBody: async (issueNumber, body) => {
       await gh.text(["issue", "edit", String(issueNumber), "--body-file", "-"], body);
-    }
+    },
+    createIssue: (request) => createIssue(gh, request)
   };
 };
