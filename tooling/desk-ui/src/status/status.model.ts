@@ -122,6 +122,10 @@ export function reasonExcerpt(text: string): string {
 export const BOARD_GROUPS = ["needs-you", "waiting", "running", "done"] as const;
 export type BoardGroup = (typeof BOARD_GROUPS)[number];
 
+/** The owner's turn: an issue that stopped and needs them, or one that waits at a gate. */
+export const isYourTurn = (group: BoardGroup): boolean =>
+  group === "needs-you" || group === "waiting";
+
 /** The state half of a chip such as "Build · running". */
 export const CHIP_STATES = [
   "waiting-for-you",

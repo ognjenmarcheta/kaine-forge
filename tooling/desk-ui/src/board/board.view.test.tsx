@@ -1,11 +1,12 @@
 import type { IssueSummary } from "@repo/desk/contracts";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { DONE_LIMIT } from "./board.view";
 import { DeskApiError, type DeskApi } from "../api/api.client";
 import { DeskApp } from "../desk.app";
+import { UNDO_WINDOW_MS } from "../shell/shell.undo";
 import { fakeApi, makeState, makeSummary, renderDesk } from "../test/test.render";
 
 const summary = (
@@ -92,17 +93,25 @@ describe("BoardView columns", () => {
     ).toBeTruthy();
   });
 
-  it("continues an issue from its card and reports the result as a toast", async () => {
-    const act = vi.fn<DeskApi["act"]>(() =>
-      Promise.resolve({ status: "accepted", action: "continue", issueNumber: 3 })
-    );
-    show(BOARD, { act });
-    const needsYou = await screen.findByRole("region", { name: /^Needs you/ });
-    await userEvent.click(within(needsYou).getByRole("button", { name: "Continue" }));
-    expect(act).toHaveBeenCalledWith(3, { action: "continue" });
-    expect(
-      await screen.findByText("#3 · Continued. The run goes on in the background.")
-    ).toBeTruthy();
+  it("continues an issue from its card after the undo window and reports the result as a toast", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const send = vi.fn<DeskApi["act"]>(() =>
+        Promise.resolve({ status: "accepted", action: "continue", issueNumber: 3 })
+      );
+      show(BOARD, { act: send });
+      const needsYou = await screen.findByRole("region", { name: /^Needs you/ });
+      await userEvent.click(within(needsYou).getByRole("button", { name: "Continue" }));
+      expect(await screen.findByText("#3 · The run will continue.")).toBeTruthy();
+      expect(send).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS));
+      expect(send).toHaveBeenCalledWith(3, { action: "continue" });
+      expect(
+        await screen.findByText("#3 · Continued. The run goes on in the background.")
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("disables Continue while the engine runs an action of the issue", async () => {
@@ -162,13 +171,6 @@ describe("BoardView search", () => {
     await userEvent.type(box, "loop COUNTS");
     await waitFor(() => expect(screen.queryByRole("link", { name: /#43/ })).toBeNull());
     expect(screen.getByRole("link", { name: /#44/ })).toBeTruthy();
-  });
-
-  it("focuses the search with the slash key", async () => {
-    show();
-    await screen.findByRole("link", { name: /#42/ });
-    await userEvent.keyboard("/");
-    expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "Search issues" }));
   });
 });
 

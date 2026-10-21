@@ -18,11 +18,6 @@ export const DONE_LIMIT = 12;
 /** The board filters once typing pauses this long. */
 const SEARCH_DELAY_MS = 150;
 
-/** A field the `/` shortcut must leave alone: the engineer types there. */
-const isTypingTarget = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-
 function useDebounced(value: string, delayMs: number): string {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -120,17 +115,6 @@ export function BoardView() {
   const searchBox = useRef<HTMLInputElement>(null);
   useRefusedStartToasts();
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
-      event.preventDefault();
-      searchBox.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const all = useMemo(() => Object.values(state.issues), [state.issues]);
   const groups = useMemo(
     () => groupIssues(all.filter((summary) => matchesSearch(summary, search))),
@@ -153,7 +137,6 @@ export function BoardView() {
             type="search"
             className="desk-search__input"
             aria-label={t("desk.board.search")}
-            aria-keyshortcuts="/"
             placeholder={t("desk.board.searchPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}

@@ -160,7 +160,7 @@ Typography tokens define hierarchy and rhythm.
 | `--ds-font-body-xsmall`     | metadata                                  |
 | `--ds-font-code`            | code and monospaced labels                |
 
-Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
+Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
 
 The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
 

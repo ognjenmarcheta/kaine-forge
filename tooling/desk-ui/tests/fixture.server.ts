@@ -192,6 +192,14 @@ const buildRunner = (
       record(issue, "continue", { from: from ?? null });
       return reviewReady(issue);
     },
+    pause: async (issue) => {
+      record(issue, "pause", {});
+      return gate(await readState(store, issue));
+    },
+    resume: async (issue) => {
+      record(issue, "resume", {});
+      return gate(await readState(store, issue));
+    },
     cancel: async (issue) => {
       record(issue, "cancel", {});
       const state = await change(
@@ -335,6 +343,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
                   belowThreshold: 0,
                   minIssues: 2,
                   currentRepo: null,
+                  promoted: [],
                   invalidLines: 0
                 }
               : scenarioLessons()

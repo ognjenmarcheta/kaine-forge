@@ -102,6 +102,9 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,
+    paused: false,
+    pausedAt: null,
+    planRisk: null,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -132,6 +135,10 @@ export const makeDetail = (
         currentDiffMatches: atGate ? true : null,
         ready: atGate
       },
+      plan: null,
+      buildRevision: null,
+      approveNote: null,
+      resume: { worktreePath: null, sessions: [] },
       runs: []
     }
   };

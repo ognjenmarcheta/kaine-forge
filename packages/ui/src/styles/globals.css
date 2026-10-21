@@ -311,10 +311,12 @@
   --ds-font-body-small: 400 0.75rem/1.125rem var(--ds-font-family-sans);
   --ds-font-body-xsmall: 400 0.6875rem/1rem var(--ds-font-family-sans);
   --ds-font-code: 400 0.8125rem/1 var(--ds-font-family-mono);
-  /* Reading-first workspaces such as the agent desk: 15px body, 13px meta, 12.5px code. */
+  /* Reading-first workspaces such as the agent desk: 15px body, 13.5px secondary, 13px meta, 12.5px code. */
   --ds-font-heading-page: 500 1.625rem/1.2 var(--ds-font-family-sans);
+  --ds-font-heading-card: 500 1.1875rem/1.3 var(--ds-font-family-sans);
   --ds-font-heading-row: 500 0.96875rem/1.55 var(--ds-font-family-sans);
   --ds-font-body-comfortable: 400 0.9375rem/1.55 var(--ds-font-family-sans);
+  --ds-font-body-snug: 400 0.84375rem/1.55 var(--ds-font-family-sans);
   --ds-font-body-compact: 400 0.8125rem/1.55 var(--ds-font-family-sans);
   --ds-font-code-small: 400 0.78125rem/1.6 var(--ds-font-family-mono);
   --ds-letter-spacing-heading: -0.015em;

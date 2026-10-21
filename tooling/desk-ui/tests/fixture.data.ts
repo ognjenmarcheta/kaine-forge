@@ -433,6 +433,7 @@ const run = (over: Partial<RunRecord> & Pick<RunRecord, "issue" | "role">): RunR
   failedToolCalls: 3,
   denials: 0,
   harness: null,
+  planRisk: null,
   ...over
 });
 
@@ -486,6 +487,7 @@ export const scenarioLessons = (): LessonReport => ({
   belowThreshold: 2,
   minIssues: 2,
   currentRepo: null,
+  promoted: [],
   invalidLines: 0
 });
 

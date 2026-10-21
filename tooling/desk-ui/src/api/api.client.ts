@@ -82,7 +82,12 @@ export interface DeskApi {
     schema: z.ZodType<T>
   ) => Promise<T>;
   readonly log: (issueNumber: number, after: number) => Promise<LogResponse>;
-  readonly act: (issueNumber: number, request: ActionRequestInput) => Promise<ActionResponse>;
+  /** `keepalive` lets the request finish while the page closes (an undo window that ends early). */
+  readonly act: (
+    issueNumber: number,
+    request: ActionRequestInput,
+    options?: { readonly keepalive?: boolean }
+  ) => Promise<ActionResponse>;
 }
 
 /** The typed client for every route of the desk server. Each answer is parsed with its contract. */
@@ -173,7 +178,7 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     },
     log: (issueNumber, after) =>
       getJson(`${issuePath(issueNumber)}/log?after=${String(after)}`, logResponseSchema),
-    act: async (issueNumber, request) => {
+    act: async (issueNumber, request, options) => {
       const checked = actionRequestSchema.safeParse(request);
       if (!checked.success) {
         throw new DeskApiError("bad-request", 0, checked.error.issues[0]?.message ?? null);
@@ -181,7 +186,8 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
       const response = await send(`${issuePath(issueNumber)}/actions`, {
         method: "POST",
         headers: WRITE_HEADERS,
-        body: JSON.stringify(checked.data)
+        body: JSON.stringify(checked.data),
+        ...(options?.keepalive === true ? { keepalive: true } : {})
       });
       let body: unknown;
       try {

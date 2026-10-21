@@ -4,10 +4,10 @@ export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
 const STORAGE_KEY = "kaine-desk-theme";
+const NOTIFY_KEY = "kaine-desk-notify";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
-export const isTheme = (value: string | null): value is Theme =>
-  THEMES.some((theme) => theme === value);
+const isTheme = (value: string | null): value is Theme => THEMES.some((theme) => theme === value);
 
 /** Storage can throw (private windows, blocked site data). The page works without it. */
 const readStoredTheme = (): Theme | null => {
@@ -53,4 +53,27 @@ export function useTheme(): readonly [Theme, (theme: Theme) => void] {
     }
   };
   return [theme, choose] as const;
+}
+
+/**
+ * Browser notifications when an issue reaches a gate or stops. Off until the person turns them
+ * on; the choice is kept like the theme. Permission is the browser's, asked on the toggle.
+ */
+export function useNotifyPreference(): readonly [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(NOTIFY_KEY) === "on";
+    } catch {
+      return false;
+    }
+  });
+  const choose = (next: boolean): void => {
+    setOn(next);
+    try {
+      window.localStorage.setItem(NOTIFY_KEY, next ? "on" : "off");
+    } catch {
+      // The choice still applies to this page.
+    }
+  };
+  return [on, choose] as const;
 }

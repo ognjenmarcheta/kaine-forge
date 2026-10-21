@@ -14,6 +14,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { THEMES } from "../shell/shell.preferences";
 import { CHIP_STATES } from "../status/status.model";
 
@@ -114,7 +115,9 @@ describe("desk translations", () => {
       "desk.build.result.": ["pass", "fail", "not-run"],
       "desk.check.kind.": ["loop", "ship"],
       "desk.prefs.theme.": THEMES,
-      "desk.prefs.language.": ["en", "de", "sr"]
+      "desk.prefs.language.": ["en", "de", "sr"],
+      "desk.undo.pending.": UNDOABLE_ACTIONS,
+      "desk.palette.section.": ["here", "recent", "turn", "goto", "issues"]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

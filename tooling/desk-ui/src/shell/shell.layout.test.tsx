@@ -1,4 +1,4 @@
-import { act, screen } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -45,9 +45,12 @@ const systemScheme = (dark: boolean) => {
 
 const theme = (): string | undefined => document.documentElement.dataset["theme"];
 
-const choose = async (name: string, menu = "Preferences"): Promise<void> => {
-  await userEvent.click(screen.getByRole("button", { name: menu }));
-  await userEvent.click(await screen.findByRole("menuitemradio", { name }));
+const choose = async (name: string, panel = "Preferences"): Promise<void> => {
+  if (screen.queryByRole("dialog", { name: panel }) === null) {
+    await userEvent.click(screen.getByRole("button", { name: panel }));
+  }
+  const preferences = screen.getByRole("dialog", { name: panel });
+  await userEvent.click(within(preferences).getByRole("button", { name }));
 };
 
 afterEach(() => {

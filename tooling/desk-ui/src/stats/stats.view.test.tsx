@@ -7,6 +7,14 @@ import { StatsView } from "./stats.view";
 import { DeskApiError } from "../api/api.client";
 import { fakeApi, renderDesk } from "../test/test.render";
 
+/** The seven days the stats always cover, here without runs. */
+const DAYS: RunStats["days"] = Array.from({ length: 7 }, (_, index) => ({
+  date: `2026-10-${String(15 + index)}`,
+  runs: 0,
+  costUsd: null,
+  shipped: 0
+}));
+
 const STATS: RunStats = {
   groups: [
     {
@@ -48,6 +56,8 @@ const STATS: RunStats = {
     { issue: 12, stage: "pr-review", loops: { check: 1, review: 0 }, runs: 5, totalCostUsd: 6 },
     { issue: 9, stage: null, loops: null, runs: 1, totalCostUsd: null }
   ],
+  riskOutcomes: [],
+  days: DAYS,
   invalidLines: 2
 };
 
@@ -92,7 +102,10 @@ describe("StatsView", () => {
   it("explains an empty record", async () => {
     renderDesk(
       <StatsView />,
-      fakeApi({ stats: () => Promise.resolve({ groups: [], issues: [], invalidLines: 0 }) })
+      fakeApi({
+        stats: () =>
+          Promise.resolve({ groups: [], issues: [], riskOutcomes: [], days: DAYS, invalidLines: 0 })
+      })
     );
     expect(await screen.findByText(/No agent runs recorded yet/)).toBeTruthy();
   });
@@ -113,6 +126,7 @@ describe("StatsView", () => {
       belowThreshold: 4,
       minIssues: 2,
       currentRepo: null,
+      promoted: [],
       invalidLines: 0
     };
     renderDesk(

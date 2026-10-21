@@ -9,6 +9,7 @@ import { OverflowTooltip, useOverflow } from "../shell/shell.overflow";
 import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { toastSettled } from "../shell/shell.toast";
+import { runUndoable } from "../shell/shell.undo";
 import { useDesk } from "../state/desk.provider";
 import { IssueStatusChip } from "../status/status.chip";
 import {
@@ -44,8 +45,19 @@ function NextAction({
             disabled={pending || summary.busy}
             onClick={() => {
               setPending(true);
-              void act(summary.issueNumber, { action: "continue" }, { wait: false })
-                .then((settled) => toastSettled(t, summary.issueNumber, "continue", settled))
+              void runUndoable({
+                label: t("desk.undo.pending.continue"),
+                issues: [summary.issueNumber],
+                send: ({ keepalive }) =>
+                  keepalive
+                    ? act(summary.issueNumber, { action: "continue" }, { wait: false, keepalive })
+                    : act(summary.issueNumber, { action: "continue" }, { wait: false })
+              })
+                .then((outcome) => {
+                  if (outcome.kind === "sent") {
+                    toastSettled(t, summary.issueNumber, "continue", outcome.value);
+                  }
+                })
                 .finally(() => setPending(false));
             }}
           >
