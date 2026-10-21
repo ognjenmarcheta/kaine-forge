@@ -323,6 +323,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       if (plan.status !== "ok") return null;
       return [
         `Plan ready: ${plan.value.summary}`,
+        ...(plan.value.revision === null ? [] : [`Revision: ${plan.value.revision}`]),
         plan.value.openQuestions.length === 0
           ? "No open questions."
           : `Open questions:\n${plan.value.openQuestions.map((question) => `- ${question}`).join("\n")}`

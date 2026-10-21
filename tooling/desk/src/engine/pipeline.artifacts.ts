@@ -82,6 +82,7 @@ export const renderPlanMarkdown = (plan: PlannerOutput): string => {
     "",
     plan.summary,
     "",
+    ...(plan.revision === null ? [] : ["## Revision", plan.revision, ""]),
     "## Acceptance criteria",
     list(plan.acceptanceCriteria.map((entry) => `${entry.criterion}: ${entry.change}`)),
     "",

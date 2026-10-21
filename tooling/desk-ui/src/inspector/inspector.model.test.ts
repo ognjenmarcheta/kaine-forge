@@ -49,6 +49,7 @@ const tile = (kpis: readonly Kpi[], id: string) => kpis.find((kpi) => kpi.id ===
 
 const PLAN: PlannerOutput = {
   summary: "Add an empty state.",
+  revision: null,
   files: [{ path: "a.tsx", action: "create", purpose: "The state" }],
   tests: [],
   acceptanceCriteria: [{ criterion: "Explains how to start", change: "a.tsx" }],

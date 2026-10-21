@@ -44,7 +44,7 @@ export const planStage: StageHandler = async (context) => {
       previous.status === "ok"
         ? `Your previous plan:\n\n\`\`\`json\n${JSON.stringify(previous.value, null, 2).slice(0, PREVIOUS_PLAN_LIMIT)}\n\`\`\`\n\n`
         : "";
-    feedback = `${earlier}The engineer reviewed your plan and asks for this. Revise the plan and say in \`summary\` what changed.\n\n${pending.text}`;
+    feedback = `${earlier}The engineer reviewed your plan and asks for this. Revise the plan. Keep \`summary\` a description of the whole change, and say in \`revision\` what changed.\n\n${pending.text}`;
   }
 
   const run = await runAgentStage(context, {

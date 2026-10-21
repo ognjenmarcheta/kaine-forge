@@ -16,6 +16,7 @@ import {
 
 const planner = (): PlannerOutput => ({
   summary: "Add the contracts",
+  revision: null,
   files: [{ path: "tooling/desk/src/a.ts", action: "create", purpose: "contract" }],
   tests: [{ path: "tooling/desk/src/a.test.ts", action: "create", reason: "prove parsing" }],
   acceptanceCriteria: [{ criterion: "Parses output", change: "a.ts schema" }],
@@ -58,6 +59,7 @@ describe("planner output", () => {
     ["an unknown PR type", { pr: { type: "feature", slug: "x" } }],
     ["a slug with spaces or capitals", { pr: { type: "feat", slug: "Desk Contracts" } }],
     ["an empty summary", { summary: "" }],
+    ["an empty revision", { revision: "" }],
     ["a missing plain-language field", { plainLanguage: undefined }]
   ])("rejects %s", (_name, patch) => {
     expect(plannerOutputSchema.safeParse({ ...planner(), ...patch }).success).toBe(false);
@@ -66,6 +68,13 @@ describe("planner output", () => {
   it("accepts a changeset that is not required and lists no packages", () => {
     const plan = { ...planner(), changeset: { required: false, packages: [], bump: "patch" } };
     expect(plannerOutputSchema.safeParse(plan).success).toBe(true);
+  });
+
+  it("reads a plan written before the revision field as a first plan", () => {
+    const older: Record<string, unknown> = { ...planner() };
+    delete older.revision;
+    const parsed = plannerOutputSchema.safeParse(older);
+    expect(parsed.success && parsed.data.revision).toBeNull();
   });
 });
 
