@@ -142,7 +142,7 @@ const NOTES: AgentDefinition = {
   description: "Writes release notes.",
   provider: "claude",
   output: "report",
-  capabilities: { preset: "read-only", mcp: [], skills: [] },
+  capabilities: { preset: "read-only", mcp: [], skills: [], tools: [] },
   prompt: "# Notes\n\nWrite the release notes."
 };
 

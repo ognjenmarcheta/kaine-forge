@@ -210,4 +210,23 @@ describe("validateAgent", () => {
       { field: "capabilities.preset", message: "Only a change agent may use the edit-code preset" }
     ]);
   });
+
+  it("accepts a known tool on an edit-code agent only, and no unknown tool", async () => {
+    const builder = await agentOf("builder");
+    const reviewer = await agentOf("reviewer");
+    // The built-in files name no tools: an agent file without the field still parses.
+    expect(builder.capabilities.tools).toEqual([]);
+    const withTools = (agent: AgentDefinition, tools: string[]): AgentDefinition => ({
+      ...agent,
+      capabilities: { ...agent.capabilities, tools }
+    });
+
+    expect(validateAgent(withTools(builder, ["doc-export"]))).toEqual([]);
+    expect(validateAgent(withTools(builder, ["shell"]))).toEqual([
+      { field: "capabilities.tools", message: "Unknown tool 'shell': use one of doc-export" }
+    ]);
+    expect(validateAgent(withTools(reviewer, ["doc-export"]))).toEqual([
+      { field: "capabilities.tools", message: "Tools write files: they need the edit-code preset" }
+    ]);
+  });
 });

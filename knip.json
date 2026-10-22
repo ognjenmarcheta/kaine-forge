@@ -99,6 +99,9 @@
         "docker/*.test.mjs"
       ]
     },
+    "tooling/doc-export": {
+      "entry": ["src/cli/doc-export.cli.ts", "*.config.ts", "**/*.test.ts"]
+    },
     "tooling/desk-ui": {
       "entry": [
         "src/desk.main.tsx",

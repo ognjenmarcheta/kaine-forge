@@ -26,6 +26,8 @@ export interface AgentDraft {
   readonly preset: CapabilityPreset;
   readonly mcp: readonly string[];
   readonly skills: readonly string[];
+  /** Extra tools from `AGENT_TOOLS`. Only the edit-code preset keeps them. */
+  readonly tools: readonly string[];
   /** Empty: the desk's default timeout. */
   readonly timeout: string;
   readonly prompt: string;
@@ -41,6 +43,7 @@ export const EMPTY_DRAFT: AgentDraft = {
   preset: "read-only",
   mcp: [],
   skills: [],
+  tools: [],
   timeout: "",
   prompt: ""
 };
@@ -55,6 +58,7 @@ export const draftOf = (definition: AgentDefinition): AgentDraft => ({
   preset: definition.capabilities.preset,
   mcp: definition.capabilities.mcp,
   skills: definition.capabilities.skills,
+  tools: definition.capabilities.tools,
   timeout: definition.timeoutMinutes === undefined ? "" : String(definition.timeoutMinutes),
   prompt: definition.prompt
 });
@@ -72,7 +76,12 @@ export const definitionOf = (draft: AgentDraft): AgentDefinition => {
     provider: draft.provider,
     ...(model === "" ? {} : { model }),
     output: draft.output,
-    capabilities: { preset: draft.preset, mcp: [...draft.mcp], skills: [...draft.skills] },
+    capabilities: {
+      preset: draft.preset,
+      mcp: [...draft.mcp],
+      skills: [...draft.skills],
+      tools: [...draft.tools]
+    },
     ...(timeout === ""
       ? {}
       : { timeoutMinutes: WHOLE_NUMBER.test(timeout) ? Number(timeout) : -1 }),
@@ -91,6 +100,7 @@ export const AGENT_FIELDS = [
   "preset",
   "mcp",
   "skills",
+  "tools",
   "timeoutMinutes",
   "prompt"
 ] as const;
@@ -107,6 +117,7 @@ const FIELD_OF_PATH: Readonly<Record<string, AgentField>> = {
   "capabilities.preset": "preset",
   "capabilities.mcp": "mcp",
   "capabilities.skills": "skills",
+  "capabilities.tools": "tools",
   timeoutMinutes: "timeoutMinutes",
   prompt: "prompt"
 };
@@ -157,12 +168,19 @@ export const presetFits = (draft: AgentDraft, preset: CapabilityPreset): boolean
     (error) => error.field === "capabilities.preset"
   );
 
+/** Extra tools write files: a preset other than edit-code drops them. */
+export const withPreset = (draft: AgentDraft, preset: CapabilityPreset): AgentDraft => ({
+  ...draft,
+  preset,
+  tools: preset === "edit-code" ? draft.tools : []
+});
+
 /** A changed output keeps the preset when it still fits, or takes the first that does. */
 export function withOutput(draft: AgentDraft, output: AgentOutputKind): AgentDraft {
   const next = { ...draft, output };
   if (presetFits(next, next.preset)) return next;
   const preset = CAPABILITY_PRESETS.find((candidate) => presetFits(next, candidate));
-  return preset === undefined ? next : { ...next, preset };
+  return preset === undefined ? next : withPreset(next, preset);
 }
 
 export interface ServerProblem {

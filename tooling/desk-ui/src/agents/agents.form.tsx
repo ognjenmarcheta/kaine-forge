@@ -1,5 +1,6 @@
 import {
   AGENT_OUTPUT_KINDS,
+  AGENT_TOOLS,
   CAPABILITY_PRESETS,
   PROVIDERS,
   type AgentList,
@@ -10,7 +11,13 @@ import {
 import { Badge, Checkbox, Input, Label, RadioGroup, RadioGroupItem, Textarea } from "@repo/ui";
 import type { ReactNode } from "react";
 
-import { presetFits, withOutput, type AgentDraft, type AgentField } from "./agents.model";
+import {
+  presetFits,
+  withOutput,
+  withPreset,
+  type AgentDraft,
+  type AgentField
+} from "./agents.model";
 import { useT } from "../i18n/i18n.t";
 
 export interface AgentFormProps {
@@ -234,6 +241,66 @@ function NameList({
 }
 
 /**
+ * The extra tools of `AGENT_TOOLS`, each with the command it allows. They write files, so they
+ * stay disabled, with the reason, until the tool set is Edits code.
+ */
+function ToolList({
+  base,
+  draft,
+  editable,
+  error,
+  onChange
+}: {
+  readonly base: string;
+  readonly draft: AgentDraft;
+  readonly editable: boolean;
+  readonly error: string | null;
+  readonly onChange: (value: readonly string[]) => void;
+}) {
+  const t = useT();
+  const id = fieldId(base, "tools");
+  const allowed = draft.preset === "edit-code";
+  return (
+    <fieldset className="desk-fieldset" aria-describedby={`${id}-hint`}>
+      <legend>{t("desk.agents.field.tools")}</legend>
+      <ul className="desk-namelist">
+        {AGENT_TOOLS.map((tool, index) => {
+          const optionId = index === 0 ? id : `${id}-${tool}`;
+          return (
+            <li key={tool} className="desk-check-row">
+              <Checkbox
+                id={optionId}
+                checked={draft.tools.includes(tool)}
+                disabled={!editable || !allowed}
+                aria-describedby={`${optionId}-about`}
+                onCheckedChange={(checked) =>
+                  onChange(
+                    checked === true
+                      ? [...draft.tools, tool]
+                      : draft.tools.filter((candidate) => candidate !== tool)
+                  )
+                }
+              />
+              <Label htmlFor={optionId} className="desk-mono">
+                {tool}
+              </Label>
+              <span id={`${optionId}-about`} className="desk-muted">
+                {t(`desk.agents.toolAbout.${tool}`)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <Hint
+        id={id}
+        help={t(allowed ? "desk.agents.field.toolsHelp" : "desk.agents.toolsNeedEdit")}
+        error={error}
+      />
+    </fieldset>
+  );
+}
+
+/**
  * The fields of an agent definition. The id is typed only for a new agent. A preset that the
  * output does not allow is disabled with the reason; a changed output takes a preset it allows.
  */
@@ -353,7 +420,7 @@ export function AgentForm({
                   : "desk.agents.presetChangeNeedsEdit"
               )
         }
-        onChange={(preset) => set("preset", "preset", preset)}
+        onChange={(preset) => onChange(withPreset(draft, preset), "preset")}
       />
       <NameList
         base={base}
@@ -376,6 +443,13 @@ export function AgentForm({
         editable={editable}
         error={errorOf("skills")}
         onChange={(value) => set("skills", "skills", value)}
+      />
+      <ToolList
+        base={base}
+        draft={draft}
+        editable={editable}
+        error={errorOf("tools")}
+        onChange={(value) => set("tools", "tools", value)}
       />
       <TextField
         base={base}

@@ -1,11 +1,14 @@
-import type {
-  AgentDefinition,
-  CapabilityProfile,
-  CapabilitySandbox,
-  InstalledCapabilities,
-  Isolation,
-  Provider,
-  RemovedCapability
+import {
+  AGENT_TOOL_COMMANDS,
+  isAgentTool,
+  type AgentDefinition,
+  type AgentTool,
+  type CapabilityProfile,
+  type CapabilitySandbox,
+  type InstalledCapabilities,
+  type Isolation,
+  type Provider,
+  type RemovedCapability
 } from "../contracts";
 import type { AgentPermissions } from "./agent.runner";
 import {
@@ -34,6 +37,9 @@ import {
  *   run's workspaces and one vitest file. It cannot edit;
  * - `edit-code`: run-checks plus Edit, Write, `pnpm generate` and the Serena edits. It
  *   always runs in the configured isolation: in Docker when the isolation is Docker.
+ *
+ * Extra tools (`AGENT_TOOLS`) add one allowed command each, with any arguments. Only an
+ * edit-code agent gets them; for Codex the sandbox decides, as for every other command.
  *
  * The policy floor always applies: the `.ai/permissions.json` denies, the forbidden git
  * and desk commands, WebFetch and WebSearch, the Serena tools that write memory or run
@@ -159,7 +165,23 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     );
   }
 
+  // Extra tools write files: only an edit-code agent gets them. `validateAgent` refuses the rest.
+  const extraTools = unique(input.agent.capabilities.tools).flatMap((tool): AgentTool[] => {
+    if (!isAgentTool(tool)) {
+      removed.push({ kind: "tool", name: tool, reason: "unknown tool" });
+      return [];
+    }
+    if (preset !== "edit-code") {
+      removed.push({ kind: "tool", name: tool, reason: "needs the edit-code preset" });
+      return [];
+    }
+    return [tool];
+  });
+
   if (input.provider === "codex") notes.push(CODEX_NOTE);
+  if (input.provider === "codex" && extraTools.length > 0) {
+    notes.push("Codex: extra tools run as ordinary commands in the workspace-write sandbox");
+  }
   if (preset === "run-checks" && input.isolation === "docker") {
     notes.push(
       "run-checks runs its check commands on the host: only edit-code agents run in Docker"
@@ -174,6 +196,7 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     model: input.model,
     preset,
     sandbox,
+    extraTools,
     mcp,
     skills,
     network: networkOf(sandbox, mcp),
@@ -197,6 +220,7 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
   if (preset === "edit-code" && skills.includes("kaine-create-feature")) {
     allow.push(bash("pnpm create:feature"));
   }
+  for (const tool of extraTools) allow.push(bash(AGENT_TOOL_COMMANDS[tool]));
 
   const inScope = new Set(skills);
   const outOfScope = unique([...KAINE_SKILLS, ...input.installed.skills])

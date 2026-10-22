@@ -65,7 +65,7 @@ const agentFile = (
   output: "report" | "review",
   body: string,
   provider: "claude" | "codex" = "claude",
-  capabilities: AgentCapabilities = { preset: "read-only", mcp: [], skills: [] }
+  capabilities: AgentCapabilities = { preset: "read-only", mcp: [], skills: [], tools: [] }
 ): string =>
   `---\n${stringify({
     id,
@@ -231,7 +231,8 @@ describe("a flow of the repository's own", () => {
       "release-notes": agentFile("release-notes", "report", NOTES_PROMPT, "claude", {
         preset: "read-only",
         mcp: ["playwright", "jira"],
-        skills: ["kaine-explain", "kaine-nope"]
+        skills: ["kaine-explain", "kaine-nope"],
+        tools: []
       })
     });
 

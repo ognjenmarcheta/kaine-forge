@@ -42,6 +42,11 @@ export const capabilityProfileSchema = z
     sandbox: capabilitySandboxSchema,
     /** Claude allow and deny rules. Both are empty for Codex: its sandbox decides. */
     tools: z.object({ allow: z.array(z.string()), deny: z.array(z.string()) }).strict(),
+    /**
+     * Extra tools from `AGENT_TOOLS` the run gets: each allows one repository command. Absent
+     * on records written before extra tools existed.
+     */
+    extraTools: z.array(z.string()).default([]),
     /** MCP servers the run loads. */
     mcp: z.array(z.string()),
     /** Skills the run must use. */

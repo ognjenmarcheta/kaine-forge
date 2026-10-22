@@ -278,6 +278,8 @@ Read the plan and the diff. Write the release notes.
 - A skill name must start with `kaine-`. Setup and the prompt builder refuse any other name, so
   an agent that names one stops its issue at setup. A custom skill reaches an agent only with a
   `kaine-` name in `.ai/skills/`.
+- `capabilities.tools` is optional (default `[]`). It names extra tools from the fixed catalog
+  `AGENT_TOOLS`. See "Extra tools".
 
 ### Output kinds
 
@@ -322,6 +324,51 @@ skills into the **capability profile** of a run. These rules always hold:
 Each run records its **capability receipt**: the profile it started with, as `capabilities` in
 its `runs.jsonl` line. The stage side sheet shows it. Setup installs into the issue worktree the
 MCP servers and skills that the agents of the flow ask for and the checkout has.
+
+### Extra tools
+
+An extra tool lets an agent run one repository command, with any arguments. The catalog is fixed
+(`AGENT_TOOLS` in `src/contracts/agent-definition.contract.ts`):
+
+| Tool         | Command           | What it does                                                                      |
+| ------------ | ----------------- | --------------------------------------------------------------------------------- |
+| `doc-export` | `pnpm doc:export` | Exports Markdown to `.docx` or `.pptx`, and verifies exported files (`--verify`). |
+
+- A tool writes files, so only an `edit-code` agent can have one. `validateAgent` refuses an
+  unknown tool and a tool on any other preset. The Agents page disables the tools with the
+  reason until the tool set is "Edits code".
+- For Claude, the resolver adds one allow rule per tool, for example `Bash(pnpm doc:export:*)`.
+  The profile lists the tools in `extraTools`, so the run receipt shows them. A tool that the
+  agent asks for and does not get is in `removed`, with the reason.
+- Codex gets no rules: its `workspace-write` sandbox runs the command like any other. The
+  profile notes it.
+- In Docker the command runs in the container. Setup installs every workspace there, so
+  `pnpm doc:export` works without extra steps.
+- The tool holds its own safety rules: the input is a `.md` file in the repository, and the
+  output stays in the repository, outside dot-directories, `node_modules`, and the protected
+  paths. See `tooling/doc-export/README.md`.
+
+A flow that writes documents pairs a change agent that has the tool with a check step that
+verifies the files. The plan names each output file, like any other file it changes.
+
+```yaml
+id: docs-export
+name: Docs export
+description: Plan, write the docs and export them, verify the exports, and ship a draft PR.
+steps:
+  - { id: plan, kind: agent, label: Plan, agent: planner }
+  - { id: approve, kind: gate, label: Approve the plan, sendBack: [plan] }
+  - { id: write, kind: agent, label: Write and export, agent: doc-writer }
+  - id: verify
+    kind: check
+    label: Verify the exports
+    commands: [[pnpm, doc:export, --verify, docs]]
+    loopBack: { to: write, limit: 2, stopOnSameFailure: true }
+  - { id: final, kind: gate, label: Approve the change, sendBack: [write] }
+  - { id: ship, kind: ship, label: Ship, auto: false }
+```
+
+Here `doc-writer` is a `change` agent with `preset: edit-code` and `tools: [doc-export]`.
 
 ### Flow files
 
@@ -387,8 +434,9 @@ browser. Every rule reports. Nothing stops at the first error.
 - The ship step comes after a check step that follows the last change agent.
 
 A save, and every start, adds one rule: a ship step that is not `auto` comes directly after a
-gate, where you confirm it. `validateAgent` checks the id and the preset: a `change` agent needs
-`edit-code`, and only a `change` agent can use it.
+gate, where you confirm it. `validateAgent` checks the id, the preset, and the tools: a `change`
+agent needs `edit-code`, only a `change` agent can use it, and each tool is in `AGENT_TOOLS` and
+needs `edit-code`.
 
 ### Choose a flow
 

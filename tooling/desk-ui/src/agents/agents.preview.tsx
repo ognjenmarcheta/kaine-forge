@@ -59,6 +59,10 @@ export function CapabilityPreview({
             <dd>
               <Names names={draft.skills} />
             </dd>
+            <dt>{t("desk.agents.preview.askedTools")}</dt>
+            <dd>
+              <Names names={draft.tools} />
+            </dd>
           </dl>
         </>
       )}

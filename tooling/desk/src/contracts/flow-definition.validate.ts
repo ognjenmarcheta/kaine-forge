@@ -1,4 +1,9 @@
-import { DEFINITION_ID_PATTERN, type AgentDefinition } from "./agent-definition.contract";
+import {
+  AGENT_TOOLS,
+  DEFINITION_ID_PATTERN,
+  isAgentTool,
+  type AgentDefinition
+} from "./agent-definition.contract";
 import type { FlowDefinition, FlowStep } from "./flow-definition.contract";
 import { ENGINE_STATES } from "./pipeline.contract";
 
@@ -136,6 +141,19 @@ export const validateAgent = (agent: AgentDefinition): AgentError[] => {
     errors.push({
       field: "capabilities.preset",
       message: "Only a change agent may use the edit-code preset"
+    });
+  }
+  const { tools } = agent.capabilities;
+  for (const tool of tools.filter((name) => !isAgentTool(name))) {
+    errors.push({
+      field: "capabilities.tools",
+      message: `Unknown tool '${tool}': use one of ${AGENT_TOOLS.join(", ")}`
+    });
+  }
+  if (tools.length > 0 && preset !== "edit-code") {
+    errors.push({
+      field: "capabilities.tools",
+      message: "Tools write files: they need the edit-code preset"
     });
   }
   return errors;

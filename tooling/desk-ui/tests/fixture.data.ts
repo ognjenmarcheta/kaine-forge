@@ -516,6 +516,7 @@ const BUILDER_RECEIPT: CapabilityProfile = {
     allow: ["Read", "Edit", "Write", "Bash(pnpm --filter * test)"],
     deny: ["WebFetch", "WebSearch", "Bash(git push *)"]
   },
+  extraTools: [],
   mcp: ["serena"],
   skills: ["kaine-test"],
   network: "The Claude CLI reaches its API. Tools have no network rule of their own.",
@@ -530,6 +531,7 @@ const REVIEWER_RECEIPT: CapabilityProfile = {
   preset: "read-only",
   sandbox: "codex-read-only",
   tools: { allow: [], deny: [] },
+  extraTools: [],
   mcp: [],
   skills: ["kaine-review"],
   network: "No network inside the Codex sandbox.",
@@ -623,7 +625,7 @@ export const registryAgents = (): BySource<AgentDefinition> => ({
       description: "Writes the release notes of a change.",
       provider: "claude",
       output: "report",
-      capabilities: { preset: "read-only", mcp: [], skills: [] },
+      capabilities: { preset: "read-only", mcp: [], skills: [], tools: [] },
       prompt: "# Release notes\n\nWrite the notes."
     }
   ],
@@ -634,7 +636,7 @@ export const registryAgents = (): BySource<AgentDefinition> => ({
       description: "Builds a UI change with the design system.",
       provider: "claude",
       output: "change",
-      capabilities: { preset: "edit-code", mcp: ["serena"], skills: [] },
+      capabilities: { preset: "edit-code", mcp: ["serena"], skills: [], tools: ["doc-export"] },
       prompt: "# UI builder\n\nBuild the change."
     }
   ]
@@ -691,6 +693,7 @@ export const resolvedOf = (agent: AgentDefinition): CapabilityProfile => ({
   provider: agent.provider,
   model: agent.model ?? null,
   preset: agent.capabilities.preset,
+  extraTools: agent.capabilities.preset === "edit-code" ? agent.capabilities.tools : [],
   mcp: agent.capabilities.mcp,
   skills: agent.capabilities.skills,
   removed: []

@@ -41,7 +41,8 @@ export const builtinCapabilities = (
 ): AgentCapabilities => ({
   preset: role === "builder" ? "edit-code" : "read-only",
   mcp: ["serena", "context7"],
-  skills: [...skills]
+  skills: [...skills],
+  tools: []
 });
 
 export interface PermissionsOptions {

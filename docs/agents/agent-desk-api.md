@@ -267,15 +267,18 @@ The write routes are in "Agent and flow writes".
   now: the configured provider (the config decides for the built-in ids) and isolation. It has
   no workspace check commands, because a run gets them for the workspaces its plan names.
 
-A `CapabilityProfile` is `{ provider, model, preset, sandbox, tools: { allow, deny }, mcp, skills,
-network, removed, notes }`:
+A `CapabilityProfile` is `{ provider, model, preset, sandbox, tools: { allow, deny }, extraTools,
+mcp, skills, network, removed, notes }`:
 
 - `sandbox`: `docker` for an `edit-code` agent when the isolation is Docker, `codex-read-only` or
   `codex-workspace-write` for Codex on the host, else `host` (the Claude allowlist).
 - `tools`: the Claude allow and deny rules. Both are empty for Codex: its sandbox is the policy.
+- `extraTools`: the extra tools of `AGENT_TOOLS` that the run gets, for example `["doc-export"]`.
+  Only an `edit-code` agent gets them. A receipt written before the field reads as `[]`.
 - `removed`: `{ kind, name, reason }` for each tool, MCP server, or skill the agent asked for
   and does not get. Reasons: `not installed` (not in the checkout's `.ai/mcp.json` or
-  `.ai/skills`), `policy floor: ...`, `no MCP inside the container`, and the Codex reason.
+  `.ai/skills`), `policy floor: ...`, `no MCP inside the container`, the Codex reason, and for
+  an extra tool `unknown tool` or `needs the edit-code preset`.
 - `network` and `notes` are engine text, for example `Codex: sandbox only, no MCP`.
 
 The policy floor always applies, and an agent can only narrow it: the `.ai/permissions.json`

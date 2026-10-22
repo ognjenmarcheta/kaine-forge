@@ -25,13 +25,30 @@ export const CAPABILITY_PRESETS = ["read-only", "edit-code", "run-checks"] as co
 export const capabilityPresetSchema = z.enum(CAPABILITY_PRESETS);
 export type CapabilityPreset = z.infer<typeof capabilityPresetSchema>;
 
+/**
+ * Extra tools an agent can switch on. Each one lets it run one repository command, with any
+ * arguments. They write files, so only an edit-code agent gets them (`validateAgent`).
+ */
+export const AGENT_TOOLS = ["doc-export"] as const;
+export type AgentTool = (typeof AGENT_TOOLS)[number];
+
+/** The command each extra tool allows. */
+export const AGENT_TOOL_COMMANDS: Readonly<Record<AgentTool, string>> = {
+  "doc-export": "pnpm doc:export"
+};
+
+export const isAgentTool = (name: string): name is AgentTool =>
+  AGENT_TOOLS.some((tool) => tool === name);
+
 export const agentCapabilitiesSchema = z
   .object({
     preset: capabilityPresetSchema,
     /** MCP server names from `.ai/mcp.json`. */
     mcp: z.array(z.string().min(1)).default([]),
     /** Skill names from `.ai/skills`. */
-    skills: z.array(z.string().min(1)).default([])
+    skills: z.array(z.string().min(1)).default([]),
+    /** Extra tools from `AGENT_TOOLS`. `validateAgent` refuses any other name. */
+    tools: z.array(z.string().min(1)).default([])
   })
   .strict();
 export type AgentCapabilities = z.infer<typeof agentCapabilitiesSchema>;

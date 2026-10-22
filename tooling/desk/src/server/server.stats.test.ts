@@ -210,6 +210,7 @@ describe("GET /api/issues/:n runs", () => {
         preset: "edit-code",
         sandbox: "docker",
         tools: { allow: ["Read", "Edit"], deny: ["WebFetch"] },
+        extraTools: [],
         mcp: [],
         skills: ["kaine-test"],
         network: "container: the provider API through the desk proxy only",

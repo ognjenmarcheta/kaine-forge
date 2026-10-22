@@ -65,6 +65,56 @@ describe("AgentEditor", () => {
     expect(descriptionOf(readOnly)).toBe("A change agent needs the Edits code tool set.");
   });
 
+  it("keeps extra tools off until the tool set is Edits code, and drops them when it is not", async () => {
+    const saveAgent = vi.fn(() =>
+      Promise.reject(new DeskApiError("invalid-definition", 422, "refused in this test"))
+    );
+    open("ui-builder", () => [LOCAL], { saveAgent });
+    const exportTool = await screen.findByRole("checkbox", { name: "doc-export" });
+    expect(exportTool).toHaveProperty("disabled", true);
+    expect(descriptionOf(exportTool)).toBe(
+      "Export Markdown to Word and PowerPoint: pnpm doc:export"
+    );
+    const fieldset = screen.getByRole("group", { name: "Extra tools" });
+    expect(descriptionOf(fieldset)).toBe(
+      "Tools write files. Pick the Edits code tool set to switch them on."
+    );
+
+    await userEvent.click(screen.getByRole("radio", { name: "Change" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "doc-export" }));
+    const preview = screen.getByRole("region", { name: "What a run gets" });
+    expect(within(preview).getByText("Extra tools asked for").nextElementSibling?.textContent).toBe(
+      "doc-export"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(saveAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capabilities: expect.objectContaining({ preset: "edit-code", tools: ["doc-export"] })
+      })
+    );
+
+    await userEvent.click(screen.getByRole("radio", { name: "Report" }));
+    const dropped = screen.getByRole("checkbox", { name: "doc-export" });
+    expect(dropped).toHaveProperty("disabled", true);
+    expect(dropped.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("shows the extra tools of the resolved profile in the preview", async () => {
+    const exporter = agentView(
+      agentDefinition({
+        id: "doc-writer",
+        output: "change",
+        capabilities: { preset: "edit-code", mcp: [], skills: [], tools: ["doc-export"] }
+      }),
+      "local"
+    );
+    open("doc-writer", () => [exporter]);
+    const preview = await screen.findByRole("region", { name: "What a run gets" });
+    expect(within(preview).getByText("Extra tools").nextElementSibling?.textContent).toBe(
+      "doc-export"
+    );
+  });
+
   it("puts each problem of a refused save under its field", async () => {
     const saveAgent = vi.fn(() =>
       Promise.reject(
@@ -180,7 +230,7 @@ describe("AgentEditor", () => {
       agentDefinition({
         id: "ui-builder",
         name: "UI builder",
-        capabilities: { preset: "read-only", mcp: ["serena", "jira"], skills: [] }
+        capabilities: { preset: "read-only", mcp: ["serena", "jira"], skills: [], tools: [] }
       }),
       "local"
     );

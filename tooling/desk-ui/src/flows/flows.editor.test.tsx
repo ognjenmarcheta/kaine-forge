@@ -27,7 +27,7 @@ const AGENTS = [
       id: "builder",
       name: "Builder",
       output: "change",
-      capabilities: { preset: "edit-code", mcp: [], skills: [] }
+      capabilities: { preset: "edit-code", mcp: [], skills: [], tools: [] }
     }),
     "builtin"
   ),

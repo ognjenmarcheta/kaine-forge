@@ -72,6 +72,10 @@ export function CapabilityReceipt({ profile }: { readonly profile: CapabilityPro
         <dd>
           <Names names={profile.skills} />
         </dd>
+        <dt>{t("desk.caps.extraTools")}</dt>
+        <dd>
+          <Names names={profile.extraTools} />
+        </dd>
         <dt>{t("desk.caps.tools")}</dt>
         <dd>
           {t("desk.caps.toolCounts", { allow: allow.length, deny: deny.length })}

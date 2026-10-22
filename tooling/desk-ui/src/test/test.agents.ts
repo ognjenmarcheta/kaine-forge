@@ -10,7 +10,7 @@ export const agentDefinition = (overrides: Partial<AgentDefinition> = {}): Agent
   description: "Writes the release notes of a change.",
   provider: "claude",
   output: "report",
-  capabilities: { preset: "read-only", mcp: ["serena"], skills: [] },
+  capabilities: { preset: "read-only", mcp: ["serena"], skills: [], tools: [] },
   prompt: "# Release notes\n\nWrite the notes.",
   ...overrides
 });
@@ -33,6 +33,7 @@ export const agentView = (
     preset: definition.capabilities.preset,
     sandbox: "host",
     tools: { allow: ["Read"], deny: ["WebFetch"] },
+    extraTools: definition.capabilities.preset === "edit-code" ? definition.capabilities.tools : [],
     mcp: definition.capabilities.mcp,
     skills: definition.capabilities.skills,
     network: "host: WebFetch and WebSearch denied",

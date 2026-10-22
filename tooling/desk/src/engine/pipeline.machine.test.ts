@@ -426,7 +426,7 @@ describe("pipeline machine: a flow of its own", () => {
     description: "Writes release notes.",
     provider: "claude",
     output: "report",
-    capabilities: { preset: "read-only", mcp: [], skills: [] },
+    capabilities: { preset: "read-only", mcp: [], skills: [], tools: [] },
     prompt: "# Release notes"
   } as const satisfies FlowSnapshot["agents"][number];
 

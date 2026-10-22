@@ -19,7 +19,8 @@ const agent = (
   capabilities: {
     preset: output === "change" ? "edit-code" : "read-only",
     mcp: ["serena", "context7"],
-    skills: []
+    skills: [],
+    tools: []
   },
   prompt: `# Agent Desk ${id}`
 });

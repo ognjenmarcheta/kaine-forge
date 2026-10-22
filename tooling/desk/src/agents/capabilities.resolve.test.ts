@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type {
-  AgentCapabilities,
-  AgentDefinition,
-  InstalledCapabilities,
-  Isolation,
-  Provider
+import {
+  capabilityProfileSchema,
+  type AgentCapabilities,
+  type AgentDefinition,
+  type InstalledCapabilities,
+  type Isolation,
+  type Provider
 } from "../contracts";
 import type { AgentPermissions } from "./agent.runner";
 import { loadCapabilities } from "./capabilities.load";
@@ -91,8 +92,9 @@ const INSTALLED: InstalledCapabilities = {
   skills: ["kaine-write-plan", "kaine-test", "kaine-review", "kaine-open-pr"]
 };
 
+/** `tools` defaults to none, as in an agent file without them. */
 const resolve = (
-  capabilities: AgentCapabilities,
+  capabilities: Omit<AgentCapabilities, "tools"> & Partial<Pick<AgentCapabilities, "tools">>,
   options: {
     readonly provider?: Provider;
     readonly isolation?: Isolation;
@@ -100,7 +102,7 @@ const resolve = (
   } = {}
 ) =>
   resolveCapabilities({
-    agent: { capabilities },
+    agent: { capabilities: { tools: [], ...capabilities } },
     provider: options.provider ?? "claude",
     model: null,
     policy: { denies: ["Bash(pnpm db:push)"] },
@@ -183,6 +185,57 @@ describe("resolveCapabilities", () => {
     for (const edit of ["Edit", "Write", "Bash(pnpm generate:*)", "mcp__serena__replace_content"]) {
       expect(profile.tools.allow).not.toContain(edit);
     }
+  });
+
+  it("allows exactly `pnpm doc:export` for an edit-code agent with the doc-export tool", () => {
+    const plain = resolve({ preset: "edit-code", mcp: [], skills: [] });
+    const exporter = resolve({ preset: "edit-code", mcp: [], skills: [], tools: ["doc-export"] });
+
+    expect(exporter.extraTools).toEqual(["doc-export"]);
+    expect(exporter.tools.allow.filter((rule) => !plain.tools.allow.includes(rule))).toEqual([
+      "Bash(pnpm doc:export:*)"
+    ]);
+    expect(exporter.tools.deny).toEqual(plain.tools.deny);
+    expect(exporter.removed).toEqual([]);
+    expect(plain.extraTools).toEqual([]);
+  });
+
+  it("gives the tool to no other preset, and drops an unknown tool, saying why", () => {
+    for (const preset of ["read-only", "run-checks"] as const) {
+      const profile = resolve(
+        { preset, mcp: [], skills: [], tools: ["doc-export"] },
+        { workspaces: ["@repo/api"] }
+      );
+      expect(profile.extraTools, preset).toEqual([]);
+      expect(
+        profile.tools.allow.some((rule) => rule.includes("doc:export")),
+        preset
+      ).toBe(false);
+      expect(profile.removed, preset).toEqual([
+        { kind: "tool", name: "doc-export", reason: "needs the edit-code preset" }
+      ]);
+    }
+    const unknown = resolve({ preset: "edit-code", mcp: [], skills: [], tools: ["shell"] });
+    expect(unknown.extraTools).toEqual([]);
+    expect(unknown.removed).toEqual([{ kind: "tool", name: "shell", reason: "unknown tool" }]);
+  });
+
+  it("keeps the tool in the receipt a run records, and reads older receipts without it", () => {
+    const exporter = resolve(
+      { preset: "edit-code", mcp: [], skills: [], tools: ["doc-export"] },
+      { provider: "codex" }
+    );
+    expect(exporter.tools).toEqual({ allow: [], deny: [] });
+    expect(exporter.notes).toContain(
+      "Codex: extra tools run as ordinary commands in the workspace-write sandbox"
+    );
+    const stored: unknown = JSON.parse(JSON.stringify(exporter));
+    expect(capabilityProfileSchema.parse(stored).extraTools).toEqual(["doc-export"]);
+
+    const older = Object.fromEntries(
+      Object.entries(exporter).filter(([key]) => key !== "extraTools")
+    );
+    expect(capabilityProfileSchema.parse(older).extraTools).toEqual([]);
   });
 
   it("holds Codex to its sandbox: no rule lists, no MCP, and a note that says so", () => {

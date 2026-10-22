@@ -19,6 +19,11 @@ catalog:
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
   "@tanstack/react-query": "^5.104.3"
+  # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
+  # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify.
+  docx: "9.9.0"
+  pptxgenjs: "4.0.1"
+  jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
   "@xyflow/react": "^12.12.0"
   "@graphql-typed-document-node/core": "^3.2.0"
