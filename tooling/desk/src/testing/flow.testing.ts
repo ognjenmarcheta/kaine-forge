@@ -6,15 +6,15 @@ import { builtinFlowSnapshot } from "../registry/registry.snapshot";
 
 /**
  * Flow fixtures for tests: the built-in default snapshot that a new issue gets with the
- * default config, and the files that make the built-in agents valid in a test checkout.
+ * default config, and the files that install what the built-in agents ask for in a test checkout.
  * Production code never imports this file.
  */
 
 export const DEFAULT_SNAPSHOT: FlowSnapshot = await builtinFlowSnapshot();
 
 /**
- * What a checkout must install for the built-in agents to load from the registry: the MCP
- * servers and skills their frontmatter names.
+ * What a checkout must install for the built-in agents to get everything they ask for: the
+ * MCP servers and skills their frontmatter names. A run drops what is not installed.
  */
 export const INSTALLED_FILES: Readonly<Record<string, string>> = {
   ".ai/mcp.json": `${JSON.stringify({ mcpServers: { serena: {}, context7: {} } })}\n`,

@@ -20,7 +20,7 @@ export interface AgentError {
   readonly message: string;
 }
 
-/** MCP server and skill names this checkout has installed. */
+/** MCP server and skill names a checkout has installed. The capability resolver removes anything else an agent asks for. */
 export interface InstalledCapabilities {
   readonly mcp: readonly string[];
   readonly skills: readonly string[];
@@ -107,15 +107,16 @@ export const validateFlow = (
   return errors;
 };
 
-export const validateAgent = (
-  agent: AgentDefinition,
-  installed: InstalledCapabilities
-): AgentError[] => {
+/**
+ * Rules of the agent itself. What it asks for that a checkout has not installed is no error:
+ * the capability resolver removes it from the run and records why.
+ */
+export const validateAgent = (agent: AgentDefinition): AgentError[] => {
   const errors: AgentError[] = [];
   const idError = badId(agent.id);
   if (idError !== null) errors.push({ field: "id", message: idError });
 
-  const { preset, mcp, skills } = agent.capabilities;
+  const { preset } = agent.capabilities;
   if (agent.output === "change" && preset !== "edit-code") {
     errors.push({
       field: "capabilities.preset",
@@ -127,16 +128,6 @@ export const validateAgent = (
       field: "capabilities.preset",
       message: "Only a change agent may use the edit-code preset"
     });
-  }
-  for (const name of mcp) {
-    if (!installed.mcp.includes(name)) {
-      errors.push({ field: "capabilities.mcp", message: `MCP server '${name}' is not installed` });
-    }
-  }
-  for (const name of skills) {
-    if (!installed.skills.includes(name)) {
-      errors.push({ field: "capabilities.skills", message: `Skill '${name}' is not installed` });
-    }
   }
   return errors;
 };

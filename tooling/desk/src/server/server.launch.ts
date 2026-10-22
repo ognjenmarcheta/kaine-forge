@@ -6,6 +6,7 @@ import { createCodexRunner } from "../agents/codex.runner";
 import { loadDeskConfig } from "../config/config.load";
 import type { HealthFix, IssueState, LessonReport, Provider } from "../contracts";
 import type { ServerRunner } from "./server.actions";
+import { readDefinitionViews, type DefinitionViews } from "./server.definitions";
 import { createEventBus, type PipelineEventListener } from "./server.events";
 import {
   createDeskServer,
@@ -58,6 +59,8 @@ export interface DeskRuntime {
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. */
   readonly lessonActions?: LessonActions | undefined;
+  /** The registry's agents and flows of the checkout, resolved with the config. */
+  readonly readDefinitions?: (() => Promise<DefinitionViews>) | undefined;
   /** The built UI, when the runtime knows where it is. */
   readonly uiDir?: string | null | undefined;
   /** Wait for background work (notify commands, log writes) before the process exits. */
@@ -150,6 +153,7 @@ export const createDefaultDeskRuntime =
       prRoundLimit: config.maxPrRounds,
       lessons: lessonDesk.report,
       lessonActions: lessonDesk.actions,
+      readDefinitions: () => readDefinitionViews({ repoRoot: location.repoRoot, config }),
       openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),
       health: () =>
         runDoctor({
@@ -287,6 +291,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       prRoundLimit: runtime.prRoundLimit,
       lessons: runtime.lessons,
       lessonActions: runtime.lessonActions,
+      readDefinitions: runtime.readDefinitions,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,
       ...options.tuning

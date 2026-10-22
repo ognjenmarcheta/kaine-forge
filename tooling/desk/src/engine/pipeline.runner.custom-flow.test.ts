@@ -2,7 +2,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 
-import type { FlowDefinition, FlowStep, IssueState, ReviewFinding } from "../contracts";
+import type {
+  AgentCapabilities,
+  FlowDefinition,
+  FlowStep,
+  IssueState,
+  ReviewFinding
+} from "../contracts";
 import { readRunRecords } from "../stats/stats.runs";
 import { DEFAULT_SNAPSHOT, writeFiles } from "../testing/flow.testing";
 import {
@@ -61,7 +67,8 @@ const agentFile = (
   id: string,
   output: "report" | "review",
   body: string,
-  provider: "claude" | "codex" = "claude"
+  provider: "claude" | "codex" = "claude",
+  capabilities: AgentCapabilities = { preset: "read-only", mcp: [], skills: [] }
 ): string =>
   `---\n${stringify({
     id,
@@ -69,7 +76,7 @@ const agentFile = (
     description: `The ${id} agent.`,
     provider,
     output,
-    capabilities: { preset: "read-only", mcp: [], skills: [] }
+    capabilities
   })}---\n\n${body}\n`;
 
 const writeFlow = (e: PipelineEnv, flow: FlowDefinition, agents: Record<string, string>) =>
@@ -209,6 +216,56 @@ describe("a flow of the repository's own", () => {
     expect(await historyOf(e)).toContain("notes:report-ready");
     expect(e.runner.requests.at(-1)?.prompt).toContain("NOTES-PROMPT-ONE");
     expect(e.runner.requests.at(-1)?.prompt).not.toContain("NOTES-PROMPT-TWO");
+  });
+
+  it("starts an agent that asks for what is not installed, installs the rest, and records what it got", async () => {
+    // The checkout installs one more server and skill than the built-in agents use.
+    const installs = {
+      ".ai/mcp.json": JSON.stringify({ mcpServers: { serena: {}, context7: {}, playwright: {} } }),
+      ".ai/skills/kaine-explain.md": "---\nname: kaine-explain\n---\nkaine-explain\n"
+    };
+    const e = await createPipelineEnv({
+      steps: [planStep, buildStep, approveStep, notesRun],
+      extraFiles: installs
+    });
+    env = e;
+    await writeFiles(e.repoRoot, installs);
+    await writeFlow(e, flowWith("review", notesStep), {
+      "release-notes": agentFile("release-notes", "report", NOTES_PROMPT, "claude", {
+        preset: "read-only",
+        mcp: ["playwright", "jira"],
+        skills: ["kaine-explain", "kaine-nope"]
+      })
+    });
+
+    const started = await e.pipeline.start(ISSUE, { override: false });
+    expect(started).toMatchObject({ outcome: "stopped", stop: "gate" });
+    const install = e.pnpm.calls.find((call) => call.argv[1] === "ai:install")?.argv ?? [];
+    expect(install.slice(install.indexOf("--skill"))).toEqual([
+      "--skill",
+      "kaine-explain,kaine-review,kaine-test,kaine-write-plan",
+      "--mcp",
+      "serena,context7,playwright",
+      "--serena-interface",
+      "tools"
+    ]);
+
+    await e.pipeline.approvePlan(ISSUE);
+    const notes = e.runner.requests.at(-1);
+    expect(notes?.skills).toEqual(["kaine-explain"]);
+    expect(notes?.permissions.allow).toContain("mcp__playwright");
+    const { records } = await readRunRecords(e.stateRoot);
+    const receipt = records.find((record) => record.agentId === "release-notes")?.capabilities;
+    expect(receipt).toMatchObject({
+      sandbox: "host",
+      mcp: ["playwright"],
+      skills: ["kaine-explain"],
+      removed: [
+        { kind: "skill", name: "kaine-nope", reason: "not installed" },
+        { kind: "mcp", name: "jira", reason: "not installed" }
+      ]
+    });
+    expect(receipt?.tools.allow).toEqual(notes?.permissions.allow);
   });
 
   it("refuses to start a flow whose ship would not wait for the owner", async () => {

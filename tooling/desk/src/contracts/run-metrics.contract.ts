@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { definitionIdSchema } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
+import { capabilityProfileSchema } from "./capability-profile.contract";
 import { isolationSchema, providerSchema } from "./desk-config.contract";
 import { stageIdSchema } from "./flow-snapshot.contract";
 import { agentStageRoleSchema, loopCountersSchema } from "./issue-state.contract";
@@ -82,7 +83,12 @@ export const runRecordSchema = z
      * The risk of the plan the run worked from: the planner's own result, or the plan a builder
      * or reviewer got. `null` before a plan exists, and on records written before it existed.
      */
-    planRisk: planRiskSchema.nullable().default(null)
+    planRisk: planRiskSchema.nullable().default(null),
+    /**
+     * What the run actually got: the resolved capabilities it started with. Absent on records
+     * written before it existed.
+     */
+    capabilities: capabilityProfileSchema.optional()
   })
   .strict();
 export type RunRecord = z.infer<typeof runRecordSchema>;

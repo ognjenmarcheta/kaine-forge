@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 
 import {
+  DEFINITION_ID_PATTERN,
   actionRequestSchema,
   healthFixRequestSchema,
   lessonIssueRequestSchema,
@@ -30,6 +31,7 @@ import {
 } from "./server.actions";
 import { isArtifactId, ARTIFACT_SPECS, readArtifact } from "./server.artifacts";
 import { DEFAULT_MAX_BODY_BYTES, readJsonBody } from "./server.body";
+import type { DefinitionViews } from "./server.definitions";
 import { buildIssueDetail, summarizeResult, type DetailDeps } from "./server.detail";
 import { HttpError, errorEnvelope, sendError, sendJson } from "./server.errors";
 import {
@@ -77,6 +79,8 @@ export interface DeskServerDeps {
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. Absent: those routes answer `404`. */
   readonly lessonActions?: LessonActions | undefined;
+  /** The registry's agents and flows, for `GET /api/agents` and `GET /api/flows`. Absent: none. */
+  readonly readDefinitions?: (() => Promise<DefinitionViews>) | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
   readonly uiDir?: string | null | undefined;
   /** Default 0: the system picks a free port. */
@@ -136,8 +140,11 @@ type Route =
         | "lesson-issue"
         | "events"
         | "issues"
+        | "agents"
+        | "flows"
         | "unknown";
     }
+  | { readonly kind: "agent" | "flow"; readonly id: string }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
 
@@ -158,6 +165,13 @@ const parseRoute = (pathname: string): Route => {
   }
   if (segments.length === 2 && resource === "github") return { kind: "github" };
   if (segments.length === 2 && resource === "events") return { kind: "events" };
+  if (resource === "agents" || resource === "flows") {
+    if (segments.length === 2) return { kind: resource };
+    if (segments.length === 3 && id !== undefined && DEFINITION_ID_PATTERN.test(id)) {
+      return { kind: resource === "agents" ? "agent" : "flow", id };
+    }
+    return { kind: "unknown" };
+  }
   if (resource !== "issues") return { kind: "unknown" };
   if (segments.length === 2) return { kind: "issues" };
   if (id === undefined || !ISSUE_NUMBER.test(id)) return { kind: "unknown" };
@@ -184,6 +198,10 @@ const METHOD_OF: Readonly<Record<Route["kind"], "GET" | "POST">> = {
   "lesson-issue": "POST",
   events: "GET",
   issues: "GET",
+  agents: "GET",
+  agent: "GET",
+  flows: "GET",
+  flow: "GET",
   issue: "GET",
   artifact: "GET",
   log: "GET",
@@ -424,6 +442,12 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     sendJson(response, 202, { fix, status: "running" });
   };
 
+  // --- agents and flows -----------------------------------------------------
+
+  const definitions = (): Promise<DefinitionViews> =>
+    deps.readDefinitions?.() ??
+    Promise.resolve({ agents: { agents: [], problems: [] }, flows: { flows: [], problems: [] } });
+
   // --- routes ---------------------------------------------------------------
 
   const readableState = async (issueNumber: number): Promise<void> => {
@@ -640,6 +664,26 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       case "artifact":
         await handleArtifact(response, found.issueNumber, found.artifact);
         return;
+      case "agents":
+        sendJson(response, 200, (await definitions()).agents);
+        return;
+      case "agent": {
+        const { agents } = (await definitions()).agents;
+        const view = agents.find((entry) => entry.definition.id === found.id);
+        if (view === undefined) throw new HttpError("not-found", `No agent '${found.id}'.`);
+        sendJson(response, 200, view);
+        return;
+      }
+      case "flows":
+        sendJson(response, 200, (await definitions()).flows);
+        return;
+      case "flow": {
+        const { flows } = (await definitions()).flows;
+        const view = flows.find((entry) => entry.definition.id === found.id);
+        if (view === undefined) throw new HttpError("not-found", `No flow '${found.id}'.`);
+        sendJson(response, 200, view);
+        return;
+      }
       case "log": {
         const issueNumber = found.issueNumber;
         const afterText = url.searchParams.get("after") ?? "0";

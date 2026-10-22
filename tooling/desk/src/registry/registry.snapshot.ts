@@ -98,7 +98,6 @@ const withConfigLimits = (flow: FlowDefinition, config: DeskConfig): FlowDefinit
 
 export interface ResolveFlowInput {
   readonly repoRoot: string;
-  readonly installed: InstalledCapabilities;
   readonly config: DeskConfig;
   readonly flowId?: string | undefined;
 }
@@ -106,7 +105,7 @@ export interface ResolveFlowInput {
 /** The snapshot for a new issue, from the registry of this checkout. */
 export const resolveFlowSnapshot = async (input: ResolveFlowInput): Promise<FlowSnapshotResult> => {
   const flowId = input.flowId ?? DEFAULT_FLOW_ID;
-  const registry = await loadRegistry({ repoRoot: input.repoRoot, installed: input.installed });
+  const registry = await loadRegistry({ repoRoot: input.repoRoot });
   const entry = registry.flows.find((candidate) => candidate.definition.id === flowId);
   if (entry === undefined) {
     const problems = registry.problems.flatMap((problem) =>

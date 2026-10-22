@@ -323,14 +323,15 @@ export const REPO_FILES: Readonly<Record<string, string>> = {
 export const createPipelineEnv = async (options: EnvOptions = {}): Promise<PipelineEnv> => {
   const kind = options.git ?? "fake";
   const scratch = await createScratch();
-  const files = { ...REPO_FILES, ...options.extraFiles };
+  // A worktree installs what the main checkout does: the registry and the runs read it.
+  const files = { ...REPO_FILES, ...INSTALLED_FILES, ...options.extraFiles };
 
   let clone: TestRepo | null = null;
   let fake: FakeGit | null = null;
   let repoRoot: string;
   if (kind === "real") {
     ({ clone } = await createOriginAndClone(scratch));
-    for (const [file, content] of Object.entries({ ...files, ...INSTALLED_FILES })) {
+    for (const [file, content] of Object.entries(files)) {
       await clone.write(file, content);
     }
     await clone.commit("add repo files");
@@ -339,7 +340,7 @@ export const createPipelineEnv = async (options: EnvOptions = {}): Promise<Pipel
   } else {
     repoRoot = path.join(scratch.root, "repo");
     await mkdir(repoRoot, { recursive: true });
-    // The registry reads the main checkout: what it installed makes the built-in agents valid.
+    // The intake draft and setup read what the main checkout installed.
     await writeFiles(repoRoot, INSTALLED_FILES);
     fake = createFakeGit({ repoRoot, files });
   }

@@ -4,12 +4,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadRegistry, type Registry } from "./registry.load";
-import type { InstalledCapabilities } from "../contracts";
-
-const INSTALLED: InstalledCapabilities = {
-  mcp: ["serena", "context7"],
-  skills: ["kaine-intake", "kaine-write-issue", "kaine-write-plan", "kaine-test", "kaine-review"]
-};
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -43,7 +37,7 @@ const agentFile = (id: string, prompt: string, output = "plan"): string =>
   ].join("\n");
 
 const load = async (files: Readonly<Record<string, string>> = {}): Promise<Registry> =>
-  loadRegistry({ repoRoot: await makeRepo(files), installed: INSTALLED });
+  loadRegistry({ repoRoot: await makeRepo(files) });
 
 const agentById = (registry: Registry, id: string) =>
   registry.agents.find((entry) => entry.definition.id === id);
@@ -109,7 +103,7 @@ describe("loadRegistry", () => {
       ".desk/agents/README.md": "Not an agent.",
       ".desk/flows/notes.txt": "Not a flow."
     });
-    const registry = await loadRegistry({ repoRoot, installed: INSTALLED });
+    const registry = await loadRegistry({ repoRoot });
 
     const at = (file: string) => path.join(repoRoot, ".desk", file);
     expect(registry.problems).toEqual(

@@ -201,15 +201,31 @@ describe("lesson routes", () => {
 });
 
 describe("GET /api/issues/:n runs", () => {
-  it("carries only the runs of that issue", async () => {
+  it("carries only the runs of that issue, each with the capabilities it got", async () => {
+    const received = record({
+      at: "2026-10-13T10:00:00.000Z",
+      capabilities: {
+        provider: "claude",
+        model: "opus",
+        preset: "edit-code",
+        sandbox: "docker",
+        tools: { allow: ["Read", "Edit"], deny: ["WebFetch"] },
+        mcp: [],
+        skills: ["kaine-test"],
+        network: "container: the provider API through the desk proxy only",
+        removed: [{ kind: "mcp", name: "serena", reason: "no MCP inside the container" }],
+        notes: []
+      }
+    });
     harness = await createHarness({
-      readRuns: () => Promise.resolve({ records: RECORDS, invalidLines: 0 })
+      readRuns: () => Promise.resolve({ records: [...RECORDS, received], invalidLines: 0 })
     });
     await harness.seed(3);
     const api = await authenticated(harness);
 
     const detail = issueDetailSchema.parse((await api.get("/api/issues/3")).json());
 
-    expect(detail.runs).toEqual([record()]);
+    // A record from before the receipt existed stays valid next to one that has it.
+    expect(detail.runs).toEqual([record(), received]);
   });
 });

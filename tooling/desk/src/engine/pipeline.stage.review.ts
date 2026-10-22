@@ -19,6 +19,7 @@ import {
 } from "./pipeline.artifacts";
 import { recordCheckoutLessons, reviewLessons } from "./pipeline.lessons";
 import { locateFindings } from "./pipeline.review-locations";
+import { workspacesForPlan } from "./pipeline.stage.build";
 import type { AgentStepHandler } from "./pipeline.types";
 
 /** `review.json`: the validated review plus the findings the engine rejected. */
@@ -113,7 +114,11 @@ export const reviewStage: AgentStepHandler = async (context, step, agent) => {
     readOnly: true,
     feedback: pending?.text,
     plan: plan.value,
-    diffPath: path.join(context.artifactsDir, ARTIFACTS.diff)
+    diffPath: path.join(context.artifactsDir, ARTIFACTS.diff),
+    workspaces:
+      agent.capabilities.preset === "run-checks"
+        ? await workspacesForPlan(state.worktreePath, plan.value)
+        : undefined
   });
   if (!run.ok) {
     return run.aborted ? { kind: "aborted" } : { kind: "needs-you", reason: run.reason };

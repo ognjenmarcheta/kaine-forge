@@ -80,7 +80,7 @@ import {
 import { renderStatusComment } from "../github/github.status-comment";
 import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
-import { readInstalledCapabilities, resolveFlowSnapshot } from "../registry/registry.snapshot";
+import { resolveFlowSnapshot } from "../registry/registry.snapshot";
 import { SHIP_RECORD_FILE } from "../ship/ship.contract";
 import {
   describeGateFailures,
@@ -671,11 +671,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         // A new issue runs on the flow of this checkout, frozen now. A restarted intake keeps its own.
         let flowSnapshot: FlowSnapshot | null = null;
         if ((await store.read(issue)).status === "missing") {
-          const resolved = await resolveFlowSnapshot({
-            repoRoot: deps.location.repoRoot,
-            installed: await readInstalledCapabilities(deps.location.repoRoot),
-            config
-          });
+          // What the checkout has not installed is no refusal: each run drops it and records why.
+          const resolved = await resolveFlowSnapshot({ repoRoot: deps.location.repoRoot, config });
           if (!resolved.ok) return refused("intake-refused", resolved.reason);
           flowSnapshot = resolved.snapshot;
         }

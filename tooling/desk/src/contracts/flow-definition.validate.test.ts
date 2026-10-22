@@ -1,18 +1,12 @@
 import { readdir, readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import type { AgentDefinition } from "./agent-definition.contract";
 import type { FlowDefinition, FlowStep } from "./flow-definition.contract";
-import {
-  validateAgent,
-  validateFlow,
-  type InstalledCapabilities
-} from "./flow-definition.validate";
+import { validateAgent, validateFlow } from "./flow-definition.validate";
 import { parseAgentFile, parseFlowFile } from "../registry/registry.parse";
 
 const DEFAULTS = new URL("../../defaults/", import.meta.url);
-const REPO_ROOT = new URL("../../../../", import.meta.url);
 
 const parsed = <T>(
   result: { ok: true; definition: T } | { ok: false; errors: readonly string[] }
@@ -31,23 +25,6 @@ const defaultAgents = async (): Promise<AgentDefinition[]> => {
 
 const defaultFlow = async (): Promise<FlowDefinition> =>
   parsed(parseFlowFile(await readFile(new URL("flows/kaine-default.yaml", DEFAULTS), "utf8")));
-
-/** What this repository installs: `.ai/mcp.json` servers and `.ai/skills/*.md`. */
-const repoInstalled = async (): Promise<InstalledCapabilities> => {
-  const mcp: unknown = JSON.parse(await readFile(new URL(".ai/mcp.json", REPO_ROOT), "utf8"));
-  const servers =
-    typeof mcp === "object" &&
-    mcp !== null &&
-    "mcpServers" in mcp &&
-    typeof mcp.mcpServers === "object" &&
-    mcp.mcpServers !== null
-      ? Object.keys(mcp.mcpServers)
-      : [];
-  const skills = (await readdir(fileURLToPath(new URL(".ai/skills/", REPO_ROOT))))
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => name.slice(0, -".md".length));
-  return { mcp: servers, skills };
-};
 
 const withSteps = (
   flow: FlowDefinition,
@@ -200,10 +177,8 @@ describe("validateFlow", () => {
 });
 
 describe("validateAgent", () => {
-  it("accepts every built-in agent against what this repository installs", async () => {
-    const installed = await repoInstalled();
-    for (const agent of await defaultAgents())
-      expect(validateAgent(agent, installed), agent.id).toEqual([]);
+  it("accepts every built-in agent", async () => {
+    for (const agent of await defaultAgents()) expect(validateAgent(agent), agent.id).toEqual([]);
   });
 
   const agentOf = async (id: string): Promise<AgentDefinition> => {
@@ -211,44 +186,18 @@ describe("validateAgent", () => {
     if (agent === undefined) throw new Error(`No built-in agent '${id}'`);
     return agent;
   };
-  const installed: InstalledCapabilities = {
-    mcp: ["serena", "context7"],
-    skills: ["kaine-intake", "kaine-write-issue", "kaine-write-plan", "kaine-test", "kaine-review"]
-  };
-
   it("requires the edit-code preset for a change agent, and only for one", async () => {
     const builder = await agentOf("builder");
     const planner = await agentOf("planner");
     expect(
-      validateAgent(
-        { ...builder, capabilities: { ...builder.capabilities, preset: "read-only" } },
-        installed
-      )
+      validateAgent({ ...builder, capabilities: { ...builder.capabilities, preset: "read-only" } })
     ).toEqual([
       { field: "capabilities.preset", message: "A change agent needs the edit-code preset" }
     ]);
     expect(
-      validateAgent(
-        { ...planner, capabilities: { ...planner.capabilities, preset: "edit-code" } },
-        installed
-      )
+      validateAgent({ ...planner, capabilities: { ...planner.capabilities, preset: "edit-code" } })
     ).toEqual([
       { field: "capabilities.preset", message: "Only a change agent may use the edit-code preset" }
-    ]);
-  });
-
-  it("rejects MCP servers and skills that are not installed", async () => {
-    const planner = await agentOf("planner");
-    const errors = validateAgent(
-      {
-        ...planner,
-        capabilities: { ...planner.capabilities, mcp: ["serena", "jira"], skills: ["kaine-nope"] }
-      },
-      installed
-    );
-    expect(errors).toEqual([
-      { field: "capabilities.mcp", message: "MCP server 'jira' is not installed" },
-      { field: "capabilities.skills", message: "Skill 'kaine-nope' is not installed" }
     ]);
   });
 });

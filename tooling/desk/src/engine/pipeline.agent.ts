@@ -6,7 +6,6 @@ import { harnessFingerprint } from "./harness.fingerprint";
 import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
 import { agentRunLessons, recordLessons } from "./pipeline.lessons";
 import type { StageContext } from "./pipeline.types";
-import { ROLE_SKILLS } from "./worktree.bootstrap";
 import {
   describeFailure,
   type AgentEvent,
@@ -17,13 +16,9 @@ import {
 } from "../agents/agent.runner";
 import { createStuckDetector } from "../agents/agent.stuck";
 import { forbiddenCommandReason, verifyAgentRun, type Violation } from "../agents/agent.verify";
-import {
-  EDIT_TOOLS,
-  buildRunSettings,
-  parseReceipts,
-  permissionsFor,
-  type Receipt
-} from "../agents/permissions";
+import { builtinCapabilities, loadCapabilities } from "../agents/capabilities.load";
+import { toAgentPermissions } from "../agents/capabilities.resolve";
+import { EDIT_TOOLS, buildRunSettings, parseReceipts, type Receipt } from "../agents/permissions";
 import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
 import {
   agentOutputJsonSchema,
@@ -32,6 +27,7 @@ import {
   type AgentOutputKind,
   type AgentOutputRole,
   type AgentStageRole,
+  type CapabilityProfile,
   type DeskConfig,
   type HarnessFingerprint,
   type LoopCounters,
@@ -139,7 +135,7 @@ export interface AgentStageInput<T> {
   /** The owner's note at the plan approval. The builder reads it as the owner's words. */
   readonly ownerNote?: string | undefined;
   readonly diffPath?: string | undefined;
-  /** Exact workspace package names the builder may run scripts for. */
+  /** Exact workspace package names an edit-code or run-checks agent may run scripts for. */
   readonly workspaces?: readonly string[] | undefined;
   /**
    * Run in this checkout instead of the issue worktree, for a role that runs before setup
@@ -197,6 +193,8 @@ const bulletList = (items: readonly string[]): string =>
 interface ObservedRun {
   readonly outcome: AgentRunOutcome<unknown>;
   readonly provider: Provider;
+  /** What the run got: the resolved capabilities it started with. */
+  readonly capabilities: CapabilityProfile;
   readonly harness: HarnessFingerprint | null;
   readonly loops: LoopCounters;
   readonly startedAt: Date;
@@ -264,7 +262,6 @@ const runAgentStageOnce = async <T>(
   }
 
   const { provider, model } = agentRuntime(deps.config, role, agent);
-  const skills = agent?.capabilities.skills ?? ROLE_SKILLS[role];
   const isolation = selectIsolation(deps, state);
   if (!isolation.ok) return stop(isolation.reason);
 
@@ -278,10 +275,12 @@ const runAgentStageOnce = async <T>(
     return stop(`Cannot inspect the worktree before the ${name} run: ${message(error)}`);
   }
   // Before the run: the record names the instructions the agent was given, not its edits.
+  // A flow agent's prompt comes from the issue's flow snapshot, so its hash is part of the harness.
   const harness = await harnessFingerprint(
     worktree,
     deskPromptFiles(role, deps.prompts),
-    deps.git.headSha
+    deps.git.headSha,
+    agent === undefined ? null : state.flowSnapshot.hash
   ).catch((error: unknown) => {
     context.log(`could not fingerprint the ${name} harness: ${message(error)}`);
     return null;
@@ -295,7 +294,18 @@ const runAgentStageOnce = async <T>(
   const stuckStop = new AbortController();
   let stuckReason: string | null = null;
   let request: AgentRunRequest<T>;
+  let capabilities: CapabilityProfile;
   try {
+    // The policy floor and the checkout's installs narrow what the agent asks for.
+    capabilities = await loadCapabilities({
+      agent: { capabilities: agent?.capabilities ?? builtinCapabilities(role) },
+      provider,
+      model: model ?? null,
+      checkout: worktree,
+      isolation: isolationOf(deps.config, state),
+      workspaces: input.workspaces
+    });
+    const { skills } = capabilities;
     const ticket = (await readArtifactText(context.artifactsDir, ARTIFACTS.ticket)) ?? "";
     const issue =
       Buffer.byteLength(ticket, "utf8") <= TICKET_INLINE_LIMIT
@@ -317,11 +327,7 @@ const runAgentStageOnce = async <T>(
       },
       deps.prompts
     );
-    const permissions = await permissionsFor(role, provider, {
-      worktree,
-      skills,
-      ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces })
-    });
+    const permissions = toAgentPermissions(capabilities);
     await rm(receiptsPath, { force: true });
     await writeFile(
       settingsPath,
@@ -343,7 +349,9 @@ const runAgentStageOnce = async <T>(
       resumeSessionId: input.resumeSessionId,
       permissions,
       settingsPath,
-      mcpConfigPath: (await exists(mcpConfig)) ? mcpConfig : undefined,
+      // An agent that gets no MCP server loads none.
+      mcpConfigPath:
+        capabilities.mcp.length > 0 && (await exists(mcpConfig)) ? mcpConfig : undefined,
       receiptsPath,
       timeoutMs:
         deps.agentTimeoutsMs?.[role] ??
@@ -415,6 +423,7 @@ const runAgentStageOnce = async <T>(
   observed.run = {
     outcome,
     provider,
+    capabilities,
     harness,
     loops: state.loops,
     startedAt,
@@ -569,7 +578,8 @@ const recordRun = async <T>(
     failedToolCalls: trace.filter(isFailedResult).length,
     denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length,
     harness: run.harness,
-    planRisk
+    planRisk,
+    capabilities: run.capabilities
   };
   try {
     await appendRunRecord(deps.location.stateRoot, record);

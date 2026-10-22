@@ -1,9 +1,14 @@
 import { z } from "zod";
 
-import { agentOutputKindSchema, definitionIdSchema } from "./agent-definition.contract";
+import {
+  agentDefinitionSchema,
+  agentOutputKindSchema,
+  definitionIdSchema
+} from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
+import { capabilityProfileSchema } from "./capability-profile.contract";
 import { providerSchema } from "./desk-config.contract";
-import { stepKindSchema } from "./flow-definition.contract";
+import { flowDefinitionSchema, stepKindSchema } from "./flow-definition.contract";
 import { definitionSourceSchema, stageIdSchema } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
@@ -343,6 +348,62 @@ export type IssueDetail = z.infer<typeof issueDetailSchema>;
 
 export const issueListSchema = z.object({ issues: z.array(issueSummarySchema) }).strict();
 export type IssueList = z.infer<typeof issueListSchema>;
+
+// --- agents and flows --------------------------------------------------------
+
+/** A definition file that does not parse or validate. It takes part in nothing. */
+export const definitionProblemSchema = z
+  .object({
+    /** Absolute path of the file. */
+    path: z.string().min(1),
+    source: definitionSourceSchema,
+    /** Engine text, one entry per error. */
+    errors: z.array(z.string())
+  })
+  .strict();
+export type DefinitionProblem = z.infer<typeof definitionProblemSchema>;
+
+/** How a registry entry won its id: read-only in this stage. */
+const definitionEntryFields = {
+  source: definitionSourceSchema,
+  /** The source of the definition with the same id that this one overrides, or `null`. */
+  shadows: definitionSourceSchema.nullable(),
+  /** A built-in definition changes only with the desk. Override the id to change one. */
+  readOnly: z.boolean(),
+  /** sha256 of the normalized definition. */
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Files with this id that do not load, for example a broken override. */
+  problems: z.array(definitionProblemSchema)
+};
+
+/** `GET /api/agents/:id`: an agent with the capabilities a run gets with the desk's config now. */
+export const agentViewSchema = z
+  .object({
+    definition: agentDefinitionSchema,
+    ...definitionEntryFields,
+    /** Resolved for the configured provider and isolation, with no workspace check commands. */
+    resolved: capabilityProfileSchema
+  })
+  .strict();
+export type AgentView = z.infer<typeof agentViewSchema>;
+
+/** `GET /api/agents`. `problems`: every agent file that does not load. */
+export const agentListSchema = z
+  .object({ agents: z.array(agentViewSchema), problems: z.array(definitionProblemSchema) })
+  .strict();
+export type AgentList = z.infer<typeof agentListSchema>;
+
+/** `GET /api/flows/:id`. */
+export const flowViewSchema = z
+  .object({ definition: flowDefinitionSchema, ...definitionEntryFields })
+  .strict();
+export type FlowView = z.infer<typeof flowViewSchema>;
+
+/** `GET /api/flows`. `problems`: every flow file that does not load or validate. */
+export const flowListSchema = z
+  .object({ flows: z.array(flowViewSchema), problems: z.array(definitionProblemSchema) })
+  .strict();
+export type FlowList = z.infer<typeof flowListSchema>;
 
 // --- actions --------------------------------------------------------------
 

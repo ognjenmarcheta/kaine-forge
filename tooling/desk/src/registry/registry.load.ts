@@ -10,8 +10,7 @@ import {
   validateFlow,
   type AgentDefinition,
   type DefinitionSource,
-  type FlowDefinition,
-  type InstalledCapabilities
+  type FlowDefinition
 } from "../contracts";
 
 /**
@@ -53,8 +52,6 @@ export interface Registry {
 
 export interface LoadRegistryInput {
   readonly repoRoot: string;
-  /** What the checkout installed. Agents that need anything else are problems. */
-  readonly installed: InstalledCapabilities;
 }
 
 const BUILTIN_DIR = fileURLToPath(new URL("../../defaults/", import.meta.url));
@@ -161,7 +158,7 @@ export const loadRegistry = async (input: LoadRegistryInput): Promise<Registry> 
       parseAgentFile,
       problems
     )) {
-      const errors = validateAgent(candidate.definition, input.installed);
+      const errors = validateAgent(candidate.definition);
       if (errors.length === 0) agentCandidates.push(candidate);
       else {
         problems.push({

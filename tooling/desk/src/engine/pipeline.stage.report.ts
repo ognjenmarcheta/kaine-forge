@@ -4,6 +4,7 @@ import path from "node:path";
 import { reportOutputSchema } from "../contracts";
 import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import { ARTIFACTS, readPlan, writeArtifactJson } from "./pipeline.artifacts";
+import { workspacesForPlan } from "./pipeline.stage.build";
 import type { AgentStepHandler } from "./pipeline.types";
 
 const exists = async (file: string): Promise<boolean> => {
@@ -32,7 +33,13 @@ export const reportStage: AgentStepHandler = async (context, step, agent) => {
     readOnly: true,
     feedback: pending?.text,
     plan: plan.status === "ok" ? plan.value : undefined,
-    diffPath: (await exists(diffPath)) ? diffPath : undefined
+    diffPath: (await exists(diffPath)) ? diffPath : undefined,
+    workspaces:
+      agent.capabilities.preset === "run-checks" &&
+      plan.status === "ok" &&
+      state.worktreePath !== null
+        ? await workspacesForPlan(state.worktreePath, plan.value)
+        : undefined
   });
   if (!run.ok) {
     return run.aborted ? { kind: "aborted" } : { kind: "needs-you", reason: run.reason };

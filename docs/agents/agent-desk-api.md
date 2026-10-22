@@ -63,6 +63,10 @@ import only Zod, so a browser can use them.
 | GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                 |
 | GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).        |
 | POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                 |
+| GET    | `/api/agents`                    | `AgentList`: the registry's agents, resolved. See "Agents and flows".     |
+| GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.        |
+| GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                 |
+| GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.         |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
 `ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.
@@ -200,6 +204,41 @@ and also:
 
 Every `RunRecord` has `planRisk`: the risk of the plan the run worked from (the planner's own
 result, or the plan a builder or reviewer got). A line written before the field reads as `null`.
+
+A `RunRecord` also has `capabilities`, the receipt of what the run actually got: a
+`CapabilityProfile` (see "Agents and flows"). The engine resolves it when the agent starts. A
+line written before the field has no `capabilities`.
+
+## Agents and flows
+
+These routes are read-only. They show the registry of the checkout the desk serves: the
+built-in definitions, `.desk/` (repo), and `.ai.local/desk/` (local). A later source overrides
+an earlier one by id.
+
+- `AgentList` is `{ agents: AgentView[], problems }`. `FlowList` is `{ flows: FlowView[], problems }`.
+  `problems` lists every agent (or flow) file that does not parse or validate, as
+  `{ path, source, errors }`. Such a file takes part in nothing.
+- Each view has `definition` (an agent includes its `prompt`), `source`, `shadows` (the source it
+  overrides, or `null`), `readOnly` (built-in), `hash`, and `problems`: the broken files with the
+  same id, for example a broken local override that the built-in definition still beats.
+- `AgentView.resolved` is the `CapabilityProfile` a run of the agent gets with the desk's config
+  now: the configured provider (the config decides for the built-in ids) and isolation. It has
+  no workspace check commands, because a run gets them for the workspaces its plan names.
+
+A `CapabilityProfile` is `{ provider, model, preset, sandbox, tools: { allow, deny }, mcp, skills,
+network, removed, notes }`:
+
+- `sandbox`: `docker` for an `edit-code` agent when the isolation is Docker, `codex-read-only` or
+  `codex-workspace-write` for Codex on the host, else `host` (the Claude allowlist).
+- `tools`: the Claude allow and deny rules. Both are empty for Codex: its sandbox is the policy.
+- `removed`: `{ kind, name, reason }` for each tool, MCP server, or skill the agent asked for
+  and does not get. Reasons: `not installed` (not in the checkout's `.ai/mcp.json` or
+  `.ai/skills`), `policy floor: ...`, `no MCP inside the container`, and the Codex reason.
+- `network` and `notes` are engine text, for example `Codex: sandbox only, no MCP`.
+
+The policy floor always applies, and an agent can only narrow it: the `.ai/permissions.json`
+denies, the forbidden git and desk commands, WebFetch and WebSearch, the Serena tools that write
+memory or run commands, the protected paths, and every skill outside the agent's list.
 
 ## Lessons
 

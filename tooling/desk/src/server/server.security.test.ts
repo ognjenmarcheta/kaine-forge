@@ -140,14 +140,20 @@ describe("launch URL and token", () => {
 });
 
 describe("session cookie", () => {
-  it.each(["/api/health", "/api/issues", "/api/events", "/api/issues/1"])(
-    "protects GET %s",
-    async (route) => {
-      const reply = await raw(harness.desk, { path: route });
-      expect(reply.status).toBe(401);
-      expect(reply.json()).toEqual({ error: { code: "unauthorized", detail: expect.any(String) } });
-    }
-  );
+  it.each([
+    "/api/health",
+    "/api/issues",
+    "/api/events",
+    "/api/issues/1",
+    "/api/agents",
+    "/api/agents/planner",
+    "/api/flows",
+    "/api/flows/kaine-default"
+  ])("protects GET %s", async (route) => {
+    const reply = await raw(harness.desk, { path: route });
+    expect(reply.status).toBe(401);
+    expect(reply.json()).toEqual({ error: { code: "unauthorized", detail: expect.any(String) } });
+  });
 
   it("refuses a made-up cookie", async () => {
     const reply = await raw(harness.desk, {
