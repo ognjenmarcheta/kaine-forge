@@ -1,4 +1,4 @@
-import { plannerOutputSchema, type IssueState, type PlannerOutput } from "../contracts";
+import { outputOf, plannerOutputSchema, type IssueState, type PlannerOutput } from "../contracts";
 import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import {
   ARTIFACTS,
@@ -61,7 +61,13 @@ export const planStage: AgentStepHandler = async (context, step, agent) => {
 
   const plan = run.result.structured;
   const problems = planPathProblems(plan);
-  if (plan.files.length + plan.tests.length === 0) {
+  // A plan without files is only wrong when a change agent later carries it out. A flow that
+  // only reports, such as research, has nothing to change.
+  const steps = state.flowSnapshot.flow.steps;
+  const changeFollows = steps
+    .slice(steps.findIndex((candidate) => candidate.id === step.id) + 1)
+    .some((later) => outputOf(state.flowSnapshot, later) === "change");
+  if (changeFollows && plan.files.length + plan.tests.length === 0) {
     problems.push("the plan lists no file to change");
   }
   const sessions = withSession(state, agent.id, run.result.sessionId);

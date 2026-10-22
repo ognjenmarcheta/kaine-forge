@@ -264,6 +264,35 @@ describe("a flow of the repository's own", () => {
     });
     expect(receipt?.tools.allow).toEqual(notes?.permissions.allow);
   });
+
+  it("accepts a plan without files only when no change agent follows it", async () => {
+    const empty: ScriptedStep = { role: "planner", output: planOutput({ files: [], tests: [] }) };
+    const research: FlowDefinition = {
+      ...DEFAULT_SNAPSHOT.flow,
+      name: "Research",
+      steps: [
+        { id: "plan", kind: "agent", label: "Plan", agent: "planner" },
+        { id: "plan-gate", kind: "gate", label: "Approve", sendBack: ["plan"] },
+        { id: "notes", kind: "agent", label: "Notes", agent: "release-notes" }
+      ]
+    };
+    const e = await open([empty]);
+    await writeFlow(e, research, {
+      "release-notes": agentFile("release-notes", "report", NOTES_PROMPT)
+    });
+    await e.pipeline.start(ISSUE, { override: false });
+    expect((await stateOf(e)).stage).toBe("plan-gate");
+
+    const code = await createPipelineEnv({ steps: [empty] });
+    try {
+      await code.pipeline.start(ISSUE, { override: false });
+      const state = await code.store.read(ISSUE);
+      expect(state.status === "ok" && state.state.stage).toBe("needs-you");
+      expect(JSON.stringify(state)).toContain("the plan lists no file to change");
+    } finally {
+      await code.cleanup();
+    }
+  });
 });
 
 describe("the flow an issue starts on", () => {
