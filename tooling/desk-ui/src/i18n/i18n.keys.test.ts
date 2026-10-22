@@ -1,6 +1,9 @@
 import {
   ACTION_NAMES,
   AGENT_STAGE_ROLES,
+  CAPABILITY_PRESETS,
+  CAPABILITY_SANDBOXES,
+  DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
   ISSUE_SECTIONS,
@@ -65,6 +68,7 @@ describe("desk translations", () => {
       "desk.gate.title.": [
         "plan-gate",
         "pr-review",
+        "gate",
         "needs-you",
         "working",
         "shipped",
@@ -74,6 +78,7 @@ describe("desk translations", () => {
       "desk.gate.intro.": [
         "plan-gate",
         "pr-review",
+        "gate",
         "needs-you",
         "working",
         "shipped",
@@ -95,7 +100,7 @@ describe("desk translations", () => {
       "desk.draft.recommendation.": INTAKE_RECOMMENDATIONS,
       "desk.draft.section.": ISSUE_SECTIONS,
       "desk.stats.column.": [
-        "role",
+        "agent",
         "provider",
         "model",
         "runs",
@@ -126,7 +131,11 @@ describe("desk translations", () => {
       "desk.diff.group.": FILE_GROUPS,
       "desk.record.": PLAN_RISKS,
       "desk.trace.filter.": TRACE_FILTERS,
-      "desk.trace.kind.": NODE_KINDS
+      "desk.trace.kind.": NODE_KINDS,
+      "desk.flow.source.": DEFINITION_SOURCES,
+      "desk.caps.preset.": CAPABILITY_PRESETS,
+      "desk.caps.sandbox.": CAPABILITY_SANDBOXES,
+      "desk.caps.kind.": ["tool", "mcp", "skill"]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

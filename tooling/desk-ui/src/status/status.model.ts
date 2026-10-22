@@ -1,5 +1,7 @@
 import type { IssueSummary, NodeStatus, StageId } from "@repo/desk/contracts";
 
+import { issueFlowOf, stepRoleOf, type IssueFlow } from "../flow/flow.steps";
+
 /**
  * One place that turns engine codes into what the page shows: the board column, the color
  * role, the words of the status chip, the gate controls, and the next action. Every view
@@ -67,10 +69,15 @@ export const SEVERITY_TONE = {
 
 // --- gate mode --------------------------------------------------------------
 
-/** What the engineer can do about an issue now. It follows the stage, never a guess. */
+/**
+ * What the engineer can do about an issue now. It follows the step kind of the stage in the
+ * issue's own flow, never a guess: `plan-gate` approves a plan, `pr-review` reviews the change
+ * and ships, `gate` approves or sends back, and `pr-open` waits on the draft PR.
+ */
 export type GateMode =
   | "plan-gate"
   | "pr-review"
+  | "gate"
   | "pr-open"
   | "needs-you"
   | "working"
@@ -87,10 +94,18 @@ export function gateModeOf(summary: ReadableSummary): GateMode {
   if (summary.busy || summary.status === "running" || summary.status === "queued") {
     return "working";
   }
-  if (summary.stage === "plan-gate") return "plan-gate";
-  if (summary.stage === "pr-review") return "pr-review";
-  if (summary.stage === "pr-open") return "pr-open";
-  return "idle";
+  switch (stepRoleOf(issueFlowOf(summary), summary.stage)) {
+    case "plan-gate":
+      return "plan-gate";
+    case "ship-gate":
+      return "pr-review";
+    case "gate":
+      return "gate";
+    case "pr-wait":
+      return "pr-open";
+    default:
+      return "idle";
+  }
 }
 
 /** A finished run has nothing to cancel. */
@@ -139,10 +154,18 @@ export const CHIP_STATES = [
 ] as const;
 export type ChipState = (typeof CHIP_STATES)[number];
 
-/** The words of the chip: one key, or a stage with its state ("Plan approval · waiting for you"). */
+/**
+ * The words of the chip: one key, or a stage with its state ("Plan approval · waiting for you").
+ * `flow` names the stage.
+ */
 export type StatusLabel =
   | { readonly kind: "key"; readonly key: string }
-  | { readonly kind: "stage"; readonly stage: StageId; readonly state: ChipState };
+  | {
+      readonly kind: "stage";
+      readonly stage: StageId;
+      readonly state: ChipState;
+      readonly flow: IssueFlow;
+    };
 
 /** The one next step a card offers. Navigation actions open the issue page. */
 export type PrimaryAction =
@@ -157,10 +180,11 @@ export interface IssueStatus {
   readonly primaryAction: PrimaryAction;
 }
 
-const inStage = (stage: StageId, state: ChipState): StatusLabel => ({
+const inStage = (summary: ReadableSummary, state: ChipState): StatusLabel => ({
   kind: "stage",
-  stage,
-  state
+  stage: summary.stage,
+  state,
+  flow: issueFlowOf(summary)
 });
 const byKey = (key: string): StatusLabel => ({ kind: "key", key });
 
@@ -200,23 +224,26 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
     return status("done", "neutral", byKey("desk.stage.cancelled"), "open");
   }
   if (summary.status === "failed") {
-    return status("needs-you", "danger", inStage(summary.stage, "failed"), "open");
+    return status("needs-you", "danger", inStage(summary, "failed"), "open");
   }
   if (gateMode === "working") {
     const state = summary.busy ? "working" : summary.status;
-    return status("running", "information", inStage(summary.stage, state), "working");
+    return status("running", "information", inStage(summary, state), "working");
   }
   if (gateMode === "plan-gate") {
-    return status("waiting", "warning", inStage(summary.stage, "waiting-for-you"), "review-plan");
+    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "review-plan");
   }
   if (gateMode === "pr-review") {
-    return status("waiting", "warning", inStage(summary.stage, "waiting-for-you"), "review-ship");
+    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "review-ship");
+  }
+  if (gateMode === "gate") {
+    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "open");
   }
   if (gateMode === "pr-open") {
     const action = summary.prUrl === null ? "open" : "open-pr";
-    return status("waiting", "warning", inStage(summary.stage, "waiting-for-you"), action);
+    return status("waiting", "warning", inStage(summary, "waiting-for-you"), action);
   }
-  return status("running", "neutral", inStage(summary.stage, summary.status), "open");
+  return status("running", "neutral", inStage(summary, summary.status), "open");
 }
 
 // --- plan risk --------------------------------------------------------------
@@ -246,5 +273,6 @@ export const isLowRiskPlan = (summary: IssueSummary): boolean => gatePlanRisk(su
 export const GATE_REASON_KEY: Readonly<Partial<Record<GateMode, string>>> = {
   "plan-gate": "desk.board.reason.plan-gate",
   "pr-review": "desk.board.reason.pr-review",
+  gate: "desk.board.reason.gate",
   "pr-open": "desk.board.reason.pr-open"
 };

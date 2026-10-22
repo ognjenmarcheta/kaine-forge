@@ -14,7 +14,13 @@ import {
   type FlowDefinition,
   type StepKind
 } from "./flow-definition.contract";
-import { definitionSourceSchema, isEngineState, stageIdSchema } from "./flow-snapshot.contract";
+import {
+  agentOf,
+  definitionSourceSchema,
+  isEngineState,
+  stageIdSchema,
+  type FlowSnapshot
+} from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
 import { runRecordSchema } from "./run-metrics.contract";
@@ -120,6 +126,52 @@ export type ArtifactEntry = z.infer<typeof artifactEntrySchema>;
 
 const timestampSchema = z.string().min(1);
 
+/**
+ * One step of the issue's flow as the UI names it. `agent`: the agent of an agent step.
+ * `sendBack`: where a gate's feedback may go (empty for other kinds). `auto`: a ship step that
+ * opens the PR without the owner (false for other kinds).
+ */
+export const flowStepViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    label: z.string().min(1),
+    kind: stepKindSchema,
+    agent: z
+      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
+      .strict()
+      .nullable(),
+    sendBack: z.array(definitionIdSchema),
+    auto: z.boolean()
+  })
+  .strict();
+export type FlowStepView = z.infer<typeof flowStepViewSchema>;
+
+/** The steps of a flow snapshot as the UI sees them. Pure, so the server and a test agree. */
+export const flowStepViewsOf = (snapshot: FlowSnapshot): FlowStepView[] =>
+  snapshot.flow.steps.map((step) => {
+    const agent = step.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+    return {
+      id: step.id,
+      label: step.label,
+      kind: step.kind,
+      agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output },
+      sendBack: step.kind === "gate" ? [...step.sendBack] : [],
+      auto: step.kind === "ship" && step.auto
+    };
+  });
+
+/** The flow an issue runs on, from its snapshot: what the owner sees of it. */
+export const flowDefinitionViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    name: z.string().min(1),
+    hash: z.string().min(1),
+    source: definitionSourceSchema,
+    steps: z.array(flowStepViewSchema)
+  })
+  .strict();
+export type FlowDefinitionView = z.infer<typeof flowDefinitionViewSchema>;
+
 export const issueSummarySchema = z.discriminatedUnion("readable", [
   z
     .object({
@@ -168,6 +220,9 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       flowId: definitionIdSchema,
       flowName: z.string().min(1),
       flowHash: z.string().min(1),
+      /** Where the flow file came from, and its steps: a board names and places a stage with them. */
+      flowSource: definitionSourceSchema,
+      flowSteps: z.array(flowStepViewSchema).min(1),
       createdAt: timestampSchema,
       updatedAt: timestampSchema
     })
@@ -302,32 +357,6 @@ export const sessionResumeSchema = z
   })
   .strict();
 export type SessionResume = z.infer<typeof sessionResumeSchema>;
-
-/** One step of the issue's flow as the UI names it. `agent`: the agent of an agent step. */
-export const flowStepViewSchema = z
-  .object({
-    id: definitionIdSchema,
-    label: z.string().min(1),
-    kind: stepKindSchema,
-    agent: z
-      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
-      .strict()
-      .nullable()
-  })
-  .strict();
-export type FlowStepView = z.infer<typeof flowStepViewSchema>;
-
-/** The flow an issue runs on, from its snapshot: what the owner sees of it. */
-export const flowDefinitionViewSchema = z
-  .object({
-    id: definitionIdSchema,
-    name: z.string().min(1),
-    hash: z.string().min(1),
-    source: definitionSourceSchema,
-    steps: z.array(flowStepViewSchema)
-  })
-  .strict();
-export type FlowDefinitionView = z.infer<typeof flowDefinitionViewSchema>;
 
 export const issueDetailSchema = z
   .object({

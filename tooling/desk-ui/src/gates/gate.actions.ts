@@ -21,11 +21,17 @@ const isUndoable = (action: ActionName): boolean =>
 /** How a run ended: as the server settled it, or undone before it was sent. */
 export type RunResult = ActionSettled | { readonly kind: "undone" };
 
+/** Words for an action whose meaning depends on the step: what it will do, and what it did. */
+export interface ActionWords {
+  readonly pending: string;
+  readonly done: string;
+}
+
 /** What the gate controls need from the page. A test supplies its own. */
 export interface IssueActions {
   /** An action runs (here or in the engine). Controls that start work are disabled meanwhile. */
   readonly busy: boolean;
-  readonly run: (request: ActionRequestInput) => Promise<RunResult>;
+  readonly run: (request: ActionRequestInput, words?: ActionWords) => Promise<RunResult>;
 }
 
 /**
@@ -40,13 +46,13 @@ export function useIssueActions(issueNumber: number, engineBusy: boolean): Issue
   const [pending, setPending] = useState(0);
 
   const run = useCallback(
-    async (request: ActionRequestInput): Promise<RunResult> => {
+    async (request: ActionRequestInput, words?: ActionWords): Promise<RunResult> => {
       setPending((count) => count + 1);
       try {
         let settled: ActionSettled;
         if (isUndoable(request.action)) {
           const outcome = await runUndoable({
-            label: t(`desk.undo.pending.${request.action}`),
+            label: t(words?.pending ?? `desk.undo.pending.${request.action}`),
             issues: [issueNumber],
             send: ({ keepalive }) =>
               keepalive
@@ -58,7 +64,9 @@ export function useIssueActions(issueNumber: number, engineBusy: boolean): Issue
         } else {
           settled = await act(issueNumber, request);
         }
-        if (request.action !== "ship") toastSettled(t, issueNumber, request.action, settled);
+        if (request.action !== "ship") {
+          toastSettled(t, issueNumber, request.action, settled, words?.done);
+        }
         return settled;
       } finally {
         setPending((count) => count - 1);

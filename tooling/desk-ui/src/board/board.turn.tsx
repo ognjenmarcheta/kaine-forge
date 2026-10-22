@@ -3,7 +3,8 @@ import { Button, Card, buttonVariants } from "@repo/ui";
 import { useId, useRef, useState, type ReactNode } from "react";
 
 import { useContinueIssue, type ApprovePlans } from "./board.actions";
-import { NextAction } from "./board.card";
+import { FlowTag, NextAction } from "./board.card";
+import { issueFlowOf, stageName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { firstLine, formatElapsed } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
@@ -28,7 +29,9 @@ function reasonOf(t: Translate, summary: IssueSummary): string {
   if (summary.needsYouReason !== null) return reasonExcerpt(summary.needsYouReason);
   const status = issueStatusOf(summary);
   const key = status.gateMode === null ? undefined : GATE_REASON_KEY[status.gateMode];
-  return key === undefined ? statusLabelText(t, status.label) : t(key);
+  return key === undefined
+    ? statusLabelText(t, status.label)
+    : t(key, { stage: stageName(t, issueFlowOf(summary), summary.stage) });
 }
 
 function TurnRow({
@@ -74,6 +77,7 @@ function TurnRow({
           {risk === "high" && (
             <StatusChip tone={PLAN_RISK_TONE.high}>{t(PLAN_RISK_KEY.high)}</StatusChip>
           )}
+          {summary.readable && <FlowTag summary={summary} />}
         </div>
         <p className="desk-turn__why">{reasonOf(t, summary)}</p>
       </div>

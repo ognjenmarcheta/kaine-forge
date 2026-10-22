@@ -1,7 +1,13 @@
-import type { IssueSummary, LogEntry, Stage } from "@repo/desk/contracts";
+import {
+  flowStepViewsOf,
+  type IssueSummary,
+  type LogEntry,
+  type Stage
+} from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
 import { LOG_CAPACITY, deskReducer, initialDeskState, mergeLog, revisionOf } from "./desk.store";
+import { DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 
 const summary = (
   issueNumber: number,
@@ -33,6 +39,8 @@ const summary = (
   flowId: "kaine-default",
   flowName: "Kaine default",
   flowHash: "0".repeat(64),
+  flowSource: "builtin",
+  flowSteps: flowStepViewsOf(DEFAULT_FLOW_SNAPSHOT),
   createdAt: "2026-03-01T10:00:00.000Z",
   updatedAt
 });

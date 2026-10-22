@@ -1,12 +1,16 @@
-import type {
-  HistoryEvent,
-  IssueDetail,
-  ReviewSummary,
-  RunRecord,
-  StageId
+import {
+  actionTargetProblem,
+  stepOf,
+  type FlowDefinition,
+  type HistoryEvent,
+  type IssueDetail,
+  type ReviewSummary,
+  type RunRecord,
+  type StageId
 } from "@repo/desk/contracts";
 
 import type { DiffFile } from "../artifacts/artifact.diffstat";
+import { flowStepOf, stepRoleOf, type IssueFlow } from "../flow/flow.steps";
 
 /**
  * What the decision cards show, from the issue detail. Pure: codes, numbers, and engine text.
@@ -75,7 +79,11 @@ export function incidentOf(detail: IssueDetail): Incident {
   if (latest !== undefined && !latest.ok && latest.failureKind !== null) {
     return { stage, reason, cause: latest.failureKind };
   }
-  const repeated = (state.loops.check ?? 0) >= 2 && state.lastCheckFingerprint !== null;
+  const checkLoops = Object.entries(state.loops).filter(
+    ([step]) => stepOf(state.flowSnapshot, step)?.kind === "check"
+  );
+  const repeated =
+    checkLoops.some(([, count]) => count >= 2) && state.lastCheckFingerprint !== null;
   return { stage, reason, cause: repeated ? "repeat" : null };
 }
 
@@ -84,4 +92,36 @@ export function resumeCommandOf(detail: IssueDetail): string | null {
   const sessions = detail.resume.sessions.filter((session) => session.command !== null);
   const pick = sessions.find((session) => session.role === "builder") ?? sessions[0];
   return pick?.command ?? null;
+}
+
+// --- targets: where the owner can send the work ------------------------------
+
+/**
+ * Where the feedback of the gate `gate` may go: its `sendBack` steps, the builder's step first
+ * (the usual answer), then the latest step first.
+ */
+export function sendBackTargets(flow: IssueFlow, gate: string): string[] {
+  const targets = [...(flowStepOf(flow, gate)?.sendBack ?? [])].reverse();
+  const builds = targets.filter((id) => stepRoleOf(flow, id) === "change");
+  return [...builds, ...targets.filter((id) => !builds.includes(id))];
+}
+
+/**
+ * The stages `continue` may restart from `needs-you`: intake and setup, then each step of the
+ * flow that the server accepts as a target. The same rule as the server, so no choice is refused.
+ */
+export const retryTargets = (flow: FlowDefinition): string[] =>
+  ["intake", "setup", ...flow.steps.map((step) => step.id)].filter(
+    (from) => actionTargetProblem(flow, { action: "continue", from }) === null
+  );
+
+/**
+ * The step a note to the builder goes to from `needs-you`: the last change step at or before
+ * the stage that stopped, else the first one. `null` for a flow without a change step.
+ */
+export function builderStepOf(flow: IssueFlow, stopped: string | null): string | null {
+  const builds = flow.steps.filter((step) => stepRoleOf(flow, step.id) === "change");
+  const at = flow.steps.findIndex((step) => step.id === stopped);
+  const before = builds.filter((step) => flow.steps.indexOf(step) <= at).at(-1);
+  return (before ?? builds[0])?.id ?? null;
 }

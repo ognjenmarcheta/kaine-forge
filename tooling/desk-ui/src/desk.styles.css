@@ -1003,6 +1003,50 @@ main:focus {
   border-color: var(--ds-border);
 }
 
+/* The flow of a start: one row for each flow, its name beside the radio, its source below. */
+.desk-flowpick__list {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin-block: var(--ds-space-100);
+}
+
+.desk-flowpick__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ds-space-050) var(--ds-space-100);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-flowpick__item[data-checked="true"] {
+  border-color: var(--ds-border-selected);
+  background: var(--ds-background-selected);
+}
+
+.desk-flowpick__name {
+  font-weight: var(--ds-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.desk-flowpick__about {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  align-items: center;
+  gap: var(--ds-space-075);
+  font: var(--ds-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+/* The flow an issue runs on, named only when it is not the built-in default. */
+.desk-flow-tag {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  overflow-wrap: anywhere;
+}
+
 .desk-picker__name {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1842,7 +1886,9 @@ main:focus {
 /* Eight segments, one for each flow node. The current one is taller, not only darker. */
 .desk-progress {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  /* One column for each node of the issue's own flow, however many it has. */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   align-items: center;
   gap: var(--ds-space-050);
   height: var(--ds-space-150);
@@ -2157,6 +2203,55 @@ main:focus {
 
 .desk-inspector__section > p {
   margin-block: var(--ds-space-050);
+}
+
+/* The capability receipt of each agent run: what the run actually got. */
+.desk-caps__runs {
+  display: grid;
+  gap: var(--ds-space-150);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-caps__run h4 {
+  margin: 0 0 var(--ds-space-075);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-caps__receipt {
+  display: grid;
+  gap: var(--ds-space-100);
+  font: var(--ds-font-body-small);
+}
+
+.desk-caps__where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075);
+}
+
+.desk-caps__rules-title {
+  margin: var(--ds-space-075) 0 var(--ds-space-050);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-caps__rules,
+.desk-caps__removed,
+.desk-caps__notes {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding-inline-start: var(--ds-space-200);
+  overflow-wrap: anywhere;
+}
+
+.desk-caps__more {
+  margin-block-start: var(--ds-space-050);
 }
 
 .desk-inspector__chips {

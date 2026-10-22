@@ -51,7 +51,7 @@ import only Zod, so a browser can use them.
 | GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                          |
 | POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.   |
 | GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues (with `flowId`) and PRs. Cached 60 s.          |
-| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue.   |
+| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.  |
 | GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
 | POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.          |
 | POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.      |
@@ -182,12 +182,15 @@ board never reads one detail for each card. Besides the stage, status, branch, l
   `pr-opened`, `needs-you`, `interrupted`, `cancelled`, `pr-closed`, `pr-merged`, and
   `shipped` from older histories), if that stage is the current one;
   otherwise `null` (for example while a queued stage has not written its start).
-- `progress`: the status of each of the 9 flow nodes, in `FLOW_NODE_IDS` order, from
-  `buildFlowModel`.
+- `progress`: the status of each node of the issue's flow, in flow order (the ticket, then each
+  step), from `buildFlowModel`. The built-in flow has 9 nodes; another flow has its own count.
 - `currentNode`: the flow node that holds the issue now, or `null`.
 - `paused` and `pausedAt`: the owner paused the issue. With `busy`, the running stage still
   ends; then the issue waits until `resume`.
 - `planRisk`: `low`, `medium`, or `high` from `plan.json`, or `null` before a graded plan exists.
+- `flowId`, `flowName`, `flowHash`, `flowSource`, and `flowSteps`: the flow snapshot the issue
+  runs on. `flowSteps` are its steps as `FlowStepView`s (see "Issue detail"), so a board names a
+  stage and picks its controls without reading the detail of each issue.
 
 ## Issue detail
 
@@ -199,6 +202,10 @@ artifact index, the contract, the check and review summaries, ship readiness, an
 - `buildRevision`: what the latest build changed since the build before, from `build.json`.
   `null` for a first build and for a `build.json` without the field.
 - `approveNote`: the owner's note at the plan approval, or `null`.
+- `flowDefinition`: `{ id, name, hash, source, steps }` of the issue's flow snapshot. Each step
+  is a `FlowStepView`: `{ id, label, kind, agent, sendBack, auto }`. `agent` is
+  `{ id, name, output }` for an agent step, else `null`. `sendBack` lists a gate's targets (empty
+  for other kinds); `auto` is true for a ship step that needs no confirmation.
 - `resume`: `{ worktreePath, sessions }`. Each session is `{ role, sessionId, provider, command }`
   for `builder` and `planner`, builder first. `provider` comes from the role's run summary
   (`agent-<role>.json`), or `null` when the issue has none. `command` is the line
@@ -215,6 +222,10 @@ field existed.
 
 `RunStats` (`GET /api/stats`, `desk stats --json`) has `groups`, `issues`, and `invalidLines`,
 and also:
+
+- `groups`: one row for each role, agent, provider, and model. `agentId` is the agent of the
+  runs. A line written before agents were data counts for the built-in agent of its role, whose
+  id is the role.
 
 - `riskOutcomes`: one `{ risk, issues, shipped, sentBack }` for each of `low`, `medium`, `high`.
   An issue counts at the risk of its latest graded run (`RunRecord.planRisk`). `shipped`: the

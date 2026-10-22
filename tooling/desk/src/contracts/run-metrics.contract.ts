@@ -95,10 +95,18 @@ export type RunRecord = z.infer<typeof runRecordSchema>;
 
 const mean = z.number().nonnegative().nullable();
 
-/** Runs of one role with one provider and model. Means and totals cover only the runs that report the value. */
+/**
+ * Runs of one agent with one provider and model. Means and totals cover only the runs that
+ * report the value.
+ */
 export const runGroupSchema = z
   .object({
     role: agentStageRoleSchema,
+    /**
+     * The agent of these runs. A record written before agents were data counts for the built-in
+     * agent of its role, whose id is the role.
+     */
+    agentId: definitionIdSchema,
     provider: providerSchema,
     /** `null`: the CLI's default model. */
     model: z.string().min(1).nullable(),

@@ -6,6 +6,8 @@ import { anomaliesOf } from "./inspector.model";
 import { Anomalies } from "./inspector.parts";
 import { StageResult } from "./inspector.result";
 import { StageSection } from "./inspector.stage";
+import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
+import { agentName, flowStepOf, issueFlowOfView } from "../flow/flow.steps";
 import { nodeStatusText } from "../flow/flow.text";
 import { useT, type Translate } from "../i18n/i18n.t";
 import { useShortcuts } from "../shell/shell.keys";
@@ -19,11 +21,17 @@ const EMPTY: readonly never[] = [];
 const OWNS_ARROWS =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="tablist"], [role="listbox"], [role="menu"], [role="radiogroup"], [role="slider"]';
 
-/** Who works in the stage: "Agent · Planner", "You decide", "The engine runs it", "The GitHub issue". */
-const subtitleOf = (t: Translate, node: FlowNode): string =>
-  node.role === null
+/**
+ * Who works in the stage: "Agent · Planner", "Agent · <the agent's own name>", "You decide",
+ * "The engine runs it", "The GitHub issue".
+ */
+const subtitleOf = (t: Translate, node: FlowNode, detail: IssueDetail): string => {
+  const agent = flowStepOf(issueFlowOfView(detail.flowDefinition), node.id)?.agent ?? null;
+  const who = agentName(t, agent, node.role);
+  return who === null
     ? t(`desk.inspector.subtitle.${node.kind}`)
-    : t("desk.inspector.subtitle.agentRole", { role: t(`desk.inspector.role.${node.role}`) });
+    : t("desk.inspector.subtitle.agentRole", { role: who });
+};
 
 export interface StageSheetProps {
   readonly detail: IssueDetail;
@@ -40,17 +48,19 @@ export interface StageSheetProps {
  * One stage in a side sheet beside the page: who works there, its status, its tiles and
  * checklists, what went wrong, and its full result. The sheet is not modal: the page stays
  * usable. ← and → step through the stages, Esc closes it, and focus returns to its opener.
+ * Its stages are named from the issue's own flow.
  */
-export function StageSheet({
-  detail,
-  summary,
-  flow,
-  nodeId,
-  revision,
-  onSelect,
-  onClose
-}: StageSheetProps) {
+export function StageSheet(props: StageSheetProps) {
+  return (
+    <IssueFlowProvider flow={issueFlowOfView(props.detail.flowDefinition)}>
+      <Sheet {...props} />
+    </IssueFlowProvider>
+  );
+}
+
+function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: StageSheetProps) {
   const t = useT();
+  const names = useStageNames();
   const id = useId();
   const sheet = useRef<HTMLDivElement>(null);
   const { state } = useDesk();
@@ -141,10 +151,10 @@ export function StageSheet({
             {t("desk.sheet.position", {
               index: index + 1,
               total: flow.nodes.length,
-              who: subtitleOf(t, node)
+              who: subtitleOf(t, node, detail)
             })}
           </p>
-          <h2 id={`${id}-title`}>{t(`desk.flow.node.${node.id}`)}</h2>
+          <h2 id={`${id}-title`}>{names.node(node.id)}</h2>
           <StatusChip tone={tone}>{nodeStatusText(t, node)}</StatusChip>
         </div>
         <Button

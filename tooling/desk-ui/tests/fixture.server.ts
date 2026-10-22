@@ -34,6 +34,7 @@ import {
   draftArtifact,
   type SeedIssue
 } from "./fixture.data";
+import { createFixtureRegistry, type FixtureRegistry } from "./fixture.registry";
 
 /**
  * A desk server for browser tests: the real HTTP layer (cookie, headers, event stream, static
@@ -112,6 +113,7 @@ const gate = (state: IssueState, message: string | null = null): PipelineResult 
 const buildRunner = (
   store: IssueStore,
   options: ResetOptions,
+  registry: FixtureRegistry,
   log: (issue: number, message: string) => void
 ): ServerRunner => {
   const record = (issue: number, action: string, payload: unknown): void => {
@@ -153,7 +155,19 @@ const buildRunner = (
           message: "No acceptance criteria found."
         };
       }
-      await writeSeed(store, planGateIssue(issue, `Started from the page (#${String(issue)})`));
+      // Like the engine: the chosen flow, else the default; an unknown flow is refused.
+      const flowId = startOptions.flowId ?? "kaine-default";
+      const snapshot = registry.snapshotOf(flowId);
+      if (snapshot === null) {
+        return {
+          outcome: "refused",
+          refusal: "intake-refused",
+          reason: `No flow '${flowId}'.`,
+          state: null
+        };
+      }
+      const title = `Started from the page (#${String(issue)})`;
+      await writeSeed(store, planGateIssue(issue, title, null, snapshot));
       return gate(await readState(store, issue));
     },
     draft: async (issue) => {
@@ -415,6 +429,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
     tuning: { pollMs: 40, heartbeatMs: 2000, actionSettleMs: 300 },
     depsFactory: (onEvent: (event: PipelineEvent) => void) => {
       emit = onEvent;
+      const registry = createFixtureRegistry();
       // The fixture's Docker image: missing until the page runs the repair.
       let imageBuilt = false;
       const lessons = lessonDesk(
@@ -432,8 +447,12 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
       const log = (issue: number, message: string): void =>
         onEvent({ type: "log", issue, message });
       return Promise.resolve({
-        runner: buildRunner(store, options, log),
+        runner: buildRunner(store, options, registry, log),
         store,
+        readDefinitions: registry.read,
+        definitionWrites: registry.writes,
+        // The label rule of the fixture config: `flow:quick` runs the repository's quick fix.
+        flowFor: (labels) => (labels.includes("flow:quick") ? "quick-fix" : "kaine-default"),
         readRuns: () =>
           Promise.resolve({
             records: options.scenario === "empty" ? [] : scenarioRuns(),
@@ -502,6 +521,14 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
                 labels: [],
                 body: "",
                 updatedAt: "2026-10-11T09:00:00Z"
+              },
+              {
+                number: 122,
+                title: "Fix a typo in the empty state",
+                url: issueUrl(122),
+                labels: [{ name: "ready-for-agent" }, { name: "flow:quick" }],
+                body: "",
+                updatedAt: "2026-10-11T08:00:00Z"
               },
               {
                 number: 101,

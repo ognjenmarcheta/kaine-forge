@@ -13,6 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger, Tag } from "@repo/
 import type { ReactNode } from "react";
 import type { z } from "zod";
 
+import { CapabilityReceipts } from "./inspector.capabilities";
 import {
   agentUsageKpis,
   buildChecklist,
@@ -22,6 +23,7 @@ import {
   reviewChecklist,
   shipChecklist,
   stageKpis,
+  stageRoleOf,
   type CheckItem,
   type StageArtifacts
 } from "./inspector.model";
@@ -98,6 +100,7 @@ function Frame({
         </Block>
       )}
       {children}
+      <CapabilityReceipts node={section.node} detail={section.detail} />
     </>
   );
 }
@@ -238,25 +241,28 @@ function ShipSection(props: SectionProps) {
   );
 }
 
-/** The tiles and checklists of one stage. Each stage reads only the artifact it needs. */
+/**
+ * The tiles and checklists of one stage, by what the stage does in the issue's flow. Each stage
+ * reads only the artifact it needs. A stage without a section of its own still has its tiles.
+ */
 export function StageSection(props: SectionProps) {
-  switch (props.node.id) {
+  switch (stageRoleOf(props.detail, props.node.id)) {
     case "ticket":
       return <TicketSection {...props} />;
     case "plan":
     case "plan-gate":
       return <PlanSection {...props} />;
-    case "build":
+    case "change":
       return <BuildSection {...props} />;
     case "check":
       return <CheckSection {...props} />;
     case "review":
       return <ReviewSection {...props} />;
-    case "pr-review":
+    case "ship-gate":
     case "ship":
-    case "pr-open":
+    case "pr-wait":
       return <ShipSection {...props} />;
     default:
-      return null;
+      return <Frame section={props}>{null}</Frame>;
   }
 }

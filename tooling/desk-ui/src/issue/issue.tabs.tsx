@@ -1,4 +1,10 @@
-import type { FlowModel, FlowNodeId, HistoryEvent, NodeKind } from "@repo/desk/contracts";
+import type {
+  FlowModel,
+  FlowNodeId,
+  FlowSnapshot,
+  HistoryEvent,
+  NodeKind
+} from "@repo/desk/contracts";
 import { Button, Card, Checkbox, Label, Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui";
 import { useId, useState, type Ref } from "react";
 
@@ -13,6 +19,7 @@ import { LogPanel } from "./issue.log";
 import type { Trace, TraceFilter } from "./issue.trace";
 import { Handoffs, TraceView, type TraceFocus } from "./issue.waterfall";
 import { StageIcon } from "../flow/flow.icon";
+import { useStageNames } from "../flow/flow.names";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { formatClock, formatDuration, formatElapsed } from "../shell/shell.format";
 import { useNow } from "../shell/shell.now";
@@ -64,8 +71,8 @@ function Group({
   readonly kind: NodeKind | undefined;
 }) {
   const t = useT();
-  const name =
-    group.node === null ? t(`desk.stage.${group.stage}`) : t(`desk.flow.node.${group.node}`);
+  const names = useStageNames();
+  const name = group.node === null ? names.stage(group.stage) : names.node(group.node);
   return (
     <li className="desk-activity__group">
       <h3 className="desk-activity__head">
@@ -87,15 +94,17 @@ function Group({
 function Activity({
   history,
   flow,
+  snapshot,
   running
 }: {
   readonly history: readonly HistoryEvent[];
   readonly flow: FlowModel;
+  readonly snapshot: FlowSnapshot;
   readonly running: boolean;
 }) {
   const t = useT();
   const now = useNow();
-  const groups = activityGroups(history, now, running);
+  const groups = activityGroups(history, now, running, snapshot);
   if (groups.length === 0) return <p className="desk-muted">{t("desk.activity.empty")}</p>;
   return (
     <ol className="desk-activity" aria-label={t("desk.activity.label")}>
@@ -164,6 +173,8 @@ export interface IssueHistoryProps {
   readonly issueNumber: number;
   readonly history: readonly HistoryEvent[];
   readonly flow: FlowModel;
+  /** The issue's flow: it places each event on its stage. */
+  readonly snapshot: FlowSnapshot;
   readonly trace: Trace;
   readonly running: boolean;
   readonly needsYou: boolean;
@@ -181,6 +192,7 @@ export function IssueHistory({
   issueNumber,
   history,
   flow,
+  snapshot,
   trace,
   running,
   needsYou,
@@ -251,7 +263,7 @@ export function IssueHistory({
             </div>
             <TabsContent value="trace" className="desk-tabs__panel">
               {control.everyEvent ? (
-                <Activity history={history} flow={flow} running={running} />
+                <Activity history={history} flow={flow} snapshot={snapshot} running={running} />
               ) : (
                 <TraceView
                   issueNumber={issueNumber}

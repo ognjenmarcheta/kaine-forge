@@ -1,10 +1,19 @@
-import type { GithubIssue, GithubLists, GithubPull, IssueSummary } from "@repo/desk/contracts";
+import type {
+  DefinitionSource,
+  FlowDefinition,
+  FlowView,
+  GithubIssue,
+  GithubLists,
+  GithubPull,
+  IssueSummary
+} from "@repo/desk/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DeskApi } from "../api/api.client";
 import { DeskApp } from "../desk.app";
+import { CUSTOM_FLOW_SNAPSHOT, DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeState, makeSummary, renderDesk } from "../test/test.render";
 
 const AT = "2026-03-01T10:00:00.000Z";
@@ -78,6 +87,54 @@ describe("Start dialog issue picker", () => {
     );
     await userEvent.click(within(dialog).getByRole("button", { name: "Start" }));
     expect(act).toHaveBeenCalledWith(12, { action: "start", override: false });
+  });
+
+  it("pre-selects the flow the desk picks for the issue, and sends the flow the owner chooses", async () => {
+    const view = (definition: FlowDefinition, source: DefinitionSource): FlowView => ({
+      definition,
+      source,
+      shadows: null,
+      readOnly: source === "builtin",
+      hash: "2".repeat(64),
+      problems: []
+    });
+    const flows = {
+      flows: [
+        view(DEFAULT_FLOW_SNAPSHOT.flow, "builtin"),
+        view(CUSTOM_FLOW_SNAPSHOT.flow, "repo"),
+        view({ ...DEFAULT_FLOW_SNAPSHOT.flow, id: "careful", name: "Careful" }, "local")
+      ],
+      problems: []
+    };
+    const act = vi.fn<DeskApi["act"]>(() =>
+      Promise.resolve({ status: "accepted", action: "start", issueNumber: 12 })
+    );
+    show(() => Promise.resolve(lists([issue({ number: 12, flowId: "quick-fix" })])), {
+      act,
+      flows: () => Promise.resolve(flows)
+    });
+    const dialog = await openStart();
+    const picker = within(dialog).getByRole("group", { name: "Flow" });
+    expect(await within(picker).findByRole("radio", { name: "Quick fix" })).toHaveProperty(
+      "ariaChecked",
+      "false"
+    );
+
+    await userEvent.click(await within(dialog).findByRole("button", { name: /#12/ }));
+
+    const quick = within(picker).getByRole("radio", { name: "Quick fix" });
+    expect(quick.getAttribute("aria-checked")).toBe("true");
+    // The flow's source and the desk's own pick are said in words beside it.
+    expect(quick.getAttribute("aria-describedby")).not.toBeNull();
+    const about = dialog.querySelector(
+      `#${CSS.escape(quick.getAttribute("aria-describedby") ?? "")}`
+    );
+    expect(about?.textContent).toContain("Repository");
+    expect(about?.textContent).toContain("Default for this issue");
+
+    await userEvent.click(within(picker).getByRole("radio", { name: "Careful" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Start" }));
+    expect(act).toHaveBeenCalledWith(12, { action: "start", override: false, flowId: "careful" });
   });
 
   it("explains that an issue without the ready label needs the override, and never checks it", async () => {

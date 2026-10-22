@@ -1,22 +1,22 @@
-import type { FeedbackTarget, ShipReadiness } from "@repo/desk/contracts";
+import type { ShipReadiness } from "@repo/desk/contracts";
 import { Button, Check, ProgressBar } from "@repo/ui";
 import { useMemo, useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
-import { orderReviewFiles } from "./gate.model";
+import { orderReviewFiles, sendBackTargets } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { useViewedFiles } from "./gate.viewed";
 import { DiffReview } from "../artifacts/artifact.diff";
 import { parseDiffFiles } from "../artifacts/artifact.diffstat";
 import { FindingLinks, ReviewVerdictLine } from "../artifacts/artifact.review";
 import { useTextArtifact } from "../artifacts/artifact.use";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
 import { useShortcuts } from "../shell/shell.keys";
 import { usePaletteActions } from "../shell/shell.palette";
 import { FailureText, Loading, Muted } from "../shell/shell.ui";
 
-const TARGETS: readonly FeedbackTarget[] = ["build", "review", "plan"];
 const NO_FINDINGS: never[] = [];
 
 const READINESS = [
@@ -150,7 +150,7 @@ export function ReviewGate({
       </section>
       {feedbackOpen && (
         <FeedbackForm
-          targets={TARGETS}
+          targets={sendBackTargets(issueFlowOf(summary), summary.stage)}
           busy={actions.busy}
           onCancel={() => setFeedbackOpen(false)}
           onSend={async (to, text) => {

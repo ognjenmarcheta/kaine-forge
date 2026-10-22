@@ -1,9 +1,11 @@
 import {
   buildFlowModel,
+  flowStepViewsOf,
   type IssueDetail,
   type IssueState,
   type IssueSummary
 } from "@repo/desk/contracts";
+import { TooltipProvider } from "@repo/ui";
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactElement } from "react";
 
@@ -33,6 +35,16 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
     Promise.resolve({ ok: true, issues: [], pulls: [], fetchedAt: "2026-03-01T10:00:00.000Z" }),
   issues: () => Promise.resolve([]),
   issue: unexpected("issue"),
+  agents: unexpected("agents"),
+  agent: unexpected("agent"),
+  // The Start dialog lists the flows. Most tests want none.
+  flows: () => Promise.resolve({ flows: [], problems: [] }),
+  flow: unexpected("flow"),
+  saveAgent: unexpected("saveAgent"),
+  saveFlow: unexpected("saveFlow"),
+  cloneDefinition: unexpected("cloneDefinition"),
+  promoteDefinition: unexpected("promoteDefinition"),
+  deleteDefinition: unexpected("deleteDefinition"),
   artifactText: unexpected("artifactText"),
   artifactJson: unexpected("artifactJson"),
   log: () => Promise.resolve({ entries: [], last: 0 }),
@@ -47,12 +59,13 @@ export const quietSource = (): EventSourceLike => ({
   close: () => undefined
 });
 
+/** `ui` inside the providers the app gives it; the shell's tooltip provider among them. */
 export function renderDesk(ui: ReactElement, api: DeskApi = fakeApi()): RenderResult {
   return render(
     <LanguageProvider>
       <RouterProvider>
         <DeskProvider api={api} createSource={quietSource}>
-          {ui}
+          <TooltipProvider>{ui}</TooltipProvider>
         </DeskProvider>
       </RouterProvider>
     </LanguageProvider>
@@ -114,6 +127,8 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     flowId: state.flowSnapshot.flow.id,
     flowName: state.flowSnapshot.flow.name,
     flowHash: state.flowSnapshot.hash,
+    flowSource: state.flowSnapshot.flowSource,
+    flowSteps: flowStepViewsOf(state.flowSnapshot),
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };

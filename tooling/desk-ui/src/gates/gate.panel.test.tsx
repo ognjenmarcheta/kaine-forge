@@ -7,6 +7,7 @@ import type { IssueActions } from "./gate.actions";
 import { GatePanel } from "./gate.panel";
 import { planArtifact } from "../../tests/fixture.data";
 import type { ActionSettled } from "../state/desk.provider";
+import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const DONE: ActionSettled = {
@@ -169,6 +170,39 @@ describe("GatePanel at the plan gate", () => {
       "disabled",
       true
     );
+  });
+});
+
+describe("GatePanel at a gate of the owner's own flow", () => {
+  it("approves the step or sends the work back to a step the gate names, by its label", async () => {
+    const actions = actionsOf();
+    show({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage: "signoff", status: "waiting" }, actions);
+
+    expect(screen.getByRole("heading", { name: "Your decision: Sign off" })).toBeTruthy();
+    // The builder's step first, then the latest: the gate names plan and implement.
+    expect(
+      screen.getByText("Feedback can go back to: Back to Implement, Back to Sketch.")
+    ).toBeTruthy();
+    await userEvent.click(
+      within(bar("Your decision: Sign off")).getByRole("button", { name: "Approve" })
+    );
+    // An approval of this gate is not a plan approval, and the toasts say so.
+    expect(actions.run).toHaveBeenLastCalledWith(
+      { action: "approve" },
+      { pending: "desk.undo.pending.gateApprove", done: "desk.action.done.gateApprove" }
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    const targets = screen.getByRole("radiogroup");
+    expect(within(targets).getAllByRole("radio")).toHaveLength(2);
+    await userEvent.click(within(targets).getByRole("radio", { name: "Back to Sketch" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Feedback" }), "Smaller sketch");
+    await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+    expect(actions.run).toHaveBeenLastCalledWith({
+      action: "feedback",
+      to: "plan",
+      text: "Smaller sketch"
+    });
   });
 });
 

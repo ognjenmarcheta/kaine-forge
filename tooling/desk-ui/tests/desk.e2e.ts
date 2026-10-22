@@ -793,14 +793,14 @@ test("shows the health report with a status in words", async ({ page, desk }) =>
   await expect(page.getByText("Error", { exact: true })).toBeVisible();
 });
 
-test("compares agent runs by role and model, and shows a stage's agent usage", async ({
+test("compares agent runs by agent and model, and shows a stage's agent usage", async ({
   page,
   desk
 }) => {
   await desk.open();
   await page.getByRole("navigation").getByRole("link", { name: "Runs" }).click();
   await expect(page.getByRole("heading", { name: "Agent runs", level: 1 })).toBeVisible();
-  const groups = page.getByRole("table", { name: "By role and model" });
+  const groups = page.getByRole("table", { name: "By agent and model" });
   await expect(groups.getByRole("row")).toHaveCount(5);
   await expect(groups.getByRole("row", { name: /Builder claude opus 2 1 1/ })).toBeVisible();
   const issues = page.getByRole("table", { name: "By issue" });
@@ -934,11 +934,81 @@ test("starts an issue picked from GitHub, and shows open pull requests read-only
   await dialog.getByRole("button", { name: "Start", exact: true }).click();
 
   await expect(page.getByRole("link", { name: /#120/ })).toBeVisible();
+  // The picked issue brings the flow the desk picks for it, and the start names it.
   expect(await desk.calls()).toContainEqual({
     issue: 120,
     action: "start",
-    payload: { override: false }
+    payload: { override: false, flowId: "kaine-default" }
   });
+});
+
+test("starts an issue on the flow its label picks and follows that flow's own steps", async ({
+  page,
+  desk
+}) => {
+  await desk.open();
+  await page.getByRole("button", { name: "Start issue" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Start an issue" });
+  const flows = dialog.getByRole("group", { name: "Flow" });
+  await expect(flows.getByRole("radio")).toHaveCount(3);
+  await dialog.getByRole("button", { name: /#122/ }).click();
+  // `flow:quick` picks the repository's quick fix; the dialog says where each flow comes from.
+  const quick = flows.getByRole("radio", { name: "Quick fix" });
+  await expect(quick).toBeChecked();
+  await expect(flows.getByText("Default for this issue")).toBeVisible();
+  await expect(flows.getByText("Repository")).toBeVisible();
+  await expect(flows.getByText("Local")).toBeVisible();
+  await dialog.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(await desk.calls()).toContainEqual({
+    issue: 122,
+    action: "start",
+    payload: { override: false, flowId: "quick-fix" }
+  });
+
+  // The board names a flow that is not the default one, and counts its own stages.
+  await expect(row(page, 122)).toContainText("Flow: Quick fix");
+  await expect(row(page, 101)).not.toContainText("Flow:");
+  await row(page, 122).getByRole("link", { name: /#122/ }).click();
+
+  const stages = page.getByRole("list", { name: "Stages and their status" });
+  await expect(stages.getByRole("button")).toHaveCount(6);
+  await expect(stages.locator(".desk-stepper__name")).toHaveText([
+    "Ticket",
+    "Sketch",
+    "Approve the sketch",
+    "Implement",
+    "Verify",
+    "Open the draft PR"
+  ]);
+  await expect(stage(page, /^Approve the sketch/)).toHaveAttribute("aria-current", "step");
+  // A gate right after the plan is a plan approval, whatever its id.
+  await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
+  await expect(page.locator(".desk-imeta__flow")).toContainText(/Quick fix · [0-9a-f]{7}/);
+  await expect(page.locator(".desk-imeta__flow")).toContainText("Repository");
+});
+
+test("shows what each agent run got in the stage sheet", async ({ page, desk }) => {
+  await desk.open({}, "?issue=102");
+  await stage(page, /^Review/).click();
+  const capabilities = sheet(page).locator(".desk-caps");
+  await expect(capabilities.getByRole("heading", { name: "Capabilities" })).toBeVisible();
+  await expect(capabilities).toContainText("On your machine, in the Codex read-only sandbox.");
+  await expect(capabilities.locator(".desk-caps__removed")).toHaveText(
+    "serena MCP server Codex: sandbox only, no MCP"
+  );
+  await expect(capabilities.locator(".desk-caps__notes")).toHaveText("Codex: sandbox only, no MCP");
+
+  await stage(page, /^Build/).click();
+  await expect(sheet(page).locator(".desk-caps")).toContainText("4 allowed · 3 denied");
+  await sheet(page).getByRole("button", { name: "Show the rules" }).click();
+  await expect(sheet(page).getByText("Bash(git push *)")).toBeVisible();
+
+  // The planner ran before the desk kept a receipt, and the sheet says so.
+  await stage(page, /^Plan Passed/).click();
+  await expect(sheet(page).locator(".desk-caps")).toContainText(
+    "This run has no capability receipt."
+  );
 });
 
 test("drafts the issue format for a stopped intake and applies it after a second yes", async ({

@@ -1,7 +1,9 @@
-import type { GithubIssue } from "@repo/desk/contracts";
+import type { ActionRequestInput, GithubIssue } from "@repo/desk/contracts";
 import { Badge, Button, Checkbox, Input, Label, Modal } from "@repo/ui";
 import { useId, useState } from "react";
 
+import { FlowPicker } from "./board.flow-picker";
+import { useFlowList } from "../flow/flow.use";
 import { useGithubLists } from "../github/github.use";
 import { useT } from "../i18n/i18n.t";
 import { toastSettled } from "../shell/shell.toast";
@@ -114,7 +116,8 @@ function IssuePicker({
 }
 
 /**
- * Start an issue: pick it from the open issues of the repository, or type its number.
+ * Start an issue: pick it from the open issues of the repository, or type its number, and pick
+ * the flow it runs on. Picking an issue selects the flow the desk would pick for it.
  * `override` runs it on the owner's own authority instead of the `ready-for-agent` label event:
  * the desk logs it, and it is for your own runs only. The result is a toast; the dialog closes
  * when the desk took the start and stays open on a refusal.
@@ -132,17 +135,25 @@ export function StartDialog({
   const [value, setValue] = useState("");
   const [picked, setPicked] = useState<GithubIssue | null>(null);
   const [override, setOverride] = useState(false);
+  const [flowId, setFlowId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [touched, setTouched] = useState(false);
+  const flows = useFlowList(open);
   const valid = ISSUE_NUMBER.test(value.trim());
   const invalid = touched && !valid;
   // The picked issue, while the number still says so.
   const chosen = picked !== null && String(picked.number) === value.trim() ? picked : null;
+  // Only a listed flow is sent: without one the desk picks it, as it would for this issue anyway.
+  const listed =
+    flows.status === "ok" && flows.list.flows.some((flow) => flow.definition.id === flowId)
+      ? flowId
+      : null;
 
   const reset = (): void => {
     setValue("");
     setPicked(null);
     setOverride(false);
+    setFlowId(null);
     setTouched(false);
   };
 
@@ -177,7 +188,11 @@ export function StartDialog({
           if (!valid || pending) return;
           const issueNumber = Number(value.trim());
           setPending(true);
-          void act(issueNumber, { action: "start", override }, { wait: false })
+          const request: ActionRequestInput =
+            listed === null
+              ? { action: "start", override }
+              : { action: "start", override, flowId: listed };
+          void act(issueNumber, request, { wait: false })
             .then((settled) => {
               toastSettled(t, issueNumber, "start", settled);
               if (settled.kind !== "error") {
@@ -194,6 +209,7 @@ export function StartDialog({
           onPick={(issue) => {
             setPicked(issue);
             setValue(String(issue.number));
+            setFlowId(issue.flowId);
             setTouched(false);
           }}
         />
@@ -230,6 +246,12 @@ export function StartDialog({
         <p id={`${id}-override-help`} className="desk-muted">
           {t("desk.start.overrideHelp")}
         </p>
+        <FlowPicker
+          state={flows}
+          suggested={chosen?.flowId ?? null}
+          value={listed}
+          onChange={setFlowId}
+        />
         {chosen !== null && !chosen.ready && !override && (
           <p className="desk-picker__note" role="status">
             {t("desk.picker.needsOverride", { number: chosen.number })}

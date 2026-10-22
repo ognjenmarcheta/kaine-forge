@@ -2,6 +2,7 @@ import type { HistoryEvent, Stage } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
 import { activityGroups, isKnownEvent } from "./issue.activity";
+import { DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 
 const T0 = Date.parse("2026-03-01T10:00:00.000Z");
 const event = (minute: number, stage: Stage, name: string, note?: string): HistoryEvent => ({
@@ -19,9 +20,12 @@ const HISTORY: HistoryEvent[] = [
   event(5, "build", "stage-started")
 ];
 
+const groupsOf = (history: readonly HistoryEvent[], now: number, running: boolean) =>
+  activityGroups(history, now, running, DEFAULT_FLOW_SNAPSHOT);
+
 describe("activityGroups", () => {
   it("groups runs of a stage newest first and numbers the loop rounds", () => {
-    const groups = activityGroups(HISTORY, T0 + 9 * 60_000, true);
+    const groups = groupsOf(HISTORY, T0 + 9 * 60_000, true);
     expect(groups.map((group) => [group.node, group.round])).toEqual([
       ["build", 2],
       ["check", 1],
@@ -31,15 +35,15 @@ describe("activityGroups", () => {
   });
 
   it("measures each event until the next one, and the last one until now while it runs", () => {
-    const groups = activityGroups(HISTORY, T0 + 9 * 60_000, true);
+    const groups = groupsOf(HISTORY, T0 + 9 * 60_000, true);
     expect(groups[2]?.rows.map((row) => row.durationMs)).toEqual([60_000, 120_000]);
     expect(groups[0]?.rows[0]).toMatchObject({ durationMs: 240_000, ongoing: true });
-    const stopped = activityGroups(HISTORY, T0 + 9 * 60_000, false);
+    const stopped = groupsOf(HISTORY, T0 + 9 * 60_000, false);
     expect(stopped[0]?.rows[0]).toMatchObject({ durationMs: null, ongoing: false });
   });
 
   it("names the outcome of each event and keeps the engine's note", () => {
-    const rows = activityGroups(HISTORY, T0, false).flatMap((group) => group.rows);
+    const rows = groupsOf(HISTORY, T0, false).flatMap((group) => group.rows);
     expect(rows.find((row) => row.event === "check-failed")).toMatchObject({
       outcome: "back",
       note: "fingerprint abc"
@@ -48,7 +52,7 @@ describe("activityGroups", () => {
   });
 
   it("reads PR feedback as a loop back and the update push as a new wait at the PR", () => {
-    const rows = activityGroups(
+    const rows = groupsOf(
       [event(0, "pr-open", "pr-feedback", "round 1"), event(1, "ship", "pr-updated")],
       T0,
       false
@@ -58,7 +62,7 @@ describe("activityGroups", () => {
   });
 
   it("keeps a stop as its own group and an unknown event as information", () => {
-    const groups = activityGroups(
+    const groups = groupsOf(
       [event(0, "check", "check-failed"), event(1, "needs-you", "needs-you", "Stopped:\nreason")],
       T0,
       false
@@ -66,12 +70,12 @@ describe("activityGroups", () => {
     expect(groups[0]).toMatchObject({ node: null, stage: "needs-you", round: 1 });
     expect(isKnownEvent("needs-you")).toBe(true);
     expect(isKnownEvent("something-new")).toBe(false);
-    expect(
-      activityGroups([event(0, "build", "something-new")], T0, false)[0]?.rows[0]?.outcome
-    ).toBe("info");
+    expect(groupsOf([event(0, "build", "something-new")], T0, false)[0]?.rows[0]?.outcome).toBe(
+      "info"
+    );
   });
 
   it("returns nothing for an empty history", () => {
-    expect(activityGroups([], T0, true)).toEqual([]);
+    expect(groupsOf([], T0, true)).toEqual([]);
   });
 });

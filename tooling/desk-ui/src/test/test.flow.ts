@@ -1,4 +1,4 @@
-import type { FlowDefinitionView, FlowSnapshot } from "@repo/desk/contracts";
+import { flowStepViewsOf, type FlowDefinitionView, type FlowSnapshot } from "@repo/desk/contracts";
 
 /**
  * The built-in default flow as an issue snapshot, for page tests. The steps and limits are
@@ -78,14 +78,34 @@ export const flowDefinitionOf = (snapshot: FlowSnapshot): FlowDefinitionView => 
   name: snapshot.flow.name,
   hash: snapshot.hash,
   source: snapshot.flowSource,
-  steps: snapshot.flow.steps.map((step) => {
-    const found =
-      step.kind === "agent" ? snapshot.agents.find((entry) => entry.id === step.agent) : undefined;
-    return {
-      id: step.id,
-      label: step.label,
-      kind: step.kind,
-      agent: found === undefined ? null : { id: found.id, name: found.name, output: found.output }
-    };
-  })
+  steps: flowStepViewsOf(snapshot)
 });
+
+/**
+ * A repository flow of five steps that reuses built-in agents under the owner's own labels: a
+ * plan step labelled "Sketch" (its id is a built-in one), a plan gate, a build, a check, and a
+ * sign-off gate that is neither a plan gate nor a ship gate.
+ */
+export const CUSTOM_FLOW_SNAPSHOT: FlowSnapshot = {
+  flow: {
+    id: "quick-fix",
+    name: "Quick fix",
+    description: "Sketch, approve, implement, verify, and sign off.",
+    steps: [
+      { id: "plan", kind: "agent", label: "Sketch", agent: "planner" },
+      { id: "approve", kind: "gate", label: "Approve the sketch", sendBack: ["plan"] },
+      { id: "implement", kind: "agent", label: "Implement", agent: "builder" },
+      {
+        id: "verify",
+        kind: "check",
+        label: "Verify",
+        commands: "loop",
+        loopBack: { to: "implement", limit: 2 }
+      },
+      { id: "signoff", kind: "gate", label: "Sign off", sendBack: ["plan", "implement"] }
+    ]
+  },
+  agents: DEFAULT_FLOW_SNAPSHOT.agents.filter((entry) => entry.id !== "reviewer"),
+  hash: "1".repeat(64),
+  flowSource: "repo"
+};

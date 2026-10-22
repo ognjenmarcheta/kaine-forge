@@ -1,4 +1,4 @@
-import { NODE_STATUSES, type IssueSummary } from "@repo/desk/contracts";
+import { NODE_STATUSES, type FlowSnapshot, type IssueSummary } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,6 +12,7 @@ import {
   toneClass,
   type IssueStatus
 } from "./status.model";
+import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { makeState, makeSummary } from "../test/test.render";
 
 type Patch = Partial<ReturnType<typeof makeState>>;
@@ -27,8 +28,18 @@ const UNREADABLE: IssueSummary = {
   busy: false
 };
 
+/** What a case expects: a stage label names its stage and state; the flow it carries is the issue's. */
+type Expected = Omit<IssueStatus, "gateMode" | "label"> & {
+  readonly label: {
+    readonly kind: string;
+    readonly key?: string;
+    readonly stage?: string;
+    readonly state?: string;
+  };
+};
+
 describe("issueStatusOf", () => {
-  it.each<[string, IssueSummary, Omit<IssueStatus, "gateMode">]>([
+  it.each<[string, IssueSummary, Expected]>([
     [
       "an unreadable issue",
       UNREADABLE,
@@ -194,6 +205,34 @@ describe("gateModeOf", () => {
     [{ stage: "check", status: "idle" }, false, "idle"]
   ] as const)("reads %j (busy: %s) as %s", (patch, busy, mode) => {
     expect(gateModeOf(summaryOf(patch, busy))).toBe(mode);
+  });
+
+  // The mode follows the step kind in the issue's own flow, not a fixed stage id.
+  it.each([
+    ["approve", "plan-gate"],
+    ["signoff", "gate"],
+    ["verify", "idle"]
+  ] as const)("reads the step %s of the owner's flow as %s", (stage, mode) => {
+    const summary = summaryOf({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage, status: "waiting" });
+    expect(gateModeOf(summary)).toBe(mode);
+  });
+
+  it("reads a gate before a ship the owner confirms as the ship review, whatever its id", () => {
+    const withShip = (auto: boolean): FlowSnapshot => ({
+      ...CUSTOM_FLOW_SNAPSHOT,
+      flow: {
+        ...CUSTOM_FLOW_SNAPSHOT.flow,
+        steps: [
+          ...CUSTOM_FLOW_SNAPSHOT.flow.steps,
+          { id: "ship-it", kind: "ship", label: "Ship", auto }
+        ]
+      }
+    });
+    const at = (flowSnapshot: FlowSnapshot) =>
+      gateModeOf(summaryOf({ flowSnapshot, stage: "signoff", status: "waiting" }));
+    expect(at(withShip(false))).toBe("pr-review");
+    // A gate before an automatic ship is an ordinary approval.
+    expect(at(withShip(true))).toBe("gate");
   });
 
   it("offers cancel only while a run can still be stopped", () => {

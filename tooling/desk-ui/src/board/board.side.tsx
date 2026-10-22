@@ -2,6 +2,7 @@ import type { IssueSummary } from "@repo/desk/contracts";
 import { Button, Card } from "@repo/ui";
 import { useId, useState, type ReactNode } from "react";
 
+import { issueFlowOf, stageName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatElapsed, safeHttpUrl } from "../shell/shell.format";
 import { RouteLink } from "../shell/shell.router";
@@ -65,7 +66,7 @@ export function RunningList({
             const since = summary.readable ? (summary.stageEnteredAt ?? summary.updatedAt) : null;
             const state = paused
               ? t("desk.board.side.paused", {
-                  stage: summary.readable ? t(`desk.stage.${summary.stage}`) : ""
+                  stage: summary.readable ? stageName(t, issueFlowOf(summary), summary.stage) : ""
                 })
               : statusLabelText(t, issueStatusOf(summary).label);
             return (

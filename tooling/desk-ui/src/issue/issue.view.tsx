@@ -8,7 +8,9 @@ import { useIssueLog } from "./issue.log";
 import { IssueHistory, useHistoryControl } from "./issue.tabs";
 import { buildTrace, jumpTargetOf, type TraceLive } from "./issue.trace";
 import { FlowGraph } from "../flow/flow.graph";
+import { IssueFlowProvider } from "../flow/flow.names";
 import { FlowLegend } from "../flow/flow.stepper";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useIssueActions } from "../gates/gate.actions";
 import { GatePanel } from "../gates/gate.panel";
 import { useT } from "../i18n/i18n.t";
@@ -153,15 +155,15 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   );
   if (detail === undefined || flow === undefined || trace === undefined) {
     return (
-      <>
+      <IssueFlowProvider flow={issueFlowOf(summary)}>
         {header}
         {error !== null && <FailureText code={error.code} detail={error.detail} />}
         <DetailSkeleton />
-      </>
+      </IssueFlowProvider>
     );
   }
   return (
-    <>
+    <IssueFlowProvider flow={issueFlowOf(summary)}>
       {header}
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {graphOpen && (
@@ -191,6 +193,7 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
           issueNumber={issueNumber}
           history={detail.state.history}
           flow={flow}
+          snapshot={detail.state.flowSnapshot}
           trace={trace}
           running={running}
           needsYou={mode === "needs-you"}
@@ -213,6 +216,6 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
           onClose={() => setSheet(null)}
         />
       )}
-    </>
+    </IssueFlowProvider>
   );
 }

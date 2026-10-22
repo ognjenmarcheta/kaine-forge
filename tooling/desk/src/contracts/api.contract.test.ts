@@ -8,6 +8,7 @@ import {
   actionRequestSchema,
   actionTargetProblem,
   apiErrorSchema,
+  flowStepViewsOf,
   issueSummarySchema,
   logEntrySchema,
   serverEventSchema
@@ -198,6 +199,8 @@ describe("issue summary", () => {
     flowId: "kaine-default",
     flowName: "Kaine default",
     flowHash: "a".repeat(64),
+    flowSource: "builtin",
+    flowSteps: flowStepViewsOf(DEFAULT_SNAPSHOT),
     createdAt: "2026-03-01T10:00:00.000Z",
     updatedAt: "2026-03-01T10:00:00.000Z"
   };

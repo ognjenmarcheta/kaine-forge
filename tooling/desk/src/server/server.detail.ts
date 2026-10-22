@@ -6,7 +6,7 @@ import { resumeLine } from "../agents/agent.resume";
 import { checkReportSchema, type CheckReport } from "../check/check.contract";
 import {
   DEFAULT_LOOP_LIMITS,
-  agentOf,
+  flowStepViewsOf,
   buildFlowModel,
   isShipGate,
   builderOutputSchema,
@@ -186,6 +186,8 @@ export const summarizeResult = async (
     flowId: snapshot.flow.id,
     flowName: snapshot.flow.name,
     flowHash: snapshot.hash,
+    flowSource: snapshot.flowSource,
+    flowSteps: flowStepViewsOf(snapshot),
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -315,15 +317,7 @@ const flowDefinitionOf = (state: IssueState): FlowDefinitionView => {
     name: snapshot.flow.name,
     hash: snapshot.hash,
     source: snapshot.flowSource,
-    steps: snapshot.flow.steps.map((step) => {
-      const agent = step.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
-      return {
-        id: step.id,
-        label: step.label,
-        kind: step.kind,
-        agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output }
-      };
-    })
+    steps: flowStepViewsOf(snapshot)
   };
 };
 

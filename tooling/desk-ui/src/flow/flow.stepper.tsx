@@ -2,6 +2,7 @@ import type { FlowModel, FlowNodeId } from "@repo/desk/contracts";
 import { Button } from "@repo/ui";
 
 import { nodeNote } from "./flow.mapping";
+import { useStageNames } from "./flow.names";
 import { nodeMetricText, nodeStatusText } from "./flow.text";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { NODE_TONE, toneClass } from "../status/status.model";
@@ -38,13 +39,14 @@ export interface FlowStepperProps {
  */
 export function FlowStepper({ model, selected, onSelect, needsYouReason }: FlowStepperProps) {
   const t = useT();
+  const names = useStageNames();
   const { language } = useLanguage();
   return (
     <ol className="desk-stepper" aria-label={t("desk.flow.listLabel")}>
       {model.nodes.map((node) => {
         const status = nodeStatusText(t, node);
         const hover = [
-          t("desk.flow.nodeLabel", { stage: t(`desk.flow.node.${node.id}`), status }),
+          t("desk.flow.nodeLabel", { stage: names.node(node.id), status }),
           nodeMetricText(t, node, language),
           nodeNote(node, needsYouReason)?.full ?? null
         ].filter((part) => part !== null);
@@ -63,7 +65,7 @@ export function FlowStepper({ model, selected, onSelect, needsYouReason }: FlowS
               onClick={() => onSelect(node.id)}
             >
               <span className="desk-stepper__dot" aria-hidden="true" />
-              <span className="desk-stepper__name">{t(`desk.flow.node.${node.id}`)}</span>{" "}
+              <span className="desk-stepper__name">{names.node(node.id)}</span>{" "}
               <span className="desk-sr-only">{status}</span>
             </Button>
           </li>

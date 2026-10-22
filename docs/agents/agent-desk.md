@@ -719,8 +719,10 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
     (issues at a gate, oldest first). The first row is **Next up** and holds the one primary
     button. A plan the planner graded high risk has a chip that says so. A low-risk plan has a
     quick **Approve** on its row; with two or more of them, **Approve N low-risk plans…** asks
-    first and lists the plans. Each row has the 9-segment progress bar of the flow nodes, and its name
-    says the stage in words ("Stage 4 of 9: Build (Running)").
+    first and lists the plans. A card has the progress bar of its flow, one segment for each node
+    of the issue's own flow, and its name says the stage in words ("Stage 4 of 9: Build
+    (Running)"). A row or card names the flow ("Flow: Quick fix") only when it is not the
+    built-in default.
   - A side list shows the running issues (a paused issue says so), the open pull requests of the
     repository (read-only: number, title, draft, branch, author), and the done issues, folded.
     The desk does not continue a pull request; you review and merge on GitHub.
@@ -728,21 +730,35 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
     chips. The board keeps your choice of layout in the browser. The search filters both layouts
     by number (with or without `#`) or by words of the title.
   - **Start issue** opens a dialog with the open issues of the repository (`GET /api/github`),
-    the number, and the `override` box. Each issue shows whether it carries `ready-for-agent`
-    and its contract count. Picking an issue fills the number and nothing else. The dialog never
-    checks the override box for you. A refusal keeps the dialog open.
+    the number, the flow, and the `override` box. Each issue shows whether it carries
+    `ready-for-agent` and its contract count. Picking an issue fills the number and selects the
+    flow the desk picks for it (its label rule, else the default flow), marked "Default for this
+    issue". The flow list (`GET /api/flows`) shows each valid flow with its source (built-in,
+    repository, or local); the start sends the chosen `flowId`. Without a choice the desk picks.
+    The dialog never checks the override box for you. A refusal keeps the dialog open.
   - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the board
     group, the tone, the chip words, the gate mode, and the next action. Every view reads it.
+    The gate mode follows the step kind in the issue's own flow: a gate right after a plan agent
+    is the plan approval, a gate right before a ship the owner confirms is the review and ship,
+    and any other gate approves or sends back. Stage names come from the flow: a built-in step
+    has translated words, and a step the owner wrote shows its own label as it is.
 - **Issue.** A short header, the decision, then the history.
   - The header has the way back, the place of the issue in Your turn (**J** and **K** go to the
     next and the previous decision), the number and title, and a **More** menu (Cancel run,
     Show graph, Copy branch name, Open on GitHub, Remove). Below it is one status line (the
-    chip, the time in the stage, the cost) and the stages as a compact stepper.
+    chip, the time in the stage, the flow as "name · short hash" with its source and its steps
+    on hover or focus, the cost) and the stages of the issue's flow as a compact stepper.
   - **Show graph** shows the React Flow graph of the flow model. It is read-only, and it fits
     itself on the first size and on a resize only. A phone has the stepper only.
   - A stage of the stepper or the graph opens the **stage side sheet**. The sheet is not modal:
     the page stays usable. It shows who works in the stage, its status, its tiles (for an agent
     stage, the agent usage of all runs), its checklists, what went wrong, and the full result.
+    An agent stage also lists **Capabilities**: for each run, the receipt of what it got. That
+    is the provider and model, the tool set, where it ran (isolated in a container, or on your
+    machine under the Claude allowlist or the Codex sandbox), the network, the MCP servers and
+    skills, the allowed and denied tool rules (counted, listed on request), what it asked for
+    and did not get with the reason, and the engine's notes. A run from before the receipt
+    says so.
     **←** and **→** step through the stages, **Esc** closes it, and focus returns to its opener.
     On a phone the sheet covers the screen.
   - The decision card follows the gate mode. At the plan gate: the plan risk and its reasons,
@@ -751,8 +767,11 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
     changes**. At PR review: the files ordered by risk, with viewed progress. **Ship as draft
     PR…** (**S**) stays secondary until you viewed every file; **N** opens the next file not
     viewed. The ship dialog runs the dry run first, then asks for the final yes. Only that yes
-    sends `confirm: true`. When the desk needs you: an incident card with the engine's reason, a
-    jump to the failure in the trace, **Resume from**, and **Continue** (**C**). While an agent
+    sends `confirm: true`. At any other gate of a flow: **Approve** (**A**) and **Request
+    changes**, which sends the work back to one of the steps the gate names, by label. When the
+    desk needs you: an incident card with the engine's reason, a jump to the failure in the
+    trace, **Resume from** (the stages of the issue's flow that the server restarts), and
+    **Continue** (**C**). While an agent
     runs: **Pause** (**P**) stops the issue after its current stage, and **Resume** continues it.
     After a stop at intake: **Draft the issue format**, the review of the draft, and **Apply to
     GitHub…**, which asks a second time. On a phone the decision's buttons are a bar fixed to the
@@ -776,8 +795,10 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
   - **Last 7 days** has three cards: agent runs, cost, and shipped issues. Each card has the
     total, a line of the seven days, and today's value. The line is decorative; a text for a
     screen reader gives each day's value. A day without a reported cost reads "none", not zero.
-  - **By role and model** has one row per role, provider, and model. **By issue** has one row per
-    issue (a removed issue says so). **Cost by role** shows the total cost of each role as a bar,
+  - **By agent and model** has one row per agent, provider, and model: a built-in agent reads as
+    its role, an agent of the owner's own by its id. A run recorded before agents were data counts
+    for the built-in agent of its role. **By issue** has one row per issue (a removed issue says
+    so). **Cost by agent** shows the total cost of each agent as a bar,
     with the value beside it. A value that no run reports shows a dash read as "none". Wide
     tables scroll inside their card. **Load again** reloads; placeholder lines show while it
     loads. The view also reloads, without placeholders, when an issue changes.

@@ -4,10 +4,11 @@ import { useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
-import { planRound } from "./gate.model";
+import { planRound, sendBackTargets } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { PlanGateBody } from "../artifacts/artifact.plan";
 import { useJsonArtifact } from "../artifacts/artifact.use";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
 import { useShortcuts } from "../shell/shell.keys";
 import { usePaletteActions } from "../shell/shell.palette";
@@ -79,7 +80,7 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
       )}
       {feedbackOpen && (
         <FeedbackForm
-          targets={["plan"]}
+          targets={sendBackTargets(issueFlowOf(summary), summary.stage)}
           busy={actions.busy}
           onCancel={() => setFeedbackOpen(false)}
           onSend={async (to, text) => {

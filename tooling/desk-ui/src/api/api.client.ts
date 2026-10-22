@@ -3,7 +3,15 @@ import {
   DESK_REQUEST_HEADER_VALUE,
   actionRequestSchema,
   actionResponseSchema,
+  agentListSchema,
+  agentSaveRequestSchema,
+  agentViewSchema,
   apiErrorSchema,
+  definitionCloneRequestSchema,
+  definitionWriteResultSchema,
+  flowListSchema,
+  flowSaveRequestSchema,
+  flowViewSchema,
   githubListsSchema,
   healthFixAcceptedSchema,
   healthReportSchema,
@@ -16,8 +24,16 @@ import {
   runStatsSchema,
   type ActionRequestInput,
   type ActionResponse,
+  type AgentDefinition,
+  type AgentList,
+  type AgentView,
   type ApiErrorCode,
   type ArtifactId,
+  type DefinitionKind,
+  type DefinitionWriteResult,
+  type FlowDefinition,
+  type FlowList,
+  type FlowView,
   type GithubLists,
   type HealthFix,
   type HealthReport,
@@ -94,6 +110,30 @@ export interface DeskApi {
     schema: z.ZodType<T>
   ) => Promise<T>;
   readonly log: (issueNumber: number, after: number) => Promise<LogResponse>;
+  /** The registry's agents, each with the capabilities a run gets now. */
+  readonly agents: () => Promise<AgentList>;
+  readonly agent: (id: string) => Promise<AgentView>;
+  /** The registry's flows. Only valid flows are listed; broken files are in `problems`. */
+  readonly flows: () => Promise<FlowList>;
+  readonly flow: (id: string) => Promise<FlowView>;
+  /** Save to local (`.ai.local/desk/`). An invalid definition is `invalid-definition`. */
+  readonly saveAgent: (definition: AgentDefinition) => Promise<DefinitionWriteResult>;
+  readonly saveFlow: (definition: FlowDefinition) => Promise<DefinitionWriteResult>;
+  /** A local copy of any definition under the new id `to`. */
+  readonly cloneDefinition: (
+    kind: DefinitionKind,
+    id: string,
+    to: string,
+    name?: string
+  ) => Promise<DefinitionWriteResult>;
+  /** Move a local definition to the repository. `confirm` overwrites a repo file of the same id. */
+  readonly promoteDefinition: (
+    kind: DefinitionKind,
+    id: string,
+    confirm: boolean
+  ) => Promise<DefinitionWriteResult>;
+  /** Delete a local definition. Built-in and repo definitions are refused. */
+  readonly deleteDefinition: (kind: DefinitionKind, id: string) => Promise<DefinitionWriteResult>;
   /** `keepalive` lets the request finish while the page closes (an undo window that ends early). */
   readonly act: (
     issueNumber: number,
@@ -142,11 +182,16 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     return parsed.data;
   };
 
-  const postJson = async <B, T>(path: string, payload: B, schema: z.ZodType<T>): Promise<T> => {
+  const writeJson = async <T>(
+    method: "POST" | "PUT" | "DELETE",
+    path: string,
+    payload: unknown,
+    schema: z.ZodType<T>
+  ): Promise<T> => {
     const response = await send(path, {
-      method: "POST",
+      method,
       headers: WRITE_HEADERS,
-      body: JSON.stringify(payload)
+      ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
     });
     let body: unknown;
     try {
@@ -159,7 +204,27 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     return parsed.data;
   };
 
+  const postJson = <T>(path: string, payload: unknown, schema: z.ZodType<T>): Promise<T> =>
+    writeJson("POST", path, payload, schema);
+
+  /** A write whose body is checked with its contract before it leaves, like an action. */
+  const writeChecked = async <B, T>(
+    method: "POST" | "PUT",
+    path: string,
+    body: z.ZodType<B>,
+    payload: unknown,
+    schema: z.ZodType<T>
+  ): Promise<T> => {
+    const parsed = body.safeParse(payload);
+    if (!parsed.success) {
+      throw new DeskApiError("bad-request", 0, parsed.error.issues[0]?.message ?? null);
+    }
+    return await writeJson(method, path, parsed.data, schema);
+  };
+
   const issuePath = (issueNumber: number): string => `/api/issues/${String(issueNumber)}`;
+  const definitionPath = (kind: DefinitionKind, id: string): string =>
+    `/api/${kind}s/${encodeURIComponent(id)}`;
 
   return {
     exchangeSession: async (token) => {
@@ -212,6 +277,38 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
       if (!parsed.success) throw new DeskApiError("invalid-response", 200, null);
       return parsed.data;
     },
+    agents: () => getJson("/api/agents", agentListSchema),
+    agent: (id) => getJson(definitionPath("agent", id), agentViewSchema),
+    flows: () => getJson("/api/flows", flowListSchema),
+    flow: (id) => getJson(definitionPath("flow", id), flowViewSchema),
+    saveAgent: (definition) =>
+      writeChecked(
+        "PUT",
+        definitionPath("agent", definition.id),
+        agentSaveRequestSchema,
+        { definition },
+        definitionWriteResultSchema
+      ),
+    saveFlow: (definition) =>
+      writeChecked(
+        "PUT",
+        definitionPath("flow", definition.id),
+        flowSaveRequestSchema,
+        { definition },
+        definitionWriteResultSchema
+      ),
+    cloneDefinition: (kind, id, to, name) =>
+      writeChecked(
+        "POST",
+        `${definitionPath(kind, id)}/clone`,
+        definitionCloneRequestSchema,
+        name === undefined ? { id: to } : { id: to, name },
+        definitionWriteResultSchema
+      ),
+    promoteDefinition: (kind, id, confirm) =>
+      postJson(`${definitionPath(kind, id)}/promote`, { confirm }, definitionWriteResultSchema),
+    deleteDefinition: (kind, id) =>
+      writeJson("DELETE", definitionPath(kind, id), undefined, definitionWriteResultSchema),
     log: (issueNumber, after) =>
       getJson(`${issuePath(issueNumber)}/log?after=${String(after)}`, logResponseSchema),
     act: async (issueNumber, request, options) => {

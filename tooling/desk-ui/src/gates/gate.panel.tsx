@@ -2,13 +2,16 @@ import type { ActionRequestInput, FlowNodeId, IssueDetail, LogEntry } from "@rep
 import { Button, Card, ExternalLink, GitPullRequest, Spinner, buttonVariants } from "@repo/ui";
 import { useId, useRef, useState } from "react";
 
-import type { IssueActions } from "./gate.actions";
+import type { ActionWords, IssueActions } from "./gate.actions";
+import { ApproveGate } from "./gate.approve";
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, type GateBodyProps } from "./gate.frame";
 import { IntakeGate, NeedsYouGate } from "./gate.needs";
 import { PlanGate } from "./gate.plan";
 import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
+import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { formatClock, safeHttpUrl } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
@@ -39,15 +42,13 @@ const BYLINE: Partial<Record<CardMode, string>> = {
   "pr-review": "desk.gate.by.reviewer"
 };
 
-/** The stage whose full result the card's button opens. */
-const RESULT_NODE: Partial<Record<CardMode, FlowNodeId>> = {
-  "plan-gate": "plan-gate",
-  "pr-review": "pr-review"
-};
+/** Cards whose button opens the full result of the gate's stage. */
+const SHOWS_RESULT: ReadonlySet<CardMode> = new Set(["plan-gate", "pr-review"]);
 
 /** What the issue does now: the stage, the latest agent line, the time, and Pause or Resume (P). */
 function RunningGate({ summary, send }: GateBodyProps) {
   const t = useT();
+  const names = useStageNames();
   const { language } = useLanguage();
   const now = useNow();
   const { state } = useDesk();
@@ -71,7 +72,7 @@ function RunningGate({ summary, send }: GateBodyProps) {
         {!summary.paused && (
           <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
         )}
-        <strong>{t(`desk.stage.${summary.stage}`)}</strong>
+        <strong>{names.stage(summary.stage)}</strong>
         <span className="desk-nowline__text">
           {latest === undefined ? t("desk.gate.working.starting") : latest.text}
         </span>
@@ -182,11 +183,21 @@ export interface GatePanelProps {
 /**
  * The decision card of the issue page: what the owner decides now, or what runs. Each mode has
  * its own body and keys; the buttons sit in a bar at the bottom of the card. When an action
- * works, focus moves to the card heading: the pressed button may be gone.
+ * works, focus moves to the card heading: the pressed button may be gone. Its stages are named
+ * from the issue's own flow.
  */
 export function GatePanel(props: GatePanelProps) {
+  return (
+    <IssueFlowProvider flow={issueFlowOf(props.summary)}>
+      <DecisionCard {...props} />
+    </IssueFlowProvider>
+  );
+}
+
+function DecisionCard(props: GatePanelProps) {
   const { detail, summary, actions, onOpenResult } = props;
   const t = useT();
+  const names = useStageNames();
   const id = useId();
   const titleId = `${id}-title`;
   const heading = useRef<HTMLHeadingElement>(null);
@@ -197,10 +208,12 @@ export function GatePanel(props: GatePanelProps) {
   const mode = cardModeOf(summary);
   const titleMode = mode === "intake" ? "needs-you" : mode;
   const byline = BYLINE[mode];
-  const resultNode = RESULT_NODE[mode];
+  const resultNode: FlowNodeId | undefined = SHOWS_RESULT.has(mode) ? summary.stage : undefined;
 
-  const send = async (request: ActionRequestInput): Promise<boolean> => {
-    const settled = await actions.run(request);
+  const send = async (request: ActionRequestInput, words?: ActionWords): Promise<boolean> => {
+    const settled = await (words === undefined
+      ? actions.run(request)
+      : actions.run(request, words));
     const worked = settled.kind === "done";
     if (worked) heading.current?.focus();
     return worked;
@@ -217,7 +230,7 @@ export function GatePanel(props: GatePanelProps) {
       <section aria-labelledby={titleId}>
         <div className="desk-decision__head">
           <h2 ref={heading} tabIndex={-1} id={titleId} className="desk-decision__title">
-            {t(`desk.gate.title.${titleMode}`)}
+            {t(`desk.gate.title.${titleMode}`, { stage: names.stage(summary.stage) })}
           </h2>
           {mode === "intake" && <StatusChip tone="danger">{t("desk.intake.stopped")}</StatusChip>}
           {mode === "pr-open" && (
@@ -242,6 +255,7 @@ export function GatePanel(props: GatePanelProps) {
         </div>
         {mode === "plan-gate" && <PlanGate {...body} />}
         {mode === "pr-review" && <ReviewGate {...body} />}
+        {mode === "gate" && <ApproveGate {...body} />}
         {mode === "needs-you" && <NeedsYouGate {...body} />}
         {mode === "intake" && <IntakeGate {...body} />}
         {mode === "working" && <RunningGate {...body} />}

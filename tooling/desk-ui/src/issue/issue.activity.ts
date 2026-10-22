@@ -1,4 +1,10 @@
-import type { FlowNodeId, HistoryEvent, StageId } from "@repo/desk/contracts";
+import {
+  nodeOfStage,
+  type FlowNodeId,
+  type FlowSnapshot,
+  type HistoryEvent,
+  type StageId
+} from "@repo/desk/contracts";
 
 import type { Tone } from "../status/status.model";
 
@@ -24,6 +30,9 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "setup-complete": "done",
   "plan-ready": "waiting",
   "plan-approved": "done",
+  "gate-approved": "done",
+  "report-ready": "done",
+  "ship-automatic": "done",
   "branch-renamed": "info",
   "branch-rename-skipped": "info",
   "build-complete": "done",
@@ -51,20 +60,6 @@ export const isKnownEvent = (event: string): boolean => Object.hasOwn(EVENT_OUTC
 
 /** What an event did. An event the page has no words for is a note. */
 export const eventOutcome = (event: string): Outcome => EVENT_OUTCOME[event] ?? "info";
-
-/** Engine states and their node. A step id is its own node. */
-const NODE_OF_STATE: Readonly<Record<string, FlowNodeId | null>> = {
-  intake: "ticket",
-  setup: "ticket",
-  shipped: "pr-open",
-  "needs-you": null,
-  cancelled: null
-};
-
-const nodeOfStage = (stage: StageId): FlowNodeId | null => {
-  const node = NODE_OF_STATE[stage];
-  return node === undefined ? stage : node;
-};
 
 export interface ActivityRow {
   readonly id: string;
@@ -95,11 +90,13 @@ const elapsed = (from: string, to: number): number | null => {
 /**
  * The history as runs of a stage, newest first. Consecutive events of one flow node form a
  * run; a node that ran before gets the next round number. Each row knows how long it lasted.
+ * `snapshot`: the issue's flow, which places each stage on its node (`shipped` on the PR step).
  */
 export function activityGroups(
   history: readonly HistoryEvent[],
   now: number,
-  running: boolean
+  running: boolean,
+  snapshot: FlowSnapshot
 ): readonly ActivityGroup[] {
   const groups: {
     id: string;
@@ -125,7 +122,7 @@ export function activityGroups(
       ongoing: last && running,
       outcome: eventOutcome(event.event)
     };
-    const node = nodeOfStage(event.stage);
+    const node = nodeOfStage(snapshot, event.stage);
     const groupKey = node ?? event.stage;
     const open = groups.at(-1);
     if (open !== undefined && (open.node ?? open.stage) === groupKey) {
