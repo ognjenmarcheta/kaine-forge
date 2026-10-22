@@ -41,6 +41,9 @@ const summary = {
   paused: false,
   pausedAt: null,
   planRisk: null,
+  flowId: "kaine-default",
+  flowName: "Kaine default",
+  flowHash: "0".repeat(64),
   createdAt: "2026-03-01T10:00:00.000Z",
   updatedAt: "2026-03-01T10:00:00.000Z"
 };

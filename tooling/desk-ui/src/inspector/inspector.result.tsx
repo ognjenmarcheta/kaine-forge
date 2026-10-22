@@ -96,5 +96,7 @@ export function StageResult({
     case "ship":
     case "pr-open":
       return diff;
+    default:
+      return null;
   }
 }

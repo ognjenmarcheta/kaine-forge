@@ -119,7 +119,8 @@ describe("log entry", () => {
     expect(logEntrySchema.parse(entry).stage).toBeUndefined();
     expect(logEntrySchema.parse({ ...entry, stage: "build" }).stage).toBe("build");
     expect(logEntrySchema.parse({ ...entry, stage: null }).stage).toBeNull();
-    expect(logEntrySchema.safeParse({ ...entry, stage: "deploy" }).success).toBe(false);
+    // A flow names its own steps, so only the id format is fixed.
+    expect(logEntrySchema.safeParse({ ...entry, stage: "Deploy now" }).success).toBe(false);
   });
 });
 
@@ -147,6 +148,9 @@ describe("issue summary", () => {
     paused: false,
     pausedAt: null,
     planRisk: "medium",
+    flowId: "kaine-default",
+    flowName: "Kaine default",
+    flowHash: "a".repeat(64),
     createdAt: "2026-03-01T10:00:00.000Z",
     updatedAt: "2026-03-01T10:00:00.000Z"
   };
@@ -155,9 +159,10 @@ describe("issue summary", () => {
     expect(issueSummarySchema.parse(summary)).toEqual(summary);
   });
 
-  it("rejects a progress list that does not cover every flow node", () => {
+  // A flow sets its own node count, so the list needs the ticket and at least one step.
+  it("rejects a progress list without the ticket and a step", () => {
     expect(
-      issueSummarySchema.safeParse({ ...summary, progress: summary.progress.slice(1) }).success
+      issueSummarySchema.safeParse({ ...summary, progress: summary.progress.slice(0, 1) }).success
     ).toBe(false);
   });
 });

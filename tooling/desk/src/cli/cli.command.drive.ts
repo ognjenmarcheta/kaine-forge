@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { feedbackTargetSchema, isolationSchema, stageSchema, FEEDBACK_TARGETS } from "../contracts";
+import {
+  feedbackTargetSchema,
+  isShipGate,
+  isolationSchema,
+  stageSchema,
+  FEEDBACK_TARGETS
+} from "../contracts";
 import { parse, parseIssueNumber, requireIssue } from "./cli.args";
 import { describeResult } from "./cli.format";
 import { markNoWriteback, openRuntime } from "./cli.runtime";
@@ -160,7 +166,9 @@ export const commandShip: CliCommand = (args, deps, io) => {
       // No flag. Ask only where the ship can start. Elsewhere the runner gives its own refusal.
       const [entry] = await runner.status(issue);
       const state = entry?.result.status === "ok" ? entry.result.state : null;
-      if (state?.stage !== "pr-review") return runner.ship(issue, { confirm: false });
+      if (state === null || !isShipGate(state.flowSnapshot, state.stage)) {
+        return runner.ship(issue, { confirm: false });
+      }
       const decline = (reason: string): ShipActionResult => ({
         outcome: "refused",
         refusal: "ship-refused",

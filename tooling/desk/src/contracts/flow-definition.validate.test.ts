@@ -90,6 +90,17 @@ describe("validateFlow", () => {
       message: "used more than once"
     },
     {
+      rule: "step ids leave the engine states free",
+      edit: replaceStep("plan-gate", {
+        id: "needs-you",
+        kind: "gate",
+        label: "Gate",
+        sendBack: []
+      }),
+      step: "needs-you",
+      message: "reserved for the engine"
+    },
+    {
       rule: "agent steps reference an existing agent",
       edit: replaceStep("plan", { id: "plan", kind: "agent", label: "Plan", agent: "nobody" }),
       step: "plan",

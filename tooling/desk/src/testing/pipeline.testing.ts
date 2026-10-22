@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { INSTALLED_FILES, writeFiles } from "./flow.testing";
 import { createFakeGit, type FakeGit } from "./git.fake";
 import {
   createOriginAndClone,
@@ -329,13 +330,17 @@ export const createPipelineEnv = async (options: EnvOptions = {}): Promise<Pipel
   let repoRoot: string;
   if (kind === "real") {
     ({ clone } = await createOriginAndClone(scratch));
-    for (const [file, content] of Object.entries(files)) await clone.write(file, content);
+    for (const [file, content] of Object.entries({ ...files, ...INSTALLED_FILES })) {
+      await clone.write(file, content);
+    }
     await clone.commit("add repo files");
     await clone.git(["push", "--quiet", "origin", "main"]);
     repoRoot = clone.dir;
   } else {
     repoRoot = path.join(scratch.root, "repo");
     await mkdir(repoRoot, { recursive: true });
+    // The registry reads the main checkout: what it installed makes the built-in agents valid.
+    await writeFiles(repoRoot, INSTALLED_FILES);
     fake = createFakeGit({ repoRoot, files });
   }
 

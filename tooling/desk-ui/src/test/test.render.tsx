@@ -7,6 +7,7 @@ import {
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactElement } from "react";
 
+import { DEFAULT_FLOW_SNAPSHOT, flowDefinitionOf } from "./test.flow";
 import type { DeskApi } from "../api/api.client";
 import type { EventSourceLike } from "../api/api.stream";
 import { LanguageProvider } from "../i18n/i18n.t";
@@ -61,7 +62,8 @@ export function renderDesk(ui: ReactElement, api: DeskApi = fakeApi()): RenderRe
 const AT = "2026-03-01T10:00:00.000Z";
 
 export const makeState = (overrides: Partial<IssueState> = {}): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_FLOW_SNAPSHOT,
   issueNumber: 7,
   stage: "plan-gate",
   status: "waiting",
@@ -109,6 +111,9 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     paused: false,
     pausedAt: null,
     planRisk: null,
+    flowId: state.flowSnapshot.flow.id,
+    flowName: state.flowSnapshot.flow.name,
+    flowHash: state.flowSnapshot.hash,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -127,6 +132,7 @@ export const makeDetail = (
       summary,
       state,
       flow: buildFlowModel(state, Date.parse(AT)),
+      flowDefinition: flowDefinitionOf(state.flowSnapshot),
       artifacts: [],
       contract: { found: 6, total: 6, missing: [] },
       check: null,

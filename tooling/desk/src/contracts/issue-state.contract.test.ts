@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { issueStateSchema, type IssueState } from "./issue-state.contract";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const valid = (): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber: 12,
   stage: "plan-gate",
   status: "waiting",
@@ -44,7 +46,7 @@ describe("issue state contract", () => {
   });
 
   it.each([
-    ["an unknown schema version", { schemaVersion: 2 }],
+    ["an unknown schema version", { schemaVersion: 3 }],
     ["an unknown stage", { stage: "test" }],
     ["an unknown status", { status: "error" }],
     ["a non-positive issue number", { issueNumber: 0 }],
@@ -134,8 +136,8 @@ describe("issue state contract", () => {
     ],
     ["empty feedback text", { pendingFeedback: { target: "build", source: "human", text: "" } }],
     [
-      "an unknown feedback target",
-      { pendingFeedback: { target: "ship", source: "human", text: "x" } }
+      "a feedback target outside the flow",
+      { pendingFeedback: { target: "deploy", source: "human", text: "x" } }
     ]
   ])("rejects %s", (_name, patch) => {
     expect(issueStateSchema.safeParse({ ...valid(), ...patch }).success).toBe(false);

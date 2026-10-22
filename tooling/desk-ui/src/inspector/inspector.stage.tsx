@@ -256,5 +256,7 @@ export function StageSection(props: SectionProps) {
     case "ship":
     case "pr-open":
       return <ShipSection {...props} />;
+    default:
+      return null;
   }
 }

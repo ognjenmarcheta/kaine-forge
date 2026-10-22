@@ -1,14 +1,15 @@
 import type { AgentEvent, AgentRunner } from "../agents/agent.runner";
 import type { RolePromptDeps } from "../agents/roles";
 import type {
-  ActiveStage,
+  AgentDefinition,
   AgentStageRole,
   DeskConfig,
+  FlowStep,
   HistoryEvent,
   IssueDraft,
   IssueState,
   Provider,
-  Stage
+  StageId
 } from "../contracts";
 import type { GitPort } from "../git";
 import type { IsolationPort } from "../isolation/isolation.port";
@@ -38,7 +39,7 @@ export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 /** Something the engineer should look at: a gate, a stop, or a finished run. */
 export interface PipelineNotification {
   readonly issue: number;
-  readonly stage: Stage;
+  readonly stage: StageId;
   readonly kind: NotifyKind;
   readonly message: string;
 }
@@ -246,7 +247,7 @@ export interface StageContext {
   readonly signal: AbortSignal;
   readonly scheduler: Scheduler;
   readonly log: (message: string) => void;
-  readonly record: (stage: Stage, event: string, note?: string) => Promise<void>;
+  readonly record: (stage: StageId, event: string, note?: string) => Promise<void>;
   /** Merge into the state and write it now (a pid, a session). */
   readonly patch: (patch: StatePatch) => Promise<void>;
   readonly emitAgent: (role: AgentStageRole, event: AgentEvent) => void;
@@ -254,5 +255,12 @@ export interface StageContext {
 
 export type StageHandler = (context: StageContext) => Promise<StageOutcome>;
 
-/** Stages `advance` drives. Intake runs through `start`. Ship has its own executor (`ship/`). */
-export type HandledStage = Exclude<ActiveStage, "intake" | "ship">;
+export type AgentStep = Extract<FlowStep, { readonly kind: "agent" }>;
+export type CheckStep = Extract<FlowStep, { readonly kind: "check" }>;
+
+/** Runs one agent step with the step's agent from the issue's flow snapshot. */
+export type AgentStepHandler = (
+  context: StageContext,
+  step: AgentStep,
+  agent: AgentDefinition
+) => Promise<StageOutcome>;

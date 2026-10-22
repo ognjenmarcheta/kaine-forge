@@ -11,14 +11,14 @@ import {
   type RunGroup,
   type RunRecord,
   type RunStats,
-  type Stage,
+  type StageId,
   type StatsDay
 } from "../contracts";
 import type { IssueListEntry } from "../store/store.issue";
 
 export interface IssueSnapshot {
   readonly issue: number;
-  readonly stage: Stage;
+  readonly stage: StageId;
   readonly loops: LoopCounters;
   /** When the desk last opened or updated the issue's PR, from the history. */
   readonly shippedAt?: string | null;
@@ -113,7 +113,7 @@ export interface AggregateOptions {
   readonly now?: Date;
 }
 
-const SHIPPED_STAGES: ReadonlySet<Stage> = new Set(["pr-open", "shipped"]);
+const SHIPPED_STAGES: ReadonlySet<StageId> = new Set(["pr-open", "shipped"]);
 
 /** Outcomes per plan risk. An issue counts at the risk of its latest graded run. */
 const riskOutcomes = (
@@ -134,7 +134,7 @@ const riskOutcomes = (
     const plans = runs.filter((run) => run.role === "planner" && run.accepted).length;
     const reviewLoops = Math.max(
       snapshot?.loops.review ?? 0,
-      ...runs.map((run) => run.loops.review)
+      ...runs.map((run) => run.loops.review ?? 0)
     );
     outcome.issues += 1;
     if (snapshot !== undefined && SHIPPED_STAGES.has(snapshot.stage)) outcome.shipped += 1;

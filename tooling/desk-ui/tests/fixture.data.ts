@@ -9,6 +9,8 @@ import {
   type Stage
 } from "@repo/desk/contracts";
 
+import { DEFAULT_FLOW_SNAPSHOT } from "../src/test/test.flow";
+
 /**
  * Issues, artifacts, and history that the fixture server serves. The data is real
  * engine shapes: the server validates them when it reads them, so a drift in a
@@ -76,7 +78,8 @@ const base = (
 ): IssueState => {
   const history = retime(rawHistory, MINUTES_AGO[issueNumber] ?? 5);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot: DEFAULT_FLOW_SNAPSHOT,
     issueNumber,
     stage: "plan-gate",
     status: "waiting",

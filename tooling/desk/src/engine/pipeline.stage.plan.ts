@@ -1,5 +1,5 @@
 import { plannerOutputSchema, type IssueState, type PlannerOutput } from "../contracts";
-import { runAgentStage } from "./pipeline.agent";
+import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import {
   ARTIFACTS,
   readPlan,
@@ -7,18 +7,18 @@ import {
   writeArtifactJson,
   writeArtifactText
 } from "./pipeline.artifacts";
-import type { StageHandler } from "./pipeline.types";
+import type { AgentStepHandler } from "./pipeline.types";
 import { isProtectedPath, normalizeRepoPath } from "../policy/protected-paths";
 
 const PREVIOUS_PLAN_LIMIT = 20_000;
 
-/** Keep a session id when the runner returned one. An empty id means none. */
+/** Keep a session id, by agent id, when the runner returned one. An empty id means none. */
 export const withSession = (
   state: IssueState,
-  role: "planner" | "builder",
+  agentId: string,
   sessionId: string
 ): IssueState["sessions"] =>
-  sessionId === "" ? state.sessions : { ...state.sessions, [role]: sessionId };
+  sessionId === "" ? state.sessions : { ...state.sessions, [agentId]: sessionId };
 
 /** Paths in the plan that the builder may not touch, with the reason. */
 export const planPathProblems = (plan: PlannerOutput): string[] => {
@@ -32,10 +32,10 @@ export const planPathProblems = (plan: PlannerOutput): string[] => {
   );
 };
 
-/** Plan: a read-only planner returns `plan.json`. The issue then waits at the plan gate. */
-export const planStage: StageHandler = async (context) => {
+/** Plan: a read-only planner returns `plan.json`. The issue then goes to the next step. */
+export const planStage: AgentStepHandler = async (context, step, agent) => {
   const state = context.state();
-  const pending = state.pendingFeedback?.target === "plan" ? state.pendingFeedback : null;
+  const pending = state.pendingFeedback?.target === step.id ? state.pendingFeedback : null;
 
   let feedback: string | undefined;
   if (pending !== null) {
@@ -48,10 +48,11 @@ export const planStage: StageHandler = async (context) => {
   }
 
   const run = await runAgentStage(context, {
-    role: "planner",
+    role: ROLE_FOR_OUTPUT[agent.output],
+    agent,
     schema: plannerOutputSchema,
     readOnly: true,
-    resumeSessionId: state.sessions.planner,
+    resumeSessionId: state.sessions[agent.id],
     feedback
   });
   if (!run.ok) {
@@ -63,7 +64,7 @@ export const planStage: StageHandler = async (context) => {
   if (plan.files.length + plan.tests.length === 0) {
     problems.push("the plan lists no file to change");
   }
-  const sessions = withSession(state, "planner", run.result.sessionId);
+  const sessions = withSession(state, agent.id, run.result.sessionId);
   if (problems.length > 0) {
     return {
       kind: "needs-you",

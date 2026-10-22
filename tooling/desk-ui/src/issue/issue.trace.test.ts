@@ -66,7 +66,7 @@ const traceOf = (
   runs: readonly RunRecord[] = []
 ) => {
   const state = makeState({ stage: "needs-you", status: "waiting", history: [...history] });
-  return buildTrace(history, runs, buildFlowModel(state, NOW), NOW, live);
+  return buildTrace(history, runs, buildFlowModel(state, NOW), NOW, live, state.flowSnapshot);
 };
 
 describe("buildTrace", () => {

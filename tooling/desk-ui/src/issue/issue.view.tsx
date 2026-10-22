@@ -75,7 +75,7 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     () =>
       detail === undefined || flow === undefined
         ? undefined
-        : buildTrace(detail.state.history, detail.runs, flow, now, live),
+        : buildTrace(detail.state.history, detail.runs, flow, now, live, detail.state.flowSnapshot),
     [detail, flow, now, live]
   );
   const jumpTarget = trace === undefined ? null : jumpTargetOf(trace.steps, mode === "needs-you");

@@ -10,7 +10,7 @@ export function progressLabel(
   current: FlowNodeId | null
 ): string {
   const total = FLOW_NODE_IDS.length;
-  const index = current === null ? -1 : FLOW_NODE_IDS.indexOf(current);
+  const index = current === null ? -1 : FLOW_NODE_IDS.findIndex((id) => id === current);
   const status = progress[index];
   if (current === null || status === undefined) {
     return t("desk.card.progressNone", {

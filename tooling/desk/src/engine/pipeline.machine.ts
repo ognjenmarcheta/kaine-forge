@@ -1,50 +1,61 @@
 import {
-  ACTIVE_STAGES,
-  DEFAULT_LOOP_LIMITS,
-  TERMINAL_STAGES,
-  type ActiveStage,
-  type FeedbackTarget,
+  freshLoops,
+  isActiveStage,
+  isTerminalStage,
+  nextStepOf,
+  outputOf,
+  positionKind,
+  stepOf,
+  type FlowSnapshot,
+  type FlowStep,
   type LoopCounters,
-  type LoopLimits,
-  type Stage
+  type StageId
 } from "../contracts";
 
 /**
- * Pure transition table for the desk pipeline. It does no I/O: the runner
+ * Pure interpreter of an issue's flow snapshot. It does no I/O: the runner
  * performs the side effects and feeds the outcome back as a trigger.
+ *
+ * Forward is the next step in flow order (after `setup`, the first step). A step's
+ * `loopBack` sends the work back with a budget; a gate's `sendBack` lists where the
+ * owner's feedback may go; the pr-wait step sends PR feedback to `backTo`. Human input
+ * (a gate approval, feedback, continue) resets every loop budget and the last check
+ * failure. A ship step is entered only through `ship-confirm` at the gate directly
+ * before it, and always with the ship guard.
  */
 
 /** The slice of issue state that decides the next stage. */
 export interface MachineState {
-  readonly stage: Stage;
-  readonly resumeStage: Stage | null;
+  readonly stage: StageId;
+  readonly resumeStage: StageId | null;
   readonly loops: LoopCounters;
   readonly lastCheckFingerprint: string | null;
-  /** PR feedback rounds that went back to `build`. Human input never resets it. */
+  /** PR feedback rounds that went back from the open PR. Human input never resets it. */
   readonly prRounds: number;
 }
 
 export type Trigger =
   | { readonly type: "start" }
-  /** An engine- or agent-driven stage finished. `stage` guards against stale triggers. */
+  /** An engine- or agent-driven step finished. `step` guards against stale triggers. */
   | {
-      readonly type: "stage-complete";
-      readonly stage: ActiveStage;
+      readonly type: "step-complete";
+      readonly step: StageId;
       readonly outcome: "ok" | "blocked";
     }
-  | { readonly type: "approve-plan" }
-  | { readonly type: "feedback"; readonly target: FeedbackTarget }
-  | { readonly type: "check-pass" }
-  | { readonly type: "check-fail"; readonly fingerprint: string }
-  | { readonly type: "review-approve" }
-  | { readonly type: "review-changes" }
+  | { readonly type: "check-result"; readonly result: "pass" }
+  | { readonly type: "check-result"; readonly result: "fail"; readonly fingerprint: string }
+  | { readonly type: "review-result"; readonly verdict: "approve" | "changes" }
+  /** The owner approves at a gate whose next step is not a ship. */
+  | { readonly type: "gate-approve" }
+  | { readonly type: "feedback"; readonly target: StageId }
+  /** The owner confirms the ship at the gate directly before the ship step. */
   | { readonly type: "ship-confirm" }
-  /** New review feedback on the open PR sends the work back to `build`. */
+  /** New review feedback on the open PR sends the work back to the pr-wait step's `backTo`. */
   | { readonly type: "pr-feedback" }
   /** The owner merged or closed the PR on GitHub. */
   | { readonly type: "pr-closed"; readonly merged: boolean }
   | { readonly type: "error" }
-  | { readonly type: "continue"; readonly from?: Stage }
+  | { readonly type: "continue"; readonly from?: StageId }
   | { readonly type: "cancel" };
 
 export type TriggerType = Trigger["type"];
@@ -61,170 +72,176 @@ export type TransitionGuard = "none" | "ship-gate";
 export type TransitionResult =
   | {
       readonly ok: true;
-      readonly nextStage: Stage;
+      readonly nextStage: StageId;
       readonly guard: TransitionGuard;
       readonly reason: NeedsYouReason | null;
       readonly state: MachineState;
     }
   | { readonly ok: false; readonly reason: string };
 
-const NO_LOOPS: LoopCounters = { check: 0, review: 0 };
-
-const FORWARD_ON_OK: Readonly<Partial<Record<Stage, Stage>>> = {
-  intake: "setup",
-  setup: "plan",
-  plan: "plan-gate",
-  build: "check",
-  ship: "pr-open"
-};
-
-const FEEDBACK_FROM: Readonly<Record<FeedbackTarget, readonly Stage[]>> = {
-  plan: ["plan-gate", "pr-review", "needs-you"],
-  build: ["pr-review", "needs-you"],
-  review: ["pr-review", "needs-you"]
-};
-
-const isTerminal = (stage: Stage): boolean =>
-  TERMINAL_STAGES.some((terminal) => terminal === stage);
-const isActive = (stage: Stage): stage is ActiveStage =>
-  ACTIVE_STAGES.some((active) => active === stage);
-
 const reject = (reason: string): TransitionResult => ({ ok: false, reason });
-
-const move = (
-  state: MachineState,
-  nextStage: Stage,
-  patch: Partial<Pick<MachineState, "loops" | "lastCheckFingerprint" | "prRounds">> = {},
-  extra: { guard?: TransitionGuard; reason?: NeedsYouReason } = {}
-): TransitionResult => ({
-  ok: true,
-  nextStage,
-  guard: extra.guard ?? (nextStage === "ship" ? "ship-gate" : "none"),
-  reason: extra.reason ?? null,
-  state: {
-    stage: nextStage,
-    resumeStage: nextStage === "needs-you" ? state.stage : null,
-    loops: patch.loops ?? state.loops,
-    lastCheckFingerprint:
-      patch.lastCheckFingerprint === undefined
-        ? state.lastCheckFingerprint
-        : patch.lastCheckFingerprint,
-    prRounds: patch.prRounds ?? state.prRounds
-  }
-});
-
-const needsYou = (
-  state: MachineState,
-  reason: NeedsYouReason,
-  patch: Partial<Pick<MachineState, "lastCheckFingerprint">> = {}
-): TransitionResult => move(state, "needs-you", patch, { reason });
-
-/** Human input resets the loop budget and forgets the last check failure. */
-const FRESH_BUDGET = { loops: NO_LOOPS, lastCheckFingerprint: null } as const;
-
-const requireStage = (state: MachineState, allowed: readonly Stage[], trigger: string) =>
-  allowed.includes(state.stage)
-    ? null
-    : reject(`'${trigger}' is not valid in '${state.stage}'; it needs ${allowed.join(" or ")}`);
 
 export const transition = (
   state: MachineState,
   trigger: Trigger,
-  limits: LoopLimits = DEFAULT_LOOP_LIMITS
+  snapshot: FlowSnapshot
 ): TransitionResult => {
-  if (isTerminal(state.stage)) {
-    return reject(`'${state.stage}' is terminal and accepts no triggers`);
-  }
+  const here = state.stage;
+  const kind = positionKind(snapshot, here);
+  if (kind === null) return reject(`'${here}' is not a step of the flow '${snapshot.flow.id}'`);
+  if (isTerminalStage(here)) return reject(`'${here}' is terminal and accepts no triggers`);
+
+  /** Human input resets the loop budget and forgets the last check failure. */
+  const fresh = { loops: freshLoops(snapshot), lastCheckFingerprint: null };
+
+  const move = (
+    next: StageId,
+    patch: Partial<Pick<MachineState, "loops" | "lastCheckFingerprint" | "prRounds">> = {},
+    reason: NeedsYouReason | null = null
+  ): TransitionResult => ({
+    ok: true,
+    nextStage: next,
+    guard: positionKind(snapshot, next) === "ship" ? "ship-gate" : "none",
+    reason,
+    state: {
+      stage: next,
+      resumeStage: next === "needs-you" ? here : null,
+      loops: patch.loops ?? state.loops,
+      lastCheckFingerprint:
+        patch.lastCheckFingerprint === undefined
+          ? state.lastCheckFingerprint
+          : patch.lastCheckFingerprint,
+      prRounds: patch.prRounds ?? state.prRounds
+    }
+  });
+  const needsYou = (
+    reason: NeedsYouReason,
+    patch: Partial<Pick<MachineState, "lastCheckFingerprint">> = {}
+  ): TransitionResult => move("needs-you", patch, reason);
+
+  const wrongPlace = (what: string, needs: string): TransitionResult =>
+    reject(`'${what}' is not valid in '${here}'; it needs ${needs}`);
+  const step = stepOf(snapshot, here);
+
+  /** Forward to the next step. A ship step is never entered this way: the owner confirms it. */
+  const forward = (patch: Parameters<typeof move>[1] = {}): TransitionResult => {
+    if (here === "intake") return move("setup", patch);
+    const next = nextStepOf(snapshot, here);
+    if (next === undefined) return reject(`'${here}' has no next step in the flow`);
+    if (next.kind === "ship") {
+      return reject(`'${next.id}' ships only on the owner's confirmation at the gate before it`);
+    }
+    return move(next.id, patch);
+  };
+
+  /** Back along the step's loop-back, or to `needs-you` once its budget is spent. */
+  const loopBack = (
+    from: FlowStep,
+    patch: Partial<Pick<MachineState, "lastCheckFingerprint">> = {}
+  ): TransitionResult => {
+    if (from.loopBack === undefined) return needsYou("blocked", patch);
+    const used = state.loops[from.id] ?? 0;
+    if (used >= from.loopBack.limit) return needsYou("loop-limit", patch);
+    return move(from.loopBack.to, { ...patch, loops: { ...state.loops, [from.id]: used + 1 } });
+  };
 
   switch (trigger.type) {
     case "start":
-      return requireStage(state, ["intake"], trigger.type) ?? move(state, "intake", FRESH_BUDGET);
+      return here === "intake" ? move("intake", fresh) : wrongPlace(trigger.type, "intake");
 
-    case "stage-complete": {
-      if (trigger.stage !== state.stage) {
-        return reject(
-          `stale trigger: '${trigger.stage}' completed but the issue is in '${state.stage}'`
-        );
+    case "step-complete": {
+      if (trigger.step !== here) {
+        return reject(`stale trigger: '${trigger.step}' completed but the issue is in '${here}'`);
       }
-      if (trigger.outcome === "blocked") return needsYou(state, "blocked");
-      const next = FORWARD_ON_OK[state.stage];
-      return next ? move(state, next) : reject(`'${state.stage}' has no completion edge`);
+      if (!isActiveStage(snapshot, here)) return wrongPlace(trigger.type, "a running step");
+      if (trigger.outcome === "blocked") return needsYou("blocked");
+      // A check and a review agent finish with their result, which picks the edge.
+      if (kind === "check" || (step !== undefined && outputOf(snapshot, step) === "review")) {
+        return reject(`'${here}' has no completion edge: it finishes with its result`);
+      }
+      if (kind === "ship") {
+        const next = nextStepOf(snapshot, here);
+        return next === undefined ? move("shipped") : move(next.id);
+      }
+      return forward();
     }
 
-    case "approve-plan":
-      return requireStage(state, ["plan-gate"], trigger.type) ?? move(state, "build", FRESH_BUDGET);
-
-    case "feedback":
-      return (
-        requireStage(state, FEEDBACK_FROM[trigger.target], `feedback(${trigger.target})`) ??
-        move(state, trigger.target, FRESH_BUDGET)
-      );
-
-    case "check-pass":
-      return (
-        requireStage(state, ["check"], trigger.type) ??
-        move(state, "review", { lastCheckFingerprint: null })
-      );
-
-    case "check-fail": {
-      const wrong = requireStage(state, ["check"], trigger.type);
-      if (wrong) return wrong;
-      if (state.lastCheckFingerprint === trigger.fingerprint) {
-        return needsYou(state, "same-failure", { lastCheckFingerprint: trigger.fingerprint });
+    case "check-result": {
+      if (kind !== "check" || step === undefined) return wrongPlace(trigger.type, "a check step");
+      if (trigger.result === "pass") return forward({ lastCheckFingerprint: null });
+      const failed = { lastCheckFingerprint: trigger.fingerprint };
+      if (
+        step.loopBack?.stopOnSameFailure === true &&
+        state.lastCheckFingerprint === trigger.fingerprint
+      ) {
+        return needsYou("same-failure", failed);
       }
-      if (state.loops.check >= limits.check) {
-        return needsYou(state, "loop-limit", { lastCheckFingerprint: trigger.fingerprint });
-      }
-      return move(state, "build", {
-        loops: { ...state.loops, check: state.loops.check + 1 },
-        lastCheckFingerprint: trigger.fingerprint
-      });
+      return loopBack(step, failed);
     }
 
-    case "review-approve":
-      return requireStage(state, ["review"], trigger.type) ?? move(state, "pr-review");
-
-    case "review-changes": {
-      const wrong = requireStage(state, ["review"], trigger.type);
-      if (wrong) return wrong;
-      if (state.loops.review >= limits.review) return needsYou(state, "loop-limit");
-      return move(state, "build", { loops: { ...state.loops, review: state.loops.review + 1 } });
+    case "review-result": {
+      if (step === undefined || outputOf(snapshot, step) !== "review") {
+        return wrongPlace(trigger.type, "a review step");
+      }
+      return trigger.verdict === "approve" ? forward() : loopBack(step);
     }
 
-    case "ship-confirm":
-      return requireStage(state, ["pr-review"], trigger.type) ?? move(state, "ship");
+    case "gate-approve": {
+      if (kind !== "gate") return wrongPlace(trigger.type, "a gate");
+      if (nextStepOf(snapshot, here)?.kind === "ship") {
+        return reject(`'${here}' leads to a ship: confirm the ship instead`);
+      }
+      return forward(fresh);
+    }
+
+    case "feedback": {
+      const target = stepOf(snapshot, trigger.target);
+      const allowed =
+        target !== undefined &&
+        (here === "needs-you"
+          ? target.kind === "agent"
+          : step?.kind === "gate" && step.sendBack.includes(target.id));
+      return allowed
+        ? move(trigger.target, fresh)
+        : wrongPlace(`feedback(${trigger.target})`, "a gate that sends back there, or needs-you");
+    }
+
+    case "ship-confirm": {
+      const next = nextStepOf(snapshot, here);
+      if (kind !== "gate" || next?.kind !== "ship") {
+        return wrongPlace(trigger.type, "the gate before the ship step");
+      }
+      return move(next.id);
+    }
 
     case "pr-feedback": {
-      const wrong = requireStage(state, ["pr-open"], trigger.type);
-      if (wrong) return wrong;
-      if (state.prRounds >= limits.prRounds) return needsYou(state, "pr-round-limit");
-      return move(state, "build", { ...FRESH_BUDGET, prRounds: state.prRounds + 1 });
+      if (step?.kind !== "pr-wait") return wrongPlace(trigger.type, "the pr-wait step");
+      if (state.prRounds >= step.maxRounds) return needsYou("pr-round-limit");
+      return move(step.backTo, { ...fresh, prRounds: state.prRounds + 1 });
     }
 
     case "pr-closed":
-      return (
-        requireStage(state, ["pr-open"], trigger.type) ??
-        move(state, trigger.merged ? "shipped" : "cancelled")
-      );
+      return step?.kind === "pr-wait"
+        ? move(trigger.merged ? "shipped" : "cancelled")
+        : wrongPlace(trigger.type, "the pr-wait step");
 
     case "error":
-      return isActive(state.stage)
-        ? needsYou(state, "error")
-        : reject(`'error' is not valid in '${state.stage}'; no work runs there`);
+      return isActiveStage(snapshot, here)
+        ? needsYou("error")
+        : reject(`'error' is not valid in '${here}'; no work runs there`);
 
     case "continue": {
-      const wrong = requireStage(state, ["needs-you"], trigger.type);
-      if (wrong) return wrong;
+      if (here !== "needs-you") return wrongPlace(trigger.type, "needs-you");
       const target = trigger.from ?? state.resumeStage;
       if (target === null) return reject("'continue' needs a stage: none is recorded to resume");
-      // `pr-open` only waits for the owner: continuing there runs nothing.
-      if (!isActive(target) && target !== "pr-open") {
+      // The pr-wait step only waits for the owner: continuing there runs nothing.
+      if (!isActiveStage(snapshot, target) && positionKind(snapshot, target) !== "pr-wait") {
         return reject(`'continue' cannot restart '${target}'`);
       }
-      return move(state, target, FRESH_BUDGET);
+      return move(target, fresh);
     }
 
     case "cancel":
-      return move(state, "cancelled");
+      return move("cancelled");
   }
 };

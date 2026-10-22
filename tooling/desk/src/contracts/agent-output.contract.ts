@@ -41,7 +41,7 @@ export const REVIEW_SECTIONS = [
 export const reviewSectionSchema = z.enum(REVIEW_SECTIONS);
 export type ReviewSection = z.infer<typeof reviewSectionSchema>;
 
-export const AGENT_OUTPUT_ROLES = ["intake", "planner", "builder", "reviewer"] as const;
+export const AGENT_OUTPUT_ROLES = ["intake", "planner", "builder", "reviewer", "report"] as const;
 export type AgentOutputRole = (typeof AGENT_OUTPUT_ROLES)[number];
 
 // --- intake ---------------------------------------------------------------
@@ -281,13 +281,26 @@ export const reviewerOutputSchema = z
   });
 export type ReviewerOutput = z.infer<typeof reviewerOutputSchema>;
 
+// --- report ---------------------------------------------------------------
+
+/** A read-only agent that reports and decides nothing. The flow goes on after it. */
+export const reportOutputSchema = z
+  .object({
+    summary: nonEmpty,
+    findings: z.array(nonEmpty),
+    plainLanguage: nonEmpty
+  })
+  .strict();
+export type ReportOutput = z.infer<typeof reportOutputSchema>;
+
 // --- registry -------------------------------------------------------------
 
 export const agentOutputSchemas = {
   intake: intakeOutputSchema,
   planner: plannerOutputSchema,
   builder: builderOutputSchema,
-  reviewer: reviewerOutputSchema
+  reviewer: reviewerOutputSchema,
+  report: reportOutputSchema
 } as const satisfies Record<AgentOutputRole, z.ZodType>;
 
 /** JSON Schema (draft-07) for the provider flag that constrains structured output. */

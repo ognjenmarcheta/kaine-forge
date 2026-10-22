@@ -1,10 +1,13 @@
 import { z } from "zod";
 
+import { agentOutputKindSchema, definitionIdSchema } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
 import { providerSchema } from "./desk-config.contract";
-import { FLOW_NODE_IDS, flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
+import { stepKindSchema } from "./flow-definition.contract";
+import { definitionSourceSchema, stageIdSchema } from "./flow-snapshot.contract";
+import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
-import { ACTIVE_STAGES, feedbackTargetSchema, stageSchema } from "./pipeline.contract";
+import { ACTIVE_STAGES, feedbackTargetSchema } from "./pipeline.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 
 /**
@@ -113,7 +116,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       title: z.string().nullable(),
       url: z.string().nullable(),
       labels: z.array(z.string()),
-      stage: stageSchema,
+      /** A step id of the issue's flow, or an engine state. */
+      stage: stageIdSchema,
       status: issueStatusSchema,
       branch: z.string().nullable(),
       loops: loopCountersSchema,
@@ -123,7 +127,7 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
-      resumeStage: stageSchema.nullable(),
+      resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
@@ -133,8 +137,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
         .nullable(),
       /** When the issue entered its current stage, from the history. `null` when unknown. */
       stageEnteredAt: timestampSchema.nullable(),
-      /** Status of every flow node, in `FLOW_NODE_IDS` order (the flow model's own result). */
-      progress: z.array(nodeStatusSchema).length(FLOW_NODE_IDS.length),
+      /** Status of every flow node, in flow order (the flow model's own result): the ticket and the steps. */
+      progress: z.array(nodeStatusSchema).min(2),
       /** The flow node that holds the issue now, or `null`. */
       currentNode: flowNodeIdSchema.nullable(),
       /** An action of this issue runs in this server now. */
@@ -147,6 +151,10 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       pausedAt: timestampSchema.nullable(),
       /** The risk of the current plan, or `null` before a graded plan exists. */
       planRisk: planRiskSchema.nullable(),
+      /** The flow the issue runs on, from its snapshot, and the snapshot's hash. */
+      flowId: definitionIdSchema,
+      flowName: z.string().min(1),
+      flowHash: z.string().min(1),
       createdAt: timestampSchema,
       updatedAt: timestampSchema
     })
@@ -282,11 +290,39 @@ export const sessionResumeSchema = z
   .strict();
 export type SessionResume = z.infer<typeof sessionResumeSchema>;
 
+/** One step of the issue's flow as the UI names it. `agent`: the agent of an agent step. */
+export const flowStepViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    label: z.string().min(1),
+    kind: stepKindSchema,
+    agent: z
+      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
+      .strict()
+      .nullable()
+  })
+  .strict();
+export type FlowStepView = z.infer<typeof flowStepViewSchema>;
+
+/** The flow an issue runs on, from its snapshot: what the owner sees of it. */
+export const flowDefinitionViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    name: z.string().min(1),
+    hash: z.string().min(1),
+    source: definitionSourceSchema,
+    steps: z.array(flowStepViewSchema)
+  })
+  .strict();
+export type FlowDefinitionView = z.infer<typeof flowDefinitionViewSchema>;
+
 export const issueDetailSchema = z
   .object({
     summary: issueSummarySchema,
     state: issueStateSchema,
     flow: flowModelSchema,
+    /** The steps of the issue's flow snapshot, with their labels and agents. */
+    flowDefinition: flowDefinitionViewSchema,
     artifacts: z.array(artifactEntrySchema),
     contract: contractProgressSchema.nullable(),
     check: checkSummarySchema.nullable(),
@@ -385,7 +421,7 @@ export const actionOutcomeSchema = z
   .object({
     /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
     stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "removed", "paused"]),
-    stage: stageSchema.nullable(),
+    stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })
   .strict();
@@ -432,7 +468,7 @@ export const logEntrySchema = z
      * The issue's stage when the entry was written: the stage of a history event, or the stage
      * the issue was in. `null` or absent when unknown (entries from before the field existed).
      */
-    stage: stageSchema.nullable().optional(),
+    stage: stageIdSchema.nullable().optional(),
     /** Bounded and redacted text, without a time: `at` holds it and the UI formats it. */
     text: z.string()
   })

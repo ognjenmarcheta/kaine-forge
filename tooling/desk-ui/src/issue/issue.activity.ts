@@ -1,4 +1,4 @@
-import type { FlowNodeId, HistoryEvent, Stage } from "@repo/desk/contracts";
+import type { FlowNodeId, HistoryEvent, StageId } from "@repo/desk/contracts";
 
 import type { Tone } from "../status/status.model";
 
@@ -52,20 +52,18 @@ export const isKnownEvent = (event: string): boolean => Object.hasOwn(EVENT_OUTC
 /** What an event did. An event the page has no words for is a note. */
 export const eventOutcome = (event: string): Outcome => EVENT_OUTCOME[event] ?? "info";
 
-const NODE_OF_STAGE: Readonly<Record<Stage, FlowNodeId | null>> = {
+/** Engine states and their node. A step id is its own node. */
+const NODE_OF_STATE: Readonly<Record<string, FlowNodeId | null>> = {
   intake: "ticket",
   setup: "ticket",
-  plan: "plan",
-  "plan-gate": "plan-gate",
-  build: "build",
-  check: "check",
-  review: "review",
-  "pr-review": "pr-review",
-  ship: "ship",
-  "pr-open": "pr-open",
   shipped: "pr-open",
   "needs-you": null,
   cancelled: null
+};
+
+const nodeOfStage = (stage: StageId): FlowNodeId | null => {
+  const node = NODE_OF_STATE[stage];
+  return node === undefined ? stage : node;
 };
 
 export interface ActivityRow {
@@ -83,7 +81,7 @@ export interface ActivityGroup {
   readonly id: string;
   /** The flow node of the run, or `null` for a stop (`needs-you`, `cancelled`). */
   readonly node: FlowNodeId | null;
-  readonly stage: Stage;
+  readonly stage: StageId;
   /** 1 for the first run of the node, 2 for the first loop round, and so on. */
   readonly round: number;
   readonly rows: readonly ActivityRow[];
@@ -106,7 +104,7 @@ export function activityGroups(
   const groups: {
     id: string;
     node: FlowNodeId | null;
-    stage: Stage;
+    stage: StageId;
     round: number;
     rows: ActivityRow[];
   }[] = [];
@@ -127,7 +125,7 @@ export function activityGroups(
       ongoing: last && running,
       outcome: eventOutcome(event.event)
     };
-    const node = NODE_OF_STAGE[event.stage];
+    const node = nodeOfStage(event.stage);
     const groupKey = node ?? event.stage;
     const open = groups.at(-1);
     if (open !== undefined && (open.node ?? open.stage) === groupKey) {

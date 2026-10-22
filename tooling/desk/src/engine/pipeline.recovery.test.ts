@@ -7,6 +7,7 @@ import type { IssueState } from "../contracts";
 import { recoverInterrupted, type RecoveryDeps } from "./pipeline.recovery";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
 import { defaultIsProcessAlive, defaultProcessStart } from "../store/store.lease";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { spawnOrphanLeader } from "../testing/process.testing";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -26,7 +27,8 @@ const NOW = new Date("2026-10-07T10:00:00Z");
 
 const seed = async (over: Partial<IssueState> = {}): Promise<IssueState> => {
   const state: IssueState = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot: DEFAULT_SNAPSHOT,
     issueNumber: 7,
     stage: "build",
     status: "running",

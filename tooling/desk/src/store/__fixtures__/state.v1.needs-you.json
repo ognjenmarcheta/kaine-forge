@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "issueNumber": 41,
+  "stage": "needs-you",
+  "status": "waiting",
+  "resumeStage": "check",
+  "branch": "KAINE-41-feat-export-reports",
+  "worktreePath": "/work/kaine-forge.worktrees/KAINE-41",
+  "sessions": {
+    "planner": "11111111-1111-4111-8111-111111111111",
+    "builder": "22222222-2222-4222-8222-222222222222"
+  },
+  "loops": { "check": 3, "review": 1 },
+  "lastCheckFingerprint": "fp-same",
+  "history": [
+    { "at": "2026-10-01T09:00:00.000Z", "stage": "intake", "event": "intake-started" },
+    {
+      "at": "2026-10-01T09:00:05.000Z",
+      "stage": "setup",
+      "event": "intake-complete",
+      "note": "contract 6/6; ready for setup"
+    },
+    { "at": "2026-10-01T09:00:06.000Z", "stage": "setup", "event": "stage-started" },
+    { "at": "2026-10-01T09:01:00.000Z", "stage": "plan", "event": "stage-started" },
+    {
+      "at": "2026-10-01T09:05:00.000Z",
+      "stage": "plan",
+      "event": "plan-ready",
+      "note": "2 file(s), 0 open question(s)"
+    },
+    {
+      "at": "2026-10-01T09:06:00.000Z",
+      "stage": "plan-gate",
+      "event": "plan-approved",
+      "note": "with a note"
+    },
+    { "at": "2026-10-01T09:07:00.000Z", "stage": "build", "event": "stage-started" },
+    { "at": "2026-10-01T09:20:00.000Z", "stage": "check", "event": "stage-started" },
+    {
+      "at": "2026-10-01T09:21:00.000Z",
+      "stage": "check",
+      "event": "check-failed",
+      "note": "fingerprint fp-same"
+    },
+    {
+      "at": "2026-10-01T09:21:01.000Z",
+      "stage": "needs-you",
+      "event": "needs-you",
+      "note": "The checks still fail after 3 fix round(s)."
+    }
+  ],
+  "authorization": {
+    "actor": "octo-owner",
+    "labeledAt": "2026-10-01T08:59:00.000Z",
+    "contentFingerprint": "sha256:abc",
+    "override": false
+  },
+  "baseSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "activeProcess": null,
+  "pendingFeedback": {
+    "target": "build",
+    "source": "check",
+    "text": "The engine ran the checks after your change and they failed."
+  },
+  "isolation": "host",
+  "approveNote": "CSV only.",
+  "pauseRequested": false,
+  "pausedAt": null,
+  "createdAt": "2026-10-01T09:00:00.000Z",
+  "updatedAt": "2026-10-01T09:21:01.000Z"
+}

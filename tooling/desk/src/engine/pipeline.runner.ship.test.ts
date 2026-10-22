@@ -9,6 +9,7 @@ import type { IsolatedCheckRequest, IsolationPort } from "../isolation/isolation
 import { createLogSink } from "../log/log.writer";
 import { REFS_BASELINE_FILE, SHIP_PLAN_FILE, SHIP_RECORD_FILE } from "../ship/ship.contract";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import {
   ISSUE,
   FEATURE_FILE,
@@ -468,7 +469,8 @@ describe("ship in Docker mode", () => {
 describe("refresh at pr-open", () => {
   const PR_URL = "https://github.com/octo-owner/repo/pull/101";
   const prOpen = (over: Partial<IssueState> = {}): IssueState => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot: DEFAULT_SNAPSHOT,
     issueNumber: ISSUE,
     stage: "pr-open",
     status: "waiting",

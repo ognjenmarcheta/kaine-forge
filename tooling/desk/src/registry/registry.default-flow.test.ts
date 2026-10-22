@@ -10,12 +10,19 @@ import {
   type FlowStep,
   type Stage
 } from "../contracts";
-import { transition, type MachineState, type Trigger } from "../engine/pipeline.machine";
+import {
+  transition as interpret,
+  type MachineState,
+  type Trigger
+} from "../engine/pipeline.machine";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 /**
- * Stage 1 keeps the engine on its hard-coded machine. The built-in flow must
- * describe that machine exactly, or the Stage 2 interpreter will change behaviour.
+ * The engine interprets the built-in flow. Its moves between steps must be exactly the
+ * ones the flow file declares, with the limits of the pipeline it replaced.
  */
+const transition = (state: MachineState, trigger: Trigger) =>
+  interpret(state, trigger, DEFAULT_SNAPSHOT);
 
 const loadDefaultFlow = async (): Promise<FlowDefinition> => {
   const text = await readFile(
@@ -38,13 +45,13 @@ const at = (stage: Stage, patch: Partial<MachineState> = {}): MachineState => ({
 
 const TRIGGERS: readonly Trigger[] = [
   { type: "start" },
-  ...ACTIVE_STAGES.map((stage): Trigger => ({ type: "stage-complete", stage, outcome: "ok" })),
-  { type: "approve-plan" },
+  ...ACTIVE_STAGES.map((stage): Trigger => ({ type: "step-complete", step: stage, outcome: "ok" })),
+  { type: "gate-approve" },
   ...FEEDBACK_TARGETS.map((target): Trigger => ({ type: "feedback", target })),
-  { type: "check-pass" },
-  { type: "check-fail", fingerprint: "f1" },
-  { type: "review-approve" },
-  { type: "review-changes" },
+  { type: "check-result", result: "pass" },
+  { type: "check-result", result: "fail", fingerprint: "f1" },
+  { type: "review-result", verdict: "approve" },
+  { type: "review-result", verdict: "changes" },
   { type: "ship-confirm" },
   { type: "pr-feedback" },
   { type: "pr-closed", merged: true },
@@ -111,8 +118,8 @@ describe("the built-in kaine-default flow matches the engine's transition table"
   it("starts where setup hands over", async () => {
     const flow = await loadDefaultFlow();
     const result = transition(at("setup"), {
-      type: "stage-complete",
-      stage: "setup",
+      type: "step-complete",
+      step: "setup",
       outcome: "ok"
     });
     expect(result.ok && result.nextStage).toBe(flow.steps[0]?.id);
@@ -136,13 +143,15 @@ describe("the built-in kaine-default flow matches the engine's transition table"
 
     expect(check.loopBack?.limit).toBe(
       budget((used) => at("check", { loops: { check: used, review: 0 } }), {
-        type: "check-fail",
+        type: "check-result",
+        result: "fail",
         fingerprint: "f1"
       })
     );
     expect(review.loopBack?.limit).toBe(
       budget((used) => at("review", { loops: { check: 0, review: used } }), {
-        type: "review-changes"
+        type: "review-result",
+        verdict: "changes"
       })
     );
     expect(prOpen.kind === "pr-wait" && prOpen.maxRounds).toBe(
@@ -150,7 +159,8 @@ describe("the built-in kaine-default flow matches the engine's transition table"
     );
 
     const repeated = transition(at("check", { lastCheckFingerprint: "f1" }), {
-      type: "check-fail",
+      type: "check-result",
+      result: "fail",
       fingerprint: "f1"
     });
     expect(repeated.ok && repeated.reason).toBe("same-failure");

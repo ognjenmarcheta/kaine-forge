@@ -5,9 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import { parseAgentFile, parseFlowFile, type ParseResult } from "./registry.parse";
 import {
+  DEFINITION_SOURCES,
   validateAgent,
   validateFlow,
   type AgentDefinition,
+  type DefinitionSource,
   type FlowDefinition,
   type InstalledCapabilities
 } from "../contracts";
@@ -24,9 +26,6 @@ import {
  * part in nothing: it never throws and never shadows a valid definition.
  * Files whose name is not `<id>.md` or `<id>.yaml` are ignored.
  */
-
-const DEFINITION_SOURCES = ["builtin", "repo", "local"] as const;
-export type DefinitionSource = (typeof DEFINITION_SOURCES)[number];
 
 export interface RegistryEntry<T> {
   readonly definition: T;

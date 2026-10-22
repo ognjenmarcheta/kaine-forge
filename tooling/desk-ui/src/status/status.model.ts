@@ -1,4 +1,4 @@
-import type { IssueSummary, NodeStatus, Stage } from "@repo/desk/contracts";
+import type { IssueSummary, NodeStatus, StageId } from "@repo/desk/contracts";
 
 /**
  * One place that turns engine codes into what the page shows: the board column, the color
@@ -142,7 +142,7 @@ export type ChipState = (typeof CHIP_STATES)[number];
 /** The words of the chip: one key, or a stage with its state ("Plan approval · waiting for you"). */
 export type StatusLabel =
   | { readonly kind: "key"; readonly key: string }
-  | { readonly kind: "stage"; readonly stage: Stage; readonly state: ChipState };
+  | { readonly kind: "stage"; readonly stage: StageId; readonly state: ChipState };
 
 /** The one next step a card offers. Navigation actions open the issue page. */
 export type PrimaryAction =
@@ -157,7 +157,11 @@ export interface IssueStatus {
   readonly primaryAction: PrimaryAction;
 }
 
-const inStage = (stage: Stage, state: ChipState): StatusLabel => ({ kind: "stage", stage, state });
+const inStage = (stage: StageId, state: ChipState): StatusLabel => ({
+  kind: "stage",
+  stage,
+  state
+});
 const byKey = (key: string): StatusLabel => ({ kind: "key", key });
 
 /**

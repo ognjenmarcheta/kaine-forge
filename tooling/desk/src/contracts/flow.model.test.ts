@@ -12,6 +12,7 @@ import {
 } from "./flow.model";
 import type { HistoryEvent, IssueState } from "./issue-state.contract";
 import { PIPELINE, type Stage } from "./pipeline.contract";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const T0 = Date.parse("2026-03-01T10:00:00.000Z");
 const STEP_MS = 10_000;
@@ -37,7 +38,8 @@ const issue = (scenario: Scenario): IssueState => {
   const events = history(scenario.steps);
   const last = events.at(-1)?.at ?? new Date(T0).toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot: DEFAULT_SNAPSHOT,
     issueNumber: 7,
     stage: scenario.stage,
     status: scenario.status,
@@ -128,7 +130,7 @@ describe("buildFlowModel structure", () => {
 
   it("has one node per flow id with the kind from PIPELINE", () => {
     expect(fresh.nodes.map((entry) => entry.id)).toEqual([...FLOW_NODE_IDS]);
-    const kinds = new Map(PIPELINE.nodes.map((entry) => [entry.id, entry.kind]));
+    const kinds = new Map<string, string>(PIPELINE.nodes.map((entry) => [entry.id, entry.kind]));
     for (const entry of fresh.nodes) {
       expect(entry.kind).toBe(kinds.get(entry.id === "ticket" ? "intake" : entry.id));
     }
@@ -445,7 +447,7 @@ describe("buildFlowModel needs-you", () => {
     expect(stopped.status).toBe("failed");
     expect(stopped.badge).toEqual({ kind: "needs-you", text: `Something broke in ${stop.stage}` });
     expect(stopped.activity).toBeNull();
-    const order = FLOW_NODE_IDS.indexOf(stop.node);
+    const order = FLOW_NODE_IDS.findIndex((id) => id === stop.node);
     for (const downstream of result.nodes.filter((_, index) => index > order)) {
       expect(downstream.status).toBe("idle");
       expect(downstream.badge).toBeNull();

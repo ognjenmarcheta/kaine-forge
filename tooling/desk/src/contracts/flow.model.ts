@@ -1,21 +1,25 @@
 import { z } from "zod";
 
+import { definitionIdSchema, type AgentOutputKind } from "./agent-definition.contract";
+import type { FlowStep } from "./flow-definition.contract";
+import { nextStepOf, outputOf, type FlowSnapshot } from "./flow-snapshot.contract";
 import {
   agentStageRoleSchema,
   type AgentStageRole,
   type HistoryEvent,
   type IssueState
 } from "./issue-state.contract";
-import { PIPELINE, nodeKindSchema, type NodeKind, type Stage } from "./pipeline.contract";
+import { nodeKindSchema, type NodeKind } from "./pipeline.contract";
 
 /**
  * Renderer-independent flow graph of one issue. `buildFlowModel` derives it
- * only from the issue state and its history, so a UI draws the result and
- * decides nothing. It carries codes and numbers, never display text: the UI
- * owns the words (and the translation of them). Stages and edges come from
- * `PIPELINE`; this file adds the layout and the status rules.
+ * only from the issue state, its flow snapshot and its history, so a UI draws the
+ * result and decides nothing. It carries codes and numbers, never display text: the
+ * UI owns the words (and the translation of them). Nodes are `ticket` and the steps of
+ * the snapshot; edges are the forward order and every loop-back the steps declare.
  */
 
+/** The node ids of the built-in default flow, in order. Its fixed layout uses them. */
 export const FLOW_NODE_IDS = [
   "ticket",
   "plan",
@@ -27,7 +31,8 @@ export const FLOW_NODE_IDS = [
   "ship",
   "pr-open"
 ] as const;
-export const flowNodeIdSchema = z.enum(FLOW_NODE_IDS);
+/** `ticket` (intake and setup), or a step id of the issue's flow. */
+export const flowNodeIdSchema = definitionIdSchema;
 export type FlowNodeId = z.infer<typeof flowNodeIdSchema>;
 
 export const NODE_STATUSES = ["idle", "running", "waiting", "passed", "looped", "failed"] as const;
@@ -125,7 +130,13 @@ export const FLOW_LAYOUT = { gap: 270, loopOffset: 120 } as const;
 
 const column = (index: number): number => FLOW_LAYOUT.gap * index;
 
-const POSITIONS: Readonly<Record<FlowNodeId, { readonly x: number; readonly y: number }>> = {
+interface Position {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** The hand-made layout of the built-in default flow. */
+const DEFAULT_POSITIONS: Readonly<Record<string, Position>> = {
   ticket: { x: column(0), y: 0 },
   plan: { x: column(1), y: 0 },
   "plan-gate": { x: column(2), y: 0 },
@@ -144,9 +155,11 @@ interface Geometry {
 }
 
 const STRAIGHT: Geometry = { handles: ["r", "l"], arc: null };
-const GEOMETRY: Readonly<Record<string, Geometry>> = {
-  "check->review": { handles: ["bs", "tt"], arc: null },
-  "ship->pr-open": { handles: ["bs", "tt"], arc: null },
+/** Down from a node to the one below it in the same column. */
+const DOWN: Geometry = { handles: ["bs", "tt"], arc: null };
+const DEFAULT_GEOMETRY: Readonly<Record<string, Geometry>> = {
+  "check->review": DOWN,
+  "ship->pr-open": DOWN,
   "plan-gate->plan": { handles: ["ts", "tt"], arc: -70 },
   "check->build": { handles: ["ts", "tt"], arc: -50 },
   "review->build": { handles: ["bs", "bt"], arc: 50 },
@@ -154,150 +167,182 @@ const GEOMETRY: Readonly<Record<string, Geometry>> = {
   "pr-review->build": { handles: ["bs", "bt"], arc: 150 },
   "pr-review->plan": { handles: ["bs", "bt"], arc: 210 }
 };
-/** Automatic and re-plan loops show even when unused. Other loops show once the engineer used them. */
-const ALWAYS_SHOWN: ReadonlySet<string> = new Set([
-  "plan-gate->plan",
-  "check->build",
-  "review->build"
-]);
 
-// --- node table, derived from PIPELINE ------------------------------------
-
-const NODE_STAGES: Readonly<Record<FlowNodeId, readonly Stage[]>> = {
-  ticket: ["intake", "setup"],
-  plan: ["plan"],
-  "plan-gate": ["plan-gate"],
-  build: ["build"],
-  check: ["check"],
-  review: ["review"],
-  "pr-review": ["pr-review"],
-  ship: ["ship"],
-  // `shipped`: the desk saw the PR merged, so the PR node reads as done.
-  "pr-open": ["pr-open", "shipped"]
+/** The default layout holds when the flow has exactly the default steps, in order. */
+const usesDefaultLayout = (snapshot: FlowSnapshot): boolean => {
+  const ids = ["ticket", ...snapshot.flow.steps.map((step) => step.id)];
+  return (
+    ids.length === FLOW_NODE_IDS.length && ids.every((id, index) => id === FLOW_NODE_IDS[index])
+  );
 };
 
-const NODE_ROLES: Readonly<Record<FlowNodeId, AgentStageRole | null>> = {
-  ticket: null,
+/**
+ * A row of columns in flow order. The pr-wait step sits below the ship step, as in the
+ * default layout. Automatic loops arc above the row, the owner's loops below it, bending
+ * more the further back they reach.
+ */
+const linearLayout = (
+  snapshot: FlowSnapshot
+): { readonly positions: Map<string, Position>; readonly columns: Map<string, number> } => {
+  const positions = new Map<string, Position>([["ticket", { x: column(0), y: 0 }]]);
+  const columns = new Map<string, number>([["ticket", 0]]);
+  let index = 0;
+  snapshot.flow.steps.forEach((step, at) => {
+    const under = step.kind === "pr-wait" && snapshot.flow.steps[at - 1]?.kind === "ship";
+    if (!under) index += 1;
+    positions.set(step.id, { x: column(index), y: under ? FLOW_LAYOUT.loopOffset : 0 });
+    columns.set(step.id, index);
+  });
+  return { positions, columns };
+};
+
+// --- node table, derived from the snapshot --------------------------------
+
+/** The run role an agent node shows, by what its agent produces. A report agent has none. */
+const NODE_ROLE: Readonly<Partial<Record<AgentOutputKind, AgentStageRole>>> = {
   plan: "planner",
-  "plan-gate": null,
-  build: "builder",
-  check: null,
-  review: "reviewer",
-  "pr-review": null,
-  ship: null,
-  "pr-open": null
+  change: "builder",
+  review: "reviewer"
 };
 
-/** The flow node of a stage, or `null` for a stop (`needs-you`, `cancelled`). */
-export const nodeOfStage = (stage: Stage | null | undefined): FlowNodeId | null =>
-  stage === null || stage === undefined
-    ? null
-    : (FLOW_NODE_IDS.find((id) => NODE_STAGES[id].includes(stage)) ?? null);
-
-const kindOfNode = (id: FlowNodeId): NodeKind => {
-  const pipelineId = id === "ticket" ? "intake" : id;
-  const node = PIPELINE.nodes.find((entry) => entry.id === pipelineId);
-  if (node === undefined) throw new Error(`PIPELINE has no node '${pipelineId}'`);
-  return node.kind;
+const KIND_OF_STEP: Readonly<Record<FlowStep["kind"], NodeKind>> = {
+  agent: "agent",
+  gate: "human",
+  check: "script",
+  ship: "script",
+  "pr-wait": "human"
 };
+
+interface NodeSpec {
+  readonly id: FlowNodeId;
+  readonly step: FlowStep | null;
+  readonly kind: NodeKind;
+  readonly role: AgentStageRole | null;
+  /** The stages that place the issue on this node. */
+  readonly stages: readonly string[];
+}
+
+const nodeSpecs = (snapshot: FlowSnapshot): NodeSpec[] => [
+  { id: "ticket", step: null, kind: "source", role: null, stages: ["intake", "setup"] },
+  ...snapshot.flow.steps.map((step): NodeSpec => {
+    const output = outputOf(snapshot, step);
+    return {
+      id: step.id,
+      step,
+      kind: KIND_OF_STEP[step.kind],
+      role: output === null ? null : (NODE_ROLE[output] ?? null),
+      // `shipped`: the desk saw the PR merged, so the PR node reads as done.
+      stages: step.kind === "pr-wait" ? [step.id, "shipped"] : [step.id]
+    };
+  })
+];
 
 interface FlowEdgeSpec {
   readonly from: FlowNodeId;
   readonly to: FlowNodeId;
   readonly loop: boolean;
-  readonly counter: "check" | "review" | null;
+  /** The step whose loop counter this loop-back increments. Human-driven loops have none. */
+  readonly counter: string | null;
+  readonly loopKind: LoopKind | null;
+  /** Shown even when unused: automatic loops and the re-plan. */
+  readonly always: boolean;
 }
 
-/** Forward and loop edges of PIPELINE on flow nodes. Edges inside one node disappear. */
-const EDGE_SPECS: readonly FlowEdgeSpec[] = (() => {
-  const specs = new Map<string, FlowEdgeSpec>();
-  const add = (spec: FlowEdgeSpec): void => {
-    if (spec.from !== spec.to) specs.set(`${spec.from}->${spec.to}`, spec);
-  };
-  for (const edge of PIPELINE.forwardEdges) {
-    const from = nodeOfStage(edge.from);
-    const to = nodeOfStage(edge.to);
-    if (from !== null && to !== null) add({ from, to, loop: false, counter: null });
-  }
-  for (const edge of PIPELINE.loopEdges) {
-    const from = nodeOfStage(edge.from);
-    const to = nodeOfStage(edge.to);
-    if (from !== null && to !== null) add({ from, to, loop: true, counter: edge.counter });
-  }
-  return [...specs.values()];
-})();
+/** Forward edges in flow order, then every loop-back the steps declare. */
+const edgeSpecs = (snapshot: FlowSnapshot): FlowEdgeSpec[] => {
+  const { steps } = snapshot.flow;
+  const forward = ["ticket", ...steps.map((step) => step.id)]
+    .slice(0, -1)
+    .map((from, index): FlowEdgeSpec => {
+      const to = steps[index]?.id ?? from;
+      return { from, to, loop: false, counter: null, loopKind: null, always: true };
+    });
+  const loops = steps.flatMap((step, index): FlowEdgeSpec[] => {
+    const specs: FlowEdgeSpec[] = [];
+    if (step.loopBack !== undefined) {
+      specs.push({
+        from: step.id,
+        to: step.loopBack.to,
+        loop: true,
+        counter: step.id,
+        loopKind: step.kind === "check" ? "check" : "review",
+        always: true
+      });
+    }
+    if (step.kind === "gate") {
+      const previous = steps[index - 1];
+      for (const target of step.sendBack) {
+        // Feedback at the gate right after the plan sends the plan back: a re-plan.
+        const replan = previous?.id === target && outputOf(snapshot, previous) === "plan";
+        specs.push({
+          from: step.id,
+          to: target,
+          loop: true,
+          counter: null,
+          loopKind: replan ? "replan" : "feedback",
+          always: replan
+        });
+      }
+    }
+    if (step.kind === "pr-wait") {
+      specs.push({
+        from: step.id,
+        to: step.backTo,
+        loop: true,
+        counter: null,
+        loopKind: "feedback",
+        always: false
+      });
+    }
+    return specs;
+  });
+  return [...forward, ...loops].filter((spec) => spec.from !== spec.to);
+};
 
 // --- history reading ------------------------------------------------------
 
 const isIntakeStart = (event: HistoryEvent): boolean =>
   event.event === "intake-started" || event.event === "intake-restarted";
 
-/** The history event that starts a run of `node` (or, for a gate, the arrival at it). */
-const isRunStart = (node: FlowNodeId, event: HistoryEvent): boolean => {
-  switch (node) {
-    case "ticket":
-      return event.event === "stage-started" && event.stage === "setup";
-    case "plan-gate":
-      return event.event === "plan-ready";
-    case "pr-review":
-      return event.event === "review-approved";
-    case "pr-open":
-      // The first ship opens the PR. The ship of a PR feedback round updates it.
-      return event.event === "pr-opened" || event.event === "pr-updated";
-    case "ship":
-      return (
-        (event.event === "stage-started" || event.event === "ship-started") &&
-        nodeOfStage(event.stage) === "ship"
-      );
-    default:
-      return event.event === "stage-started" && nodeOfStage(event.stage) === node;
+/** Events that end a step and move the issue on to the next one. */
+export const FORWARD_EVENTS: ReadonlySet<string> = new Set([
+  "plan-ready",
+  "build-complete",
+  "check-passed",
+  "review-approved",
+  "report-ready",
+  "plan-approved",
+  "gate-approved"
+]);
+
+/** Events that decide how a finished node reads: the last one wins. */
+interface Decision {
+  readonly events: readonly string[];
+  /** This event means the work went back. */
+  readonly looped: string;
+}
+
+const decisionOf = (snapshot: FlowSnapshot, step: FlowStep | null): Decision | null => {
+  if (step === null) return null;
+  if (step.kind === "check")
+    return { events: ["check-passed", "check-failed"], looped: "check-failed" };
+  if (step.kind === "gate") {
+    return { events: ["plan-approved", "gate-approved", "feedback"], looped: "feedback" };
   }
-};
-
-/** The flow node a history event starts a run of (or, for a gate, arrives at), or `null`. */
-export const arrivalNode = (event: HistoryEvent): FlowNodeId | null => {
-  if (isIntakeStart(event)) return "ticket";
-  return FLOW_NODE_IDS.find((id) => isRunStart(id, event)) ?? null;
-};
-
-/**
- * Events that decide how a finished node reads: the last one wins, and a
- * `looped` event means the work went back.
- */
-const DECISIONS: Readonly<
-  Partial<Record<FlowNodeId, { readonly events: readonly string[]; readonly looped: string }>>
-> = {
-  check: { events: ["check-passed", "check-failed"], looped: "check-failed" },
-  review: {
-    events: ["review-approved", "review-changes-requested"],
-    looped: "review-changes-requested"
-  },
-  "plan-gate": { events: ["plan-approved", "feedback"], looped: "feedback" },
-  "pr-review": { events: ["feedback"], looped: "feedback" },
-  "pr-open": { events: ["pr-feedback"], looped: "pr-feedback" }
-};
-
-const FEEDBACK_NOTE = /^to (plan|build|review)$/;
-const BLOCKING_NOTE = /^(\d+) blocking/;
-
-const firstLine = (text: string): string => (text.split("\n")[0] ?? "").replace(/:$/, "").trim();
-
-/** Stage of the latest event that maps to a node. Used when the state itself names no node. */
-const originNode = (history: readonly HistoryEvent[], before: number): FlowNodeId | null => {
-  for (let index = Math.min(before, history.length) - 1; index >= 0; index -= 1) {
-    const node = nodeOfStage(history[index]?.stage);
-    if (node !== null) return node;
+  if (step.kind === "pr-wait") return { events: ["pr-feedback"], looped: "pr-feedback" };
+  if (outputOf(snapshot, step) === "review") {
+    return {
+      events: ["review-approved", "review-changes-requested"],
+      looped: "review-changes-requested"
+    };
   }
   return null;
 };
 
-const currentNodeOf = (state: IssueState): FlowNodeId | null => {
-  if (state.stage === "needs-you") {
-    return nodeOfStage(state.resumeStage) ?? originNode(state.history, state.history.length);
-  }
-  if (state.stage === "cancelled") return originNode(state.history, state.history.length);
-  return nodeOfStage(state.stage);
-};
+const FEEDBACK_NOTE = /^to ([a-z0-9][a-z0-9-]*)$/;
+const BLOCKING_NOTE = /^(\d+) blocking/;
+
+const firstLine = (text: string): string => (text.split("\n")[0] ?? "").replace(/:$/, "").trim();
 
 interface LoopStats {
   count: number;
@@ -308,21 +353,78 @@ interface LoopStats {
 const duration = (from: string, to: number): number =>
   Math.max(0, Math.round(to - Date.parse(from)));
 
+/** The node of a stage, or `null` for a stop (`needs-you`, `cancelled`). */
+export const nodeOfStage = (
+  snapshot: FlowSnapshot,
+  stage: string | null | undefined
+): FlowNodeId | null =>
+  stage === null || stage === undefined
+    ? null
+    : (nodeSpecs(snapshot).find((spec) => spec.stages.includes(stage))?.id ?? null);
+
+/** The history event that starts a run of `node` (or, for a gate, the arrival at it). */
+const isRunStart = (snapshot: FlowSnapshot, node: FlowNodeId, event: HistoryEvent): boolean => {
+  if (node === "ticket") return event.event === "stage-started" && event.stage === "setup";
+  const step = snapshot.flow.steps.find((entry) => entry.id === node);
+  if (step?.kind === "gate") {
+    return FORWARD_EVENTS.has(event.event) && nextStepOf(snapshot, event.stage)?.id === step.id;
+  }
+  // The first ship opens the PR. The ship of a PR feedback round updates it.
+  if (step?.kind === "pr-wait") return event.event === "pr-opened" || event.event === "pr-updated";
+  if (step?.kind === "ship") {
+    return (
+      (event.event === "stage-started" || event.event === "ship-started") &&
+      nodeOfStage(snapshot, event.stage) === node
+    );
+  }
+  return event.event === "stage-started" && nodeOfStage(snapshot, event.stage) === node;
+};
+
+/** The node a history event starts a run of (or, for a gate, arrives at), or `null`. */
+export const arrivalNode = (snapshot: FlowSnapshot, event: HistoryEvent): FlowNodeId | null => {
+  if (isIntakeStart(event)) return "ticket";
+  return nodeSpecs(snapshot).find((spec) => isRunStart(snapshot, spec.id, event))?.id ?? null;
+};
+
 /**
  * Build the flow graph for one issue. `now` (epoch milliseconds) only drives
  * the clock of runs that have not ended.
  */
 export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
-  const { history } = state;
-  const current = currentNodeOf(state);
+  const { history, flowSnapshot: snapshot } = state;
+  const specs = nodeSpecs(snapshot);
+  const specOf = new Map(specs.map((spec) => [spec.id, spec]));
+  const nodeOf = (stage: string | null | undefined): FlowNodeId | null =>
+    nodeOfStage(snapshot, stage);
+  const stepOfNode = (node: FlowNodeId): FlowStep | null => specOf.get(node)?.step ?? null;
+  const isRunStartOf = (node: FlowNodeId, event: HistoryEvent): boolean =>
+    isRunStart(snapshot, node, event);
+
+  /** Node of the latest event that maps to a node. Used when the state itself names no node. */
+  const originNode = (before: number): FlowNodeId | null => {
+    for (let index = Math.min(before, history.length) - 1; index >= 0; index -= 1) {
+      const node = nodeOf(history[index]?.stage);
+      if (node !== null) return node;
+    }
+    return null;
+  };
+
+  const current: FlowNodeId | null =
+    state.stage === "needs-you"
+      ? (nodeOf(state.resumeStage) ?? originNode(history.length))
+      : state.stage === "cancelled"
+        ? originNode(history.length)
+        : nodeOf(state.stage);
   const isStopped = state.stage === "needs-you" || state.stage === "cancelled";
   const isDriven = state.status === "running" || state.status === "queued";
   const isFailed = isStopped || state.status === "failed";
+  const currentKind = stepOfNode(state.stage)?.kind;
+  const atOwner = currentKind === "gate" || currentKind === "pr-wait";
 
-  const nodeOfIndex = (index: number): FlowNodeId | null => nodeOfStage(history[index]?.stage);
+  const nodeOfIndex = (index: number): FlowNodeId | null => nodeOf(history[index]?.stage);
 
   const runStarts = (node: FlowNodeId): number[] => {
-    const starts = history.flatMap((event, index) => (isRunStart(node, event) ? [index] : []));
+    const starts = history.flatMap((event, index) => (isRunStartOf(node, event) ? [index] : []));
     if (node !== "ticket" || starts.length > 0) return starts;
     return history.flatMap((event, index) => (isIntakeStart(event) ? [index] : []));
   };
@@ -330,13 +432,13 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
   const visited = (node: FlowNodeId): boolean =>
     node === current ||
     runStarts(node).length > 0 ||
-    history.some((event) => nodeOfStage(event.stage) === node);
+    history.some((event) => nodeOf(event.stage) === node);
 
   // Arrival order, with repeats of one node collapsed. A driven issue whose
   // start event is not written yet counts as arrived at its current node.
   const arrivals: FlowNodeId[] = [];
   for (const event of history) {
-    const node = arrivalNode(event);
+    const node = arrivalNode(snapshot, event);
     if (node !== null && arrivals.at(-1) !== node) arrivals.push(node);
   }
   if (isDriven && current !== null && arrivals.at(-1) !== current) arrivals.push(current);
@@ -350,27 +452,30 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
   const statusOf = (node: FlowNodeId): NodeStatus => {
     if (node === current) {
       if (isFailed) return "failed";
-      if (state.stage === "plan-gate" || state.stage === "pr-review" || state.stage === "pr-open") {
-        return "waiting";
-      }
+      if (atOwner) return "waiting";
       if (isDriven) return "running";
       if (state.status === "waiting") return "waiting";
       return state.status === "done" ? "passed" : "idle";
     }
     if (!visited(node)) return "idle";
-    const decision = DECISIONS[node];
-    if (decision === undefined) return "passed";
+    const decision = decisionOf(snapshot, stepOfNode(node));
+    if (decision === null) return "passed";
     const last = history
       .filter(
         (event, index) =>
           (nodeOfIndex(index) === node && decision.events.includes(event.event)) ||
-          isRunStart(node, event)
+          isRunStartOf(node, event)
       )
       .at(-1);
     return last?.event === decision.looped ? "looped" : "passed";
   };
 
-  const nodes: FlowNode[] = FLOW_NODE_IDS.map((id) => {
+  const layout = usesDefaultLayout(snapshot) ? null : linearLayout(snapshot);
+  const positionOf = (id: FlowNodeId): Position =>
+    (layout === null ? DEFAULT_POSITIONS[id] : layout.positions.get(id)) ?? { x: 0, y: 0 };
+
+  const nodes: FlowNode[] = specs.map((spec) => {
+    const { id } = spec;
     const isCurrent = id === current;
     const status = statusOf(id);
     const starts = runStarts(id);
@@ -394,11 +499,11 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
     const latest = history.at(-1);
     return {
       id,
-      kind: kindOfNode(id),
-      role: NODE_ROLES[id],
+      kind: spec.kind,
+      role: spec.role,
       status,
       current: isCurrent,
-      ...POSITIONS[id],
+      ...positionOf(id),
       metrics,
       activity:
         isCurrent && isDriven && latest !== undefined
@@ -416,6 +521,7 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
 
   // --- loop counts ---------------------------------------------------------
 
+  const edgesOut = edgeSpecs(snapshot);
   const stats = new Map<string, LoopStats>();
   const statsOf = (key: string): LoopStats => {
     const existing = stats.get(key);
@@ -425,42 +531,64 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
     return created;
   };
   const loopKeys = new Set(
-    EDGE_SPECS.filter((spec) => spec.loop).map((spec) => `${spec.from}->${spec.to}`)
+    edgesOut.filter((spec) => spec.loop).map((spec) => `${spec.from}->${spec.to}`)
   );
+  /** Where feedback given outside a gate is drawn: the last gate that sends back there. */
+  const feedbackGate = (target: string): FlowNodeId | null =>
+    [...snapshot.flow.steps]
+      .reverse()
+      .find((step) => step.kind === "gate" && step.sendBack.includes(target))?.id ?? null;
 
   history.forEach((event, index) => {
     const node = nodeOfIndex(index);
+    const step = node === null ? null : stepOfNode(node);
     // A failure that sent the issue to `needs-you` did not loop back.
     const loopedBack = history[index + 1]?.event !== "needs-you";
-    if (node === "check" && event.event === "check-failed" && loopedBack) {
-      statsOf("check->build").count += 1;
+    if (step?.loopBack !== undefined && loopedBack) {
+      const key = `${step.id}->${step.loopBack.to}`;
+      if (step.kind === "check" && event.event === "check-failed") statsOf(key).count += 1;
+      if (event.event === "review-changes-requested") {
+        const entry = statsOf(key);
+        entry.count += 1;
+        const blocking = BLOCKING_NOTE.exec(event.note ?? "")?.[1];
+        entry.blocking = blocking === undefined ? null : Number(blocking);
+      }
     }
-    if (node === "review" && event.event === "review-changes-requested" && loopedBack) {
-      const entry = statsOf("review->build");
-      entry.count += 1;
-      const blocking = BLOCKING_NOTE.exec(event.note ?? "")?.[1];
-      entry.blocking = blocking === undefined ? null : Number(blocking);
+    // PR feedback always goes from the open PR back to its `backTo` step.
+    if (event.event === "pr-feedback" && step?.kind === "pr-wait") {
+      statsOf(`${step.id}->${step.backTo}`).feedbackCount += 1;
     }
-    // PR feedback always goes from the open PR back to build.
-    if (event.event === "pr-feedback") statsOf("pr-open->build").feedbackCount += 1;
     if (event.event !== "feedback") return;
     const target = FEEDBACK_NOTE.exec(event.note ?? "")?.[1];
     if (target === undefined) return;
-    const origin = event.stage === "needs-you" ? originNode(history, index) : (node ?? "pr-review");
-    const key = loopKeys.has(`${origin}->${target}`)
-      ? `${origin}->${target}`
-      : `pr-review->${target}`;
+    const origin = event.stage === "needs-you" ? originNode(index) : node;
+    const key =
+      origin !== null && loopKeys.has(`${origin}->${target}`)
+        ? `${origin}->${target}`
+        : `${feedbackGate(target) ?? "ticket"}->${target}`;
     statsOf(key).feedbackCount += 1;
   });
 
   // --- edges ---------------------------------------------------------------
 
+  /** Generic arcs: automatic loops above the row, the owner's loops below, wider with reach. */
+  const geometryOf = (spec: FlowEdgeSpec, id: string): Geometry => {
+    if (layout === null) return DEFAULT_GEOMETRY[id] ?? STRAIGHT;
+    const from = layout.columns.get(spec.from) ?? 0;
+    const to = layout.columns.get(spec.to) ?? 0;
+    if (!spec.loop) return from === to ? DOWN : STRAIGHT;
+    const reach = 50 + 40 * Math.max(0, from - to - 1);
+    return spec.counter !== null || spec.loopKind === "replan"
+      ? { handles: ["ts", "tt"], arc: -reach }
+      : { handles: ["bs", "bt"], arc: reach };
+  };
+
   const edges: FlowEdge[] = [];
-  for (const spec of EDGE_SPECS) {
+  for (const spec of edgesOut) {
     const id = `${spec.from}->${spec.to}`;
     const entry = stats.get(id) ?? { count: 0, feedbackCount: 0, blocking: null };
     const used = entry.count + entry.feedbackCount > 0;
-    if (spec.loop && !used && !ALWAYS_SHOWN.has(id)) continue;
+    if (spec.loop && !used && !spec.always) continue;
 
     const active = isDriven && activeFrom === spec.from && activeTo === spec.to;
     const traversed = spec.loop ? used : visited(spec.from) && visited(spec.to);
@@ -471,7 +599,7 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
         : spec.counter !== null && entry.count > 0
           ? "warn"
           : "neutral";
-    const geometry = GEOMETRY[id] ?? STRAIGHT;
+    const geometry = geometryOf(spec, id);
     const [sourceHandle, targetHandle] = geometry.handles;
     edges.push({
       id,
@@ -483,13 +611,7 @@ export const buildFlowModel = (state: IssueState, now: number): FlowModel => {
       sourceHandle,
       targetHandle,
       arc: geometry.arc,
-      loopKind: !spec.loop
-        ? null
-        : spec.counter !== null
-          ? spec.counter
-          : spec.from === "plan-gate"
-            ? "replan"
-            : "feedback",
+      loopKind: spec.loopKind,
       count: entry.count,
       feedbackCount: entry.feedbackCount,
       blocking: entry.blocking

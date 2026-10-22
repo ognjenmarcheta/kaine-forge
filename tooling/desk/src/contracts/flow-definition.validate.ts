@@ -1,5 +1,6 @@
 import { DEFINITION_ID_PATTERN, type AgentDefinition } from "./agent-definition.contract";
 import type { FlowDefinition, FlowStep } from "./flow-definition.contract";
+import { ENGINE_STATES } from "./pipeline.contract";
 
 /**
  * Rules a schema cannot state: references between steps and agents, step
@@ -57,6 +58,9 @@ export const validateFlow = (
     const idError = badId(step.id);
     if (idError !== null) add(step.id, idError);
     if (seen.has(step.id)) add(step.id, `Step id '${step.id}' is used more than once`);
+    if (ENGINE_STATES.some((state) => state === step.id)) {
+      add(step.id, `Step id '${step.id}' is reserved for the engine`);
+    }
     seen.add(step.id);
 
     const earlier = new Set(flow.steps.slice(0, index).map((entry) => entry.id));

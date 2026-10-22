@@ -1,9 +1,10 @@
 import { z } from "zod";
 
+import { definitionIdSchema } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
 import { isolationSchema, providerSchema } from "./desk-config.contract";
+import { stageIdSchema } from "./flow-snapshot.contract";
 import { agentStageRoleSchema, loopCountersSchema } from "./issue-state.contract";
-import { stageSchema } from "./pipeline.contract";
 
 /** The runner's failure kinds, plus `stuck`: the engine stopped a run that repeated a failing call. */
 export const RUN_FAILURE_KINDS = [
@@ -46,7 +47,10 @@ export const runRecordSchema = z
     schema: z.literal(1),
     at: z.iso.datetime({ offset: true }),
     issue: z.number().int().positive(),
+    /** The permission profile the run had. For a built-in agent it is the agent id. */
     role: agentStageRoleSchema,
+    /** The flow agent that ran. Absent on records written before agents were data, and for the intake draft. */
+    agentId: definitionIdSchema.optional(),
     provider: providerSchema,
     /** `null`: the CLI's default model. */
     model: z.string().min(1).nullable(),
@@ -126,7 +130,7 @@ export const issueRollupSchema = z
   .object({
     issue: z.number().int().positive(),
     /** `null` when the issue was removed: its runs stay in the record. */
-    stage: stageSchema.nullable(),
+    stage: stageIdSchema.nullable(),
     loops: loopCountersSchema.nullable(),
     runs: count,
     totalCostUsd: mean

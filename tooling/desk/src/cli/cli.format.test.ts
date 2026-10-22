@@ -4,10 +4,12 @@ import { issueStateSchema, type IssueState, type Stage } from "../contracts";
 import { BELL, describeResult, formatState, nextSteps } from "./cli.format";
 import type { PipelineResult, ShipDryRunResult } from "../engine/pipeline.types";
 import { shipPlanSchema, type ShipPlan } from "../ship/ship.contract";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const stateAt = (stage: Stage, over: Partial<IssueState> = {}): IssueState =>
   issueStateSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot: DEFAULT_SNAPSHOT,
     issueNumber: 12,
     stage,
     status: "waiting",

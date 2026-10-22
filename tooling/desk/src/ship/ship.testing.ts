@@ -14,6 +14,7 @@ import { authorize } from "../github/github.authorization";
 import type { Exec, ExecRequest } from "../ports";
 import { shipIssue, type ShipDeps, type ShipRequest } from "./ship.run";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import {
   createOriginAndClone,
   createScratch,
@@ -183,7 +184,8 @@ export const createShipEnv = async (options: ShipEnvOptions = {}): Promise<ShipE
   if (!auth.ok) throw new Error(auth.reason);
   await store.write(
     issueStateSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      flowSnapshot: DEFAULT_SNAPSHOT,
       issueNumber: ISSUE,
       stage: "pr-review",
       status: "waiting",

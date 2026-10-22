@@ -4,12 +4,13 @@ import {
   type AgentStageRole,
   type FlowModel,
   type FlowNodeId,
+  type FlowSnapshot,
   type HistoryEvent,
   type LogEntry,
   type NodeKind,
   type NodeStatus,
   type RunRecord,
-  type Stage
+  type StageId
 } from "@repo/desk/contracts";
 
 import { eventOutcome } from "./issue.activity";
@@ -72,14 +73,25 @@ const RUN_ROLE: Readonly<Partial<Record<FlowNodeId, AgentStageRole>>> = {
   review: "reviewer"
 };
 
-const isStop = (stage: Stage): stage is StopStage => stage === "needs-you" || stage === "cancelled";
+const isStop = (stage: StageId): stage is StopStage =>
+  stage === "needs-you" || stage === "cancelled";
 const isStopKey = (key: StepKey): key is StopStage => key === "needs-you" || key === "cancelled";
 
-const keyOfStage = (stage: Stage): StepKey | null => (isStop(stage) ? stage : nodeOfStage(stage));
+/**
+ * The step key of a log entry's stage: a stop, the ticket for intake and setup, or the step
+ * itself. `shipped` has no step of its own: its lines go by their time.
+ */
+const keyOfStage = (stage: StageId): StepKey | null => {
+  if (isStop(stage)) return stage;
+  if (stage === "intake" || stage === "setup") return "ticket";
+  return stage === "shipped" ? null : stage;
+};
 
 /** A stop, else the node the event starts a run of, else the node of its stage. */
-const keyOfEvent = (event: HistoryEvent): StepKey | null =>
-  isStop(event.stage) ? event.stage : (arrivalNode(event) ?? nodeOfStage(event.stage));
+const keyOfEvent = (snapshot: FlowSnapshot, event: HistoryEvent): StepKey | null =>
+  isStop(event.stage)
+    ? event.stage
+    : (arrivalNode(snapshot, event) ?? nodeOfStage(snapshot, event.stage));
 
 export const isProblem = (step: TraceStep): boolean =>
   step.outcome === "looped" || step.outcome === "failed";
@@ -102,18 +114,19 @@ function outcomeOf(
 /**
  * The history as steps, oldest first. A step starts where the flow graph sees a run start (or
  * a gate arrive), a stop, or an event of another stage; every other event joins the open step.
- * Agent runs belong to the step of their role in which they started.
+ * Agent runs belong to the step of their role in which they started. `snapshot`: the issue's flow.
  */
 export function buildTrace(
   history: readonly HistoryEvent[],
   runs: readonly RunRecord[],
   flow: FlowModel,
   now: number,
-  live: TraceLive
+  live: TraceLive,
+  snapshot: FlowSnapshot
 ): Trace {
   const drafts: { key: StepKey; first: number; events: HistoryEvent[] }[] = [];
   history.forEach((event, index) => {
-    const key = keyOfEvent(event);
+    const key = keyOfEvent(snapshot, event);
     const open = drafts.at(-1);
     if (key === null || open?.key === key) {
       open?.events.push(event);

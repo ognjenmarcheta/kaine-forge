@@ -8,6 +8,7 @@ import { RolePromptError, composeRolePrompt, type RolePromptInput } from "./role
 import { REVIEW_SECTIONS, plannerOutputSchema, type PlannerOutput } from "../../contracts";
 import { ROLE_SKILLS, type DeskRole } from "../../engine/worktree.bootstrap";
 import { fenceUntrusted } from "../../github/github.authorization";
+import { builtinFlowSnapshot } from "../../registry/registry.snapshot";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 
@@ -228,6 +229,22 @@ describe("composeRolePrompt", () => {
       await expect(prompt).toMatchFileSnapshot(`__snapshots__/role.prompt.${role}.txt`);
     }
   );
+
+  // The engine composes from the agent prompt in the issue's flow snapshot, not the file.
+  it.each(["planner", "builder", "reviewer"] as const)(
+    "composes the %s prompt from the built-in flow snapshot byte for byte as before",
+    async (role) => {
+      const agent = (await builtinFlowSnapshot()).agents.find((entry) => entry.id === role);
+      const { prompt } = await compose(role, { provider: "codex", body: agent?.prompt });
+      await expect(prompt).toMatchFileSnapshot(`__snapshots__/role.prompt.${role}.txt`);
+    }
+  );
+
+  it("puts a custom agent's own prompt where the role file was", async () => {
+    const { prompt } = await compose("planner", { body: "# Release notes writer\n\nCUSTOM-BODY" });
+    expect(prompt).toContain("CUSTOM-BODY");
+    expect(prompt).not.toContain("# Agent Desk planner");
+  });
 
   it("composes every role from the real repository sources", async () => {
     for (const role of ["intake", "planner", "builder", "reviewer"] as const) {

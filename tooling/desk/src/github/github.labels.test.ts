@@ -11,10 +11,12 @@ import {
   labelSyncCommands,
   planLabelChange
 } from "./github.labels";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { fakeGitHub } from "../testing/github.fake";
 
 const state = (over: Partial<IssueState>): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber: 7,
   stage: "plan",
   status: "running",

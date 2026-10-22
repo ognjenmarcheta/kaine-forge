@@ -2,15 +2,19 @@ import { appendFile, mkdir, rename, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  agentOf,
   fitConfidence,
   issueDraftSchema,
-  type ActiveStage,
+  isShipGate,
+  positionKind,
+  stepOf,
+  type AgentOutputKind,
+  type FlowSnapshot,
+  type FlowStep,
   type Isolation,
-  type FeedbackTarget,
   type HistoryEvent,
   type IssueState,
-  type LoopLimits,
-  type Stage
+  type StageId
 } from "../contracts";
 import { ISSUE_DRAFT_FILE, draftIssueFormat } from "./intake.draft";
 import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
@@ -22,6 +26,7 @@ import { createScheduler } from "./pipeline.scheduler";
 import { buildStage } from "./pipeline.stage.build";
 import { checkStage } from "./pipeline.stage.check";
 import { planStage } from "./pipeline.stage.plan";
+import { reportStage } from "./pipeline.stage.report";
 import { reviewArtifactSchema, reviewStage } from "./pipeline.stage.review";
 import { setupStage } from "./pipeline.stage.setup";
 import {
@@ -32,7 +37,7 @@ import {
   statusAfterMove
 } from "./pipeline.state";
 import type {
-  HandledStage,
+  AgentStepHandler,
   ApproveOptions,
   NotifyKind,
   PipelineDeps,
@@ -75,6 +80,7 @@ import {
 import { renderStatusComment } from "../github/github.status-comment";
 import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
+import { readInstalledCapabilities, resolveFlowSnapshot } from "../registry/registry.snapshot";
 import { SHIP_RECORD_FILE } from "../ship/ship.contract";
 import {
   describeGateFailures,
@@ -131,14 +137,13 @@ export interface PipelineRunner {
    * goes to the builder as the owner's answer to the plan's open questions.
    */
   readonly approvePlan: (issue: number, options?: ApproveOptions) => Promise<PipelineResult>;
-  /** Send engineer feedback to `plan`, `build` or `review`, then drive. */
-  readonly feedback: (
-    issue: number,
-    target: FeedbackTarget,
-    text: string
-  ) => Promise<PipelineResult>;
+  /**
+   * Send engineer feedback to a step: from a gate, one of its `sendBack` steps; from
+   * `needs-you`, any agent step. Then drive.
+   */
+  readonly feedback: (issue: number, target: StageId, text: string) => Promise<PipelineResult>;
   /** Retry the recorded stage (or `stage`) from `needs-you`, then drive. Never automatic. */
-  readonly continueFrom: (issue: number, stage?: Stage) => Promise<PipelineResult>;
+  readonly continueFrom: (issue: number, stage?: StageId) => Promise<PipelineResult>;
   /**
    * Ship from `pr-review`: commit, push, open a draft PR. It needs `confirm`.
    * A dry run writes the ship plan and the PR body and changes no state.
@@ -188,18 +193,60 @@ export interface PipelineRunner {
   readonly status: (issue?: number) => Promise<StatusEntry[]>;
 }
 
-const HANDLERS: Readonly<Record<HandledStage, StageHandler>> = {
-  setup: setupStage,
+/** The handler of an agent step, by what its agent produces. An intake agent runs in no flow. */
+const AGENT_HANDLERS: Readonly<Partial<Record<AgentOutputKind, AgentStepHandler>>> = {
   plan: planStage,
-  build: buildStage,
-  check: checkStage,
-  review: reviewStage
+  change: buildStage,
+  review: reviewStage,
+  report: reportStage
+};
+
+/**
+ * The handler for a stage the engine drives with no owner input: `setup`, an agent step,
+ * or a check step. `null` for every other stage. Ship has its own executor (`ship/`).
+ */
+const handlerFor = (snapshot: FlowSnapshot, stage: StageId): StageHandler | null => {
+  if (stage === "setup") return setupStage;
+  const step = stepOf(snapshot, stage);
+  if (step?.kind === "check") return (context) => checkStage(context, step);
+  if (step?.kind !== "agent") return null;
+  const agent = agentOf(snapshot, step.agent);
+  const handler = agent === undefined ? undefined : AGENT_HANDLERS[agent.output];
+  return agent === undefined || handler === undefined
+    ? null
+    : (context) => handler(context, step, agent);
+};
+
+/** The step before `stage` in flow order. */
+const previousStepOf = (snapshot: FlowSnapshot, stage: StageId): FlowStep | undefined => {
+  const index = snapshot.flow.steps.findIndex((step) => step.id === stage);
+  return index <= 0 ? undefined : snapshot.flow.steps[index - 1];
+};
+
+/** A gate right after a plan step: approving it approves the plan. */
+const isPlanGate = (snapshot: FlowSnapshot, stage: StageId): boolean => {
+  const previous = previousStepOf(snapshot, stage);
+  return (
+    stepOf(snapshot, stage)?.kind === "gate" &&
+    previous?.kind === "agent" &&
+    agentOf(snapshot, previous.agent)?.output === "plan"
+  );
+};
+
+/** The flow's ship step and the gate where the owner confirms it. */
+const shipOf = (
+  snapshot: FlowSnapshot
+): { readonly step: FlowStep; readonly gate: FlowStep | undefined } | null => {
+  const step = snapshot.flow.steps.find((entry) => entry.kind === "ship");
+  return step === undefined ? null : { step, gate: previousStepOf(snapshot, step.id) };
 };
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
 
-const isHandled = (stage: Stage): stage is HandledStage => Object.keys(HANDLERS).includes(stage);
+/** Apply `trigger` to the state through the pure machine, on the issue's own flow snapshot. */
+const machine = (state: IssueState, trigger: Trigger) =>
+  transition(machineOf(state), trigger, state.flowSnapshot);
 
 interface Session {
   state: IssueState;
@@ -216,11 +263,6 @@ const refused = (refusal: Refusal, reason: string, state: IssueState | null = nu
 export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const { store, clock, config, github } = deps;
   const scheduler = deps.scheduler ?? createScheduler(config.maxConcurrentAgents);
-  const limits: LoopLimits = {
-    check: config.maxTestLoops,
-    review: config.maxReviewLoops,
-    prRounds: config.maxPrRounds
-  };
   const controllers = new Map<number, AbortController>();
   /** The session each action of this process works on. `pause` changes it in place. */
   const live = new Map<number, Session>();
@@ -248,7 +290,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
   const record = async (
     session: Session,
-    stage: Stage,
+    stage: StageId,
     event: string,
     note?: string
   ): Promise<void> => {
@@ -311,7 +353,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         () =>
           github.upsertStatusComment(
             issue,
-            renderStatusComment({ state, needsYouReason: needsYouReason(state), limits })
+            renderStatusComment({ state, needsYouReason: needsYouReason(state) })
           ),
         (text) => log(issue, text)
       );
@@ -332,7 +374,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
   const gateMessage = async (state: IssueState): Promise<string | null> => {
     const dir = store.artifactsDir(state.issueNumber);
-    if (state.stage === "plan-gate") {
+    const snapshot = state.flowSnapshot;
+    if (isPlanGate(snapshot, state.stage)) {
       const plan = await readPlan(dir);
       if (plan.status !== "ok") return null;
       return [
@@ -343,12 +386,14 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           : `Open questions:\n${plan.value.openQuestions.map((question) => `- ${question}`).join("\n")}`
       ].join("\n");
     }
-    if (state.stage === "pr-review") {
+    if (isShipGate(snapshot, state.stage)) {
       const review = await readArtifactJson(dir, ARTIFACTS.review, reviewArtifactSchema);
       if (review.status !== "ok") return null;
       return `Review approved with ${review.value.review.findings.length} finding(s). ${review.value.review.plainLanguage}`;
     }
-    if (state.stage === "pr-open" && state.prUrl) return `Draft PR: ${state.prUrl}`;
+    if (positionKind(snapshot, state.stage) === "pr-wait" && state.prUrl) {
+      return `Draft PR: ${state.prUrl}`;
+    }
     return null;
   };
 
@@ -365,21 +410,25 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   };
 
   const describeStop = (
+    snapshot: FlowSnapshot,
     reason: NeedsYouReason | null,
-    from: Stage,
+    from: StageId,
     outcome: StageOutcome | null
   ): string => {
     if (outcome?.kind === "needs-you") return outcome.reason;
-    if (reason === "pr-round-limit") {
-      return `PR feedback went back to build ${limits.prRounds} round(s). Finish the PR by hand, or continue.`;
+    const step = stepOf(snapshot, from);
+    if (reason === "pr-round-limit" && step?.kind === "pr-wait") {
+      return `PR feedback went back to ${step.backTo} ${step.maxRounds} round(s). Finish the PR by hand, or continue.`;
     }
+    const back = step?.loopBack?.to;
     if (reason === "same-failure") {
-      return "The same check failure came back after a fix attempt. Read check-report.json in the artifacts folder, then give feedback to build or continue.";
+      return `The same check failure came back after a fix attempt. Read check-report.json in the artifacts folder, then give feedback to ${back ?? "the step before"} or continue.`;
     }
-    if (reason === "loop-limit") {
-      return from === "check"
-        ? `The checks still fail after ${limits.check} fix round(s). Read check-report.json in the artifacts folder, then give feedback to build or continue.`
-        : `The reviewer still asks for changes after ${limits.review} round(s). Read review.json in the artifacts folder, then give feedback to build or continue.`;
+    if (reason === "loop-limit" && step?.loopBack !== undefined) {
+      const { limit, to } = step.loopBack;
+      return step.kind === "check"
+        ? `The checks still fail after ${limit} fix round(s). Read check-report.json in the artifacts folder, then give feedback to ${to} or continue.`
+        : `The reviewer still asks for changes after ${limit} round(s). Read review.json in the artifacts folder, then give feedback to ${to} or continue.`;
     }
     return `Stopped in '${from}'.`;
   };
@@ -396,15 +445,15 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     patch?: StatePatch
   ):
     | { readonly ok: false; readonly reason: string }
-    | { readonly ok: true; readonly reasonCode: NeedsYouReason | null; readonly from: Stage } => {
+    | { readonly ok: true; readonly reasonCode: NeedsYouReason | null; readonly from: StageId } => {
     const from = session.state.stage;
-    const result = transition(machineOf(session.state), trigger, limits);
+    const result = machine(session.state, trigger);
     if (!result.ok) return { ok: false, reason: result.reason };
     session.state = {
       ...session.state,
       ...patch,
       ...result.state,
-      status: statusAfterMove(result.nextStage),
+      status: statusAfterMove(session.state.flowSnapshot, result.nextStage),
       updatedAt: stamp()
     };
     return { ok: true, reasonCode: result.reason, from };
@@ -415,7 +464,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     await save(session);
     await writeBack(session);
     if (state.stage === "needs-you") notify(state, "needs-you", reason ?? "The issue needs you.");
-    else if (isGate(state.stage))
+    else if (isGate(state.flowSnapshot, state.stage))
       notify(state, "gate", (await gateMessage(state)) ?? "Waiting for you.");
     else if (state.stage === "shipped") {
       notify(state, "done", state.prUrl ? `PR merged: ${state.prUrl}` : "Done.");
@@ -425,12 +474,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   /** Turn a stage handler's outcome into one machine transition. */
   const applyOutcome = async (
     session: Session,
-    stage: ActiveStage,
+    stage: StageId,
     outcome: Exclude<StageOutcome, { kind: "aborted" }>
   ): Promise<void> => {
     const trigger: Trigger =
       outcome.kind === "complete"
-        ? { type: "stage-complete", stage, outcome: "ok" }
+        ? { type: "step-complete", step: stage, outcome: "ok" }
         : outcome.kind === "trigger"
           ? outcome.trigger
           : { type: "error" };
@@ -448,7 +497,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     }
     let reason: string | null = null;
     if (session.state.stage === "needs-you") {
-      reason = forced ?? describeStop(moved.reasonCode, moved.from, outcome);
+      reason =
+        forced ?? describeStop(session.state.flowSnapshot, moved.reasonCode, moved.from, outcome);
       if (outcome.kind === "trigger" && forced === null && outcome.note !== undefined) {
         reason = `${reason} (${outcome.note})`;
       }
@@ -476,14 +526,18 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       emit({ type: "agent", issue: session.state.issueNumber, role, event })
   });
 
-  const runStage = async (session: Session, stage: HandledStage): Promise<void> => {
+  const runStage = async (
+    session: Session,
+    stage: StageId,
+    handler: StageHandler
+  ): Promise<void> => {
     session.state = { ...session.state, status: "running", updatedAt: stamp() };
     await record(session, stage, "stage-started");
     await save(session);
 
     let outcome: StageOutcome;
     try {
-      outcome = await HANDLERS[stage](contextFor(session));
+      outcome = await handler(contextFor(session));
     } catch (error) {
       outcome = { kind: "needs-you", reason: `'${stage}' failed unexpectedly: ${message(error)}` };
     }
@@ -495,11 +549,11 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const drive = async (session: Session): Promise<PipelineResult> => {
     live.set(session.state.issueNumber, session);
     for (;;) {
-      const { stage } = session.state;
+      const { stage, flowSnapshot: snapshot } = session.state;
       if (session.controller.signal.aborted) return stopped(session.state);
-      if (stage === "needs-you" || isGate(stage) || isTerminalStage(stage)) {
+      if (stage === "needs-you" || isGate(snapshot, stage) || isTerminalStage(stage)) {
         if (session.state.status === "running" || session.state.status === "queued") {
-          session.state = { ...session.state, status: statusAfterMove(stage) };
+          session.state = { ...session.state, status: statusAfterMove(snapshot, stage) };
           await save(session);
         }
         return stopped(session.state);
@@ -519,19 +573,26 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           message: `Paused before '${stage}'. Resume to run it.`
         };
       }
-      if (stage === "ship") {
+      if (positionKind(snapshot, stage) === "ship") {
         // A retry after `continue`: the engineer confirmed this ship before.
         await executeShip(session, { dryRun: false, retry: true });
         continue;
       }
-      if (!isHandled(stage)) {
-        return refused(
-          "intake-refused",
-          `Intake runs through 'start'. Run 'start' again for #${session.state.issueNumber}.`,
-          session.state
-        );
+      const handler = handlerFor(snapshot, stage);
+      if (handler === null) {
+        return stage === "intake"
+          ? refused(
+              "intake-refused",
+              `Intake runs through 'start'. Run 'start' again for #${session.state.issueNumber}.`,
+              session.state
+            )
+          : refused(
+              "invalid-transition",
+              `'${stage}' is not a step the engine can run in the flow '${snapshot.flow.id}'.`,
+              session.state
+            );
       }
-      await runStage(session, stage);
+      await runStage(session, stage, handler);
     }
   };
 
@@ -607,6 +668,17 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           const problem = await deps.docker.preflight();
           if (problem !== null) return refused("intake-refused", problem);
         }
+        // A new issue runs on the flow of this checkout, frozen now. A restarted intake keeps its own.
+        let flowSnapshot: FlowSnapshot | null = null;
+        if ((await store.read(issue)).status === "missing") {
+          const resolved = await resolveFlowSnapshot({
+            repoRoot: deps.location.repoRoot,
+            installed: await readInstalledCapabilities(deps.location.repoRoot),
+            config
+          });
+          if (!resolved.ok) return refused("intake-refused", resolved.reason);
+          flowSnapshot = resolved.snapshot;
+        }
         let source = github;
         if (options.snapshotFile !== undefined) {
           if (!options.override) {
@@ -633,8 +705,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
         const result = await runIntake(
           { github: source, store, clock, config, log: (text) => log(issue, text) },
-          { issueNumber: issue, override: options.override, writeBack: false },
-          limits
+          { issueNumber: issue, override: options.override, writeBack: false, flowSnapshot }
         );
         if (result.outcome === "refused") return refused("intake-refused", result.reason);
         if (result.outcome === "skipped") {
@@ -692,6 +763,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       readonly note?: string | (() => string | undefined);
       readonly patch?: StatePatch | (() => StatePatch | undefined);
       readonly prepare?: (session: Session) => Promise<PipelineResult | null>;
+      /** The event name, when `prepare` decides it. */
+      readonly eventFor?: () => string;
       readonly after?: (session: Session) => Promise<void>;
     }
   ): Promise<PipelineResult> =>
@@ -699,7 +772,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       issue,
       async (loaded) => {
         const session = requireSession(loaded);
-        const check = transition(machineOf(session.state), trigger, limits);
+        const check = machine(session.state, trigger);
         if (!check.ok) return refused("invalid-transition", check.reason, session.state);
         const early = await options.prepare?.(session);
         if (early) return early;
@@ -709,11 +782,11 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         const note = typeof options.note === "function" ? options.note() : options.note;
         const moved = move(session, trigger, patch);
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
-        await record(session, from, options.event, note);
+        await record(session, from, options.eventFor?.() ?? options.event, note);
         await options.after?.(session);
         let reason: string | null = null;
         if (session.state.stage === "needs-you") {
-          reason = describeStop(moved.reasonCode, from, null);
+          reason = describeStop(session.state.flowSnapshot, moved.reasonCode, from, null);
           await record(session, "needs-you", "needs-you", reason);
         }
         await finishMove(session, reason);
@@ -722,16 +795,29 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
-  const approvePlan: PipelineRunner["approvePlan"] = (issue, options = {}) =>
-    humanAction(
+  /** A gate approval. At the gate after the plan it approves the plan and keeps the note. */
+  const approvePlan: PipelineRunner["approvePlan"] = (issue, options = {}) => {
+    let planGate = true;
+    return humanAction(
       issue,
-      { type: "approve-plan" },
+      { type: "gate-approve" },
       {
         event: "plan-approved",
         ...(options.note?.trim() ? { note: "with a note" } : {}),
         // A new approval replaces the note of an earlier one.
-        patch: { approveNote: options.note?.trim() || null },
+        patch: () => (planGate ? { approveNote: options.note?.trim() || null } : undefined),
         prepare: async (session) => {
+          planGate = isPlanGate(session.state.flowSnapshot, session.state.stage);
+          if (!planGate) {
+            if (options.note?.trim()) {
+              return refused(
+                "invalid-transition",
+                "A note goes with the plan approval only. Give feedback to send words to a step.",
+                session.state
+              );
+            }
+            return null;
+          }
           const plan = await readPlan(store.artifactsDir(issue));
           if (plan.status !== "ok") {
             return refused(
@@ -740,17 +826,20 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
               session.state
             );
           }
+          const gate = session.state.stage;
           const rename = await renameBranchForPlan(deps.git, session.state, plan.value);
           if (rename.status === "renamed") {
             session.state = { ...session.state, branch: rename.to, updatedAt: stamp() };
-            await record(session, "plan-gate", "branch-renamed", `${rename.from} -> ${rename.to}`);
+            await record(session, gate, "branch-renamed", `${rename.from} -> ${rename.to}`);
           } else if (rename.status === "skipped") {
-            await record(session, "plan-gate", "branch-rename-skipped", rename.reason);
+            await record(session, gate, "branch-rename-skipped", rename.reason);
           }
           return null;
-        }
+        },
+        eventFor: () => (planGate ? "plan-approved" : "gate-approved")
       }
     );
+  };
 
   const feedback: PipelineRunner["feedback"] = (issue, target, text) =>
     humanAction(
@@ -778,8 +867,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
   const feedbackFromPr: PipelineRunner["feedbackFromPr"] = (issue, options = {}) => {
     const ownerText = options.text?.trim() ?? "";
-    let collected: { readonly text: string; readonly note: string; readonly head: string } | null =
-      null;
+    let collected: {
+      readonly text: string;
+      readonly note: string;
+      readonly head: string;
+      readonly target: StageId;
+    } | null = null;
     return humanAction(
       issue,
       { type: "pr-feedback" },
@@ -790,14 +883,15 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           collected === null
             ? undefined
             : {
-                pendingFeedback: { target: "build", source: "pr", text: collected.text },
+                pendingFeedback: { target: collected.target, source: "pr", text: collected.text },
                 prHeadSha: collected.head,
                 shipConfirmed: false
               },
         prepare: async (session) => {
           // At the round limit the machine stops the issue. Nothing is read from GitHub.
-          const limit = transition(machineOf(session.state), { type: "pr-feedback" }, limits);
-          if (limit.ok && limit.nextStage === "needs-you") return null;
+          const limit = machine(session.state, { type: "pr-feedback" });
+          if (!limit.ok || limit.nextStage === "needs-you") return null;
+          const target = limit.nextStage;
 
           const refuse = (reason: string): PipelineResult =>
             refused("pr-refused", `${reason} Nothing was changed.`, session.state);
@@ -879,7 +973,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           });
           await appendFile(
             path.join(dir, ARTIFACTS.feedback),
-            `\n## ${stamp()} to build from PR #${prNumber}\n\n${text}\n`,
+            `\n## ${stamp()} to ${target} from PR #${prNumber}\n\n${text}\n`,
             "utf8"
           );
           // The ship of this round starts clean. The record of the last ship stays readable.
@@ -895,6 +989,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           collected = {
             text,
             head,
+            target,
             note: `round ${round + 1}: ${selected.comments.length} comment(s), ${selected.failingChecks.length} failing check(s)${ownerText === "" ? "" : ", owner note"}${skippedNote}`
           };
           return null;
@@ -908,7 +1003,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       issue,
       async (loaded) => {
         const session = requireSession(loaded);
+        const snapshot = session.state.flowSnapshot;
         const target = stage ?? session.state.resumeStage;
+        const targetKind = target === null ? null : positionKind(snapshot, target);
         if (session.state.stage === "needs-you" && target === "intake") {
           return refused(
             "invalid-transition",
@@ -917,17 +1014,18 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           );
         }
         if (
-          target === "ship" &&
-          (session.state.resumeStage !== "ship" || session.state.shipConfirmed !== true)
+          targetKind === "ship" &&
+          (session.state.resumeStage !== target || session.state.shipConfirmed !== true)
         ) {
           // Only a ship that the engineer confirmed and that then failed is retried.
+          const gate = shipOf(snapshot)?.gate?.id ?? "the gate before it";
           return refused(
             "ship-refused",
-            `A ship starts only from 'pr-review', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
+            `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
             session.state
           );
         }
-        if (target === "pr-open" && (session.state.prNumber ?? null) === null) {
+        if (targetKind === "pr-wait" && (session.state.prNumber ?? null) === null) {
           return refused(
             "invalid-transition",
             `#${issue} has no pull request to wait for. Continue from another stage.`,
@@ -938,7 +1036,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           type: "continue",
           ...(stage === undefined ? {} : { from: stage })
         };
-        const check = transition(machineOf(session.state), trigger, limits);
+        const check = machine(session.state, trigger);
         if (!check.ok) return refused("invalid-transition", check.reason, session.state);
 
         const moved = move(session, trigger);
@@ -968,17 +1066,21 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     mode: { readonly dryRun: boolean; readonly retry: boolean }
   ): Promise<ShipExecution> => {
     const issue = session.state.issueNumber;
+    const shipping = shipOf(session.state.flowSnapshot);
+    if (shipping === null) throw new Error("Internal error: the flow has no ship step.");
+    const shipStage = shipping.step.id;
     let began = false;
     const begin = async (): Promise<void> => {
       if (began) return;
       began = true;
-      if (session.state.stage === "pr-review") {
+      if (session.state.stage !== shipStage) {
+        const gate = session.state.stage;
         const moved = move(session, { type: "ship-confirm" }, { shipConfirmed: true });
         if (!moved.ok) throw new Error(`Internal error: ${moved.reason}`);
-        await record(session, "pr-review", "ship-confirmed");
+        await record(session, gate, "ship-confirmed");
       }
       session.state = { ...session.state, status: "running", updatedAt: stamp() };
-      await record(session, "ship", "stage-started");
+      await record(session, shipStage, "stage-started");
       await save(session);
       await writeBack(session);
     };
@@ -1010,7 +1112,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       case "refused":
         if (!began) return { kind: "refused", failures: result.failures };
         // The gate failed after the first change (after the checks or the rebase).
-        await applyOutcome(session, "ship", {
+        await applyOutcome(session, shipStage, {
           kind: "needs-you",
           reason: `The ship gate refused:\n${describeGateFailures(result.failures)}`
         });
@@ -1018,7 +1120,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       case "failed": {
         await begin();
         const progress = result.failure.progress;
-        await applyOutcome(session, "ship", {
+        await applyOutcome(session, shipStage, {
           kind: "needs-you",
           reason: describeShipFailure(result.failure),
           ...(progress === null
@@ -1029,7 +1131,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       }
       case "shipped":
         await begin();
-        await applyOutcome(session, "ship", {
+        await applyOutcome(session, shipStage, {
           kind: "complete",
           event: result.updated ? "pr-updated" : "pr-opened",
           note: result.prUrl,
@@ -1051,7 +1153,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       async (loaded): Promise<ShipActionResult> => {
         const session = requireSession(loaded);
         const dryRun = options.dryRun === true;
-        const check = transition(machineOf(session.state), { type: "ship-confirm" }, limits);
+        const check = machine(session.state, { type: "ship-confirm" });
         if (!check.ok) return refused("invalid-transition", check.reason, session.state);
         if (!dryRun && !options.confirm) {
           return refused(
@@ -1090,11 +1192,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       issue,
       async (loaded): Promise<PipelineResult> => {
         const session = requireSession(loaded);
-        const check = transition(
-          machineOf(session.state),
-          { type: "pr-closed", merged: true },
-          limits
-        );
+        const check = machine(session.state, { type: "pr-closed", merged: true });
         if (!check.ok) return refused("invalid-transition", check.reason, session.state);
         const refuse = (reason: string): PipelineResult =>
           refused("refresh-refused", `${reason} Nothing was changed.`, session.state);
@@ -1119,9 +1217,10 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           };
         }
         const merged = pr.state === "MERGED";
+        const waiting = session.state.stage;
         const moved = move(session, { type: "pr-closed", merged });
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
-        await record(session, "pr-open", merged ? "pr-merged" : "pr-closed", pr.url);
+        await record(session, waiting, merged ? "pr-merged" : "pr-closed", pr.url);
         await finishMove(session, null);
         return stopped(session.state);
       },
@@ -1264,7 +1363,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       issue,
       async (loaded) => {
         const session = requireSession(loaded);
-        const check = transition(machineOf(session.state), { type: "cancel" }, limits);
+        const check = machine(session.state, { type: "cancel" });
         if (!check.ok) return refused("invalid-transition", check.reason, session.state);
 
         const leftover = await stopLeftoverProcess(session.state, recoveryDeps);
@@ -1330,7 +1429,11 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           return refused("invalid-transition", `#${issue} is not paused.`, session.state);
         }
         const { stage } = session.state;
-        const held = !(stage === "needs-you" || isGate(stage) || isTerminalStage(stage));
+        const held = !(
+          stage === "needs-you" ||
+          isGate(session.state.flowSnapshot, stage) ||
+          isTerminalStage(stage)
+        );
         session.state = {
           ...session.state,
           pauseRequested: false,

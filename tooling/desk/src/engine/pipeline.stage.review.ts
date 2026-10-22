@@ -9,7 +9,7 @@ import {
   type ReviewerOutput
 } from "../contracts";
 import { diffAgainstBase } from "../git";
-import { runAgentStage } from "./pipeline.agent";
+import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import {
   ARTIFACTS,
   readArtifactJson,
@@ -19,7 +19,7 @@ import {
 } from "./pipeline.artifacts";
 import { recordCheckoutLessons, reviewLessons } from "./pipeline.lessons";
 import { locateFindings } from "./pipeline.review-locations";
-import type { StageHandler } from "./pipeline.types";
+import type { AgentStepHandler } from "./pipeline.types";
 
 /** `review.json`: the validated review plus the findings the engine rejected. */
 export const reviewArtifactSchema = z
@@ -59,9 +59,10 @@ export const reviewFeedbackText = (
  * Review: a fresh, read-only reviewer reads `diff.patch` and the plan. The
  * diff hash and every ref must be the same after the run. Findings that point
  * outside the diff are rejected: a non-blocking one is dropped, a blocking one
- * stops the issue, because the engine cannot act on a claim it cannot locate.
+ * stops the issue, because the engine cannot act on a claim it cannot locate. Requested
+ * changes go to the step's loop-back target.
  */
-export const reviewStage: StageHandler = async (context) => {
+export const reviewStage: AgentStepHandler = async (context, step, agent) => {
   const { deps } = context;
   const state = context.state();
   const plan = await readPlan(context.artifactsDir);
@@ -104,9 +105,10 @@ export const reviewStage: StageHandler = async (context) => {
   }
   await writeArtifactText(context.artifactsDir, ARTIFACTS.diff, diff.patch);
 
-  const pending = state.pendingFeedback?.target === "review" ? state.pendingFeedback : null;
+  const pending = state.pendingFeedback?.target === step.id ? state.pendingFeedback : null;
   const run = await runAgentStage(context, {
-    role: "reviewer",
+    role: ROLE_FOR_OUTPUT[agent.output],
+    agent,
     schema: reviewerOutputSchema,
     readOnly: true,
     feedback: pending?.text,
@@ -149,7 +151,7 @@ export const reviewStage: StageHandler = async (context) => {
   if (blocking.length === 0 && review.verdict === "approve") {
     return {
       kind: "trigger",
-      trigger: { type: "review-approve" },
+      trigger: { type: "review-result", verdict: "approve" },
       event: "review-approved",
       note: `${located.accepted.length} non-blocking finding(s)${rejectedNote}`,
       patch: { pendingFeedback: null }
@@ -157,12 +159,12 @@ export const reviewStage: StageHandler = async (context) => {
   }
   return {
     kind: "trigger",
-    trigger: { type: "review-changes" },
+    trigger: { type: "review-result", verdict: "changes" },
     event: "review-changes-requested",
     note: `${blocking.length} blocking finding(s)${rejectedNote}`,
     patch: {
       pendingFeedback: {
-        target: "build",
+        target: step.loopBack?.to ?? step.id,
         source: "review",
         text: reviewFeedbackText(review, located.accepted)
       }

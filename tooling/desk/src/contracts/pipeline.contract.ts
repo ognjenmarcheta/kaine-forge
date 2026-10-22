@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Single source of truth for the desk pipeline. The engine, the CLI, and the
+ * The fixed layout of the built-in `kaine-default` flow. The engine, the CLI, and the
  * browser UI all read stages, node kinds, edges, and loop limits from here.
  */
 export const STAGES = [
@@ -22,6 +22,14 @@ export const STAGES = [
 
 export const stageSchema = z.enum(STAGES);
 export type Stage = z.infer<typeof stageSchema>;
+
+/**
+ * States the engine owns outside every flow: `intake` and `setup` run before the first step,
+ * `needs-you` waits for the owner, `shipped` and `cancelled` end the issue. A flow step may not
+ * use one of these ids.
+ */
+export const ENGINE_STATES = ["intake", "setup", "needs-you", "shipped", "cancelled"] as const;
+export type EngineState = (typeof ENGINE_STATES)[number];
 
 /** Who does the work in a stage: the issue, an agent, the engineer, or a script. */
 export const NODE_KINDS = ["source", "agent", "human", "script"] as const;

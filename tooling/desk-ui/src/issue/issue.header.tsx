@@ -239,9 +239,9 @@ export function IssueHeader({
             {t("desk.issue.meta.cost", { cost: formatUsd(cost, language) })}
           </span>
         )}
-        {loops.check + loops.review > 0 && (
+        {(loops.check ?? 0) + (loops.review ?? 0) > 0 && (
           <span className="desk-imeta__item">
-            {t("desk.issue.loopsValue", { check: loops.check, review: loops.review })}
+            {t("desk.issue.loopsValue", { check: loops.check ?? 0, review: loops.review ?? 0 })}
           </span>
         )}
         {branch !== null && (

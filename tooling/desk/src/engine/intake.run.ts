@@ -4,16 +4,18 @@ import path from "node:path";
 import { z } from "zod";
 
 import {
-  DEFAULT_LOOP_LIMITS,
+  ISSUE_STATE_SCHEMA_VERSION,
   fitConfidence,
+  freshLoops,
   intakeFitRecordSchema,
   type DeskConfig,
+  type FlowSnapshot,
   type IssueState,
-  type LoopLimits,
-  type Stage
+  type StageId
 } from "../contracts";
 import { readArtifactJson } from "./pipeline.artifacts";
 import { transition, type MachineState, type Trigger } from "./pipeline.machine";
+import { machineOf } from "./pipeline.state";
 import { authorize, fenceUntrusted, trustedComments } from "../github/github.authorization";
 import { formatContract, parseContract, type ContractReport } from "../github/github.contract";
 import { checkControllerIdentity } from "../github/github.identity";
@@ -42,6 +44,11 @@ export interface IntakeOptions {
   readonly override: boolean;
   /** Edit labels and the status comment on GitHub. Failures never fail the run. */
   readonly writeBack: boolean;
+  /**
+   * The flow a new issue runs on. A restarted intake keeps the snapshot it has, so `null`
+   * is fine for an issue that already has state.
+   */
+  readonly flowSnapshot: FlowSnapshot | null;
 }
 
 export type IntakeResult =
@@ -91,27 +98,20 @@ const lowFitWarning = async (artifacts: string, body: string): Promise<string | 
   return `Fit confidence is 1 of 3. ${weak.join("; ")}`;
 };
 
-const machineOf = (state: IssueState): MachineState => ({
-  stage: state.stage,
-  resumeStage: state.resumeStage,
-  loops: state.loops,
-  lastCheckFingerprint: state.lastCheckFingerprint,
-  prRounds: state.prRounds ?? 0
-});
-
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
 
-const fresh = (issueNumber: number, at: string): IssueState => ({
-  schemaVersion: 1,
+const fresh = (issueNumber: number, at: string, flowSnapshot: FlowSnapshot): IssueState => ({
+  schemaVersion: ISSUE_STATE_SCHEMA_VERSION,
   issueNumber,
+  flowSnapshot,
   stage: "intake",
   status: "idle",
   resumeStage: null,
   branch: null,
   worktreePath: null,
   sessions: {},
-  loops: { check: 0, review: 0 },
+  loops: freshLoops(flowSnapshot),
   lastCheckFingerprint: null,
   history: [],
   authorization: null,
@@ -156,8 +156,7 @@ export const renderTicket = (
  */
 export const runIntake = async (
   deps: IntakeDeps,
-  options: IntakeOptions,
-  limits: LoopLimits = DEFAULT_LOOP_LIMITS
+  options: IntakeOptions
 ): Promise<IntakeResult> => {
   const { github, store, clock, config, log } = deps;
   const { issueNumber } = options;
@@ -191,14 +190,20 @@ export const runIntake = async (
   const { owner } = identity;
   const stamp = (): string => clock.now().toISOString();
 
-  let state = previous ?? fresh(issueNumber, stamp());
-  const record = async (stage: Stage, event: string, note?: string): Promise<void> => {
+  const initial =
+    previous ??
+    (options.flowSnapshot === null ? null : fresh(issueNumber, stamp(), options.flowSnapshot));
+  if (initial === null) {
+    return { outcome: "refused", reason: `#${issueNumber} has no flow to run on.` };
+  }
+  let state = initial;
+  const record = async (stage: StageId, event: string, note?: string): Promise<void> => {
     const entry = { at: stamp(), stage, event, ...(note === undefined ? {} : { note }) };
     state = { ...state, history: [...state.history, entry], updatedAt: entry.at };
     await store.appendEvent(issueNumber, entry);
   };
   const apply = (trigger: Trigger): MachineState => {
-    const result = transition(machineOf(state), trigger, limits);
+    const result = transition(machineOf(state), trigger, state.flowSnapshot);
     if (!result.ok) throw new Error(`Intake transition rejected: ${result.reason}`);
     return result.state;
   };
@@ -212,7 +217,7 @@ export const runIntake = async (
     return result;
   };
   const park = async (reason: string): Promise<IntakeResult> => {
-    move(apply({ type: "stage-complete", stage: "intake", outcome: "blocked" }), "waiting");
+    move(apply({ type: "step-complete", step: "intake", outcome: "blocked" }), "waiting");
     await record("needs-you", "needs-you", reason);
     return finish({ outcome: "needs-you", state, reason }, reason);
   };
@@ -269,7 +274,7 @@ export const runIntake = async (
   }
 
   state = { ...state, authorization: authorization.snapshot };
-  move(apply({ type: "stage-complete", stage: "intake", outcome: "ok" }), "waiting");
+  move(apply({ type: "step-complete", step: "intake", outcome: "ok" }), "waiting");
   await record("setup", "intake-complete", `${formatContract(contract)}; ${NOTE_READY_FOR_SETUP}`);
   return finish({ outcome: "ready", state, contract }, null);
 };

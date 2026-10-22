@@ -1,10 +1,4 @@
-import {
-  DEFAULT_LOOP_LIMITS,
-  PIPELINE,
-  type IssueState,
-  type LoopLimits,
-  type Stage
-} from "../contracts";
+import { loopSteps, stepOf, type IssueState, type StageId } from "../contracts";
 import { statusMarker } from "./github.authorization";
 import type { GhClient } from "./github.gh";
 import { restCommentSchema, type StatusCommentResult } from "./github.types";
@@ -13,18 +7,23 @@ export interface StatusInput {
   readonly state: IssueState;
   /** Why the issue waits for the owner. Shown only while it does. */
   readonly needsYouReason?: string | null;
-  readonly limits?: LoopLimits;
 }
 
-const FORWARD_ORDER: readonly Stage[] = [...PIPELINE.nodes.map((node) => node.id), "shipped"];
+/** Intake, setup, the steps of the issue's flow, and `shipped`. */
+const forwardOrder = (state: IssueState): StageId[] => [
+  "intake",
+  "setup",
+  ...state.flowSnapshot.flow.steps.map((step) => step.id),
+  "shipped"
+];
 
 /** The forward-order position that "current" refers to, or -1 before any stage. */
-const positionOf = (state: IssueState): number => {
-  const direct = FORWARD_ORDER.indexOf(state.stage);
+const positionOf = (state: IssueState, order: readonly StageId[]): number => {
+  const direct = order.indexOf(state.stage);
   if (direct !== -1) return direct;
-  const via = state.resumeStage === null ? -1 : FORWARD_ORDER.indexOf(state.resumeStage);
+  const via = state.resumeStage === null ? -1 : order.indexOf(state.resumeStage);
   if (via !== -1) return via;
-  const seen = state.history.map((event) => FORWARD_ORDER.indexOf(event.stage));
+  const seen = state.history.map((event) => order.indexOf(event.stage));
   return Math.max(-1, ...seen);
 };
 
@@ -35,24 +34,24 @@ const oneLine = (text: string, max = 300): string => {
 
 /**
  * Pure. Markdown for the one status comment of an issue: stage timeline, loop
- * counts, authorization and the reason for waiting. No footer or signature.
+ * counts with the limits of the issue's flow, authorization and the reason for waiting.
+ * No footer or signature.
  */
-export const renderStatusComment = ({
-  state,
-  needsYouReason = null,
-  limits = DEFAULT_LOOP_LIMITS
-}: StatusInput): string => {
-  const position = positionOf(state);
+export const renderStatusComment = ({ state, needsYouReason = null }: StatusInput): string => {
+  const order = forwardOrder(state);
+  const position = positionOf(state, order);
   const shipped = state.stage === "shipped";
-  const timeline = FORWARD_ORDER.filter((stage) => stage !== "shipped").map((stage) => {
-    const index = FORWARD_ORDER.indexOf(stage);
-    let mark = "pending";
-    if (shipped || index < position) mark = "done";
-    else if (index === position && state.stage !== "cancelled") {
-      mark = state.stage === "needs-you" ? "needs you" : state.status;
-    }
-    return `- \`${stage}\`: ${mark}`;
-  });
+  const timeline = order
+    .filter((stage) => stage !== "shipped")
+    .map((stage) => {
+      const index = order.indexOf(stage);
+      let mark = "pending";
+      if (shipped || index < position) mark = "done";
+      else if (index === position && state.stage !== "cancelled") {
+        mark = state.stage === "needs-you" ? "needs you" : state.status;
+      }
+      return `- \`${stage}\`: ${mark}`;
+    });
 
   const lines = [
     statusMarker(state.issueNumber),
@@ -63,12 +62,14 @@ export const renderStatusComment = ({
   if (state.branch) lines.push(`Branch: \`${state.branch}\``);
   if (state.prUrl) lines.push(`Draft PR: ${state.prUrl}`);
   lines.push("", "### Timeline", ...timeline, "");
+  const waiting = stepOf(state.flowSnapshot, state.stage);
   lines.push(
     "### Loops",
-    `- check: ${state.loops.check} of ${limits.check}`,
-    `- review: ${state.loops.review} of ${limits.review}`,
-    ...(state.stage === "pr-open"
-      ? [`- PR rounds: ${state.prRounds ?? 0} of ${limits.prRounds}`]
+    ...loopSteps(state.flowSnapshot).map(
+      (step) => `- ${step.id}: ${state.loops[step.id] ?? 0} of ${step.loopBack.limit}`
+    ),
+    ...(waiting?.kind === "pr-wait"
+      ? [`- PR rounds: ${state.prRounds ?? 0} of ${waiting.maxRounds}`]
       : []),
     ""
   );

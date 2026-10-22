@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "issueNumber": 42,
+  "stage": "pr-open",
+  "status": "waiting",
+  "resumeStage": null,
+  "branch": "KAINE-42-fix-empty-board",
+  "worktreePath": "/work/kaine-forge.worktrees/KAINE-42",
+  "sessions": { "builder": "33333333-3333-4333-8333-333333333333" },
+  "loops": { "check": 0, "review": 0 },
+  "lastCheckFingerprint": null,
+  "history": [
+    { "at": "2026-10-02T10:00:00.000Z", "stage": "pr-review", "event": "ship-confirmed" },
+    { "at": "2026-10-02T10:00:01.000Z", "stage": "ship", "event": "stage-started" },
+    {
+      "at": "2026-10-02T10:03:00.000Z",
+      "stage": "ship",
+      "event": "pr-opened",
+      "note": "https://github.com/owner/kaine-forge/pull/9"
+    }
+  ],
+  "authorization": null,
+  "baseSha": "cccccccccccccccccccccccccccccccccccccccc",
+  "activeProcess": {
+    "pid": 4242,
+    "role": "builder",
+    "processStart": "Thu Oct  2 10:00:00 2026",
+    "startedAt": "2026-10-02T10:00:00.000Z"
+  },
+  "pendingFeedback": null,
+  "shipConfirmed": true,
+  "commitSha": "dddddddddddddddddddddddddddddddddddddddd",
+  "prUrl": "https://github.com/owner/kaine-forge/pull/9",
+  "prNumber": 9,
+  "prRounds": 1,
+  "prHeadSha": "dddddddddddddddddddddddddddddddddddddddd",
+  "createdAt": "2026-10-02T09:00:00.000Z",
+  "updatedAt": "2026-10-02T10:03:00.000Z"
+}

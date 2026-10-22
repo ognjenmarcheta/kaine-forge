@@ -7,9 +7,10 @@ import type { DeskRole } from "../../engine/worktree.bootstrap";
 import type { SkillMode } from "../agent.runner";
 
 /**
- * Compose the prompt for one role. Desk-specific parts are the body of the role's
- * built-in agent file (`tooling/desk/defaults/agents/<role>.md`, frontmatter stripped) and
- * the desk rules (`tooling/desk/agents/rules.md`). Repository sources are read from the WORKTREE at
+ * Compose the prompt for one role. Desk-specific parts are the agent's prompt (the body of
+ * its agent file, from the issue's flow snapshot; without one, the role's built-in file
+ * `tooling/desk/defaults/agents/<role>.md`, frontmatter stripped) and the desk rules
+ * (`tooling/desk/agents/rules.md`). Repository sources are read from the WORKTREE at
  * run time, so a rule changes in one place (`.ai/`) and the desk follows:
  *
  * - planner: `.ai/agents/kaine-explorer.md`
@@ -46,6 +47,11 @@ export interface RolePromptInput {
    * open questions. Owner text, bounded by the API, never agent or GitHub text.
    */
   readonly ownerNote?: string | undefined;
+  /**
+   * The agent's own prompt: the body of its agent file from the flow snapshot. Absent: the
+   * role's built-in agent file is read.
+   */
+  readonly body?: string | undefined;
   readonly skills: readonly string[];
   readonly skillMode: SkillMode;
 }
@@ -129,7 +135,7 @@ export const composeRolePrompt = async (
   }
 
   const [roleFilePath, rulesPath] = deskPromptFiles(input.role, { agentsDir });
-  const roleFile = await load(roleFilePath, `the ${input.role} role file`);
+  const roleFile = input.body ?? (await load(roleFilePath, `the ${input.role} role file`));
   const rules = await load(rulesPath, "the desk rules");
   const source = REPO_SOURCE[input.role];
   const repoDefinition =

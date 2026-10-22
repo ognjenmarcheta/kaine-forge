@@ -1,4 +1,11 @@
-import type { IssueState, IssueStatus, Stage } from "../contracts";
+import {
+  loopSteps,
+  nextStepOf,
+  stepOf,
+  type IssueState,
+  type IssueStatus,
+  type StageId
+} from "../contracts";
 import { needsYouReason } from "../engine/pipeline.state";
 import type {
   Refusal,
@@ -44,8 +51,34 @@ export const nextSteps = (state: IssueState): string[] => {
         `or send the PR feedback back to build: pnpm desk feedback ${n} --from-pr "[your words]"`
       ];
     default:
-      return [];
+      return flowSteps(state);
   }
+};
+
+/** The same commands at a gate or the open PR of a flow with its own step ids. */
+const flowSteps = (state: IssueState): string[] => {
+  const n = state.issueNumber;
+  const step = stepOf(state.flowSnapshot, state.stage);
+  if (step?.kind === "pr-wait") {
+    return [
+      ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
+      "review it and merge it yourself on GitHub. The desk never merges.",
+      `after you merge or close it, run: pnpm desk refresh ${n}`,
+      `or send the PR feedback back to ${step.backTo}: pnpm desk feedback ${n} --from-pr "[your words]"`
+    ];
+  }
+  if (step?.kind !== "gate") return [];
+  const feedback =
+    step.sendBack.length === 0
+      ? []
+      : [`send feedback: pnpm desk feedback ${n} --to ${step.sendBack.join("|")} "<text>"`];
+  return nextStepOf(state.flowSnapshot, step.id)?.kind === "ship"
+    ? [
+        ...feedback,
+        `see what ship would do: pnpm desk ship ${n} --dry-run`,
+        `ship as a draft PR: pnpm desk ship ${n} --confirm`
+      ]
+    : [`approve with: pnpm desk approve ${n}`, ...feedback];
 };
 
 /** The `--json` shape of a driving command. */
@@ -56,7 +89,7 @@ export type ResultJson =
       readonly outcome: "refused";
       readonly refusal: Refusal;
       readonly reason: string;
-      readonly stage: Stage | null;
+      readonly stage: StageId | null;
       readonly status: IssueStatus | null;
     }
   | {
@@ -71,7 +104,7 @@ export type ResultJson =
       readonly issue: number;
       readonly outcome: "stopped";
       readonly stop: StopKind;
-      readonly stage: Stage;
+      readonly stage: StageId;
       readonly status: IssueStatus;
       readonly message: string | null;
       /** The draft PR, once the ship opened it. */
@@ -207,7 +240,9 @@ export const formatState = (state: IssueState): string[] => {
   const reason = needsYouReason(state);
   const lines = [
     `#${state.issueNumber}: ${state.stage} (${state.status})`,
-    `  loops: check ${state.loops.check}, review ${state.loops.review}`
+    `  loops: ${loopSteps(state.flowSnapshot)
+      .map((step) => `${step.id} ${state.loops[step.id] ?? 0}`)
+      .join(", ")}`
   ];
   if (state.branch) lines.push(`  branch: ${state.branch}`);
   if (state.worktreePath) lines.push(`  worktree: ${state.worktreePath}`);

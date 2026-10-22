@@ -187,6 +187,9 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
           : { kind: "text", text: commitSha.slice(0, 7) }
       );
     }
+    default:
+      // A step of a flow with its own steps: no tile of its own yet.
+      return tile("result", "desk.inspector.kpi.lastRun", { kind: "none" });
   }
 }
 

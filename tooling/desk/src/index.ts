@@ -8,12 +8,18 @@ export {
 } from "./engine/pipeline.runner";
 export {
   loadRegistry,
-  type DefinitionSource,
   type LoadRegistryInput,
   type Registry,
   type RegistryEntry,
   type RegistryProblem
 } from "./registry/registry.load";
+export {
+  DEFAULT_FLOW_ID,
+  builtinFlowSnapshot,
+  readInstalledCapabilities,
+  resolveFlowSnapshot,
+  type FlowSnapshotResult
+} from "./registry/registry.snapshot";
 export { renameBranchForPlan, type BranchRename } from "./engine/pipeline.branch";
 export { createScheduler, type Scheduler } from "./engine/pipeline.scheduler";
 export {

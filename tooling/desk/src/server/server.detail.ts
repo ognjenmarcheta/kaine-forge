@@ -6,10 +6,13 @@ import { resumeLine } from "../agents/agent.resume";
 import { checkReportSchema, type CheckReport } from "../check/check.contract";
 import {
   DEFAULT_LOOP_LIMITS,
+  agentOf,
   buildFlowModel,
+  isShipGate,
   builderOutputSchema,
   providerSchema,
   type AgentSession,
+  type FlowDefinitionView,
   type CheckSummary,
   type ContractProgress,
   type IssueDetail,
@@ -42,7 +45,7 @@ export interface DetailDeps {
   readonly currentDiffHash?: ((state: IssueState) => Promise<string | null>) | undefined;
   /** `runs.jsonl`. Absent: the detail shows no runs. */
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
-  /** `maxPrRounds` of the config. Absent: the default. */
+  /** `maxPrRounds` of the config, for an issue whose flow has no pr-wait step. Absent: the default. */
   readonly prRoundLimit?: number | undefined;
 }
 
@@ -152,6 +155,8 @@ export const summarizeResult = async (
   const contract =
     ticket.status === "ok" ? parseContractProgress(ticket.bytes.toString("utf8")) : null;
   const flow = buildFlowModel(state, deps.clock.now().getTime());
+  const snapshot = state.flowSnapshot;
+  const prWait = snapshot.flow.steps.find((step) => step.kind === "pr-wait");
   return {
     readable: true,
     issueNumber,
@@ -163,7 +168,10 @@ export const summarizeResult = async (
     branch: state.branch,
     loops: state.loops,
     prRound: state.prRounds ?? 0,
-    prRoundLimit: deps.prRoundLimit ?? DEFAULT_LOOP_LIMITS.prRounds,
+    prRoundLimit:
+      prWait?.kind === "pr-wait"
+        ? prWait.maxRounds
+        : (deps.prRoundLimit ?? DEFAULT_LOOP_LIMITS.prRounds),
     needsYouReason: needsYouReason(state),
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
@@ -175,6 +183,9 @@ export const summarizeResult = async (
     paused: state.pauseRequested === true,
     pausedAt: state.pausedAt ?? null,
     planRisk: plan?.risk ?? null,
+    flowId: snapshot.flow.id,
+    flowName: snapshot.flow.name,
+    flowHash: snapshot.hash,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -261,7 +272,7 @@ const shipReadiness = async (
   check: CheckSummary | null,
   review: ReviewSummary | null
 ): Promise<ShipReadiness> => {
-  const atGate = state.stage === "pr-review";
+  const atGate = isShipGate(state.flowSnapshot, state.stage);
   const checkPassed = check === null ? null : check.passed;
   const reviewApproved =
     review === null ? null : review.verdict === "approve" && review.blocking === 0;
@@ -295,6 +306,26 @@ export type DetailResult =
   | { readonly status: "ok"; readonly detail: IssueDetail }
   | { readonly status: "missing" }
   | { readonly status: "unreadable"; readonly summary: IssueSummary };
+
+/** The steps of the issue's flow snapshot, with their labels and agents. */
+const flowDefinitionOf = (state: IssueState): FlowDefinitionView => {
+  const snapshot = state.flowSnapshot;
+  return {
+    id: snapshot.flow.id,
+    name: snapshot.flow.name,
+    hash: snapshot.hash,
+    source: snapshot.flowSource,
+    steps: snapshot.flow.steps.map((step) => {
+      const agent = step.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+      return {
+        id: step.id,
+        label: step.label,
+        kind: step.kind,
+        agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output }
+      };
+    })
+  };
+};
 
 /** Everything the issue page shows, from the state file and the artifacts. */
 export const buildIssueDetail = async (
@@ -334,6 +365,7 @@ export const buildIssueDetail = async (
       summary,
       state,
       flow: buildFlowModel(state, deps.clock.now().getTime()),
+      flowDefinition: flowDefinitionOf(state),
       artifacts,
       contract:
         ticket.status === "ok" ? parseContractProgress(ticket.bytes.toString("utf8")) : null,

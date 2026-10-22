@@ -83,7 +83,7 @@ export function matchesFilter(
     case "running":
       return issueStatusOf(summary).group === filter;
     case "loops":
-      return summary.readable && summary.loops.check + summary.loops.review > 0;
+      return summary.readable && Object.values(summary.loops).some((count) => count > 0);
     case "cost":
       return (costs.get(summary.issueNumber) ?? 0) > COST_FILTER_USD;
   }

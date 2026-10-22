@@ -3,7 +3,7 @@ import type {
   IssueDetail,
   ReviewSummary,
   RunRecord,
-  Stage
+  StageId
 } from "@repo/desk/contracts";
 
 import type { DiffFile } from "../artifacts/artifact.diffstat";
@@ -57,7 +57,7 @@ export type IncidentCause = NonNullable<RunRecord["failureKind"]> | "repeat";
 
 export interface Incident {
   /** The stage that stopped: the one `continue` runs again. */
-  readonly stage: Stage | null;
+  readonly stage: StageId | null;
   /** The engine's reason, as it wrote it. */
   readonly reason: string | null;
   readonly cause: IncidentCause | null;
@@ -75,7 +75,7 @@ export function incidentOf(detail: IssueDetail): Incident {
   if (latest !== undefined && !latest.ok && latest.failureKind !== null) {
     return { stage, reason, cause: latest.failureKind };
   }
-  const repeated = state.loops.check >= 2 && state.lastCheckFingerprint !== null;
+  const repeated = (state.loops.check ?? 0) >= 2 && state.lastCheckFingerprint !== null;
   return { stage, reason, cause: repeated ? "repeat" : null };
 }
 

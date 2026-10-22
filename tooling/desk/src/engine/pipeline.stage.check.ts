@@ -1,6 +1,6 @@
 import type { CheckReport } from "../check";
 import { checkLessons, recordCheckoutLessons } from "./pipeline.lessons";
-import type { StageHandler } from "./pipeline.types";
+import type { CheckStep, StageContext, StageOutcome } from "./pipeline.types";
 import { fenceUntrusted } from "../github/github.authorization";
 import { selectIsolation } from "../isolation/isolation.select";
 import { boundedTail } from "../process/process.output";
@@ -21,8 +21,12 @@ export const checkFailureText = (report: CheckReport): string => {
   return parts.join("\n\n").slice(0, TOTAL_CHARS);
 };
 
-/** Check: the engine runs `pnpm generate` and the configured checks. No agent is involved. */
-export const checkStage: StageHandler = async (context) => {
+/**
+ * Check: the engine runs `pnpm generate` and the step's checks: a command set of the desk
+ * config by name, or the step's own commands. No agent is involved. A failure goes to the
+ * step's loop-back target.
+ */
+export const checkStage = async (context: StageContext, step: CheckStep): Promise<StageOutcome> => {
   const { deps } = context;
   const state = context.state();
   if (state.worktreePath === null || state.baseSha === null || state.baseSha === undefined) {
@@ -35,6 +39,18 @@ export const checkStage: StageHandler = async (context) => {
   const isolation = selectIsolation(deps, state);
   if (!isolation.ok) return { kind: "needs-you", reason: isolation.reason };
 
+  // The step's commands run as the loop set, so the report lands where the review reads it.
+  const config =
+    step.commands === "loop"
+      ? deps.config
+      : {
+          ...deps.config,
+          checks: {
+            ...deps.config.checks,
+            loop:
+              typeof step.commands === "string" ? deps.config.checks[step.commands] : step.commands
+          }
+        };
   let report: CheckReport;
   try {
     report = await context.scheduler.check.run(() =>
@@ -42,7 +58,7 @@ export const checkStage: StageHandler = async (context) => {
         issue: context.issue,
         worktree,
         kind: "loop",
-        config: deps.config,
+        config,
         exec: deps.exec,
         baseSha,
         artifactsDir: context.artifactsDir,
@@ -59,7 +75,7 @@ export const checkStage: StageHandler = async (context) => {
   if (report.passed) {
     return {
       kind: "trigger",
-      trigger: { type: "check-pass" },
+      trigger: { type: "check-result", result: "pass" },
       event: "check-passed",
       note: `${report.steps.length} step(s) passed`
     };
@@ -68,14 +84,14 @@ export const checkStage: StageHandler = async (context) => {
   const failure = checkFailureText(report);
   return {
     kind: "trigger",
-    trigger: { type: "check-fail", fingerprint: report.fingerprint ?? "unknown" },
+    trigger: { type: "check-result", result: "fail", fingerprint: report.fingerprint ?? "unknown" },
     event: "check-failed",
     note: report.generatedDrift
       ? "pnpm generate changed the tree"
       : `fingerprint ${(report.fingerprint ?? "unknown").slice(0, 12)}`,
     patch: {
       pendingFeedback: {
-        target: "build",
+        target: step.loopBack?.to ?? step.id,
         source: "check",
         text: `The engine ran the checks after your change and they failed. Fix the root causes. Never weaken a lint rule or skip or delete a test to pass.\n\n${fenceUntrusted(failure, "check run")}`
       }
