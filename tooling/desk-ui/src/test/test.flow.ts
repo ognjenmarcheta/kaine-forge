@@ -8,7 +8,7 @@ import { flowStepViewsOf, type FlowDefinitionView, type FlowSnapshot } from "@re
 const agent = (
   id: string,
   name: string,
-  output: "plan" | "change" | "review",
+  output: "plan" | "change" | "review" | "report",
   provider: "claude" | "codex"
 ): FlowSnapshot["agents"][number] => ({
   id,
@@ -107,5 +107,30 @@ export const CUSTOM_FLOW_SNAPSHOT: FlowSnapshot = {
   },
   agents: DEFAULT_FLOW_SNAPSHOT.agents.filter((entry) => entry.id !== "reviewer"),
   hash: "1".repeat(64),
+  flowSource: "repo"
+};
+
+/**
+ * A repository research flow that changes nothing: a plan, its approval, then two report agents.
+ * The editor's report, the last one, is the flow's result.
+ */
+export const RESEARCH_FLOW_SNAPSHOT: FlowSnapshot = {
+  flow: {
+    id: "research",
+    name: "Research",
+    description: "Plan, approve, research, and summarize.",
+    steps: [
+      { id: "plan", kind: "agent", label: "Plan", agent: "planner" },
+      { id: "plan-gate", kind: "gate", label: "Approve the plan", sendBack: ["plan"] },
+      { id: "research", kind: "agent", label: "Research", agent: "researcher" },
+      { id: "summarize", kind: "agent", label: "Summarize", agent: "editor" }
+    ]
+  },
+  agents: [
+    agent("planner", "Planner", "plan", "claude"),
+    agent("researcher", "Researcher", "report", "claude"),
+    agent("editor", "Editor", "report", "claude")
+  ],
+  hash: "2".repeat(64),
   flowSource: "repo"
 };

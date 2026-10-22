@@ -32,6 +32,7 @@ import {
   issueUrl,
   intakeStoppedIssue,
   draftArtifact,
+  finishedResearchIssue,
   type SeedIssue
 } from "./fixture.data";
 import { createFixtureRegistry, type FixtureRegistry } from "./fixture.registry";
@@ -54,7 +55,8 @@ interface Call {
 }
 
 interface ResetOptions {
-  readonly scenario?: "board" | "empty";
+  /** `research`: only #107, a research flow that finished with two reports. */
+  readonly scenario?: "board" | "empty" | "research";
   /** The ship dry run reports a failing gate rule. */
   readonly failShipGate?: boolean;
 }
@@ -418,7 +420,13 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
   root = await mkdtemp(path.join(tmpdir(), "desk-ui-fixture-"));
   calls = [];
   const store = createIssueStore(path.join(root, "state"));
-  for (const issue of options.scenario === "empty" ? [] : scenarioBoard()) {
+  const seeds =
+    options.scenario === "empty"
+      ? []
+      : options.scenario === "research"
+        ? [finishedResearchIssue(107, "Find the pages that describe a fixed pipeline")]
+        : scenarioBoard();
+  for (const issue of seeds) {
     await writeSeed(store, issue);
   }
   desk = await launchDeskServer({
@@ -594,7 +602,9 @@ createServer((request, response) => {
           response,
           200,
           await reset({
-            ...(body["scenario"] === "empty" ? { scenario: "empty" as const } : {}),
+            ...(body["scenario"] === "empty" || body["scenario"] === "research"
+              ? { scenario: body["scenario"] }
+              : {}),
             ...(body["failShipGate"] === true ? { failShipGate: true } : {})
           })
         );

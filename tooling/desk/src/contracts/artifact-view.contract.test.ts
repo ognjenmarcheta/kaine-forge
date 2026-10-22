@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { REVIEW_SECTIONS } from "./agent-output.contract";
+import { REVIEW_SECTIONS, reportOutputSchema } from "./agent-output.contract";
 import {
   checkReportViewSchema,
+  reportViewSchema,
   reviewArtifactViewSchema,
   shipPlanViewSchema
 } from "./artifact-view.contract";
@@ -117,5 +118,14 @@ describe("artifact view schemas", () => {
         ]
       }
     });
+  });
+
+  it("read a report the engine schema accepts", () => {
+    const stored = reportOutputSchema.parse({
+      summary: "Three pages still describe a fixed pipeline.",
+      findings: ["docs/agents/agent-desk.md:3 says the desk runs one fixed sequence."],
+      plainLanguage: "Three help pages are out of date."
+    });
+    expect(reportViewSchema.parse(JSON.parse(JSON.stringify(stored)))).toEqual(stored);
   });
 });

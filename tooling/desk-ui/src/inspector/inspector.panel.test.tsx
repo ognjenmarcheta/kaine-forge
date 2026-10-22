@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { StageSheet } from "./inspector.panel";
 import {
   buildArtifact,
+  finishedResearchIssue,
   planArtifact,
   reviewArtifact,
   scenarioBoard,
@@ -170,6 +171,33 @@ describe("StageSheet", () => {
     expect(region().textContent).toContain("Nit: 1");
     const acceptance = await screen.findByRole("list", { name: "Acceptance criteria" });
     expect(acceptance.textContent).toContain("Empty board explains how to start");
+  });
+
+  it("shows a report step's full result: the report its agent wrote", async () => {
+    const seed = finishedResearchIssue(107, "Find the old pages");
+    const { detail, summary } = makeDetail(seed.state);
+    renderDesk(
+      <StageSheet
+        detail={detail}
+        summary={summary}
+        flow={detail.flow}
+        nodeId="research"
+        revision="r1"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+      fakeApi({
+        artifactJson: (_issue, id, schema) => {
+          const text = seed.artifacts[`${id}.json`];
+          return text === undefined
+            ? Promise.reject(new Error(`no artifact ${id}`))
+            : Promise.resolve(schema.parse(JSON.parse(text)));
+        }
+      })
+    );
+    const finding = await within(region()).findByText(/says the desk runs one fixed sequence/);
+    expect(finding.closest("section")?.querySelector("h3")?.textContent).toBe("Findings");
+    expect(region().textContent).toContain("Two help pages are out of date.");
   });
 
   it("shows what each agent run got: removed items with reasons, notes, and runs without a receipt", async () => {

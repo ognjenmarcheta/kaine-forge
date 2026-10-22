@@ -1,11 +1,12 @@
 import type { ArtifactId, FlowNode, IssueDetail } from "@repo/desk/contracts";
 import type { ReactNode } from "react";
 
-import { stageRoleOf } from "./inspector.model";
+import { ranReports, stageRoleOf } from "./inspector.model";
 import { BuildArtifact } from "../artifacts/artifact.build";
 import { CheckArtifact } from "../artifacts/artifact.check";
 import { DiffArtifact } from "../artifacts/artifact.diff";
 import { PlanArtifact } from "../artifacts/artifact.plan";
+import { ReportArtifact } from "../artifacts/artifact.report";
 import { ReviewView } from "../artifacts/artifact.review";
 import { TicketArtifact } from "../artifacts/artifact.ticket";
 import { useT } from "../i18n/i18n.t";
@@ -98,6 +99,15 @@ export function StageResult({
     case "ship":
     case "pr-wait":
       return diff;
+    case "report": {
+      // A report step that has not run has written nothing yet.
+      const ran = ranReports(detail).find((report) => report.stepId === node.id);
+      return ran === undefined ? (
+        <Muted>{t("desk.artifact.missing")}</Muted>
+      ) : (
+        <ReportArtifact issueNumber={issueNumber} agentId={ran.agentId} revision={revision} />
+      );
+    }
     default:
       return null;
   }

@@ -45,6 +45,21 @@ type StageRole = StepRole | "ticket";
 export const stageRoleOf = (detail: IssueDetail, id: FlowNodeId): StageRole | null =>
   id === TICKET_NODE ? "ticket" : stepRoleOf(issueFlowOfView(detail.flowDefinition), id);
 
+/** A report step that has run, and the agent whose `report-<agent id>.json` holds its result. */
+export interface RanReport {
+  readonly stepId: FlowNodeId;
+  readonly agentId: string;
+}
+
+/** The report steps of the issue's flow that have run, in flow order. */
+export const ranReports = (detail: IssueDetail): RanReport[] =>
+  detail.flowDefinition.steps.flatMap((step) =>
+    step.agent?.output === "report" &&
+    detail.flow.nodes.some((node) => node.id === step.id && node.status === "passed")
+      ? [{ stepId: step.id, agentId: step.agent.id }]
+      : []
+  );
+
 // --- text -------------------------------------------------------------------
 
 /** A translation key with its values, or engine text shown as it is. */

@@ -475,7 +475,12 @@ describe("GET /api/issues/:n/artifacts/:id", () => {
     { id: "review", file: "review.json", type: "application/json; charset=utf-8" },
     { id: "diff", file: "diff.patch", type: "text/plain; charset=utf-8" },
     { id: "pr-body", file: "pr-body.md", type: "text/markdown; charset=utf-8" },
-    { id: "ship-plan", file: "ship-plan.json", type: "application/json; charset=utf-8" }
+    { id: "ship-plan", file: "ship-plan.json", type: "application/json; charset=utf-8" },
+    {
+      id: "report-researcher",
+      file: "report-researcher.json",
+      type: "application/json; charset=utf-8"
+    }
   ])("returns $file raw as $type", async ({ id, file, type }) => {
     await harness.seed(1);
     const content = `<script>alert("${id}")</script>\n**raw**`;

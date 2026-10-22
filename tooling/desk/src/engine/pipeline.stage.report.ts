@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 
-import { reportOutputSchema } from "../contracts";
+import { reportArtifactId, reportOutputSchema } from "../contracts";
 import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import { ARTIFACTS, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { workspacesForPlan } from "./pipeline.stage.build";
@@ -46,7 +46,7 @@ export const reportStage: AgentStepHandler = async (context, step, agent) => {
   }
 
   const report = run.result.structured;
-  await writeArtifactJson(context.artifactsDir, `report-${agent.id}.json`, report);
+  await writeArtifactJson(context.artifactsDir, `${reportArtifactId(agent.id)}.json`, report);
   return {
     kind: "complete",
     event: "report-ready",

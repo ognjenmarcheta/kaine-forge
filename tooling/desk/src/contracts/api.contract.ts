@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  DEFINITION_ID_PATTERN,
   agentDefinitionSchema,
   agentOutputKindSchema,
   definitionIdSchema
@@ -111,6 +112,24 @@ export const ARTIFACT_IDS = [
 ] as const;
 export const artifactIdSchema = z.enum(ARTIFACT_IDS);
 export type ArtifactId = z.infer<typeof artifactIdSchema>;
+
+/**
+ * What a report agent wrote: `report-<agent id>`, served from `report-<agent id>.json`. The
+ * agent id is a definition id, so the client still names no path.
+ */
+export type ReportArtifactId = `report-${string}`;
+const REPORT_PREFIX = "report-";
+export const reportArtifactId = (agentId: string): ReportArtifactId => `${REPORT_PREFIX}${agentId}`;
+
+/** The agent of a report artifact id, or `null` when `name` is not one. */
+export const reportAgentIdOf = (name: string): string | null => {
+  if (!name.startsWith(REPORT_PREFIX)) return null;
+  const agentId = name.slice(REPORT_PREFIX.length);
+  return DEFINITION_ID_PATTERN.test(agentId) ? agentId : null;
+};
+
+/** Every artifact a client can read: a fixed one, or a report. */
+export type ArtifactName = ArtifactId | ReportArtifactId;
 
 export const artifactEntrySchema = z
   .object({

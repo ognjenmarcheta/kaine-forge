@@ -11,7 +11,7 @@ type Call = z.infer<typeof callList>[number];
 interface Desk {
   /** Reset the fixture data and open the local URL in a fresh page. */
   readonly open: (
-    options?: { scenario?: "board" | "empty"; failShipGate?: boolean },
+    options?: { scenario?: "board" | "empty" | "research"; failShipGate?: boolean },
     path?: string
   ) => Promise<string>;
   readonly calls: () => Promise<Call[]>;
@@ -629,6 +629,17 @@ test("blocks the ship when a gate rule fails", async ({ page, desk }) => {
   const dialog = page.getByRole("dialog", { name: "Ship to a draft pull request" });
   await expect(dialog).toContainText("The worktree changed after the checks ran.");
   await expect(dialog.getByRole("button", { name: "Continue to confirm" })).toBeDisabled();
+});
+
+test("shows the report of a finished research flow on its issue page", async ({ page, desk }) => {
+  await desk.open({ scenario: "research" }, "?issue=107");
+  await expect(page.getByRole("heading", { name: "Result of Summarize" })).toBeVisible();
+  await expect(page.getByText("docs/agents/agent-desk.md:240-255")).toBeVisible();
+  await expect(page.getByText("Two help pages need new text about flows.")).toBeVisible();
+  // The report before it opens in the side sheet.
+  await page.getByRole("button", { name: "Research", exact: true }).click();
+  await expect(sheet(page).getByRole("heading", { name: "Research", level: 2 })).toBeVisible();
+  await expect(sheet(page)).toContainText("Two help pages are out of date.");
 });
 
 test("continues an issue that needs the engineer", async ({ page, desk }) => {

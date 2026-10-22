@@ -14,7 +14,7 @@ import {
   type StageId
 } from "@repo/desk/contracts";
 
-import { DEFAULT_FLOW_SNAPSHOT } from "../src/test/test.flow";
+import { DEFAULT_FLOW_SNAPSHOT, RESEARCH_FLOW_SNAPSHOT } from "../src/test/test.flow";
 
 /**
  * Issues, artifacts, and history that the fixture server serves. The data is real
@@ -426,6 +426,49 @@ const shippedIssue = (issueNumber: number, title: string): SeedIssue => {
       "check-report.json": checkReportArtifact(true),
       "review.json": reviewArtifact(),
       "diff.patch": DIFF_PATCH
+    }
+  };
+};
+
+/**
+ * A research flow that ran to its end: two report agents wrote their reports and nothing shipped.
+ * The editor's report, the last, is what the finished card shows.
+ */
+export const finishedResearchIssue = (issueNumber: number, title: string): SeedIssue => {
+  const history = [
+    ...toPlan(),
+    event("plan-gate", "plan-approved"),
+    event("research", "stage-started"),
+    event("research", "report-ready", "2 finding(s)"),
+    event("summarize", "stage-started"),
+    event("summarize", "report-ready", "1 finding(s)"),
+    event("finished", "flow-finished")
+  ];
+  return {
+    title,
+    labels: ["ready-for-agent"],
+    state: base(
+      issueNumber,
+      history,
+      { stage: "finished", status: "done", loops: freshLoops(RESEARCH_FLOW_SNAPSHOT) },
+      RESEARCH_FLOW_SNAPSHOT
+    ),
+    artifacts: {
+      "ticket.md": ticketText(title),
+      "plan.json": planArtifact(),
+      "report-researcher.json": json({
+        summary: "Two pages still describe a fixed pipeline.",
+        findings: [
+          "docs/agents/agent-desk.md:3 says the desk runs one fixed sequence.",
+          "docs/agents/agent-desk-api.md:78 lists only the built-in stages."
+        ],
+        plainLanguage: "Two help pages are out of date."
+      }),
+      "report-editor.json": json({
+        summary: "Update the two desk guides so they describe flows as data.",
+        findings: ["Rewrite the stage table at docs/agents/agent-desk.md:240-255."],
+        plainLanguage: "Two help pages need new text about flows."
+      })
     }
   };
 };

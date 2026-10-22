@@ -36,7 +36,7 @@ import {
   type ServerRunner,
   type Settled
 } from "./server.actions";
-import { isArtifactId, ARTIFACT_SPECS, readArtifact } from "./server.artifacts";
+import { artifactContentType, isArtifactName, readArtifact } from "./server.artifacts";
 import { DEFAULT_MAX_BODY_BYTES, readJsonBody } from "./server.body";
 import type { DefinitionViews } from "./server.definitions";
 import { buildIssueDetail, summarizeResult, type DetailDeps } from "./server.detail";
@@ -690,12 +690,12 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     issueNumber: number,
     name: string | undefined
   ): Promise<void> => {
-    if (name === undefined || !isArtifactId(name)) throw new HttpError("not-found");
+    if (name === undefined || !isArtifactName(name)) throw new HttpError("not-found");
     await readableState(issueNumber);
     const read = await readArtifact(deps.store, issueNumber, name);
     if (read.status === "missing") throw new HttpError("artifact-missing");
     response.writeHead(200, {
-      "Content-Type": ARTIFACT_SPECS[name].contentType,
+      "Content-Type": artifactContentType(name),
       "Content-Length": read.bytes.length,
       ...(read.truncated ? { "X-Desk-Truncated": "1" } : {})
     });

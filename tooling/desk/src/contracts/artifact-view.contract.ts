@@ -3,10 +3,12 @@ import { z } from "zod";
 /**
  * What a browser UI reads from engine files that the issue detail does not
  * carry: `check-report.json` (the tail of each step), `ship-plan.json` (the
- * dry run of the ship step), and `review.json` (the acceptance status). These are the fields the UI shows, nothing
- * more. They are not strict, so a field the engine adds later does not break
- * the page. A test in this package keeps them compatible with the engine
- * schemas (`checkReportSchema`, `shipPlanSchema`, `reviewArtifactSchema`), which stay the source of
+ * dry run of the ship step), `review.json` (the acceptance status), and
+ * `report-<agent id>.json` (what a report agent wrote). These are the fields
+ * the UI shows, nothing more. They are not strict, so a field the engine adds
+ * later does not break the page. A test in this package keeps them compatible
+ * with the engine schemas (`checkReportSchema`, `shipPlanSchema`,
+ * `reviewArtifactSchema`, `reportOutputSchema`), which stay the source of
  * truth for the files.
  */
 
@@ -59,3 +61,11 @@ export const reviewArtifactViewSchema = z.object({
   })
 });
 export type ReviewArtifactView = z.infer<typeof reviewArtifactViewSchema>;
+
+/** What a report agent wrote (`report-<agent id>.json`): the deliverable of a report step. */
+export const reportViewSchema = z.object({
+  summary: z.string(),
+  findings: z.array(z.string()),
+  plainLanguage: z.string()
+});
+export type ReportView = z.infer<typeof reportViewSchema>;

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
 import { GatePanel } from "./gate.panel";
-import { planArtifact } from "../../tests/fixture.data";
+import { finishedResearchIssue, planArtifact } from "../../tests/fixture.data";
 import type { ActionSettled } from "../state/desk.provider";
 import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
@@ -388,6 +388,38 @@ describe("GatePanel after the ship", () => {
     expect(screen.getByRole("heading", { name: "Finished" })).toBeTruthy();
     expect(screen.getByText(/Every step ran; nothing was shipped/)).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("at the end of a research flow: shows the last report under its step, and opens the one before it", async () => {
+    const seed = finishedResearchIssue(7, "Find the old pages");
+    const { detail, summary } = makeDetail(seed.state);
+    const onOpenResult = vi.fn();
+    renderDesk(
+      <GatePanel
+        detail={detail}
+        summary={summary}
+        revision="r1"
+        actions={actionsOf()}
+        onOpenResult={onOpenResult}
+        onShowTrace={vi.fn()}
+      />,
+      fakeApi({
+        artifactJson: (_issue, id, schema) => {
+          const text = seed.artifacts[`${id}.json`];
+          return text === undefined
+            ? Promise.reject(new Error(`no artifact ${id}`))
+            : Promise.resolve(schema.parse(JSON.parse(text)));
+        }
+      })
+    );
+    expect(screen.getByRole("heading", { name: "Result of Summarize" })).toBeTruthy();
+    const finding = await screen.findByText(/Rewrite the stage table/);
+    expect(within(finding).getByText("docs/agents/agent-desk.md:240-255").tagName).toBe("CODE");
+    expect(screen.getByText("Two help pages need new text about flows.")).toBeTruthy();
+    // The researcher's report is one click away, not on the card.
+    expect(screen.queryByText("Two help pages are out of date.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Research" }));
+    expect(onOpenResult).toHaveBeenCalledWith("research");
   });
 
   it.each(["pr-open", "shipped"] as const)(

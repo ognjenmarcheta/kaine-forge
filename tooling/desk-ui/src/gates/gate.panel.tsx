@@ -10,9 +10,11 @@ import { IntakeGate, NeedsYouGate } from "./gate.needs";
 import { PlanGate } from "./gate.plan";
 import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
+import { ReportArtifact } from "../artifacts/artifact.report";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
 import { issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
+import { ranReports } from "../inspector/inspector.model";
 import { formatClock, safeHttpUrl } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
@@ -150,14 +152,57 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
   );
 }
 
+/**
+ * A finished flow's result: the last report that ran, on the card, and a button for each report
+ * before it, which opens in the side sheet. Nothing when the flow ran no report.
+ */
+function FinishedReports({ detail, revision, onOpenResult }: GateBodyProps) {
+  const t = useT();
+  const names = useStageNames();
+  const reports = ranReports(detail);
+  const last = reports.at(-1);
+  if (last === undefined) return null;
+  const others = reports.slice(0, -1);
+  return (
+    <>
+      <section className="desk-sec">
+        <h3>{t("desk.gate.finished.report", { step: names.stage(last.stepId) })}</h3>
+        <ReportArtifact
+          issueNumber={detail.summary.issueNumber}
+          agentId={last.agentId}
+          revision={revision}
+        />
+      </section>
+      {others.length > 0 && (
+        <section className="desk-sec">
+          <h3>{t("desk.gate.finished.otherReports")}</h3>
+          <div className="desk-gate__row">
+            {others.map((report) => (
+              <Button
+                key={report.stepId}
+                appearance="secondary"
+                onClick={() => onOpenResult(report.stepId)}
+              >
+                {names.stage(report.stepId)}
+              </Button>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
 /** Shipped, cancelled or finished: what that means, and the pull request when there is one. */
-function EndedGate({ detail, summary }: GateBodyProps) {
+function EndedGate(props: GateBodyProps) {
+  const { detail, summary } = props;
   const t = useT();
   const mode = gateModeOf(summary);
   const prUrl = safeHttpUrl(detail.state.prUrl);
   return (
     <>
       <p className="desk-plain">{t(`desk.gate.intro.${mode}`)}</p>
+      {mode === "finished" && <FinishedReports {...props} />}
       {prUrl !== null && (
         <p>
           <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_LINK}>

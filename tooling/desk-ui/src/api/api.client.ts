@@ -28,7 +28,7 @@ import {
   type AgentList,
   type AgentView,
   type ApiErrorCode,
-  type ArtifactId,
+  type ArtifactName,
   type DefinitionKind,
   type DefinitionWriteResult,
   type FlowDefinition,
@@ -103,10 +103,10 @@ export interface DeskApi {
   readonly github: (refresh: boolean) => Promise<GithubLists>;
   readonly issues: () => Promise<IssueSummary[]>;
   readonly issue: (issueNumber: number) => Promise<IssueDetail>;
-  readonly artifactText: (issueNumber: number, id: ArtifactId) => Promise<string>;
+  readonly artifactText: (issueNumber: number, id: ArtifactName) => Promise<string>;
   readonly artifactJson: <T>(
     issueNumber: number,
-    id: ArtifactId,
+    id: ArtifactName,
     schema: z.ZodType<T>
   ) => Promise<T>;
   readonly log: (issueNumber: number, after: number) => Promise<LogResponse>;

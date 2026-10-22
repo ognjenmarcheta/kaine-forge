@@ -453,7 +453,14 @@ describe("request targets and traversal", () => {
       "diff.patch",
       "events.jsonl",
       "TICKET",
-      "%2fetc%2fpasswd"
+      "%2fetc%2fpasswd",
+      "report-",
+      "report-..%2f..%2fsecret",
+      "report-%2e%2e%2fsecret",
+      "report-..",
+      "report-Researcher",
+      "report-researcher.json",
+      "report-a%2fb"
     ]) {
       const reply = await api.get(`/api/issues/1/artifacts/${name}`);
       expect(reply.status, name).toBe(404);
