@@ -14,7 +14,13 @@ describe("parseRoute", () => {
     ["?issue=1.5", { view: "board" }],
     ["?issue=abc", { view: "board" }],
     ["?issue=99999999999", { view: "board" }],
-    ["?view=nope", { view: "board" }]
+    ["?view=nope", { view: "board" }],
+    ["?view=flows", { view: "flows" }],
+    ["?view=agents", { view: "agents" }],
+    ["?view=agents&agent=ui-builder", { view: "agent", agentId: "ui-builder" }],
+    ["?view=agents&new=1", { view: "agent", agentId: null }],
+    ["?view=agents&agent=Not%20an%20id", { view: "agents" }],
+    ["?view=agents&agent=..%2Fsecrets", { view: "agents" }]
   ])("reads %j", (search, route) => {
     expect(parseRoute(search)).toEqual(route);
   });
@@ -24,6 +30,10 @@ describe("parseRoute", () => {
       { view: "board" } as const,
       { view: "health" } as const,
       { view: "stats" } as const,
+      { view: "flows" } as const,
+      { view: "agents" } as const,
+      { view: "agent", agentId: "ui-builder" } as const,
+      { view: "agent", agentId: null } as const,
       { view: "issue", issueNumber: 12 } as const
     ]) {
       expect(parseRoute(routeHref(route))).toEqual(route);

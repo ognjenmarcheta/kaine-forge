@@ -2,7 +2,7 @@ import type { IssueSummary } from "@repo/desk/contracts";
 import { Button, Input, Modal } from "@repo/ui";
 import { Fragment, useEffect, useId, useState, type KeyboardEvent } from "react";
 
-import { createRegistry, shortcutHints, useRegister } from "./shell.keys";
+import { createRegistry, shortcutHints, useRegister, type GoTarget } from "./shell.keys";
 import { useRouter } from "./shell.router";
 import { useT, type Translate } from "../i18n/i18n.t";
 import { useDesk } from "../state/desk.provider";
@@ -135,7 +135,7 @@ function useEntries(): Entry[] {
     detail: issueDetail(t, summary),
     run: () => navigate({ view: "issue", issueNumber: summary.issueNumber })
   });
-  const go = (id: "board" | "health" | "stats", key: string, hint: string): PaletteCommand => ({
+  const go = (id: GoTarget, key: string, hint: string): PaletteCommand => ({
     id: `go-${id}`,
     label: t(key),
     hint,
@@ -164,6 +164,8 @@ function useEntries(): Entry[] {
     ),
     ...entries("goto", [
       go("board", "desk.nav.board", "G B"),
+      go("flows", "desk.nav.flows", "G F"),
+      go("agents", "desk.nav.agents", "G A"),
       go("health", "desk.nav.health", "G H"),
       go("stats", "desk.nav.stats", "G R")
     ]),

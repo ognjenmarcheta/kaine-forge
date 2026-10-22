@@ -34,11 +34,12 @@ function Rules({ title, rules }: { readonly title: string; readonly rules: reado
 }
 
 /**
- * The receipt of one run: what it actually got after the policy floor, the installed servers
- * and skills, the provider, and the isolation narrowed what its agent asked for. Where it ran is
- * said in words: isolated in a container, or on the owner's machine.
+ * The receipt of one run, or of an agent's next run on the Agents page: what it gets after the
+ * policy floor, the installed servers and skills, the provider, and the isolation narrowed what
+ * its agent asked for. Where it runs is said in words: isolated in a container, or on the
+ * owner's machine.
  */
-function CapabilityReceipt({ profile }: { readonly profile: CapabilityProfile }) {
+export function CapabilityReceipt({ profile }: { readonly profile: CapabilityProfile }) {
   const t = useT();
   const isolated = profile.sandbox === "docker";
   const { allow, deny } = profile.tools;

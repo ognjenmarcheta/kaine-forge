@@ -81,6 +81,8 @@ describe("CommandPalette", () => {
       "Show the board as columns",
       "#42 Add an empty statePlan approval · waiting for you",
       "BoardG B",
+      "FlowsG F",
+      "AgentsG A",
       "HealthG H",
       "RunsG R"
     ]);

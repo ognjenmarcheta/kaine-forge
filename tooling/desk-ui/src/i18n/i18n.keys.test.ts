@@ -1,5 +1,6 @@
 import {
   ACTION_NAMES,
+  AGENT_OUTPUT_KINDS,
   AGENT_STAGE_ROLES,
   CAPABILITY_PRESETS,
   CAPABILITY_SANDBOXES,
@@ -12,6 +13,7 @@ import {
   NODE_KINDS,
   NODE_STATUSES,
   PLAN_RISKS,
+  PROVIDERS,
   RUN_FAILURE_KINDS,
   STAGES
 } from "@repo/desk/contracts";
@@ -135,7 +137,11 @@ describe("desk translations", () => {
       "desk.flow.source.": DEFINITION_SOURCES,
       "desk.caps.preset.": CAPABILITY_PRESETS,
       "desk.caps.sandbox.": CAPABILITY_SANDBOXES,
-      "desk.caps.kind.": ["tool", "mcp", "skill"]
+      "desk.caps.kind.": ["tool", "mcp", "skill"],
+      "desk.agents.output.": AGENT_OUTPUT_KINDS,
+      "desk.agents.outputAbout.": AGENT_OUTPUT_KINDS,
+      "desk.agents.provider.": PROVIDERS,
+      "desk.agents.presetAbout.": CAPABILITY_PRESETS
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

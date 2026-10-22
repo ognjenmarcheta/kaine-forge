@@ -64,6 +64,8 @@ export interface ShortcutHint {
 
 export const GLOBAL_SHORTCUTS: readonly ShortcutHint[] = [
   { keys: ["G", "B"], labelKey: "desk.keys.goBoard" },
+  { keys: ["G", "F"], labelKey: "desk.keys.goFlows" },
+  { keys: ["G", "A"], labelKey: "desk.keys.goAgents" },
   { keys: ["G", "H"], labelKey: "desk.keys.goHealth" },
   { keys: ["G", "R"], labelKey: "desk.keys.goRuns" }
 ];
@@ -94,9 +96,15 @@ export const keyLabel = (key: PageKey): string => ARROWS[key] ?? key.toUpperCase
 /** A `G` then one of these keys within this time goes to a page. */
 export const SEQUENCE_MS = 1200;
 
-export type GoTarget = "board" | "health" | "stats";
+export type GoTarget = "board" | "flows" | "agents" | "health" | "stats";
 
-const GO_KEYS: Readonly<Record<string, GoTarget>> = { b: "board", h: "health", r: "stats" };
+const GO_KEYS: Readonly<Record<string, GoTarget>> = {
+  b: "board",
+  f: "flows",
+  a: "agents",
+  h: "health",
+  r: "stats"
+};
 
 /** The person types here: a single key is a letter, not a command. */
 const isTyping = (target: Element): boolean =>

@@ -4578,3 +4578,236 @@ main:focus {
     grid-column: 1 / -1;
   }
 }
+
+/* ── Agents ───────────────────────────────────────────────────────────── */
+
+/* The library: one quiet card for each agent, its facts in a wrapping row. */
+.desk-agents {
+  display: grid;
+  gap: var(--ds-space-150);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-agent {
+  display: grid;
+  gap: var(--ds-space-100);
+  min-width: 0;
+  padding: var(--ds-space-200) var(--ds-space-250);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-250);
+}
+
+.desk-agent__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) var(--ds-space-100);
+  min-width: 0;
+}
+
+.desk-agent__name {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading);
+  overflow-wrap: anywhere;
+}
+
+.desk-agent__id {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-code-small);
+  overflow-wrap: anywhere;
+}
+
+.desk-agent__badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075);
+  font: var(--ds-font-body-small);
+}
+
+.desk-agent__desc {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+.desk-agent__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100) var(--ds-space-300);
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+.desk-agent__meta dt {
+  color: var(--ds-text-subtlest);
+}
+
+.desk-agent__meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.desk-agent__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+}
+
+.desk-agent__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+}
+
+.desk-agent__problems {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding-inline-start: var(--ds-space-200);
+  overflow-wrap: anywhere;
+}
+
+/* The editor: the fields, and beside them on a wide screen what a run gets. */
+.desk-editor {
+  display: grid;
+  gap: var(--ds-space-300);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .desk-editor {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+
+  .desk-editor__aside {
+    position: sticky;
+    inset-block-start: var(--ds-space-300);
+  }
+}
+
+.desk-editor__back {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-editor__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin-block: 0 var(--ds-space-150);
+}
+
+.desk-editor__actions,
+.desk-editor__save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-editor__save {
+  padding-block-start: var(--ds-space-200);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-editor__save p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.desk-editor__preview > h2 {
+  margin-block: 0 var(--ds-space-100);
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-agent-form {
+  display: grid;
+  gap: var(--ds-space-100);
+  min-width: 0;
+}
+
+.desk-agent-form .desk-field > p,
+.desk-agent-form .desk-fieldset > p {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+.desk-agent-form__pair {
+  display: grid;
+  gap: var(--ds-space-100) var(--ds-space-300);
+}
+
+@media (min-width: 40rem) {
+  .desk-agent-form__pair {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.desk-agent-form__count {
+  margin: 0;
+  font: var(--ds-font-body-small);
+  text-align: end;
+}
+
+.desk-flowpick__item[data-disabled="true"] {
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+}
+
+.desk-namelist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--ds-space-100) var(--ds-space-200);
+  margin: var(--ds-space-100) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-mono {
+  font-family: var(--ds-font-family-mono);
+}
+
+.desk-prompt {
+  min-height: 16rem;
+  font: var(--ds-font-code-small);
+  resize: vertical;
+}
+
+/*
+ * A phone or a narrow tablet: the navigation scrolls sideways inside its pill, not the page.
+ * The brand name still gives way first, down to the mark.
+ */
+@media (max-width: 48rem) {
+  .desk-brand {
+    flex-shrink: 100;
+    min-width: calc(var(--ds-space-300) + var(--ds-space-075));
+  }
+
+  .desk-nav {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .desk-topbar__end {
+    flex: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .desk-agent__actions .ui-button,
+  .desk-editor__actions .ui-button,
+  .desk-editor__save .ui-button {
+    min-height: 2.75rem;
+  }
+}

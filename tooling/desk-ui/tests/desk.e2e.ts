@@ -1151,6 +1151,10 @@ test("on a 390 px phone each view fits its loaded content, with 44 px targets on
     "?issue=102": () => expect(page.getByRole("heading", { name: "History" })).toBeVisible(),
     "?view=health": () =>
       expect(page.getByRole("progressbar", { name: "Setup 1 of 3 ready" })).toBeVisible(),
+    "?view=agents&agent=ui-builder": () =>
+      expect(page.getByRole("heading", { name: "What a run gets" })).toBeVisible(),
+    "?view=agents": () =>
+      expect(page.getByRole("heading", { name: "Release notes", level: 2 })).toBeVisible(),
     "?view=stats": () =>
       expect(page.getByRole("heading", { name: "Promoted lessons" })).toBeVisible()
   };
@@ -1246,4 +1250,94 @@ test("keeps the board and an issue usable from the keyboard", async ({ page, des
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
+});
+
+/** One agent of the library, found by its name. */
+const agentRow = (page: Page, name: string) =>
+  page
+    .getByRole("list", { name: "Agents" })
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name, level: 2, exact: true }) });
+
+test("creates a local report agent, and the library lists it as Local", async ({ page, desk }) => {
+  await desk.open({}, "?view=agents");
+  await page.getByRole("link", { name: "New agent" }).click();
+  await expect(page.getByRole("heading", { name: "New agent", level: 1 })).toBeVisible();
+  await page.getByLabel("Id", { exact: true }).fill("release-digest");
+  await page.getByLabel("Name", { exact: true }).fill("Release digest");
+  await page.getByLabel("Description").fill("Sums up the week's merged changes.");
+  await expect(page.getByRole("radio", { name: "Report" })).toBeChecked();
+  await page.getByLabel("Prompt").fill("# Release digest\n\nSum up the merged changes.");
+  await expect(page.getByText("Save to see the resolved profile.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  await expect(page.getByText("/fixture/.ai.local/desk/agents/release-digest.md")).toBeVisible();
+  await expect(page).toHaveURL(/\?view=agents&agent=release-digest$/);
+  await expect(page.getByText("The desk resolved this profile")).toBeVisible();
+
+  await page.getByRole("link", { name: "All agents" }).click();
+  const row = agentRow(page, "Release digest");
+  await expect(row.getByText("Local", { exact: true })).toBeVisible();
+  await expect(row).toContainText("Report");
+});
+
+test("clones the built-in reviewer, guards the unsaved provider change, then saves it", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=agents");
+  await agentRow(page, "Reviewer").getByRole("button", { name: "Clone Reviewer" }).click();
+  const dialog = page.getByRole("dialog", { name: "Clone Reviewer" });
+  await expect(dialog.getByLabel("Id")).toHaveValue("reviewer-copy");
+  await dialog.getByRole("button", { name: "Clone", exact: true }).click();
+
+  await expect(page).toHaveURL(/\?view=agents&agent=reviewer-copy$/);
+  await expect(page.getByRole("heading", { name: "Reviewer (copy)", level: 1 })).toBeVisible();
+  await page.getByRole("radio", { name: "Claude" }).click();
+
+  // An in-page move with unsaved changes asks first; a no keeps the edit.
+  page.once("dialog", (question) => void question.dismiss());
+  await page.getByRole("link", { name: "Board" }).click();
+  await expect(page).toHaveURL(/agent=reviewer-copy$/);
+  await expect(page.getByRole("radio", { name: "Claude" })).toBeChecked();
+
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("/fixture/.ai.local/desk/agents/reviewer-copy.md")).toBeVisible();
+  await page.getByRole("link", { name: "All agents" }).click();
+  await expect(agentRow(page, "Reviewer (copy)")).toContainText("Claude ·");
+  await expect(agentRow(page, "Reviewer")).toContainText("Codex ·");
+});
+
+test("promotes a local agent after a confirmation and names the uncommitted file", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=agents&agent=ui-builder");
+  await page.getByRole("button", { name: "Promote…" }).click();
+  const ask = page.getByRole("dialog", { name: "Promote UI builder to the repository?" });
+  await expect(ask).toContainText(".desk/agents/ui-builder.md");
+  await ask.getByRole("button", { name: "Promote", exact: true }).click();
+
+  await expect(
+    page.getByText("Uncommitted: /fixture/.desk/agents/ui-builder.md", { exact: false })
+  ).toBeVisible();
+  await expect(page.locator(".desk-editor__facts")).toContainText("Repository");
+  await expect(page.getByRole("button", { name: "Edit locally" })).toBeVisible();
+});
+
+test("refuses to delete a local agent that a flow uses, and names the flow", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=agents&agent=ui-builder");
+  await page.getByRole("button", { name: "Delete…" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete UI builder?" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const refusal = page
+    .getByRole("alert")
+    .filter({ hasText: "Flows use this agent. Change those flows first." });
+  await expect(refusal.getByRole("listitem")).toHaveText(["Design review"]);
+  await expect(page).toHaveURL(/agent=ui-builder$/);
 });

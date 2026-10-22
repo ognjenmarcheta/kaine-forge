@@ -617,13 +617,20 @@ const QUICK_FIX: FlowDefinition = {
   ]
 };
 
-/** The owner's own flow: the default with a design review after the checks. */
+/**
+ * The owner's own flow: the default with the local UI builder and a design review after the
+ * checks. It uses a local agent, so that agent cannot be deleted.
+ */
 const DESIGN_REVIEW: FlowDefinition = {
   id: "design-review",
   name: "Design review",
   description: "The default flow with a design review before the change review.",
   steps: [
-    ...DEFAULT_FLOW_SNAPSHOT.flow.steps.slice(0, 4),
+    ...DEFAULT_FLOW_SNAPSHOT.flow.steps
+      .slice(0, 4)
+      .map((step) =>
+        step.kind === "agent" && step.id === "build" ? { ...step, agent: "ui-builder" } : step
+      ),
     { id: "design", kind: "gate", label: "Design review", sendBack: ["build", "plan"] },
     ...DEFAULT_FLOW_SNAPSHOT.flow.steps.slice(4)
   ]
