@@ -1,5 +1,13 @@
 # @repo/web
 
+## 1.8.1
+
+### Patch Changes
+
+- Updated dependencies [4f69756]
+  - @repo/translation@1.8.0
+  - @repo/ui@1.6.0
+
 ## 1.8.0
 
 ### Minor Changes
