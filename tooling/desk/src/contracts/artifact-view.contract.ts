@@ -42,7 +42,7 @@ export const shipPlanViewSchema = z.object({
   }),
   changesetText: z.string().nullable(),
   commitHeader: z.string(),
-  pullRequest: z.object({ title: z.string() }),
+  pullRequest: z.object({ title: z.string(), base: z.string() }),
   files: z.array(z.string()),
   unfilledHeadings: z.array(z.string())
 });

@@ -262,7 +262,7 @@ function ShipReview({
         {pullRequest === null ? (
           <>
             <p>{plan.pullRequest.title}</p>
-            <p className="desk-muted">{t("desk.ship.draft")}</p>
+            <p className="desk-muted">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
           </>
         ) : (
           <p>{t("desk.ship.updatesPr", { pr: pullRequest })}</p>

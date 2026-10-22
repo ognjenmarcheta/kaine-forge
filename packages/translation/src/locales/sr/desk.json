@@ -313,7 +313,7 @@
   "desk.ship.commit": "Poruka commita",
   "desk.ship.branch": "Grana",
   "desk.ship.pullRequest": "Naslov pull requesta",
-  "desk.ship.draft": "Nacrt prema main. Desk ga nikada ne spaja.",
+  "desk.ship.draft": "Nacrt prema {{base}}. Desk ga nikada ne spaja.",
   "desk.ship.updatesPr": "Šalje na PR #{{pr}}. Naslov i tekst ostaju kakvi jesu.",
   "desk.ship.changeset": "Odluka o changesetu",
   "desk.ship.changesetKind.none": "Bez changeseta",

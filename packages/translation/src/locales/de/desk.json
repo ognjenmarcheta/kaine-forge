@@ -313,7 +313,7 @@
   "desk.ship.commit": "Commit-Nachricht",
   "desk.ship.branch": "Branch",
   "desk.ship.pullRequest": "Titel des Pull Requests",
-  "desk.ship.draft": "Ein Entwurf gegen main. Der Desk führt ihn nie zusammen.",
+  "desk.ship.draft": "Ein Entwurf gegen {{base}}. Der Desk führt ihn nie zusammen.",
   "desk.ship.updatesPr": "Pusht zu PR #{{pr}}. Titel und Text bleiben, wie sie sind.",
   "desk.ship.changeset": "Changeset-Entscheidung",
   "desk.ship.changesetKind.none": "Kein Changeset",

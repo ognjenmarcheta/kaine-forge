@@ -88,7 +88,7 @@ describe("artifact view schemas", () => {
       changeset: { kind: "invalid", reason: "no package" },
       changesetText: null,
       commitHeader: "x",
-      pullRequest: { title: "x" },
+      pullRequest: { title: "x", base: "main" },
       files: [],
       unfilledHeadings: []
     });

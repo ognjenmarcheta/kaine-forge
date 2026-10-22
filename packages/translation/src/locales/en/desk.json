@@ -313,7 +313,7 @@
   "desk.ship.commit": "Commit message",
   "desk.ship.branch": "Branch",
   "desk.ship.pullRequest": "Pull request title",
-  "desk.ship.draft": "A draft against main. The desk never merges it.",
+  "desk.ship.draft": "A draft against {{base}}. The desk never merges it.",
   "desk.ship.updatesPr": "Pushes to PR #{{pr}}. Its title and text stay as they are.",
   "desk.ship.changeset": "Changeset decision",
   "desk.ship.changesetKind.none": "No changeset",
