@@ -22,6 +22,7 @@ import {
  * (a gate approval, feedback, continue) resets every loop budget and the last check
  * failure. A ship step is entered through `ship-confirm` at the gate directly before it, or,
  * when the step is automatic (`auto: true`), by moving forward into it. Both carry the ship guard.
+ * A flow without a ship step ends at `finished` when its last step moves forward.
  */
 
 /** The slice of issue state that decides the next stage. */
@@ -123,11 +124,18 @@ export const transition = (
     reject(`'${what}' is not valid in '${here}'; it needs ${needs}`);
   const step = stepOf(snapshot, here);
 
-  /** Forward to the next step. Only an automatic ship is entered this way: the owner confirms the rest. */
+  /**
+   * Forward to the next step. Only an automatic ship is entered this way: the owner confirms the
+   * rest. After the last step, a flow without a ship step ends at `finished`.
+   */
   const forward = (patch: Parameters<typeof move>[1] = {}): TransitionResult => {
     if (here === "intake") return move("setup", patch);
     const next = nextStepOf(snapshot, here);
-    if (next === undefined) return reject(`'${here}' has no next step in the flow`);
+    if (next === undefined) {
+      return snapshot.flow.steps.some((entry) => entry.kind === "ship")
+        ? reject(`'${here}' has no next step in the flow`)
+        : move("finished", patch);
+    }
     if (next.kind === "ship" && !next.auto) {
       return reject(`'${next.id}' ships only on the owner's confirmation at the gate before it`);
     }

@@ -52,7 +52,8 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "pr-merged": "done",
   "pr-closed": "stopped",
   cancelled: "stopped",
-  interrupted: "stopped"
+  interrupted: "stopped",
+  "flow-finished": "done"
 };
 
 /** True for an event the page has words for (`desk.activity.event.<name>`). */

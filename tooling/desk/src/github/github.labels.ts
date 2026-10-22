@@ -1,4 +1,4 @@
-import { isWaitingStage, stepOf, type IssueState } from "../contracts";
+import { isTerminalStage, isWaitingStage, stepOf, type IssueState } from "../contracts";
 import type { GitHubPort } from "../ports";
 
 /**
@@ -60,7 +60,7 @@ export const isEmptyChange = (change: LabelChange): boolean =>
 /** The execution label that matches an issue's state, or `null` for none (also after the merge). */
 export const labelForState = (state: IssueState): AgentLabel | null => {
   if (stepOf(state.flowSnapshot, state.stage)?.kind === "pr-wait") return "agent:pr-open";
-  if (state.stage === "shipped" || state.stage === "cancelled") return null;
+  if (isTerminalStage(state.stage)) return null;
   if (state.stage === "needs-you" || isWaitingStage(state.flowSnapshot, state.stage)) {
     return "agent:needs-you";
   }

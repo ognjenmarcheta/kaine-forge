@@ -33,7 +33,7 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { IssueStatusChip } from "../status/status.chip";
-import { canCancel, gateModeOf, type ReadableSummary } from "../status/status.model";
+import { canCancel, gateModeOf, hasEnded, type ReadableSummary } from "../status/status.model";
 
 /** The graph needs room: a phone gets the stepper only. */
 const PHONE_QUERY = "(max-width: 40rem)";
@@ -134,7 +134,7 @@ function WaitFact({ summary, now }: { readonly summary: ReadableSummary; readonl
   const t = useT();
   const { language } = useLanguage();
   const mode = gateModeOf(summary);
-  if (mode === "shipped" || mode === "cancelled") {
+  if (hasEnded(mode)) {
     const took = Date.parse(summary.updatedAt) - Date.parse(summary.createdAt);
     return <span>{t("desk.issue.meta.took", { duration: formatElapsed(took, language) })}</span>;
   }

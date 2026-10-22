@@ -12,7 +12,7 @@ import {
   type LoopBack,
   type StepKind
 } from "./flow-definition.contract";
-import { ENGINE_STATES, type EngineState } from "./pipeline.contract";
+import { ENGINE_STATES, TERMINAL_STAGES, type EngineState } from "./pipeline.contract";
 
 /**
  * The flow an issue runs on, frozen at Start: the flow definition and every agent it names.
@@ -45,7 +45,7 @@ export const isEngineState = (stage: string): stage is EngineState =>
   ENGINE_STATES.some((state) => state === stage);
 
 export const isTerminalStage = (stage: string): boolean =>
-  stage === "shipped" || stage === "cancelled";
+  TERMINAL_STAGES.some((terminal) => terminal === stage);
 
 export const stepOf = (
   snapshot: FlowSnapshot,

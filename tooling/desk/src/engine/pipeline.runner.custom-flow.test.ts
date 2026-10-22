@@ -293,6 +293,36 @@ describe("a flow of the repository's own", () => {
       await code.cleanup();
     }
   });
+
+  it("ends a flow without a ship step at finished once its last report is ready", async () => {
+    const empty: ScriptedStep = { role: "planner", output: planOutput({ files: [], tests: [] }) };
+    const research: FlowDefinition = {
+      ...DEFAULT_SNAPSHOT.flow,
+      name: "Research",
+      steps: [
+        { id: "plan", kind: "agent", label: "Plan", agent: "planner" },
+        { id: "plan-gate", kind: "gate", label: "Approve", sendBack: ["plan"] },
+        { id: "research", kind: "agent", label: "Research", agent: "release-notes" },
+        { id: "summarize", kind: "agent", label: "Summarize", agent: "release-notes" }
+      ]
+    };
+    const e = await open([empty, notesRun, notesRun]);
+    await writeFlow(e, research, {
+      "release-notes": agentFile("release-notes", "report", NOTES_PROMPT)
+    });
+    await e.pipeline.start(ISSUE, { override: false });
+
+    const result = await e.pipeline.approvePlan(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "finished" });
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ stage: "finished", status: "done", resumeStage: null });
+    const history = await historyOf(e);
+    expect(history.slice(-2)).toEqual(["summarize:report-ready", "finished:flow-finished"]);
+    expect(history).not.toContain("needs-you:needs-you");
+    expect(e.github.labelEdits.at(-1)?.change.add).toEqual([]);
+    expect(e.notifications.at(-1)).toMatchObject({ kind: "done" });
+  });
 });
 
 describe("the flow an issue starts on", () => {

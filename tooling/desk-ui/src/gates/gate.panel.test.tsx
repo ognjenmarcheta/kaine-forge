@@ -383,6 +383,13 @@ describe("GatePanel after the ship", () => {
     expect(screen.queryByRole("button", { name: "Check the PR" })).toBeNull();
   });
 
+  it("at the end of a flow without a ship: says every step ran and nothing shipped", () => {
+    show({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage: "finished", status: "done" }, actionsOf());
+    expect(screen.getByRole("heading", { name: "Finished" })).toBeTruthy();
+    expect(screen.getByText(/Every step ran; nothing was shipped/)).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it.each(["pr-open", "shipped"] as const)(
     "never links an address that is not a web link (%s)",
     (stage) => {

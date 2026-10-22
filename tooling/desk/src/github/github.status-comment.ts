@@ -40,13 +40,14 @@ const oneLine = (text: string, max = 300): string => {
 export const renderStatusComment = ({ state, needsYouReason = null }: StatusInput): string => {
   const order = forwardOrder(state);
   const position = positionOf(state, order);
-  const shipped = state.stage === "shipped";
+  // Shipped, or a flow without a ship step that ran every step.
+  const ranAll = state.stage === "shipped" || state.stage === "finished";
   const timeline = order
     .filter((stage) => stage !== "shipped")
     .map((stage) => {
       const index = order.indexOf(stage);
       let mark = "pending";
-      if (shipped || index < position) mark = "done";
+      if (ranAll || index < position) mark = "done";
       else if (index === position && state.stage !== "cancelled") {
         mark = state.stage === "needs-you" ? "needs you" : state.status;
       }

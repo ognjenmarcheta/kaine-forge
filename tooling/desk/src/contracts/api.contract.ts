@@ -608,7 +608,7 @@ export const actionTargetProblem = (
 export const actionOutcomeSchema = z
   .object({
     /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "removed", "paused"]),
+    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "finished", "removed", "paused"]),
     stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })

@@ -88,11 +88,11 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
 
 ### Exit codes
 
-| Code | Meaning                                                                                     |
-| ---- | ------------------------------------------------------------------------------------------- |
-| 0    | The issue stopped at a human gate (also `pr-open`), or it is done (`shipped`, `cancelled`). |
-| 1    | The issue needs you, the call was refused, or the command failed.                           |
-| 2    | Usage error: a bad flag, a missing number, a bad stage, or an unknown command.              |
+| Code | Meaning                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------- |
+| 0    | The issue stopped at a human gate (also `pr-open`), or it is done (`shipped`, `cancelled`, `finished`). |
+| 1    | The issue needs you, the call was refused, or the command failed.                                       |
+| 2    | Usage error: a bad flag, a missing number, a bad stage, or an unknown command.                          |
 
 A refusal prints `#12: refused (invalid-transition). <reason>` on stderr and changes nothing.
 The refusals are `leased`, `unknown-issue`, `unreadable`, `invalid-transition`,
@@ -363,7 +363,12 @@ Every step has `id`, `kind`, `label`, and an optional `loopBack`.
 - Your input never resets the PR rounds of `maxRounds`.
 - A flow is one path in order, with loop-backs. Two steps never run at the same time.
 - The desk creates the worktree (`setup`) before the first step. `setup` is not a step.
-  `intake`, `needs-you`, `shipped`, and `cancelled` stay engine states.
+  `intake`, `needs-you`, `shipped`, `cancelled`, and `finished` stay engine states.
+- A flow without a ship step ends at `finished` after its last step moves forward: an agent
+  step is done, a check passes, a review approves, or you approve a gate. Nothing ships.
+  `finished` is terminal, like `shipped` and `cancelled`: no action drives the issue again, and
+  `remove` cleans it up. The history records `flow-finished`. A flow with a ship step never
+  ends at `finished`.
 - The built-in `kaine-default` flow takes its limits from the config (`maxTestLoops`,
   `maxReviewLoops`, `maxPrRounds`). Every other flow carries its own.
 
@@ -457,7 +462,7 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 | `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
 | `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
 
-Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, with a
+Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, `finished`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 `ship-refused`, and a reason). A refusal changes nothing. A ship dry run returns
 `dry-run` with the ship plan.
@@ -465,8 +470,8 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 ### Stages
 
 The table shows the stages of the built-in `kaine-default` flow. Another flow has its own steps
-(see "Flow files"). `intake`, `setup`, `needs-you`, `shipped`, and `cancelled` are the same in
-every flow.
+(see "Flow files"). `intake`, `setup`, `needs-you`, `shipped`, `cancelled`, and `finished` are
+the same in every flow.
 
 | Stage       | Who      | What happens                                                                                                                                                                              |
 | ----------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

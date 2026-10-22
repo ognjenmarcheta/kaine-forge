@@ -54,7 +54,8 @@ const ENTERED_BY: readonly {
   // `shipped` entered `shipped` before the `pr-open` stage existed.
   { stage: "shipped", events: ["shipped", "pr-merged"] },
   { stage: "needs-you", events: ["needs-you", "interrupted"] },
-  { stage: "cancelled", events: ["cancelled", "pr-closed"] }
+  { stage: "cancelled", events: ["cancelled", "pr-closed"] },
+  { stage: "finished", events: ["flow-finished"] }
 ];
 
 /**

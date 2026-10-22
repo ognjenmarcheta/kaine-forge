@@ -105,7 +105,7 @@ export const REFUSALS = [
 export type Refusal = (typeof REFUSALS)[number];
 
 /** `paused`: the owner holds the issue. Nothing more runs until `resume`. */
-export type StopKind = "gate" | "needs-you" | "shipped" | "cancelled" | "paused";
+export type StopKind = "gate" | "needs-you" | "shipped" | "cancelled" | "finished" | "paused";
 
 /**
  * What an API call returns. `stopped`: the call did its work and the issue

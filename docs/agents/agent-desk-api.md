@@ -116,8 +116,8 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   the running stage ends as usual, and then the engine starts no next stage. The issue waits at
   that stage with status `waiting`. An action that would drive a paused issue (`approve`,
   `feedback`, `continue`) stops before its first stage. The answer is `stop: "paused"`. The pause
-  is in the state file, so a restarted desk keeps it. `pause` refuses an issue at `shipped` or
-  `cancelled` (`409 invalid-transition`). A second `pause` changes nothing.
+  is in the state file, so a restarted desk keeps it. `pause` refuses an issue at `shipped`,
+  `cancelled`, or `finished` (`409 invalid-transition`). A second `pause` changes nothing.
 - `resume` clears the pause and drives on from the stage where the issue waits. It refuses an
   issue that is not paused (`409 invalid-transition`). `cancel` clears a pause.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
@@ -142,7 +142,9 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 - One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`, and
   `pause` are the exception: they act on a running action. `pause` changes the running action's
   state at once, so it answers `done` with `stop: "paused"` while the stage still runs.
-- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `removed`, or `paused`.
+- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `finished`, `removed`, or
+  `paused`. `finished`: a flow without a ship step ran every step, and nothing shipped. Like
+  `shipped` and `cancelled`, the stage `finished` is terminal: no action drives the issue again.
 
 ## Errors
 
@@ -179,7 +181,7 @@ board never reads one detail for each card. Besides the stage, status, branch, l
 - `contract`: `{ found, total }` from the readiness line of `ticket.md`, or `null`.
 - `stageEnteredAt`: when the issue entered its current stage. It is the latest history event
   that enters a stage (`stage-started`, `intake-started`, `plan-ready`, `review-approved`,
-  `pr-opened`, `needs-you`, `interrupted`, `cancelled`, `pr-closed`, `pr-merged`, and
+  `pr-opened`, `needs-you`, `interrupted`, `cancelled`, `pr-closed`, `flow-finished`, `pr-merged`, and
   `shipped` from older histories), if that stage is the current one;
   otherwise `null` (for example while a queued stage has not written its start).
 - `progress`: the status of each node of the issue's flow, in flow order (the ticket, then each

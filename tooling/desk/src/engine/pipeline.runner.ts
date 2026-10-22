@@ -422,6 +422,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     if (state.stage === "cancelled") {
       return { outcome: "stopped", stop: "cancelled", state, message: null };
     }
+    if (state.stage === "finished") {
+      return { outcome: "stopped", stop: "finished", state, message: null };
+    }
     if (state.stage === "needs-you") {
       return { outcome: "stopped", stop: "needs-you", state, message: needsYouReason(state) };
     }
@@ -479,6 +482,10 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   };
 
   const finishMove = async (session: Session, reason: string | null): Promise<void> => {
+    // The machine enters `finished` once, from the last step of a flow without a ship step.
+    if (session.state.stage === "finished") {
+      await record(session, "finished", "flow-finished", "every step done; nothing shipped");
+    }
     const { state } = session;
     await save(session);
     await writeBack(session);
@@ -487,6 +494,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       notify(state, "gate", (await gateMessage(state)) ?? "Waiting for you.");
     else if (state.stage === "shipped") {
       notify(state, "done", state.prUrl ? `PR merged: ${state.prUrl}` : "Done.");
+    } else if (state.stage === "finished") {
+      notify(state, "done", "Every step ran. Nothing was shipped.");
     }
   };
 

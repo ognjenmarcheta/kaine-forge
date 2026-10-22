@@ -83,6 +83,7 @@ export type GateMode =
   | "working"
   | "shipped"
   | "cancelled"
+  | "finished"
   | "idle";
 
 export type ReadableSummary = Extract<IssueSummary, { readonly readable: true }>;
@@ -90,6 +91,7 @@ export type ReadableSummary = Extract<IssueSummary, { readonly readable: true }>
 export function gateModeOf(summary: ReadableSummary): GateMode {
   if (summary.stage === "shipped") return "shipped";
   if (summary.stage === "cancelled") return "cancelled";
+  if (summary.stage === "finished") return "finished";
   if (summary.stage === "needs-you") return "needs-you";
   if (summary.busy || summary.status === "running" || summary.status === "queued") {
     return "working";
@@ -108,8 +110,12 @@ export function gateModeOf(summary: ReadableSummary): GateMode {
   }
 }
 
+/** The issue ended: shipped, cancelled, or every step of a flow without a ship ran. */
+export const hasEnded = (mode: GateMode): boolean =>
+  mode === "shipped" || mode === "cancelled" || mode === "finished";
+
 /** A finished run has nothing to cancel. */
-export const canCancel = (mode: GateMode): boolean => mode !== "shipped" && mode !== "cancelled";
+export const canCancel = (mode: GateMode): boolean => !hasEnded(mode);
 
 // --- reason excerpt ---------------------------------------------------------
 
@@ -190,8 +196,8 @@ const byKey = (key: string): StatusLabel => ({ kind: "key", key });
 
 /**
  * Where an issue sits and what it shows. An unreadable issue and a stopped or failed one
- * need the engineer first. A gate waits for the engineer. A shipped or cancelled issue is
- * done. Anything the engine drives, including a gate whose action still runs, is running.
+ * need the engineer first. A gate waits for the engineer. A shipped, cancelled or finished
+ * issue is done. Anything the engine drives, including a gate whose action still runs, is running.
  */
 export function issueStatusOf(summary: IssueSummary): IssueStatus {
   if (!summary.readable) {
@@ -222,6 +228,9 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   }
   if (gateMode === "cancelled") {
     return status("done", "neutral", byKey("desk.stage.cancelled"), "open");
+  }
+  if (gateMode === "finished") {
+    return status("done", "success", byKey("desk.stage.finished"), "open");
   }
   if (summary.status === "failed") {
     return status("needs-you", "danger", inStage(summary, "failed"), "open");

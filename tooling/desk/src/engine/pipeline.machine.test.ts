@@ -476,4 +476,51 @@ describe("pipeline machine: a flow of its own", () => {
       intoShip
     );
   });
+
+  const notes = (id: string): FlowSnapshot["flow"]["steps"][number] => ({
+    id,
+    kind: "agent",
+    label: id,
+    agent: "release-notes"
+  });
+
+  it("ends a flow without a ship step at finished after its last report", () => {
+    const research = flowOf([...stepsOf("plan", "plan-gate"), notes("research"), notes("summary")]);
+    const walk: readonly [Trigger, StageId][] = [
+      [{ type: "step-complete", step: "plan", outcome: "ok" }, "plan-gate"],
+      [{ type: "gate-approve" }, "research"],
+      [{ type: "step-complete", step: "research", outcome: "ok" }, "summary"],
+      [{ type: "step-complete", step: "summary", outcome: "ok" }, "finished"]
+    ];
+    let state = stateAt("plan");
+    for (const [trigger, expected] of walk) {
+      const result = transition(state, trigger, research);
+      if (!result.ok) throw new Error(`'${trigger.type}' was rejected: ${result.reason}`);
+      expect(result).toMatchObject({ nextStage: expected, guard: "none", reason: null });
+      state = result.state;
+    }
+    expect(state.resumeStage).toBeNull();
+    expect(transition(state, { type: "cancel" }, research).ok).toBe(false);
+  });
+
+  it("ends a flow without a ship step at finished after a last gate approval or check pass", () => {
+    const endsAtGate = flowOf(stepsOf("plan", "plan-gate"));
+    expect(transition(stateAt("plan-gate"), { type: "gate-approve" }, endsAtGate)).toMatchObject({
+      ok: true,
+      nextStage: "finished"
+    });
+    const endsAtCheck = flowOf(stepsOf("plan", "build", "check"));
+    expect(
+      transition(stateAt("check"), { type: "check-result", result: "pass" }, endsAtCheck)
+    ).toMatchObject({ ok: true, nextStage: "finished" });
+  });
+
+  it("still has no forward edge after the last step of a flow with a ship step", () => {
+    const notesAfterShip = flowOf([
+      ...stepsOf("plan", "build", "check", "pr-review", "ship"),
+      notes("notes")
+    ]);
+    const done = { type: "step-complete", step: "notes", outcome: "ok" } as const;
+    expect(transition(stateAt("notes"), done, notesAfterShip).ok).toBe(false);
+  });
 });

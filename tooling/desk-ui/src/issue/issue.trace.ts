@@ -75,12 +75,12 @@ const isStopKey = (key: StepKey): key is StopStage => key === "needs-you" || key
 
 /**
  * The step key of a log entry's stage: a stop, the ticket for intake and setup, or the step
- * itself. `shipped` has no step of its own: its lines go by their time.
+ * itself. `shipped` and `finished` have no step of their own: their lines go by their time.
  */
 const keyOfStage = (stage: StageId): StepKey | null => {
   if (isStop(stage)) return stage;
   if (stage === "intake" || stage === "setup") return "ticket";
-  return stage === "shipped" ? null : stage;
+  return stage === "shipped" || stage === "finished" ? null : stage;
 };
 
 /** A stop, else the node the event starts a run of, else the node of its stage. */

@@ -125,6 +125,7 @@ const STOP_TITLE: Readonly<Record<StopKind, string>> = {
   "needs-you": "needs you",
   shipped: "shipped",
   cancelled: "cancelled",
+  finished: "finished: every step ran, nothing shipped",
   paused: "paused"
 };
 

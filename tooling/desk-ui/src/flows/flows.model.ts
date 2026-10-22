@@ -1,5 +1,6 @@
 import {
   CHECK_SETS,
+  isTerminalStage,
   validateFlow,
   type AgentDefinition,
   type FlowDefinition,
@@ -524,12 +525,8 @@ export function slotAt(x: number, count: number, moving = -1): number {
 
 // --- the library -----------------------------------------------------------------------------
 
-/** Issues on the desk that run on `flowId` and are not shipped or cancelled. */
+/** Issues on the desk that run on `flowId` and have not ended. */
 export const activeIssuesOn = (issues: readonly IssueSummary[], flowId: string): number =>
   issues.filter(
-    (issue) =>
-      issue.readable &&
-      issue.flowId === flowId &&
-      issue.stage !== "shipped" &&
-      issue.stage !== "cancelled"
+    (issue) => issue.readable && issue.flowId === flowId && !isTerminalStage(issue.stage)
   ).length;

@@ -77,6 +77,7 @@ describe("desk translations", () => {
         "working",
         "shipped",
         "cancelled",
+        "finished",
         "idle"
       ],
       "desk.gate.intro.": [
@@ -87,6 +88,7 @@ describe("desk translations", () => {
         "working",
         "shipped",
         "cancelled",
+        "finished",
         "idle"
       ],
       "desk.board.group.": ["needs-you", "waiting", "running", "done"],

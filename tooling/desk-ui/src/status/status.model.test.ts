@@ -179,6 +179,16 @@ describe("issueStatusOf", () => {
         label: { kind: "key", key: "desk.stage.cancelled" },
         primaryAction: "open"
       }
+    ],
+    [
+      "a flow without a ship that ran every step",
+      summaryOf({ stage: "finished", status: "done" }),
+      {
+        group: "done",
+        tone: "success",
+        label: { kind: "key", key: "desk.stage.finished" },
+        primaryAction: "open"
+      }
     ]
   ])("maps %s", (_name, summary, expected) => {
     expect(issueStatusOf(summary)).toMatchObject(expected);
@@ -194,6 +204,7 @@ describe("gateModeOf", () => {
   it.each([
     [{ stage: "shipped", status: "done" }, false, "shipped"],
     [{ stage: "cancelled", status: "done" }, false, "cancelled"],
+    [{ stage: "finished", status: "done" }, false, "finished"],
     [{ stage: "needs-you", status: "waiting" }, true, "needs-you"],
     [{ stage: "plan-gate", status: "waiting" }, true, "working"],
     [{ stage: "build", status: "running" }, false, "working"],
@@ -240,6 +251,7 @@ describe("gateModeOf", () => {
     expect(canCancel("pr-open")).toBe(true);
     expect(canCancel("shipped")).toBe(false);
     expect(canCancel("cancelled")).toBe(false);
+    expect(canCancel("finished")).toBe(false);
   });
 });
 

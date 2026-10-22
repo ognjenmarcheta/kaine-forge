@@ -150,7 +150,7 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
   );
 }
 
-/** Shipped or cancelled: what that means, and the pull request when there is one. */
+/** Shipped, cancelled or finished: what that means, and the pull request when there is one. */
 function EndedGate({ detail, summary }: GateBodyProps) {
   const t = useT();
   const mode = gateModeOf(summary);
@@ -260,7 +260,9 @@ function DecisionCard(props: GatePanelProps) {
         {mode === "intake" && <IntakeGate {...body} />}
         {mode === "working" && <RunningGate {...body} />}
         {mode === "pr-open" && <PrOpenGate {...body} />}
-        {(mode === "shipped" || mode === "cancelled") && <EndedGate {...body} />}
+        {(mode === "shipped" || mode === "cancelled" || mode === "finished") && (
+          <EndedGate {...body} />
+        )}
         {mode === "idle" && <p className="desk-muted">{t("desk.gate.intro.idle")}</p>}
       </section>
       <ShipDialog

@@ -8,7 +8,12 @@ import {
   type CheckReport,
   type RunChecksRequest
 } from "../check";
-import type { DeskConfig, IssueState, PlannerOutput } from "../contracts";
+import {
+  isTerminalStage,
+  type DeskConfig,
+  type IssueState,
+  type PlannerOutput
+} from "../contracts";
 import { findAttributionViolations, isAiIdentity } from "./ship.attribution";
 import {
   changesetDecision,
@@ -282,7 +287,7 @@ const runShip = async (
     });
   }
   const state: IssueState = loaded.state;
-  if (state.stage === "shipped" || state.stage === "cancelled") {
+  if (isTerminalStage(state.stage)) {
     return stop({ kind: "state", message: `Issue #${request.issue} is '${state.stage}'.` });
   }
   const { worktreePath: worktree, baseSha: stateBase } = state;

@@ -21,7 +21,7 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { FailureText, Loading, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { gateModeOf } from "../status/status.model";
+import { gateModeOf, hasEnded } from "../status/status.model";
 
 function BackLink() {
   const t = useT();
@@ -71,8 +71,7 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     () => (detail === undefined ? undefined : buildFlowModel(detail.state, now)),
     [detail, now]
   );
-  const live: TraceLive =
-    mode === "shipped" || mode === "cancelled" ? "ended" : running ? "running" : "waiting";
+  const live: TraceLive = hasEnded(mode) ? "ended" : running ? "running" : "waiting";
   const trace = useMemo(
     () =>
       detail === undefined || flow === undefined
