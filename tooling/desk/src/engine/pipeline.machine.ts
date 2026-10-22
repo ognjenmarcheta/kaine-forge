@@ -20,8 +20,8 @@ import {
  * `loopBack` sends the work back with a budget; a gate's `sendBack` lists where the
  * owner's feedback may go; the pr-wait step sends PR feedback to `backTo`. Human input
  * (a gate approval, feedback, continue) resets every loop budget and the last check
- * failure. A ship step is entered only through `ship-confirm` at the gate directly
- * before it, and always with the ship guard.
+ * failure. A ship step is entered through `ship-confirm` at the gate directly before it, or,
+ * when the step is automatic (`auto: true`), by moving forward into it. Both carry the ship guard.
  */
 
 /** The slice of issue state that decides the next stage. */
@@ -45,7 +45,7 @@ export type Trigger =
   | { readonly type: "check-result"; readonly result: "pass" }
   | { readonly type: "check-result"; readonly result: "fail"; readonly fingerprint: string }
   | { readonly type: "review-result"; readonly verdict: "approve" | "changes" }
-  /** The owner approves at a gate whose next step is not a ship. */
+  /** The owner approves at a gate whose next step is not a ship the owner confirms. */
   | { readonly type: "gate-approve" }
   | { readonly type: "feedback"; readonly target: StageId }
   /** The owner confirms the ship at the gate directly before the ship step. */
@@ -123,12 +123,12 @@ export const transition = (
     reject(`'${what}' is not valid in '${here}'; it needs ${needs}`);
   const step = stepOf(snapshot, here);
 
-  /** Forward to the next step. A ship step is never entered this way: the owner confirms it. */
+  /** Forward to the next step. Only an automatic ship is entered this way: the owner confirms the rest. */
   const forward = (patch: Parameters<typeof move>[1] = {}): TransitionResult => {
     if (here === "intake") return move("setup", patch);
     const next = nextStepOf(snapshot, here);
     if (next === undefined) return reject(`'${here}' has no next step in the flow`);
-    if (next.kind === "ship") {
+    if (next.kind === "ship" && !next.auto) {
       return reject(`'${next.id}' ships only on the owner's confirmation at the gate before it`);
     }
     return move(next.id, patch);
@@ -188,7 +188,8 @@ export const transition = (
 
     case "gate-approve": {
       if (kind !== "gate") return wrongPlace(trigger.type, "a gate");
-      if (nextStepOf(snapshot, here)?.kind === "ship") {
+      const next = nextStepOf(snapshot, here);
+      if (next?.kind === "ship" && !next.auto) {
         return reject(`'${here}' leads to a ship: confirm the ship instead`);
       }
       return forward(fresh);

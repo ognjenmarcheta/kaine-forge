@@ -127,6 +127,14 @@ const dockerSchema = z
   })
   .strict();
 
+/**
+ * A flow id: the pattern of `definitionIdSchema`. It is repeated here because
+ * `agent-definition.contract.ts` imports this file.
+ */
+const flowIdSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "Use lowercase letters, digits and hyphens (at most 64)");
+
 export const deskConfigSchema = z
   .object({
     /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
@@ -144,6 +152,10 @@ export const deskConfigSchema = z
     notifyCommand: commandLineSchema.optional(),
     isolation: isolationSchema.default("host"),
     docker: dockerSchema.prefault({}),
+    /** The flow `start` uses when no label of the issue is in `flowLabels` and the owner names none. */
+    defaultFlow: flowIdSchema.default("kaine-default"),
+    /** GitHub label to flow id. At `start`, the first label of the issue that is listed here wins. */
+    flowLabels: z.record(z.string().min(1), flowIdSchema).default({}),
     /**
      * Review bots whose PR comments reach the builder in `feedback --from-pr`, although
      * GitHub gives them no trusted association. Exact GitHub App logins, for example
@@ -163,3 +175,15 @@ export const deskConfigSchema = z
   .strict();
 
 export type DeskConfig = z.infer<typeof deskConfigSchema>;
+
+/**
+ * The flow `start` picks for an issue when the owner names none: the flow of the first issue
+ * label that `flowLabels` lists, else `defaultFlow`. Pure, so the Start dialog shows the same pick.
+ */
+export const flowForLabels = (
+  config: Pick<DeskConfig, "defaultFlow" | "flowLabels">,
+  labels: readonly string[]
+): string => {
+  const label = labels.find((name) => Object.hasOwn(config.flowLabels, name));
+  return (label === undefined ? undefined : config.flowLabels[label]) ?? config.defaultFlow;
+};

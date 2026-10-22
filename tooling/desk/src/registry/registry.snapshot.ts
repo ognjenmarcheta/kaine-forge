@@ -22,7 +22,7 @@ import {
  * issues started after them.
  */
 
-/** The flow every issue runs on until the owner can choose one. */
+/** The built-in default flow: today's pipeline, and the default of `defaultFlow` in the config. */
 export const DEFAULT_FLOW_ID = "kaine-default";
 
 const BUILTIN_DIR = fileURLToPath(new URL("../../defaults/", import.meta.url));
@@ -59,23 +59,17 @@ const snapshotOf = (
 };
 
 /**
- * Rules the engine needs before it runs a flow, beyond `validateFlow`. An automatic ship
- * arrives later: until then a ship always waits for the owner at the gate before it.
+ * Rules the engine needs before it runs a flow, beyond `validateFlow`: a ship the owner confirms
+ * waits at the gate directly before it. An automatic ship (`auto: true`) needs no gate.
  */
-const runnableProblems = (flow: FlowDefinition): string[] =>
-  flow.steps.flatMap((step, index) => {
-    if (step.kind !== "ship") return [];
-    if (step.auto) {
-      return [
-        `Step '${step.id}': an automatic ship (auto: true) is not supported yet. Set auto: false, so the owner confirms each ship.`
-      ];
-    }
-    return flow.steps[index - 1]?.kind === "gate"
+export const runnableProblems = (flow: FlowDefinition): string[] =>
+  flow.steps.flatMap((step, index) =>
+    step.kind !== "ship" || step.auto || flow.steps[index - 1]?.kind === "gate"
       ? []
       : [
-          `Step '${step.id}': a ship step must come directly after a gate, where the owner confirms it.`
-        ];
-  });
+          `Step '${step.id}': a ship step must come directly after a gate, where the owner confirms it, or set auto: true.`
+        ]
+  );
 
 /**
  * The desk config's loop limits are the limits of the built-in default flow. A flow from the
@@ -102,9 +96,9 @@ export interface ResolveFlowInput {
   readonly flowId?: string | undefined;
 }
 
-/** The snapshot for a new issue, from the registry of this checkout. */
+/** The snapshot for a new issue, from the registry of this checkout. Without `flowId`: `defaultFlow`. */
 export const resolveFlowSnapshot = async (input: ResolveFlowInput): Promise<FlowSnapshotResult> => {
-  const flowId = input.flowId ?? DEFAULT_FLOW_ID;
+  const flowId = input.flowId ?? input.config.defaultFlow;
   const registry = await loadRegistry({ repoRoot: input.repoRoot });
   const entry = registry.flows.find((candidate) => candidate.definition.id === flowId);
   if (entry === undefined) {

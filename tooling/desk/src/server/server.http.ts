@@ -4,6 +4,11 @@ import type { AddressInfo } from "node:net";
 import {
   DEFINITION_ID_PATTERN,
   actionRequestSchema,
+  actionTargetProblem,
+  agentSaveRequestSchema,
+  definitionCloneRequestSchema,
+  definitionPromoteRequestSchema,
+  flowSaveRequestSchema,
   healthFixRequestSchema,
   lessonIssueRequestSchema,
   lessonPromoteRequestSchema,
@@ -12,6 +17,8 @@ import {
   type ActionName,
   type ActionResponse,
   type ApiErrorCode,
+  type DefinitionKind,
+  type DefinitionWriteResult,
   type GithubLists,
   type HealthFix,
   type HealthReport,
@@ -49,6 +56,12 @@ import {
 import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
 import { toGithubLists, type OpenWork } from "../github/github.lists";
+import { DEFAULT_FLOW_ID } from "../registry/registry.snapshot";
+import type {
+  Definition,
+  DefinitionWriteOutcome,
+  DefinitionWrites
+} from "../registry/registry.write";
 import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
 import type { LessonActionResult, LessonActions } from "../stats/stats.lesson-desk";
 import { aggregateLessons } from "../stats/stats.lessons";
@@ -81,6 +94,10 @@ export interface DeskServerDeps {
   readonly lessonActions?: LessonActions | undefined;
   /** The registry's agents and flows, for `GET /api/agents` and `GET /api/flows`. Absent: none. */
   readonly readDefinitions?: (() => Promise<DefinitionViews>) | undefined;
+  /** Save, clone, promote and delete agents and flows. Absent: those routes answer `404`. */
+  readonly definitionWrites?: DefinitionWrites | undefined;
+  /** The flow `start` picks for an issue with these labels. Absent: the built-in default flow. */
+  readonly flowFor?: ((labels: readonly string[]) => string) | undefined;
   /** Directory of the built UI. `null` or absent: the server serves the API only. */
   readonly uiDir?: string | null | undefined;
   /** Default 0: the system picks a free port. */
@@ -144,7 +161,11 @@ type Route =
         | "flows"
         | "unknown";
     }
-  | { readonly kind: "agent" | "flow"; readonly id: string }
+  | {
+      readonly kind:
+        "agent" | "flow" | "agent-clone" | "flow-clone" | "agent-promote" | "flow-promote";
+      readonly id: string;
+    }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
 
@@ -167,9 +188,11 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 2 && resource === "events") return { kind: "events" };
   if (resource === "agents" || resource === "flows") {
     if (segments.length === 2) return { kind: resource };
-    if (segments.length === 3 && id !== undefined && DEFINITION_ID_PATTERN.test(id)) {
-      return { kind: resource === "agents" ? "agent" : "flow", id };
-    }
+    if (id === undefined || !DEFINITION_ID_PATTERN.test(id)) return { kind: "unknown" };
+    const kind = resource === "agents" ? "agent" : "flow";
+    if (segments.length === 3) return { kind, id };
+    if (segments.length === 4 && sub === "clone") return { kind: `${kind}-clone`, id };
+    if (segments.length === 4 && sub === "promote") return { kind: `${kind}-promote`, id };
     return { kind: "unknown" };
   }
   if (resource !== "issues") return { kind: "unknown" };
@@ -185,28 +208,35 @@ const parseRoute = (pathname: string): Route => {
   return { kind: "unknown" };
 };
 
-const METHOD_OF: Readonly<Record<Route["kind"], "GET" | "POST">> = {
-  session: "POST",
-  health: "GET",
-  "health-fix": "POST",
-  github: "GET",
-  stats: "GET",
-  lessons: "GET",
-  "lesson-promote": "POST",
-  "lesson-unpromote": "POST",
-  "lesson-issue-preview": "GET",
-  "lesson-issue": "POST",
-  events: "GET",
-  issues: "GET",
-  agents: "GET",
-  agent: "GET",
-  flows: "GET",
-  flow: "GET",
-  issue: "GET",
-  artifact: "GET",
-  log: "GET",
-  actions: "POST",
-  unknown: "GET"
+type Method = "GET" | "POST" | "PUT" | "DELETE";
+
+/** The methods each route answers. Every other method is `405`. */
+const METHODS_OF: Readonly<Record<Route["kind"], readonly Method[]>> = {
+  session: ["POST"],
+  health: ["GET"],
+  "health-fix": ["POST"],
+  github: ["GET"],
+  stats: ["GET"],
+  lessons: ["GET"],
+  "lesson-promote": ["POST"],
+  "lesson-unpromote": ["POST"],
+  "lesson-issue-preview": ["GET"],
+  "lesson-issue": ["POST"],
+  events: ["GET"],
+  issues: ["GET"],
+  agents: ["GET"],
+  agent: ["GET", "PUT", "DELETE"],
+  "agent-clone": ["POST"],
+  "agent-promote": ["POST"],
+  flows: ["GET"],
+  flow: ["GET", "PUT", "DELETE"],
+  "flow-clone": ["POST"],
+  "flow-promote": ["POST"],
+  issue: ["GET"],
+  artifact: ["GET"],
+  log: ["GET"],
+  actions: ["POST"],
+  unknown: ["GET"]
 };
 
 const parseTarget = (request: IncomingMessage, origin: string): URL => {
@@ -240,6 +270,17 @@ const zodDetail = (error: {
     .join("; ");
 
 const errorOf = (code: ApiErrorCode, detail: string | null) => errorEnvelope(code, detail).error;
+
+/** A definition write answers its result, or the error envelope of its refusal. */
+const sendDefinitionOutcome = (
+  response: ServerResponse,
+  outcome: DefinitionWriteOutcome,
+  status = 200
+): void => {
+  if (!outcome.ok) throw new HttpError(outcome.code, outcome.detail);
+  const body: DefinitionWriteResult = outcome.result;
+  sendJson(response, status, body);
+};
 
 /**
  * The desk server: REST, server-sent events and a built UI, on a loopback
@@ -401,7 +442,12 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         openWorkCache = { at: fetchedAt.getTime(), work };
       }
       const at = new Date(openWorkCache?.at ?? fetchedAt.getTime()).toISOString();
-      return toGithubLists(work, await deps.store.list(), at);
+      return toGithubLists(
+        work,
+        await deps.store.list(),
+        at,
+        deps.flowFor ?? (() => DEFAULT_FLOW_ID)
+      );
     } catch (error) {
       return {
         ok: false,
@@ -448,11 +494,73 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     deps.readDefinitions?.() ??
     Promise.resolve({ agents: { agents: [], problems: [] }, flows: { flows: [], problems: [] } });
 
+  const requireDefinitionWrites = (): DefinitionWrites => {
+    if (deps.definitionWrites === undefined) {
+      throw new HttpError("not-found", "This desk cannot change agents and flows.");
+    }
+    return deps.definitionWrites;
+  };
+
+  /** Save (`PUT`) or delete (`DELETE`) the definition `id` of `kind`. Local definitions only. */
+  const handleDefinitionWrite = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    kind: DefinitionKind,
+    id: string
+  ): Promise<void> => {
+    const writes = requireDefinitionWrites();
+    if (request.method === "DELETE") {
+      sendDefinitionOutcome(response, await writes.remove(kind, id));
+      return;
+    }
+    const body = await readJsonBody(request, maxBodyBytes);
+    let write: Definition;
+    if (kind === "agent") {
+      const parsed = agentSaveRequestSchema.safeParse(body);
+      if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+      write = { kind, definition: parsed.data.definition };
+    } else {
+      const parsed = flowSaveRequestSchema.safeParse(body);
+      if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+      write = { kind, definition: parsed.data.definition };
+    }
+    if (write.definition.id !== id) {
+      throw new HttpError(
+        "bad-request",
+        `The path names '${id}', the definition '${write.definition.id}'.`
+      );
+    }
+    sendDefinitionOutcome(response, await writes.save(write));
+  };
+
+  /** `clone` answers `201`; `promote` answers `200`. */
+  const handleDefinitionAction = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    kind: DefinitionKind,
+    action: "clone" | "promote",
+    id: string
+  ): Promise<void> => {
+    const writes = requireDefinitionWrites();
+    const body = await readJsonBody(request, maxBodyBytes);
+    if (action === "clone") {
+      const parsed = definitionCloneRequestSchema.safeParse(body);
+      if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+      const outcome = await writes.clone(kind, id, parsed.data.id, parsed.data.name);
+      sendDefinitionOutcome(response, outcome, 201);
+      return;
+    }
+    const parsed = definitionPromoteRequestSchema.safeParse(body);
+    if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+    sendDefinitionOutcome(response, await writes.promote(kind, id, parsed.data.confirm));
+  };
+
   // --- routes ---------------------------------------------------------------
 
-  const readableState = async (issueNumber: number): Promise<void> => {
+  const readableState = async (issueNumber: number) => {
     const result = await deps.store.read(issueNumber);
     if (result.status === "missing") throw new HttpError("unknown-issue");
+    return result;
   };
 
   const handleSession = async (
@@ -475,7 +583,15 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     const parsed = actionRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
     if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
     // Only `start` may create the state of an issue.
-    if (parsed.data.action !== "start") await readableState(issueNumber);
+    if (parsed.data.action !== "start") {
+      const read = await readableState(issueNumber);
+      // A target must be a step of the issue's own flow, of a kind that can take it.
+      const problem =
+        read.status === "ok"
+          ? actionTargetProblem(read.state.flowSnapshot.flow, parsed.data)
+          : null;
+      if (problem !== null) throw new HttpError("bad-request", problem);
+    }
 
     const result: Dispatched = await dispatcher.dispatch(issueNumber, parsed.data);
     switch (result.kind) {
@@ -591,7 +707,9 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     const active = requireSecurity();
     const found = parseRoute(url.pathname);
     if (found.kind === "unknown") throw new HttpError("not-found");
-    if (request.method !== METHOD_OF[found.kind]) throw new HttpError("method-not-allowed");
+    if (!METHODS_OF[found.kind].some((method) => method === request.method)) {
+      throw new HttpError("method-not-allowed");
+    }
 
     if (found.kind === "session") {
       await handleSession(request, response);
@@ -668,6 +786,10 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         sendJson(response, 200, (await definitions()).agents);
         return;
       case "agent": {
+        if (request.method !== "GET") {
+          await handleDefinitionWrite(request, response, "agent", found.id);
+          return;
+        }
         const { agents } = (await definitions()).agents;
         const view = agents.find((entry) => entry.definition.id === found.id);
         if (view === undefined) throw new HttpError("not-found", `No agent '${found.id}'.`);
@@ -678,12 +800,28 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         sendJson(response, 200, (await definitions()).flows);
         return;
       case "flow": {
+        if (request.method !== "GET") {
+          await handleDefinitionWrite(request, response, "flow", found.id);
+          return;
+        }
         const { flows } = (await definitions()).flows;
         const view = flows.find((entry) => entry.definition.id === found.id);
         if (view === undefined) throw new HttpError("not-found", `No flow '${found.id}'.`);
         sendJson(response, 200, view);
         return;
       }
+      case "agent-clone":
+      case "flow-clone":
+      case "agent-promote":
+      case "flow-promote":
+        await handleDefinitionAction(
+          request,
+          response,
+          found.kind.startsWith("agent") ? "agent" : "flow",
+          found.kind.endsWith("clone") ? "clone" : "promote",
+          found.id
+        );
+        return;
       case "log": {
         const issueNumber = found.issueNumber;
         const afterText = url.searchParams.get("after") ?? "0";

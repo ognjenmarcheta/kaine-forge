@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   agentOf,
   fitConfidence,
+  flowForLabels,
   issueDraftSchema,
   isShipGate,
   positionKind,
@@ -106,6 +107,11 @@ export interface StartOptions {
    * Without it the config default applies.
    */
   readonly isolation?: Isolation | undefined;
+  /**
+   * The flow a new issue runs on. Without it: the flow of the first issue label in the config's
+   * `flowLabels`, else `defaultFlow`. A restarted intake keeps the flow it has.
+   */
+  readonly flowId?: string | undefined;
 }
 
 export interface RemoveOptions {
@@ -233,12 +239,25 @@ const isPlanGate = (snapshot: FlowSnapshot, stage: StageId): boolean => {
   );
 };
 
-/** The flow's ship step and the gate where the owner confirms it. */
+/**
+ * The flow's ship step and the gate before it, where the owner confirms a ship that is not
+ * `automatic`.
+ */
 const shipOf = (
   snapshot: FlowSnapshot
-): { readonly step: FlowStep; readonly gate: FlowStep | undefined } | null => {
+): {
+  readonly step: FlowStep;
+  readonly gate: FlowStep | undefined;
+  readonly automatic: boolean;
+} | null => {
   const step = snapshot.flow.steps.find((entry) => entry.kind === "ship");
-  return step === undefined ? null : { step, gate: previousStepOf(snapshot, step.id) };
+  return step === undefined
+    ? null
+    : {
+        step,
+        gate: previousStepOf(snapshot, step.id),
+        automatic: step.kind === "ship" && step.auto
+      };
 };
 
 const message = (error: unknown): string =>
@@ -574,7 +593,18 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         };
       }
       if (positionKind(snapshot, stage) === "ship") {
-        // A retry after `continue`: the engineer confirmed this ship before.
+        // An automatic ship, or a retry after `continue` of a ship the engineer confirmed before.
+        if (shipOf(snapshot)?.automatic === true) {
+          const issue = session.state.issueNumber;
+          if (deps.noWriteback === true || noWriteback.has(issue)) {
+            await applyOutcome(session, stage, {
+              kind: "needs-you",
+              reason: `#${issue} writes nothing to GitHub (no write-back or a snapshot file), so it cannot ship. Nothing was changed.`
+            });
+            continue;
+          }
+          await record(session, stage, "ship-automatic", "no owner confirmation; a draft PR only");
+        }
         await executeShip(session, { dryRun: false, retry: true });
         continue;
       }
@@ -668,14 +698,6 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           const problem = await deps.docker.preflight();
           if (problem !== null) return refused("intake-refused", problem);
         }
-        // A new issue runs on the flow of this checkout, frozen now. A restarted intake keeps its own.
-        let flowSnapshot: FlowSnapshot | null = null;
-        if ((await store.read(issue)).status === "missing") {
-          // What the checkout has not installed is no refusal: each run drops it and records why.
-          const resolved = await resolveFlowSnapshot({ repoRoot: deps.location.repoRoot, config });
-          if (!resolved.ok) return refused("intake-refused", resolved.reason);
-          flowSnapshot = resolved.snapshot;
-        }
         let source = github;
         if (options.snapshotFile !== undefined) {
           if (!options.override) {
@@ -698,6 +720,30 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             throw error;
           }
           noWriteback.add(issue);
+        }
+
+        // A new issue runs on the flow of this checkout, frozen now. A restarted intake keeps its own.
+        let flowSnapshot: FlowSnapshot | null = null;
+        if ((await store.read(issue)).status === "missing") {
+          let flowId = options.flowId;
+          if (flowId === undefined && Object.keys(config.flowLabels).length > 0) {
+            try {
+              flowId = flowForLabels(config, (await source.fetchIssue(issue)).labels);
+            } catch (error) {
+              return refused(
+                "intake-refused",
+                `Cannot read the labels of #${issue} to pick its flow: ${message(error)}`
+              );
+            }
+          }
+          // What the checkout has not installed is no refusal: each run drops it and records why.
+          const resolved = await resolveFlowSnapshot({
+            repoRoot: deps.location.repoRoot,
+            config,
+            flowId
+          });
+          if (!resolved.ok) return refused("intake-refused", resolved.reason);
+          flowSnapshot = resolved.snapshot;
         }
 
         const result = await runIntake(
@@ -1010,11 +1056,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
+        const automatic = shipOf(snapshot)?.automatic === true;
         if (
           targetKind === "ship" &&
-          (session.state.resumeStage !== target || session.state.shipConfirmed !== true)
+          (session.state.resumeStage !== target ||
+            (session.state.shipConfirmed !== true && !automatic))
         ) {
-          // Only a ship that the engineer confirmed and that then failed is retried.
+          // Only a ship that failed is retried: one the engineer confirmed, or an automatic one.
           const gate = shipOf(snapshot)?.gate?.id ?? "the gate before it";
           return refused(
             "ship-refused",

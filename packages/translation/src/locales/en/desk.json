@@ -682,6 +682,8 @@
   "desk.keys.down": "↓",
   "desk.keys.enter": "↵",
   "desk.error.lesson-refused": "The lesson was not promoted. The reason is below.",
+  "desk.error.invalid-definition": "The agent or flow is not valid. Nothing was saved. The problems are below.",
+  "desk.error.definition-refused": "The agent or flow was not changed. The reason is below.",
   "desk.action.done.pause": "Paused. The issue stops after its current stage ends. Nothing is lost.",
   "desk.action.done.resume": "Resumed.",
   "desk.action.accepted.approve": "Plan approved. The build started.",

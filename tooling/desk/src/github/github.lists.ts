@@ -75,11 +75,13 @@ const DESK_BRANCH = /^KAINE-([1-9]\d{0,8})-/;
 /**
  * What the page shows. The issue body stays on the server: the page gets only its contract
  * count. A pull request names its desk issue when the desk shipped it or its branch says so.
+ * `flowFor` names the flow Start picks for an issue from its labels.
  */
 export const toGithubLists = (
   work: OpenWork,
   entries: readonly IssueListEntry[],
-  fetchedAt: string
+  fetchedAt: string,
+  flowFor: (labels: readonly string[]) => string
 ): Extract<GithubLists, { ok: true }> => {
   const onBoard = new Set(entries.map((entry) => entry.issueNumber));
   const shippedAs = new Map<number, number>();
@@ -101,6 +103,7 @@ export const toGithubLists = (
         ready: labels.includes(READY_LABEL),
         contract: { found: contract.found, total: contract.total },
         onBoard: onBoard.has(issue.number),
+        flowId: flowFor(labels),
         updatedAt: issue.updatedAt
       };
     }),

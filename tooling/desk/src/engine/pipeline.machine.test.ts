@@ -455,19 +455,25 @@ describe("pipeline machine: a flow of its own", () => {
     expect(done).toMatchObject({ ok: true, nextStage: "pr-review" });
   });
 
-  it("enters a ship step only on the owner's confirmation, even when the flow marks it automatic", () => {
-    const automatic = { id: "ship", kind: "ship", label: "Ship", auto: true } as const;
-    const afterCheck = flowOf([...stepsOf("plan", "build", "check"), automatic]);
-    expect(
-      transition(stateAt("check"), { type: "check-result", result: "pass" }, afterCheck).ok
-    ).toBe(false);
+  it("enters a manual ship only on the owner's confirmation, and an automatic one by moving forward", () => {
+    const manual = { id: "ship", kind: "ship", label: "Ship", auto: false } as const;
+    const automatic = { ...manual, auto: true } as const;
+    const pass = { type: "check-result", result: "pass" } as const;
+    const intoShip = { ok: true, nextStage: "ship", guard: "ship-gate" };
 
-    const afterGate = flowOf([...stepsOf("plan", "build", "check", "pr-review"), automatic]);
-    expect(transition(stateAt("pr-review"), { type: "gate-approve" }, afterGate).ok).toBe(false);
-    expect(transition(stateAt("pr-review"), { type: "ship-confirm" }, afterGate)).toMatchObject({
-      ok: true,
-      nextStage: "ship",
-      guard: "ship-gate"
-    });
+    const manualAfterGate = flowOf([...stepsOf("plan", "build", "check", "pr-review"), manual]);
+    expect(transition(stateAt("pr-review"), { type: "gate-approve" }, manualAfterGate).ok).toBe(
+      false
+    );
+    expect(
+      transition(stateAt("pr-review"), { type: "ship-confirm" }, manualAfterGate)
+    ).toMatchObject(intoShip);
+
+    const autoAfterCheck = flowOf([...stepsOf("plan", "build", "check"), automatic]);
+    expect(transition(stateAt("check"), pass, autoAfterCheck)).toMatchObject(intoShip);
+    const autoAfterGate = flowOf([...stepsOf("plan", "build", "check", "pr-review"), automatic]);
+    expect(transition(stateAt("pr-review"), { type: "gate-approve" }, autoAfterGate)).toMatchObject(
+      intoShip
+    );
   });
 });

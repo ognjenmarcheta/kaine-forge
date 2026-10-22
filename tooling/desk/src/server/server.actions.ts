@@ -110,7 +110,10 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
   const run = (issueNumber: number, request: ActionRequest): Promise<RunnerResult> => {
     switch (request.action) {
       case "start":
-        return runner.start(issueNumber, { override: request.override });
+        return runner.start(issueNumber, {
+          override: request.override,
+          ...(request.flowId === undefined ? {} : { flowId: request.flowId })
+        });
       case "approve":
         return runner.approvePlan(
           issueNumber,

@@ -8,11 +8,15 @@ import {
 import { planRiskSchema } from "./agent-output.contract";
 import { capabilityProfileSchema } from "./capability-profile.contract";
 import { providerSchema } from "./desk-config.contract";
-import { flowDefinitionSchema, stepKindSchema } from "./flow-definition.contract";
-import { definitionSourceSchema, stageIdSchema } from "./flow-snapshot.contract";
+import {
+  flowDefinitionSchema,
+  stepKindSchema,
+  type FlowDefinition,
+  type StepKind
+} from "./flow-definition.contract";
+import { definitionSourceSchema, isEngineState, stageIdSchema } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
-import { ACTIVE_STAGES, feedbackTargetSchema } from "./pipeline.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 
 /**
@@ -60,6 +64,10 @@ export const SERVER_ERROR_CODES = [
   "artifact-missing",
   /** A lesson action refused: the lesson changed since the preview, it has an issue, or GitHub failed. */
   "lesson-refused",
+  /** An agent or flow does not validate. `detail` lists every problem, one per line. Nothing was written. */
+  "invalid-definition",
+  /** A write to the agents and flows refused: the id exists, is not local, or a flow uses it. */
+  "definition-refused",
   "internal"
 ] as const;
 
@@ -405,6 +413,44 @@ export const flowListSchema = z
   .strict();
 export type FlowList = z.infer<typeof flowListSchema>;
 
+// --- agent and flow writes --------------------------------------------------
+
+export const DEFINITION_KINDS = ["agent", "flow"] as const;
+export const definitionKindSchema = z.enum(DEFINITION_KINDS);
+export type DefinitionKind = z.infer<typeof definitionKindSchema>;
+
+/** `PUT /api/agents/:id`: save to `.ai.local/desk/agents/<id>.md`. The path id must equal `definition.id`. */
+export const agentSaveRequestSchema = z.object({ definition: agentDefinitionSchema }).strict();
+/** `PUT /api/flows/:id`: save to `.ai.local/desk/flows/<id>.yaml`. */
+export const flowSaveRequestSchema = z.object({ definition: flowDefinitionSchema }).strict();
+
+/** `POST /api/{agents,flows}/:id/clone`: a local copy under a new id. `name` defaults to "<name> (copy)". */
+export const definitionCloneRequestSchema = z
+  .object({ id: definitionIdSchema, name: z.string().trim().min(1).optional() })
+  .strict();
+
+/** `POST /api/{agents,flows}/:id/promote`. `confirm: true` overwrites a repo file of the same id. */
+export const definitionPromoteRequestSchema = z
+  .object({ confirm: z.boolean().default(false) })
+  .strict();
+
+/** The answer to every agent and flow write. */
+export const definitionWriteResultSchema = z
+  .object({
+    kind: definitionKindSchema,
+    id: definitionIdSchema,
+    /** The file written (save, clone, promote) or removed (delete). Absolute. */
+    path: z.string().min(1),
+    /** The source that wins the id after the write, or `null` when no definition has the id now. */
+    source: definitionSourceSchema.nullable(),
+    /** The lower source the winner overrides, or `null`. A local save of a built-in id shadows it. */
+    shadows: definitionSourceSchema.nullable(),
+    /** Promote only: the repo file is not committed. The owner reviews and commits it like code. */
+    uncommitted: z.boolean()
+  })
+  .strict();
+export type DefinitionWriteResult = z.infer<typeof definitionWriteResultSchema>;
+
 // --- actions --------------------------------------------------------------
 
 export const ACTION_NAMES = [
@@ -428,7 +474,14 @@ export type ActionName = z.infer<typeof actionNameSchema>;
 export const MAX_FEEDBACK_CHARS = 20_000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start"), override: z.boolean().default(false) }).strict(),
+  // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
+  z
+    .object({
+      action: z.literal("start"),
+      override: z.boolean().default(false),
+      flowId: definitionIdSchema.optional()
+    })
+    .strict(),
   // The note answers the plan's open questions. The builder reads it as the owner's words.
   z
     .object({
@@ -436,14 +489,15 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
       note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS).optional()
     })
     .strict(),
+  // `to` and `from` are step ids of the issue's flow. `actionTargetProblem` checks them against it.
   z
     .object({
       action: z.literal("feedback"),
-      to: feedbackTargetSchema,
+      to: stageIdSchema,
       text: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS)
     })
     .strict(),
-  z.object({ action: z.literal("continue"), from: z.enum(ACTIVE_STAGES).optional() }).strict(),
+  z.object({ action: z.literal("continue"), from: stageIdSchema.optional() }).strict(),
   z.object({ action: z.literal("cancel") }).strict(),
   z.object({ action: z.literal("remove"), force: z.boolean().default(false) }).strict(),
   z
@@ -476,6 +530,36 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
+
+/** Step kinds that take the owner's feedback: the work there runs again with it. */
+const FEEDBACK_KINDS: readonly StepKind[] = ["agent", "check"];
+/** Step kinds `continue` can restart. A gate is where the owner decides, so nothing restarts there. */
+const CONTINUE_KINDS: readonly StepKind[] = ["agent", "check", "ship", "pr-wait"];
+
+/**
+ * Why the target of a `feedback` or `continue` request cannot be a target in `flow`, or `null`
+ * when it can. It checks the step kind only. Whether the issue may go there now is the engine's
+ * decision (`409 invalid-transition`). Pure, so the UI offers the same targets.
+ */
+export const actionTargetProblem = (
+  flow: FlowDefinition,
+  request: ActionRequest
+): string | null => {
+  if (request.action !== "feedback" && request.action !== "continue") return null;
+  const target = request.action === "feedback" ? request.to : request.from;
+  if (target === undefined) return null;
+  // `setup` and `intake` run before the first step. Only `continue` restarts them.
+  if (request.action === "continue" && (target === "intake" || target === "setup")) return null;
+  const step = isEngineState(target) ? undefined : flow.steps.find((entry) => entry.id === target);
+  if (step === undefined) return `'${target}' is not a stage of the flow '${flow.id}'.`;
+  if (request.action === "feedback" && !FEEDBACK_KINDS.includes(step.kind)) {
+    return `'${target}' is a ${step.kind} step. Feedback goes to an agent or check step.`;
+  }
+  if (request.action === "continue" && !CONTINUE_KINDS.includes(step.kind)) {
+    return `'${target}' is a ${step.kind} step. Continue restarts an agent, check, ship or pr-wait step.`;
+  }
+  return null;
+};
 
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
@@ -605,6 +689,8 @@ export const githubIssueSchema = z
       .strict(),
     /** The desk already has state for it. */
     onBoard: z.boolean(),
+    /** The flow `start` picks for it without a `flowId`: from `flowLabels`, else `defaultFlow`. */
+    flowId: definitionIdSchema,
     updatedAt: z.string()
   })
   .strict();

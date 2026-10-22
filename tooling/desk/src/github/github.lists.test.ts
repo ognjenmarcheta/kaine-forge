@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { ZodType } from "zod";
 
+import { deskConfigSchema, flowForLabels } from "../contracts";
 import type { GhClient } from "./github.gh";
 import { fetchOpenWork, toGithubLists, type OpenIssue, type OpenPull } from "./github.lists";
 import { makeState } from "../server/server.testing";
 import type { IssueListEntry } from "../store/store.issue";
 
 const AT = "2026-10-13T09:00:00.000Z";
+
+/** Start picks the flow of the first listed label, else the default flow. */
+const CONFIG = deskConfigSchema.parse({ flowLabels: { bug: "bug-fix", docs: "docs-only" } });
+const flowFor = (labels: readonly string[]): string => flowForLabels(CONFIG, labels);
 
 const issue = (over: Partial<OpenIssue> = {}): OpenIssue => ({
   number: 12,
@@ -35,7 +40,7 @@ const onBoard = (issueNumber: number, prNumber: number | null = null): IssueList
 });
 
 describe("toGithubLists", () => {
-  it("marks ready issues, counts the contract, and keeps the body on the server", () => {
+  it("marks ready issues, counts the contract, picks the flow by label, and keeps the body on the server", () => {
     const body = ["### Outcome", "a", "### Acceptance criteria", "- b"].join("\n");
     const lists = toGithubLists(
       {
@@ -43,7 +48,8 @@ describe("toGithubLists", () => {
         pulls: []
       },
       [],
-      AT
+      AT,
+      flowFor
     );
     expect(lists.issues).toEqual([
       {
@@ -54,6 +60,7 @@ describe("toGithubLists", () => {
         ready: true,
         contract: { found: 2, total: 6 },
         onBoard: false,
+        flowId: "bug-fix",
         updatedAt: AT
       }
     ]);
@@ -61,8 +68,8 @@ describe("toGithubLists", () => {
   });
 
   it("marks an issue the desk already has", () => {
-    const lists = toGithubLists({ issues: [issue()], pulls: [] }, [onBoard(12)], AT);
-    expect(lists.issues[0]?.onBoard).toBe(true);
+    const lists = toGithubLists({ issues: [issue()], pulls: [] }, [onBoard(12)], AT, flowFor);
+    expect(lists.issues[0]).toMatchObject({ onBoard: true, flowId: "kaine-default" });
   });
 
   it.each([
@@ -70,7 +77,7 @@ describe("toGithubLists", () => {
     ["a desk branch name", pull({ headRefName: "KAINE-31-feat-export" }), [], 31],
     ["any other branch", pull({ headRefName: "dependabot/npm/x" }), [], null]
   ] as const)("links %s to its desk issue", (_name, entry, entries, expected) => {
-    const lists = toGithubLists({ issues: [], pulls: [entry] }, entries, AT);
+    const lists = toGithubLists({ issues: [], pulls: [entry] }, entries, AT, flowFor);
     expect(lists.pulls[0]).toMatchObject({ draft: true, author: "someone", issue: expected });
   });
 });

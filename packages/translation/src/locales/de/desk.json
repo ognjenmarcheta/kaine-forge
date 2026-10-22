@@ -682,6 +682,8 @@
   "desk.keys.down": "↓",
   "desk.keys.enter": "↵",
   "desk.error.lesson-refused": "Die Lektion wurde nicht übernommen. Der Grund steht unten.",
+  "desk.error.invalid-definition": "Der Agent oder Ablauf ist nicht gültig. Nichts wurde gespeichert. Die Probleme stehen unten.",
+  "desk.error.definition-refused": "Der Agent oder Ablauf wurde nicht geändert. Der Grund steht unten.",
   "desk.action.done.pause": "Angehalten. Das Issue stoppt, wenn seine aktuelle Phase endet. Nichts geht verloren.",
   "desk.action.done.resume": "Fortgesetzt.",
   "desk.action.accepted.approve": "Plan genehmigt. Der Build hat begonnen.",

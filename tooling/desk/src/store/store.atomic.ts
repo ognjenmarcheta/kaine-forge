@@ -26,16 +26,16 @@ const renameOver = async (from: string, to: string): Promise<void> => {
 };
 
 /**
- * Write JSON so a reader sees the old file or the new file, never a partial
+ * Write text so a reader sees the old file or the new file, never a partial
  * one: write a temp file in the same directory, flush it, then rename it.
  */
-export const writeJsonAtomic = async <T>(file: string, value: T): Promise<void> => {
+export const writeTextAtomic = async (file: string, text: string): Promise<void> => {
   await mkdir(path.dirname(file), { recursive: true });
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
   try {
     const handle = await open(temporary, "w");
     try {
-      await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+      await handle.writeFile(text, "utf8");
       await handle.sync();
     } finally {
       await handle.close();
@@ -46,6 +46,10 @@ export const writeJsonAtomic = async <T>(file: string, value: T): Promise<void> 
     throw error;
   }
 };
+
+/** Write JSON the same way as `writeTextAtomic`. */
+export const writeJsonAtomic = async <T>(file: string, value: T): Promise<void> =>
+  writeTextAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
 
 /** Append one JSON record as one line. `JSON.stringify` never emits a raw newline. */
 export const appendJsonl = async <T>(file: string, record: T): Promise<void> => {

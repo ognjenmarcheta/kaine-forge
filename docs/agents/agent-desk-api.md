@@ -50,7 +50,7 @@ import only Zod, so a browser can use them.
 | POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.        |
 | GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                          |
 | POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.   |
-| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs. Cached 60 s; `ok: false` + reason.    |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues (with `flowId`) and PRs. Cached 60 s.          |
 | GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by role, provider, model, and issue.   |
 | GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
 | POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.          |
@@ -67,6 +67,14 @@ import only Zod, so a browser can use them.
 | GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.        |
 | GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                 |
 | GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.         |
+| PUT    | `/api/agents/:id`                | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.          |
+| PUT    | `/api/flows/:id`                 | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.          |
+| POST   | `/api/agents/:id/clone`          | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.         |
+| POST   | `/api/flows/:id/clone`           | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.         |
+| POST   | `/api/agents/:id/promote`        | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.         |
+| POST   | `/api/flows/:id/promote`         | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.         |
+| DELETE | `/api/agents/:id`                | `DefinitionWriteResult`. Deletes a local agent only.                      |
+| DELETE | `/api/flows/:id`                 | `DefinitionWriteResult`. Deletes a local flow only.                       |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
 `ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.
@@ -74,23 +82,33 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 
 ## Actions
 
-| `action`      | Extra fields                                             | Runner call                                           |
-| ------------- | -------------------------------------------------------- | ----------------------------------------------------- |
-| `start`       | `override?: boolean`                                     | `start(n, { override })`                              |
-| `approve`     | `note?` (1 to 20000 characters after trim)               | `approvePlan(n, { note })`                            |
-| `feedback`    | `to: plan\|build\|review`, `text`                        | `feedback(n, to, text)`                               |
-| `continue`    | `from?: intake\|setup\|plan\|build\|check\|review\|ship` | `continueFrom(n, from)`                               |
-| `cancel`      | none                                                     | `cancel(n)`                                           |
-| `remove`      | `force?: boolean`                                        | `remove(n, { force })`                                |
-| `ship`        | `confirm: boolean`, `dryRun?: boolean`                   | `ship(n, { confirm, dryRun })`                        |
-| `refresh-pr`  | none                                                     | `refreshPr(n)`: read the PR at `pr-open` once         |
-| `pr-feedback` | `text?` (1 to 20000 characters after trim)               | `feedbackFromPr(n, { text })`                         |
-| `draft`       | none                                                     | `draft(n)`: done means `needs-you` with "Draft ready" |
-| `apply-draft` | `confirm: true` (anything else is `400`)                 | `applyDraft(n, { confirm })`                          |
-| `pause`       | none                                                     | `pause(n)`: hold the issue after the running stage    |
-| `resume`      | none                                                     | `resume(n)`: clear the hold and drive on              |
+| `action`      | Extra fields                               | Runner call                                           |
+| ------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `start`       | `override?: boolean`, `flowId?: <flow id>` | `start(n, { override, flowId })`                      |
+| `approve`     | `note?` (1 to 20000 characters after trim) | `approvePlan(n, { note })`                            |
+| `feedback`    | `to: <step id>`, `text`                    | `feedback(n, to, text)`                               |
+| `continue`    | `from?: <step id>`, or `intake`, `setup`   | `continueFrom(n, from)`                               |
+| `cancel`      | none                                       | `cancel(n)`                                           |
+| `remove`      | `force?: boolean`                          | `remove(n, { force })`                                |
+| `ship`        | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                        |
+| `refresh-pr`  | none                                       | `refreshPr(n)`: read the PR at `pr-open` once         |
+| `pr-feedback` | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                         |
+| `draft`       | none                                       | `draft(n)`: done means `needs-you` with "Draft ready" |
+| `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
+| `pause`       | none                                       | `pause(n)`: hold the issue after the running stage    |
+| `resume`      | none                                       | `resume(n)`: clear the hold and drive on              |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
+- `start` without `flowId` runs the issue on the flow of its first label in the config's
+  `flowLabels`, else on `defaultFlow`. An unknown flow, or one that does not validate, is
+  `409 intake-refused` with the problems as the detail. A restarted intake keeps its flow.
+- `feedback.to` and `continue.from` name a step of the issue's own flow snapshot. The server
+  checks the step kind (`actionTargetProblem`): `feedback` goes to an agent or check step;
+  `continue` restarts an agent, check, ship or pr-wait step, `setup`, or `intake`. A gate, a
+  step of the wrong kind, or an id the flow does not have is `400 bad-request`, and the runner
+  is not called. In the default flow `plan-gate`, `pr-review` and `ship` are no feedback
+  targets. Whether the issue may go there now is the engine's decision: from a gate, only to
+  its `sendBack` steps; from `needs-you`, any agent step (`409 invalid-transition`).
 - `approve` with a `note` stores it as `approveNote` in the issue state. A new approval replaces
   it. Every later build gets it in its prompt, under "The owner's note at the plan approval", as
   the owner's answer to the plan's open questions. It never widens the plan's file list.
@@ -114,6 +132,9 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   it answers `done` at the gate, with the failed gate rules as the message, and writes
   `ship-plan.json` and `pr-body.md`. Read `pr-body.md` with the artifact id `pr-body` and `ship-plan.json` with `ship-plan`
   (the UI shows both in its ship dialog).
+- A flow whose ship step has `auto: true` needs no `ship` action: the engine ships after the
+  step before it, runs every gate rule but the confirmation, and opens a draft PR. The history
+  records `ship-automatic`. See "Automatic ship" in `agent-desk.md`.
 - The server waits up to 400 ms for the runner. If the call ends in that time, the
   answer is `200 { status: "done", outcome }`. A refusal is an error answer. If the call
   is still running, the answer is `202 { status: "accepted" }`. The result then arrives
@@ -134,12 +155,13 @@ The body is `{ "error": { "code": "<code>", "detail": "<raw text or null>" } }`.
 | `forbidden`                                                                                      | 403    |
 | `not-found`, `artifact-missing`, `unknown-issue`                                                 | 404    |
 | `method-not-allowed`                                                                             | 405    |
-| `busy`, `lesson-refused`                                                                         | 409    |
+| `busy`, `lesson-refused`, `definition-refused`                                                   | 409    |
 | `leased`, `unreadable`, `invalid-transition`, `ship-refused`, `draft-refused`, `already-started` | 409    |
 | `refresh-refused`, `pr-refused`                                                                  | 409    |
 | `intake-refused`, `authorization`, `worktree-dirty`, `remove-failed`                             | 409    |
 | `payload-too-large`                                                                              | 413    |
 | `unsupported-media-type`                                                                         | 415    |
+| `invalid-definition` (the detail lists every problem, one per line)                              | 422    |
 | `internal` (the message is logged, never sent)                                                   | 500    |
 
 The refusal codes (`leased` to `remove-failed`) mirror `REFUSALS` in the engine. A test
@@ -211,9 +233,9 @@ line written before the field has no `capabilities`.
 
 ## Agents and flows
 
-These routes are read-only. They show the registry of the checkout the desk serves: the
-built-in definitions, `.desk/` (repo), and `.ai.local/desk/` (local). A later source overrides
-an earlier one by id.
+The `GET` routes show the registry of the checkout the desk serves: the built-in definitions,
+`.desk/` (repo), and `.ai.local/desk/` (local). A later source overrides an earlier one by id.
+The write routes are in "Agent and flow writes".
 
 - `AgentList` is `{ agents: AgentView[], problems }`. `FlowList` is `{ flows: FlowView[], problems }`.
   `problems` lists every agent (or flow) file that does not parse or validate, as
@@ -239,6 +261,38 @@ network, removed, notes }`:
 The policy floor always applies, and an agent can only narrow it: the `.ai/permissions.json`
 denies, the forbidden git and desk commands, WebFetch and WebSearch, the Serena tools that write
 memory or run commands, the protected paths, and every skill outside the agent's list.
+
+### Agent and flow writes
+
+Saving goes local first; promote moves a definition to the repository. Every write needs the
+session and the `x-desk-request` header, like every other write.
+
+- `PUT /api/agents/:id` (`{ definition: AgentDefinition }`) writes
+  `.ai.local/desk/agents/<id>.md`: the frontmatter as YAML, then the prompt.
+  `PUT /api/flows/:id` (`{ definition: FlowDefinition }`) writes `.ai.local/desk/flows/<id>.yaml`.
+  The path id must equal `definition.id` (`400`). The server validates first: an agent with
+  `validateAgent`, a flow with `validateFlow` against the registry's agents and with the rule
+  that a ship the owner confirms comes directly after a gate. A definition with problems is
+  `422 invalid-definition`, every problem on its own line, and nothing is written. A local
+  definition may take a built-in or repo id: it overrides that definition, and the answer says
+  so in `shadows`.
+- `POST .../:id/clone` (`{ id, name? }`) copies any definition (built-in, repo or local) to a new
+  local id. `name` defaults to `"<name> (copy)"`. An id that any source has, even as a broken
+  file, is `409 definition-refused`. An unknown source id is `404`.
+- `POST .../:id/promote` (`{ confirm?: boolean }`) copies the local file to `.desk/agents` or
+  `.desk/flows`, then deletes the local copy. A repo file with the same id is overwritten only
+  with `confirm: true` (else `409 definition-refused`). A local file that does not load is
+  `422 invalid-definition`; no local file is `404`. The desk never commits or stages the file:
+  `uncommitted: true` tells the UI to say "commit it like code".
+- `DELETE /api/agents/:id` and `DELETE /api/flows/:id` delete a local definition only. A built-in
+  or repo id is `409 definition-refused`; an unknown id is `404`. An agent that a flow of the
+  registry uses (any source) stays: `409 definition-refused` names those flows.
+- Ids match `^[a-z0-9][a-z0-9-]{0,63}$`, and the file name is the id. The server resolves each
+  path and writes nothing outside `.ai.local/desk/` and `.desk/`.
+
+`DefinitionWriteResult` is `{ kind, id, path, source, shadows, uncommitted }`. `path` is the file
+written (or deleted). `source` is the source that wins the id after the write (`null` when none
+has it), and `shadows` the lower source that the winner overrides, or `null`.
 
 ## Lessons
 

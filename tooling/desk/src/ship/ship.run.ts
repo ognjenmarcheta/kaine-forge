@@ -38,6 +38,7 @@ import {
 } from "./ship.contract";
 import {
   evaluateShipGate,
+  ownerApproved,
   pullRequestFailures,
   type AuthorizationCheck,
   type ShipGateInput,
@@ -444,7 +445,7 @@ const runShip = async (
     branch: { actual: branchNow, expected: state.branch },
     authorization,
     refViolations: over.refs === undefined ? await refViolations() : over.refs,
-    planApproved: state.history.some((entry) => entry.event === "plan-approved"),
+    ownerApproved: ownerApproved(state.flowSnapshot, state.history),
     review:
       reviewArtifact === null
         ? null

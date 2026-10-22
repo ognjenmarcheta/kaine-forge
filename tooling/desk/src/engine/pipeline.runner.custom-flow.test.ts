@@ -11,6 +11,7 @@ import type {
 } from "../contracts";
 import { readRunRecords } from "../stats/stats.runs";
 import { DEFAULT_SNAPSHOT, writeFiles } from "../testing/flow.testing";
+import { snapshotOf } from "../testing/github.fake";
 import {
   FEATURE_FILE,
   ISSUE,
@@ -50,16 +51,12 @@ const stateOf = async (e: PipelineEnv): Promise<IssueState> => {
 const historyOf = async (e: PipelineEnv): Promise<string[]> =>
   (await stateOf(e)).history.map((entry) => `${entry.stage}:${entry.event}`);
 
-/** The default flow with `extra` inserted after the step `after`, and an automatic ship if asked. */
-const flowWith = (after: string, extra: FlowStep, autoShip = false): FlowDefinition => ({
+/** The default flow with `extra` inserted after the step `after`. */
+const flowWith = (after: string, extra: FlowStep): FlowDefinition => ({
   ...DEFAULT_SNAPSHOT.flow,
   name: "Kaine default with more",
   steps: DEFAULT_SNAPSHOT.flow.steps.flatMap((entry): FlowStep[] =>
-    entry.id === after
-      ? [entry, extra]
-      : entry.kind === "ship"
-        ? [{ ...entry, auto: autoShip }]
-        : [entry]
+    entry.id === after ? [entry, extra] : [entry]
   )
 });
 
@@ -267,17 +264,63 @@ describe("a flow of the repository's own", () => {
     });
     expect(receipt?.tools.allow).toEqual(notes?.permissions.allow);
   });
+});
 
-  it("refuses to start a flow whose ship would not wait for the owner", async () => {
-    const e = await open([]);
-    await writeFlow(e, flowWith("review", notesStep, true), {
-      "release-notes": agentFile("release-notes", "report", NOTES_PROMPT)
+describe("the flow an issue starts on", () => {
+  /** Two more flows in the repository, and a config that picks them by label and by default. */
+  const openWithFlows = async (labels: readonly string[]): Promise<PipelineEnv> => {
+    const e = await createPipelineEnv({
+      steps: [planStep],
+      config: { flowLabels: { docs: "docs-only" }, defaultFlow: "fast-lane" },
+      github: { snapshot: snapshotOf({ labels: ["ready-for-agent", ...labels] }) }
     });
+    env = e;
+    const copy = (id: string): string =>
+      stringify({ ...DEFAULT_SNAPSHOT.flow, id, name: `Flow ${id}` });
+    await writeFiles(e.repoRoot, {
+      ".desk/flows/docs-only.yaml": copy("docs-only"),
+      ".desk/flows/fast-lane.yaml": copy("fast-lane")
+    });
+    return e;
+  };
 
-    const result = await e.pipeline.start(ISSUE, { override: false });
+  it.each([
+    {
+      name: "the flow the owner names",
+      flowId: "kaine-default",
+      labels: ["docs"],
+      expected: "kaine-default"
+    },
+    {
+      name: "the flow of the first listed label",
+      flowId: undefined,
+      labels: ["bug", "docs"],
+      expected: "docs-only"
+    },
+    {
+      name: "the configured default flow",
+      flowId: undefined,
+      labels: ["bug"],
+      expected: "fast-lane"
+    }
+  ])("runs on $name", async ({ flowId, labels, expected }) => {
+    const e = await openWithFlows(labels);
+
+    const result = await e.pipeline.start(ISSUE, { override: false, flowId });
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    expect((await stateOf(e)).flowSnapshot.flow.id).toBe(expected);
+  });
+
+  it("refuses a flow the registry does not have, and keeps no state", async () => {
+    const e = await openWithFlows([]);
+
+    const result = await e.pipeline.start(ISSUE, { override: false, flowId: "nope" });
 
     expect(result).toMatchObject({ outcome: "refused", refusal: "intake-refused" });
-    expect(result.outcome === "refused" && result.reason).toContain("auto: true");
+    expect(result.outcome === "refused" && result.reason).toContain(
+      "The flow 'nope' is not available."
+    );
     expect(await e.store.read(ISSUE)).toEqual({ status: "missing" });
     expect(e.runner.requests).toHaveLength(0);
   });

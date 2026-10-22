@@ -17,6 +17,7 @@ const issue = (over: Partial<GithubIssue>): GithubIssue => ({
   ready: false,
   contract: { found: 6, total: 6 },
   onBoard: false,
+  flowId: "kaine-default",
   updatedAt: AT,
   ...over
 });

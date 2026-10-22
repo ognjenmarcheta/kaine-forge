@@ -1,15 +1,16 @@
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { stringify } from "yaml";
 
 import { runChecks } from "../check";
-import type { IssueState } from "../contracts";
+import type { FlowStep, IssueState } from "../contracts";
 import { createPipelineRunner, type PipelineRunner } from "./pipeline.runner";
 import type { IsolatedCheckRequest, IsolationPort } from "../isolation/isolation.port";
 import { createLogSink } from "../log/log.writer";
 import { REFS_BASELINE_FILE, SHIP_PLAN_FILE, SHIP_RECORD_FILE } from "../ship/ship.contract";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
-import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
+import { DEFAULT_SNAPSHOT, writeFiles } from "../testing/flow.testing";
 import {
   ISSUE,
   FEATURE_FILE,
@@ -552,5 +553,107 @@ describe("refresh at pr-open", () => {
     expect(await e.pipeline.refreshPr(ISSUE)).toMatchObject({ outcome: "refused", refusal });
     expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
     expect(e.github.pullRequestViews).toEqual([]);
+  });
+});
+
+describe("ship in a flow of the repository's own", () => {
+  const stepsOf = (...ids: string[]): FlowStep[] =>
+    ids.map((id) => {
+      const step = DEFAULT_SNAPSHOT.flow.steps.find((entry) => entry.id === id);
+      if (step === undefined) throw new Error(`the default flow has no step '${id}'`);
+      return step;
+    });
+  /** `.desk/flows/kaine-default.yaml` overrides the built-in flow by id for every new issue. */
+  const useFlow = (h: ShipHarness, steps: readonly FlowStep[]): Promise<void> =>
+    writeFiles(h.env.repoRoot, {
+      ".desk/flows/kaine-default.yaml": stringify({ ...DEFAULT_SNAPSHOT.flow, steps })
+    });
+  const automaticShip: FlowStep = { id: "ship", kind: "ship", label: "Ship", auto: true };
+  const eventsOf = (state: IssueState): string[] =>
+    state.history.map((entry) => `${entry.stage}:${entry.event}`);
+
+  it("ships a flow without a plan gate after the approval at its own gate", async () => {
+    const h = await open();
+    const qa: FlowStep = { id: "qa", kind: "gate", label: "QA", sendBack: ["build"] };
+    await useFlow(h, [
+      ...stepsOf("plan", "build", "check"),
+      qa,
+      ...stepsOf("review", "pr-review", "ship", "pr-open")
+    ]);
+
+    expect(await h.pipeline.start(ISSUE, { override: false })).toMatchObject({ stop: "gate" });
+    expect((await h.state()).stage).toBe("qa");
+    expect(await h.pipeline.approvePlan(ISSUE)).toMatchObject({ stop: "gate" });
+    expect((await h.state()).stage).toBe("pr-review");
+
+    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    const shipped = await h.state();
+    expect(shipped).toMatchObject({ stage: "pr-open", prNumber: 101 });
+    expect(eventsOf(shipped)).toContain("qa:gate-approved");
+    expect(h.env.github.createdPullRequests).toHaveLength(1);
+    expectSafeCalls(h.env);
+  });
+
+  it("ships an automatic ship without a confirmation, as a draft PR, and records that it was automatic", async () => {
+    const h = await open();
+    await useFlow(h, [
+      ...stepsOf("plan", "plan-gate", "build", "check", "review"),
+      automaticShip,
+      ...stepsOf("pr-open")
+    ]);
+    expect(await h.pipeline.start(ISSUE, { override: false })).toMatchObject({ stop: "gate" });
+
+    // The plan approval is the last thing the owner does: review passes, and the ship follows.
+    const result = await h.pipeline.approvePlan(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    const shipped = await h.state();
+    expect(shipped).toMatchObject({ stage: "pr-open", status: "waiting", prNumber: 101 });
+    expect(eventsOf(shipped)).toContain("ship:ship-automatic");
+    expect(eventsOf(shipped).some((entry) => entry.endsWith(":ship-confirmed"))).toBe(false);
+    expect(await commitCount(h, shipped)).toBe(1);
+    expect(h.env.github.createdPullRequests).toEqual([
+      expect.objectContaining({ base: "main", draft: true })
+    ]);
+    expectSafeCalls(h.env);
+  });
+
+  it("stops an automatic ship whose check report does not match the diff, and opens no PR", async () => {
+    const h = await open();
+    const last: FlowStep = {
+      id: "last-look",
+      kind: "gate",
+      label: "Last look",
+      sendBack: ["build"]
+    };
+    await useFlow(h, [
+      ...stepsOf("plan", "plan-gate", "build", "check", "review"),
+      last,
+      automaticShip,
+      ...stepsOf("pr-open")
+    ]);
+    await h.pipeline.start(ISSUE, { override: false });
+    await h.pipeline.approvePlan(ISSUE);
+    expect((await h.state()).stage).toBe("last-look");
+
+    // The check report now describes another diff. Nothing else changes.
+    const reportFile = h.artifacts("check-report.json");
+    const report = await readFile(reportFile, "utf8");
+    const stale = report.replace(/"diffHash": "[0-9a-f]{64}"/, `"diffHash": "${"0".repeat(64)}"`);
+    expect(stale).not.toBe(report);
+    await writeFile(reportFile, stale);
+
+    const result = await h.pipeline.approvePlan(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
+    expect(result.outcome === "stopped" && result.message).toContain("- checks-stale:");
+    const stopped = await h.state();
+    expect(stopped).toMatchObject({ stage: "needs-you", resumeStage: "ship" });
+    expect(eventsOf(stopped)).toContain("ship:ship-automatic");
+    expect(await commitCount(h, stopped)).toBe(0);
+    expect(await remoteBranches(h)).toEqual(["main"]);
+    expect(h.env.github.createdPullRequests).toEqual([]);
   });
 });

@@ -2,11 +2,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
-  feedbackTargetSchema,
+  actionTargetProblem,
+  definitionIdSchema,
   isShipGate,
   isolationSchema,
-  stageSchema,
-  FEEDBACK_TARGETS
+  stageIdSchema,
+  type ActionRequest
 } from "../contracts";
 import { parse, parseIssueNumber, requireIssue } from "./cli.args";
 import { describeResult } from "./cli.format";
@@ -14,6 +15,7 @@ import { markNoWriteback, openRuntime } from "./cli.runtime";
 import { UsageError, type CliCommand, type CliDeps, type CliIo } from "./cli.types";
 import type { PipelineRunner } from "../engine/pipeline.runner";
 import type { ShipActionResult } from "../engine/pipeline.types";
+import { builtinFlowSnapshot } from "../registry/registry.snapshot";
 
 /**
  * Commands that change an issue and may drive it: `start`, `approve`,
@@ -65,17 +67,41 @@ const drive = async (
   }
 };
 
+/**
+ * Check a `feedback` or `continue` target against the issue's flow. An issue without state has
+ * no flow yet: its target is checked against the built-in default flow.
+ */
+const checkTarget = async (
+  runner: PipelineRunner,
+  issue: number,
+  request: ActionRequest,
+  usage: string
+): Promise<void> => {
+  const [entry] = await runner.status(issue);
+  const flow =
+    entry?.result.status === "ok"
+      ? entry.result.state.flowSnapshot.flow
+      : (await builtinFlowSnapshot()).flow;
+  const problem = actionTargetProblem(flow, request);
+  if (problem !== null) throw new UsageError(`${problem} Usage: ${usage}`);
+};
+
 export const commandStart: CliCommand = (args, deps, io) => {
   const { values, positionals } = parse(args, {
     override: { type: "boolean" },
     "no-writeback": { type: "boolean" },
     "snapshot-file": { type: "string" },
     isolation: { type: "string" },
+    flow: { type: "string" },
     json: { type: "boolean" }
   });
   const usage =
-    "pnpm desk start <issue> [--override] [--no-writeback] [--snapshot-file <path>] [--isolation host|docker]";
+    "pnpm desk start <issue> [--override] [--no-writeback] [--snapshot-file <path>] [--isolation host|docker] [--flow <id>]";
   const issue = requireIssue(positionals, usage);
+  const flow = values.flow === undefined ? undefined : definitionIdSchema.safeParse(values.flow);
+  if (flow !== undefined && !flow.success) {
+    throw new UsageError(`--flow takes a flow id. Usage: ${usage}`);
+  }
   const isolation =
     values.isolation === undefined ? undefined : isolationSchema.safeParse(values.isolation);
   if (isolation !== undefined && !isolation.success) {
@@ -96,6 +122,7 @@ export const commandStart: CliCommand = (args, deps, io) => {
       runner.start(issue, {
         override: values.override === true,
         ...(isolation === undefined ? {} : { isolation: isolation.data }),
+        ...(flow === undefined ? {} : { flowId: flow.data }),
         ...(snapshotFile === undefined
           ? {}
           : { snapshotFile: path.resolve(deps.cwd, snapshotFile) })
@@ -192,23 +219,31 @@ export const commandContinue: CliCommand = (args, deps, io) => {
     "no-writeback": { type: "boolean" },
     json: { type: "boolean" }
   });
-  const issue = requireIssue(positionals, "pnpm desk continue <issue> [--from <stage>]");
+  const usage = "pnpm desk continue <issue> [--from <stage>]";
+  const issue = requireIssue(positionals, usage);
   const from = values.from;
-  const stage = from === undefined ? undefined : stageSchema.safeParse(from);
+  const stage = from === undefined ? undefined : stageIdSchema.safeParse(from);
   if (stage !== undefined && !stage.success) throw new UsageError(`'${from}' is not a stage.`);
   return drive(
     deps,
     io,
     { issue, json: values.json === true, noWriteback: values["no-writeback"] === true },
-    (runner) => runner.continueFrom(issue, stage?.data)
+    async (runner) => {
+      if (stage !== undefined) {
+        await checkTarget(runner, issue, { action: "continue", from: stage.data }, usage);
+      }
+      return runner.continueFrom(issue, stage?.data);
+    }
   );
 };
 
-const FEEDBACK_USAGE = `pnpm desk feedback <issue> --to ${FEEDBACK_TARGETS.join("|")} <text...> | --file <path>, or pnpm desk feedback <issue> --from-pr [text...] [--file <path>]`;
+const FEEDBACK_USAGE =
+  "pnpm desk feedback <issue> --to <step> <text...> | --file <path>, or pnpm desk feedback <issue> --from-pr [text...] [--file <path>]";
 
 /**
- * `--to` sends the engineer's words to one stage. `--from-pr` sends the feedback on the open
- * PR to `build`, with optional words of the engineer's own.
+ * `--to` sends the engineer's words to one agent or check step of the issue's flow. `--from-pr`
+ * sends the feedback on the open PR to the step the flow names, with optional words of the
+ * engineer's own.
  */
 export const commandFeedback: CliCommand = async (args, deps, io) => {
   const { values, positionals } = parse(args, {
@@ -224,7 +259,7 @@ export const commandFeedback: CliCommand = async (args, deps, io) => {
   if (fromPr && values.to !== undefined) {
     throw new UsageError(`Use --to or --from-pr, not both. Usage: ${FEEDBACK_USAGE}`);
   }
-  const target = feedbackTargetSchema.safeParse(values.to);
+  const target = stageIdSchema.safeParse(values.to);
   if (!fromPr && !target.success) throw new UsageError(`Usage: ${FEEDBACK_USAGE}`);
   const fromFile = values.file;
   if (fromFile !== undefined && words.length > 0) {
@@ -259,7 +294,10 @@ export const commandFeedback: CliCommand = async (args, deps, io) => {
     deps,
     io,
     { issue, json: values.json === true, noWriteback: values["no-writeback"] === true },
-    (runner) => runner.feedback(issue, to, text)
+    async (runner) => {
+      await checkTarget(runner, issue, { action: "feedback", to, text }, FEEDBACK_USAGE);
+      return runner.feedback(issue, to, text);
+    }
   );
 };
 

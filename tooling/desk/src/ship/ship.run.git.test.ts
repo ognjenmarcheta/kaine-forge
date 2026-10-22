@@ -235,7 +235,7 @@ describe("shipIssue: the gate refuses before anything changes", () => {
     const state = await env.store.read(7);
     if (state.status !== "ok") throw new Error("state");
     await env.store.write({ ...state.state, history: [] });
-    await refused("plan not approved", ["plan-not-approved"]);
+    await refused("plan not approved", ["owner-not-approved"]);
     await env.store.write(state.state);
 
     await writeFile(feature, "export const feature = 2;\n");

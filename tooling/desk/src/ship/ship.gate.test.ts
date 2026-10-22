@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import type { FlowSnapshot, FlowStep } from "../contracts";
 import {
   evaluateShipGate,
+  ownerApproved,
   SHIP_GATE_FAILURES,
   type ShipGateFailureKind,
   type ShipGateInput,
   type ShipGatePullRequest
 } from "./ship.gate";
 import { checkReportOf, sha256 } from "./ship.testing";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { OWNER, repositoryOf } from "../testing/github.fake";
 
 const HASH = sha256("code");
@@ -22,7 +25,7 @@ const passing = (): ShipGateInput => ({
   branch: { actual: BRANCH, expected: BRANCH },
   authorization: { status: "unchanged" },
   refViolations: [],
-  planApproved: true,
+  ownerApproved: true,
   review: { verdict: "approve", blockingFindings: 0, diffHash: HASH },
   expectedReviewDiffHash: HASH
 });
@@ -114,7 +117,7 @@ describe("evaluateShipGate", () => {
       (input) => ({ ...input, changedPaths: [...input.changedPaths, ".ai/hooks/pre-tool-use.mjs"] })
     ],
     ["no-changes", (input) => ({ ...input, changedPaths: [] })],
-    ["plan-not-approved", (input) => ({ ...input, planApproved: false })],
+    ["owner-not-approved", (input) => ({ ...input, ownerApproved: false })],
     ["review-missing", (input) => ({ ...input, review: null })],
     [
       "review-not-approved",
@@ -154,8 +157,8 @@ describe("evaluateShipGate", () => {
   });
 
   it("reports every failed rule, not only the first", () => {
-    const input = { ...passing(), confirm: false, planApproved: false, changedPaths: [] };
-    expect(kindsOf(input)).toEqual(["not-confirmed", "no-changes", "plan-not-approved"]);
+    const input = { ...passing(), confirm: false, ownerApproved: false, changedPaths: [] };
+    expect(kindsOf(input)).toEqual(["not-confirmed", "no-changes", "owner-not-approved"]);
   });
 
   it("treats only the literal true as a confirmation", () => {
@@ -216,5 +219,72 @@ describe("evaluateShipGate", () => {
     expect(
       kindsOf({ ...passing(), review: { verdict: "approve", blockingFindings: 2, diffHash: HASH } })
     ).toEqual(["review-not-approved"]);
+  });
+});
+
+describe("the owner's approval a ship needs", () => {
+  const steps = (ids: readonly string[]): FlowStep[] =>
+    DEFAULT_SNAPSHOT.flow.steps.filter((step) => ids.includes(step.id));
+  const flowOf = (list: readonly FlowStep[]): FlowSnapshot => ({
+    ...DEFAULT_SNAPSHOT,
+    flow: { ...DEFAULT_SNAPSHOT.flow, id: "custom", steps: [...list] }
+  });
+  const qaGate: FlowStep = { id: "qa", kind: "gate", label: "QA", sendBack: ["build"] };
+  const autoShip: FlowStep = { id: "ship", kind: "ship", label: "Ship", auto: true };
+  const event = (stage: string, name: string) => ({ stage, event: name });
+
+  /** No plan gate: a QA gate after the checks, then the change approval before a manual ship. */
+  const withQaGate = flowOf([
+    ...steps(["plan", "build", "check"]),
+    qaGate,
+    ...steps(["review", "pr-review", "ship"])
+  ]);
+
+  it.each([
+    {
+      name: "the default flow after the plan approval",
+      snapshot: DEFAULT_SNAPSHOT,
+      history: [event("plan-gate", "plan-approved")],
+      approved: true
+    },
+    {
+      name: "the default flow without a plan approval",
+      snapshot: DEFAULT_SNAPSHOT,
+      history: [event("plan", "plan-ready"), event("review", "review-approved")],
+      approved: false
+    },
+    {
+      name: "a flow without a plan gate after its QA gate approval",
+      snapshot: withQaGate,
+      history: [event("qa", "gate-approved")],
+      approved: true
+    },
+    {
+      name: "a flow without a plan gate before its QA gate approval",
+      snapshot: withQaGate,
+      history: [event("check", "check-passed")],
+      approved: false
+    },
+    {
+      // An approval event at a stage that is no gate of this flow proves nothing.
+      name: "an approval recorded at a stage that is not a gate of the flow",
+      snapshot: withQaGate,
+      history: [event("plan-gate", "plan-approved")],
+      approved: false
+    },
+    {
+      name: "a flow whose only gate is the ship gate: the confirmation there is the approval",
+      snapshot: flowOf(steps(["build", "check", "pr-review", "ship"])),
+      history: [],
+      approved: true
+    },
+    {
+      name: "an automatic ship, with no human approval at all",
+      snapshot: flowOf([...steps(["plan", "plan-gate", "build", "check"]), autoShip]),
+      history: [],
+      approved: true
+    }
+  ])("$name: $approved", ({ snapshot, history, approved }) => {
+    expect(ownerApproved(snapshot, history)).toBe(approved);
   });
 });

@@ -6,11 +6,14 @@ import {
   REFUSAL_CODES,
   SERVER_ERROR_CODES,
   actionRequestSchema,
+  actionTargetProblem,
   apiErrorSchema,
   issueSummarySchema,
   logEntrySchema,
   serverEventSchema
 } from "./api.contract";
+import type { FlowDefinition } from "./flow-definition.contract";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 describe("action request", () => {
   it.each([
@@ -55,12 +58,10 @@ describe("action request", () => {
     { name: "an unknown action", input: { action: "merge" } },
     { name: "an extra field", input: { action: "approve", worktree: "/tmp" } },
     { name: "empty feedback", input: { action: "feedback", to: "build", text: "   " } },
-    { name: "feedback to a gate", input: { action: "feedback", to: "pr-review", text: "x" } },
     {
       name: "feedback past the limit",
       input: { action: "feedback", to: "plan", text: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
     },
-    { name: "continue from a gate", input: { action: "continue", from: "plan-gate" } },
     { name: "a real ship without confirm", input: { action: "ship", confirm: false } },
     { name: "a ship without confirm field", input: { action: "ship" } },
     { name: "a string where a boolean belongs", input: { action: "remove", force: "yes" } },
@@ -80,6 +81,52 @@ describe("action request", () => {
     { name: "a pause that names a stage", input: { action: "pause", stage: "build" } }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("action targets", () => {
+  const DEFAULT_FLOW = DEFAULT_SNAPSHOT.flow;
+  /** A flow without a plan gate, whose change gate sends work back to a custom step. */
+  const CUSTOM: FlowDefinition = {
+    id: "docs-only",
+    name: "Docs only",
+    description: "Write docs, check, approve, ship.",
+    steps: [
+      { id: "write", kind: "agent", label: "Write", agent: "builder" },
+      { id: "verify", kind: "check", label: "Verify", commands: "loop" },
+      { id: "approve-docs", kind: "gate", label: "Approve", sendBack: ["write", "verify"] },
+      { id: "ship", kind: "ship", label: "Ship", auto: false }
+    ]
+  };
+  const feedback = (to: string) => actionRequestSchema.parse({ action: "feedback", to, text: "x" });
+  const resume = (from: string) => actionRequestSchema.parse({ action: "continue", from });
+
+  it.each([
+    { flow: DEFAULT_FLOW, request: feedback("plan") },
+    { flow: DEFAULT_FLOW, request: feedback("review") },
+    { flow: DEFAULT_FLOW, request: resume("setup") },
+    { flow: DEFAULT_FLOW, request: resume("ship") },
+    { flow: DEFAULT_FLOW, request: resume("pr-open") },
+    { flow: CUSTOM, request: feedback("write") },
+    { flow: CUSTOM, request: feedback("verify") },
+    { flow: CUSTOM, request: resume("verify") }
+  ])("accepts $request in $flow.id", ({ flow, request }) => {
+    expect(actionTargetProblem(flow, request)).toBeNull();
+  });
+
+  it.each([
+    // A gate and the ship are no targets in the default flow, by their kind.
+    { flow: DEFAULT_FLOW, request: feedback("pr-review"), problem: "is a gate step" },
+    { flow: DEFAULT_FLOW, request: feedback("ship"), problem: "is a ship step" },
+    { flow: DEFAULT_FLOW, request: resume("plan-gate"), problem: "is a gate step" },
+    { flow: DEFAULT_FLOW, request: feedback("setup"), problem: "is not a stage" },
+    { flow: DEFAULT_FLOW, request: resume("needs-you"), problem: "is not a stage" },
+    // A step of another flow is no step of this one.
+    { flow: DEFAULT_FLOW, request: feedback("write"), problem: "is not a stage" },
+    { flow: CUSTOM, request: feedback("build"), problem: "is not a stage" },
+    { flow: CUSTOM, request: resume("approve-docs"), problem: "is a gate step" }
+  ])("refuses $request in $flow.id", ({ flow, request, problem }) => {
+    expect(actionTargetProblem(flow, request)).toContain(problem);
   });
 });
 

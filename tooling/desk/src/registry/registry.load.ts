@@ -56,7 +56,8 @@ export interface LoadRegistryInput {
 
 const BUILTIN_DIR = fileURLToPath(new URL("../../defaults/", import.meta.url));
 
-const sourceDirs = (repoRoot: string): Readonly<Record<DefinitionSource, string>> => ({
+/** The directory of each source. Agents and flows live in its `agents` and `flows` folders. */
+export const sourceDirs = (repoRoot: string): Readonly<Record<DefinitionSource, string>> => ({
   builtin: BUILTIN_DIR,
   repo: path.join(repoRoot, ".desk"),
   local: path.join(repoRoot, ".ai.local", "desk")

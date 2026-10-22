@@ -17,7 +17,7 @@ take many minutes, so the command prints live progress (see "Live output").
 | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `start <n> [--override] [--no-writeback] [--snapshot-file P] [--isolation host\|docker]` | Run intake, setup, and plan to the plan gate. Run it again to retry intake after you fix the issue. `--isolation docker` runs the builder and the checks in containers. |
 | `approve <n>`                                                                            | At the plan gate: approve the plan. Build, check, and review run to `pr-review`.                                                                                        |
-| `feedback <n> --to TARGET TEXT...`                                                       | Send feedback to `plan`, `build`, or `review`, then run on. `--file P` reads the text from a file.                                                                      |
+| `feedback <n> --to TARGET TEXT...`                                                       | Send feedback to an agent or check step of the issue's flow (`plan`, `build`, or `review` in the default flow), then run on. `--file P` reads the text from a file.     |
 | `continue <n> [--from STAGE]`                                                            | From `needs-you`: retry the recorded stage (or STAGE), then run on.                                                                                                     |
 | `cancel <n>`                                                                             | End the issue. The worktree stays.                                                                                                                                      |
 | `remove <n> [--force] [--keep-worktree]`                                                 | Delete the desk state and the worktree. It refuses a dirty worktree unless `--force`. The branch stays.                                                                 |
@@ -32,6 +32,13 @@ take many minutes, so the command prints live progress (see "Live output").
   `--snapshot-file` turns it on too.
 - `--snapshot-file P` reads the issue from a JSON file and needs `--override`. See
   "Try it without GitHub".
+- `start --flow ID` runs the issue on that flow. Without it the issue runs on the flow of its
+  first label in `flowLabels`, else on `defaultFlow` (see "Config"). An unknown or invalid flow
+  refuses the start (`intake-refused`) and keeps no state.
+- `--to` and `--from` take a step id of the issue's own flow. `--to` takes an agent or check
+  step; `--from` takes an agent, check, ship or pr-wait step, `setup`, or `intake`. A gate is
+  no target: a wrong kind or an unknown step exits 2. Whether the issue may go there now is the
+  engine's decision (`refused (invalid-transition)`, exit 1).
 - Put `--` before feedback text that starts with `-`: `feedback 12 --to build -- --verbose is noisy`.
 - The command prints where the issue stopped, what is next, and the exact command to run:
 
@@ -290,7 +297,9 @@ fails closed (`refs-baseline-missing`).
 ### Ship
 
 `ship` is the only step that commits, pushes, or opens a PR. The engine does it, never an
-agent. It runs only from `pr-review`, only with your explicit yes.
+agent. It runs only from the gate before the ship step (`pr-review` in the default flow), only
+with your explicit yes. A flow can mark its ship step `auto: true` instead (see "Automatic
+ship" below).
 
 - `ship <n> --dry-run`: write `ship-plan.json`, `pr-body.md`, and `commit-message.txt` in the
   artifacts folder, print the plan, and change nothing. The plan shows the gate verdict, the
@@ -307,9 +316,14 @@ agent. It runs only from `pr-review`, only with your explicit yes.
 The gate must pass first. Every rule must hold, and a refusal lists all failed rules and
 changes nothing: you confirmed; the check report passed and matches the diff; `gh` is signed
 in as the owner; the branch name is valid; the authorization snapshot still holds (it reads
-the issue again); the refs match the baseline; no protected path is in the diff; the plan was
-approved; the reviewer approved the same code. A snapshot-file issue fails the
-authorization check, because the real issue differs.
+the issue again); the refs match the baseline; no protected path is in the diff; the owner
+approved at a gate of the flow (`owner-not-approved`); the reviewer approved the same code. A
+snapshot-file issue fails the authorization check, because the real issue differs.
+
+The owner's approval comes from the issue's flow snapshot and history: a `plan-approved` or
+`gate-approved` event at a gate of the flow other than the gate before the ship. In the default
+flow that is the plan approval at `plan-gate`. A flow whose only gate is the gate before the
+ship has no other approval: your confirmation there is it. An automatic ship needs none.
 
 After the gate, the engine enters the `ship` stage and runs: the ship checks (`pnpm check`),
 the changeset file or the `release:skip-changeset` label, a commit through the repository
@@ -347,7 +361,22 @@ A failure after the first change (a hook refuses, a push is rejected, a rebase c
 moves the issue to `needs-you` with `resumeStage: ship`. The reason has the failure and the
 redacted tail of the output. Fix the cause, then run `pnpm desk continue <n>`. The ship
 continues where it stopped: it makes no second commit and no second PR. `continue` retries a
-ship only if you confirmed it before. A new `ship --confirm` is not valid there.
+ship only if you confirmed it before, or if it is automatic. A new `ship --confirm` is not
+valid there.
+
+#### Automatic ship
+
+A flow step `{ kind: ship, auto: true }` ships without your confirmation. The default flow
+keeps `auto: false`.
+
+- The issue moves into the ship step by itself: after the step before it, or after your
+  approval at a gate before it. No `ship-confirmed` event is written; the history records
+  `ship-automatic` instead.
+- Every rule of the gate applies, except your confirmation. A refusal (for example a check
+  report that does not match the diff) moves the issue to `needs-you` with `resumeStage: ship`
+  and changes nothing on GitHub. `continue` retries it.
+- The PR is a draft, as always. The desk never merges and never marks it ready.
+- An issue that writes nothing to GitHub stops at `needs-you` instead of shipping.
 
 ### Open PR
 
@@ -604,6 +633,12 @@ defaults. A file that exists but is invalid is an error. Fields are listed in
   `"isolation": "host"` to keep host mode.
 - Issue worktrees go in `<main checkout>.worktrees/KAINE-<n>`, next to the main checkout. This is
   also true when the desk runs from a linked worktree. Set `worktreesDir` to use another folder.
+- `defaultFlow` (default `kaine-default`) is the flow a new issue runs on when you name none
+  and no label picks one.
+- `flowLabels` maps a GitHub label to a flow id, for example
+  `"flowLabels": { "docs": "docs-only" }`. At `start` the first label of the issue that the map
+  lists picks the flow. `start --flow` (or `flowId` in the API) overrides both. The Start
+  dialog shows the pick for each open issue (`flowId` in `GET /api/github`).
 
 The `docker` block sets the limits of the containers. All fields are optional:
 

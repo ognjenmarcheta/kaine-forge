@@ -682,6 +682,8 @@
   "desk.keys.down": "↓",
   "desk.keys.enter": "↵",
   "desk.error.lesson-refused": "Lekcija nije unapređena. Razlog je ispod.",
+  "desk.error.invalid-definition": "Agent ili tok nije ispravan. Ništa nije sačuvano. Problemi su ispod.",
+  "desk.error.definition-refused": "Agent ili tok nije promenjen. Razlog je ispod.",
   "desk.action.done.pause": "Pauzirano. Zadatak staje kada se njegova trenutna faza završi. Ništa nije izgubljeno.",
   "desk.action.done.resume": "Nastavljeno.",
   "desk.action.accepted.approve": "Plan je odobren. Izgradnja je počela.",
