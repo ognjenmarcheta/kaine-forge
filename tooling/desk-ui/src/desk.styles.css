@@ -2144,6 +2144,7 @@ main:focus {
   border: 0;
   border-radius: var(--ds-radius-100);
   font-weight: var(--ds-font-weight-regular);
+  white-space: normal;
   cursor: pointer;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
 }
@@ -2182,9 +2183,11 @@ main:focus {
   background: var(--ds-surface);
 }
 
+/* A flow's own step names can be long: wrap them under the dot, never into the next stage. */
 .desk-stepper__name {
   font: var(--ds-font-body-small);
-  white-space: nowrap;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .desk-stepper__button[aria-current="step"] .desk-stepper__name {
