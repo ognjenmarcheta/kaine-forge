@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { CheckReport } from "../check";
+import { baseBranchSchema } from "../contracts";
 import type { AttributionViolation } from "./ship.attribution";
 import type { ShipGateFailure } from "./ship.gate";
 
@@ -121,7 +122,7 @@ export const shipPlanSchema = z
     changesetText: z.string().nullable(),
     commitHeader: z.string(),
     pullRequest: z
-      .object({ base: z.literal("main"), draft: z.literal(true), title: z.string() })
+      .object({ base: baseBranchSchema, draft: z.literal(true), title: z.string() })
       .strict(),
     /** Files the commit holds, exactly. */
     files: z.array(z.string()),

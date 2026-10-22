@@ -524,7 +524,7 @@ the same in every flow.
 | Stage       | Who      | What happens                                                                                                                                                                              |
 | ----------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `intake`    | engine   | Read the issue, prove authorization, write `ticket.md` and `issue.json`.                                                                                                                  |
-| `setup`     | engine   | Pick the provisional branch (`fix` for a `bug` label, else `feat`). Run the worktree recipe. Record branch, worktree, and base commit.                                                    |
+| `setup`     | engine   | Pick the provisional branch (`fix` for a `bug` label, else `feat`). Run the worktree recipe. Record branch, worktree, base branch, and base commit.                                       |
 | `plan`      | planner  | Read-only. Result: `plan.json` and `plan.md`. Open questions show at the gate.                                                                                                            |
 | `plan-gate` | you      | Approve, or send feedback. Feedback resumes the planner session.                                                                                                                          |
 | `build`     | builder  | Resumed session. Gets the plan, feedback, the last check failure, or the last blocking review findings.                                                                                   |
@@ -603,8 +603,8 @@ ship has no other approval: your confirmation there is it. An automatic ship nee
 
 After the gate, the engine enters the `ship` stage and runs: the ship checks (`pnpm check`),
 the changeset file or the `release:skip-changeset` label, a commit through the repository
-hooks, a rebase onto `origin/main` if needed (with the checks again), a push of the branch,
-and `gh pr create --draft`. It sets the label `agent:pr-open` and edits the status comment
+hooks, a rebase onto `origin/<base branch>` if needed (with the checks again), a push of the
+branch, and `gh pr create --draft`. It sets the label `agent:pr-open` and edits the status comment
 with the PR link. The issue moves to `pr-open`.
 
 The ship of a PR feedback round is an update of the open PR, not a new one:
@@ -626,8 +626,8 @@ The ship of a PR feedback round is an update of the open PR, not a new one:
 
 Safety rules:
 
-- The PR is always a draft against `main`. The desk never merges, approves, enables
-  auto-merge, or marks the PR ready. You review it and merge it yourself on GitHub.
+- The PR is always a draft against the base branch that setup recorded (`main` by default).
+  The desk never merges, approves, enables auto-merge, or marks the PR ready. You review it and merge it yourself on GitHub.
 - No `--no-verify`, no force push, no `--amend`. The hooks run. Commit and PR text pass the
   AI-attribution check.
 - The commit holds exactly the files of the diff (plus the changeset file). Protected paths
@@ -910,6 +910,11 @@ defaults. A file that exists but is invalid is an error. Fields are listed in
   `"isolation": "host"` to keep host mode.
 - Issue worktrees go in `<main checkout>.worktrees/KAINE-<n>`, next to the main checkout. This is
   also true when the desk runs from a linked worktree. Set `worktreesDir` to use another folder.
+- `baseBranch` (default `main`) is the branch on `origin` that issue worktrees start from and
+  that PRs target. Setup records it in the issue state. A later change of the config does not
+  move an issue that went through setup: its ship fetches, rebases onto, and targets the recorded
+  branch. The loop check `pnpm check:affected` compares with `origin/main`; set `checks.loop`
+  when your base is another branch.
 - `defaultFlow` (default `kaine-default`) is the flow a new issue runs on when you name none
   and no label picks one.
 - `flowLabels` maps a GitHub label to a flow id, for example
@@ -1213,14 +1218,14 @@ desk writes the exec bits of a container patch into the index, and ship keeps th
 
 ### What runs where
 
-| Step                                                   | Host mode | Docker mode                            |
-| ------------------------------------------------------ | --------- | -------------------------------------- |
-| Intake, setup (worktree, `pnpm install`, `ai:install`) | host      | host (trusted code from `origin/main`) |
-| Planner, reviewer (read-only)                          | host      | host (they run no repository code)     |
-| Builder                                                | host      | container                              |
-| Check stage (`pnpm generate`, loop checks)             | host      | container, one container per step      |
-| Ship checks (`pnpm check` before the commit)           | host      | container, one container per step      |
-| Ship (commit, push, PR)                                | host      | host                                   |
+| Step                                                   | Host mode | Docker mode                              |
+| ------------------------------------------------------ | --------- | ---------------------------------------- |
+| Intake, setup (worktree, `pnpm install`, `ai:install`) | host      | host (trusted code from `origin/<base>`) |
+| Planner, reviewer (read-only)                          | host      | host (they run no repository code)       |
+| Builder                                                | host      | container                                |
+| Check stage (`pnpm generate`, loop checks)             | host      | container, one container per step        |
+| Ship checks (`pnpm check` before the commit)           | host      | container, one container per step        |
+| Ship (commit, push, PR)                                | host      | host                                     |
 
 The host worktree stays the canonical copy. The container has its own copy in a Docker volume.
 Nothing is bind-mounted from the worktree.

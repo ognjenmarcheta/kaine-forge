@@ -10,9 +10,6 @@ import type { PipelineDeps, StageHandler } from "./pipeline.types";
 import { installsForAgents, slugify } from "./worktree.bootstrap";
 import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
-/** The base branch on `origin`. The template's pull requests all target `main`. */
-export const BASE_BRANCH = "main";
-
 const BRANCH_PARTS = new RegExp(
   `^KAINE-\\d+-(${CONVENTIONAL_TYPES.join("|")})-([a-z0-9]+(?:-[a-z0-9]+)*)$`
 );
@@ -88,6 +85,8 @@ export const setupStage: StageHandler = async (context) => {
     (summary.value.labels.some((label) => label.toLowerCase() === "bug") ? "fix" : "feat");
   const slug = known?.slug ?? slugify(summary.value.title);
   const worktreeDir = state.worktreePath ?? worktreeDirFor(deps, context.issue);
+  // The base is fixed for the issue at its first setup. A later config change does not move it.
+  const baseBranch = state.baseBranch ?? deps.config.baseBranch;
   // Every agent of the issue's flow gets its provider, servers and skills. A Docker run loads no server.
   const flowAgents = state.flowSnapshot.agents;
   const agents = [
@@ -118,7 +117,7 @@ export const setupStage: StageHandler = async (context) => {
           issue: context.issue,
           type,
           slug,
-          base: BASE_BRANCH,
+          base: baseBranch,
           worktreeDir,
           agents,
           skills: installs.skills,
@@ -168,7 +167,8 @@ export const setupStage: StageHandler = async (context) => {
     patch: {
       branch: created.branch,
       worktreePath: created.worktreePath,
-      baseSha: created.baseSha
+      baseSha: created.baseSha,
+      baseBranch
     }
   };
 };

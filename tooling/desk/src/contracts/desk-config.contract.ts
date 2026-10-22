@@ -127,6 +127,15 @@ const dockerSchema = z
   })
   .strict();
 
+/** The base branch when the config names none, and for an issue state from before `baseBranch`. */
+export const DEFAULT_BASE_BRANCH = "main";
+
+/** A branch name on `origin`, with the rule the Docker workspace helper applies: no option, no `..`. */
+export const baseBranchSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "Use a branch name like main or develop")
+  .refine((name) => !name.includes(".."), "A branch name cannot contain '..'");
+
 /**
  * A flow id: the pattern of `definitionIdSchema`. It is repeated here because
  * `agent-definition.contract.ts` imports this file.
@@ -139,6 +148,8 @@ export const deskConfigSchema = z
   .object({
     /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
     worktreesDir: z.string().min(1).nullable().default(null),
+    /** Issue worktrees start from `origin/<baseBranch>` and PRs target it. Recorded per issue at setup. */
+    baseBranch: baseBranchSchema.default(DEFAULT_BASE_BRANCH),
     copyIntoWorktree: z.array(copyPathSchema).default([]),
     checks: checksSchema.prefault({}),
     maxTestLoops: z.number().int().nonnegative().default(DEFAULT_LOOP_LIMITS.check),

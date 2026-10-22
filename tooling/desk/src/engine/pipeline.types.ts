@@ -196,6 +196,7 @@ export type StatePatch = Partial<
     | "branch"
     | "worktreePath"
     | "baseSha"
+    | "baseBranch"
     | "sessions"
     | "pendingFeedback"
     | "authorization"

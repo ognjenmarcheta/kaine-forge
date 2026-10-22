@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { definitionIdSchema } from "./agent-definition.contract";
-import { isolationSchema } from "./desk-config.contract";
+import { baseBranchSchema, isolationSchema } from "./desk-config.contract";
 import {
   agentOf,
   flowSnapshotSchema,
@@ -109,6 +109,11 @@ const sharedFields = {
    */
   /** Commit the worktree branch forked from. Every diff is taken against it. */
   baseSha: shaSchema.nullable().optional(),
+  /**
+   * Added with the `baseBranch` setting. The branch on `origin` that setup forked from; ship
+   * rebases onto it and the PR targets it. A reader treats a missing field like `main`.
+   */
+  baseBranch: baseBranchSchema.optional(),
   /**
    * Added in Phase 3. The engineer confirmed the ship. `continue` retries a
    * failed ship only when this is `true`.

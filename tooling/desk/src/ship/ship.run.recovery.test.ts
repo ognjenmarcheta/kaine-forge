@@ -8,6 +8,7 @@ import {
   expectSafeCalls,
   fileExists,
   filesInCommit,
+  gitArgv,
   pnpmRuns,
   refusalKinds,
   shipTest,
@@ -290,7 +291,12 @@ describe("a failure after the commit keeps the commit and the next run continues
 });
 
 describe("rebase", () => {
-  const pushUpstream = async (env: ShipEnv, files: Record<string, string>): Promise<string> => {
+  const pushUpstream = async (
+    env: ShipEnv,
+    files: Record<string, string>,
+    branch = "main"
+  ): Promise<string> => {
+    await env.clone.git(["checkout", "--quiet", branch]);
     for (const [file, content] of Object.entries(files)) await env.clone.write(file, content);
     await env.clone.git(["add", "-A"]);
     await env.clone.git([
@@ -303,7 +309,7 @@ describe("rebase", () => {
     ]);
     const sha = await env.clone.git(["rev-parse", "HEAD"]);
     // The test repository's own hooks must not log this push as the ship step's.
-    await env.clone.git(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", "main"]);
+    await env.clone.git(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", branch]);
     return sha;
   };
   const rebaseRefs = async (env: ShipEnv): Promise<string> =>
@@ -327,6 +333,22 @@ describe("rebase", () => {
       ).toBe("1");
       await env.origin.git(["merge-base", "--is-ancestor", upstream, `refs/heads/${env.branch}`]);
       expect(await worktreeStatus(env)).toBe("");
+      expectSafeCalls(env);
+    }
+  );
+
+  shipTest(
+    "fetches, rebases onto and targets the base recorded at setup, not the configured one",
+    { edits: SOURCE, baseBranch: "develop", config: { baseBranch: "main" } },
+    async (env) => {
+      const upstream = await pushUpstream(env, { "upstream.txt": "from develop\n" }, "develop");
+      const result = await env.ship();
+      expect(result).toMatchObject({ status: "shipped", rebased: true, baseSha: upstream });
+      expect(gitArgv(env)).toContainEqual(["fetch", "--quiet", "origin", "develop"]);
+      await env.origin.git(["merge-base", "--is-ancestor", upstream, `refs/heads/${env.branch}`]);
+      expect(env.github.createdPullRequests).toEqual([
+        expect.objectContaining({ base: "develop", head: env.branch })
+      ]);
       expectSafeCalls(env);
     }
   );

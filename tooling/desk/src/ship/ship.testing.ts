@@ -73,6 +73,11 @@ export interface ShipEnvOptions {
   readonly planNotApproved?: boolean;
   /** Files on `main` besides the defaults. */
   readonly repoFiles?: Readonly<Record<string, string>>;
+  /**
+   * The base branch setup recorded in the state. It is pushed one commit ahead of `main` and the
+   * worktree forks from it. Default: no recorded base, so the run uses `main`.
+   */
+  readonly baseBranch?: string;
 }
 
 export type HookName = "pre-commit" | "commit-msg" | "pre-push" | "pre-receive";
@@ -83,6 +88,8 @@ export interface ShipEnv {
   readonly origin: TestRepo;
   readonly worktree: string;
   readonly branch: string;
+  /** The branch on `origin` the worktree forked from and the PR must target. */
+  readonly baseBranch: string;
   readonly baseSha: string;
   readonly store: IssueStore;
   readonly artifactsDir: string;
@@ -146,11 +153,19 @@ export const createShipEnv = async (options: ShipEnvOptions = {}): Promise<ShipE
   for (const [file, content] of Object.entries(files)) await clone.write(file, content);
   await clone.commit("add repo files");
   await clone.git(["push", "--quiet", "origin", "main"]);
+  const baseBranch = options.baseBranch ?? "main";
+  if (baseBranch !== "main") {
+    await clone.git(["checkout", "--quiet", "-b", baseBranch]);
+    await clone.write("base-branch.txt", `only on ${baseBranch}\n`);
+    await clone.commit(`only on ${baseBranch}`);
+    await clone.git(["push", "--quiet", "origin", baseBranch]);
+    await clone.git(["checkout", "--quiet", "main"]);
+  }
 
   const branch = "KAINE-7-feat-export-reports";
   const worktree = path.join(root, "worktrees", branch);
-  await clone.git(["worktree", "add", "-b", branch, worktree, "origin/main"]);
-  const baseSha = await clone.git(["rev-parse", "origin/main"]);
+  await clone.git(["worktree", "add", "-b", branch, worktree, `origin/${baseBranch}`]);
+  const baseSha = await clone.git(["rev-parse", `origin/${baseBranch}`]);
   const wt = (relative: string) => path.join(worktree, relative);
   const writeWorktree = async (edits: Readonly<Record<string, string>>): Promise<void> => {
     for (const [file, content] of Object.entries(edits)) {
@@ -202,6 +217,7 @@ export const createShipEnv = async (options: ShipEnvOptions = {}): Promise<ShipE
       ],
       authorization: auth.snapshot,
       baseSha,
+      ...(options.baseBranch === undefined ? {} : { baseBranch: options.baseBranch }),
       createdAt: "2026-10-07T08:00:00.000Z",
       updatedAt: "2026-10-07T08:50:00.000Z"
     })
@@ -274,6 +290,7 @@ export const createShipEnv = async (options: ShipEnvOptions = {}): Promise<ShipE
     origin,
     worktree,
     branch,
+    baseBranch,
     baseSha,
     store,
     artifactsDir,
@@ -382,7 +399,7 @@ export const expectSafeCalls = (env: ShipEnv): void => {
   ).toEqual([]);
   for (const request of env.github.createdPullRequests) {
     expect(request.draft).toBe(true);
-    expect(request.base).toBe("main");
+    expect(request.base).toBe(env.baseBranch);
   }
 };
 

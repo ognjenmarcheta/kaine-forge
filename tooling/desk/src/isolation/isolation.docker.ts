@@ -43,9 +43,7 @@ export interface DockerIsolationDeps {
   readonly hostRunnerFor: (provider: Provider) => AgentRunner;
   readonly repoRoot: string;
   readonly stateRoot: string;
-  readonly config: Pick<DeskConfig, "docker">;
-  /** The base branch on `origin`. Default `main`. */
-  readonly baseBranch?: string;
+  readonly config: Pick<DeskConfig, "docker" | "baseBranch">;
   /** Test seams. */
   readonly imageTag?: string;
   readonly newId?: () => string;
@@ -99,7 +97,7 @@ export const createDockerIsolation = (deps: DockerIsolationDeps): DockerIsolatio
     newId,
     sleep,
     stagingRoot,
-    baseBranch: deps.baseBranch ?? "main",
+    baseBranch: deps.config.baseBranch,
     limits: { agent: settings.agent, check: settings.check, helper: HELPER, proxy: PROXY },
     maxPatchBytes: settings.maxPatchBytes
   });

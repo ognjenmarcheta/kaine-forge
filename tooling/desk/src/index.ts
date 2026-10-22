@@ -47,7 +47,7 @@ export {
   type StatusEntry,
   type StopKind
 } from "./engine/pipeline.types";
-export { BASE_BRANCH, parseDeskBranch, worktreeDirFor } from "./engine/pipeline.stage.setup";
+export { parseDeskBranch, worktreeDirFor } from "./engine/pipeline.stage.setup";
 export {
   SnapshotFileError,
   createSnapshotGitHubPort,

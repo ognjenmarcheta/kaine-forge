@@ -9,6 +9,7 @@ import {
   type RunChecksRequest
 } from "../check";
 import {
+  DEFAULT_BASE_BRANCH,
   isTerminalStage,
   type DeskConfig,
   type IssueState,
@@ -121,7 +122,6 @@ import type { IssueStore } from "../store/store.issue";
  * edited.
  */
 
-const BASE_BRANCH = "main";
 const TEMPLATE_PATH = ".github/pull_request_template.md";
 
 export interface ShipTimeouts {
@@ -287,6 +287,8 @@ const runShip = async (
     });
   }
   const state: IssueState = loaded.state;
+  // The base recorded at setup, so a config change after setup cannot retarget the PR.
+  const baseBranch = state.baseBranch ?? DEFAULT_BASE_BRANCH;
   if (isTerminalStage(state.stage)) {
     return stop({ kind: "state", message: `Issue #${request.issue} is '${state.stage}'.` });
   }
@@ -632,7 +634,7 @@ const runShip = async (
       },
       changesetText,
       commitHeader: commit.header,
-      pullRequest: { base: BASE_BRANCH, draft: true, title: commit.header },
+      pullRequest: { base: baseBranch, draft: true, title: commit.header },
       files,
       bodyHeadings: body.headings,
       unfilledHeadings: body.unfilled,
@@ -929,7 +931,7 @@ const runShip = async (
   if (update === null) {
     step("fetch", "start");
     try {
-      await git.fetch(worktree, "origin", BASE_BRANCH);
+      await git.fetch(worktree, "origin", baseBranch);
     } catch (error) {
       return stop({ kind: "fetch-failed", message: errorMessage(error) });
     }
@@ -941,11 +943,11 @@ const runShip = async (
 
   if (update !== null) {
     step("rebase", "skipped", "an update never rebases");
-  } else if (await git.isAncestor(worktree, `origin/${BASE_BRANCH}`, "HEAD")) {
+  } else if (await git.isAncestor(worktree, `origin/${baseBranch}`, "HEAD")) {
     step("rebase", "skipped", "the branch is up to date");
   } else {
     step("rebase", "start");
-    const result = await rebaseOnto(exec, worktree, `origin/${BASE_BRANCH}`, timeouts.rebaseMs);
+    const result = await rebaseOnto(exec, worktree, `origin/${baseBranch}`, timeouts.rebaseMs);
     if (!result.ok) {
       const files = await conflictedFiles(exec, worktree);
       await rebaseAbort(exec, worktree);
@@ -953,14 +955,14 @@ const runShip = async (
         kind: "rebase-conflict",
         message:
           files.length > 0
-            ? `Rebase onto origin/${BASE_BRANCH} conflicts in ${files.join(", ")}. The rebase was aborted.`
-            : `Rebase onto origin/${BASE_BRANCH} failed. The rebase was aborted.`,
+            ? `Rebase onto origin/${baseBranch} conflicts in ${files.join(", ")}. The rebase was aborted.`
+            : `Rebase onto origin/${baseBranch} failed. The rebase was aborted.`,
         files,
         log: result.log
       });
     }
-    const newBase = await revParse(exec, worktree, `origin/${BASE_BRANCH}`);
-    if (newBase === null) throw new Error(`cannot resolve origin/${BASE_BRANCH} after the rebase`);
+    const newBase = await revParse(exec, worktree, `origin/${baseBranch}`);
+    if (newBase === null) throw new Error(`cannot resolve origin/${baseBranch} after the rebase`);
     baseNow = newBase;
     rebased = true;
     commitSha = await git.headSha(worktree);
@@ -1089,7 +1091,7 @@ const runShip = async (
       const existing = await github.findPullRequest(branch);
       if (existing === null) {
         pullRequest = await github.createPullRequest({
-          base: BASE_BRANCH,
+          base: baseBranch,
           head: branch,
           title: commit.header,
           bodyFile: path.join(artifactsDir, PR_BODY_FILE),

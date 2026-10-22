@@ -6,6 +6,7 @@ describe("desk config contract", () => {
   it("fills every default from an empty object", () => {
     expect(deskConfigSchema.parse({})).toEqual({
       worktreesDir: null,
+      baseBranch: "main",
       copyIntoWorktree: [],
       checks: { loop: [["pnpm", "check:affected"]], ship: [["pnpm", "check"]] },
       maxTestLoops: 3,
@@ -46,7 +47,9 @@ describe("desk config contract", () => {
     ["an unknown Docker key", { docker: { privileged: true } }],
     ["zero PR rounds", { maxPrRounds: 0 }],
     ["a default flow that is not an id", { defaultFlow: "../flows/x" }],
-    ["a flow label that names no id", { flowLabels: { docs: "Docs Flow" } }]
+    ["a flow label that names no id", { flowLabels: { docs: "Docs Flow" } }],
+    ["a base branch that git reads as an option", { baseBranch: "--upload-pack=x" }],
+    ["a base branch with a parent step", { baseBranch: "release/../main" }]
   ])("rejects %s", (_name, input) => {
     expect(deskConfigSchema.safeParse(input).success).toBe(false);
   });
