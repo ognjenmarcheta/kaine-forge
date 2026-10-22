@@ -165,6 +165,16 @@ describe("validateFlow", () => {
     expect(errors).toEqual([{ step, message: expect.stringContaining(message) }]);
   });
 
+  it("rejects a ship without a plan agent before it, because ship reads plan.json", async () => {
+    const flow = withSteps(await defaultFlow(), (steps) =>
+      steps.filter((step) => step.id !== "plan" && step.id !== "plan-gate")
+    );
+    expect(validateFlow(flow, await defaultAgents())).toContainEqual({
+      step: "ship",
+      message: "The ship step needs a plan agent step before it"
+    });
+  });
+
   it("rejects a flow without an agent step", async () => {
     const flow = withSteps(await defaultFlow(), (steps) =>
       steps.filter((step) => step.kind !== "agent")

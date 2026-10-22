@@ -91,6 +91,15 @@ export const validateFlow = (
   }
   const ship = ships[0];
   if (ship !== undefined) {
+    // Ship writes the PR summary and changeset from `plan.json`. A step with an unknown or
+    // intake agent already has its own error, so it does not count against this rule.
+    const outputs = flow.steps
+      .slice(0, ship)
+      .flatMap((step) => (step.kind === "agent" ? [outputOf.get(step.agent)] : []));
+    const unresolved = outputs.some((output) => output === undefined || output === "intake");
+    if (!unresolved && !outputs.includes("plan")) {
+      add(flow.steps[ship]?.id ?? null, "The ship step needs a plan agent step before it");
+    }
     // The last change before the ship must pass a check before it ships.
     const lastChange = flow.steps
       .slice(0, ship)
