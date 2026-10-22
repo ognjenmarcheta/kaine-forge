@@ -15,7 +15,7 @@ const plan = (overrides: Partial<ShipPlanView> = {}): ShipPlanView => ({
   changeset: { kind: "file", reason: "A package changed" },
   changesetText: '---\n"@repo/web": patch\n---\n\nAdd a thing.\n',
   commitHeader: "feat(web): add a thing",
-  pullRequest: { title: "feat(web): add a thing" },
+  pullRequest: { title: "feat(web): add a thing", base: "main" },
   files: ["apps/web/src/a.ts", ".changeset/thing.md"],
   unfilledHeadings: [],
   ...overrides
@@ -71,6 +71,13 @@ describe("ShipDialog", () => {
     expect(dialog.textContent).toContain("A draft against main");
   });
 
+  it("names the issue's own base branch, not always main", async () => {
+    setup(plan({ pullRequest: { title: "feat(web): add a thing", base: "develop" } }));
+    const dialog = await screen.findByRole("dialog", { name: "Ship to a draft pull request" });
+    await screen.findByText("Every ship rule passes.");
+    expect(dialog.textContent).toContain("A draft against develop");
+  });
+
   it("asks for a second yes, and only that yes sends confirm: true", async () => {
     const { run } = setup(plan());
     await userEvent.click(await screen.findByRole("button", { name: "Continue to confirm" }));
@@ -84,7 +91,11 @@ describe("ShipDialog", () => {
   });
 
   it("says that the ship of a PR feedback round pushes to the open PR and opens none", async () => {
-    setup(plan({ pullRequest: { title: "fix: address PR feedback (round 1)" } }), undefined, 101);
+    setup(
+      plan({ pullRequest: { title: "fix: address PR feedback (round 1)", base: "main" } }),
+      undefined,
+      101
+    );
     const dialog = await screen.findByRole("dialog");
     await screen.findByText("Every ship rule passes.");
     expect(dialog.textContent).toContain("Pushes to PR #101");

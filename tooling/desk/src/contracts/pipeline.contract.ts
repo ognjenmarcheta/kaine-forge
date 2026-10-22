@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Single source of truth for the desk pipeline. The engine, the CLI, and the
+ * The fixed layout of the built-in `kaine-default` flow. The engine, the CLI, and the
  * browser UI all read stages, node kinds, edges, and loop limits from here.
  */
 export const STAGES = [
@@ -17,11 +17,27 @@ export const STAGES = [
   "pr-open",
   "shipped",
   "needs-you",
-  "cancelled"
+  "cancelled",
+  "finished"
 ] as const;
 
 export const stageSchema = z.enum(STAGES);
 export type Stage = z.infer<typeof stageSchema>;
+
+/**
+ * States the engine owns outside every flow: `intake` and `setup` run before the first step,
+ * `needs-you` waits for the owner, `shipped`, `cancelled` and `finished` end the issue. A flow
+ * step may not use one of these ids.
+ */
+export const ENGINE_STATES = [
+  "intake",
+  "setup",
+  "needs-you",
+  "shipped",
+  "cancelled",
+  "finished"
+] as const;
+export type EngineState = (typeof ENGINE_STATES)[number];
 
 /** Who does the work in a stage: the issue, an agent, the engineer, or a script. */
 export const NODE_KINDS = ["source", "agent", "human", "script"] as const;
@@ -39,8 +55,15 @@ export const HUMAN_GATES = [
 ] as const satisfies readonly Stage[];
 export type HumanGate = (typeof HUMAN_GATES)[number];
 
-/** Stages that accept no further triggers. `shipped`: the desk saw the PR merged. */
-export const TERMINAL_STAGES = ["shipped", "cancelled"] as const satisfies readonly Stage[];
+/**
+ * Stages that accept no further triggers. `shipped`: the desk saw the PR merged. `finished`: a
+ * flow without a ship step ran every step, and nothing shipped.
+ */
+export const TERMINAL_STAGES = [
+  "shipped",
+  "cancelled",
+  "finished"
+] as const satisfies readonly Stage[];
 
 /** Stages the engine drives. These are the only valid `continue` targets. */
 export const ACTIVE_STAGES = [

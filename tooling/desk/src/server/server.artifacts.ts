@@ -3,16 +3,23 @@ import { lstat, open } from "node:fs/promises";
 import path from "node:path";
 
 import { CHECK_REPORT_FILE } from "../check/check.run";
-import { ARTIFACT_IDS, type ArtifactEntry, type ArtifactId } from "../contracts";
+import {
+  ARTIFACT_IDS,
+  reportAgentIdOf,
+  type ArtifactEntry,
+  type ArtifactId,
+  type ArtifactName
+} from "../contracts";
 import { ISSUE_DRAFT_FILE } from "../engine/intake.draft";
 import { ARTIFACTS } from "../engine/pipeline.artifacts";
 import { PR_BODY_FILE, SHIP_PLAN_FILE } from "../ship/ship.contract";
 import type { IssueStore } from "../store/store.issue";
 
 /**
- * The artifacts a client can read. A request names an id from this table and
- * an issue number; the server never takes a path from the client, so there
- * is nothing to traverse. The file names and locations are fixed here.
+ * The artifacts a client can read. A request names an id from this table, or
+ * `report-<agent id>` with a valid definition id, and an issue number; the
+ * server never takes a path from the client, so there is nothing to traverse.
+ * The file names and locations are fixed here.
  */
 interface ArtifactSpec {
   readonly file: string;
@@ -41,11 +48,24 @@ export const ARTIFACT_SPECS: Readonly<Record<ArtifactId, ArtifactSpec>> = {
 export const isArtifactId = (value: string): value is ArtifactId =>
   ARTIFACT_IDS.some((id) => id === value);
 
+/** A fixed artifact id, or the id of a report with a valid agent id. */
+export const isArtifactName = (value: string): value is ArtifactName =>
+  isArtifactId(value) || reportAgentIdOf(value) !== null;
+
+/** A report agent writes `report-<agent id>.json` next to the other artifacts. */
+const specOf = (id: ArtifactName): ArtifactSpec => {
+  if (isArtifactId(id)) return ARTIFACT_SPECS[id];
+  if (reportAgentIdOf(id) === null) throw new Error(`Not an artifact: ${id}`);
+  return { file: `${id}.json`, contentType: JSON_TYPE, location: "artifacts" };
+};
+
+export const artifactContentType = (id: ArtifactName): string => specOf(id).contentType;
+
 /** Largest artifact the server reads into memory. A larger one is cut and marked. */
 export const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
 
-export const artifactPath = (store: IssueStore, issueNumber: number, id: ArtifactId): string => {
-  const spec = ARTIFACT_SPECS[id];
+export const artifactPath = (store: IssueStore, issueNumber: number, id: ArtifactName): string => {
+  const spec = specOf(id);
   const base =
     spec.location === "artifacts" ? store.artifactsDir(issueNumber) : store.issueDir(issueNumber);
   const file = path.join(base, spec.file);
@@ -68,7 +88,7 @@ export type ArtifactRead =
 export const readArtifact = async (
   store: IssueStore,
   issueNumber: number,
-  id: ArtifactId,
+  id: ArtifactName,
   maxBytes = MAX_ARTIFACT_BYTES
 ): Promise<ArtifactRead> => {
   const file = artifactPath(store, issueNumber, id);

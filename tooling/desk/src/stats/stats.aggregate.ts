@@ -11,14 +11,14 @@ import {
   type RunGroup,
   type RunRecord,
   type RunStats,
-  type Stage,
+  type StageId,
   type StatsDay
 } from "../contracts";
 import type { IssueListEntry } from "../store/store.issue";
 
 export interface IssueSnapshot {
   readonly issue: number;
-  readonly stage: Stage;
+  readonly stage: StageId;
   readonly loops: LoopCounters;
   /** When the desk last opened or updated the issue's PR, from the history. */
   readonly shippedAt?: string | null;
@@ -81,6 +81,7 @@ const groupOf = (records: readonly RunRecord[], byHarness: boolean): RunGroup =>
   const costs = present(records.map((record) => record.costUsd));
   return {
     role: first.role,
+    agentId: first.agentId ?? first.role,
     provider: first.provider,
     model: first.model,
     runs: records.length,
@@ -113,7 +114,7 @@ export interface AggregateOptions {
   readonly now?: Date;
 }
 
-const SHIPPED_STAGES: ReadonlySet<Stage> = new Set(["pr-open", "shipped"]);
+const SHIPPED_STAGES: ReadonlySet<StageId> = new Set(["pr-open", "shipped"]);
 
 /** Outcomes per plan risk. An issue counts at the risk of its latest graded run. */
 const riskOutcomes = (
@@ -134,7 +135,7 @@ const riskOutcomes = (
     const plans = runs.filter((run) => run.role === "planner" && run.accepted).length;
     const reviewLoops = Math.max(
       snapshot?.loops.review ?? 0,
-      ...runs.map((run) => run.loops.review)
+      ...runs.map((run) => run.loops.review ?? 0)
     );
     outcome.issues += 1;
     if (snapshot !== undefined && SHIPPED_STAGES.has(snapshot.stage)) outcome.shipped += 1;
@@ -164,7 +165,10 @@ const daySeries = (
     };
   });
 
-/** Groups runs by role, provider and model, and rolls them up per issue. */
+/**
+ * Groups runs by agent, provider and model, and rolls them up per issue. A record without an
+ * agent counts for the built-in agent of its role.
+ */
 export const aggregateRuns = (
   { records, invalidLines }: RunRecords,
   snapshots: readonly IssueSnapshot[],
@@ -174,7 +178,13 @@ export const aggregateRuns = (
   const byIssue = new Map<number, RunRecord[]>();
   for (const record of records) {
     const harness = byHarness ? shortHarness(record) : null;
-    const key = JSON.stringify([record.role, record.provider, record.model, harness]);
+    const key = JSON.stringify([
+      record.role,
+      record.agentId ?? record.role,
+      record.provider,
+      record.model,
+      harness
+    ]);
     byGroup.set(key, [...(byGroup.get(key) ?? []), record]);
     byIssue.set(record.issue, [...(byIssue.get(record.issue) ?? []), record]);
   }
@@ -183,6 +193,7 @@ export const aggregateRuns = (
     .sort(
       (left, right) =>
         ROLE_ORDER.indexOf(left.role) - ROLE_ORDER.indexOf(right.role) ||
+        left.agentId.localeCompare(right.agentId) ||
         left.provider.localeCompare(right.provider) ||
         (left.model ?? "").localeCompare(right.model ?? "")
     );

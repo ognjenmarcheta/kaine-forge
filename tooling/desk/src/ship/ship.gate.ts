@@ -1,4 +1,5 @@
 import type { CheckKind, CheckReport } from "../check";
+import { isShipGate, type FlowSnapshot, type HistoryEvent } from "../contracts";
 import { isValidBranchName } from "../engine/worktree.bootstrap";
 import type { RecheckResult } from "../github/github.authorization";
 import type { ControllerIdentity } from "../github/github.identity";
@@ -11,7 +12,7 @@ import { protectedPathReason } from "../policy";
  * every failed rule, not only the first, so the engineer sees all of them.
  * ALL rules must hold:
  *
- * 1. the engineer confirmed;
+ * 1. the engineer confirmed (an automatic ship confirms itself);
  * 2. the check report passed, is of an accepted kind, and was taken on the
  *    code that ships (`diffHash`);
  * 3. `gh` is signed in as the configured owner;
@@ -19,7 +20,8 @@ import { protectedPathReason } from "../policy";
  * 5. the authorization snapshot still holds (issue open, text unchanged);
  * 6. HEAD, the branch and the remotes are as the last agent stage left them;
  * 7. no protected path is in the diff, and the diff is not empty;
- * 8. the engineer approved the plan, and the reviewer approved the code that ships;
+ * 8. the owner approved at a gate of the flow (`ownerApproved`), and the reviewer approved the
+ *    code that ships;
  * 9. for an update of an open PR (a PR feedback round): a fresh read of the PR
  *    shows it open, on the issue branch, at a head the desk knows.
  */
@@ -40,7 +42,7 @@ export const SHIP_GATE_FAILURES = [
   "refs-changed",
   "protected-paths",
   "no-changes",
-  "plan-not-approved",
+  "owner-not-approved",
   "review-missing",
   "review-not-approved",
   "review-stale",
@@ -101,8 +103,8 @@ export interface ShipGateInput {
   readonly authorization: AuthorizationCheck;
   /** Differences from the last agent stage's refs, or `null` when no baseline exists. */
   readonly refViolations: readonly string[] | null;
-  /** `plan-approved` is in the issue history. */
-  readonly planApproved: boolean;
+  /** The owner's approval the flow asks for before a ship: see `ownerApproved`. */
+  readonly ownerApproved: boolean;
   readonly review: ShipGateReview | null;
   /** The diff hash the review must carry, or `null` to skip that comparison (after a rebase). */
   readonly expectedReviewDiffHash: string | null;
@@ -138,6 +140,32 @@ export const pullRequestFailures = (pr: ShipGatePullRequest): ShipGateFailure[] 
     });
   }
   return failures;
+};
+
+/** History events that record the owner's approval at a gate. */
+const APPROVAL_EVENTS: ReadonlySet<string> = new Set(["plan-approved", "gate-approved"]);
+
+/**
+ * The owner's approval a ship needs, from the issue's flow snapshot and history:
+ *
+ * - an automatic ship (`auto: true`) needs none: no human confirms it, every other rule applies;
+ * - else an approval recorded at a gate of the flow other than the ship gate (in the default
+ *   flow, `plan-approved` at `plan-gate`);
+ * - a flow whose only gate is the ship gate has no other approval: the confirmation there is it.
+ */
+export const ownerApproved = (
+  snapshot: FlowSnapshot,
+  history: readonly Pick<HistoryEvent, "stage" | "event">[]
+): boolean => {
+  const { steps } = snapshot.flow;
+  if (steps.some((step) => step.kind === "ship" && step.auto)) return true;
+  const gates = new Set(
+    steps
+      .filter((step) => step.kind === "gate" && !isShipGate(snapshot, step.id))
+      .map((step) => step.id)
+  );
+  if (gates.size === 0) return true;
+  return history.some((entry) => APPROVAL_EVENTS.has(entry.event) && gates.has(entry.stage));
 };
 
 export interface ShipGateResult {
@@ -222,7 +250,9 @@ export const evaluateShipGate = (input: ShipGateInput): ShipGateResult => {
   if (protectedReasons.length > 0) fail("protected-paths", protectedReasons.join("; "));
   if (input.changedPaths.length === 0) fail("no-changes", "The worktree has no change to ship.");
 
-  if (!input.planApproved) fail("plan-not-approved", "The plan was not approved at the plan gate.");
+  if (!input.ownerApproved) {
+    fail("owner-not-approved", "No gate of the flow recorded the owner's approval.");
+  }
 
   if (input.review === null) {
     fail("review-missing", "There is no review result.");

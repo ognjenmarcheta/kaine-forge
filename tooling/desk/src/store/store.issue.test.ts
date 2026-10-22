@@ -3,11 +3,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { IssueState } from "../contracts";
+import { issueStateSchema, issueStateV1Schema, type IssueState } from "../contracts";
 import { createIssueStore } from "./store.issue";
+import { builtinFlowSnapshot } from "../registry/registry.snapshot";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const state = (issueNumber: number, over: Partial<IssueState> = {}): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber,
   stage: "intake",
   status: "idle",
@@ -86,7 +89,7 @@ describe("issue store", () => {
     });
 
     it("reports an unknown schema version", async () => {
-      const store = await plant(4, JSON.stringify({ ...state(4), schemaVersion: 2 }));
+      const store = await plant(4, JSON.stringify({ ...state(4), schemaVersion: 3 }));
       expect(await store.read(4)).toMatchObject({
         status: "unreadable",
         reason: "unknown-schema-version"
@@ -134,6 +137,48 @@ describe("issue store", () => {
       const entries = await store.list();
       expect(entries.map((entry) => entry.issueNumber)).toEqual([2, 5, 10]);
       expect(entries.map((entry) => entry.result.status)).toEqual(["ok", "unreadable", "ok"]);
+    });
+  });
+
+  describe("a version 1 state file", () => {
+    /** A state file as the desk wrote it before flow snapshots, planted under `issueNumber`. */
+    const plantV1 = async (
+      name: string
+    ): Promise<{ readonly raw: string; readonly json: unknown }> => {
+      const raw = await readFile(new URL(`./__fixtures__/${name}`, import.meta.url), "utf8");
+      const json: unknown = JSON.parse(raw);
+      const issueNumber = issueStateV1Schema.parse(json).issueNumber;
+      const store = createIssueStore(root);
+      await mkdir(store.issueDir(issueNumber), { recursive: true });
+      await writeFile(store.statePath(issueNumber), raw);
+      return { raw, json };
+    };
+
+    it.each(["state.v1.needs-you.json", "state.v1.pr-open.json"])(
+      "reads %s on the built-in default flow with every field kept",
+      async (name) => {
+        const { json } = await plantV1(name);
+        const v1 = issueStateV1Schema.parse(json);
+        const read = await createIssueStore(root).read(v1.issueNumber);
+        // Step ids are the old stage names, loop steps the old counters, agent ids the old roles.
+        expect(read).toEqual({
+          status: "ok",
+          state: { ...v1, schemaVersion: 2, flowSnapshot: await builtinFlowSnapshot() }
+        });
+      }
+    );
+
+    it("stays version 1 on disk until the next write stores version 2", async () => {
+      const { raw } = await plantV1("state.v1.needs-you.json");
+      const store = createIssueStore(root);
+      const read = await store.read(41);
+      if (read.status !== "ok") throw new Error(`state is ${read.status}`);
+      expect(await readFile(store.statePath(41), "utf8")).toBe(raw);
+
+      await store.write(read.state);
+      const written: unknown = JSON.parse(await readFile(store.statePath(41), "utf8"));
+      expect(issueStateSchema.parse(written)).toEqual(read.state);
+      expect(await store.read(41)).toEqual(read);
     });
   });
 

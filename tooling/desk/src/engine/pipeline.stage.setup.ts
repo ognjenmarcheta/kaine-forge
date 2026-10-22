@@ -4,12 +4,11 @@ import path from "node:path";
 import { CONVENTIONAL_TYPES, type ConventionalType, type Provider } from "../contracts";
 import { createWorktree } from "../worktree";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "./intake.run";
+import { ROLE_FOR_OUTPUT, agentRuntime } from "./pipeline.agent";
 import { readArtifactJson } from "./pipeline.artifacts";
 import type { PipelineDeps, StageHandler } from "./pipeline.types";
-import { skillsForRoles, slugify } from "./worktree.bootstrap";
-
-/** The base branch on `origin`. The template's pull requests all target `main`. */
-export const BASE_BRANCH = "main";
+import { installsForAgents, slugify } from "./worktree.bootstrap";
+import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
 const BRANCH_PARTS = new RegExp(
   `^KAINE-\\d+-(${CONVENTIONAL_TYPES.join("|")})-([a-z0-9]+(?:-[a-z0-9]+)*)$`
@@ -86,7 +85,22 @@ export const setupStage: StageHandler = async (context) => {
     (summary.value.labels.some((label) => label.toLowerCase() === "bug") ? "fix" : "feat");
   const slug = known?.slug ?? slugify(summary.value.title);
   const worktreeDir = state.worktreePath ?? worktreeDirFor(deps, context.issue);
-  const agents = [...new Set<Provider>(Object.values(deps.config.providers))];
+  // The base is fixed for the issue at its first setup. A later config change does not move it.
+  const baseBranch = state.baseBranch ?? deps.config.baseBranch;
+  // Every agent of the issue's flow gets its provider, servers and skills. A Docker run loads no server.
+  const flowAgents = state.flowSnapshot.agents;
+  const agents = [
+    ...new Set<Provider>([
+      ...Object.values(deps.config.providers),
+      ...flowAgents.map(
+        (agent) => agentRuntime(deps.config, ROLE_FOR_OUTPUT[agent.output], agent).provider
+      )
+    ])
+  ];
+  const installs = installsForAgents(
+    flowAgents,
+    await readInstalledCapabilities(deps.location.repoRoot)
+  );
 
   let created;
   try {
@@ -103,12 +117,11 @@ export const setupStage: StageHandler = async (context) => {
           issue: context.issue,
           type,
           slug,
-          base: BASE_BRANCH,
+          base: baseBranch,
           worktreeDir,
           agents,
-          skills: skillsForRoles(["planner", "builder", "reviewer"]),
-          // Host roles (planner, reviewer) use both; the Docker builder gets no MCP server.
-          mcp: ["serena", "context7"]
+          skills: installs.skills,
+          mcp: installs.mcp
         }
       }
     );
@@ -154,7 +167,8 @@ export const setupStage: StageHandler = async (context) => {
     patch: {
       branch: created.branch,
       worktreePath: created.worktreePath,
-      baseSha: created.baseSha
+      baseSha: created.baseSha,
+      baseBranch
     }
   };
 };

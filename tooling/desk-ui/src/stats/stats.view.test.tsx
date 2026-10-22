@@ -19,6 +19,7 @@ const STATS: RunStats = {
   groups: [
     {
       role: "builder",
+      agentId: "builder",
       provider: "claude",
       model: "opus",
       runs: 4,
@@ -35,7 +36,27 @@ const STATS: RunStats = {
       harness: null
     },
     {
+      // A flow agent of the owner's own, with the builder's permissions: a row of its own.
+      role: "builder",
+      agentId: "ui-builder",
+      provider: "claude",
+      model: "sonnet",
+      runs: 1,
+      accepted: 1,
+      stuck: 0,
+      timeouts: 0,
+      medianDurationMs: 30_000,
+      meanInputTokens: 10_000,
+      meanOutputTokens: 500,
+      totalCostUsd: 0.5,
+      meanCostUsd: 0.5,
+      meanTurns: 12,
+      meanEditCalls: 2,
+      harness: null
+    },
+    {
       role: "reviewer",
+      agentId: "reviewer",
       provider: "codex",
       model: null,
       runs: 2,
@@ -65,11 +86,11 @@ const cells = (row: HTMLElement): string[] =>
   Array.from(row.querySelectorAll("th, td"), (cell) => cell.textContent ?? "");
 
 describe("StatsView", () => {
-  it("shows one row per role, provider, and model, and one per issue", async () => {
+  it("shows one row per agent, provider, and model, and one per issue", async () => {
     renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
-    const groups = await screen.findByRole("table", { name: "By role and model" });
-    const [, builder, reviewer] = within(groups).getAllByRole("row");
+    const groups = await screen.findByRole("table", { name: "By agent and model" });
+    const [, builder, custom, reviewer] = within(groups).getAllByRole("row");
     expect(builder && cells(builder)).toEqual([
       "Builder",
       "claude",
@@ -86,6 +107,8 @@ describe("StatsView", () => {
       "$1.50",
       "$6.00"
     ]);
+    // A built-in agent reads as its role; the owner's agent shows its own id, as it is.
+    expect(custom && cells(custom).slice(0, 4)).toEqual(["ui-builder", "claude", "sonnet", "1"]);
     // Codex reports no cost and no turns: the cells say "none", not zero.
     expect(reviewer && cells(reviewer).slice(2, 3)).toEqual(["CLI default"]);
     expect(reviewer && cells(reviewer).slice(10)).toEqual(["–None", "0.0", "–None", "–None"]);
@@ -155,7 +178,7 @@ describe("StatsView", () => {
   it("keeps the run tables when the lessons cannot be loaded", async () => {
     renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
-    expect(await screen.findByRole("table", { name: "By role and model" })).toBeTruthy();
+    expect(await screen.findByRole("table", { name: "By agent and model" })).toBeTruthy();
     expect(screen.queryByRole("table", { name: "Lesson candidates" })).toBeNull();
   });
 
@@ -168,7 +191,7 @@ describe("StatsView", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Load again" }));
 
-    expect(await screen.findByRole("table", { name: "By role and model" })).toBeTruthy();
+    expect(await screen.findByRole("table", { name: "By agent and model" })).toBeTruthy();
   });
 
   it("sums the last seven days into cards and shows today from the last day", async () => {
@@ -202,14 +225,14 @@ describe("StatsView", () => {
 
     const cost = await screen.findByRole("group", { name: "Cost" });
     expect(within(cost).getByText("None", { selector: ".desk-sr-only" })).toBeTruthy();
-    // Cost by role sums every model of a role; a role without a cost says so instead of $0.00.
-    const bars = screen.getByRole("heading", { name: "Cost by role" }).parentElement;
-    if (bars === null) throw new Error("no Cost by role card");
+    // Cost by agent sums every model of an agent; one without a cost says so instead of $0.00.
+    const bars = screen.getByRole("heading", { name: "Cost by agent" }).parentElement;
+    if (bars === null) throw new Error("no Cost by agent card");
     expect(
       within(bars)
         .getAllByRole("listitem")
         .map((item) => item.textContent)
-    ).toEqual(["Builder$6.00", "ReviewerNo cost reported"]);
+    ).toEqual(["Builder$6.00", "ui-builder$0.50", "ReviewerNo cost reported"]);
   });
 });
 

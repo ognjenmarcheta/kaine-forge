@@ -1,14 +1,26 @@
-import { FEEDBACK_TARGETS, MAX_FEEDBACK_CHARS, type FeedbackTarget } from "@repo/desk/contracts";
+import { MAX_FEEDBACK_CHARS } from "@repo/desk/contracts";
 import { Button, Label, RadioGroup, RadioGroupItem, Textarea } from "@repo/ui";
 import { useEffect, useId, useState } from "react";
 
-import { useT } from "../i18n/i18n.t";
+import { useStageNames } from "../flow/flow.names";
+import { stageName, type IssueFlow } from "../flow/flow.steps";
+import { useT, type Translate } from "../i18n/i18n.t";
+
+/** The built-in steps that have their own words: "Plan again", "Build again", "Review again". */
+const BUILTIN_TARGETS: readonly string[] = ["plan", "build", "review"];
+
+/** What a feedback target says: built-in words for a built-in step, else "Back to <step label>". */
+export const targetLabel = (t: Translate, flow: IssueFlow | null, id: string): string =>
+  (flow === null || flow.source === "builtin") && BUILTIN_TARGETS.includes(id)
+    ? t(`desk.feedback.target.${id}`)
+    : t("desk.feedback.targetStep", { stage: stageName(t, flow, id) });
 
 export interface FeedbackFormProps {
   readonly id?: string;
-  readonly targets: readonly FeedbackTarget[];
+  /** Step ids of the issue's flow, the default first. */
+  readonly targets: readonly string[];
   readonly busy: boolean;
-  readonly onSend: (target: FeedbackTarget, text: string) => Promise<boolean>;
+  readonly onSend: (target: string, text: string) => Promise<boolean>;
   /** Close the form without sending. The draft is dropped. */
   readonly onCancel: () => void;
   /** PR feedback: the text is optional, and the form says what the desk adds to it. */
@@ -29,9 +41,9 @@ export function FeedbackForm({
   fromPr = false
 }: FeedbackFormProps) {
   const t = useT();
+  const { flow } = useStageNames();
   const id = useId();
-  const first = targets[0] ?? FEEDBACK_TARGETS[0];
-  const [target, setTarget] = useState<FeedbackTarget>(first);
+  const [target, setTarget] = useState<string>(targets[0] ?? "");
   const [text, setText] = useState("");
   const empty = text.trim() === "" && !fromPr;
   useEffect(() => {
@@ -72,7 +84,7 @@ export function FeedbackForm({
                   id={`${id}-${entry}`}
                   className="desk-segmented__radio"
                 />
-                <Label htmlFor={`${id}-${entry}`}>{t(`desk.feedback.target.${entry}`)}</Label>
+                <Label htmlFor={`${id}-${entry}`}>{targetLabel(t, flow, entry)}</Label>
               </div>
             ))}
           </RadioGroup>

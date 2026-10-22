@@ -85,8 +85,13 @@ export function ShipDialog({
     const settled = await run.current(SHIP);
     if (settled.kind === "error") {
       setPhase({ kind: "failed", code: settled.code, detail: settled.detail });
-    } else if (settled.kind === "done" && settled.outcome.stage !== "pr-open") {
-      // The ship stopped before the PR (a hook failed): the issue is in needs-you.
+    } else if (
+      settled.kind === "done" &&
+      settled.outcome.stop !== "gate" &&
+      settled.outcome.stop !== "shipped"
+    ) {
+      // The ship stopped before the PR (a hook failed): the issue is in needs-you. A flow with a
+      // PR step stops at it (a gate); a flow without one ends at shipped.
       setPhase({ kind: "failed", code: "ship-refused", detail: settled.outcome.message });
     } else {
       setPhase({ kind: "shipped" });
@@ -257,7 +262,7 @@ function ShipReview({
         {pullRequest === null ? (
           <>
             <p>{plan.pullRequest.title}</p>
-            <p className="desk-muted">{t("desk.ship.draft")}</p>
+            <p className="desk-muted">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
           </>
         ) : (
           <p>{t("desk.ship.updatesPr", { pr: pullRequest })}</p>

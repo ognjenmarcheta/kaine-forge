@@ -4,8 +4,15 @@ import { createAgentProcess } from "../agents/agent.process";
 import { createClaudeRunner } from "../agents/claude.runner";
 import { createCodexRunner } from "../agents/codex.runner";
 import { loadDeskConfig } from "../config/config.load";
-import type { HealthFix, IssueState, LessonReport, Provider } from "../contracts";
+import {
+  flowForLabels,
+  type HealthFix,
+  type IssueState,
+  type LessonReport,
+  type Provider
+} from "../contracts";
 import type { ServerRunner } from "./server.actions";
+import { readDefinitionViews, type DefinitionViews } from "./server.definitions";
 import { createEventBus, type PipelineEventListener } from "./server.events";
 import {
   createDeskServer,
@@ -13,6 +20,7 @@ import {
   type DeskServerDeps,
   type HealthFixOutcome
 } from "./server.http";
+import { ensureUiBuilt } from "./server.ui";
 import {
   missingWorkspaceBuilds,
   runDoctor,
@@ -30,9 +38,10 @@ import { createGitHubPort } from "../github/github.port";
 import { buildWorkerImage } from "../isolation/docker.admin";
 import { dockerDoctorChecks } from "../isolation/docker.doctor";
 import { createDockerIsolation } from "../isolation/isolation.docker";
+import { containerCleanupFor } from "../isolation/isolation.select";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
-import { ensureUiBuilt } from "./server.ui";
+import { createDefinitionWrites, type DefinitionWrites } from "../registry/registry.write";
 import { createLessonDesk, type LessonActions } from "../stats/stats.lesson-desk";
 import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
@@ -58,6 +67,12 @@ export interface DeskRuntime {
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. */
   readonly lessonActions?: LessonActions | undefined;
+  /** The registry's agents and flows of the checkout, resolved with the config. */
+  readonly readDefinitions?: (() => Promise<DefinitionViews>) | undefined;
+  /** Save, clone, promote and delete the checkout's agents and flows. */
+  readonly definitionWrites?: DefinitionWrites | undefined;
+  /** The flow `start` picks for an issue's labels: `flowLabels`, else `defaultFlow`. */
+  readonly flowFor?: ((labels: readonly string[]) => string) | undefined;
   /** The built UI, when the runtime knows where it is. */
   readonly uiDir?: string | null | undefined;
   /** Wait for background work (notify commands, log writes) before the process exits. */
@@ -108,7 +123,11 @@ export const createDefaultDeskRuntime =
       config
     });
 
-    await recoverInterrupted(store, { clock: systemClock, log });
+    await recoverInterrupted(store, {
+      clock: systemClock,
+      cleanupIsolation: containerCleanupFor({ config, docker }),
+      log
+    });
     const lessonDesk = createLessonDesk({
       stateRoot: location.stateRoot,
       clock: systemClock,
@@ -121,6 +140,7 @@ export const createDefaultDeskRuntime =
       git: createGitPort(exec),
       github,
       runnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      docker,
       store,
       clock: systemClock,
       config,
@@ -150,6 +170,9 @@ export const createDefaultDeskRuntime =
       prRoundLimit: config.maxPrRounds,
       lessons: lessonDesk.report,
       lessonActions: lessonDesk.actions,
+      readDefinitions: () => readDefinitionViews({ repoRoot: location.repoRoot, config }),
+      definitionWrites: createDefinitionWrites({ repoRoot: location.repoRoot }),
+      flowFor: (labels) => flowForLabels(config, labels),
       openWork: () => fetchOpenWork(createGhClient({ exec, cwd: location.repoRoot })),
       health: () =>
         runDoctor({
@@ -287,6 +310,9 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       prRoundLimit: runtime.prRoundLimit,
       lessons: runtime.lessons,
       lessonActions: runtime.lessonActions,
+      readDefinitions: runtime.readDefinitions,
+      definitionWrites: runtime.definitionWrites,
+      flowFor: runtime.flowFor,
       uiDir: options.uiDir !== undefined ? options.uiDir : (runtime.uiDir ?? null),
       port: options.port,
       ...options.tuning

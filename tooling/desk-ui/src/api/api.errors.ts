@@ -28,6 +28,8 @@ export const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
   "worktree-dirty": "desk.error.worktree-dirty",
   "remove-failed": "desk.error.remove-failed",
   "lesson-refused": "desk.error.lesson-refused",
+  "invalid-definition": "desk.error.invalid-definition",
+  "definition-refused": "desk.error.definition-refused",
   network: "desk.error.network",
   "invalid-response": "desk.error.invalid-response"
 };

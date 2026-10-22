@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { useContinueIssue } from "./board.actions";
 import { StageProgress } from "./board.progress";
+import { BUILTIN_FLOW_ID } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
 import { firstLine, safeHttpUrl } from "../shell/shell.format";
 import { OverflowTooltip, useOverflow } from "../shell/shell.overflow";
@@ -19,6 +20,13 @@ import {
 
 const LINK_BUTTON = buttonVariants({ appearance: "default", spacing: "compact" });
 const SUBTLE_LINK_BUTTON = buttonVariants({ appearance: "subtle", spacing: "compact" });
+
+/** The flow an issue runs on, named only when it is not the built-in default flow. */
+export function FlowTag({ summary }: { readonly summary: ReadableSummary }) {
+  const t = useT();
+  if (summary.flowId === BUILTIN_FLOW_ID) return null;
+  return <span className="desk-flow-tag">{t("desk.card.flow", { name: summary.flowName })}</span>;
+}
 
 /**
  * The next step of an issue. Only these buttons and the title are interactive, not the card.
@@ -136,7 +144,8 @@ function ReadableCard({
         </OverflowTooltip>
       </h3>
       <IssueStatusChip summary={summary} />
-      <StageProgress progress={summary.progress} current={summary.currentNode} />
+      <FlowTag summary={summary} />
+      <StageProgress summary={summary} />
       {reason !== null && (
         <OverflowTooltip text={summary.needsYouReason ?? reason} overflowing={reasonCut}>
           <p ref={reasonRef} className="desk-card__reason">

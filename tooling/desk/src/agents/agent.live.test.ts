@@ -9,9 +9,10 @@ import { z } from "zod";
 
 import type { AgentRunRequest } from "./agent.runner";
 import { verifyAgentRun } from "./agent.verify";
+import { permissionsFor } from "./capabilities.load";
 import { createClaudeRunner } from "./claude.runner";
 import { createCodexRunner } from "./codex.runner";
-import { buildRunSettings, parseReceipts, permissionsFor } from "./permissions";
+import { buildRunSettings, parseReceipts } from "./permissions";
 import { requestFor } from "../testing/agent.testing";
 
 /**
@@ -52,6 +53,8 @@ const makeProbeRepo = async (): Promise<{ readonly dir: string; readonly head: s
   await git(dir, "config", "user.email", "desk-live@example.invalid");
   await mkdir(path.join(dir, ".ai", "hooks"), { recursive: true });
   await mkdir(path.join(dir, ".ai", "skills"), { recursive: true });
+  // The canonical source: a skill the checkout does not install is removed from the run.
+  await writeFile(path.join(dir, ".ai", "skills", "probe-skill.md"), SKILL);
   for (const skillRoot of [".claude/skills", ".agents/skills"]) {
     await mkdir(path.join(dir, skillRoot, "probe-skill"), { recursive: true });
     await writeFile(path.join(dir, skillRoot, "probe-skill", "SKILL.md"), SKILL);

@@ -54,6 +54,22 @@ describe("aggregateRuns", () => {
     ]);
   });
 
+  it("splits a role by agent, and counts a record without one for the agent of its role", () => {
+    const stats = aggregate(
+      [
+        record({ agentId: "builder" }),
+        record({ agentId: "ui-builder" }),
+        record({ agentId: "ui-builder" }),
+        record()
+      ],
+      []
+    );
+    expect(stats.groups.map((group) => [group.role, group.agentId, group.runs])).toEqual([
+      ["builder", "builder", 2],
+      ["builder", "ui-builder", 2]
+    ]);
+  });
+
   it("counts outcomes and averages only the runs that report a value", () => {
     const [group] = aggregate(
       [

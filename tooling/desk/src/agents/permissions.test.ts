@@ -7,12 +7,12 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { permissionsFor } from "./capabilities.load";
 import {
   PROTECTED_EDIT_RULES,
   PermissionsPolicyError,
   buildRunSettings,
   parseReceipts,
-  permissionsFor,
   readPolicyDenies
 } from "./permissions";
 import { isProtectedPath } from "../policy/protected-paths";
@@ -40,7 +40,20 @@ const makeWorktree = async (options: { policy?: string | null; skills?: string[]
       options.policy ?? JSON.stringify(POLICY)
     );
   }
-  for (const skill of options.skills ?? ["kaine-write-plan", "kaine-new-ops"]) {
+  // What the built-in roles ask for is installed: a skill or server that is not is removed.
+  await writeFile(
+    path.join(dir, ".ai", "mcp.json"),
+    JSON.stringify({ mcpServers: { serena: {}, context7: {} } })
+  );
+  for (const skill of options.skills ?? [
+    "kaine-intake",
+    "kaine-write-issue",
+    "kaine-write-plan",
+    "kaine-test",
+    "kaine-review",
+    "kaine-create-feature",
+    "kaine-new-ops"
+  ]) {
     await writeFile(path.join(dir, ".ai", "skills", `${skill}.md`), "# skill");
   }
   return dir;

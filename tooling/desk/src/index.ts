@@ -6,6 +6,20 @@ export {
   type RemoveResult,
   type StartOptions
 } from "./engine/pipeline.runner";
+export {
+  loadRegistry,
+  type LoadRegistryInput,
+  type Registry,
+  type RegistryEntry,
+  type RegistryProblem
+} from "./registry/registry.load";
+export {
+  DEFAULT_FLOW_ID,
+  builtinFlowSnapshot,
+  readInstalledCapabilities,
+  resolveFlowSnapshot,
+  type FlowSnapshotResult
+} from "./registry/registry.snapshot";
 export { renameBranchForPlan, type BranchRename } from "./engine/pipeline.branch";
 export { createScheduler, type Scheduler } from "./engine/pipeline.scheduler";
 export {
@@ -33,7 +47,7 @@ export {
   type StatusEntry,
   type StopKind
 } from "./engine/pipeline.types";
-export { BASE_BRANCH, parseDeskBranch, worktreeDirFor } from "./engine/pipeline.stage.setup";
+export { parseDeskBranch, worktreeDirFor } from "./engine/pipeline.stage.setup";
 export {
   SnapshotFileError,
   createSnapshotGitHubPort,
@@ -93,8 +107,8 @@ export {
   bootstrapPlan,
   branchName,
   evaluateStep,
+  installsForAgents,
   isValidBranchName,
-  skillsForRoles,
   slugify,
   type BootstrapInput,
   type BootstrapPlan,

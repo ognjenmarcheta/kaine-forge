@@ -52,6 +52,43 @@ _Avoid_: account activation
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
 > **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Active Organization** resolved from the session."
 
+## Agent desk language
+
+The agent desk (`tooling/desk`, `tooling/desk-ui`) is local developer tooling that drives a GitHub issue to a draft pull request. Its terms name tooling concepts, not product data. See `docs/agents/agent-desk.md` and ADR 0012.
+
+**Flow**:
+An ordered list of **Steps** that an issue goes through on the agent desk, defined as data in a `<id>.yaml` file (built-in, `.desk/flows/`, or `.ai.local/desk/flows/`). The built-in flow is `kaine-default`.
+_Avoid_: pipeline (for a definition), workflow, playbook
+
+**Step**:
+One position in a **Flow**, of one kind: `agent`, `gate` (the owner decides), `check`, `ship`, or `pr-wait`. A step may loop back to an earlier step with a budget.
+_Avoid_: stage (for a definition), node, phase
+
+**Agent**:
+A desk definition of one kind of agent run: provider, model, **Output kind**, capabilities, and prompt, in a `<id>.md` file. It is not an AI assistant in general and not an organization role.
+_Avoid_: role, bot, worker
+
+**Output kind**:
+What an **Agent** run produces, which selects its result schema and step handler: `plan`, `change`, `review`, `report`, or `intake`.
+_Avoid_: agent type, role
+
+**Capability profile**:
+What one **Agent** run gets after the desk resolves its preset (`read-only`, `run-checks`, `edit-code`), MCP servers, and skills against the **Policy floor** and the checkout. A run records it as its capability receipt.
+_Avoid_: permissions (for the resolved result), tool config
+
+**Policy floor**:
+The restrictions every **Agent** run keeps whatever its definition asks for: the repository denies, the forbidden git and desk commands, no web tools, the protected paths, and every skill outside the agent's list. An agent can only narrow it.
+_Avoid_: default permissions, baseline
+
+**Flow snapshot**:
+The **Flow** and every **Agent** it names, frozen with a hash when an issue starts. The issue runs on its snapshot until it ends, so later definition edits do not reach it.
+_Avoid_: flow version, cached flow
+
+- An issue runs on exactly one **Flow snapshot**.
+- A **Flow snapshot** holds exactly one **Flow** and the **Agents** its agent **Steps** name.
+- An agent **Step** names exactly one **Agent**; one **Agent** can serve many steps and flows.
+- An **Agent** run has exactly one **Capability profile**, which the **Policy floor** bounds.
+
 ## Template platform surfaces
 
 This repository is a multi-platform **template**. Reference features are not required to ship on every client surface. Use this matrix when adding or reviewing product work so agents do not invent mobile parity that the template does not claim.
@@ -74,4 +111,6 @@ This repository is a multi-platform **template**. Reference features are not req
 ## Flagged Ambiguities
 
 - "context" can mean GraphQL runtime context or domain request identity. Use **Authenticated Organization Scope** for the domain request identity used by organization-scoped API work.
+- "agent" can mean any AI assistant (Claude, Codex) or a desk **Agent** definition. Use **Agent** only for the desk definition; say "AI assistant" otherwise.
+- "role" means the user's role in an **Organization Membership** (admin or member). On the agent desk, a role (planner, builder, reviewer) is the permission profile and the config key for providers and models; each built-in **Agent** has its role as its id. Name a desk definition an **Agent**, not a role.
 - "full-stack feature" can mean API + web only, or API + web + mobile. Prefer the **Template platform surfaces** matrix over assuming mobile is required.

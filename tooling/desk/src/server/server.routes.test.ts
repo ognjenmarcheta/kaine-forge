@@ -26,6 +26,7 @@ import {
 } from "./server.testing";
 import { REFUSALS, type PipelineResult } from "../engine/pipeline.types";
 import { shipPlanSchema } from "../ship/ship.contract";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { builderOutput, planOutput } from "../testing/pipeline.testing";
 
 let harness: Harness;
@@ -474,7 +475,12 @@ describe("GET /api/issues/:n/artifacts/:id", () => {
     { id: "review", file: "review.json", type: "application/json; charset=utf-8" },
     { id: "diff", file: "diff.patch", type: "text/plain; charset=utf-8" },
     { id: "pr-body", file: "pr-body.md", type: "text/markdown; charset=utf-8" },
-    { id: "ship-plan", file: "ship-plan.json", type: "application/json; charset=utf-8" }
+    { id: "ship-plan", file: "ship-plan.json", type: "application/json; charset=utf-8" },
+    {
+      id: "report-researcher",
+      file: "report-researcher.json",
+      type: "application/json; charset=utf-8"
+    }
   ])("returns $file raw as $type", async ({ id, file, type }) => {
     await harness.seed(1);
     const content = `<script>alert("${id}")</script>\n**raw**`;
@@ -613,6 +619,44 @@ describe("POST /api/issues/:n/actions", () => {
   it("defaults override to false", async () => {
     await api.post("/api/issues/12/actions", { action: "start" });
     expect(harness.runner.start).toHaveBeenCalledWith(12, { override: false });
+  });
+
+  it("passes the flow the owner picked to the runner", async () => {
+    await api.post("/api/issues/12/actions", { action: "start", flowId: "docs-only" });
+    expect(harness.runner.start).toHaveBeenCalledWith(12, { override: false, flowId: "docs-only" });
+  });
+
+  it("checks a feedback target against the issue's own flow, by step kind", async () => {
+    await harness.seed(3, {
+      flowSnapshot: {
+        ...DEFAULT_SNAPSHOT,
+        flow: {
+          id: "docs-only",
+          name: "Docs only",
+          description: "Write, verify, approve, ship.",
+          steps: [
+            { id: "write", kind: "agent", label: "Write", agent: "builder" },
+            { id: "verify", kind: "check", label: "Verify", commands: "loop" },
+            { id: "approve-docs", kind: "gate", label: "Approve", sendBack: ["write"] },
+            { id: "ship", kind: "ship", label: "Ship", auto: false }
+          ]
+        }
+      },
+      stage: "approve-docs",
+      loops: {}
+    });
+    const feedback = (to: string) =>
+      api.post("/api/issues/3/actions", { action: "feedback", to, text: "x" });
+
+    expect((await feedback("write")).status).toBe(200);
+    expect(harness.runner.feedback).toHaveBeenCalledWith(3, "write", "x");
+    // A gate of this flow, and a step of the default flow that this flow does not have.
+    for (const target of ["approve-docs", "build"]) {
+      const reply = await feedback(target);
+      expect(reply.status).toBe(400);
+      expect(reply.json()).toEqual({ error: { code: "bad-request", detail: expect.any(String) } });
+    }
+    expect(harness.runner.feedback).toHaveBeenCalledTimes(1);
   });
 
   it.each([

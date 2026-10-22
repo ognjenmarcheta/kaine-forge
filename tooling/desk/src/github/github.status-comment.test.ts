@@ -5,9 +5,11 @@ import { statusMarker } from "./github.authorization";
 import { createGhClient } from "./github.gh";
 import { renderStatusComment, upsertStatusComment } from "./github.status-comment";
 import { fakeExec, ok, type FakeRoute } from "../testing/exec.fake";
+import { DEFAULT_SNAPSHOT, withLimits } from "../testing/flow.testing";
 
 const state = (over: Partial<IssueState> = {}): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber: 7,
   stage: "plan-gate",
   status: "waiting",
@@ -106,7 +108,9 @@ describe("renderStatusComment", () => {
 
   it("uses custom loop limits", () => {
     expect(
-      renderStatusComment({ state: state(), limits: { check: 5, review: 4, prRounds: 3 } })
+      renderStatusComment({
+        state: state({ flowSnapshot: withLimits(DEFAULT_SNAPSHOT, { check: 5, review: 4 }) })
+      })
     ).toContain("- check: 1 of 5");
   });
 });

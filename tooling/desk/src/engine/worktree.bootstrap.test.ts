@@ -6,7 +6,6 @@ import {
   branchName,
   evaluateStep,
   isValidBranchName,
-  skillsForRoles,
   slugify,
   type BootstrapInput
 } from "./worktree.bootstrap";
@@ -87,24 +86,6 @@ describe("slugify", () => {
   it("falls back to a word when nothing is left", () => {
     expect(slugify("!!! ???")).toBe("work");
     expect(slugify("日本語")).toBe("work");
-  });
-});
-
-describe("skillsForRoles", () => {
-  it("lists the skill subset for the roles in a stable order", () => {
-    expect(skillsForRoles(["planner", "builder", "reviewer"])).toEqual([
-      "kaine-review",
-      "kaine-test",
-      "kaine-write-plan"
-    ]);
-  });
-
-  it("adds extras once and never includes ops skills by default", () => {
-    const skills = skillsForRoles(["builder"], ["kaine-create-feature", "kaine-test"]);
-    expect(skills).toEqual(["kaine-create-feature", "kaine-test"]);
-    for (const ops of ["kaine-open-pr", "kaine-explain", "kaine-summarize-work", "kaine-rebase"]) {
-      expect(skillsForRoles(["intake", "planner", "builder", "reviewer"])).not.toContain(ops);
-    }
   });
 });
 

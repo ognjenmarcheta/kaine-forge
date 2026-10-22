@@ -1,6 +1,11 @@
 import {
   ACTION_NAMES,
+  AGENT_OUTPUT_KINDS,
   AGENT_STAGE_ROLES,
+  AGENT_TOOLS,
+  CAPABILITY_PRESETS,
+  CAPABILITY_SANDBOXES,
+  DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
   ISSUE_SECTIONS,
@@ -9,13 +14,16 @@ import {
   NODE_KINDS,
   NODE_STATUSES,
   PLAN_RISKS,
+  PROVIDERS,
   RUN_FAILURE_KINDS,
-  STAGES
+  STAGES,
+  STEP_KINDS
 } from "@repo/desk/contracts";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
 import { TRACE_FILTERS } from "../issue/issue.trace";
@@ -65,19 +73,23 @@ describe("desk translations", () => {
       "desk.gate.title.": [
         "plan-gate",
         "pr-review",
+        "gate",
         "needs-you",
         "working",
         "shipped",
         "cancelled",
+        "finished",
         "idle"
       ],
       "desk.gate.intro.": [
         "plan-gate",
         "pr-review",
+        "gate",
         "needs-you",
         "working",
         "shipped",
         "cancelled",
+        "finished",
         "idle"
       ],
       "desk.board.group.": ["needs-you", "waiting", "running", "done"],
@@ -95,7 +107,7 @@ describe("desk translations", () => {
       "desk.draft.recommendation.": INTAKE_RECOMMENDATIONS,
       "desk.draft.section.": ISSUE_SECTIONS,
       "desk.stats.column.": [
-        "role",
+        "agent",
         "provider",
         "model",
         "runs",
@@ -126,7 +138,20 @@ describe("desk translations", () => {
       "desk.diff.group.": FILE_GROUPS,
       "desk.record.": PLAN_RISKS,
       "desk.trace.filter.": TRACE_FILTERS,
-      "desk.trace.kind.": NODE_KINDS
+      "desk.trace.kind.": NODE_KINDS,
+      "desk.flow.source.": DEFINITION_SOURCES,
+      "desk.caps.preset.": CAPABILITY_PRESETS,
+      "desk.caps.sandbox.": CAPABILITY_SANDBOXES,
+      "desk.caps.kind.": ["tool", "mcp", "skill"],
+      "desk.agents.output.": AGENT_OUTPUT_KINDS,
+      "desk.agents.outputAbout.": AGENT_OUTPUT_KINDS,
+      "desk.agents.provider.": PROVIDERS,
+      "desk.agents.presetAbout.": CAPABILITY_PRESETS,
+      "desk.agents.toolAbout.": AGENT_TOOLS,
+      "desk.flows.kind.": [...STEP_KINDS, "setup"],
+      "desk.flows.commandSet.": ["loop", "ship", "custom"],
+      "desk.flows.commandSetAbout.": ["loop", "ship", "custom"],
+      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

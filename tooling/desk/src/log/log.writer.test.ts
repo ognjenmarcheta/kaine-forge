@@ -9,6 +9,7 @@ import { MAX_FIELD_CHARS, parseLogLine, toLogRecord } from "./log.record";
 import { ROTATED_LOG_NAME, agentLogPath, createLogSink } from "./log.writer";
 import type { PipelineEvent } from "../engine/pipeline.types";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const NOW = new Date("2026-10-07T09:00:00Z");
 
@@ -52,7 +53,8 @@ describe("toLogRecord", () => {
       )
     ).toMatchObject({ kind: "agent", role: "builder", type: "text", text: "hi" });
     const state = issueStateSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      flowSnapshot: DEFAULT_SNAPSHOT,
       issueNumber: 7,
       stage: "plan",
       status: "running",

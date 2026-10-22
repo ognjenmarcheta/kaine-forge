@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import { DeskEdge } from "./flow.edge";
 import { fitOptions, shouldRefit, type Size } from "./flow.fit";
 import { EDGE_TYPE, NODE_TYPE, toFlowElements } from "./flow.mapping";
+import { useStageNames } from "./flow.names";
 import { DeskNode } from "./flow.node";
 import { nodeStatusText } from "./flow.text";
 import { useT } from "../i18n/i18n.t";
@@ -76,14 +77,15 @@ export interface FlowGraphProps {
  */
 export function FlowGraph({ model, selected, onSelect, needsYouReason }: FlowGraphProps) {
   const t = useT();
+  const names = useStageNames();
   const touch = useMediaQuery("(pointer: coarse)");
   const describe = useMemo(
     () => (node: FlowNode) =>
       t("desk.flow.nodeLabel", {
-        stage: t(`desk.flow.node.${node.id}`),
+        stage: names.node(node.id),
         status: nodeStatusText(t, node)
       }),
-    [t]
+    [t, names]
   );
   const { nodes, edges } = useMemo(
     () => toFlowElements(model, describe, selected, needsYouReason),

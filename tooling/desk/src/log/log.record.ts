@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { AgentEvent } from "../agents/agent.runner";
-import { agentStageRoleSchema, stageSchema } from "../contracts";
+import { agentStageRoleSchema, stageIdSchema } from "../contracts";
 import { redactAndBound } from "./log.redact";
 import type { PipelineEvent } from "../engine/pipeline.types";
 
@@ -42,7 +42,7 @@ const historyRecordSchema = z
     kind: z.literal("history"),
     at: timestamp,
     issue: z.number().int().positive(),
-    stage: stageSchema,
+    stage: stageIdSchema,
     event: z.string(),
     note: z.string().optional()
   })

@@ -4,10 +4,13 @@ import path from "node:path";
 import {
   historyEventSchema,
   issueStateSchema,
+  issueStateV1Schema,
+  migrateIssueStateV1,
   type HistoryEvent,
   type IssueState
 } from "../contracts";
 import { appendJsonl, writeJsonAtomic } from "./store.atomic";
+import { builtinFlowSnapshot } from "../registry/registry.snapshot";
 
 export type UnreadableReason =
   "io-error" | "invalid-json" | "unknown-schema-version" | "invalid-schema";
@@ -81,7 +84,13 @@ export const createIssueStore = (root: string): IssueStore => {
       };
     }
 
-    const parsed = issueStateSchema.safeParse(json);
+    // A version 1 file runs on the built-in default flow. The next write stores version 2.
+    const legacy =
+      typeof json === "object" &&
+      json !== null &&
+      "schemaVersion" in json &&
+      json.schemaVersion === 1;
+    const parsed = legacy ? issueStateV1Schema.safeParse(json) : issueStateSchema.safeParse(json);
     if (!parsed.success) {
       const versionIssue = parsed.error.issues.some((issue) => issue.path[0] === "schemaVersion");
       return {
@@ -99,7 +108,11 @@ export const createIssueStore = (root: string): IssueStore => {
         detail: `issueNumber ${parsed.data.issueNumber} does not match directory ${issueNumber}`
       };
     }
-    return { status: "ok", state: parsed.data };
+    const state =
+      parsed.data.schemaVersion === 1
+        ? migrateIssueStateV1(parsed.data, await builtinFlowSnapshot())
+        : parsed.data;
+    return { status: "ok", state };
   };
 
   return {

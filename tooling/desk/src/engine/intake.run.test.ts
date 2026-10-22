@@ -7,6 +7,7 @@ import { deskConfigSchema } from "../contracts";
 import { renderTicket, runIntake, type IntakeOptions } from "./intake.run";
 import { statusMarker } from "../github/github.authorization";
 import { createIssueStore } from "../store/store.issue";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { OWNER, fakeGitHub, snapshotOf, type FakeGitHubOptions } from "../testing/github.fake";
 
 const NOW = new Date("2026-10-07T09:00:00Z");
@@ -32,7 +33,13 @@ const setup = (github: FakeGitHubOptions = {}, config: Record<string, unknown> =
     log: (message: string) => logs.push(message)
   };
   const run = (options: Partial<IntakeOptions> = {}) =>
-    runIntake(deps, { issueNumber: 7, override: false, writeBack: true, ...options });
+    runIntake(deps, {
+      issueNumber: 7,
+      override: false,
+      writeBack: true,
+      flowSnapshot: DEFAULT_SNAPSHOT,
+      ...options
+    });
   return { port, store, logs, run };
 };
 
@@ -265,7 +272,7 @@ describe("runIntake", () => {
         config: deskConfigSchema.parse({}),
         log: () => undefined
       },
-      { issueNumber: 7, override: false, writeBack: false }
+      { issueNumber: 7, override: false, writeBack: false, flowSnapshot: null }
     );
     expect(result.outcome).toBe("ready");
     const read = await first.store.read(7);

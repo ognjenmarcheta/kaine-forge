@@ -1,4 +1,4 @@
-import { ACTIVE_STAGES, MAX_FEEDBACK_CHARS } from "@repo/desk/contracts";
+import { MAX_FEEDBACK_CHARS } from "@repo/desk/contracts";
 import {
   Button,
   Checkbox,
@@ -15,7 +15,9 @@ import { useId, useState } from "react";
 
 import { DraftDialog } from "./gate.draft-dialog";
 import { Kbd, type GateBodyProps } from "./gate.frame";
-import { incidentOf, resumeCommandOf } from "./gate.model";
+import { builderStepOf, incidentOf, resumeCommandOf, retryTargets } from "./gate.model";
+import { useStageNames } from "../flow/flow.names";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
 import { copyText } from "../shell/shell.copy";
 import { useShortcuts } from "../shell/shell.keys";
@@ -27,6 +29,7 @@ const AUTO_STAGE = "auto";
 /** What stopped, the engine's reason, the likely cause when facts show one, and a way to the trace. */
 function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "onShowTrace">) {
   const t = useT();
+  const names = useStageNames();
   const id = useId();
   const incident = incidentOf(detail);
   return (
@@ -36,7 +39,7 @@ function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "o
         <h3 id={`${id}-head`} className="desk-incident__head">
           {incident.stage === null
             ? t("desk.incident.headUnknown")
-            : t("desk.incident.head", { stage: t(`desk.stage.${incident.stage}`) })}
+            : t("desk.incident.head", { stage: names.stage(incident.stage) })}
         </h3>
       </div>
       {incident.reason !== null && (
@@ -58,16 +61,20 @@ function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "o
 
 /**
  * The desk stopped. The incident says what and why. Three ways on, each with what happens next:
- * tell the builder (recommended: it gets the note and the failing output), retry the stage, or
- * open the agent session in a terminal. C continues.
+ * tell the builder (recommended: it gets the note and the failing output), retry a stage of the
+ * issue's flow, or open the agent session in a terminal. C continues. A flow without a change
+ * step has no builder to tell.
  */
 export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: GateBodyProps) {
   const t = useT();
+  const names = useStageNames();
   const id = useId();
   const [resume, setResume] = useState<string>(AUTO_STAGE);
   const [note, setNote] = useState("");
   const command = resumeCommandOf(detail);
-  const chosen = ACTIVE_STAGES.find((stage) => stage === resume);
+  const targets = retryTargets(detail.state.flowSnapshot.flow);
+  const builder = builderStepOf(issueFlowOf(summary), summary.resumeStage);
+  const chosen = targets.find((stage) => stage === resume);
   const retryStage = chosen ?? summary.resumeStage;
 
   const continueRun = (): void => {
@@ -76,8 +83,8 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
   };
   const tellBuilder = async (): Promise<void> => {
     const text = note.trim();
-    if (text === "" || actions.busy) return;
-    if (await send({ action: "feedback", to: "build", text })) setNote("");
+    if (text === "" || actions.busy || builder === null) return;
+    if (await send({ action: "feedback", to: builder, text })) setNote("");
   };
 
   useShortcuts([{ key: "c", run: continueRun, labelKey: "desk.board.keys.continue" }]);
@@ -91,29 +98,31 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
       <section className="desk-sec">
         <h3>{t("desk.incident.options")}</h3>
         <div className="desk-opts">
-          <div className="desk-opt" data-recommended="true">
-            <h4>
-              {t("desk.incident.tell.title")}{" "}
-              <span className="desk-recommended">{t("desk.incident.recommended")}</span>
-            </h4>
-            <p>{t("desk.incident.tell.text")}</p>
-            <Label htmlFor={`${id}-note`}>{t("desk.incident.tell.label")}</Label>
-            <Textarea
-              id={`${id}-note`}
-              value={note}
-              rows={3}
-              maxLength={MAX_FEEDBACK_CHARS}
-              onChange={(event) => setNote(event.target.value)}
-            />
-            <p className="desk-next">{t("desk.incident.tell.next")}</p>
-            <Button
-              spacing="compact"
-              disabled={actions.busy || note.trim() === ""}
-              onClick={() => void tellBuilder()}
-            >
-              {t("desk.incident.tell.send")}
-            </Button>
-          </div>
+          {builder !== null && (
+            <div className="desk-opt" data-recommended="true">
+              <h4>
+                {t("desk.incident.tell.title")}{" "}
+                <span className="desk-recommended">{t("desk.incident.recommended")}</span>
+              </h4>
+              <p>{t("desk.incident.tell.text")}</p>
+              <Label htmlFor={`${id}-note`}>{t("desk.incident.tell.label")}</Label>
+              <Textarea
+                id={`${id}-note`}
+                value={note}
+                rows={3}
+                maxLength={MAX_FEEDBACK_CHARS}
+                onChange={(event) => setNote(event.target.value)}
+              />
+              <p className="desk-next">{t("desk.incident.tell.next")}</p>
+              <Button
+                spacing="compact"
+                disabled={actions.busy || note.trim() === ""}
+                onClick={() => void tellBuilder()}
+              >
+                {t("desk.incident.tell.send")}
+              </Button>
+            </div>
+          )}
           <div className="desk-opt">
             <h4>{t("desk.incident.retry.title")}</h4>
             <p>{t("desk.incident.retry.text")}</p>
@@ -127,12 +136,12 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
                   {summary.resumeStage === null
                     ? t("desk.gate.needsYou.resumeAuto")
                     : t("desk.gate.needsYou.resumeRemembered", {
-                        stage: t(`desk.stage.${summary.resumeStage}`)
+                        stage: names.stage(summary.resumeStage)
                       })}
                 </SelectItem>
-                {ACTIVE_STAGES.map((stage) => (
+                {targets.map((stage) => (
                   <SelectItem key={stage} value={stage}>
-                    {t(`desk.stage.${stage}`)}
+                    {names.stage(stage)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -140,7 +149,7 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
             <p className="desk-next">
               {retryStage === null
                 ? t("desk.incident.retry.nextAuto")
-                : t("desk.incident.retry.next", { stage: t(`desk.stage.${retryStage}`) })}
+                : t("desk.incident.retry.next", { stage: names.stage(retryStage) })}
             </p>
             <Button
               appearance="secondary"

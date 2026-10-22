@@ -1,7 +1,7 @@
 import type { ActionRequestInput, FlowNodeId, IssueDetail } from "@repo/desk/contracts";
 import type { ReactNode } from "react";
 
-import type { IssueActions } from "./gate.actions";
+import type { ActionWords, IssueActions } from "./gate.actions";
 import { keyLabel, type PageKey } from "../shell/shell.keys";
 import type { ReadableSummary } from "../status/status.model";
 
@@ -12,7 +12,7 @@ export interface GateBodyProps {
   readonly revision: string;
   readonly actions: IssueActions;
   /** Run an action. `true` when it worked; focus then moves to the card heading. */
-  readonly send: (request: ActionRequestInput) => Promise<boolean>;
+  readonly send: (request: ActionRequestInput, words?: ActionWords) => Promise<boolean>;
   /** The id of the card heading: the decision bar is named by it. */
   readonly titleId: string;
   readonly onOpenResult: (node: FlowNodeId) => void;

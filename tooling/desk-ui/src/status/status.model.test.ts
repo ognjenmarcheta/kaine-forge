@@ -1,4 +1,4 @@
-import { NODE_STATUSES, type IssueSummary } from "@repo/desk/contracts";
+import { NODE_STATUSES, type FlowSnapshot, type IssueSummary } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,6 +12,7 @@ import {
   toneClass,
   type IssueStatus
 } from "./status.model";
+import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { makeState, makeSummary } from "../test/test.render";
 
 type Patch = Partial<ReturnType<typeof makeState>>;
@@ -27,8 +28,18 @@ const UNREADABLE: IssueSummary = {
   busy: false
 };
 
+/** What a case expects: a stage label names its stage and state; the flow it carries is the issue's. */
+type Expected = Omit<IssueStatus, "gateMode" | "label"> & {
+  readonly label: {
+    readonly kind: string;
+    readonly key?: string;
+    readonly stage?: string;
+    readonly state?: string;
+  };
+};
+
 describe("issueStatusOf", () => {
-  it.each<[string, IssueSummary, Omit<IssueStatus, "gateMode">]>([
+  it.each<[string, IssueSummary, Expected]>([
     [
       "an unreadable issue",
       UNREADABLE,
@@ -168,6 +179,16 @@ describe("issueStatusOf", () => {
         label: { kind: "key", key: "desk.stage.cancelled" },
         primaryAction: "open"
       }
+    ],
+    [
+      "a flow without a ship that ran every step",
+      summaryOf({ stage: "finished", status: "done" }),
+      {
+        group: "done",
+        tone: "success",
+        label: { kind: "key", key: "desk.stage.finished" },
+        primaryAction: "open"
+      }
     ]
   ])("maps %s", (_name, summary, expected) => {
     expect(issueStatusOf(summary)).toMatchObject(expected);
@@ -183,6 +204,7 @@ describe("gateModeOf", () => {
   it.each([
     [{ stage: "shipped", status: "done" }, false, "shipped"],
     [{ stage: "cancelled", status: "done" }, false, "cancelled"],
+    [{ stage: "finished", status: "done" }, false, "finished"],
     [{ stage: "needs-you", status: "waiting" }, true, "needs-you"],
     [{ stage: "plan-gate", status: "waiting" }, true, "working"],
     [{ stage: "build", status: "running" }, false, "working"],
@@ -196,11 +218,40 @@ describe("gateModeOf", () => {
     expect(gateModeOf(summaryOf(patch, busy))).toBe(mode);
   });
 
+  // The mode follows the step kind in the issue's own flow, not a fixed stage id.
+  it.each([
+    ["approve", "plan-gate"],
+    ["signoff", "gate"],
+    ["verify", "idle"]
+  ] as const)("reads the step %s of the owner's flow as %s", (stage, mode) => {
+    const summary = summaryOf({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage, status: "waiting" });
+    expect(gateModeOf(summary)).toBe(mode);
+  });
+
+  it("reads a gate before a ship the owner confirms as the ship review, whatever its id", () => {
+    const withShip = (auto: boolean): FlowSnapshot => ({
+      ...CUSTOM_FLOW_SNAPSHOT,
+      flow: {
+        ...CUSTOM_FLOW_SNAPSHOT.flow,
+        steps: [
+          ...CUSTOM_FLOW_SNAPSHOT.flow.steps,
+          { id: "ship-it", kind: "ship", label: "Ship", auto }
+        ]
+      }
+    });
+    const at = (flowSnapshot: FlowSnapshot) =>
+      gateModeOf(summaryOf({ flowSnapshot, stage: "signoff", status: "waiting" }));
+    expect(at(withShip(false))).toBe("pr-review");
+    // A gate before an automatic ship is an ordinary approval.
+    expect(at(withShip(true))).toBe("gate");
+  });
+
   it("offers cancel only while a run can still be stopped", () => {
     expect(canCancel("working")).toBe(true);
     expect(canCancel("pr-open")).toBe(true);
     expect(canCancel("shipped")).toBe(false);
     expect(canCancel("cancelled")).toBe(false);
+    expect(canCancel("finished")).toBe(false);
   });
 });
 

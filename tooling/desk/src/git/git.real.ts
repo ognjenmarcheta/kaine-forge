@@ -239,6 +239,19 @@ const compareRecords = (
 };
 
 /**
+ * A branch ref, local or remote-tracking, of another desk issue (`KAINE-<n>-…` with another
+ * `n`). Issues run side by side, so the engine creates, renames and pushes their branches while
+ * this issue's agent runs. An agent cannot write refs, so such a change is never the agent's.
+ */
+export const isOtherIssueRef = (subject: string, issue: number): boolean => {
+  const name = subject.startsWith("refs/heads/")
+    ? subject.slice("refs/heads/".length)
+    : /^refs\/remotes\/[^/]+\/(.+)$/.exec(subject)?.[1];
+  const owner = name === undefined ? undefined : /^KAINE-(\d+)-/.exec(name)?.[1];
+  return owner !== undefined && Number(owner) !== issue;
+};
+
+/**
  * A local branch other than the run's own that moved to the commit of its
  * remote-tracking branch. An IDE or Git client that fast-forwards every branch
  * in the background does this while an agent runs; an agent cannot write refs.

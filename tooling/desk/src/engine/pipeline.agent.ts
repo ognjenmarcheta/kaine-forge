@@ -6,7 +6,6 @@ import { harnessFingerprint } from "./harness.fingerprint";
 import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
 import { agentRunLessons, recordLessons } from "./pipeline.lessons";
 import type { StageContext } from "./pipeline.types";
-import { ROLE_SKILLS } from "./worktree.bootstrap";
 import {
   describeFailure,
   type AgentEvent,
@@ -17,18 +16,19 @@ import {
 } from "../agents/agent.runner";
 import { createStuckDetector } from "../agents/agent.stuck";
 import { forbiddenCommandReason, verifyAgentRun, type Violation } from "../agents/agent.verify";
-import {
-  EDIT_TOOLS,
-  buildRunSettings,
-  parseReceipts,
-  permissionsFor,
-  type Receipt
-} from "../agents/permissions";
+import { builtinCapabilities, loadCapabilities } from "../agents/capabilities.load";
+import { toAgentPermissions } from "../agents/capabilities.resolve";
+import { EDIT_TOOLS, buildRunSettings, parseReceipts, type Receipt } from "../agents/permissions";
 import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
 import {
   agentOutputJsonSchema,
   planRiskSchema,
+  type AgentDefinition,
+  type AgentOutputKind,
+  type AgentOutputRole,
   type AgentStageRole,
+  type CapabilityProfile,
+  type DeskConfig,
   type HarnessFingerprint,
   type LoopCounters,
   type PlanRisk,
@@ -39,6 +39,7 @@ import {
 import {
   compareRefs,
   diffAgainstBase,
+  isOtherIssueRef,
   type DiffResult,
   type RefsSnapshot,
   type RefViolation
@@ -79,11 +80,52 @@ const DEFAULT_TIMEOUTS_MS: Readonly<Record<AgentStageRole, number>> = {
   reviewer: 20 * 60_000
 };
 
+/**
+ * The permission profile an agent runs with, by what it produces: its tool rules, sandbox,
+ * repository role text and verification. A report agent is read-only, like the planner.
+ */
+export const ROLE_FOR_OUTPUT: Readonly<Record<AgentOutputKind, AgentStageRole>> = {
+  intake: "intake",
+  plan: "planner",
+  change: "builder",
+  review: "reviewer",
+  report: "planner"
+};
+
+/** The structured result schema, by what the agent produces. */
+const SCHEMA_FOR_OUTPUT: Readonly<Record<AgentOutputKind, AgentOutputRole>> = {
+  intake: "intake",
+  plan: "planner",
+  change: "builder",
+  review: "reviewer",
+  report: "report"
+};
+
+/**
+ * Provider and model of a run. For a built-in agent id (`planner`, `builder`, `reviewer`,
+ * `intake`) the desk config decides, as it did before agents were data. Any other agent
+ * brings its own.
+ */
+export const agentRuntime = (
+  config: DeskConfig,
+  role: AgentStageRole,
+  agent: AgentDefinition | undefined
+): { readonly provider: Provider; readonly model: string | undefined } =>
+  agent === undefined || agent.id === role
+    ? { provider: config.providers[role], model: config.models[role] ?? agent?.model }
+    : { provider: agent.provider, model: agent.model };
+
 /** Larger tickets are read from the artifact file. Inline text stays well under the prompt limit. */
 const TICKET_INLINE_LIMIT = 30_000;
 
 export interface AgentStageInput<T> {
+  /** The permission profile. With `agent`, it is `ROLE_FOR_OUTPUT[agent.output]`. */
   readonly role: AgentStageRole;
+  /**
+   * The flow agent from the issue's snapshot. Its id names the run's files, and its prompt,
+   * skills and time limit apply. Absent for the intake draft, which runs on its role.
+   */
+  readonly agent?: AgentDefinition | undefined;
   readonly schema: z.ZodType<T>;
   /** A read-only role must leave the worktree diff unchanged. */
   readonly readOnly: boolean;
@@ -94,7 +136,7 @@ export interface AgentStageInput<T> {
   /** The owner's note at the plan approval. The builder reads it as the owner's words. */
   readonly ownerNote?: string | undefined;
   readonly diffPath?: string | undefined;
-  /** Exact workspace package names the builder may run scripts for. */
+  /** Exact workspace package names an edit-code or run-checks agent may run scripts for. */
   readonly workspaces?: readonly string[] | undefined;
   /**
    * Run in this checkout instead of the issue worktree, for a role that runs before setup
@@ -152,6 +194,8 @@ const bulletList = (items: readonly string[]): string =>
 interface ObservedRun {
   readonly outcome: AgentRunOutcome<unknown>;
   readonly provider: Provider;
+  /** What the run got: the resolved capabilities it started with. */
+  readonly capabilities: CapabilityProfile;
   readonly harness: HarnessFingerprint | null;
   readonly loops: LoopCounters;
   readonly startedAt: Date;
@@ -178,7 +222,7 @@ export const runAgentStage = async <T>(
   const result = await runAgentStageOnce(context, input, observed);
   const { run } = observed;
   if (run !== null) {
-    await recordRun(context, input.role, run, result.ok, planRiskOf(input, result));
+    await recordRun(context, input, run, result.ok, planRiskOf(input, result));
     await recordLessons(
       context,
       agentRunLessons({
@@ -202,7 +246,9 @@ const runAgentStageOnce = async <T>(
   observed: Observed
 ): Promise<AgentStageResult<T>> => {
   const { deps, signal } = context;
-  const { role } = input;
+  const { role, agent } = input;
+  /** The agent id. For a built-in agent and for the intake draft it is the role. */
+  const name = agent?.id ?? role;
   const state = context.state();
   const stop = (reason: string, aborted = false): AgentStageResult<T> => ({
     ok: false,
@@ -213,11 +259,10 @@ const runAgentStageOnce = async <T>(
   const worktree = input.checkout?.path ?? state.worktreePath;
   const baseSha = input.checkout?.base ?? state.baseSha;
   if (worktree === null || baseSha === null || baseSha === undefined) {
-    return stop(`The ${role} cannot run: setup has not recorded a worktree and a base commit.`);
+    return stop(`The ${name} cannot run: setup has not recorded a worktree and a base commit.`);
   }
 
-  const provider = deps.config.providers[role];
-  const skills = ROLE_SKILLS[role];
+  const { provider, model } = agentRuntime(deps.config, role, agent);
   const isolation = selectIsolation(deps, state);
   if (!isolation.ok) return stop(isolation.reason);
 
@@ -228,27 +273,40 @@ const runAgentStageOnce = async <T>(
     refsBefore = await deps.git.refsSnapshot(worktree);
     diffBefore = await diffAgainstBase(deps.exec, worktree, baseSha);
   } catch (error) {
-    return stop(`Cannot inspect the worktree before the ${role} run: ${message(error)}`);
+    return stop(`Cannot inspect the worktree before the ${name} run: ${message(error)}`);
   }
   // Before the run: the record names the instructions the agent was given, not its edits.
+  // A flow agent's prompt comes from the issue's flow snapshot, so its hash is part of the harness.
   const harness = await harnessFingerprint(
     worktree,
     deskPromptFiles(role, deps.prompts),
-    deps.git.headSha
+    deps.git.headSha,
+    agent === undefined ? null : state.flowSnapshot.hash
   ).catch((error: unknown) => {
-    context.log(`could not fingerprint the ${role} harness: ${message(error)}`);
+    context.log(`could not fingerprint the ${name} harness: ${message(error)}`);
     return null;
   });
 
   // 2. Prompt, permissions and per-run settings.
-  const receiptsPath = path.join(context.artifactsDir, `receipts-${role}.jsonl`);
-  const settingsPath = path.join(context.artifactsDir, `run-settings-${role}.json`);
+  const receiptsPath = path.join(context.artifactsDir, `receipts-${name}.jsonl`);
+  const settingsPath = path.join(context.artifactsDir, `run-settings-${name}.json`);
   let pidRecorded: Promise<void> = Promise.resolve();
   const stuck = createStuckDetector();
   const stuckStop = new AbortController();
   let stuckReason: string | null = null;
   let request: AgentRunRequest<T>;
+  let capabilities: CapabilityProfile;
   try {
+    // The policy floor and the checkout's installs narrow what the agent asks for.
+    capabilities = await loadCapabilities({
+      agent: { capabilities: agent?.capabilities ?? builtinCapabilities(role) },
+      provider,
+      model: model ?? null,
+      checkout: worktree,
+      isolation: isolationOf(deps.config, state),
+      workspaces: input.workspaces
+    });
+    const { skills } = capabilities;
     const ticket = (await readArtifactText(context.artifactsDir, ARTIFACTS.ticket)) ?? "";
     const issue =
       Buffer.byteLength(ticket, "utf8") <= TICKET_INLINE_LIMIT
@@ -264,16 +322,13 @@ const runAgentStageOnce = async <T>(
         diffPath: input.diffPath,
         feedback: input.feedback,
         ownerNote: input.ownerNote,
+        body: agent?.prompt,
         skills,
         skillMode: "invoke"
       },
       deps.prompts
     );
-    const permissions = await permissionsFor(role, provider, {
-      worktree,
-      skills,
-      ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces })
-    });
+    const permissions = toAgentPermissions(capabilities);
     await rm(receiptsPath, { force: true });
     await writeFile(
       settingsPath,
@@ -284,18 +339,26 @@ const runAgentStageOnce = async <T>(
     request = {
       role,
       provider,
-      model: deps.config.models[role],
+      model,
       prompt: composed.prompt,
       systemAppend: composed.systemAppend,
-      outputSchema: agentOutputJsonSchema(role),
+      outputSchema: agentOutputJsonSchema(
+        agent === undefined ? role : SCHEMA_FOR_OUTPUT[agent.output]
+      ),
       parse: input.schema,
       cwd: worktree,
       resumeSessionId: input.resumeSessionId,
       permissions,
       settingsPath,
-      mcpConfigPath: (await exists(mcpConfig)) ? mcpConfig : undefined,
+      // An agent that gets no MCP server loads none.
+      mcpConfigPath:
+        capabilities.mcp.length > 0 && (await exists(mcpConfig)) ? mcpConfig : undefined,
       receiptsPath,
-      timeoutMs: deps.agentTimeoutsMs?.[role] ?? DEFAULT_TIMEOUTS_MS[role],
+      timeoutMs:
+        deps.agentTimeoutsMs?.[role] ??
+        (agent?.timeoutMinutes === undefined
+          ? DEFAULT_TIMEOUTS_MS[role]
+          : agent.timeoutMinutes * 60_000),
       skills,
       skillMode: "invoke",
       // The config has no Codex builder opt-in yet, so a Codex builder is refused.
@@ -307,7 +370,13 @@ const runAgentStageOnce = async <T>(
         pidRecorded = lookup(pid)
           .then((processStart) =>
             context.patch({
-              activeProcess: { pid, role, processStart, startedAt: deps.clock.now().toISOString() }
+              activeProcess: {
+                pid,
+                role,
+                ...(agent === undefined ? {} : { agentId: agent.id }),
+                processStart,
+                startedAt: deps.clock.now().toISOString()
+              }
             })
           )
           .catch((error: unknown) => context.log(`could not record pid ${pid}: ${message(error)}`));
@@ -317,12 +386,12 @@ const runAgentStageOnce = async <T>(
         const reason = stuck.observe(event);
         if (reason === null) return;
         stuckReason = reason;
-        context.log(`${role}: ${reason}`);
+        context.log(`${name}: ${reason}`);
         stuckStop.abort();
       }
     };
   } catch (error) {
-    return stop(`Cannot prepare the ${role} run: ${message(error)}`);
+    return stop(`Cannot prepare the ${name} run: ${message(error)}`);
   }
 
   // 3. The run. The agent slot is held only while the process runs.
@@ -355,6 +424,7 @@ const runAgentStageOnce = async <T>(
   observed.run = {
     outcome,
     provider,
+    capabilities,
     harness,
     loops: state.loops,
     startedAt,
@@ -369,7 +439,7 @@ const runAgentStageOnce = async <T>(
 
   await writeArtifactJson(
     context.artifactsDir,
-    `agent-${role}.json`,
+    `agent-${name}.json`,
     runSummary(role, provider, outcome)
   );
 
@@ -381,32 +451,35 @@ const runAgentStageOnce = async <T>(
   let diffAfter: DiffResult | null = null;
   try {
     const refsAfter = await deps.git.refsSnapshot(worktree);
-    const refViolations = compareRefs(refsBefore, refsAfter);
+    const refViolations = compareRefs(refsBefore, refsAfter).filter(
+      (violation) =>
+        !violation.kind.startsWith("ref-") || !isOtherIssueRef(violation.subject, state.issueNumber)
+    );
     if (refViolations.length > 0) observed.invariants.push("refs");
     violations.push(...refViolations.map(describeRefViolation));
     diffAfter = await diffAgainstBase(deps.exec, worktree, baseSha);
   } catch (error) {
-    violations.push(`Cannot inspect the worktree after the ${role} run: ${message(error)}`);
+    violations.push(`Cannot inspect the worktree after the ${name} run: ${message(error)}`);
   }
   if (input.readOnly && diffAfter !== null && diffAfter.diffHash !== diffBefore.diffHash) {
     const files = new Set([...changedPaths(diffBefore), ...changedPaths(diffAfter)]);
     observed.invariants.push("read-only");
     violations.push(
-      `The ${role} is read-only, but the worktree diff changed (${[...files].slice(0, 10).join(", ") || "no file list"}).`
+      `The ${name} is read-only, but the worktree diff changed (${[...files].slice(0, 10).join(", ") || "no file list"}).`
     );
   }
   if (violations.length > 0) {
     return stop(
-      `The ${role} run broke an engine invariant. The worktree is left as the agent left it.\n${bulletList(violations)}${
+      `The ${name} run broke an engine invariant. The worktree is left as the agent left it.\n${bulletList(violations)}${
         outcome.ok ? "" : `\nThe run also failed: ${failureText(outcome.failure)}`
       }`
     );
   }
   if (!outcome.ok) {
     // The stuck reason leads: the desk shows the first sentence of a reason.
-    return stop(stuckStopped ? failureText(outcome.failure) : failureReason(role, outcome.failure));
+    return stop(stuckStopped ? failureText(outcome.failure) : failureReason(name, outcome.failure));
   }
-  if (diffAfter === null) return stop(`Cannot inspect the worktree after the ${role} run.`);
+  if (diffAfter === null) return stop(`Cannot inspect the worktree after the ${name} run.`);
 
   // 5. Skill evidence, permission denials, forbidden commands, scope.
   const verdict = verifyAgentRun({
@@ -432,12 +505,12 @@ const runAgentStageOnce = async <T>(
   );
   for (const violation of verdict.violations) {
     if (!blocking.includes(violation)) {
-      context.log(`${role}: blocked by the permission rules. ${violation.message}`);
+      context.log(`${name}: blocked by the permission rules. ${violation.message}`);
     }
   }
   if (blocking.length > 0) {
     return stop(
-      `The ${role} run failed verification:\n${bulletList(blocking.map((violation) => violation.message))}`
+      `The ${name} run failed verification:\n${bulletList(blocking.map((violation) => violation.message))}`
     );
   }
 
@@ -446,17 +519,17 @@ const runAgentStageOnce = async <T>(
   try {
     await recordRefsBaseline(deps.git, worktree, context.artifactsDir);
   } catch (error) {
-    return stop(`Cannot record the refs baseline after the ${role} run: ${message(error)}`);
+    return stop(`Cannot record the refs baseline after the ${name} run: ${message(error)}`);
   }
   return { ok: true, result: outcome.result, diff: diffAfter };
 };
 
-const failureReason = (role: AgentStageRole, failure: AgentFailure): string => {
+const failureReason = (name: string, failure: AgentFailure): string => {
   const text = describeFailure(failure);
   if (failure.kind === "process-error" && failure.stderrTail !== "") {
-    return `The ${role} failed. ${text}\nstderr:\n${boundedTail(failure.stderrTail, 20, 2000)}`;
+    return `The ${name} failed. ${text}\nstderr:\n${boundedTail(failure.stderrTail, 20, 2000)}`;
   }
-  return `The ${role} failed. ${text}`;
+  return `The ${name} failed. ${text}`;
 };
 
 /** Only the grade of a planner result. The full result passed the role schema in the runner. */
@@ -465,7 +538,9 @@ const plannedRiskSchema = z.object({ risk: planRiskSchema.nullable().default(nul
 /** The plan risk a run worked from: the planner's own result, or the plan the run got. */
 const planRiskOf = <T>(input: AgentStageInput<T>, result: AgentStageResult<T>): PlanRisk | null => {
   if (input.plan !== undefined) return input.plan.risk;
-  if (input.role !== "planner" || !result.ok) return null;
+  const plans =
+    input.agent === undefined ? input.role === "planner" : input.agent.output === "plan";
+  if (!plans || !result.ok) return null;
   return plannedRiskSchema.safeParse(result.result.structured).data?.risk ?? null;
 };
 
@@ -473,14 +548,15 @@ const isFailedResult = (event: AgentEvent): boolean =>
   event.type === "tool_result" && (event.isError || (event.exitCode ?? 0) !== 0);
 
 /** Appends the run to `runs.jsonl`. A failed write is logged and never fails the stage. */
-const recordRun = async (
+const recordRun = async <T>(
   context: StageContext,
-  role: AgentStageRole,
+  input: AgentStageInput<T>,
   run: ObservedRun,
   accepted: boolean,
   planRisk: PlanRisk | null
 ): Promise<void> => {
   const { deps } = context;
+  const { role, agent } = input;
   const { outcome } = run;
   const trace = outcome.ok ? outcome.result.trace : outcome.partial.trace;
   const calls = trace.flatMap((event) => (event.type === "tool_call" ? [event] : []));
@@ -489,8 +565,9 @@ const recordRun = async (
     at: run.startedAt.toISOString(),
     issue: context.issue,
     role,
+    ...(agent === undefined ? {} : { agentId: agent.id }),
     provider: run.provider,
-    model: deps.config.models[role] ?? null,
+    model: agentRuntime(deps.config, role, agent).model ?? null,
     isolation: isolationOf(deps.config, context.state()),
     loops: run.loops,
     durationMs: run.durationMs,
@@ -505,12 +582,13 @@ const recordRun = async (
     failedToolCalls: trace.filter(isFailedResult).length,
     denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length,
     harness: run.harness,
-    planRisk
+    planRisk,
+    capabilities: run.capabilities
   };
   try {
     await appendRunRecord(deps.location.stateRoot, record);
   } catch (error) {
-    context.log(`could not record the ${role} run in runs.jsonl: ${message(error)}`);
+    context.log(`could not record the ${agent?.id ?? role} run in runs.jsonl: ${message(error)}`);
   }
 };
 

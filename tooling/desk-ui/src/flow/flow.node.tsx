@@ -3,6 +3,7 @@ import { Handle, type NodeProps } from "@xyflow/react";
 
 import { StageIcon } from "./flow.icon";
 import { HANDLE_OFFSET, HANDLE_POSITION, HANDLE_TYPE, type DeskFlowNode } from "./flow.mapping";
+import { useStageNames } from "./flow.names";
 import { nodeMetricText, nodeStatusText } from "./flow.text";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { OverflowTooltip, useOverflow } from "../shell/shell.overflow";
@@ -14,6 +15,7 @@ import { NODE_TONE, toneClass } from "../status/status.model";
  */
 export function DeskNode({ data, selected }: NodeProps<DeskFlowNode>) {
   const t = useT();
+  const names = useStageNames();
   const { language } = useLanguage();
   const { node, note } = data;
   const metric = nodeMetricText(t, node, language);
@@ -43,7 +45,7 @@ export function DeskNode({ data, selected }: NodeProps<DeskFlowNode>) {
         <span className="desk-node__icon">
           <StageIcon kind={node.kind} />
         </span>
-        <span className="desk-node__title">{t(`desk.flow.node.${node.id}`)}</span>
+        <span className="desk-node__title">{names.node(node.id)}</span>
       </div>
       <div className="desk-node__status">
         <span className="desk-node__dot" aria-hidden="true" />

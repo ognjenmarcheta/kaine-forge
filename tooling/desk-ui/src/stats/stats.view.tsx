@@ -10,9 +10,10 @@ import { Button, Card } from "@repo/ui";
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 
 import { LessonsPanel } from "./stats.lessons";
-import { costByRole, sparkPoints, weekOf, type WeekSeries } from "./stats.model";
+import { costByAgent, sparkPoints, weekOf, type WeekSeries } from "./stats.model";
 import { toApiError, type FailureCode } from "../api/api.client";
-import { useLanguage, useT } from "../i18n/i18n.t";
+import { agentName, issueFlowOf, loopsText, stageName, type IssueFlow } from "../flow/flow.steps";
+import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatCount, formatDuration, formatUsd } from "../shell/shell.format";
 import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
@@ -38,8 +39,12 @@ function Num({ children }: { readonly children: ReactNode }) {
   return <td className="desk-table__number">{children}</td>;
 }
 
+/** An agent in words: a built-in agent by its role, any other by its id. */
+const agentText = (t: Translate, agentId: string): string =>
+  agentName(t, { id: agentId }, null) ?? agentId;
+
 const GROUP_COLUMNS = [
-  "role",
+  "agent",
   "provider",
   "model",
   "runs",
@@ -54,7 +59,7 @@ const GROUP_COLUMNS = [
   "costPerRun",
   "cost"
 ] as const;
-const TEXT_COLUMNS: ReadonlySet<string> = new Set(["role", "provider", "model"]);
+const TEXT_COLUMNS: ReadonlySet<string> = new Set(["agent", "provider", "model"]);
 
 function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
   const t = useT();
@@ -79,8 +84,8 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
         </thead>
         <tbody>
           {groups.map((group) => (
-            <tr key={`${group.role}:${group.provider}:${group.model ?? ""}`}>
-              <th scope="row">{t(`desk.inspector.role.${group.role}`)}</th>
+            <tr key={`${group.role}:${group.agentId}:${group.provider}:${group.model ?? ""}`}>
+              <th scope="row">{agentText(t, group.agentId)}</th>
               <td>{group.provider}</td>
               <td>
                 {group.model ?? <span className="desk-muted">{t("desk.stats.defaultModel")}</span>}
@@ -107,6 +112,12 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
 function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
   const t = useT();
   const { language } = useLanguage();
+  const { state } = useDesk();
+  /** An issue on the board names its stages from its flow; a removed one by their ids. */
+  const flowOf = (issue: number): IssueFlow | null => {
+    const summary = state.issues[issue];
+    return summary?.readable === true ? issueFlowOf(summary) : null;
+  };
   return (
     <div className="desk-table-scroll" tabIndex={0} aria-label={t("desk.stats.issues")}>
       <table className="desk-table" aria-label={t("desk.stats.issues")}>
@@ -139,10 +150,16 @@ function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
                 {issue.stage === null ? (
                   <span className="desk-muted">{t("desk.stats.removed")}</span>
                 ) : (
-                  t(`desk.stage.${issue.stage}`)
+                  stageName(t, flowOf(issue.issue), issue.stage)
                 )}
               </td>
-              <td>{issue.loops === null ? <Empty /> : t("desk.stats.loops", issue.loops)}</td>
+              <td>
+                {(issue.loops === null
+                  ? null
+                  : loopsText(t, flowOf(issue.issue), issue.loops, "desk.stats.loops")) ?? (
+                  <Empty />
+                )}
+              </td>
               <Num>{issue.runs}</Num>
               <Num>{orEmpty(issue.totalCostUsd, (value) => formatUsd(value, language))}</Num>
             </tr>
@@ -253,17 +270,17 @@ function WeekCards({ days }: { readonly days: readonly StatsDay[] }) {
   );
 }
 
-/** The cost of each role as a bar. The value is written beside it, so the bar only repeats it. */
-function CostByRole({ groups }: { readonly groups: readonly RunGroup[] }) {
+/** The cost of each agent as a bar. The value is written beside it, so the bar only repeats it. */
+function CostByAgent({ groups }: { readonly groups: readonly RunGroup[] }) {
   const t = useT();
   const { language } = useLanguage();
   return (
     <Card className="desk-panel">
-      <h2>{t("desk.stats.costByRole")}</h2>
+      <h2>{t("desk.stats.costByAgent")}</h2>
       <ul className="desk-bars">
-        {costByRole(groups).map((entry) => (
-          <li key={entry.role} className="desk-bars__row">
-            <span>{t(`desk.inspector.role.${entry.role}`)}</span>
+        {costByAgent(groups).map((entry) => (
+          <li key={entry.agentId} className="desk-bars__row">
+            <span>{agentText(t, entry.agentId)}</span>
             <svg className="desk-bars__track" aria-hidden="true" focusable="false">
               <rect className="desk-bars__rail" width="100%" height="100%" rx="4" />
               {entry.share > 0 && (
@@ -281,7 +298,7 @@ function CostByRole({ groups }: { readonly groups: readonly RunGroup[] }) {
           </li>
         ))}
       </ul>
-      <Muted>{t("desk.stats.costByRoleHint")}</Muted>
+      <Muted>{t("desk.stats.costByAgentHint")}</Muted>
     </Card>
   );
 }
@@ -301,7 +318,7 @@ function Report({ stats }: { readonly stats: RunStats }) {
           <h2>{t("desk.stats.issues")}</h2>
           <IssuesTable issues={stats.issues} />
         </Card>
-        <CostByRole groups={stats.groups} />
+        <CostByAgent groups={stats.groups} />
       </div>
       {stats.invalidLines > 0 && (
         <Muted>{t("desk.stats.invalidLines", { count: stats.invalidLines })}</Muted>
@@ -321,7 +338,7 @@ const failureOf = (failure: unknown): Failure => {
 };
 
 /**
- * Agent runs compared by role, provider, and model, from `runs.jsonl`, and the problems seen
+ * Agent runs compared by agent, provider, and model, from `runs.jsonl`, and the problems seen
  * in several issues, from `lessons.jsonl`. It reloads when an issue changes.
  */
 export function StatsView() {

@@ -1,5 +1,6 @@
 import type { FlowModel, FlowNodeId, IssueDetail } from "@repo/desk/contracts";
 import {
+  Badge,
   Button,
   Copy,
   DropdownMenu,
@@ -9,12 +10,17 @@ import {
   DropdownMenuTrigger,
   Ellipsis,
   ExternalLink,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   useMediaQuery
 } from "@repo/ui";
 import { useRef, useState } from "react";
 
 import { useTurnQueue } from "./issue.queue";
+import { useStageNames } from "../flow/flow.names";
 import { FlowStepper } from "../flow/flow.stepper";
+import { issueFlowOf, loopsText, shortHash } from "../flow/flow.steps";
 import type { IssueActions } from "../gates/gate.actions";
 import { CancelDialog, RemoveDialog } from "../gates/gate.confirm";
 import { Kbd } from "../gates/gate.frame";
@@ -27,7 +33,7 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { IssueStatusChip } from "../status/status.chip";
-import { canCancel, gateModeOf, type ReadableSummary } from "../status/status.model";
+import { canCancel, gateModeOf, hasEnded, type ReadableSummary } from "../status/status.model";
 
 /** The graph needs room: a phone gets the stepper only. */
 const PHONE_QUERY = "(max-width: 40rem)";
@@ -92,12 +98,43 @@ function QueueNav({ issueNumber }: { readonly issueNumber: number }) {
   );
 }
 
+/**
+ * The flow the issue runs on: its name and the short hash of its snapshot, and where the flow
+ * file came from. Its steps are one hover or focus away. The name is the owner's, as it is.
+ */
+function FlowBadge({ summary }: { readonly summary: ReadableSummary }) {
+  const t = useT();
+  const names = useStageNames();
+  const hash = shortHash(summary.flowHash);
+  const source = t(`desk.flow.source.${summary.flowSource}`);
+  const steps = issueFlowOf(summary)
+    .steps.map((step) => names.node(step.id))
+    .join(", ");
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* Focusable, so the steps reach a keyboard too. */}
+        <span className="desk-imeta__item desk-imeta__flow" tabIndex={0}>
+          <span className="desk-sr-only">{t("desk.issue.flow.label")} </span>
+          <Badge appearance="default">
+            {t("desk.issue.flow.badge", { name: summary.flowName, hash })}
+          </Badge>
+          <span className="desk-muted">{source}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="desk-tooltip">
+        {t("desk.issue.flow.title", { name: summary.flowName, source, hash, steps })}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** How long the issue has waited, run, or taken, in the words of its mode. */
 function WaitFact({ summary, now }: { readonly summary: ReadableSummary; readonly now: number }) {
   const t = useT();
   const { language } = useLanguage();
   const mode = gateModeOf(summary);
-  if (mode === "shipped" || mode === "cancelled") {
+  if (hasEnded(mode)) {
     const took = Date.parse(summary.updatedAt) - Date.parse(summary.createdAt);
     return <span>{t("desk.issue.meta.took", { duration: formatElapsed(took, language) })}</span>;
   }
@@ -139,6 +176,9 @@ export function IssueHeader({
   const prUrl = safeHttpUrl(summary.prUrl);
   const prNumber = prUrl === null ? null : (PR_NUMBER.exec(prUrl)?.[1] ?? null);
   const { branch, loops } = summary;
+  const looped = Object.values(loops).some((count) => count > 0)
+    ? loopsText(t, issueFlowOf(summary), loops, "desk.issue.loopsValue")
+    : null;
   const costs = (detail?.runs ?? []).flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
   const cost = costs.length === 0 ? null : costs.reduce((sum, value) => sum + value, 0);
 
@@ -234,16 +274,13 @@ export function IssueHeader({
         <span className="desk-imeta__item">
           <WaitFact summary={summary} now={now} />
         </span>
+        <FlowBadge summary={summary} />
         {cost !== null && (
           <span className="desk-imeta__item">
             {t("desk.issue.meta.cost", { cost: formatUsd(cost, language) })}
           </span>
         )}
-        {loops.check + loops.review > 0 && (
-          <span className="desk-imeta__item">
-            {t("desk.issue.loopsValue", { check: loops.check, review: loops.review })}
-          </span>
-        )}
+        {looped !== null && <span className="desk-imeta__item">{looped}</span>}
         {branch !== null && (
           <span className="desk-imeta__item desk-imeta__branch">
             <span className="desk-sr-only">{t("desk.issue.branch")} </span>

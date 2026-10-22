@@ -70,12 +70,24 @@ const repoInstructionFiles = async (checkout: string): Promise<NamedFile[]> => {
 export const repoFingerprint = async (checkout: string): Promise<string> =>
   hashFiles(await repoInstructionFiles(checkout));
 
+/**
+ * `flowHash`: the hash of the issue's flow snapshot, for a run of a flow agent. The snapshot
+ * holds the agent prompts, so a custom agent's prompt is part of the `desk` hash the way a
+ * built-in role file is.
+ */
 export const harnessFingerprint = async (
   checkout: string,
   deskFiles: readonly string[],
-  headSha: (cwd: string) => Promise<string>
-): Promise<HarnessFingerprint> => ({
-  repo: await repoFingerprint(checkout),
-  desk: await hashFiles(deskFiles.map((file) => ({ name: path.basename(file), file }))),
-  head: await headSha(checkout)
-});
+  headSha: (cwd: string) => Promise<string>,
+  flowHash: string | null = null
+): Promise<HarnessFingerprint> => {
+  const files = await hashFiles(deskFiles.map((file) => ({ name: path.basename(file), file })));
+  return {
+    repo: await repoFingerprint(checkout),
+    desk:
+      flowHash === null
+        ? files
+        : createHash("sha256").update(files).update("\0").update(flowHash).digest("hex"),
+    head: await headSha(checkout)
+  };
+};

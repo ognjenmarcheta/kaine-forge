@@ -256,6 +256,20 @@ export function Shell({ children }: { readonly children: ReactNode }) {
                 )}
               </RouteLink>
               <RouteLink
+                to={{ view: "flows" }}
+                aria-current={route.view === "flows" || route.view === "flow" ? "page" : undefined}
+              >
+                {t("desk.nav.flows")}
+              </RouteLink>
+              <RouteLink
+                to={{ view: "agents" }}
+                aria-current={
+                  route.view === "agents" || route.view === "agent" ? "page" : undefined
+                }
+              >
+                {t("desk.nav.agents")}
+              </RouteLink>
+              <RouteLink
                 to={{ view: "health" }}
                 aria-current={route.view === "health" ? "page" : undefined}
               >

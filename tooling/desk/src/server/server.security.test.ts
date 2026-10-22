@@ -140,14 +140,20 @@ describe("launch URL and token", () => {
 });
 
 describe("session cookie", () => {
-  it.each(["/api/health", "/api/issues", "/api/events", "/api/issues/1"])(
-    "protects GET %s",
-    async (route) => {
-      const reply = await raw(harness.desk, { path: route });
-      expect(reply.status).toBe(401);
-      expect(reply.json()).toEqual({ error: { code: "unauthorized", detail: expect.any(String) } });
-    }
-  );
+  it.each([
+    "/api/health",
+    "/api/issues",
+    "/api/events",
+    "/api/issues/1",
+    "/api/agents",
+    "/api/agents/planner",
+    "/api/flows",
+    "/api/flows/kaine-default"
+  ])("protects GET %s", async (route) => {
+    const reply = await raw(harness.desk, { path: route });
+    expect(reply.status).toBe(401);
+    expect(reply.json()).toEqual({ error: { code: "unauthorized", detail: expect.any(String) } });
+  });
 
   it("refuses a made-up cookie", async () => {
     const reply = await raw(harness.desk, {
@@ -447,7 +453,14 @@ describe("request targets and traversal", () => {
       "diff.patch",
       "events.jsonl",
       "TICKET",
-      "%2fetc%2fpasswd"
+      "%2fetc%2fpasswd",
+      "report-",
+      "report-..%2f..%2fsecret",
+      "report-%2e%2e%2fsecret",
+      "report-..",
+      "report-Researcher",
+      "report-researcher.json",
+      "report-a%2fb"
     ]) {
       const reply = await api.get(`/api/issues/1/artifacts/${name}`);
       expect(reply.status, name).toBe(404);

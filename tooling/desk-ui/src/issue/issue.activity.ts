@@ -1,4 +1,10 @@
-import type { FlowNodeId, HistoryEvent, Stage } from "@repo/desk/contracts";
+import {
+  nodeOfStage,
+  type FlowNodeId,
+  type FlowSnapshot,
+  type HistoryEvent,
+  type StageId
+} from "@repo/desk/contracts";
 
 import type { Tone } from "../status/status.model";
 
@@ -24,6 +30,9 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "setup-complete": "done",
   "plan-ready": "waiting",
   "plan-approved": "done",
+  "gate-approved": "done",
+  "report-ready": "done",
+  "ship-automatic": "done",
   "branch-renamed": "info",
   "branch-rename-skipped": "info",
   "build-complete": "done",
@@ -43,7 +52,8 @@ const EVENT_OUTCOME: Readonly<Record<string, Outcome>> = {
   "pr-merged": "done",
   "pr-closed": "stopped",
   cancelled: "stopped",
-  interrupted: "stopped"
+  interrupted: "stopped",
+  "flow-finished": "done"
 };
 
 /** True for an event the page has words for (`desk.activity.event.<name>`). */
@@ -51,22 +61,6 @@ export const isKnownEvent = (event: string): boolean => Object.hasOwn(EVENT_OUTC
 
 /** What an event did. An event the page has no words for is a note. */
 export const eventOutcome = (event: string): Outcome => EVENT_OUTCOME[event] ?? "info";
-
-const NODE_OF_STAGE: Readonly<Record<Stage, FlowNodeId | null>> = {
-  intake: "ticket",
-  setup: "ticket",
-  plan: "plan",
-  "plan-gate": "plan-gate",
-  build: "build",
-  check: "check",
-  review: "review",
-  "pr-review": "pr-review",
-  ship: "ship",
-  "pr-open": "pr-open",
-  shipped: "pr-open",
-  "needs-you": null,
-  cancelled: null
-};
 
 export interface ActivityRow {
   readonly id: string;
@@ -83,7 +77,7 @@ export interface ActivityGroup {
   readonly id: string;
   /** The flow node of the run, or `null` for a stop (`needs-you`, `cancelled`). */
   readonly node: FlowNodeId | null;
-  readonly stage: Stage;
+  readonly stage: StageId;
   /** 1 for the first run of the node, 2 for the first loop round, and so on. */
   readonly round: number;
   readonly rows: readonly ActivityRow[];
@@ -97,16 +91,18 @@ const elapsed = (from: string, to: number): number | null => {
 /**
  * The history as runs of a stage, newest first. Consecutive events of one flow node form a
  * run; a node that ran before gets the next round number. Each row knows how long it lasted.
+ * `snapshot`: the issue's flow, which places each stage on its node (`shipped` on the PR step).
  */
 export function activityGroups(
   history: readonly HistoryEvent[],
   now: number,
-  running: boolean
+  running: boolean,
+  snapshot: FlowSnapshot
 ): readonly ActivityGroup[] {
   const groups: {
     id: string;
     node: FlowNodeId | null;
-    stage: Stage;
+    stage: StageId;
     round: number;
     rows: ActivityRow[];
   }[] = [];
@@ -127,7 +123,7 @@ export function activityGroups(
       ongoing: last && running,
       outcome: eventOutcome(event.event)
     };
-    const node = NODE_OF_STAGE[event.stage];
+    const node = nodeOfStage(snapshot, event.stage);
     const groupKey = node ?? event.stage;
     const open = groups.at(-1);
     if (open !== undefined && (open.node ?? open.stage) === groupKey) {

@@ -8,7 +8,9 @@ import { useIssueLog } from "./issue.log";
 import { IssueHistory, useHistoryControl } from "./issue.tabs";
 import { buildTrace, jumpTargetOf, type TraceLive } from "./issue.trace";
 import { FlowGraph } from "../flow/flow.graph";
+import { IssueFlowProvider } from "../flow/flow.names";
 import { FlowLegend } from "../flow/flow.stepper";
+import { issueFlowOf } from "../flow/flow.steps";
 import { useIssueActions } from "../gates/gate.actions";
 import { GatePanel } from "../gates/gate.panel";
 import { useT } from "../i18n/i18n.t";
@@ -19,7 +21,7 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { FailureText, Loading, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { gateModeOf } from "../status/status.model";
+import { gateModeOf, hasEnded } from "../status/status.model";
 
 function BackLink() {
   const t = useT();
@@ -69,13 +71,12 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     () => (detail === undefined ? undefined : buildFlowModel(detail.state, now)),
     [detail, now]
   );
-  const live: TraceLive =
-    mode === "shipped" || mode === "cancelled" ? "ended" : running ? "running" : "waiting";
+  const live: TraceLive = hasEnded(mode) ? "ended" : running ? "running" : "waiting";
   const trace = useMemo(
     () =>
       detail === undefined || flow === undefined
         ? undefined
-        : buildTrace(detail.state.history, detail.runs, flow, now, live),
+        : buildTrace(detail.state.history, detail.runs, flow, now, live, detail.state.flowSnapshot),
     [detail, flow, now, live]
   );
   const jumpTarget = trace === undefined ? null : jumpTargetOf(trace.steps, mode === "needs-you");
@@ -153,15 +154,15 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   );
   if (detail === undefined || flow === undefined || trace === undefined) {
     return (
-      <>
+      <IssueFlowProvider flow={issueFlowOf(summary)}>
         {header}
         {error !== null && <FailureText code={error.code} detail={error.detail} />}
         <DetailSkeleton />
-      </>
+      </IssueFlowProvider>
     );
   }
   return (
-    <>
+    <IssueFlowProvider flow={issueFlowOf(summary)}>
       {header}
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {graphOpen && (
@@ -191,6 +192,7 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
           issueNumber={issueNumber}
           history={detail.state.history}
           flow={flow}
+          snapshot={detail.state.flowSnapshot}
           trace={trace}
           running={running}
           needsYou={mode === "needs-you"}
@@ -213,6 +215,6 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
           onClose={() => setSheet(null)}
         />
       )}
-    </>
+    </IssueFlowProvider>
   );
 }

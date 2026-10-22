@@ -13,6 +13,8 @@ import {
   type TraceLine,
   type TraceStep
 } from "./issue.trace";
+import { useStageNames, type StageNames } from "../flow/flow.names";
+import { agentName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatClock, formatElapsed, formatUsd } from "../shell/shell.format";
 import { Segmented } from "../shell/shell.layout";
@@ -29,11 +31,11 @@ export interface TraceFocus {
 }
 
 /** "Check · round 2", or "Needs you" for a stop. */
-export const stepName = (t: Translate, step: TraceStep): string => {
+export const stepName = (t: Translate, names: StageNames, step: TraceStep): string => {
   const stage =
     step.key === "needs-you" || step.key === "cancelled"
-      ? t(`desk.stage.${step.key}`)
-      : t(`desk.flow.node.${step.key}`);
+      ? names.stage(step.key)
+      : names.node(step.key);
   return step.round > 1 ? t("desk.activity.round", { stage, round: step.round }) : stage;
 };
 
@@ -124,9 +126,10 @@ function StepRow({
   buttonRef
 }: StepRowProps) {
   const t = useT();
+  const names = useStageNames();
   const { language } = useLanguage();
   const linesId = useId();
-  const name = stepName(t, step);
+  const name = stepName(t, names, step);
   const duration = formatElapsed(step.endMs - step.startMs, language);
   const costed = step.kind === "agent" || step.runs > 0;
   const { node } = step;
@@ -306,17 +309,16 @@ export function TraceView({
   );
 }
 
-/** Who a step hands the work to: an agent role, you, or the engine stage. */
-const whoOf = (t: Translate, step: TraceStep): string => {
+/** Who a step hands the work to: an agent (by role or its own name), you, or the engine stage. */
+const whoOf = (t: Translate, names: StageNames, step: TraceStep): string => {
   if (step.kind === "human" || step.kind === "stop") return t("desk.handoff.you");
-  return step.role === null
-    ? t(`desk.flow.node.${step.key}`)
-    : t(`desk.inspector.role.${step.role}`);
+  return agentName(t, step.agent, step.role) ?? names.node(step.key);
 };
 
 /** The run as a chain of who handed the work to whom, oldest first, with how each step ended. */
 export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
   const t = useT();
+  const names = useStageNames();
   const id = useId();
   if (steps.length === 0) return null;
   return (
@@ -330,10 +332,10 @@ export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
             data-problem={isProblem(step) ? "true" : undefined}
             data-live={step.ongoing ? "true" : undefined}
           >
-            <b>{whoOf(t, step)}</b>
+            <b>{whoOf(t, names, step)}</b>
             <span>
               {t("desk.handoff.step", {
-                stage: stepName(t, step),
+                stage: stepName(t, names, step),
                 outcome: t(nodeStatusKey(step.outcome))
               })}
             </span>

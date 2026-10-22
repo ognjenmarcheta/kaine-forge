@@ -6,6 +6,7 @@ import type { IssueState } from "../contracts";
 import type { PullRequestFeedbackRaw } from "../github/github.pr-feedback";
 import { SHIP_RECORD_FILE } from "../ship/ship.contract";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { FAKE_BASE_SHA } from "../testing/git.fake";
 import { NO_PR_FEEDBACK } from "../testing/github.fake";
 import {
@@ -212,7 +213,8 @@ describe("feedback from the PR refuses and changes nothing", () => {
     const worktree = e.worktree();
     await e.deps.git.worktreeAdd(e.repoRoot, { branch: BRANCH, dir: worktree, base: "main" });
     await e.store.write({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      flowSnapshot: DEFAULT_SNAPSHOT,
       issueNumber: ISSUE,
       stage: "pr-open",
       status: "waiting",

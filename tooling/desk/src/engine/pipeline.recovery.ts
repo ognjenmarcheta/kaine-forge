@@ -119,12 +119,12 @@ export const recoverIssue = async (
   }
   const processNote = await stopLeftoverProcess(state, deps);
 
-  const moved = transition(machineOf(state), { type: "error" });
+  const moved = transition(machineOf(state), { type: "error" }, state.flowSnapshot);
   if (!moved.ok) {
     // A gate, `needs-you` or a terminal stage never runs work: only the status is wrong.
     const settled: IssueState = {
       ...state,
-      status: statusAfterMove(state.stage),
+      status: statusAfterMove(state.flowSnapshot, state.stage),
       activeProcess: null,
       updatedAt: at
     };

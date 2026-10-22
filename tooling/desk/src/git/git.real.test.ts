@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GitPort, RefsSnapshot } from "./git.port";
-import { compareRefs, createGitPort, GitError } from "./git.real";
+import { compareRefs, createGitPort, GitError, isOtherIssueRef } from "./git.real";
 import { createScratch, hermeticExec, type TestRepo, type TestScratch } from "../testing/git.repo";
 
 // Each test builds a real repository; give a loaded machine room.
@@ -255,5 +255,16 @@ describe("refsSnapshot and compareRefs", () => {
     expect(compareRefs(before, await git.refsSnapshot(dir)).map((v) => v.subject)).toEqual([
       "refs/tags/from-linked"
     ]);
+  });
+});
+
+describe("isOtherIssueRef", () => {
+  it("ignores only the branches of other desk issues, local or remote-tracking", () => {
+    expect(isOtherIssueRef("refs/heads/KAINE-575-chore-report", 574)).toBe(true);
+    expect(isOtherIssueRef("refs/remotes/origin/KAINE-575-chore-report", 574)).toBe(true);
+    expect(isOtherIssueRef("refs/heads/KAINE-574-docs-faq", 574)).toBe(false);
+    expect(isOtherIssueRef("refs/heads/main", 574)).toBe(false);
+    expect(isOtherIssueRef("refs/heads/KAINE-feat-no-issue", 574)).toBe(false);
+    expect(isOtherIssueRef("refs/tags/KAINE-575-v1", 574)).toBe(false);
   });
 });

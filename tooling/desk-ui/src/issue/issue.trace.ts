@@ -1,15 +1,18 @@
 import {
+  agentOf,
   arrivalNode,
   nodeOfStage,
+  stepOf,
   type AgentStageRole,
   type FlowModel,
   type FlowNodeId,
+  type FlowSnapshot,
   type HistoryEvent,
   type LogEntry,
   type NodeKind,
   type NodeStatus,
   type RunRecord,
-  type Stage
+  type StageId
 } from "@repo/desk/contracts";
 
 import { eventOutcome } from "./issue.activity";
@@ -35,6 +38,8 @@ export interface TraceStep {
   readonly kind: StepKind;
   /** The agent role whose runs belong here, or `null`. */
   readonly role: AgentStageRole | null;
+  /** The flow agent of the step, or `null` for a step without one. */
+  readonly agent: { readonly id: string; readonly name: string } | null;
   /** 1 for the first run of the key, 2 for the second, and so on. */
   readonly round: number;
   readonly at: string;
@@ -64,22 +69,25 @@ export interface Trace {
   readonly problems: number;
 }
 
-/** The agent role that works in a node. The ticket's agent is intake. */
-const RUN_ROLE: Readonly<Partial<Record<FlowNodeId, AgentStageRole>>> = {
-  ticket: "intake",
-  plan: "planner",
-  build: "builder",
-  review: "reviewer"
-};
-
-const isStop = (stage: Stage): stage is StopStage => stage === "needs-you" || stage === "cancelled";
+const isStop = (stage: StageId): stage is StopStage =>
+  stage === "needs-you" || stage === "cancelled";
 const isStopKey = (key: StepKey): key is StopStage => key === "needs-you" || key === "cancelled";
 
-const keyOfStage = (stage: Stage): StepKey | null => (isStop(stage) ? stage : nodeOfStage(stage));
+/**
+ * The step key of a log entry's stage: a stop, the ticket for intake and setup, or the step
+ * itself. `shipped` and `finished` have no step of their own: their lines go by their time.
+ */
+const keyOfStage = (stage: StageId): StepKey | null => {
+  if (isStop(stage)) return stage;
+  if (stage === "intake" || stage === "setup") return "ticket";
+  return stage === "shipped" || stage === "finished" ? null : stage;
+};
 
 /** A stop, else the node the event starts a run of, else the node of its stage. */
-const keyOfEvent = (event: HistoryEvent): StepKey | null =>
-  isStop(event.stage) ? event.stage : (arrivalNode(event) ?? nodeOfStage(event.stage));
+const keyOfEvent = (snapshot: FlowSnapshot, event: HistoryEvent): StepKey | null =>
+  isStop(event.stage)
+    ? event.stage
+    : (arrivalNode(snapshot, event) ?? nodeOfStage(snapshot, event.stage));
 
 export const isProblem = (step: TraceStep): boolean =>
   step.outcome === "looped" || step.outcome === "failed";
@@ -102,18 +110,20 @@ function outcomeOf(
 /**
  * The history as steps, oldest first. A step starts where the flow graph sees a run start (or
  * a gate arrive), a stop, or an event of another stage; every other event joins the open step.
- * Agent runs belong to the step of their role in which they started.
+ * Agent runs belong to the step of their agent in which they started (a run recorded before
+ * agents were data: of its role). The ticket's agent is intake. `snapshot`: the issue's flow.
  */
 export function buildTrace(
   history: readonly HistoryEvent[],
   runs: readonly RunRecord[],
   flow: FlowModel,
   now: number,
-  live: TraceLive
+  live: TraceLive,
+  snapshot: FlowSnapshot
 ): Trace {
   const drafts: { key: StepKey; first: number; events: HistoryEvent[] }[] = [];
   history.forEach((event, index) => {
-    const key = keyOfEvent(event);
+    const key = keyOfEvent(snapshot, event);
     const open = drafts.at(-1);
     if (key === null || open?.key === key) {
       open?.events.push(event);
@@ -135,15 +145,20 @@ export function buildTrace(
     const own = isStopKey(draft.key) ? null : draft.key;
     const node = own ?? previousNode;
     if (own !== null) previousNode = own;
-    const kind: StepKind =
-      own === null ? "stop" : (flow.nodes.find((entry) => entry.id === own)?.kind ?? "script");
-    const role = own === null ? null : (RUN_ROLE[own] ?? null);
+    const ownNode = own === null ? undefined : flow.nodes.find((entry) => entry.id === own);
+    const kind: StepKind = own === null ? "stop" : (ownNode?.kind ?? "script");
+    const role = own === "ticket" ? "intake" : (ownNode?.role ?? null);
+    const step = stepOf(snapshot, own);
+    const found = step?.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+    const agent = found === undefined ? null : { id: found.id, name: found.name };
+    const ofStep = (run: RunRecord): boolean =>
+      agent !== null && run.agentId !== undefined ? run.agentId === agent.id : run.role === role;
     const matched =
-      role === null
+      role === null && agent === null
         ? []
         : runs.filter((run) => {
             const at = Date.parse(run.at);
-            return run.role === role && at >= startMs && (next === undefined || at < next);
+            return ofStep(run) && at >= startMs && (next === undefined || at < next);
           });
     const costs = matched.flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
     const round = (rounds.get(draft.key) ?? 0) + 1;
@@ -154,6 +169,7 @@ export function buildTrace(
       node,
       kind,
       role,
+      agent,
       round,
       at: draft.events[0]?.at ?? "",
       startMs,

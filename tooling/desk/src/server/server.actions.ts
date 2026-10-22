@@ -1,4 +1,4 @@
-import type { ActionName, ActionOutcome, ActionRequest, RefusalCode, Stage } from "../contracts";
+import type { ActionName, ActionOutcome, ActionRequest, RefusalCode, StageId } from "../contracts";
 import type { RemoveResult, PipelineRunner } from "../engine/pipeline.runner";
 import type { DraftActionResult, ShipActionResult } from "../engine/pipeline.types";
 
@@ -83,7 +83,7 @@ const settle = (result: RunnerResult): Settled => {
   if (result.outcome === "removed") {
     return { kind: "done", outcome: { stop: "removed", stage: null, message: null } };
   }
-  const stage: Stage = result.state.stage;
+  const stage: StageId = result.state.stage;
   return { kind: "done", outcome: { stop: result.stop, stage, message: result.message } };
 };
 
@@ -110,7 +110,10 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
   const run = (issueNumber: number, request: ActionRequest): Promise<RunnerResult> => {
     switch (request.action) {
       case "start":
-        return runner.start(issueNumber, { override: request.override });
+        return runner.start(issueNumber, {
+          override: request.override,
+          ...(request.flowId === undefined ? {} : { flowId: request.flowId })
+        });
       case "approve":
         return runner.approvePlan(
           issueNumber,

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ok, type FakeRoute } from "./exec.fake";
+import { INSTALLED_FILES, writeFiles } from "./flow.testing";
 import { createFakeGit, type FakeGit } from "./git.fake";
 import { fakeGitHub, snapshotOf, type FakeGitHub, type FakeGitHubOptions } from "./github.fake";
 import {
@@ -58,7 +59,9 @@ export const createCliEnv = async (options: CliEnvOptions = {}): Promise<CliEnv>
   const repo = path.join(root, "repo");
   await mkdir(path.join(repo, ".git"), { recursive: true });
 
-  const git = createFakeGit({ repoRoot: repo, files: REPO_FILES });
+  await writeFiles(repo, INSTALLED_FILES);
+  // A worktree installs what the main checkout does.
+  const git = createFakeGit({ repoRoot: repo, files: { ...REPO_FILES, ...INSTALLED_FILES } });
   const pnpm = createFakePnpm(git.exec);
   const github = fakeGitHub({ snapshot: snapshotOf({ number: ISSUE }), ...options.github });
   const runner = createScriptedRunner(options.steps ?? []);

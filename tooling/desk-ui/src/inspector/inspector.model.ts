@@ -1,21 +1,27 @@
-import {
-  FLOW_NODE_IDS,
-  type AgentStageRole,
-  type BuilderOutput,
-  type CheckSummary,
-  type ContractProgress,
-  type FlowModel,
-  type FlowNode,
-  type FlowNodeId,
-  type HistoryEvent,
-  type IssueDetail,
-  type LogEntry,
-  type PlannerOutput,
-  type ReviewArtifactView,
-  type ShipReadiness
+import type {
+  BuilderOutput,
+  CheckSummary,
+  ContractProgress,
+  FlowModel,
+  FlowNode,
+  FlowNodeId,
+  HistoryEvent,
+  IssueDetail,
+  LogEntry,
+  PlannerOutput,
+  ReviewArtifactView,
+  RunRecord,
+  ShipReadiness
 } from "@repo/desk/contracts";
 
 import type { ArtifactState } from "../artifacts/artifact.use";
+import {
+  TICKET_NODE,
+  flowStepOf,
+  issueFlowOfView,
+  stepRoleOf,
+  type StepRole
+} from "../flow/flow.steps";
 import type { TranslationValues } from "../i18n/i18n.t";
 import { reasonExcerpt, type Tone } from "../status/status.model";
 
@@ -28,7 +34,31 @@ import { reasonExcerpt, type Tone } from "../status/status.model";
 
 /** The stage the inspector shows: the one the engineer picked, else the current one. */
 export const resolveSelection = (picked: FlowNodeId | null, model: FlowModel): FlowNodeId =>
-  picked ?? model.current ?? FLOW_NODE_IDS[0];
+  picked ?? model.current ?? TICKET_NODE;
+
+/**
+ * What a stage is on the page: the ticket, or what its step does in the issue's own flow. The
+ * sheet picks its tiles, checklists, and result by this, never by a fixed stage id.
+ */
+type StageRole = StepRole | "ticket";
+
+export const stageRoleOf = (detail: IssueDetail, id: FlowNodeId): StageRole | null =>
+  id === TICKET_NODE ? "ticket" : stepRoleOf(issueFlowOfView(detail.flowDefinition), id);
+
+/** A report step that has run, and the agent whose `report-<agent id>.json` holds its result. */
+export interface RanReport {
+  readonly stepId: FlowNodeId;
+  readonly agentId: string;
+}
+
+/** The report steps of the issue's flow that have run, in flow order. */
+export const ranReports = (detail: IssueDetail): RanReport[] =>
+  detail.flowDefinition.steps.flatMap((step) =>
+    step.agent?.output === "report" &&
+    detail.flow.nodes.some((node) => node.id === step.id && node.status === "passed")
+      ? [{ stepId: step.id, agentId: step.agent.id }]
+      : []
+  );
 
 // --- text -------------------------------------------------------------------
 
@@ -77,7 +107,7 @@ export function loopsOf(id: FlowNodeId, model: FlowModel): { from: number; to: n
 }
 
 /** Stages that work receives back (a re-plan, a rebuild), rather than sends back. */
-const RECEIVES_LOOPS: ReadonlySet<FlowNodeId> = new Set(["plan", "build"]);
+const RECEIVES_LOOPS: ReadonlySet<StageRole | null> = new Set(["plan", "change"]);
 
 const countOf = <T>(state: ArtifactState<T>, pick: (value: T) => number): KpiValue => {
   switch (state.status) {
@@ -110,7 +140,7 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
     value,
     tone
   });
-  switch (node.id) {
+  switch (stageRoleOf(detail, node.id)) {
     case "ticket": {
       const contract = detail.contract;
       return contract === null
@@ -131,7 +161,7 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
           ? { kind: "none" }
           : countOf(artifacts.plan, (plan) => plan.files.length)
       );
-    case "build":
+    case "change":
       return tile(
         "files",
         "desk.inspector.kpi.filesChanged",
@@ -161,7 +191,7 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
             review.blocking > 0 ? "danger" : "neutral"
           );
     }
-    case "pr-review": {
+    case "ship-gate": {
       const ready = READINESS_KEYS.filter((name) => detail.ship[name] === true).length;
       return tile(
         "ready",
@@ -171,7 +201,7 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
       );
     }
     case "ship":
-    case "pr-open": {
+    case "pr-wait": {
       const { prNumber, commitSha } = detail.state;
       if (prNumber !== null && prNumber !== undefined) {
         return tile("pr", "desk.inspector.kpi.pullRequest", {
@@ -187,6 +217,9 @@ function stageKpi(node: FlowNode, detail: IssueDetail, artifacts: StageArtifacts
           : { kind: "text", text: commitSha.slice(0, 7) }
       );
     }
+    default:
+      // A step of a flow with its own steps: no tile of its own yet.
+      return tile("result", "desk.inspector.kpi.lastRun", { kind: "none" });
   }
 }
 
@@ -198,7 +231,7 @@ export function stageKpis(
   artifacts: StageArtifacts = {}
 ): readonly Kpi[] {
   const loops = loopsOf(node.id, model);
-  const receives = RECEIVES_LOOPS.has(node.id);
+  const receives = RECEIVES_LOOPS.has(stageRoleOf(detail, node.id));
   const loopCount = receives ? loops.to : loops.from;
   return [
     {
@@ -233,12 +266,17 @@ export function stageKpis(
 
 // --- agent usage ------------------------------------------------------------
 
-/** The agent that works in a stage. Other stages have none. */
-const AGENT_ROLE: Partial<Record<FlowNodeId, AgentStageRole>> = {
-  plan: "planner",
-  build: "builder",
-  review: "reviewer"
-};
+/**
+ * The runs of the agent of a stage, oldest first. A run names its agent; a run recorded before
+ * agents were data counts by the role of the stage. A stage without an agent has none.
+ */
+export function agentRunsOf(node: FlowNode, detail: IssueDetail): readonly RunRecord[] {
+  const agent = flowStepOf(issueFlowOfView(detail.flowDefinition), node.id)?.agent ?? null;
+  if (agent === null) return [];
+  return detail.runs.filter((run) =>
+    run.agentId === undefined ? run.role === node.role : run.agentId === agent.id
+  );
+}
 
 const total = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0);
 
@@ -248,8 +286,7 @@ const total = (values: readonly number[]): number => values.reduce((sum, value) 
  * reports (Codex reports no cost and no turns) shows as none.
  */
 export function agentUsageKpis(node: FlowNode, detail: IssueDetail): readonly Kpi[] {
-  const role = AGENT_ROLE[node.id];
-  const runs = role === undefined ? [] : detail.runs.filter((run) => run.role === role);
+  const runs = agentRunsOf(node, detail);
   if (runs.length === 0) return [];
   const usage = runs.flatMap((run) => (run.usage === null ? [] : [run.usage]));
   const costs = runs.flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
@@ -462,7 +499,7 @@ export function anomaliesOf(
     const count = logs.filter((entry) => entry.text.startsWith(mark)).length;
     if (count > 0) anomalies.push({ kind: "denials", count });
   }
-  const stopsHere = node.id === "check" || node.badge?.kind === "needs-you";
+  const stopsHere = stageRoleOf(detail, node.id) === "check" || node.badge?.kind === "needs-you";
   if (stopsHere && sameFailureStop(detail.state.history)) {
     anomalies.push({ kind: "same-failure" });
   }

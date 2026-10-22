@@ -16,7 +16,14 @@ catalog:
   graphql-ws: "^6.4.1"
   zod: "^4.6.7"
   zustand: "^5.0.15"
+  # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
+  yaml: "^2.9.1"
   "@tanstack/react-query": "^5.104.3"
+  # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
+  # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify.
+  docx: "9.9.0"
+  pptxgenjs: "4.0.1"
+  jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
   "@xyflow/react": "^12.12.0"
   "@graphql-typed-document-node/core": "^3.2.0"
@@ -97,6 +104,9 @@ auditConfig:
 overrides:
   # Metro 0.83.7 is patched below for image-size v2's buffer/file APIs (#287).
   "metro@0.83.7>image-size": "2.0.4"
+  # GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq (no fixed 1.x). pptxgenjs declares
+  # image-size@^1.2.1 but never imports it (its image sizing calls `sizeof`).
+  "pptxgenjs>image-size": "2.0.4"
   # minimatch: transitive vulnerability floor. Caret, not an exact pin — the old
   # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
   minimatch: "^10.2.3"

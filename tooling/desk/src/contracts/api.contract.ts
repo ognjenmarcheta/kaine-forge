@@ -1,10 +1,29 @@
 import { z } from "zod";
 
+import {
+  DEFINITION_ID_PATTERN,
+  agentDefinitionSchema,
+  agentOutputKindSchema,
+  definitionIdSchema
+} from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
+import { capabilityProfileSchema } from "./capability-profile.contract";
 import { providerSchema } from "./desk-config.contract";
-import { FLOW_NODE_IDS, flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
+import {
+  flowDefinitionSchema,
+  stepKindSchema,
+  type FlowDefinition,
+  type StepKind
+} from "./flow-definition.contract";
+import {
+  agentOf,
+  definitionSourceSchema,
+  isEngineState,
+  stageIdSchema,
+  type FlowSnapshot
+} from "./flow-snapshot.contract";
+import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
-import { ACTIVE_STAGES, feedbackTargetSchema, stageSchema } from "./pipeline.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 
 /**
@@ -52,6 +71,10 @@ export const SERVER_ERROR_CODES = [
   "artifact-missing",
   /** A lesson action refused: the lesson changed since the preview, it has an issue, or GitHub failed. */
   "lesson-refused",
+  /** An agent or flow does not validate. `detail` lists every problem, one per line. Nothing was written. */
+  "invalid-definition",
+  /** A write to the agents and flows refused: the id exists, is not local, or a flow uses it. */
+  "definition-refused",
   "internal"
 ] as const;
 
@@ -90,6 +113,24 @@ export const ARTIFACT_IDS = [
 export const artifactIdSchema = z.enum(ARTIFACT_IDS);
 export type ArtifactId = z.infer<typeof artifactIdSchema>;
 
+/**
+ * What a report agent wrote: `report-<agent id>`, served from `report-<agent id>.json`. The
+ * agent id is a definition id, so the client still names no path.
+ */
+export type ReportArtifactId = `report-${string}`;
+const REPORT_PREFIX = "report-";
+export const reportArtifactId = (agentId: string): ReportArtifactId => `${REPORT_PREFIX}${agentId}`;
+
+/** The agent of a report artifact id, or `null` when `name` is not one. */
+export const reportAgentIdOf = (name: string): string | null => {
+  if (!name.startsWith(REPORT_PREFIX)) return null;
+  const agentId = name.slice(REPORT_PREFIX.length);
+  return DEFINITION_ID_PATTERN.test(agentId) ? agentId : null;
+};
+
+/** Every artifact a client can read: a fixed one, or a report. */
+export type ArtifactName = ArtifactId | ReportArtifactId;
+
 export const artifactEntrySchema = z
   .object({
     id: artifactIdSchema,
@@ -104,6 +145,52 @@ export type ArtifactEntry = z.infer<typeof artifactEntrySchema>;
 
 const timestampSchema = z.string().min(1);
 
+/**
+ * One step of the issue's flow as the UI names it. `agent`: the agent of an agent step.
+ * `sendBack`: where a gate's feedback may go (empty for other kinds). `auto`: a ship step that
+ * opens the PR without the owner (false for other kinds).
+ */
+export const flowStepViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    label: z.string().min(1),
+    kind: stepKindSchema,
+    agent: z
+      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
+      .strict()
+      .nullable(),
+    sendBack: z.array(definitionIdSchema),
+    auto: z.boolean()
+  })
+  .strict();
+export type FlowStepView = z.infer<typeof flowStepViewSchema>;
+
+/** The steps of a flow snapshot as the UI sees them. Pure, so the server and a test agree. */
+export const flowStepViewsOf = (snapshot: FlowSnapshot): FlowStepView[] =>
+  snapshot.flow.steps.map((step) => {
+    const agent = step.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+    return {
+      id: step.id,
+      label: step.label,
+      kind: step.kind,
+      agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output },
+      sendBack: step.kind === "gate" ? [...step.sendBack] : [],
+      auto: step.kind === "ship" && step.auto
+    };
+  });
+
+/** The flow an issue runs on, from its snapshot: what the owner sees of it. */
+export const flowDefinitionViewSchema = z
+  .object({
+    id: definitionIdSchema,
+    name: z.string().min(1),
+    hash: z.string().min(1),
+    source: definitionSourceSchema,
+    steps: z.array(flowStepViewSchema)
+  })
+  .strict();
+export type FlowDefinitionView = z.infer<typeof flowDefinitionViewSchema>;
+
 export const issueSummarySchema = z.discriminatedUnion("readable", [
   z
     .object({
@@ -113,7 +200,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       title: z.string().nullable(),
       url: z.string().nullable(),
       labels: z.array(z.string()),
-      stage: stageSchema,
+      /** A step id of the issue's flow, or an engine state. */
+      stage: stageIdSchema,
       status: issueStatusSchema,
       branch: z.string().nullable(),
       loops: loopCountersSchema,
@@ -123,7 +211,7 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
-      resumeStage: stageSchema.nullable(),
+      resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
@@ -133,8 +221,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
         .nullable(),
       /** When the issue entered its current stage, from the history. `null` when unknown. */
       stageEnteredAt: timestampSchema.nullable(),
-      /** Status of every flow node, in `FLOW_NODE_IDS` order (the flow model's own result). */
-      progress: z.array(nodeStatusSchema).length(FLOW_NODE_IDS.length),
+      /** Status of every flow node, in flow order (the flow model's own result): the ticket and the steps. */
+      progress: z.array(nodeStatusSchema).min(2),
       /** The flow node that holds the issue now, or `null`. */
       currentNode: flowNodeIdSchema.nullable(),
       /** An action of this issue runs in this server now. */
@@ -147,6 +235,13 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       pausedAt: timestampSchema.nullable(),
       /** The risk of the current plan, or `null` before a graded plan exists. */
       planRisk: planRiskSchema.nullable(),
+      /** The flow the issue runs on, from its snapshot, and the snapshot's hash. */
+      flowId: definitionIdSchema,
+      flowName: z.string().min(1),
+      flowHash: z.string().min(1),
+      /** Where the flow file came from, and its steps: a board names and places a stage with them. */
+      flowSource: definitionSourceSchema,
+      flowSteps: z.array(flowStepViewSchema).min(1),
       createdAt: timestampSchema,
       updatedAt: timestampSchema
     })
@@ -287,6 +382,8 @@ export const issueDetailSchema = z
     summary: issueSummarySchema,
     state: issueStateSchema,
     flow: flowModelSchema,
+    /** The steps of the issue's flow snapshot, with their labels and agents. */
+    flowDefinition: flowDefinitionViewSchema,
     artifacts: z.array(artifactEntrySchema),
     contract: contractProgressSchema.nullable(),
     check: checkSummarySchema.nullable(),
@@ -307,6 +404,114 @@ export type IssueDetail = z.infer<typeof issueDetailSchema>;
 
 export const issueListSchema = z.object({ issues: z.array(issueSummarySchema) }).strict();
 export type IssueList = z.infer<typeof issueListSchema>;
+
+// --- agents and flows --------------------------------------------------------
+
+/** A definition file that does not parse or validate. It takes part in nothing. */
+export const definitionProblemSchema = z
+  .object({
+    /** Absolute path of the file. */
+    path: z.string().min(1),
+    source: definitionSourceSchema,
+    /** Engine text, one entry per error. */
+    errors: z.array(z.string())
+  })
+  .strict();
+export type DefinitionProblem = z.infer<typeof definitionProblemSchema>;
+
+/** How a registry entry won its id: read-only in this stage. */
+const definitionEntryFields = {
+  source: definitionSourceSchema,
+  /** The source of the definition with the same id that this one overrides, or `null`. */
+  shadows: definitionSourceSchema.nullable(),
+  /** A built-in definition changes only with the desk. Override the id to change one. */
+  readOnly: z.boolean(),
+  /** sha256 of the normalized definition. */
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Files with this id that do not load, for example a broken override. */
+  problems: z.array(definitionProblemSchema)
+};
+
+/** `GET /api/agents/:id`: an agent with the capabilities a run gets with the desk's config now. */
+export const agentViewSchema = z
+  .object({
+    definition: agentDefinitionSchema,
+    ...definitionEntryFields,
+    /** Resolved for the configured provider and isolation, with no workspace check commands. */
+    resolved: capabilityProfileSchema
+  })
+  .strict();
+export type AgentView = z.infer<typeof agentViewSchema>;
+
+/**
+ * `GET /api/agents`. `problems`: every agent file that does not load. `installed`: the MCP
+ * servers and skills this checkout has; the resolver removes any other name an agent asks for.
+ */
+export const agentListSchema = z
+  .object({
+    agents: z.array(agentViewSchema),
+    problems: z.array(definitionProblemSchema),
+    installed: z.object({ mcp: z.array(z.string()), skills: z.array(z.string()) }).strict()
+  })
+  .strict();
+export type AgentList = z.infer<typeof agentListSchema>;
+
+/** `GET /api/flows/:id`. */
+export const flowViewSchema = z
+  .object({ definition: flowDefinitionSchema, ...definitionEntryFields })
+  .strict();
+export type FlowView = z.infer<typeof flowViewSchema>;
+
+/**
+ * `GET /api/flows`. `problems`: every flow file that does not load or validate. `defaultFlow`:
+ * the configured `defaultFlow`, the flow `start` picks when no flow label matches.
+ */
+export const flowListSchema = z
+  .object({
+    flows: z.array(flowViewSchema),
+    problems: z.array(definitionProblemSchema),
+    defaultFlow: definitionIdSchema
+  })
+  .strict();
+export type FlowList = z.infer<typeof flowListSchema>;
+
+// --- agent and flow writes --------------------------------------------------
+
+export const DEFINITION_KINDS = ["agent", "flow"] as const;
+export const definitionKindSchema = z.enum(DEFINITION_KINDS);
+export type DefinitionKind = z.infer<typeof definitionKindSchema>;
+
+/** `PUT /api/agents/:id`: save to `.ai.local/desk/agents/<id>.md`. The path id must equal `definition.id`. */
+export const agentSaveRequestSchema = z.object({ definition: agentDefinitionSchema }).strict();
+/** `PUT /api/flows/:id`: save to `.ai.local/desk/flows/<id>.yaml`. */
+export const flowSaveRequestSchema = z.object({ definition: flowDefinitionSchema }).strict();
+
+/** `POST /api/{agents,flows}/:id/clone`: a local copy under a new id. `name` defaults to "<name> (copy)". */
+export const definitionCloneRequestSchema = z
+  .object({ id: definitionIdSchema, name: z.string().trim().min(1).optional() })
+  .strict();
+
+/** `POST /api/{agents,flows}/:id/promote`. `confirm: true` overwrites a repo file of the same id. */
+export const definitionPromoteRequestSchema = z
+  .object({ confirm: z.boolean().default(false) })
+  .strict();
+
+/** The answer to every agent and flow write. */
+export const definitionWriteResultSchema = z
+  .object({
+    kind: definitionKindSchema,
+    id: definitionIdSchema,
+    /** The file written (save, clone, promote) or removed (delete). Absolute. */
+    path: z.string().min(1),
+    /** The source that wins the id after the write, or `null` when no definition has the id now. */
+    source: definitionSourceSchema.nullable(),
+    /** The lower source the winner overrides, or `null`. A local save of a built-in id shadows it. */
+    shadows: definitionSourceSchema.nullable(),
+    /** Promote only: the repo file is not committed. The owner reviews and commits it like code. */
+    uncommitted: z.boolean()
+  })
+  .strict();
+export type DefinitionWriteResult = z.infer<typeof definitionWriteResultSchema>;
 
 // --- actions --------------------------------------------------------------
 
@@ -331,7 +536,14 @@ export type ActionName = z.infer<typeof actionNameSchema>;
 export const MAX_FEEDBACK_CHARS = 20_000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start"), override: z.boolean().default(false) }).strict(),
+  // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
+  z
+    .object({
+      action: z.literal("start"),
+      override: z.boolean().default(false),
+      flowId: definitionIdSchema.optional()
+    })
+    .strict(),
   // The note answers the plan's open questions. The builder reads it as the owner's words.
   z
     .object({
@@ -339,14 +551,15 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
       note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS).optional()
     })
     .strict(),
+  // `to` and `from` are step ids of the issue's flow. `actionTargetProblem` checks them against it.
   z
     .object({
       action: z.literal("feedback"),
-      to: feedbackTargetSchema,
+      to: stageIdSchema,
       text: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS)
     })
     .strict(),
-  z.object({ action: z.literal("continue"), from: z.enum(ACTIVE_STAGES).optional() }).strict(),
+  z.object({ action: z.literal("continue"), from: stageIdSchema.optional() }).strict(),
   z.object({ action: z.literal("cancel") }).strict(),
   z.object({ action: z.literal("remove"), force: z.boolean().default(false) }).strict(),
   z
@@ -380,12 +593,42 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
 
+/** Step kinds that take the owner's feedback: the work there runs again with it. */
+const FEEDBACK_KINDS: readonly StepKind[] = ["agent", "check"];
+/** Step kinds `continue` can restart. A gate is where the owner decides, so nothing restarts there. */
+const CONTINUE_KINDS: readonly StepKind[] = ["agent", "check", "ship", "pr-wait"];
+
+/**
+ * Why the target of a `feedback` or `continue` request cannot be a target in `flow`, or `null`
+ * when it can. It checks the step kind only. Whether the issue may go there now is the engine's
+ * decision (`409 invalid-transition`). Pure, so the UI offers the same targets.
+ */
+export const actionTargetProblem = (
+  flow: FlowDefinition,
+  request: ActionRequest
+): string | null => {
+  if (request.action !== "feedback" && request.action !== "continue") return null;
+  const target = request.action === "feedback" ? request.to : request.from;
+  if (target === undefined) return null;
+  // `setup` and `intake` run before the first step. Only `continue` restarts them.
+  if (request.action === "continue" && (target === "intake" || target === "setup")) return null;
+  const step = isEngineState(target) ? undefined : flow.steps.find((entry) => entry.id === target);
+  if (step === undefined) return `'${target}' is not a stage of the flow '${flow.id}'.`;
+  if (request.action === "feedback" && !FEEDBACK_KINDS.includes(step.kind)) {
+    return `'${target}' is a ${step.kind} step. Feedback goes to an agent or check step.`;
+  }
+  if (request.action === "continue" && !CONTINUE_KINDS.includes(step.kind)) {
+    return `'${target}' is a ${step.kind} step. Continue restarts an agent, check, ship or pr-wait step.`;
+  }
+  return null;
+};
+
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
   .object({
     /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "removed", "paused"]),
-    stage: stageSchema.nullable(),
+    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "finished", "removed", "paused"]),
+    stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })
   .strict();
@@ -432,7 +675,7 @@ export const logEntrySchema = z
      * The issue's stage when the entry was written: the stage of a history event, or the stage
      * the issue was in. `null` or absent when unknown (entries from before the field existed).
      */
-    stage: stageSchema.nullable().optional(),
+    stage: stageIdSchema.nullable().optional(),
     /** Bounded and redacted text, without a time: `at` holds it and the UI formats it. */
     text: z.string()
   })
@@ -508,6 +751,8 @@ export const githubIssueSchema = z
       .strict(),
     /** The desk already has state for it. */
     onBoard: z.boolean(),
+    /** The flow `start` picks for it without a `flowId`: from `flowLabels`, else `defaultFlow`. */
+    flowId: definitionIdSchema,
     updatedAt: z.string()
   })
   .strict();

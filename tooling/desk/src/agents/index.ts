@@ -64,13 +64,24 @@ export {
   buildRunSettings,
   defaultReceiptHookPath,
   parseReceipts,
-  permissionsFor,
   readPolicyDenies,
-  type PermissionsOptions,
   type Receipt,
   type RunSettings,
   type RunSettingsInput
 } from "./permissions";
+export {
+  builtinCapabilities,
+  loadCapabilities,
+  permissionsFor,
+  type LoadCapabilitiesInput,
+  type PermissionsOptions
+} from "./capabilities.load";
+export {
+  resolveCapabilities,
+  toAgentPermissions,
+  type CapabilityPolicy,
+  type ResolveCapabilitiesInput
+} from "./capabilities.resolve";
 export {
   RolePromptError,
   composeRolePrompt,

@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { definitionIdSchema } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
+import { capabilityProfileSchema } from "./capability-profile.contract";
 import { isolationSchema, providerSchema } from "./desk-config.contract";
+import { stageIdSchema } from "./flow-snapshot.contract";
 import { agentStageRoleSchema, loopCountersSchema } from "./issue-state.contract";
-import { stageSchema } from "./pipeline.contract";
 
 /** The runner's failure kinds, plus `stuck`: the engine stopped a run that repeated a failing call. */
 export const RUN_FAILURE_KINDS = [
@@ -46,7 +48,10 @@ export const runRecordSchema = z
     schema: z.literal(1),
     at: z.iso.datetime({ offset: true }),
     issue: z.number().int().positive(),
+    /** The permission profile the run had. For a built-in agent it is the agent id. */
     role: agentStageRoleSchema,
+    /** The flow agent that ran. Absent on records written before agents were data, and for the intake draft. */
+    agentId: definitionIdSchema.optional(),
     provider: providerSchema,
     /** `null`: the CLI's default model. */
     model: z.string().min(1).nullable(),
@@ -78,17 +83,30 @@ export const runRecordSchema = z
      * The risk of the plan the run worked from: the planner's own result, or the plan a builder
      * or reviewer got. `null` before a plan exists, and on records written before it existed.
      */
-    planRisk: planRiskSchema.nullable().default(null)
+    planRisk: planRiskSchema.nullable().default(null),
+    /**
+     * What the run actually got: the resolved capabilities it started with. Absent on records
+     * written before it existed.
+     */
+    capabilities: capabilityProfileSchema.optional()
   })
   .strict();
 export type RunRecord = z.infer<typeof runRecordSchema>;
 
 const mean = z.number().nonnegative().nullable();
 
-/** Runs of one role with one provider and model. Means and totals cover only the runs that report the value. */
+/**
+ * Runs of one agent with one provider and model. Means and totals cover only the runs that
+ * report the value.
+ */
 export const runGroupSchema = z
   .object({
     role: agentStageRoleSchema,
+    /**
+     * The agent of these runs. A record written before agents were data counts for the built-in
+     * agent of its role, whose id is the role.
+     */
+    agentId: definitionIdSchema,
     provider: providerSchema,
     /** `null`: the CLI's default model. */
     model: z.string().min(1).nullable(),
@@ -126,7 +144,7 @@ export const issueRollupSchema = z
   .object({
     issue: z.number().int().positive(),
     /** `null` when the issue was removed: its runs stay in the record. */
-    stage: stageSchema.nullable(),
+    stage: stageIdSchema.nullable(),
     loops: loopCountersSchema.nullable(),
     runs: count,
     totalCostUsd: mean

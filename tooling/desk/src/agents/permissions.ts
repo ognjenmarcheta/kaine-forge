@@ -1,16 +1,12 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
-import type { Provider } from "../contracts";
-import type { AgentPermissions } from "./agent.runner";
-import { ROLE_SKILLS, type DeskRole } from "../engine/worktree.bootstrap";
-
 /**
- * Tool permissions for each role, as Claude `--allowedTools` and
- * `--disallowedTools` rules, plus the per-run settings file that wires the
- * repo's PreToolUse hook and the desk's receipt hook.
+ * The rule tables the capability resolver (`capabilities.resolve.ts`) builds Claude
+ * `--allowedTools` and `--disallowedTools` rules from, the policy file reader, and the
+ * per-run settings file that wires the repo's PreToolUse hook and the desk's receipt hook.
  *
  * Facts the rules rest on (spike, claude 2.1.282, see docs/agents/agent-desk.md):
  *
@@ -86,12 +82,12 @@ export const readPolicyDenies = async (worktree: string): Promise<string[]> => {
     .flatMap((rule) => [`Bash(${rule.command})`, `Bash(${rule.command} *)`]);
 };
 
-const bash = (command: string): string => `Bash(${command}:*)`;
+export const bash = (command: string): string => `Bash(${command}:*)`;
 
-const READ_TOOLS = ["Read", "Glob", "Grep"] as const;
-const GIT_READ = ["git diff", "git status", "git log", "git show"].map(bash);
+export const READ_TOOLS = ["Read", "Glob", "Grep"] as const;
+export const GIT_READ = ["git diff", "git status", "git log", "git show"].map(bash);
 
-const SERENA_READ = [
+export const SERENA_READ = [
   "find_symbol",
   "find_referencing_symbols",
   "get_symbols_overview",
@@ -108,9 +104,11 @@ const SERENA_READ = [
 ].map((tool) => `mcp__serena__${tool}`);
 
 /** Public library docs. Host runs only: the Docker builder has no MCP server. */
-const CONTEXT7_READ = ["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`);
+export const CONTEXT7_READ = ["resolve-library-id", "query-docs"].map(
+  (tool) => `mcp__context7__${tool}`
+);
 
-const SERENA_EDIT = [
+export const SERENA_EDIT = [
   "replace_symbol_body",
   "insert_after_symbol",
   "insert_before_symbol",
@@ -165,7 +163,9 @@ export const FORBIDDEN_GIT_SUBCOMMANDS: readonly string[] = [
   "update-ref"
 ];
 
-const DESK_GIT_DENIES = FORBIDDEN_GIT_SUBCOMMANDS.map((subcommand) => bash(`git ${subcommand}`));
+export const DESK_GIT_DENIES = FORBIDDEN_GIT_SUBCOMMANDS.map((subcommand) =>
+  bash(`git ${subcommand}`)
+);
 
 /** pnpm scripts the engine runs itself or that move shared state. */
 export const FORBIDDEN_SCRIPTS: readonly string[] = [
@@ -176,7 +176,7 @@ export const FORBIDDEN_SCRIPTS: readonly string[] = [
 ];
 
 /** Commands the engine runs itself, and anything that starts a server or fetches code. */
-const DESK_COMMAND_DENIES = [
+export const DESK_COMMAND_DENIES = [
   "gh",
   ...FORBIDDEN_SCRIPTS.map((script) => `pnpm ${script}`),
   "pnpm install",
@@ -215,7 +215,7 @@ export const PROTECTED_EDIT_RULES: readonly string[] = [
 ].map((glob) => `Edit(${glob})`);
 
 /** Every `kaine-*` skill the repo ships. A skill outside a role's list is out of scope. */
-const KAINE_SKILLS: readonly string[] = [
+export const KAINE_SKILLS: readonly string[] = [
   "kaine-adopt-template",
   "kaine-create-feature",
   "kaine-debug",
@@ -242,96 +242,8 @@ const KAINE_SKILLS: readonly string[] = [
   "kaine-write-plan"
 ];
 
-const WORKSPACE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
-const WORKSPACE_SCRIPTS = ["test", "typecheck", "lint"] as const;
-
-/** Skills in the worktree's `.ai/skills`, so a new skill is out of scope by default. */
-const worktreeSkills = async (worktree: string): Promise<string[]> => {
-  try {
-    const entries = await readdir(path.join(worktree, ".ai", "skills"));
-    return entries.filter((entry) => entry.endsWith(".md")).map((entry) => entry.slice(0, -3));
-  } catch {
-    return [];
-  }
-};
-
-export interface PermissionsOptions {
-  /** Absolute path of the issue worktree. The policy is read from here. */
-  readonly worktree: string;
-  /**
-   * Workspace package names whose `test`, `typecheck` and `lint` scripts a
-   * builder may run, for example `@repo/api`. Exact names only. Without them a
-   * builder can run `pnpm generate` and nothing else of pnpm.
-   */
-  readonly workspaces?: readonly string[];
-  /** Skills for this run. Default: the role's own list. */
-  readonly skills?: readonly string[];
-}
-
-/**
- * Allow and deny rules for one role and provider. Claude gets rule lists. Codex
- * gets a sandbox instead: its rules are fixed in the Codex runner, and a planner
- * or reviewer is always `read-only` there.
- */
-export const permissionsFor = async (
-  role: DeskRole,
-  provider: Provider,
-  options: PermissionsOptions
-): Promise<AgentPermissions> => {
-  if (provider === "codex") {
-    return {
-      allow: [],
-      disallow: [],
-      sandbox: role === "builder" ? "workspace-write" : "read-only"
-    };
-  }
-
-  const skills = options.skills ?? ROLE_SKILLS[role];
-  const workspaces = options.workspaces ?? [];
-  for (const name of workspaces) {
-    if (!WORKSPACE_NAME.test(name)) {
-      throw new PermissionsPolicyError("invalid-input", `Invalid workspace name '${name}'.`);
-    }
-  }
-
-  const allow: string[] = [
-    ...READ_TOOLS,
-    ...skills.map((skill) => `Skill(skill:${skill})`),
-    ...GIT_READ,
-    ...SERENA_READ,
-    ...CONTEXT7_READ
-  ];
-  if (role === "builder") {
-    allow.push("Edit", "Write", bash("pnpm generate"), ...SERENA_EDIT);
-    for (const workspace of workspaces) {
-      for (const script of WORKSPACE_SCRIPTS) {
-        allow.push(bash(`pnpm --filter ${workspace} ${script}`));
-        // A fresh worktree has no built packages. Turbo's `test` builds the dependencies first.
-        allow.push(bash(`pnpm turbo run ${script} --filter=${workspace}`));
-      }
-      // One test file for the red-first loop. A workspace `test` script may chain other commands.
-      allow.push(bash(`pnpm --filter ${workspace} exec vitest run`));
-    }
-    if (skills.includes("kaine-create-feature")) allow.push(bash("pnpm create:feature"));
-  }
-
-  const inScope = new Set(skills);
-  const outOfScope = [...new Set([...KAINE_SKILLS, ...(await worktreeSkills(options.worktree))])]
-    .filter((skill) => !inScope.has(skill))
-    .sort();
-
-  const disallow = [
-    ...(await readPolicyDenies(options.worktree)),
-    ...DESK_GIT_DENIES,
-    ...DESK_COMMAND_DENIES,
-    "WebFetch",
-    "WebSearch",
-    ...FORBIDDEN_SERENA_TOOLS,
-    ...PROTECTED_EDIT_RULES,
-    ...outOfScope.map((skill) => `Skill(skill:${skill})`)
-  ];
-  return { allow, disallow: [...new Set(disallow)] };
-};
+export const WORKSPACE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
+export const WORKSPACE_SCRIPTS = ["test", "typecheck", "lint"] as const;
 
 // --- per-run settings ------------------------------------------------------
 

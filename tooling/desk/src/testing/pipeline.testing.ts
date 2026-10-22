@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { INSTALLED_FILES, writeFiles } from "./flow.testing";
 import { createFakeGit, type FakeGit } from "./git.fake";
 import {
   createOriginAndClone,
@@ -322,20 +323,25 @@ export const REPO_FILES: Readonly<Record<string, string>> = {
 export const createPipelineEnv = async (options: EnvOptions = {}): Promise<PipelineEnv> => {
   const kind = options.git ?? "fake";
   const scratch = await createScratch();
-  const files = { ...REPO_FILES, ...options.extraFiles };
+  // A worktree installs what the main checkout does: the registry and the runs read it.
+  const files = { ...REPO_FILES, ...INSTALLED_FILES, ...options.extraFiles };
 
   let clone: TestRepo | null = null;
   let fake: FakeGit | null = null;
   let repoRoot: string;
   if (kind === "real") {
     ({ clone } = await createOriginAndClone(scratch));
-    for (const [file, content] of Object.entries(files)) await clone.write(file, content);
+    for (const [file, content] of Object.entries(files)) {
+      await clone.write(file, content);
+    }
     await clone.commit("add repo files");
     await clone.git(["push", "--quiet", "origin", "main"]);
     repoRoot = clone.dir;
   } else {
     repoRoot = path.join(scratch.root, "repo");
     await mkdir(repoRoot, { recursive: true });
+    // The intake draft and setup read what the main checkout installed.
+    await writeFiles(repoRoot, INSTALLED_FILES);
     fake = createFakeGit({ repoRoot, files });
   }
 

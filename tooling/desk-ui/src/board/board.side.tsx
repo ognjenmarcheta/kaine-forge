@@ -2,6 +2,7 @@ import type { IssueSummary } from "@repo/desk/contracts";
 import { Button, Card } from "@repo/ui";
 import { useId, useState, type ReactNode } from "react";
 
+import { issueFlowOf, stageName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatElapsed, safeHttpUrl } from "../shell/shell.format";
 import { RouteLink } from "../shell/shell.router";
@@ -65,7 +66,7 @@ export function RunningList({
             const since = summary.readable ? (summary.stageEnteredAt ?? summary.updatedAt) : null;
             const state = paused
               ? t("desk.board.side.paused", {
-                  stage: summary.readable ? t(`desk.stage.${summary.stage}`) : ""
+                  stage: summary.readable ? stageName(t, issueFlowOf(summary), summary.stage) : ""
                 })
               : statusLabelText(t, issueStatusOf(summary).label);
             return (
@@ -109,7 +110,11 @@ export function DoneList({ issues }: { readonly issues: readonly IssueSummary[] 
   const t = useT();
   const list = useId();
   const [open, setOpen] = useState(false);
-  const shipped = issues.filter((summary) => summary.readable && summary.stage === "shipped");
+  const count = (stage: string): number =>
+    issues.filter((summary) => summary.readable && summary.stage === stage).length;
+  const shipped = count("shipped");
+  const finished = count("finished");
+  const counts = { shipped, finished, cancelled: issues.length - shipped - finished };
   return (
     <SideCard
       title={t("desk.board.group.done")}
@@ -131,10 +136,10 @@ export function DoneList({ issues }: { readonly issues: readonly IssueSummary[] 
       <p className="desk-side__empty">
         {issues.length === 0
           ? t("desk.board.side.doneNone")
-          : t("desk.board.side.doneSummary", {
-              shipped: shipped.length,
-              cancelled: issues.length - shipped.length
-            })}
+          : t(
+              finished > 0 ? "desk.board.side.doneSummaryFinished" : "desk.board.side.doneSummary",
+              counts
+            )}
       </p>
       {open && (
         <ul id={list} className="desk-side__list">

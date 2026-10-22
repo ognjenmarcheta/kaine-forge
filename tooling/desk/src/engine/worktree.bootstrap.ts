@@ -1,7 +1,14 @@
 import path from "node:path";
 import { z } from "zod";
 
-import { CONVENTIONAL_TYPES, PROVIDERS, type ConventionalType, type Provider } from "../contracts";
+import {
+  CONVENTIONAL_TYPES,
+  PROVIDERS,
+  type AgentDefinition,
+  type ConventionalType,
+  type InstalledCapabilities,
+  type Provider
+} from "../contracts";
 
 /**
  * The worktree setup recipe as pure data. `bootstrapPlan` returns the ordered
@@ -72,11 +79,22 @@ export const OPTIONAL_ROLE_SKILLS = {
   reviewer: ["kaine-simplify"]
 } as const satisfies Partial<Record<DeskRole, readonly string[]>>;
 
-/** Union of the skills for `roles` plus `extras`, de-duplicated and sorted. */
-export const skillsForRoles = (
-  roles: readonly DeskRole[],
-  extras: readonly string[] = []
-): string[] => [...new Set([...roles.flatMap((role) => ROLE_SKILLS[role]), ...extras])].sort();
+/**
+ * What a worktree installs for the agents of a flow: the union of their MCP servers (in the
+ * order the agents name them) and their skills (sorted), limited to what the checkout
+ * installed. A run drops what is not installed and records why, so setup does not fail on it.
+ */
+export const installsForAgents = (
+  agents: readonly Pick<AgentDefinition, "capabilities">[],
+  installed: InstalledCapabilities
+): { readonly mcp: string[]; readonly skills: string[] } => ({
+  mcp: [...new Set(agents.flatMap((agent) => agent.capabilities.mcp))].filter((server) =>
+    installed.mcp.includes(server)
+  ),
+  skills: [...new Set(agents.flatMap((agent) => agent.capabilities.skills))]
+    .filter((skill) => installed.skills.includes(skill))
+    .sort()
+});
 
 export type StepCwd = "repo" | "worktree";
 

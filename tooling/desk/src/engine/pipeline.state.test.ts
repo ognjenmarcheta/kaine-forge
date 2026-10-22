@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { stageEnteredAt } from "./pipeline.state";
 import type { HistoryEvent, IssueState, Stage } from "../contracts";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const at = (minute: number): string => `2026-03-01T10:${String(minute).padStart(2, "0")}:00.000Z`;
 const event = (minute: number, stage: Stage, name: string): HistoryEvent => ({
@@ -11,7 +12,8 @@ const event = (minute: number, stage: Stage, name: string): HistoryEvent => ({
 });
 
 const state = (stage: Stage, history: HistoryEvent[]): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber: 7,
   stage,
   status: "waiting",

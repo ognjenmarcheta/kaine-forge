@@ -14,6 +14,8 @@ export const STATUS_BY_CODE: Readonly<Record<ApiErrorCode, number>> = {
   busy: 409,
   "artifact-missing": 404,
   "lesson-refused": 409,
+  "invalid-definition": 422,
+  "definition-refused": 409,
   internal: 500,
   leased: 409,
   "unknown-issue": 404,

@@ -1,4 +1,4 @@
-import type { ArtifactId } from "@repo/desk/contracts";
+import type { ArtifactName } from "@repo/desk/contracts";
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 
@@ -52,7 +52,7 @@ function useArtifactLoad<T>(
 /** Read a JSON artifact and validate it with its contract. `revision` reloads it when the issue changes. */
 export function useJsonArtifact<T>(
   issueNumber: number,
-  id: ArtifactId,
+  id: ArtifactName,
   schema: z.ZodType<T>,
   revision: string,
   enabled = true
@@ -65,7 +65,7 @@ export function useJsonArtifact<T>(
 /** Read a text artifact (the ticket, the diff). The text is shown escaped. */
 export function useTextArtifact(
   issueNumber: number,
-  id: ArtifactId,
+  id: ArtifactName,
   revision: string,
   enabled = true
 ): ArtifactState<string> {

@@ -12,9 +12,11 @@ import { describe, expect, it, vi } from "vitest";
 import { StageSheet } from "./inspector.panel";
 import {
   buildArtifact,
+  finishedResearchIssue,
   planArtifact,
   reviewArtifact,
-  scenarioBoard
+  scenarioBoard,
+  scenarioRuns
 } from "../../tests/fixture.data";
 import { FlowGraph } from "../flow/flow.graph";
 import { FlowStepper } from "../flow/flow.stepper";
@@ -169,6 +171,69 @@ describe("StageSheet", () => {
     expect(region().textContent).toContain("Nit: 1");
     const acceptance = await screen.findByRole("list", { name: "Acceptance criteria" });
     expect(acceptance.textContent).toContain("Empty board explains how to start");
+  });
+
+  it("shows a report step's full result: the report its agent wrote", async () => {
+    const seed = finishedResearchIssue(107, "Find the old pages");
+    const { detail, summary } = makeDetail(seed.state);
+    renderDesk(
+      <StageSheet
+        detail={detail}
+        summary={summary}
+        flow={detail.flow}
+        nodeId="research"
+        revision="r1"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+      fakeApi({
+        artifactJson: (_issue, id, schema) => {
+          const text = seed.artifacts[`${id}.json`];
+          return text === undefined
+            ? Promise.reject(new Error(`no artifact ${id}`))
+            : Promise.resolve(schema.parse(JSON.parse(text)));
+        }
+      })
+    );
+    const finding = await within(region()).findByText(/says the desk runs one fixed sequence/);
+    expect(finding.closest("section")?.querySelector("h3")?.textContent).toBe("Findings");
+    expect(region().textContent).toContain("Two help pages are out of date.");
+  });
+
+  it("shows what each agent run got: removed items with reasons, notes, and runs without a receipt", async () => {
+    const runs = scenarioRuns().filter((run) => run.issue === 102);
+    const reviewer = runs.find((run) => run.role === "reviewer");
+    if (reviewer === undefined) throw new Error("missing reviewer run");
+    // A run recorded before the desk kept a receipt: no agent id, no capabilities.
+    const older = { ...reviewer };
+    delete older.agentId;
+    delete older.capabilities;
+    show(102, "review", { runs: [older, reviewer] });
+
+    const section = screen.getByRole("heading", { name: "Capabilities" }).parentElement;
+    if (section === null) throw new Error("no Capabilities section");
+    const [first, second] = Array.from(section.querySelectorAll(".desk-caps__run"));
+    expect(first?.textContent).toContain("This run has no capability receipt.");
+    expect(second?.textContent).toContain("codex · the CLI's default model");
+    expect(second?.textContent).toContain("On your machine, in the Codex read-only sandbox.");
+    expect(second?.textContent).toContain("0 allowed · 0 denied");
+    expect(second?.querySelector(".desk-caps__notes")?.textContent).toBe(
+      "Codex: sandbox only, no MCP"
+    );
+    expect(second?.querySelector(".desk-caps__removed")?.textContent).toBe(
+      "serena MCP server Codex: sandbox only, no MCP"
+    );
+  });
+
+  it("counts a host run's tool rules and lists them on request", async () => {
+    show(102, "build", { runs: scenarioRuns().filter((run) => run.issue === 102) });
+    expect(
+      screen.getByText("On your machine. The Claude allowlist limits what it can do.")
+    ).toBeTruthy();
+    expect(screen.getByText(/4 allowed · 3 denied/)).toBeTruthy();
+    expect(screen.queryByText("Bash(git push *)")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Show the rules" }));
+    expect(screen.getByText("Bash(git push *)")).toBeTruthy();
   });
 
   it("shows the ship readiness as a checklist at PR review", () => {

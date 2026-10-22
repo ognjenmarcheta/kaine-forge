@@ -64,6 +64,8 @@ describe("Shell", () => {
     expect(screen.getByRole("link", { name: "Board" }).getAttribute("aria-current")).toBe("page");
     expect(Array.from(nav.querySelectorAll("a"), (link) => link.textContent)).toEqual([
       "Board",
+      "Flows",
+      "Agents",
       "Health",
       "Runs"
     ]);

@@ -1,6 +1,8 @@
+import { flowStepViewsOf } from "@repo/desk/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { backoffDelay, connectEventStream, type EventSourceLike } from "./api.stream";
+import { DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 
 class FakeSource implements EventSourceLike {
   onopen: ((event: Event) => void) | null = null;
@@ -41,6 +43,11 @@ const summary = {
   paused: false,
   pausedAt: null,
   planRisk: null,
+  flowId: "kaine-default",
+  flowName: "Kaine default",
+  flowHash: "0".repeat(64),
+  flowSource: "builtin",
+  flowSteps: flowStepViewsOf(DEFAULT_FLOW_SNAPSHOT),
   createdAt: "2026-03-01T10:00:00.000Z",
   updatedAt: "2026-03-01T10:00:00.000Z"
 };

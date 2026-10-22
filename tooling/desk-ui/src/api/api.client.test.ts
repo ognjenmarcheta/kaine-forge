@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { DeskApiError, createDeskApi, type FetchLike } from "./api.client";
+import { DeskApiError, createDeskApi, type DeskApi, type FetchLike } from "./api.client";
+import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 
 const reply = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
@@ -92,6 +93,82 @@ describe("createDeskApi", () => {
     expect((await failure(api.artifactJson(7, "build", z.object({ n: z.string() })))).code).toBe(
       "invalid-response"
     );
+  });
+
+  const FLOW = CUSTOM_FLOW_SNAPSHOT.flow;
+  const [AGENT] = CUSTOM_FLOW_SNAPSHOT.agents;
+  const WRITTEN = {
+    kind: "flow",
+    id: "quick-fix",
+    path: "/repo/.ai.local/desk/flows/quick-fix.yaml",
+    source: "local",
+    shadows: null,
+    uncommitted: false
+  };
+
+  it.each<[string, (api: DeskApi) => Promise<unknown>, string, string, unknown]>([
+    [
+      "saves a flow",
+      (api) => api.saveFlow(FLOW),
+      "PUT",
+      "/api/flows/quick-fix",
+      { definition: FLOW }
+    ],
+    [
+      "saves an agent",
+      (api) => (AGENT === undefined ? Promise.reject(new Error("no agent")) : api.saveAgent(AGENT)),
+      "PUT",
+      "/api/agents/planner",
+      { definition: AGENT }
+    ],
+    [
+      "clones a definition",
+      (api) => api.cloneDefinition("flow", "kaine-default", "quick-fix", "Quick fix"),
+      "POST",
+      "/api/flows/kaine-default/clone",
+      { id: "quick-fix", name: "Quick fix" }
+    ],
+    [
+      "promotes a definition",
+      (api) => api.promoteDefinition("agent", "ui-builder", true),
+      "POST",
+      "/api/agents/ui-builder/promote",
+      { confirm: true }
+    ],
+    [
+      "deletes a definition",
+      (api) => api.deleteDefinition("flow", "quick-fix"),
+      "DELETE",
+      "/api/flows/quick-fix",
+      undefined
+    ]
+  ])("%s with the write header on its own route", async (_name, call, method, path, body) => {
+    const fetchSpy = vi.fn<FetchLike>(() => Promise.resolve(reply(200, WRITTEN)));
+    expect(await call(createDeskApi(fetchSpy))).toEqual(WRITTEN);
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(url).toBe(path);
+    expect(init?.method).toBe(method);
+    expect(init?.headers).toMatchObject({ "x-desk-request": "1" });
+    const sent: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
+    expect(sent).toEqual(body);
+  });
+
+  it("keeps every problem of a refused definition, and refuses a bad clone id before sending", async () => {
+    const detail =
+      "verify: loopBack.to 'nowhere' must name an earlier step\nA flow needs at least one agent step";
+    const api = createDeskApi(() =>
+      Promise.resolve(reply(422, { error: { code: "invalid-definition", detail } }))
+    );
+    expect(await failure(api.saveFlow(FLOW))).toMatchObject({
+      code: "invalid-definition",
+      status: 422,
+      detail
+    });
+
+    const fetchSpy = vi.fn<FetchLike>();
+    const error = await failure(createDeskApi(fetchSpy).cloneDefinition("flow", "x", "Not An Id"));
+    expect(error.code).toBe("bad-request");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("posts the launch token to the session route", async () => {

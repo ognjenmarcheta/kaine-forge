@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { LogEntry, LogKind, ServerEvent, Stage } from "../contracts";
+import type { LogEntry, LogKind, ServerEvent, StageId } from "../contracts";
 import type { PipelineEvent } from "../engine/pipeline.types";
 import { describeLogRecord, toLogRecord } from "../log/log.record";
 import type { Clock } from "../ports";
@@ -59,7 +59,7 @@ const KIND_OF_RECORD = { history: "history", agent: "agent", log: "log", note: "
 export const createLogBuffer = (clock: Clock, capacity = DEFAULT_LOG_CAPACITY): LogBuffer => {
   const byIssue = new Map<number, LogEntry[]>();
   /** The stage of each issue, from its latest state or history event. */
-  const stageOf = new Map<number, Stage>();
+  const stageOf = new Map<number, StageId>();
   let seq = 0;
 
   return {

@@ -1,10 +1,12 @@
 import type { ArtifactId, FlowNode, IssueDetail } from "@repo/desk/contracts";
 import type { ReactNode } from "react";
 
+import { ranReports, stageRoleOf } from "./inspector.model";
 import { BuildArtifact } from "../artifacts/artifact.build";
 import { CheckArtifact } from "../artifacts/artifact.check";
 import { DiffArtifact } from "../artifacts/artifact.diff";
 import { PlanArtifact } from "../artifacts/artifact.plan";
+import { ReportArtifact } from "../artifacts/artifact.report";
 import { ReviewView } from "../artifacts/artifact.review";
 import { TicketArtifact } from "../artifacts/artifact.ticket";
 import { useT } from "../i18n/i18n.t";
@@ -48,7 +50,8 @@ export function StageResult({
       <DiffArtifact issueNumber={issueNumber} revision={revision} />
     </Written>
   );
-  switch (node.id) {
+  const role = stageRoleOf(detail, node.id);
+  switch (role) {
     case "ticket":
       return (
         <Written detail={detail} id="ticket">
@@ -66,7 +69,7 @@ export function StageResult({
           <PlanArtifact issueNumber={issueNumber} revision={revision} />
         </Written>
       );
-    case "build":
+    case "change":
       return (
         <>
           <Written detail={detail} id="build">
@@ -82,7 +85,7 @@ export function StageResult({
         </Written>
       );
     case "review":
-    case "pr-review":
+    case "ship-gate":
       return (
         <>
           {detail.review === null ? (
@@ -90,11 +93,22 @@ export function StageResult({
           ) : (
             <ReviewView review={detail.review} />
           )}
-          {node.id === "pr-review" && diff}
+          {role === "ship-gate" && diff}
         </>
       );
     case "ship":
-    case "pr-open":
+    case "pr-wait":
       return diff;
+    case "report": {
+      // A report step that has not run has written nothing yet.
+      const ran = ranReports(detail).find((report) => report.stepId === node.id);
+      return ran === undefined ? (
+        <Muted>{t("desk.artifact.missing")}</Muted>
+      ) : (
+        <ReportArtifact issueNumber={issueNumber} agentId={ran.agentId} revision={revision} />
+      );
+    }
+    default:
+      return null;
   }
 }

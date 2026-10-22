@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { deskConfigSchema } from "./desk-config.contract";
+import { deskConfigSchema, flowForLabels } from "./desk-config.contract";
 
 describe("desk config contract", () => {
   it("fills every default from an empty object", () => {
     expect(deskConfigSchema.parse({})).toEqual({
       worktreesDir: null,
+      baseBranch: "main",
       copyIntoWorktree: [],
       checks: { loop: [["pnpm", "check:affected"]], ship: [["pnpm", "check"]] },
       maxTestLoops: 3,
@@ -21,6 +22,8 @@ describe("desk config contract", () => {
         maxPatchBytes: 8 * 1024 * 1024,
         forwardEnv: []
       },
+      defaultFlow: "kaine-default",
+      flowLabels: {},
       reviewBots: []
     });
   });
@@ -42,7 +45,11 @@ describe("desk config contract", () => {
     ["a pids limit that is too small", { docker: { agent: { pidsLimit: 4 } } }],
     ["a patch limit above 32 MiB", { docker: { maxPatchBytes: 64 * 1024 * 1024 } }],
     ["an unknown Docker key", { docker: { privileged: true } }],
-    ["zero PR rounds", { maxPrRounds: 0 }]
+    ["zero PR rounds", { maxPrRounds: 0 }],
+    ["a default flow that is not an id", { defaultFlow: "../flows/x" }],
+    ["a flow label that names no id", { flowLabels: { docs: "Docs Flow" } }],
+    ["a base branch that git reads as an option", { baseBranch: "--upload-pack=x" }],
+    ["a base branch with a parent step", { baseBranch: "release/../main" }]
   ])("rejects %s", (_name, input) => {
     expect(deskConfigSchema.safeParse(input).success).toBe(false);
   });
@@ -65,6 +72,17 @@ describe("desk config contract", () => {
     expect(config.notifyCommand).toEqual(["notify-send", "desk"]);
     expect(config.owner).toBe("octo-cat");
     expect(config.isolation).toBe("docker");
+  });
+
+  it("picks the flow of the first listed issue label, else the default flow", () => {
+    const config = deskConfigSchema.parse({
+      defaultFlow: "standard",
+      flowLabels: { docs: "docs-only", hotfix: "fast-lane" }
+    });
+    expect(flowForLabels(config, ["bug", "hotfix", "docs"])).toBe("fast-lane");
+    expect(flowForLabels(config, ["bug"])).toBe("standard");
+    // A label that is a property name of every object is not a configured label.
+    expect(flowForLabels(config, ["constructor", "toString"])).toBe("standard");
   });
 
   it("cuts a notify command line into an argv array without a shell", () => {

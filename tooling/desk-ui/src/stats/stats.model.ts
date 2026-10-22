@@ -1,4 +1,4 @@
-import type { AgentStageRole, LessonCandidate, RunGroup, StatsDay } from "@repo/desk/contracts";
+import type { LessonCandidate, RunGroup, StatsDay } from "@repo/desk/contracts";
 
 /** One series of the last seven days: the total and the value of each day, oldest first. */
 export interface WeekSeries {
@@ -47,26 +47,26 @@ export const sparkPoints = (values: readonly (number | null)[]): string => {
     .join(" ");
 };
 
-export interface RoleCost {
-  readonly role: AgentStageRole;
-  /** `null` when no run of the role reported a cost. */
+export interface AgentCost {
+  readonly agentId: string;
+  /** `null` when no run of the agent reported a cost. */
   readonly costUsd: number | null;
-  /** Of the most expensive role, from 0 to 1. */
+  /** Of the most expensive agent, from 0 to 1. */
   readonly share: number;
 }
 
-/** The total cost of each role over every provider and model, the most expensive first. */
-export const costByRole = (groups: readonly RunGroup[]): RoleCost[] => {
-  const totals = new Map<AgentStageRole, number | null>();
+/** The total cost of each agent over every provider and model, the most expensive first. */
+export const costByAgent = (groups: readonly RunGroup[]): AgentCost[] => {
+  const totals = new Map<string, number | null>();
   for (const group of groups) {
-    const before = totals.get(group.role) ?? null;
+    const before = totals.get(group.agentId) ?? null;
     const cost = group.totalCostUsd;
-    totals.set(group.role, cost === null ? before : (before ?? 0) + cost);
+    totals.set(group.agentId, cost === null ? before : (before ?? 0) + cost);
   }
   const highest = Math.max(0, ...[...totals.values()].map((cost) => cost ?? 0));
   return [...totals.entries()]
-    .map(([role, costUsd]) => ({
-      role,
+    .map(([agentId, costUsd]) => ({
+      agentId,
       costUsd,
       share: costUsd === null || highest === 0 ? 0 : costUsd / highest
     }))

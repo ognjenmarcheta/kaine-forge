@@ -11,6 +11,7 @@ import { createDeskServer, type DeskServer, type DeskServerDeps } from "./server
 import type { DoctorReport } from "../doctor/doctor.checks";
 import type { PipelineResult } from "../engine/pipeline.types";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
+import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 /** Fixtures and helpers for the server tests. Production code never imports this file. */
 
@@ -20,7 +21,8 @@ export const makeState = (
   issueNumber: number,
   overrides: Partial<IssueState> = {}
 ): IssueState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  flowSnapshot: DEFAULT_SNAPSHOT,
   issueNumber,
   stage: "plan-gate",
   status: "waiting",

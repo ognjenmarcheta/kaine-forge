@@ -1,13 +1,20 @@
 import {
   REVIEW_SECTIONS,
   buildFlowModel,
+  freshLoops,
   reviewerOutputSchema,
+  type AgentDefinition,
+  type CapabilityProfile,
+  type FlowDefinition,
+  type FlowSnapshot,
   type HistoryEvent,
   type IssueState,
   type LessonReport,
   type RunRecord,
-  type Stage
+  type StageId
 } from "@repo/desk/contracts";
+
+import { DEFAULT_FLOW_SNAPSHOT, RESEARCH_FLOW_SNAPSHOT } from "../src/test/test.flow";
 
 /**
  * Issues, artifacts, and history that the fixture server serves. The data is real
@@ -34,7 +41,7 @@ const retime = (history: readonly HistoryEvent[], minutesAgo: number): HistoryEv
   }));
 };
 
-export const event = (stage: Stage, name: string, note?: string): HistoryEvent => ({
+export const event = (stage: StageId, name: string, note?: string): HistoryEvent => ({
   at: at(),
   stage,
   event: name,
@@ -72,11 +79,13 @@ export interface SeedIssue {
 const base = (
   issueNumber: number,
   rawHistory: HistoryEvent[],
-  patch: Partial<IssueState>
+  patch: Partial<IssueState>,
+  flowSnapshot: FlowSnapshot = DEFAULT_FLOW_SNAPSHOT
 ): IssueState => {
   const history = retime(rawHistory, MINUTES_AGO[issueNumber] ?? 5);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    flowSnapshot,
     issueNumber,
     stage: "plan-gate",
     status: "waiting",
@@ -350,13 +359,23 @@ export const draftArtifact = (issueNumber: number): string =>
 export const planGateIssue = (
   issueNumber: number,
   title: string,
-  risk: "low" | "medium" | "high" | null = null
-): SeedIssue => ({
-  title,
-  labels: ["ready-for-agent", "agent:working"],
-  state: base(issueNumber, toPlan(), { stage: "plan-gate", status: "waiting" }),
-  artifacts: { "ticket.md": ticketText(title), "plan.json": planArtifact(risk) }
-});
+  risk: "low" | "medium" | "high" | null = null,
+  flowSnapshot: FlowSnapshot = DEFAULT_FLOW_SNAPSHOT
+): SeedIssue => {
+  // Every fixture flow plans first, in a step with the id `plan`, then waits at a gate.
+  const gate = flowSnapshot.flow.steps.find((step) => step.kind === "gate")?.id ?? "plan-gate";
+  return {
+    title,
+    labels: ["ready-for-agent", "agent:working"],
+    state: base(
+      issueNumber,
+      toPlan(),
+      { stage: gate, status: "waiting", loops: freshLoops(flowSnapshot) },
+      flowSnapshot
+    ),
+    artifacts: { "ticket.md": ticketText(title), "plan.json": planArtifact(risk) }
+  };
+};
 
 const runningIssue = (issueNumber: number, title: string): SeedIssue => {
   const history = [
@@ -411,6 +430,49 @@ const shippedIssue = (issueNumber: number, title: string): SeedIssue => {
   };
 };
 
+/**
+ * A research flow that ran to its end: two report agents wrote their reports and nothing shipped.
+ * The editor's report, the last, is what the finished card shows.
+ */
+export const finishedResearchIssue = (issueNumber: number, title: string): SeedIssue => {
+  const history = [
+    ...toPlan(),
+    event("plan-gate", "plan-approved"),
+    event("research", "stage-started"),
+    event("research", "report-ready", "2 finding(s)"),
+    event("summarize", "stage-started"),
+    event("summarize", "report-ready", "1 finding(s)"),
+    event("finished", "flow-finished")
+  ];
+  return {
+    title,
+    labels: ["ready-for-agent"],
+    state: base(
+      issueNumber,
+      history,
+      { stage: "finished", status: "done", loops: freshLoops(RESEARCH_FLOW_SNAPSHOT) },
+      RESEARCH_FLOW_SNAPSHOT
+    ),
+    artifacts: {
+      "ticket.md": ticketText(title),
+      "plan.json": planArtifact(),
+      "report-researcher.json": json({
+        summary: "Two pages still describe a fixed pipeline.",
+        findings: [
+          "docs/agents/agent-desk.md:3 says the desk runs one fixed sequence.",
+          "docs/agents/agent-desk-api.md:78 lists only the built-in stages."
+        ],
+        plainLanguage: "Two help pages are out of date."
+      }),
+      "report-editor.json": json({
+        summary: "Update the two desk guides so they describe flows as data.",
+        findings: ["Rewrite the stage table at docs/agents/agent-desk.md:240-255."],
+        plainLanguage: "Two help pages need new text about flows."
+      })
+    }
+  };
+};
+
 /** The default board: one issue in every group, and two low-risk plans for the batch. */
 export const scenarioBoard = (): SeedIssue[] => [
   planGateIssue(101, "Add an empty state to the board", "low"),
@@ -444,13 +506,51 @@ const run = (over: Partial<RunRecord> & Pick<RunRecord, "issue" | "role">): RunR
   ...over
 });
 
-/** `runs.jsonl` of the board scenario: #102 ran every agent, #103 had a stuck builder, #99 was removed. */
+/** What a Claude builder on the host gets: the allowlist, one MCP server, one skill, and a removal. */
+const BUILDER_RECEIPT: CapabilityProfile = {
+  provider: "claude",
+  model: "opus",
+  preset: "edit-code",
+  sandbox: "host",
+  tools: {
+    allow: ["Read", "Edit", "Write", "Bash(pnpm --filter * test)"],
+    deny: ["WebFetch", "WebSearch", "Bash(git push *)"]
+  },
+  extraTools: [],
+  mcp: ["serena"],
+  skills: ["kaine-test"],
+  network: "The Claude CLI reaches its API. Tools have no network rule of their own.",
+  removed: [{ kind: "mcp", name: "playwright", reason: "not installed" }],
+  notes: []
+};
+
+/** What a Codex reviewer gets: its sandbox decides, so it has no rules and no MCP server. */
+const REVIEWER_RECEIPT: CapabilityProfile = {
+  provider: "codex",
+  model: null,
+  preset: "read-only",
+  sandbox: "codex-read-only",
+  tools: { allow: [], deny: [] },
+  extraTools: [],
+  mcp: [],
+  skills: ["kaine-review"],
+  network: "No network inside the Codex sandbox.",
+  removed: [{ kind: "mcp", name: "serena", reason: "Codex: sandbox only, no MCP" }],
+  notes: ["Codex: sandbox only, no MCP"]
+};
+
+/**
+ * `runs.jsonl` of the board scenario: #102 ran every agent (the planner before the desk kept a
+ * capability receipt), #103 had a stuck builder, #99 was removed.
+ */
 export const scenarioRuns = (): RunRecord[] => [
   run({ issue: 102, role: "planner", durationMs: 90_000, costUsd: 0.4, turns: 12, editCalls: 0 }),
-  run({ issue: 102, role: "builder" }),
+  run({ issue: 102, role: "builder", agentId: "builder", capabilities: BUILDER_RECEIPT }),
   run({
     issue: 102,
     role: "reviewer",
+    agentId: "reviewer",
+    capabilities: REVIEWER_RECEIPT,
     provider: "codex",
     model: null,
     costUsd: null,
@@ -500,3 +600,101 @@ export const scenarioLessons = (): LessonReport => ({
 
 /** Flow model of a seed issue, for a unit test that wants the browser's input. */
 export const flowOf = (issue: SeedIssue) => buildFlowModel(issue.state, Date.now());
+
+// --- agents and flows ---------------------------------------------------------
+
+const builtinAgent = (id: string): AgentDefinition => {
+  const found = DEFAULT_FLOW_SNAPSHOT.agents.find((agent) => agent.id === id);
+  if (found === undefined) throw new Error(`Fixture: no built-in agent '${id}'`);
+  return found;
+};
+
+/** Definitions of one kind by source: the built-ins, the repository's, and the owner's own. */
+export interface BySource<T> {
+  readonly builtin: readonly T[];
+  readonly repo: readonly T[];
+  readonly local: readonly T[];
+}
+
+export const registryAgents = (): BySource<AgentDefinition> => ({
+  builtin: [builtinAgent("planner"), builtinAgent("builder"), builtinAgent("reviewer")],
+  repo: [
+    {
+      id: "release-notes",
+      name: "Release notes",
+      description: "Writes the release notes of a change.",
+      provider: "claude",
+      output: "report",
+      capabilities: { preset: "read-only", mcp: [], skills: [], tools: [] },
+      prompt: "# Release notes\n\nWrite the notes."
+    }
+  ],
+  local: [
+    {
+      id: "ui-builder",
+      name: "UI builder",
+      description: "Builds a UI change with the design system.",
+      provider: "claude",
+      output: "change",
+      capabilities: { preset: "edit-code", mcp: ["serena"], skills: [], tools: ["doc-export"] },
+      prompt: "# UI builder\n\nBuild the change."
+    }
+  ]
+});
+
+/** A short repository flow: sketch, approve, implement, verify, and an automatic draft PR. */
+const QUICK_FIX: FlowDefinition = {
+  id: "quick-fix",
+  name: "Quick fix",
+  description: "Sketch, approve, implement, verify, and open the draft PR at once.",
+  steps: [
+    { id: "plan", kind: "agent", label: "Sketch", agent: "planner" },
+    { id: "approve", kind: "gate", label: "Approve the sketch", sendBack: ["plan"] },
+    { id: "implement", kind: "agent", label: "Implement", agent: "builder" },
+    {
+      id: "verify",
+      kind: "check",
+      label: "Verify",
+      commands: "loop",
+      loopBack: { to: "implement", limit: 2 }
+    },
+    { id: "ship", kind: "ship", label: "Open the draft PR", auto: true }
+  ]
+};
+
+/**
+ * The owner's own flow: the default with the local UI builder and a design review after the
+ * checks. It uses a local agent, so that agent cannot be deleted.
+ */
+const DESIGN_REVIEW: FlowDefinition = {
+  id: "design-review",
+  name: "Design review",
+  description: "The default flow with a design review before the change review.",
+  steps: [
+    ...DEFAULT_FLOW_SNAPSHOT.flow.steps
+      .slice(0, 4)
+      .map((step) =>
+        step.kind === "agent" && step.id === "build" ? { ...step, agent: "ui-builder" } : step
+      ),
+    { id: "design", kind: "gate", label: "Design review", sendBack: ["build", "plan"] },
+    ...DEFAULT_FLOW_SNAPSHOT.flow.steps.slice(4)
+  ]
+};
+
+export const registryFlows = (): BySource<FlowDefinition> => ({
+  builtin: [DEFAULT_FLOW_SNAPSHOT.flow],
+  repo: [QUICK_FIX],
+  local: [DESIGN_REVIEW]
+});
+
+/** What a run of an agent gets with the fixture desk's config: Claude on the host. */
+export const resolvedOf = (agent: AgentDefinition): CapabilityProfile => ({
+  ...BUILDER_RECEIPT,
+  provider: agent.provider,
+  model: agent.model ?? null,
+  preset: agent.capabilities.preset,
+  extraTools: agent.capabilities.preset === "edit-code" ? agent.capabilities.tools : [],
+  mcp: agent.capabilities.mcp,
+  skills: agent.capabilities.skills,
+  removed: []
+});

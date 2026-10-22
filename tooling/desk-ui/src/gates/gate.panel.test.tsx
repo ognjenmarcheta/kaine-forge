@@ -5,8 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
 import { GatePanel } from "./gate.panel";
-import { planArtifact } from "../../tests/fixture.data";
+import { finishedResearchIssue, planArtifact } from "../../tests/fixture.data";
 import type { ActionSettled } from "../state/desk.provider";
+import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const DONE: ActionSettled = {
@@ -169,6 +170,39 @@ describe("GatePanel at the plan gate", () => {
       "disabled",
       true
     );
+  });
+});
+
+describe("GatePanel at a gate of the owner's own flow", () => {
+  it("approves the step or sends the work back to a step the gate names, by its label", async () => {
+    const actions = actionsOf();
+    show({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage: "signoff", status: "waiting" }, actions);
+
+    expect(screen.getByRole("heading", { name: "Your decision: Sign off" })).toBeTruthy();
+    // The builder's step first, then the latest: the gate names plan and implement.
+    expect(
+      screen.getByText("Feedback can go back to: Back to Implement, Back to Sketch.")
+    ).toBeTruthy();
+    await userEvent.click(
+      within(bar("Your decision: Sign off")).getByRole("button", { name: "Approve" })
+    );
+    // An approval of this gate is not a plan approval, and the toasts say so.
+    expect(actions.run).toHaveBeenLastCalledWith(
+      { action: "approve" },
+      { pending: "desk.undo.pending.gateApprove", done: "desk.action.done.gateApprove" }
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    const targets = screen.getByRole("radiogroup");
+    expect(within(targets).getAllByRole("radio")).toHaveLength(2);
+    await userEvent.click(within(targets).getByRole("radio", { name: "Back to Sketch" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Feedback" }), "Smaller sketch");
+    await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+    expect(actions.run).toHaveBeenLastCalledWith({
+      action: "feedback",
+      to: "plan",
+      text: "Smaller sketch"
+    });
   });
 });
 
@@ -347,6 +381,45 @@ describe("GatePanel after the ship", () => {
     const link = screen.getByRole("link", { name: "Open the pull request" });
     expect(link.getAttribute("href")).toBe("https://github.com/o/r/pull/9");
     expect(screen.queryByRole("button", { name: "Check the PR" })).toBeNull();
+  });
+
+  it("at the end of a flow without a ship: says every step ran and nothing shipped", () => {
+    show({ flowSnapshot: CUSTOM_FLOW_SNAPSHOT, stage: "finished", status: "done" }, actionsOf());
+    expect(screen.getByRole("heading", { name: "Finished" })).toBeTruthy();
+    expect(screen.getByText(/Every step ran; nothing was shipped/)).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("at the end of a research flow: shows the last report under its step, and opens the one before it", async () => {
+    const seed = finishedResearchIssue(7, "Find the old pages");
+    const { detail, summary } = makeDetail(seed.state);
+    const onOpenResult = vi.fn();
+    renderDesk(
+      <GatePanel
+        detail={detail}
+        summary={summary}
+        revision="r1"
+        actions={actionsOf()}
+        onOpenResult={onOpenResult}
+        onShowTrace={vi.fn()}
+      />,
+      fakeApi({
+        artifactJson: (_issue, id, schema) => {
+          const text = seed.artifacts[`${id}.json`];
+          return text === undefined
+            ? Promise.reject(new Error(`no artifact ${id}`))
+            : Promise.resolve(schema.parse(JSON.parse(text)));
+        }
+      })
+    );
+    expect(screen.getByRole("heading", { name: "Result of Summarize" })).toBeTruthy();
+    const finding = await screen.findByText(/Rewrite the stage table/);
+    expect(within(finding).getByText("docs/agents/agent-desk.md:240-255").tagName).toBe("CODE");
+    expect(screen.getByText("Two help pages need new text about flows.")).toBeTruthy();
+    // The researcher's report is one click away, not on the card.
+    expect(screen.queryByText("Two help pages are out of date.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Research" }));
+    expect(onOpenResult).toHaveBeenCalledWith("research");
   });
 
   it.each(["pr-open", "shipped"] as const)(

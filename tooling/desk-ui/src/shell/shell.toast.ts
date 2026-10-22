@@ -10,13 +10,15 @@ const withDetail = (detail: string | null): { description?: string } =>
 
 /**
  * The result of an action, as a toast: from a board card or from the issue page. A
- * failure stays until the engineer closes it, because its reason must be read.
+ * failure stays until the engineer closes it, because its reason must be read. `doneKey`
+ * replaces the words of a done action whose meaning depends on the step, such as an approval.
  */
 export function toastSettled(
   t: Translate,
   issueNumber: number,
   action: ActionName,
-  settled: ActionSettled
+  settled: ActionSettled,
+  doneKey: string = `desk.action.done.${action}`
 ): void {
   const title = (message: string): string =>
     t("desk.toast.title", { number: issueNumber, message });
@@ -34,6 +36,6 @@ export function toastSettled(
       toast.success(title(t(`desk.action.accepted.${action}`)));
       return;
     case "done":
-      toast.success(title(t(`desk.action.done.${action}`)), withDetail(settled.outcome.message));
+      toast.success(title(t(doneKey)), withDetail(settled.outcome.message));
   }
 }

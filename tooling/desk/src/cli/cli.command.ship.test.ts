@@ -6,6 +6,7 @@ import { runCli, type CliDeps, type CliResult } from "./desk.cli";
 import { createGitPort } from "../git";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
 import { CLI_NOW } from "../testing/cli.testing";
+import { INSTALLED_FILES } from "../testing/flow.testing";
 import { createOriginAndClone, createScratch, hermeticExec } from "../testing/git.repo";
 import type { TestRepo, TestScratch } from "../testing/git.repo";
 import { fakeGitHub, snapshotOf, type FakeGitHub } from "../testing/github.fake";
@@ -55,6 +56,7 @@ const open = async (): Promise<Harness> => {
   const files = {
     ...REPO_FILES,
     ...SHIP_REPO_FILES,
+    ...INSTALLED_FILES,
     ".github/pull_request_template.md": template
   };
   for (const [file, content] of Object.entries(files)) await clone.write(file, content);

@@ -32,8 +32,10 @@ import {
   issueUrl,
   intakeStoppedIssue,
   draftArtifact,
+  finishedResearchIssue,
   type SeedIssue
 } from "./fixture.data";
+import { createFixtureRegistry, type FixtureRegistry } from "./fixture.registry";
 
 /**
  * A desk server for browser tests: the real HTTP layer (cookie, headers, event stream, static
@@ -53,7 +55,8 @@ interface Call {
 }
 
 interface ResetOptions {
-  readonly scenario?: "board" | "empty";
+  /** `research`: only #107, a research flow that finished with two reports. */
+  readonly scenario?: "board" | "empty" | "research";
   /** The ship dry run reports a failing gate rule. */
   readonly failShipGate?: boolean;
 }
@@ -112,6 +115,7 @@ const gate = (state: IssueState, message: string | null = null): PipelineResult 
 const buildRunner = (
   store: IssueStore,
   options: ResetOptions,
+  registry: FixtureRegistry,
   log: (issue: number, message: string) => void
 ): ServerRunner => {
   const record = (issue: number, action: string, payload: unknown): void => {
@@ -153,7 +157,19 @@ const buildRunner = (
           message: "No acceptance criteria found."
         };
       }
-      await writeSeed(store, planGateIssue(issue, `Started from the page (#${String(issue)})`));
+      // Like the engine: the chosen flow, else the default; an unknown flow is refused.
+      const flowId = startOptions.flowId ?? "kaine-default";
+      const snapshot = registry.snapshotOf(flowId);
+      if (snapshot === null) {
+        return {
+          outcome: "refused",
+          refusal: "intake-refused",
+          reason: `No flow '${flowId}'.`,
+          state: null
+        };
+      }
+      const title = `Started from the page (#${String(issue)})`;
+      await writeSeed(store, planGateIssue(issue, title, null, snapshot));
       return gate(await readState(store, issue));
     },
     draft: async (issue) => {
@@ -404,7 +420,13 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
   root = await mkdtemp(path.join(tmpdir(), "desk-ui-fixture-"));
   calls = [];
   const store = createIssueStore(path.join(root, "state"));
-  for (const issue of options.scenario === "empty" ? [] : scenarioBoard()) {
+  const seeds =
+    options.scenario === "empty"
+      ? []
+      : options.scenario === "research"
+        ? [finishedResearchIssue(107, "Find the pages that describe a fixed pipeline")]
+        : scenarioBoard();
+  for (const issue of seeds) {
     await writeSeed(store, issue);
   }
   desk = await launchDeskServer({
@@ -415,6 +437,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
     tuning: { pollMs: 40, heartbeatMs: 2000, actionSettleMs: 300 },
     depsFactory: (onEvent: (event: PipelineEvent) => void) => {
       emit = onEvent;
+      const registry = createFixtureRegistry();
       // The fixture's Docker image: missing until the page runs the repair.
       let imageBuilt = false;
       const lessons = lessonDesk(
@@ -432,8 +455,12 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
       const log = (issue: number, message: string): void =>
         onEvent({ type: "log", issue, message });
       return Promise.resolve({
-        runner: buildRunner(store, options, log),
+        runner: buildRunner(store, options, registry, log),
         store,
+        readDefinitions: registry.read,
+        definitionWrites: registry.writes,
+        // The label rule of the fixture config: `flow:quick` runs the repository's quick fix.
+        flowFor: (labels) => (labels.includes("flow:quick") ? "quick-fix" : "kaine-default"),
         readRuns: () =>
           Promise.resolve({
             records: options.scenario === "empty" ? [] : scenarioRuns(),
@@ -504,6 +531,14 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
                 updatedAt: "2026-10-11T09:00:00Z"
               },
               {
+                number: 122,
+                title: "Fix a typo in the empty state",
+                url: issueUrl(122),
+                labels: [{ name: "ready-for-agent" }, { name: "flow:quick" }],
+                body: "",
+                updatedAt: "2026-10-11T08:00:00Z"
+              },
+              {
                 number: 101,
                 title: "Add an empty state to the board",
                 url: issueUrl(101),
@@ -567,7 +602,9 @@ createServer((request, response) => {
           response,
           200,
           await reset({
-            ...(body["scenario"] === "empty" ? { scenario: "empty" as const } : {}),
+            ...(body["scenario"] === "empty" || body["scenario"] === "research"
+              ? { scenario: body["scenario"] }
+              : {}),
             ...(body["failShipGate"] === true ? { failShipGate: true } : {})
           })
         );

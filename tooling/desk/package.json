@@ -15,6 +15,7 @@
     "test": "vitest run --passWithNoTests && node --test \"docker/*.test.mjs\""
   },
   "dependencies": {
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
