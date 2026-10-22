@@ -255,6 +255,24 @@ describe("pipeline runner: plan gate", () => {
     expect(second?.prompt).toContain("say in `revision` what changed");
   });
 
+  it("gives every build the owner's note from the approval, as the owner's answer", async () => {
+    const e = await open({
+      steps: [planStep(planOutput({ openQuestions: ["CSV or XLSX?"] })), buildStep(), reviewStep()]
+    });
+    await e.pipeline.start(ISSUE, { override: false });
+
+    await e.pipeline.approvePlan(ISSUE, { note: "  CSV only.  " });
+
+    expect((await stateOf(e)).approveNote).toBe("CSV only.");
+    const [planner, builder, reviewer] = e.runner.requests;
+    expect(builder?.prompt).toContain(
+      "## The owner's note at the plan approval\n\nThe owner wrote this when approving the plan."
+    );
+    expect(builder?.prompt).toContain("CSV only.");
+    expect(planner?.prompt).not.toContain("CSV only.");
+    expect(reviewer?.prompt).not.toContain("CSV only.");
+  });
+
   it("renames the branch when the planner picks another type or slug", async () => {
     const e = await open({
       steps: [

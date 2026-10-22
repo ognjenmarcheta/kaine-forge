@@ -1,7 +1,35 @@
-import type { GhClient } from "./github.gh";
-import { issueEventSchema, issueViewSchema, type IssueSnapshot } from "./github.types";
+import { GhError, type GhClient } from "./github.gh";
+import {
+  issueEventSchema,
+  issueViewSchema,
+  type CreateIssueRequest,
+  type CreatedIssue,
+  type IssueSnapshot
+} from "./github.types";
 
 export const READY_LABEL = "ready-for-agent";
+
+const CREATED_ISSUE_URL = /^https:\/\/\S+\/issues\/(\d+)$/;
+
+/**
+ * Open an issue with `gh issue create`. The body goes through stdin: no shell, no temporary
+ * file. `gh` prints the new issue's URL last; its number is read from there.
+ */
+export const createIssue = async (
+  gh: GhClient,
+  request: CreateIssueRequest
+): Promise<CreatedIssue> => {
+  const output = await gh.text(
+    ["issue", "create", "--title", request.title, "--body-file", "-"],
+    request.body
+  );
+  const url = output.trim().split("\n").at(-1)?.trim() ?? "";
+  const number = CREATED_ISSUE_URL.exec(url)?.[1];
+  if (number === undefined) {
+    throw new GhError("gh issue create printed no issue URL", "parse");
+  }
+  return { number: Number(number), url };
+};
 
 const ISSUE_FIELDS = "title,body,labels,comments,url,state,author,number";
 

@@ -312,6 +312,26 @@ describe("log buffer", () => {
     expect(buffer.read(3, 0)).toEqual({ entries: [], last: 0 });
   });
 
+  it("tags each entry with a stage: a history event's own, else the issue's latest state", () => {
+    const buffer = createLogBuffer(clock);
+    expect(buffer.append({ type: "log", issue: 1, message: "before" })?.stage).toBeNull();
+    buffer.append({ type: "state", issue: 1, state: makeState(1, { stage: "build" }) });
+    const agent = buffer.append({
+      type: "agent",
+      issue: 1,
+      role: "builder",
+      event: { type: "text", text: "editing" }
+    });
+    expect(agent?.stage).toBe("build");
+    const history = buffer.append({
+      type: "history",
+      issue: 1,
+      event: { at: "2026-03-01T10:00:00.000Z", stage: "check", event: "stage-started" }
+    });
+    expect(history?.stage).toBe("check");
+    expect(buffer.append({ type: "log", issue: 2, message: "other issue" })?.stage).toBeNull();
+  });
+
   it("redacts secrets in text", () => {
     const buffer = createLogBuffer(clock);
     const entry = buffer.append({

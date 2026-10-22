@@ -21,6 +21,8 @@ const planner = (): PlannerOutput => ({
   tests: [{ path: "tooling/desk/src/a.test.ts", action: "create", reason: "prove parsing" }],
   acceptanceCriteria: [{ criterion: "Parses output", change: "a.ts schema" }],
   risks: [],
+  risk: "low",
+  riskReasons: ["One new contract file with tests."],
   openQuestions: [],
   changeset: { required: true, packages: ["@repo/desk"], bump: "minor" },
   pr: { type: "feat", slug: "desk-contracts" },
@@ -60,6 +62,8 @@ describe("planner output", () => {
     ["a slug with spaces or capitals", { pr: { type: "feat", slug: "Desk Contracts" } }],
     ["an empty summary", { summary: "" }],
     ["an empty revision", { revision: "" }],
+    ["an unknown risk grade", { risk: "extreme" }],
+    ["an empty risk reason", { riskReasons: [""] }],
     ["a missing plain-language field", { plainLanguage: undefined }]
   ])("rejects %s", (_name, patch) => {
     expect(plannerOutputSchema.safeParse({ ...planner(), ...patch }).success).toBe(false);
@@ -70,11 +74,13 @@ describe("planner output", () => {
     expect(plannerOutputSchema.safeParse(plan).success).toBe(true);
   });
 
-  it("reads a plan written before the revision field as a first plan", () => {
+  it("reads a plan written before the revision and risk fields as a first, ungraded plan", () => {
     const older: Record<string, unknown> = { ...planner() };
     delete older.revision;
-    const parsed = plannerOutputSchema.safeParse(older);
-    expect(parsed.success && parsed.data.revision).toBeNull();
+    delete older.risk;
+    delete older.riskReasons;
+    const parsed = plannerOutputSchema.parse(older);
+    expect([parsed.revision, parsed.risk, parsed.riskReasons]).toEqual([null, null, []]);
   });
 });
 
@@ -90,6 +96,14 @@ describe("builder output", () => {
 
   it("accepts a complete result", () => {
     expect(builderOutputSchema.safeParse(builder).success).toBe(true);
+  });
+
+  it("reads a build written before the revision field as a first build", () => {
+    expect(builderOutputSchema.parse(builder).revision).toBeNull();
+    expect(builderOutputSchema.parse({ ...builder, revision: "Fixed the test." }).revision).toBe(
+      "Fixed the test."
+    );
+    expect(builderOutputSchema.safeParse({ ...builder, revision: "" }).success).toBe(false);
   });
 
   it("rejects an unknown check result", () => {

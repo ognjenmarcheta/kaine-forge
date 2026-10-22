@@ -1,4 +1,5 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Locator, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 const CONTROL = "http://127.0.0.1:4180";
@@ -59,15 +60,38 @@ const test = base.extend<{ desk: Desk; problems: string[] }>({
 });
 
 const group = (page: Page, name: RegExp) => page.getByRole("region", { name });
-const inspector = (page: Page) => page.getByRole("complementary");
+/** The board opens as Your turn; this switches it to the four columns. */
+const showColumns = async (page: Page) => {
+  await page
+    .getByRole("group", { name: "Board layout" })
+    .getByRole("button", { name: "Columns" })
+    .click();
+};
+/** One row of Your turn, found by its issue number. */
+const row = (page: Page, issue: number) =>
+  page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("link", { name: new RegExp(`^#${String(issue)} `) }) });
+/** The stage side sheet: the one dialog that is not modal. */
+const sheet = (page: Page) => page.locator('[role="dialog"][aria-modal="false"]');
+/** A stage of the stepper under the issue header. */
+const stage = (page: Page, name: RegExp) =>
+  page.getByRole("list", { name: "Stages and their status" }).getByRole("button", { name });
 const more = async (page: Page, item: string) => {
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: item }).click();
 };
+/** The decision card's buttons, named by the card's heading. */
+const decide = (page: Page, heading: string) => page.getByRole("group", { name: heading });
+/**
+ * Approve, feedback, continue, cancel, and remove wait 8 s for Undo before they are sent. A test
+ * that installed the page clock skips the wait; the request still goes out the normal way.
+ */
+const skipUndo = (page: Page) => page.clock.fastForward(8_000);
 
 test("opens the plain local URL and shows the four board columns", async ({ page, desk }) => {
   await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
   expect(page.url()).not.toContain("session");
   const cookies = await page.context().cookies();
   expect(cookies.find((cookie) => cookie.name.startsWith("desk_session_"))).toMatchObject({
@@ -75,6 +99,8 @@ test("opens the plain local URL and shows the four board columns", async ({ page
     sameSite: "Strict"
   });
 
+  await showColumns(page);
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
   await expect(group(page, /^Needs you/)).toContainText("#103");
   await expect(group(page, /^Needs you/)).toContainText(
     "Two consecutive checks failed the same way"
@@ -86,9 +112,9 @@ test("opens the plain local URL and shows the four board columns", async ({ page
   // One chip joins stage and state; the progress bar says where the issue is in words.
   await expect(group(page, /^Waiting for you/)).toContainText("Plan approval · waiting for you");
   await expect(
-    group(page, /^Waiting for you/).getByRole("img", {
-      name: "Stage 3 of 8: Plan approval (Waiting for you)"
-    })
+    group(page, /^Waiting for you/)
+      .getByRole("img", { name: "Stage 3 of 9: Plan approval (Waiting for you)" })
+      .first()
   ).toBeVisible();
   await expect(group(page, /^Running/)).toContainText("Build · running");
   await expect(group(page, /^Done/).getByRole("link", { name: "Open PR" })).toHaveAttribute(
@@ -107,20 +133,20 @@ test("opens the plain local URL and shows the four board columns", async ({ page
 
 test("shows an empty board with a way to start", async ({ page, desk }) => {
   await desk.open({ scenario: "empty" });
-  await expect(page.getByRole("heading", { name: "No issues yet" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start issue" })).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "No issues on the desk yet" })).toBeVisible();
+  await page.getByRole("button", { name: "Start your first issue" }).click();
+  await expect(page.getByRole("dialog", { name: "Start an issue" })).toBeVisible();
 });
 
-test("filters the board by number or title, with / to focus the search", async ({ page, desk }) => {
+test("filters the board by number or title", async ({ page, desk }) => {
   await desk.open();
   await expect(page.getByRole("link", { name: /#101/ })).toBeVisible();
-  await page.keyboard.press("/");
   const search = page.getByRole("searchbox", { name: "Search issues" });
-  await expect(search).toBeFocused();
+  await search.fill("#999");
+  await expect(page.getByText("No issue here matches the search.")).toBeVisible();
   await search.fill("#103");
   await expect(page.getByRole("link", { name: /#101/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /#103/ })).toBeVisible();
-  await expect(group(page, /^Running/)).toContainText("No issue here matches the search.");
   await page.getByRole("button", { name: "Clear the search" }).click();
   await search.fill("loop counts");
   await expect(page.getByRole("link", { name: /#104/ })).toBeVisible();
@@ -135,18 +161,74 @@ test("continues a stopped issue from its card and shows the result as a toast", 
   await group(page, /^Needs you/)
     .getByRole("button", { name: "Continue" })
     .click();
-  await expect(page.getByText(/^#103 · Continued\./)).toBeVisible();
-  await expect(group(page, /^Waiting for you/)).toContainText("#103");
+  await expect(page.getByText("#103 · The run will continue.")).toBeVisible();
+  await expect(page.getByText(/^#103 · Continued\./)).toBeVisible({ timeout: 15_000 });
+  await expect(group(page, /^Your decisions/)).toContainText("#103");
   expect(await desk.calls()).toEqual([{ issue: 103, action: "continue", payload: { from: null } }]);
 });
 
 test("opens the plan gate from the card's next action", async ({ page, desk }) => {
   await desk.open();
-  await group(page, /^Waiting for you/)
-    .getByRole("link", { name: "Review plan" })
-    .click();
+  await row(page, 101).getByRole("link", { name: "Review plan" }).click();
   await expect(page).toHaveURL(/\?issue=101/);
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
+});
+
+test("approves a low-risk plan from Your turn, and Undo sends nothing", async ({ page, desk }) => {
+  await desk.open();
+  // Next up is the stopped issue; the plans wait below it, oldest first.
+  await expect(row(page, 103)).toContainText("Next up");
+  await expect(row(page, 101)).not.toContainText("Next up");
+  const approve = row(page, 101).getByRole("button", { name: "Approve the plan of #101" });
+
+  await approve.click();
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Undone. Nothing ran.")).toBeVisible();
+
+  await approve.click();
+  await expect(page.getByText(/^#101 · Plan approved\./)).toBeVisible({ timeout: 15_000 });
+  // One approve only: the undone one never reached the server.
+  expect(await desk.calls()).toEqual([{ issue: 101, action: "approve", payload: {} }]);
+});
+
+test("approves every low-risk plan in one undoable batch", async ({ page, desk }) => {
+  await desk.open();
+  await group(page, /^Your decisions/)
+    .getByRole("button", { name: "Approve 2 low-risk plans…" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Approve 2 low-risk plans?" });
+  await expect(dialog).toContainText("#101 Add an empty state to the board");
+  await expect(dialog).toContainText("#106 Translate the empty state");
+  await dialog.getByRole("button", { name: "Approve 2 plans" }).click();
+
+  await expect(page.getByText("#101, #106 · 2 low-risk plans will be approved.")).toBeVisible();
+  expect(await desk.calls()).toEqual([]);
+  await expect(page.getByText("Plans approved: #101, #106. The builds started.")).toBeVisible({
+    timeout: 15_000
+  });
+  expect(await desk.calls()).toEqual([
+    { issue: 101, action: "approve", payload: {} },
+    { issue: 106, action: "approve", payload: {} }
+  ]);
+});
+
+test("switches the board to columns with filters, and keeps the choice", async ({ page, desk }) => {
+  await desk.open();
+  await expect(page.getByRole("group", { name: "Filter" })).toHaveCount(0);
+  await showColumns(page);
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  for (const name of [/^Needs you/, /^Waiting for you/, /^Running/, /^Done/]) {
+    await expect(group(page, name)).toBeVisible();
+  }
+  const filters = page.getByRole("group", { name: "Filter" });
+  await filters.getByRole("button", { name: /^Running/ }).click();
+  await expect(group(page, /^Running/)).toContainText("#104");
+  await expect(page.getByRole("link", { name: /#101/ })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(group(page, /^Waiting for you/)).toContainText("#101");
 });
 
 test("opens the plain local URL in a second browser without a launch token", async ({
@@ -155,17 +237,17 @@ test("opens the plain local URL in a second browser without a launch token", asy
   desk
 }) => {
   const url = await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
 
   // A second browser has no cookie yet. Opening the local page issues one.
   const other = await browser.newContext();
   const stranger = await other.newPage();
   await stranger.goto(`${url}/`);
-  await expect(stranger.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(stranger.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
   await other.close();
 });
 
-test("opens an issue: the inspector shows the current stage beside a graph that fits", async ({
+test("opens an issue: the stepper opens a stage in the side sheet, and the graph fits", async ({
   page,
   desk
 }) => {
@@ -175,9 +257,16 @@ test("opens an issue: the inspector shows the current stage beside a graph that 
   await expect(
     page.getByRole("heading", { name: /#102 Explain the review verdict/, level: 1 })
   ).toBeVisible();
-  await expect(inspector(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
-  await expect(inspector(page).getByRole("list", { name: "Ship readiness" })).toBeVisible();
+  await expect(sheet(page)).toHaveCount(0);
+  await stage(page, /^PR review/).click();
+  await expect(sheet(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("list", { name: "Ship readiness" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
 
+  // The graph opens from the More menu; the stepper under the header is always there.
+  await expect(page.getByRole("group", { name: "Pipeline graph" })).toHaveCount(0);
+  await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await expect(graph.getByRole("group", { name: /^PR review: Waiting for you/ })).toBeVisible();
   await expect(page.getByRole("list", { name: "What the colors mean" })).toContainText("Went back");
@@ -247,10 +336,11 @@ test("opens an issue: the inspector shows the current stage beside a graph that 
   expect(Math.min(...text.statuses, ...text.metrics)).toBeGreaterThanOrEqual(text.xsmall);
   expect(text.cut).toEqual([]);
 
-  // The stages in words, for a screen reader.
+  // The stepper names every stage with its status and marks the current one.
   const stages = page.getByRole("list", { name: "Stages and their status" });
-  await expect(stages.getByRole("listitem")).toHaveCount(8);
-  await expect(stages.getByRole("listitem").nth(6)).toHaveAttribute("aria-current", "step");
+  await expect(stages.getByRole("button")).toHaveCount(9);
+  await expect(stages.getByRole("button").nth(6)).toHaveAttribute("aria-current", "step");
+  await expect(stages.getByRole("button").nth(6)).toHaveAccessibleName("PR review Waiting for you");
 
   // The graph keeps its pan and zoom controls and cannot be edited.
   await expect(graph.getByRole("button", { name: "Zoom in" })).toBeVisible();
@@ -275,15 +365,16 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   desk
 }) => {
   await desk.open({}, "?issue=102");
+  await more(page, "Show graph");
   const graph = page.getByRole("group", { name: "Pipeline graph" });
   await graph.getByRole("group", { name: /^Check: / }).click();
-  await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
-  await expect(inspector(page)).toContainText("Check went back 1×");
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  await expect(sheet(page)).toContainText("Check went back 1×");
 
   await graph.getByRole("group", { name: /^Plan: / }).focus();
   await page.keyboard.press("Enter");
-  await expect(inspector(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
-  await expect(inspector(page).getByRole("list", { name: "Acceptance criteria" })).toContainText(
+  await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("list", { name: "Acceptance criteria" })).toContainText(
     "An empty board explains how to start an issue"
   );
 
@@ -295,49 +386,80 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   await page.waitForTimeout(300);
   expect(await viewport.getAttribute("style")).toBe(zoomed);
   // The selection persists while new data arrives.
-  await expect(inspector(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
 });
 
-test("opens the full result of a stage in a drawer, with markup in the ticket kept as text", async ({
+test("the side sheet holds a stage and its full result, steps with ← and →, and Esc closes it", async ({
   page,
   desk
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await desk.open({}, "?issue=102");
-  const graph = page.getByRole("group", { name: "Pipeline graph" });
-  await graph.getByRole("group", { name: /^Ticket: / }).click();
-  const open = inspector(page).getByRole("button", { name: "Open full result" });
-  await open.click();
-  const drawer = page.getByRole("dialog", { name: "Ticket" });
-  await expect(drawer).toContainText("<script>window.injected = true</script>");
-  await expect(drawer).toContainText("6 of 6 sections");
+  const ticket = stage(page, /^Ticket/);
+  await ticket.click();
+  const opened = sheet(page);
+  await expect(opened).toHaveAttribute("aria-modal", "false");
+  await expect(opened.getByRole("heading", { name: "Ticket", level: 2 })).toBeVisible();
+  await expect(opened).toContainText("Stage 1 of 9");
+  await expect(opened.getByRole("button", { name: "Previous stage" })).toBeDisabled();
+  await expect(opened).toContainText("<script>window.injected = true</script>");
+  await expect(opened).toContainText("6 of 6 sections");
   expect(await page.evaluate(() => "injected" in window)).toBe(false);
-  await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  await expect(open).toBeFocused();
+  await expect(ticket).toHaveAttribute("aria-pressed", "true");
 
-  await graph.getByRole("group", { name: /^Check: / }).click();
-  await open.click();
-  await expect(page.getByRole("dialog", { name: "Check" })).toContainText("Tasks: 6 successful");
-  await page.keyboard.press("Escape");
+  // From 1200 px the page makes room: the sheet starts below the top bar and covers nothing.
+  const box = await opened.boundingBox();
+  const main = await page.locator("main").boundingBox();
+  const masthead = await page.locator(".desk-masthead").boundingBox();
+  expect(box).not.toBeNull();
+  if (box !== null && main !== null && masthead !== null) {
+    expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
+    expect(box.y).toBeGreaterThanOrEqual(masthead.y + masthead.height - 1);
+    expect(box.y + box.height).toBeCloseTo(900, 0);
+  }
 
-  await graph.getByRole("group", { name: /^PR review: / }).click();
-  await open.click();
-  const review = page.getByRole("dialog", { name: "PR review" });
-  await expect(review).toContainText("The heading level jumps from h1 to h3.");
-  await expect(review).toContainText("apps/web/src/board.empty.tsx:14");
-  await expect(review).toContainText("Files: 2, lines added: 4, removed: 1");
+  // → and ← step through the stages; the buttons do the same.
+  await stage(page, /^Check/).click();
+  await expect(opened).toContainText("Tasks: 6 successful");
+  await page.keyboard.press("ArrowRight");
+  await expect(opened.getByRole("heading", { name: "Review", level: 2 })).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(opened.getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  await expect(opened).toContainText("The heading level jumps from h1 to h3.");
+  await expect(opened).toContainText("apps/web/src/board.empty.tsx:14");
+  await expect(opened).toContainText("Files: 2, lines added: 4, removed: 1");
+  await opened.getByRole("button", { name: "Previous stage" }).click();
+  await expect(opened.getByRole("heading", { name: "Review", level: 2 })).toBeVisible();
+
+  // Esc closes the sheet and focus goes back to where it opened.
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(ticket).toBeFocused();
 });
 
-test("shows the history as activity rows, newest first, with loop rounds", async ({
+test("shows the history as a trace of steps, every event on demand, and the handoffs", async ({
   page,
   desk
 }) => {
   await desk.open({}, "?issue=102");
-  await expect(page.getByRole("tab", { name: "Activity" })).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
+  // An issue that waits at a gate keeps its history folded, with a one-line summary.
+  const history = page.getByRole("region", { name: "History" });
+  await expect(history).toContainText("went back or stopped: 1");
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveCount(0);
+  await history.getByRole("button", { name: "Show" }).click();
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveAttribute("aria-selected", "true");
+  const steps = page.getByRole("list", { name: "Steps of this issue, newest first" });
+  const newest = steps.locator(":scope > li").first();
+  await expect(newest).toContainText("PR review");
+  await expect(newest).toContainText("Waiting for you");
+  await expect(steps).toContainText("Check · round 2");
+  await expect(steps).toContainText("Went back");
+  const handoffs = page.getByRole("region", { name: "Handoffs across the run" });
+  await expect(handoffs.getByRole("listitem").first()).toContainText("Intake");
+  await expect(handoffs).toContainText("Planner");
+  await expect(handoffs).toContainText("Reviewer");
+
+  await page.getByRole("checkbox", { name: "Show every event" }).check();
   const activity = page.getByRole("list", { name: "History of this issue" });
   await expect(activity.getByRole("heading", { level: 3 }).first()).toHaveText("Review");
   await expect(activity).toContainText("Check · round 2");
@@ -350,25 +472,54 @@ test("approves a plan and follows the issue to the next gate without a reload", 
   page,
   desk
 }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
   await expect(page.getByRole("heading", { name: "Approve the plan" })).toBeVisible();
-  await expect(
-    inspector(page).getByRole("heading", { name: "Plan approval", level: 2 })
-  ).toBeVisible();
-  await inspector(page).getByRole("button", { name: "Approve plan" }).click();
+  await expect(stage(page, /^Plan approval/)).toHaveAttribute("aria-current", "step");
+  await decide(page, "Approve the plan").getByRole("button", { name: "Approve plan" }).click();
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  expect(await desk.calls()).toEqual([]);
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   await expect(page.getByText(/^#101 · Plan approved\./)).toBeVisible();
-  // The inspector follows the issue to its new stage.
-  await expect(inspector(page).getByRole("heading", { name: "PR review", level: 2 })).toBeVisible();
+  // The stepper follows the issue to its new stage.
+  await expect(stage(page, /^PR review/)).toHaveAttribute("aria-current", "step");
   expect(await desk.calls()).toEqual([{ issue: 101, action: "approve", payload: {} }]);
 });
 
-test("requests changes to the plan from the inspector", async ({ page, desk }) => {
+test("approves a plan with A, and the answer to the planner's question goes with it", async ({
+  page,
+  desk
+}) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
-  await inspector(page).getByRole("button", { name: "Request changes" }).click();
+  // The risk line: the planner's grade and why.
+  await expect(page.locator(".desk-riskline")).toContainText("Low risk");
+  await expect(page.locator(".desk-riskline")).toContainText(
+    "Two files, one of them new, and a test"
+  );
+  const card = page.getByRole("region", { name: "Approve the plan" });
+  await expect(card.getByText("Should the empty state link to the docs?")).toBeVisible();
+  await page.getByRole("textbox", { name: /Your answer/ }).fill("Yes, link the desk docs");
+  // A in a text box is a letter. Outside it, A approves.
+  await page.getByRole("heading", { name: "Approve the plan" }).click();
+  await page.keyboard.press("a");
+  await expect(page.getByText("#101 · The plan will be approved.")).toBeVisible();
+  await skipUndo(page);
+  await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
+  expect(await desk.calls()).toEqual([
+    { issue: 101, action: "approve", payload: { note: "Yes, link the desk docs" } }
+  ]);
+});
+
+test("requests changes to the plan from the decision card", async ({ page, desk }) => {
+  await page.clock.install();
+  await desk.open({}, "?issue=101");
+  await decide(page, "Approve the plan").getByRole("button", { name: "Request changes" }).click();
   await expect(page.getByRole("textbox", { name: "Feedback" })).toBeFocused();
   await page.getByRole("textbox", { name: "Feedback" }).fill("Cover the empty case");
   await page.getByRole("button", { name: "Send feedback" }).click();
+  await skipUndo(page);
   await expect(page.getByText("Feedback sent. The stage ran again.")).toBeVisible();
   expect(await desk.calls()).toEqual([
     { issue: 101, action: "feedback", payload: { to: "plan", text: "Cover the empty case" } }
@@ -380,7 +531,7 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
   desk
 }) => {
   await desk.open({}, "?issue=102");
-  await inspector(page).getByRole("button", { name: "Ship as draft PR…" }).click();
+  await decide(page, "Review the work").getByRole("button", { name: "Ship as draft PR…" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Ship to a draft pull request" });
   await expect(dialog.getByText("Every ship rule passes.")).toBeVisible();
@@ -408,10 +559,68 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
     "href",
     "https://github.com/owner/kaine-forge/pull/321"
   );
-  // The note appears once, in the inspector.
+  // The note appears once, in the decision card.
   await expect(
     page.getByText(/You merge it yourself. The desk never merges, approves/)
   ).toHaveCount(1);
+});
+
+test("keeps Ship secondary until every file is viewed, and the dialog says what is not", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=102");
+  const bar = decide(page, "Review the work");
+  const ship = bar.getByRole("button", { name: "Ship as draft PR…" });
+  await expect(
+    page.getByRole("region", { name: "Review the work" }).getByText("Ready to ship")
+  ).toBeVisible();
+  await expect(bar).toContainText("0 of 2 files viewed");
+  await expect(ship).toHaveClass(/ui-button--subtle/);
+
+  // Both files have a finding, so both sit under that group, each with its count.
+  const files = page.getByRole("navigation", { name: "Changed files" });
+  await expect(files.getByRole("listitem").nth(0)).toHaveText("Has findings");
+  await expect(files.getByRole("listitem").nth(1)).toContainText("apps/web/src/board.tsx");
+  await expect(files.getByRole("listitem").nth(1)).toContainText("Findings: 1");
+  await expect(files.getByRole("listitem").nth(2)).toContainText("apps/web/src/board.empty.tsx");
+  // The open file shows its finding under the line it names.
+  await expect(page.getByLabel("Patch of apps/web/src/board.tsx").getByRole("note")).toContainText(
+    "Import order differs from the rest of the file."
+  );
+
+  // S opens the dialog anyway: it warns and names the files, and does not block.
+  await page.keyboard.press("s");
+  const dialog = page.getByRole("dialog", { name: "Ship to a draft pull request" });
+  await expect(dialog.getByText("Not every file is marked viewed.")).toBeVisible();
+  await expect(dialog).toContainText("apps/web/src/board.empty.tsx");
+  await expect(dialog.getByRole("button", { name: "Continue to confirm" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Close", exact: true }).first().click();
+  await expect(dialog).toBeHidden();
+
+  // N opens the next unviewed file. Marking it viewed brings back the one still to read.
+  await page.keyboard.press("n");
+  const empty = page.getByLabel("Patch of apps/web/src/board.empty.tsx");
+  await expect(empty.getByRole("note")).toContainText("The heading level jumps from h1 to h3.");
+  await files.getByRole("checkbox", { name: "Viewed apps/web/src/board.empty.tsx" }).click();
+  await expect(page.getByLabel("Patch of apps/web/src/board.tsx")).toContainText("BoardEmpty");
+  await expect(bar).toContainText("1 of 2 files viewed");
+  // The last file folds once it is viewed.
+  await files.getByRole("checkbox", { name: "Viewed apps/web/src/board.tsx" }).click();
+  await expect(page.getByText("Marked as viewed.")).toBeVisible();
+
+  // Every file viewed: Ship leads, and Next unviewed file is gone.
+  await expect(bar).toContainText("2 of 2 files viewed");
+  await expect(ship).toHaveClass(/ui-button--primary/);
+  await expect(bar.getByRole("button", { name: "Next unviewed file" })).toHaveCount(0);
+  // The marks belong to this version of the diff and survive a reload.
+  await page.reload();
+  await expect(decide(page, "Review the work")).toContainText("2 of 2 files viewed");
+  await page.keyboard.press("s");
+  await expect(page.getByRole("dialog", { name: "Ship to a draft pull request" })).toContainText(
+    "Every ship rule passes."
+  );
+  await expect(page.getByText("Not every file is marked viewed.")).toHaveCount(0);
 });
 
 test("blocks the ship when a gate rule fails", async ({ page, desk }) => {
@@ -423,23 +632,65 @@ test("blocks the ship when a gate rule fails", async ({ page, desk }) => {
 });
 
 test("continues an issue that needs the engineer", async ({ page, desk }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=103");
   await expect(page.getByRole("heading", { name: "The desk needs you" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build stopped" })).toBeVisible();
   await expect(page.getByLabel("Reason from the engine")).toContainText(
     "FAIL apps/web/src/board.test.tsx"
   );
-  await expect(inspector(page)).toContainText(
+  // The likely cause comes from facts: the builder's last run got stuck.
+  await expect(page.getByText("Likely cause: the agent got stuck")).toBeVisible();
+  await stage(page, /^Build/).click();
+  await expect(sheet(page)).toContainText(
     "Needs you: Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
   );
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("combobox", { name: "Resume from" })).toContainText(
     "Build (the engine remembers it)"
   );
-  await inspector(page).getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Review the work" })).toBeVisible();
   expect(await desk.calls()).toEqual([{ issue: 103, action: "continue", payload: { from: null } }]);
 });
 
+test("the incident jumps to the failure in the trace, and the filters narrow the steps", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=103");
+  // An issue that needs you opens its history at the trace.
+  await expect(page.getByRole("tab", { name: "Trace" })).toHaveAttribute("aria-selected", "true");
+  const steps = page.getByRole("list", { name: "Steps of this issue, newest first" });
+  // The rows, not the log lines inside an open row.
+  const rows = steps.locator(":scope > li");
+  await expect(rows).toHaveCount(8);
+  await desk.log(103, "FAIL apps/web/src/board.test.tsx again");
+
+  await page.getByRole("button", { name: "See it in the trace" }).click();
+  const failure = steps.getByRole("button", { name: /Needs you/ });
+  await expect(failure).toBeFocused();
+  await expect(failure).toHaveAttribute("aria-expanded", "true");
+  await expect(rows.first()).toContainText("FAIL apps/web/src/board.test.tsx again");
+
+  const filters = page.getByRole("group", { name: "Filter the trace" });
+  await filters.getByRole("button", { name: "Agents only" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(steps).not.toContainText("Needs you");
+  await filters.getByRole("button", { name: "Problems (3)" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(rows.last()).toContainText("Check");
+
+  // Jump from the trace, then inspect the stage the failure stopped in.
+  await page.getByRole("button", { name: "Jump to the failure" }).click();
+  await expect(failure).toBeFocused();
+  await steps.getByRole("button", { name: "Inspect this stage" }).click();
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+});
+
 test("cancels from the More menu only after a confirmation", async ({ page, desk }) => {
+  await page.clock.install();
   await desk.open({}, "?issue=101");
   await more(page, "Cancel run");
   await expect(page.getByRole("dialog", { name: "Cancel this run?" })).toBeVisible();
@@ -448,14 +699,35 @@ test("cancels from the More menu only after a confirmation", async ({ page, desk
   expect(await desk.calls()).toEqual([]);
   await more(page, "Cancel run");
   await page.getByRole("button", { name: "Cancel the run" }).click();
+  await skipUndo(page);
   await expect(page.getByRole("heading", { name: "Cancelled" }).first()).toBeVisible();
+});
+
+test("pauses a running issue with P, shows its latest log line, and resumes it", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?issue=104");
+  await expect(page.getByRole("heading", { name: "Working" })).toBeVisible();
+  await desk.log(104, "Builder edits board.tsx");
+  await expect(page.locator(".desk-nowline")).toContainText("Builder edits board.tsx");
+  await page.keyboard.press("p");
+  await expect(page.getByText(/^Paused since/)).toBeVisible();
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  expect(await desk.calls()).toEqual([
+    { issue: 104, action: "pause", payload: {} },
+    { issue: 104, action: "resume", payload: {} }
+  ]);
 });
 
 test("removes an issue from the More menu and returns to the board", async ({ page, desk }) => {
   await desk.open({}, "?issue=105");
   await more(page, "Remove");
   await page.getByRole("button", { name: "Remove the issue" }).click();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible({
+    timeout: 15_000
+  });
   await expect(page.getByRole("link", { name: /#105/ })).toHaveCount(0);
   expect(await desk.calls()).toEqual([{ issue: 105, action: "remove", payload: { force: false } }]);
 });
@@ -494,10 +766,10 @@ test("updates the board when a change comes from outside, and shows the live log
   desk
 }) => {
   await desk.open();
-  await expect(group(page, /^Waiting for you/)).toContainText("#101");
+  await expect(group(page, /^Your decisions/)).toContainText("#101");
   await desk.mutate(101);
   await expect(group(page, /^Running/)).toContainText("#101");
-  await expect(group(page, /^Waiting for you/)).not.toContainText("#101");
+  await expect(group(page, /^Your decisions/)).not.toContainText("#101");
 
   await page.getByRole("link", { name: /#101/ }).click();
   await page.getByRole("tab", { name: "Live log" }).click();
@@ -535,19 +807,86 @@ test("compares agent runs by role and model, and shows a stage's agent usage", a
   await expect(issues.getByRole("row", { name: /#99 Removed/ })).toBeVisible();
   const lessons = page.getByRole("table", { name: "Lesson candidates" });
   await expect(
-    lessons.getByRole("row", { name: /review\/Correctness\/Consider Review finding #102 #103 3 1/ })
+    lessons.getByRole("row", {
+      name: /review\/Correctness\/Consider Review finding Medium #102 #103 3 1/
+    })
   ).toBeVisible();
   await expect(lessons.getByText("The export drops the header row")).toBeVisible();
 
   await issues.getByRole("link", { name: "#102" }).click();
   await page
-    .getByRole("group", { name: "Pipeline graph" })
-    .getByRole("group", { name: /^Build: / })
+    .getByRole("list", { name: "Stages and their status" })
+    .getByRole("button", { name: /^Build/ })
     .click();
+  await expect(sheet(page).getByRole("heading", { name: "Agent usage, all runs" })).toBeVisible();
+  await expect(sheet(page).getByText("$1.25").first()).toBeVisible();
+});
+
+test("promotes a lesson with a note and unpromotes it, and the server keeps the choice", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=stats");
+  const candidates = page.getByRole("table", { name: "Lesson candidates" });
+  await candidates.getByRole("button", { name: "Promote review/Correctness/Consider" }).click();
+  const dialog = page.getByRole("dialog", { name: "Promote this lesson?" });
+  await dialog.getByLabel("Note (optional)").fill("Added a header-row rule");
+  await dialog.getByRole("button", { name: "Promote", exact: true }).click();
+
+  await expect(candidates).toHaveCount(0);
+  const promoted = page.getByRole("listitem").filter({ hasText: "review/Correctness/Consider" });
+  await expect(promoted.getByText("Added a header-row rule")).toBeVisible();
+  // The server keeps it: a reload shows the same list.
+  await page.reload();
+  await expect(promoted.getByText("Added a header-row rule")).toBeVisible();
+
+  await promoted.getByRole("button", { name: "Unpromote review/Correctness/Consider" }).click();
   await expect(
-    inspector(page).getByRole("heading", { name: "Agent usage, all runs" })
+    candidates.getByRole("row", { name: /review\/Correctness\/Consider/ })
   ).toBeVisible();
-  await expect(inspector(page).getByText("$1.25")).toBeVisible();
+  await expect(page.getByText("No promoted lesson yet.")).toBeVisible();
+});
+
+test("turns a lesson into an issue only after a yes to the exact preview", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=stats");
+  const turn = page.getByRole("button", { name: "Turn review/Correctness/Consider into an issue" });
+  await turn.click();
+  const dialog = page.getByRole("dialog", { name: "Open this issue on GitHub?" });
+  await expect(dialog.getByLabel("Title")).toHaveText("Lesson: review/Correctness/Consider");
+  await expect(dialog.getByLabel("Body")).toHaveText(
+    [
+      "### Outcome",
+      "The problem 'review/Correctness/Consider' stops coming back.",
+      "### Evidence",
+      "- #103 The export drops the header row",
+      "- #102 The CSV has no header row"
+    ].join("\n")
+  );
+  await dialog.getByRole("button", { name: "Back" }).click();
+  expect(await desk.calls()).toEqual([]);
+
+  await turn.click();
+  const title = (await dialog.getByLabel("Title").textContent()) ?? "";
+  const body = (await dialog.getByLabel("Body").textContent()) ?? "";
+  await dialog.getByRole("button", { name: "Open the issue" }).click();
+
+  const link = page.getByRole("status").getByRole("link", { name: "Open #400 on GitHub" });
+  await expect(link).toHaveAttribute("href", "https://github.com/owner/kaine-forge/issues/400");
+  // One request, naming the preview the owner saw.
+  expect(await desk.calls()).toEqual([
+    {
+      issue: 400,
+      action: "lesson-issue",
+      payload: {
+        key: "review/Correctness/Consider",
+        digest: createHash("sha256").update(`${title}\n${body}`).digest("hex")
+      }
+    }
+  ]);
+  await expect(page.getByRole("table", { name: "Lesson candidates" })).toHaveCount(0);
 });
 
 test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
@@ -574,6 +913,9 @@ test("starts an issue picked from GitHub, and shows open pull requests read-only
   desk
 }) => {
   await desk.open();
+  // Your turn lists the pull request in short; the full list sits under the columns.
+  await expect(group(page, /^Open pull requests/)).toContainText("#321");
+  await showColumns(page);
   const pulls = page.getByRole("region", { name: "Open pull requests (1)" });
   await expect(pulls.getByRole("link", { name: "#321" })).toHaveAttribute(
     "href",
@@ -637,26 +979,29 @@ test("switches language and theme without leaving the page", async ({ page, desk
   );
 
   await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  const prefs = page.getByRole("dialog", { name: "Preferences" });
+  await prefs.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(
     lightBackground
   );
 
-  await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Deutsch" }).click();
+  // The panel stays open: the next choice is one click away.
+  await prefs.getByRole("button", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   await expect(page.getByRole("button", { name: "Plan freigeben" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Übersicht", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Übersicht/ })).toBeVisible();
   // The draft in the feedback box survives the change.
   await expect(page.getByRole("textbox", { name: "Rückmeldung" })).toHaveValue(
     "A draft that must survive"
   );
 
-  await page.getByRole("button", { name: "Einstellungen" }).click();
-  await page.getByRole("menuitemradio", { name: "Srpski" }).click();
+  await page
+    .getByRole("dialog", { name: "Einstellungen" })
+    .getByRole("button", { name: "Srpski" })
+    .click();
   await expect(page.getByRole("button", { name: "Odobri plan" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Pregled", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Pregled/ })).toBeVisible();
 });
 
 test("follows the system dark theme until the engineer picks one", async ({ page, desk }) => {
@@ -666,7 +1011,10 @@ test("follows the system dark theme until the engineer picks one", async ({ page
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Preferences" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  await page
+    .getByRole("dialog", { name: "Preferences" })
+    .getByRole("button", { name: "Dark" })
+    .click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(group(page, /^Needs you/)).toContainText("#103");
 });
@@ -677,19 +1025,20 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
 }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await desk.open();
-  await expect(page.getByRole("heading", { name: "Issues", level: 1 })).toBeVisible();
-  // Brand, navigation, live pill, and preferences share one row.
+  await expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible();
+  // Brand, navigation, search, and preferences share one row. A phone has no live pill.
+  await expect(page.locator(".desk-live")).toBeHidden();
   const rows = await page.evaluate(() => {
     const centre = (selector: string): number => {
       const box = document.querySelector(selector)?.getBoundingClientRect();
       return box === undefined ? Number.NaN : Math.round(box.top + box.height / 2);
     };
-    return [".desk-brand", ".desk-nav", ".desk-live", ".desk-icon-button"].map(centre);
+    return [".desk-brand", ".desk-nav", ".desk-cmdk", ".desk-icon-button"].map(centre);
   });
   expect(Math.max(...rows) - Math.min(...rows), String(rows)).toBeLessThanOrEqual(2);
   // Touch targets are at least 44 px high.
   for (const target of [
-    page.getByRole("link", { name: "Board", exact: true }),
+    page.getByRole("link", { name: /^Board/ }),
     page.getByRole("button", { name: "Preferences" }),
     group(page, /^Needs you/).getByRole("button", { name: "Continue" })
   ]) {
@@ -721,56 +1070,98 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
   ).toBe(true);
 });
 
-test("on a phone only a compact action bar sticks, below the decision and the tiles", async ({
+test("on a 390 px phone each view fits its loaded content, with 44 px targets on Health and Runs", async ({
+  page,
+  desk
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await desk.open();
+  const loaded: Record<string, () => Promise<void>> = {
+    "": () => expect(page.getByRole("heading", { name: /^Your turn/, level: 1 })).toBeVisible(),
+    "?issue=102": () => expect(page.getByRole("heading", { name: "History" })).toBeVisible(),
+    "?view=health": () =>
+      expect(page.getByRole("progressbar", { name: "Setup 1 of 3 ready" })).toBeVisible(),
+    "?view=stats": () =>
+      expect(page.getByRole("heading", { name: "Promoted lessons" })).toBeVisible()
+  };
+  for (const [path, ready] of Object.entries(loaded)) {
+    await page.goto(`/${path}`);
+    await ready();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
+
+  const tall = async (targets: readonly Locator[]): Promise<void> => {
+    for (const target of targets) {
+      expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+  };
+  // The loop ends on Runs. A phone is for triage: the week cards stay on a wide screen.
+  await expect(page.getByRole("heading", { name: "Last 7 days" })).toBeHidden();
+  await expect(page.getByRole("region", { name: "Today" })).toBeVisible();
+  await tall([
+    page.getByRole("button", { name: "Load again" }),
+    page.getByRole("button", { name: "Promote review/Correctness/Consider" })
+  ]);
+
+  await page.goto("/?view=health");
+  await expect(page.getByRole("progressbar", { name: "Setup 1 of 3 ready" })).toBeVisible();
+  await tall([
+    page.getByRole("button", { name: "Check again" }),
+    page.getByRole("button", { name: "Copy the command: pnpm desk docker build" }),
+    page.getByRole("button", { name: "Fix" })
+  ]);
+});
+
+test("on a phone the decision's buttons are a bar at the bottom, and the page ends above it", async ({
   page,
   desk
 }) => {
   await page.setViewportSize({ width: 375, height: 800 });
+  await page.clock.install();
   await desk.open({}, "?issue=103");
   await expect(page.getByRole("group", { name: "Pipeline graph" })).toBeHidden();
   const stepper = page.getByRole("list", { name: "Stages and their status" });
-  await expect(stepper.getByRole("button")).toHaveCount(8);
+  await expect(stepper.getByRole("button")).toHaveCount(9);
 
-  // The bar is one row of controls at the bottom of the screen.
-  const bar = inspector(page).getByRole("group", { name: "The desk needs you" });
-  const continueButton = bar.getByRole("button", { name: "Continue" });
-  await expect(continueButton).toBeInViewport();
-  expect((await continueButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const barBox = await bar.boundingBox();
-  expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(80);
-  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeCloseTo(800, 0);
-
-  // The reason and the choice are on screen at load, in the page flow, above the tiles.
-  const reason = page.getByLabel("Reason from the engine");
+  // The incident and the way on are on screen at load, in the page flow.
+  await expect(page.getByLabel("Reason from the engine")).toBeInViewport();
   const resume = page.getByRole("combobox", { name: "Resume from" });
-  await expect(reason).toBeInViewport();
-  await expect(resume).toBeInViewport();
-  // The stage tiles. An agent stage also has a second grid for agent usage below them.
-  const tiles = inspector(page).locator(".desk-kpis").first();
-  const resumeBox = await resume.boundingBox();
-  const tilesBox = await tiles.boundingBox();
-  expect((resumeBox?.y ?? 0) + (resumeBox?.height ?? 0)).toBeLessThanOrEqual(tilesBox?.y ?? 0);
-  // The tiles scroll into view above the bar, not under it.
-  await tiles.scrollIntoViewIfNeeded();
-  const scrolledTiles = await tiles.boundingBox();
-  const scrolledBar = await bar.boundingBox();
-  expect((scrolledTiles?.y ?? 0) + (scrolledTiles?.height ?? 0)).toBeLessThanOrEqual(
-    scrolledBar?.y ?? 0
-  );
 
-  // The stepper selects a stage for the inspector; the decision stays.
+  // On a phone the stage opens over the whole screen; Esc gives the decision back.
   await stepper.getByRole("button", { name: /^Check/ }).click();
-  await expect(inspector(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Check", level: 2 })).toBeVisible();
+  expect(await sheet(page).boundingBox()).toMatchObject({ x: 0, y: 0, width: 375, height: 800 });
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
 
-  // Continue in the bar uses the stage chosen above, and focus moves to the next decision.
+  // Continue uses the stage chosen above, and focus moves to the next decision.
   await resume.click();
   await page.getByRole("option", { name: "Check" }).click();
-  await continueButton.click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await skipUndo(page);
   const next = page.getByRole("heading", { name: "Review the work" });
   await expect(next).toBeFocused();
   expect(await desk.calls()).toEqual([
     { issue: 103, action: "continue", payload: { from: "check" } }
   ]);
+
+  // At the review gate the buttons are a bar fixed to the bottom of the screen.
+  const bar = decide(page, "Review the work");
+  const ship = bar.getByRole("button", { name: "Ship as draft PR…" });
+  await expect(ship).toBeInViewport();
+  expect((await ship.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const barBox = await bar.boundingBox();
+  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeCloseTo(800, 0);
+  expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(130);
+  // The end of the page scrolls above the bar, not under it.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const end = await page.getByRole("region", { name: "History" }).boundingBox();
+  const fixedBar = await bar.boundingBox();
+  expect((end?.y ?? 0) + (end?.height ?? 0)).toBeLessThanOrEqual(fixedBar?.y ?? 0);
+
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const overflow = await page.evaluate(

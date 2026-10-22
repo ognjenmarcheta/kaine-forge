@@ -38,6 +38,9 @@ const summary = {
   progress: ["passed", "passed", "waiting", "idle", "idle", "idle", "idle", "idle", "idle"],
   currentNode: "plan-gate",
   busy: false,
+  paused: false,
+  pausedAt: null,
+  planRisk: null,
   createdAt: "2026-03-01T10:00:00.000Z",
   updatedAt: "2026-03-01T10:00:00.000Z"
 };

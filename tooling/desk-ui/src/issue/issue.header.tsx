@@ -1,60 +1,183 @@
+import type { FlowModel, FlowNodeId, IssueDetail } from "@repo/desk/contracts";
 import {
   Button,
-  Clock,
   Copy,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Ellipsis,
   ExternalLink,
-  GitBranch,
-  GitPullRequest,
-  ProgressBar,
-  RotateCcw
+  useMediaQuery
 } from "@repo/ui";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
 
-import { useT } from "../i18n/i18n.t";
-import { safeHttpUrl } from "../shell/shell.format";
+import { useTurnQueue } from "./issue.queue";
+import { FlowStepper } from "../flow/flow.stepper";
+import type { IssueActions } from "../gates/gate.actions";
+import { CancelDialog, RemoveDialog } from "../gates/gate.confirm";
+import { Kbd } from "../gates/gate.frame";
+import { useLanguage, useT } from "../i18n/i18n.t";
+import { copyText, openExternal } from "../shell/shell.copy";
+import { formatElapsed, formatUsd, safeHttpUrl } from "../shell/shell.format";
+import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
+import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { IssueStatusChip } from "../status/status.chip";
-import type { ReadableSummary } from "../status/status.model";
+import { canCancel, gateModeOf, type ReadableSummary } from "../status/status.model";
 
-function BranchFact({ branch }: { readonly branch: string }) {
+/** The graph needs room: a phone gets the stepper only. */
+const PHONE_QUERY = "(max-width: 40rem)";
+const PR_NUMBER = /\/pull\/(\d+)/;
+
+export interface IssueHeaderProps {
+  readonly summary: ReadableSummary;
+  /** `undefined` while the detail loads: the stepper and the cost wait for it. */
+  readonly detail: IssueDetail | undefined;
+  readonly flow: FlowModel | undefined;
+  /** The stage open in the side sheet, or `null`. */
+  readonly selected: FlowNodeId | null;
+  readonly onSelect: (id: FlowNodeId) => void;
+  readonly graphOpen: boolean;
+  readonly onToggleGraph: () => void;
+  readonly actions: IssueActions;
+  /** The issue was removed. The page leaves it. */
+  readonly onRemoved: () => void;
+}
+
+/** Where the issue is in Your turn, and J and K to the previous and the next decision. */
+function QueueNav({ issueNumber }: { readonly issueNumber: number }) {
   const t = useT();
+  const queue = useTurnQueue(issueNumber);
+  useShortcuts([
+    { key: "j", run: () => queue.step(1), labelKey: "desk.board.keys.next" },
+    { key: "k", run: () => queue.step(-1), labelKey: "desk.board.keys.previous" }
+  ]);
+  if (queue.total === 0) return null;
+  const alone = queue.total === 1 && queue.position !== null;
   return (
-    <li className="desk-meta__item desk-meta__branch">
-      <GitBranch aria-hidden="true" className="desk-icon" />
-      <span className="desk-sr-only">{t("desk.issue.branch")} </span>
-      <code title={branch}>{branch}</code>
+    <div className="desk-crumbs__queue">
+      <span className="desk-crumbs__where">
+        {queue.position === null
+          ? t("desk.issue.queue.waiting", { total: queue.total })
+          : t("desk.issue.queue.position", { position: queue.position, total: queue.total })}
+      </span>
       <Button
         appearance="ghost"
         spacing="compact"
-        className="desk-meta__copy"
-        aria-label={t("desk.issue.copyBranch")}
-        onClick={() => {
-          navigator.clipboard
-            .writeText(branch)
-            .then(() => toast.success(t("desk.issue.branchCopied")))
-            .catch(() => toast.error(t("desk.issue.copyFailed")));
-        }}
+        className="desk-crumbs__prev"
+        aria-label={t("desk.issue.queue.previous")}
+        aria-keyshortcuts="K"
+        disabled={alone}
+        onClick={() => queue.step(-1)}
       >
-        <Copy aria-hidden="true" className="desk-icon" />
+        <Kbd shortcut="k" />
       </Button>
-    </li>
+      <Button
+        appearance="ghost"
+        spacing="compact"
+        className="desk-crumbs__next"
+        aria-label={t("desk.issue.queue.next")}
+        aria-keyshortcuts="J"
+        disabled={alone}
+        onClick={() => queue.step(1)}
+      >
+        <span aria-hidden="true">{t("desk.issue.queue.nextShort")}</span>
+        <Kbd shortcut="j" />
+      </Button>
+    </div>
   );
 }
 
-/** Back link, number, title, the one status chip, and the facts the engineer scans first. */
-export function IssueHeader({ summary }: { readonly summary: ReadableSummary }) {
+/** How long the issue has waited, run, or taken, in the words of its mode. */
+function WaitFact({ summary, now }: { readonly summary: ReadableSummary; readonly now: number }) {
   const t = useT();
+  const { language } = useLanguage();
+  const mode = gateModeOf(summary);
+  if (mode === "shipped" || mode === "cancelled") {
+    const took = Date.parse(summary.updatedAt) - Date.parse(summary.createdAt);
+    return <span>{t("desk.issue.meta.took", { duration: formatElapsed(took, language) })}</span>;
+  }
+  if (summary.stageEnteredAt === null) return <TimeInStage summary={summary} now={now} />;
+  const duration = formatElapsed(now - Date.parse(summary.stageEnteredAt), language);
+  const key =
+    mode === "working"
+      ? "desk.issue.meta.running"
+      : mode === "needs-you"
+        ? "desk.issue.meta.stopped"
+        : "desk.issue.meta.waiting";
+  return <time dateTime={summary.stageEnteredAt}>{t(key, { duration })}</time>;
+}
+
+/**
+ * The top of the issue page: the way back and through Your turn, the title with a menu for the
+ * rare actions, one line of status, and the stages as a compact stepper.
+ */
+export function IssueHeader({
+  summary,
+  detail,
+  flow,
+  selected,
+  onSelect,
+  graphOpen,
+  onToggleGraph,
+  actions,
+  onRemoved
+}: IssueHeaderProps) {
+  const t = useT();
+  const { language } = useLanguage();
   const now = useNow();
+  const phone = useMediaQuery(PHONE_QUERY);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const mode = gateModeOf(summary);
   const issueUrl = safeHttpUrl(summary.url);
   const prUrl = safeHttpUrl(summary.prUrl);
-  const { contract, loops } = summary;
+  const prNumber = prUrl === null ? null : (PR_NUMBER.exec(prUrl)?.[1] ?? null);
+  const { branch, loops } = summary;
+  const costs = (detail?.runs ?? []).flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
+  const cost = costs.length === 0 ? null : costs.reduce((sum, value) => sum + value, 0);
+
+  const copyBranch = (): void => {
+    if (branch !== null) {
+      copyText(branch, t("desk.issue.branchCopied"), t("desk.issue.copyFailed"));
+    }
+  };
+
+  usePaletteActions([
+    ...(branch === null
+      ? []
+      : [{ id: "issue-copy-branch", label: t("desk.issue.copyBranch"), run: copyBranch }]),
+    ...(issueUrl === null
+      ? []
+      : [
+          {
+            id: "issue-github",
+            label: t("desk.issue.openOnGithub"),
+            run: () => openExternal(issueUrl)
+          }
+        ])
+  ]);
+
+  /** A dialog opened from the menu returns focus to the menu button. */
+  const backToMenu = (event: Event): void => {
+    if (moreButton.current === null) return;
+    event.preventDefault();
+    moreButton.current.focus();
+  };
+
   return (
     <header className="desk-issue-head">
-      <RouteLink to={{ view: "board" }} className="desk-back">
-        {t("desk.issue.back")}
-      </RouteLink>
+      <div className="desk-crumbs">
+        <RouteLink to={{ view: "board" }} className="desk-back">
+          {t("desk.issue.back")}
+        </RouteLink>
+        <QueueNav issueNumber={summary.issueNumber} />
+      </div>
       <div className="desk-issue-head__title">
         <h1>
           <span className="desk-issue-number">
@@ -62,55 +185,115 @@ export function IssueHeader({ summary }: { readonly summary: ReadableSummary }) 
           </span>{" "}
           {summary.title ?? t("desk.issue.untitled")}
         </h1>
-        <IssueStatusChip summary={summary} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              ref={moreButton}
+              appearance="subtle"
+              className="desk-issue-head__more"
+              aria-label={t("desk.gate.more")}
+            >
+              <Ellipsis aria-hidden="true" className="desk-icon" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="desk-menu">
+            <DropdownMenuItem
+              destructive
+              disabled={!canCancel(mode)}
+              onSelect={() => setCancelOpen(true)}
+            >
+              {t("desk.gate.cancel.button")}
+            </DropdownMenuItem>
+            {!phone && (
+              <DropdownMenuItem onSelect={onToggleGraph}>
+                {t(graphOpen ? "desk.issue.graph.hide" : "desk.issue.graph.show")}
+              </DropdownMenuItem>
+            )}
+            {branch !== null && (
+              <DropdownMenuItem onSelect={copyBranch}>
+                {t("desk.issue.copyBranch")}
+              </DropdownMenuItem>
+            )}
+            {issueUrl !== null && (
+              <DropdownMenuItem asChild>
+                <a href={issueUrl} target="_blank" rel="noreferrer noopener">
+                  {t("desk.issue.openOnGithub")}
+                  <ExternalLink aria-hidden="true" className="desk-icon" />
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem destructive onSelect={() => setRemoveOpen(true)}>
+              {t("desk.gate.remove.button")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <ul className="desk-meta" aria-label={t("desk.issue.facts")}>
-        {summary.branch !== null && <BranchFact branch={summary.branch} />}
-        {contract !== null && (
-          <li className="desk-meta__item desk-meta__contract">
-            <span>{t("desk.issue.contract")}</span>
-            <ProgressBar
-              value={contract.found}
-              max={contract.total}
-              appearance={contract.found === contract.total ? "success" : "warning"}
-              className="desk-meta__bar"
-              aria-label={t("desk.ticket.contractProgress", {
-                found: contract.found,
-                total: contract.total
-              })}
-            />
-            <span aria-hidden="true">
-              {t("desk.inspector.kpi.ratio", { value: contract.found, total: contract.total })}
-            </span>
-          </li>
+      <p className="desk-imeta">
+        <IssueStatusChip summary={summary} />
+        <span className="desk-imeta__item">
+          <WaitFact summary={summary} now={now} />
+        </span>
+        {cost !== null && (
+          <span className="desk-imeta__item">
+            {t("desk.issue.meta.cost", { cost: formatUsd(cost, language) })}
+          </span>
         )}
         {loops.check + loops.review > 0 && (
-          <li className="desk-meta__item">
-            <RotateCcw aria-hidden="true" className="desk-icon" />
-            <span>{t("desk.issue.loopsValue", { check: loops.check, review: loops.review })}</span>
-          </li>
+          <span className="desk-imeta__item">
+            {t("desk.issue.loopsValue", { check: loops.check, review: loops.review })}
+          </span>
         )}
-        <li className="desk-meta__item">
-          <Clock aria-hidden="true" className="desk-icon" />
-          <TimeInStage summary={summary} now={now} />
-        </li>
-        {issueUrl !== null && (
-          <li className="desk-meta__item">
-            <a href={issueUrl} target="_blank" rel="noreferrer noopener">
-              {t("desk.issue.openOnGithub")}
-              <ExternalLink aria-hidden="true" className="desk-icon" />
-            </a>
-          </li>
+        {branch !== null && (
+          <span className="desk-imeta__item desk-imeta__branch">
+            <span className="desk-sr-only">{t("desk.issue.branch")} </span>
+            <code title={branch}>{branch}</code>
+            <Button
+              appearance="ghost"
+              spacing="compact"
+              className="desk-imeta__copy"
+              aria-label={t("desk.issue.copyBranch")}
+              onClick={copyBranch}
+            >
+              <Copy aria-hidden="true" className="desk-icon" />
+            </Button>
+          </span>
         )}
         {prUrl !== null && (
-          <li className="desk-meta__item">
+          <span className="desk-imeta__item">
             <a href={prUrl} target="_blank" rel="noreferrer noopener">
-              <GitPullRequest aria-hidden="true" className="desk-icon" />
-              {t("desk.issue.openPr")}
+              {prNumber === null
+                ? t("desk.issue.openPr")
+                : t("desk.issue.meta.pr", { number: prNumber })}{" "}
+              <ExternalLink aria-hidden="true" className="desk-icon" />
             </a>
-          </li>
+          </span>
         )}
-      </ul>
+      </p>
+      {flow !== undefined && (
+        <FlowStepper
+          model={flow}
+          selected={selected}
+          onSelect={onSelect}
+          needsYouReason={summary.needsYouReason}
+        />
+      )}
+      <CancelDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        onCloseAutoFocus={backToMenu}
+        onConfirm={() => void actions.run({ action: "cancel" })}
+      />
+      <RemoveDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        onCloseAutoFocus={backToMenu}
+        onConfirm={(force) => {
+          void actions.run({ action: "remove", force }).then((settled) => {
+            if (settled.kind === "done") onRemoved();
+          });
+        }}
+      />
     </header>
   );
 }

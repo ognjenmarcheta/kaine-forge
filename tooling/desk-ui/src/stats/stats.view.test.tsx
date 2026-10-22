@@ -1,4 +1,4 @@
-import type { LessonReport, RunStats } from "@repo/desk/contracts";
+import type { LessonIssueDraft, LessonReport, RunStats } from "@repo/desk/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +6,14 @@ import { describe, expect, it, vi } from "vitest";
 import { StatsView } from "./stats.view";
 import { DeskApiError } from "../api/api.client";
 import { fakeApi, renderDesk } from "../test/test.render";
+
+/** The seven days the stats always cover, here without runs. */
+const DAYS: RunStats["days"] = Array.from({ length: 7 }, (_, index) => ({
+  date: `2026-10-${String(15 + index)}`,
+  runs: 0,
+  costUsd: null,
+  shipped: 0
+}));
 
 const STATS: RunStats = {
   groups: [
@@ -48,6 +56,8 @@ const STATS: RunStats = {
     { issue: 12, stage: "pr-review", loops: { check: 1, review: 0 }, runs: 5, totalCostUsd: 6 },
     { issue: 9, stage: null, loops: null, runs: 1, totalCostUsd: null }
   ],
+  riskOutcomes: [],
+  days: DAYS,
   invalidLines: 2
 };
 
@@ -92,7 +102,10 @@ describe("StatsView", () => {
   it("explains an empty record", async () => {
     renderDesk(
       <StatsView />,
-      fakeApi({ stats: () => Promise.resolve({ groups: [], issues: [], invalidLines: 0 }) })
+      fakeApi({
+        stats: () =>
+          Promise.resolve({ groups: [], issues: [], riskOutcomes: [], days: DAYS, invalidLines: 0 })
+      })
     );
     expect(await screen.findByText(/No agent runs recorded yet/)).toBeTruthy();
   });
@@ -113,6 +126,7 @@ describe("StatsView", () => {
       belowThreshold: 4,
       minIssues: 2,
       currentRepo: null,
+      promoted: [],
       invalidLines: 0
     };
     renderDesk(
@@ -126,7 +140,7 @@ describe("StatsView", () => {
     const table = await screen.findByRole("table", { name: "Lesson candidates" });
     const [, row] = within(table).getAllByRole("row");
     expect(row && cells(row).slice(0, 4)).toEqual([
-      "review/Correctness/ConsiderReview finding",
+      "review/Correctness/ConsiderReview findingMedium",
       "#12#15",
       "3",
       "1"
@@ -155,5 +169,157 @@ describe("StatsView", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Load again" }));
 
     expect(await screen.findByRole("table", { name: "By role and model" })).toBeTruthy();
+  });
+
+  it("sums the last seven days into cards and shows today from the last day", async () => {
+    const days: RunStats["days"] = [0, 0, 1, 2, 0, 3, 1].map((runs, index) => ({
+      date: `2026-10-${String(15 + index)}`,
+      runs,
+      costUsd: index === 2 ? 1.5 : index === 4 ? 0.25 : null,
+      shipped: index === 5 ? 1 : 0
+    }));
+    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve({ ...STATS, days }) }));
+
+    const runs = await screen.findByRole("group", { name: "Agent runs" });
+    expect(within(runs).getByText("7")).toBeTruthy();
+    expect(within(runs).getByText("Today: 1")).toBeTruthy();
+    // A day without a reported cost is "none", not $0.00, in the total and in the words.
+    const cost = screen.getByRole("group", { name: "Cost" });
+    expect(within(cost).getByText("$1.75")).toBeTruthy();
+    expect(within(cost).getByText("Today: None")).toBeTruthy();
+    expect(
+      within(cost).getByText("Per day, oldest first: None, None, $1.50, None, $0.25, None, None")
+    ).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Shipped" })).getByText("1")).toBeTruthy();
+
+    const today = screen.getByRole("region", { name: "Today" });
+    expect(within(today).getByText("Agent runs: 1")).toBeTruthy();
+    expect(within(today).getByText("Spent: no cost reported")).toBeTruthy();
+  });
+
+  it("shows none for a week in which no run reported a cost", async () => {
+    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
+
+    const cost = await screen.findByRole("group", { name: "Cost" });
+    expect(within(cost).getByText("None", { selector: ".desk-sr-only" })).toBeTruthy();
+    // Cost by role sums every model of a role; a role without a cost says so instead of $0.00.
+    const bars = screen.getByRole("heading", { name: "Cost by role" }).parentElement;
+    if (bars === null) throw new Error("no Cost by role card");
+    expect(
+      within(bars)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent)
+    ).toEqual(["Builder$6.00", "ReviewerNo cost reported"]);
+  });
+});
+
+const CANDIDATE = {
+  key: "check/pnpm test",
+  source: "check",
+  issues: [12, 15],
+  occurrences: 3,
+  currentOccurrences: 3,
+  lastSeen: "2026-10-13T09:00:00.000Z",
+  samples: [{ issue: 15, detail: "expected 2 rows", file: null }]
+} as const satisfies LessonReport["candidates"][number];
+
+const LESSONS: LessonReport = {
+  candidates: [CANDIDATE],
+  promoted: [],
+  belowThreshold: 0,
+  minIssues: 2,
+  currentRepo: null,
+  invalidLines: 0
+};
+
+const PROMOTED: LessonReport = {
+  ...LESSONS,
+  candidates: [],
+  promoted: [
+    { key: CANDIDATE.key, at: "2026-10-13T09:00:00.000Z", note: "Added a rule", issue: null }
+  ]
+};
+
+describe("StatsView lessons", () => {
+  it("promotes a lesson with its note, then unpromotes it, from the server's answers", async () => {
+    const lessonPromote = vi.fn(() => Promise.resolve(PROMOTED));
+    const lessonUnpromote = vi.fn(() => Promise.resolve(LESSONS));
+    renderDesk(
+      <StatsView />,
+      fakeApi({
+        stats: () => Promise.resolve(STATS),
+        lessons: () => Promise.resolve(LESSONS),
+        lessonPromote,
+        lessonUnpromote
+      })
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Promote check/pnpm test" }));
+    const dialog = await screen.findByRole("dialog", { name: "Promote this lesson?" });
+    await userEvent.type(within(dialog).getByLabelText("Note (optional)"), "  Added a rule  ");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Promote" }));
+
+    expect(lessonPromote).toHaveBeenCalledWith("check/pnpm test", "Added a rule");
+    expect(await screen.findByText("Added a rule")).toBeTruthy();
+    expect(screen.queryByRole("table", { name: "Lesson candidates" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Unpromote check/pnpm test" }));
+
+    expect(lessonUnpromote).toHaveBeenCalledWith("check/pnpm test");
+    expect(await screen.findByRole("table", { name: "Lesson candidates" })).toBeTruthy();
+    expect(screen.getByText("No promoted lesson yet.")).toBeTruthy();
+  });
+
+  it("opens an issue only after a yes to the exact preview, with the preview's digest", async () => {
+    const draft: LessonIssueDraft = {
+      key: CANDIDATE.key,
+      title: "Lesson: check/pnpm test",
+      body: "### Outcome\n<b>The tests</b> pass.",
+      digest: "a".repeat(64)
+    };
+    const lessonIssue = vi.fn(() =>
+      Promise.resolve({
+        issue: 321,
+        url: "https://github.com/owner/repo/issues/321",
+        report: {
+          ...LESSONS,
+          candidates: [],
+          promoted: [{ key: CANDIDATE.key, at: "2026-10-13T09:00:00.000Z", note: null, issue: 321 }]
+        }
+      })
+    );
+    renderDesk(
+      <StatsView />,
+      fakeApi({
+        stats: () => Promise.resolve(STATS),
+        lessons: () => Promise.resolve(LESSONS),
+        lessonIssuePreview: () => Promise.resolve(draft),
+        lessonIssue
+      })
+    );
+    const turn = await screen.findByRole("button", { name: "Turn check/pnpm test into an issue" });
+
+    // Back sends nothing.
+    await userEvent.click(turn);
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Back" })
+    );
+    expect(lessonIssue).not.toHaveBeenCalled();
+
+    await userEvent.click(turn);
+    const dialog = await screen.findByRole("dialog", { name: "Open this issue on GitHub?" });
+    expect(within(dialog).getByLabelText("Title").textContent).toBe(draft.title);
+    // The body is the engine's text, shown as written and never as markup.
+    expect(within(dialog).getByLabelText("Body").textContent).toBe(draft.body);
+    expect(dialog.querySelector("b")).toBeNull();
+    expect(lessonIssue).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open the issue" }));
+
+    expect(lessonIssue).toHaveBeenCalledWith(CANDIDATE.key, draft.digest);
+    const links = await screen.findAllByRole("link", { name: "Open #321 on GitHub" });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://github.com/owner/repo/issues/321",
+      "https://github.com/owner/repo/issues/321"
+    ]);
   });
 });

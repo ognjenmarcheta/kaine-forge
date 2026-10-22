@@ -8,6 +8,7 @@ import {
   actionRequestSchema,
   apiErrorSchema,
   issueSummarySchema,
+  logEntrySchema,
   serverEventSchema
 } from "./api.contract";
 
@@ -39,7 +40,13 @@ describe("action request", () => {
     {
       input: { action: "pr-feedback", text: "  keep the name  " },
       expected: { action: "pr-feedback", text: "keep the name" }
-    }
+    },
+    {
+      input: { action: "approve", note: "  CSV only, no XLSX  " },
+      expected: { action: "approve", note: "CSV only, no XLSX" }
+    },
+    { input: { action: "pause" }, expected: { action: "pause" } },
+    { input: { action: "resume" }, expected: { action: "resume" } }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -64,7 +71,13 @@ describe("action request", () => {
     {
       name: "PR feedback text over the limit",
       input: { action: "pr-feedback", text: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
-    }
+    },
+    { name: "a blank approval note", input: { action: "approve", note: "   " } },
+    {
+      name: "an approval note over the limit",
+      input: { action: "approve", note: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
+    },
+    { name: "a pause that names a stage", input: { action: "pause", stage: "build" } }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
   });
@@ -99,6 +112,17 @@ describe("server events", () => {
   });
 });
 
+describe("log entry", () => {
+  const entry = { seq: 1, at: "2026-03-01T10:00:00.000Z", issueNumber: 3, kind: "log", text: "x" };
+
+  it("reads an entry written before the stage tag, and one with it", () => {
+    expect(logEntrySchema.parse(entry).stage).toBeUndefined();
+    expect(logEntrySchema.parse({ ...entry, stage: "build" }).stage).toBe("build");
+    expect(logEntrySchema.parse({ ...entry, stage: null }).stage).toBeNull();
+    expect(logEntrySchema.safeParse({ ...entry, stage: "deploy" }).success).toBe(false);
+  });
+});
+
 describe("issue summary", () => {
   const summary = {
     readable: true,
@@ -120,6 +144,9 @@ describe("issue summary", () => {
     progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],
     currentNode: "build",
     busy: false,
+    paused: false,
+    pausedAt: null,
+    planRisk: "medium",
     createdAt: "2026-03-01T10:00:00.000Z",
     updatedAt: "2026-03-01T10:00:00.000Z"
   };

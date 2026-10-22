@@ -93,5 +93,6 @@ export const createSnapshotGitHubPort = (snapshot: IssueSnapshot, owner: string)
     Promise.reject(new Error("A snapshot run has no pull request feedback")),
   addPullRequestLabel: () =>
     Promise.reject(new Error("A snapshot run cannot label a pull request")),
-  editIssueBody: () => Promise.reject(new Error("A snapshot run cannot edit an issue"))
+  editIssueBody: () => Promise.reject(new Error("A snapshot run cannot edit an issue")),
+  createIssue: () => Promise.reject(new Error("A snapshot run cannot open an issue"))
 });

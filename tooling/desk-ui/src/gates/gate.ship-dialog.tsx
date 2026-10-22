@@ -23,7 +23,11 @@ export interface ShipDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly actions: IssueActions;
+  /** Changed files the owner has not marked viewed. The dialog says so; it does not block. */
+  readonly unviewed?: readonly string[];
 }
+
+const NOTHING_UNVIEWED: readonly string[] = [];
 
 const DRY_RUN = { action: "ship", confirm: false, dryRun: true } as const;
 const SHIP = { action: "ship", confirm: true, dryRun: false } as const;
@@ -34,18 +38,24 @@ const SHIP = { action: "ship", confirm: true, dryRun: false } as const;
  */
 export function ShipDialog({
   issueNumber,
-  pullRequest,
+  pullRequest: currentPullRequest,
   open,
   onOpenChange,
-  actions
+  actions,
+  unviewed = NOTHING_UNVIEWED
 }: ShipDialogProps) {
   const t = useT();
   const { api } = useDesk();
   const [phase, setPhase] = useState<ShipPhase>({ kind: "checking" });
   const run = useRef(actions.run);
+  const latestPullRequest = useRef(currentPullRequest);
   useEffect(() => {
     run.current = actions.run;
+    latestPullRequest.current = currentPullRequest;
   });
+  // The PR this ship goes to, fixed when the dialog opens. The ship itself opens a PR, and the
+  // dialog must still say what the ship did, not what the issue holds afterwards.
+  const [pullRequest, setPullRequest] = useState(currentPullRequest);
 
   const dryRun = useCallback(async (): Promise<void> => {
     setPhase({ kind: "checking" });
@@ -65,7 +75,9 @@ export function ShipDialog({
   }, [api, issueNumber]);
 
   useEffect(() => {
-    if (open) void dryRun();
+    if (!open) return;
+    setPullRequest(latestPullRequest.current);
+    void dryRun();
   }, [open, dryRun]);
 
   const ship = async (): Promise<void> => {
@@ -150,7 +162,12 @@ export function ShipDialog({
           </p>
         )}
         {phase.kind === "review" && (
-          <ShipReview plan={phase.plan} prBody={phase.prBody} pullRequest={pullRequest} />
+          <ShipReview
+            plan={phase.plan}
+            prBody={phase.prBody}
+            pullRequest={pullRequest}
+            unviewed={unviewed}
+          />
         )}
         {phase.kind === "confirm" && (
           <>
@@ -189,19 +206,31 @@ export function ShipDialog({
 function ShipReview({
   plan,
   prBody,
-  pullRequest
+  pullRequest,
+  unviewed
 }: {
   readonly plan: ShipPlanView;
   readonly prBody: string | null;
   readonly pullRequest: number | null;
+  readonly unviewed: readonly string[];
 }) {
   const t = useT();
   return (
     <div className="desk-artifact">
       <Section title={t("desk.ship.gate")}>
-        {plan.gate.ok ? (
-          <p className="desk-note">{t("desk.ship.gateOk")}</p>
-        ) : (
+        {plan.gate.ok && <p className="desk-note">{t("desk.ship.gateOk")}</p>}
+        {unviewed.length > 0 && (
+          <div className="desk-warning desk-ship__unviewed">
+            <strong>{t("desk.ship.unviewed")}</strong>
+            <span>
+              {t("desk.ship.unviewedText", {
+                count: unviewed.length,
+                files: unviewed.join(", ")
+              })}
+            </span>
+          </div>
+        )}
+        {!plan.gate.ok && (
           <div className="desk-failure" role="alert">
             <p>{t("desk.ship.gateFailed")}</p>
             <ItemList

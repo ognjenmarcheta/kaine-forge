@@ -2,13 +2,17 @@ import type { RunRecords } from "./stats.runs";
 import {
   AGENT_STAGE_ROLES,
   HARNESS_SHORT_LENGTH,
+  PLAN_RISKS,
+  STATS_DAYS,
   type AgentStageRole,
   type IssueRollup,
   type LoopCounters,
+  type RiskOutcome,
   type RunGroup,
   type RunRecord,
   type RunStats,
-  type Stage
+  type Stage,
+  type StatsDay
 } from "../contracts";
 import type { IssueListEntry } from "../store/store.issue";
 
@@ -16,7 +20,12 @@ export interface IssueSnapshot {
   readonly issue: number;
   readonly stage: Stage;
   readonly loops: LoopCounters;
+  /** When the desk last opened or updated the issue's PR, from the history. */
+  readonly shippedAt?: string | null;
 }
+
+/** The history events of a ship that opened or updated the PR. */
+const SHIP_EVENTS: ReadonlySet<string> = new Set(["pr-opened", "pr-updated"]);
 
 /** Stage and loops of every readable issue. An unreadable issue shows as if removed. */
 export const snapshotsOf = (entries: readonly IssueListEntry[]): IssueSnapshot[] =>
@@ -26,7 +35,11 @@ export const snapshotsOf = (entries: readonly IssueListEntry[]): IssueSnapshot[]
           {
             issue: entry.issueNumber,
             stage: entry.result.state.stage,
-            loops: entry.result.state.loops
+            loops: entry.result.state.loops,
+            shippedAt:
+              [...entry.result.state.history]
+                .reverse()
+                .find((event) => SHIP_EVENTS.has(event.event))?.at ?? null
           }
         ]
       : []
@@ -96,13 +109,66 @@ const ROLE_ORDER: readonly AgentStageRole[] = AGENT_STAGE_ROLES;
 export interface AggregateOptions {
   /** Also split the groups by harness version, to compare instructions before and after a change. */
   readonly byHarness?: boolean;
+  /** The end of the day series. Default: the system time. */
+  readonly now?: Date;
 }
+
+const SHIPPED_STAGES: ReadonlySet<Stage> = new Set(["pr-open", "shipped"]);
+
+/** Outcomes per plan risk. An issue counts at the risk of its latest graded run. */
+const riskOutcomes = (
+  byIssue: ReadonlyMap<number, readonly RunRecord[]>,
+  snapshotOf: ReadonlyMap<number, IssueSnapshot>
+): RiskOutcome[] => {
+  const outcomes = new Map(
+    PLAN_RISKS.map((risk): [RiskOutcome["risk"], RiskOutcome] => [
+      risk,
+      { risk, issues: 0, shipped: 0, sentBack: 0 }
+    ])
+  );
+  for (const [issue, runs] of byIssue) {
+    const risk = [...runs].reverse().find((run) => run.planRisk !== null)?.planRisk ?? null;
+    const outcome = risk === null ? undefined : outcomes.get(risk);
+    if (outcome === undefined) continue;
+    const snapshot = snapshotOf.get(issue);
+    const plans = runs.filter((run) => run.role === "planner" && run.accepted).length;
+    const reviewLoops = Math.max(
+      snapshot?.loops.review ?? 0,
+      ...runs.map((run) => run.loops.review)
+    );
+    outcome.issues += 1;
+    if (snapshot !== undefined && SHIPPED_STAGES.has(snapshot.stage)) outcome.shipped += 1;
+    if (plans > 1 || reviewLoops > 0) outcome.sentBack += 1;
+  }
+  return [...outcomes.values()];
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Runs, cost and shipped issues of the last `STATS_DAYS` UTC days, oldest first. */
+const daySeries = (
+  records: readonly RunRecord[],
+  snapshots: readonly IssueSnapshot[],
+  now: Date
+): StatsDay[] =>
+  Array.from({ length: STATS_DAYS }, (_, index): StatsDay => {
+    const date = new Date(now.getTime() - (STATS_DAYS - 1 - index) * DAY_MS)
+      .toISOString()
+      .slice(0, 10);
+    const runs = records.filter((record) => record.at.slice(0, 10) === date);
+    return {
+      date,
+      runs: runs.length,
+      costUsd: totalCost(runs),
+      shipped: snapshots.filter((snapshot) => snapshot.shippedAt?.slice(0, 10) === date).length
+    };
+  });
 
 /** Groups runs by role, provider and model, and rolls them up per issue. */
 export const aggregateRuns = (
   { records, invalidLines }: RunRecords,
   snapshots: readonly IssueSnapshot[],
-  { byHarness = false }: AggregateOptions = {}
+  { byHarness = false, now = new Date() }: AggregateOptions = {}
 ): RunStats => {
   const byGroup = new Map<string, RunRecord[]>();
   const byIssue = new Map<number, RunRecord[]>();
@@ -136,5 +202,11 @@ export const aggregateRuns = (
       totalCostUsd: totalCost(runs)
     };
   });
-  return { groups, issues, invalidLines };
+  return {
+    groups,
+    issues,
+    riskOutcomes: riskOutcomes(byIssue, snapshotOf),
+    days: daySeries(records, snapshots, now),
+    invalidLines
+  };
 };

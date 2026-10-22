@@ -15,6 +15,8 @@ export interface ServerRunner {
   readonly feedbackFromPr: PipelineRunner["feedbackFromPr"];
   readonly draft: PipelineRunner["draft"];
   readonly applyDraft: PipelineRunner["applyDraft"];
+  readonly pause: PipelineRunner["pause"];
+  readonly resume: PipelineRunner["resume"];
 }
 
 /** How a runner call ended, in the terms of the wire contract. */
@@ -85,9 +87,12 @@ const settle = (result: RunnerResult): Settled => {
   return { kind: "done", outcome: { stop: result.stop, stage, message: result.message } };
 };
 
-/** `cancel` and `remove` exist to stop a running action, so they never wait behind one. */
+/**
+ * `cancel` and `remove` exist to stop a running action, and `pause` to hold the issue after it,
+ * so they never wait behind one.
+ */
 const isStopAction = (request: ActionRequest): boolean =>
-  request.action === "cancel" || request.action === "remove";
+  request.action === "cancel" || request.action === "remove" || request.action === "pause";
 
 const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
@@ -107,7 +112,10 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
       case "start":
         return runner.start(issueNumber, { override: request.override });
       case "approve":
-        return runner.approvePlan(issueNumber);
+        return runner.approvePlan(
+          issueNumber,
+          request.note === undefined ? {} : { note: request.note }
+        );
       case "feedback":
         return runner.feedback(issueNumber, request.to, request.text);
       case "continue":
@@ -129,6 +137,10 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.draft(issueNumber);
       case "apply-draft":
         return runner.applyDraft(issueNumber, { confirm: request.confirm });
+      case "pause":
+        return runner.pause(issueNumber);
+      case "resume":
+        return runner.resume(issueNumber);
     }
   };
 

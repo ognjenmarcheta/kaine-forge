@@ -35,6 +35,7 @@ const probe = { word: "w", overrideSeen: true };
 
 const validBuilder = (claimedChecks: BuilderOutput["claimedChecks"] = []): BuilderOutput => ({
   summary: "s",
+  revision: null,
   filesChanged: [],
   notes: [],
   blockers: [],

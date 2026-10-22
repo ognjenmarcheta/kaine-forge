@@ -92,6 +92,7 @@ export const renderPlanMarkdown = (plan: PlannerOutput): string => {
     "## Tests",
     list(plan.tests.map((test) => `${test.action} \`${test.path}\`: ${test.reason}`)),
     "",
+    ...(plan.risk === null ? [] : ["## Risk grade", plan.risk, list(plan.riskReasons), ""]),
     "## Risks",
     list(plan.risks),
     "",

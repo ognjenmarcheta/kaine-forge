@@ -119,6 +119,11 @@ export type IntakeOutput = z.infer<typeof intakeOutputSchema>;
 
 // --- planner --------------------------------------------------------------
 
+/** How much the change can break: low is small and contained, high touches data, auth or public API. */
+export const PLAN_RISKS = ["low", "medium", "high"] as const;
+export const planRiskSchema = z.enum(PLAN_RISKS);
+export type PlanRisk = z.infer<typeof planRiskSchema>;
+
 export const plannerOutputSchema = z
   .object({
     /** The whole change. A revised plan keeps it whole and puts the revision note in `revision`. */
@@ -149,6 +154,12 @@ export const plannerOutputSchema = z
     /** Each acceptance criterion maps to the change that satisfies it. */
     acceptanceCriteria: z.array(z.object({ criterion: nonEmpty, change: nonEmpty }).strict()),
     risks: z.array(nonEmpty),
+    /**
+     * The planner's grade of the change, and why. `null` and an empty list on a `plan.json`
+     * written before the fields existed: the defaults keep it readable.
+     */
+    risk: planRiskSchema.nullable().default(null),
+    riskReasons: z.array(nonEmpty).default([]),
     openQuestions: z.array(nonEmpty),
     changeset: z
       .object({
@@ -179,6 +190,11 @@ export type PlannerOutput = z.infer<typeof plannerOutputSchema>;
 export const builderOutputSchema = z
   .object({
     summary: nonEmpty,
+    /**
+     * What changed since the previous build of this issue, or null for a first build. The
+     * default keeps older `build.json` artifacts without the field readable.
+     */
+    revision: nonEmpty.nullable().default(null),
     filesChanged: z.array(nonEmpty),
     notes: z.array(nonEmpty),
     blockers: z.array(nonEmpty),

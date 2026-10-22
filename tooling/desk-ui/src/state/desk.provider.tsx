@@ -30,12 +30,13 @@ export interface DeskContextValue {
   readonly api: DeskApi;
   /**
    * Send an action. By default it settles when the action ends, even when the server
-   * answered `accepted`. With `wait: false` it settles at once on `accepted`.
+   * answered `accepted`. With `wait: false` it settles at once on `accepted`. `keepalive`
+   * lets the request finish while the page closes.
    */
   readonly act: (
     issueNumber: number,
     request: ActionRequestInput,
-    options?: { readonly wait?: boolean }
+    options?: { readonly wait?: boolean; readonly keepalive?: boolean }
   ) => Promise<ActionSettled>;
   readonly reloadIssues: () => Promise<boolean>;
   readonly loadDetail: (issueNumber: number) => Promise<void>;
@@ -154,7 +155,9 @@ export function DeskProvider({ children, api: apiOverride, createSource }: DeskP
   const act = useCallback<DeskContextValue["act"]>(
     async (issueNumber, request, options) => {
       try {
-        const response = await api.act(issueNumber, request);
+        const response = await (options?.keepalive === true
+          ? api.act(issueNumber, request, { keepalive: true })
+          : api.act(issueNumber, request));
         if (response.status === "done") return { kind: "done", outcome: response.outcome };
         if (options?.wait === false) return { kind: "accepted" };
         return await new Promise<ActionSettled>((resolve) => {

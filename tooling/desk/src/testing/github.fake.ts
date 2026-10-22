@@ -5,7 +5,7 @@ import type {
   PullRequestInfo,
   PullRequestView
 } from "../github/github.pull-request";
-import type { IssueSnapshot, RepositoryInfo } from "../github/github.types";
+import type { CreateIssueRequest, IssueSnapshot, RepositoryInfo } from "../github/github.types";
 import type { GitHubPort } from "../ports";
 
 export const OWNER = "octo-owner";
@@ -87,6 +87,8 @@ export interface FakeGitHub extends GitHubPort {
   readonly setPullRequestFeedback: (raw: PullRequestFeedbackRaw) => void;
   /** `[pr, headSha]` of every `fetchPullRequestFeedback` call. */
   readonly feedbackReads: [number, string][];
+  /** Issues opened with `createIssue`. The first gets number 501. */
+  readonly createdIssues: CreateIssueRequest[];
 }
 
 export const NO_PR_FEEDBACK: PullRequestFeedbackRaw = {
@@ -110,6 +112,7 @@ export interface FakeGitHubOptions {
   readonly failPullRequestLabel?: boolean;
   readonly failViewPullRequest?: boolean;
   readonly failPullRequestFeedback?: boolean;
+  readonly failCreateIssue?: boolean;
 }
 
 export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
@@ -125,6 +128,7 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
   let pullRequestHead = "0".repeat(40);
   let pullRequestFeedback = NO_PR_FEEDBACK;
   const feedbackReads: FakeGitHub["feedbackReads"] = [];
+  const createdIssues: CreateIssueRequest[] = [];
   let body: string | null = null;
   return {
     labelEdits,
@@ -148,6 +152,7 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
       pullRequestFeedback = raw;
     },
     feedbackReads,
+    createdIssues,
     repository: () => Promise.resolve(options.repository ?? repositoryOf()),
     viewer: () => Promise.resolve(options.viewer ?? OWNER),
     fetchIssue: () =>
@@ -219,6 +224,12 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
       bodyEdits.push({ issue, body: next });
       body = next;
       return Promise.resolve();
+    },
+    createIssue: (request) => {
+      if (options.failCreateIssue) return Promise.reject(new Error("gh issue create failed"));
+      createdIssues.push(request);
+      const number = 500 + createdIssues.length;
+      return Promise.resolve({ number, url: `https://github.com/${OWNER}/repo/issues/${number}` });
     }
   };
 };

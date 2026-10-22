@@ -141,6 +141,18 @@ export const issueStateSchema = z
       .regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/)
       .nullable()
       .optional(),
+    /**
+     * Added with the redesigned desk. The owner's note at the plan approval: the answer to the
+     * plan's open questions. The builder reads it. A reader treats a missing field like `null`.
+     */
+    approveNote: z.string().min(1).nullable().optional(),
+    /**
+     * The owner asked to hold the issue. The running stage ends, and the engine starts no next
+     * stage until `resume`. A reader treats a missing field like `false`.
+     */
+    pauseRequested: z.boolean().optional(),
+    /** When the owner asked for the pause, or `null`. */
+    pausedAt: timestampSchema.nullable().optional(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema
   })

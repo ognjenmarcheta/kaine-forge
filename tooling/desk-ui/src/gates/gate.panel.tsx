@@ -1,521 +1,262 @@
-import { ACTIVE_STAGES, type FeedbackTarget, type IssueDetail } from "@repo/desk/contracts";
-import {
-  Button,
-  Checkbox,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Ellipsis,
-  ExternalLink,
-  GitPullRequest,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Spinner,
-  buttonVariants,
-  useMediaQuery
-} from "@repo/ui";
-import { useId, useRef, useState, type ReactElement, type RefObject } from "react";
+import type { ActionRequestInput, FlowNodeId, IssueDetail, LogEntry } from "@repo/desk/contracts";
+import { Button, Card, ExternalLink, GitPullRequest, Spinner, buttonVariants } from "@repo/ui";
+import { useId, useRef, useState } from "react";
 
 import type { IssueActions } from "./gate.actions";
-import { CancelDialog, RemoveDialog } from "./gate.confirm";
-import { DraftDialog } from "./gate.draft-dialog";
 import { FeedbackForm } from "./gate.feedback";
+import { DecideBar, Kbd, type GateBodyProps } from "./gate.frame";
+import { IntakeGate, NeedsYouGate } from "./gate.needs";
+import { PlanGate } from "./gate.plan";
+import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
-import { useT } from "../i18n/i18n.t";
-import { safeHttpUrl } from "../shell/shell.format";
+import { useLanguage, useT } from "../i18n/i18n.t";
+import { formatClock, safeHttpUrl } from "../shell/shell.format";
+import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
+import { usePaletteActions } from "../shell/shell.palette";
 import { TimeInStage } from "../shell/shell.time";
-import { Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { canCancel, gateModeOf, type GateMode, type ReadableSummary } from "../status/status.model";
+import { StatusChip } from "../status/status.chip";
+import { gateModeOf, type GateMode, type ReadableSummary } from "../status/status.model";
 
-const PR_REVIEW_TARGETS: readonly FeedbackTarget[] = ["build", "review", "plan"];
-const PLAN_TARGETS: readonly FeedbackTarget[] = ["plan"];
-const AUTO_STAGE = "auto";
 const PR_LINK = buttonVariants({ appearance: "default" });
-const PR_SECONDARY_LINK = buttonVariants({ appearance: "secondary" });
-/** The modes where the issue waits for the engineer's decision. */
-const DECIDE: ReadonlySet<GateMode> = new Set<GateMode>([
-  "plan-gate",
-  "pr-review",
-  "pr-open",
-  "needs-you"
-]);
-/** The complements of the stylesheet's `min-width` rules: the layout is exact at 64 and 40 rem. */
-const COMPACT_QUERY = "not all and (min-width: 64rem)";
-const NARROW_QUERY = "not all and (min-width: 40rem)";
+const PR_SUBTLE_LINK = buttonVariants({ appearance: "subtle" });
+const EMPTY: readonly LogEntry[] = [];
 
-/**
- * Where the decision sits. `side`: pinned at the bottom of the inspector, with its actions
- * (64 rem and wider). `bar`: in the page flow, with only the actions in a bar that sticks to
- * the bottom of the screen. `bar-narrow`: the same, and the secondary action moves into the
- * More menu (below 40 rem), so the bar keeps one row.
- */
-export type GateLayout = "side" | "bar" | "bar-narrow";
+/** The card the issue shows: a gate, a stop, a run, or the end. A paused issue between stages is a run. */
+type CardMode = GateMode | "intake";
 
-/** The layout for the screen width. Before the first measure it is `side`, the desktop layout. */
-export function useGateLayout(): GateLayout {
-  const compact = useMediaQuery(COMPACT_QUERY);
-  const narrow = useMediaQuery(NARROW_QUERY);
-  if (!compact) return "side";
-  return narrow ? "bar-narrow" : "bar";
+const cardModeOf = (summary: ReadableSummary): CardMode => {
+  const mode = gateModeOf(summary);
+  if (mode === "needs-you" && summary.resumeStage === "intake") return "intake";
+  if (mode === "idle" && summary.paused) return "working";
+  return mode;
+};
+
+/** Who wrote what the card shows. */
+const BYLINE: Partial<Record<CardMode, string>> = {
+  "plan-gate": "desk.gate.by.planner",
+  "pr-review": "desk.gate.by.reviewer"
+};
+
+/** The stage whose full result the card's button opens. */
+const RESULT_NODE: Partial<Record<CardMode, FlowNodeId>> = {
+  "plan-gate": "plan-gate",
+  "pr-review": "pr-review"
+};
+
+/** What the issue does now: the stage, the latest agent line, the time, and Pause or Resume (P). */
+function RunningGate({ summary, send }: GateBodyProps) {
+  const t = useT();
+  const { language } = useLanguage();
+  const now = useNow();
+  const { state } = useDesk();
+  const logs = state.logs[summary.issueNumber] ?? EMPTY;
+  // What the agent said last; before its first line, what the engine said last.
+  const latest =
+    logs.filter((entry) => entry.kind === "agent").at(-1) ??
+    logs.filter((entry) => entry.kind === "log").at(-1);
+  // Pause and Resume stop work rather than start it, so they stay available while a stage runs.
+  const toggle = (): void => {
+    void send(summary.paused ? { action: "resume" } : { action: "pause" });
+  };
+  const label = t(summary.paused ? "desk.gate.working.resume" : "desk.gate.working.pause");
+
+  useShortcuts([{ key: "p", run: toggle, labelKey: "desk.gate.keys.pause" }]);
+  usePaletteActions([{ id: "gate-pause", label, hint: "P", run: toggle }]);
+
+  return (
+    <>
+      <p className="desk-nowline" role="status">
+        {!summary.paused && (
+          <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
+        )}
+        <strong>{t(`desk.stage.${summary.stage}`)}</strong>
+        <span className="desk-nowline__text">
+          {latest === undefined ? t("desk.gate.working.starting") : latest.text}
+        </span>
+        <span className="desk-muted">
+          <TimeInStage summary={summary} now={now} />
+        </span>
+      </p>
+      <p className="desk-muted">{t("desk.gate.intro.working")}</p>
+      <div className="desk-gate__row">
+        <Button appearance="secondary" aria-keyshortcuts="P" onClick={toggle}>
+          {label}
+          <Kbd shortcut="p" />
+        </Button>
+        {summary.paused ? (
+          <span className="desk-paused-note">
+            {summary.pausedAt === null
+              ? t("desk.gate.working.paused")
+              : t("desk.gate.working.pausedAt", {
+                  time: formatClock(summary.pausedAt, language)
+                })}
+          </span>
+        ) : (
+          <span className="desk-muted">{t("desk.gate.working.pauseHelp")}</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** The draft PR is open: the owner merges on GitHub, then checks it here or sends its feedback. */
+function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
+  const t = useT();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const prUrl = safeHttpUrl(detail.state.prUrl);
+  return (
+    <>
+      <p className="desk-plain">{t("desk.gate.intro.pr-open")}</p>
+      {feedbackOpen && (
+        <FeedbackForm
+          targets={[]}
+          fromPr
+          busy={actions.busy}
+          onCancel={() => setFeedbackOpen(false)}
+          onSend={async (_to, text) => {
+            const sent = await send(
+              text.trim() === "" ? { action: "pr-feedback" } : { action: "pr-feedback", text }
+            );
+            if (sent) setFeedbackOpen(false);
+            return sent;
+          }}
+        />
+      )}
+      <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+      <DecideBar labelledBy={titleId}>
+        <Button disabled={actions.busy} onClick={() => void send({ action: "refresh-pr" })}>
+          {t("desk.gate.prOpen.check")}
+        </Button>
+        <Button
+          appearance="secondary"
+          disabled={actions.busy}
+          aria-expanded={feedbackOpen}
+          onClick={() => setFeedbackOpen((open) => !open)}
+        >
+          {t("desk.gate.prOpen.sendFeedback")}
+        </Button>
+        {prUrl !== null && (
+          <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_SUBTLE_LINK}>
+            <GitPullRequest aria-hidden="true" className="desk-icon" />
+            {t("desk.gate.prOpen.openPr")}
+            <ExternalLink aria-hidden="true" className="desk-icon" />
+          </a>
+        )}
+      </DecideBar>
+    </>
+  );
+}
+
+/** Shipped or cancelled: what that means, and the pull request when there is one. */
+function EndedGate({ detail, summary }: GateBodyProps) {
+  const t = useT();
+  const mode = gateModeOf(summary);
+  const prUrl = safeHttpUrl(detail.state.prUrl);
+  return (
+    <>
+      <p className="desk-plain">{t(`desk.gate.intro.${mode}`)}</p>
+      {prUrl !== null && (
+        <p>
+          <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_LINK}>
+            <GitPullRequest aria-hidden="true" className="desk-icon" />
+            {t("desk.gate.shipped.openPr")}
+            <ExternalLink aria-hidden="true" className="desk-icon" />
+          </a>
+        </p>
+      )}
+    </>
+  );
 }
 
 export interface GatePanelProps {
   readonly detail: IssueDetail;
   readonly summary: ReadableSummary;
+  readonly revision: string;
   readonly actions: IssueActions;
-  /** The issue was removed. The page leaves it. */
-  readonly onRemoved: () => void;
-  readonly layout: GateLayout;
-}
-
-export interface GateParts {
-  /** The title, the explanation, and what the decision needs. In the `side` layout, with its actions too. */
-  readonly decision: ReactElement;
-  /** Where the inspector puts the decision: pinned below its body, first above the stage tiles, or last in its body. */
-  readonly placement: "pinned" | "first" | "last";
-  /** The compact bar with the actions, or `null` in the `side` layout and when there is no primary action. */
-  readonly bar: ReactElement | null;
-}
-
-/** Cancel and Remove, out of the way in a menu. Both ask first, and focus comes back to the menu button. */
-function MoreMenu({
-  mode,
-  trigger,
-  busy,
-  requestChangesLabel,
-  onRequestChanges,
-  onCloseAutoFocus,
-  onCancel,
-  onRemove
-}: {
-  readonly mode: GateMode;
-  readonly trigger: RefObject<HTMLButtonElement | null>;
-  readonly busy: boolean;
-  readonly requestChangesLabel: string;
-  /** Set when the secondary action has no room in the bar: it moves into the menu. */
-  readonly onRequestChanges: (() => void) | null;
-  readonly onCloseAutoFocus: (event: Event) => void;
-  readonly onCancel: () => void;
-  readonly onRemove: () => void;
-}) {
-  const t = useT();
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          ref={trigger}
-          appearance="subtle"
-          className="desk-gate__more"
-          aria-label={t("desk.gate.more")}
-        >
-          <Ellipsis aria-hidden="true" className="desk-icon" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="desk-menu" onCloseAutoFocus={onCloseAutoFocus}>
-        {onRequestChanges !== null && (
-          <>
-            <DropdownMenuItem disabled={busy} onSelect={onRequestChanges}>
-              {requestChangesLabel}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        {canCancel(mode) && (
-          <DropdownMenuItem destructive onSelect={onCancel}>
-            {t("desk.gate.cancel.button")}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem destructive onSelect={onRemove}>
-          {t("desk.gate.remove.button")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  readonly onOpenResult: (node: FlowNodeId) => void;
+  readonly onShowTrace: () => void;
 }
 
 /**
- * The decision for the issue's stage: one primary action, a secondary one, and a menu for
- * Cancel and Remove. Anything that starts work is disabled while an action runs. Cancel and
- * Remove stay enabled, because they stop it.
- *
- * On a desktop the whole decision is pinned at the bottom of the inspector. Below 64 rem only
- * the actions stick to the bottom of the screen, and the rest is in the page flow: above the
- * stage tiles while the issue waits for the engineer, so the reason and the choice are visible.
+ * The decision card of the issue page: what the owner decides now, or what runs. Each mode has
+ * its own body and keys; the buttons sit in a bar at the bottom of the card. When an action
+ * works, focus moves to the card heading: the pressed button may be gone.
  */
-export function useGatePanel({
-  detail,
-  summary,
-  actions,
-  onRemoved,
-  layout
-}: GatePanelProps): GateParts {
+export function GatePanel(props: GatePanelProps) {
+  const { detail, summary, actions, onOpenResult } = props;
   const t = useT();
   const id = useId();
-  const now = useNow();
-  const mode: GateMode = gateModeOf(summary);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const moreButton = useRef<HTMLButtonElement>(null);
-  /** The feedback form was opened from the menu: focus goes to its box, not back to the menu. */
-  const feedbackFromMenu = useRef(false);
-  const [shipOpen, setShipOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [removeOpen, setRemoveOpen] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [resume, setResume] = useState<string>(AUTO_STAGE);
-  const [override, setOverride] = useState(false);
-  /** Intake stopped: the issue starts again, and the engineer chooses the override again. */
-  const restart = mode === "needs-you" && summary.resumeStage === "intake";
-  const { api } = useDesk();
-  const [draftOpen, setDraftOpen] = useState(false);
-  const [drafting, setDrafting] = useState(false);
-  const hasDraft = detail.artifacts.some((entry) => entry.id === "issue-draft" && entry.present);
-  /** The intake agent drafts the issue format. The dialog opens when a draft exists afterwards. */
-  const draft = async (): Promise<void> => {
-    setDrafting(true);
-    try {
-      const settled = await actions.run({ action: "draft" });
-      if (settled.kind !== "done") return;
-      const ready = await api
-        .artifactText(summary.issueNumber, "issue-draft")
-        .then(() => true)
-        .catch(() => false);
-      if (ready) setDraftOpen(true);
-    } finally {
-      setDrafting(false);
-    }
-  };
-  const prUrl = safeHttpUrl(detail.state.prUrl);
   const titleId = `${id}-title`;
-  const feedbackId = `${id}-feedback`;
-  const decides = DECIDE.has(mode);
-  const hasPrimary = decides || (mode === "shipped" && prUrl !== null);
-  const withBar = layout !== "side" && hasPrimary;
-  const hasSecondary = mode === "plan-gate" || mode === "pr-review" || mode === "pr-open";
-  const secondaryLabel = t(
-    mode === "pr-open" ? "desk.gate.prOpen.sendFeedback" : "desk.gate.requestChanges"
-  );
-  const secondaryInMenu = hasSecondary && withBar && layout === "bar-narrow";
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [ship, setShip] = useState<{
+    readonly open: boolean;
+    readonly unviewed: readonly string[];
+  }>({ open: false, unviewed: [] });
+  const mode = cardModeOf(summary);
+  const titleMode = mode === "intake" ? "needs-you" : mode;
+  const byline = BYLINE[mode];
+  const resultNode = RESULT_NODE[mode];
 
-  /** Run an action, and move focus to the heading when it worked: the pressed button may be gone. */
-  const send = async (request: Parameters<IssueActions["run"]>[0]): Promise<boolean> => {
+  const send = async (request: ActionRequestInput): Promise<boolean> => {
     const settled = await actions.run(request);
     const worked = settled.kind === "done";
     if (worked) heading.current?.focus();
     return worked;
   };
-
-  /** A dialog opened from the menu returns focus to the menu button. */
-  const backToMenu = (event: Event): void => {
-    if (moreButton.current === null) return;
-    event.preventDefault();
-    moreButton.current.focus();
+  const body: GateBodyProps = {
+    ...props,
+    send,
+    titleId,
+    onShip: (unviewed) => setShip({ open: true, unviewed })
   };
 
-  /** The menu returns focus to its button, unless it opened the feedback form: then the box takes it. */
-  const afterMenu = (event: Event): void => {
-    if (!feedbackFromMenu.current) return;
-    feedbackFromMenu.current = false;
-    event.preventDefault();
-    document.getElementById(feedbackId)?.querySelector("textarea")?.focus();
-  };
-
-  const requestChanges = (targets: readonly FeedbackTarget[]) =>
-    feedbackOpen ? (
-      <FeedbackForm
-        id={feedbackId}
-        targets={targets}
-        busy={actions.busy}
-        onCancel={() => setFeedbackOpen(false)}
-        onSend={async (to, text) => {
-          const sent = await send({ action: "feedback", to, text });
-          if (sent) setFeedbackOpen(false);
-          return sent;
-        }}
-      />
-    ) : null;
-
-  /** At pr-open the desk collects the PR feedback. The engineer's words are optional. */
-  const prFeedback = feedbackOpen ? (
-    <FeedbackForm
-      id={feedbackId}
-      targets={[]}
-      fromPr
-      busy={actions.busy}
-      onCancel={() => setFeedbackOpen(false)}
-      onSend={async (_to, text) => {
-        const sent = await send(
-          text.trim() === "" ? { action: "pr-feedback" } : { action: "pr-feedback", text }
-        );
-        if (sent) setFeedbackOpen(false);
-        return sent;
-      }}
-    />
-  ) : null;
-
-  const secondaryChanges = hasSecondary && !secondaryInMenu && (
-    <Button
-      appearance="secondary"
-      disabled={actions.busy}
-      aria-expanded={feedbackOpen}
-      aria-controls={feedbackOpen ? feedbackId : undefined}
-      onClick={() => setFeedbackOpen((open) => !open)}
-    >
-      {secondaryLabel}
-    </Button>
-  );
-
-  const moreMenu = (
-    <MoreMenu
-      mode={mode}
-      trigger={moreButton}
-      busy={actions.busy}
-      requestChangesLabel={secondaryLabel}
-      onRequestChanges={
-        secondaryInMenu
-          ? () => {
-              feedbackFromMenu.current = true;
-              setFeedbackOpen(true);
-            }
-          : null
-      }
-      onCloseAutoFocus={afterMenu}
-      onCancel={() => setCancelOpen(true)}
-      onRemove={() => setRemoveOpen(true)}
-    />
-  );
-
-  const primary = (() => {
-    switch (mode) {
-      case "plan-gate":
-        return (
-          <Button
-            className="desk-gate__primary"
-            disabled={actions.busy}
-            onClick={() => void send({ action: "approve" })}
-          >
-            {t("desk.gate.plan.approve")}
-          </Button>
-        );
-      case "pr-review":
-        return (
-          <Button
-            className="desk-gate__primary"
-            disabled={actions.busy}
-            onClick={() => setShipOpen(true)}
-          >
-            {t("desk.gate.pr.ship")}
-          </Button>
-        );
-      case "needs-you":
-        return restart ? (
-          <Button
-            className="desk-gate__primary"
-            disabled={actions.busy}
-            onClick={() => void send({ action: "start", override })}
-          >
-            {t("desk.gate.needsYou.startAgain")}
-          </Button>
-        ) : (
-          <Button
-            className="desk-gate__primary"
-            disabled={actions.busy}
-            onClick={() => {
-              const from = ACTIVE_STAGES.find((stage) => stage === resume);
-              void send(from === undefined ? { action: "continue" } : { action: "continue", from });
-            }}
-          >
-            {t("desk.gate.needsYou.continue")}
-          </Button>
-        );
-      case "pr-open":
-        return (
-          <Button
-            className="desk-gate__primary"
-            disabled={actions.busy}
-            onClick={() => void send({ action: "refresh-pr" })}
-          >
-            {t("desk.gate.prOpen.check")}
-          </Button>
-        );
-      case "shipped":
-        return prUrl === null ? null : (
-          <a
-            href={prUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className={`${PR_LINK} desk-gate__primary`}
-          >
-            <GitPullRequest aria-hidden="true" className="desk-icon" />
-            {t("desk.gate.shipped.openPr")}
-            <ExternalLink aria-hidden="true" className="desk-icon" />
-          </a>
-        );
-      default:
-        return null;
-    }
-  })();
-
-  const decision = (
-    <section className="desk-gate" data-mode={mode} aria-labelledby={titleId}>
-      <div className="desk-gate__head">
-        <h3 ref={heading} tabIndex={-1} id={titleId} className="desk-gate__title">
-          {t(`desk.gate.title.${mode}`)}
-        </h3>
-        {!withBar && moreMenu}
-      </div>
-      <p className="desk-muted desk-gate__intro">{t(`desk.gate.intro.${mode}`)}</p>
-
-      {mode === "needs-you" && (
-        <>
-          {summary.needsYouReason !== null && (
-            <Pre label={t("desk.gate.needsYou.reason")}>{summary.needsYouReason}</Pre>
+  return (
+    <Card className="desk-panel desk-decision" data-mode={mode}>
+      <section aria-labelledby={titleId}>
+        <div className="desk-decision__head">
+          <h2 ref={heading} tabIndex={-1} id={titleId} className="desk-decision__title">
+            {t(`desk.gate.title.${titleMode}`)}
+          </h2>
+          {mode === "intake" && <StatusChip tone="danger">{t("desk.intake.stopped")}</StatusChip>}
+          {mode === "pr-open" && (
+            <StatusChip tone="warning">
+              {t("desk.gate.prOpen.rounds", {
+                round: summary.prRound,
+                limit: summary.prRoundLimit
+              })}
+            </StatusChip>
           )}
-          {restart ? (
-            <>
-              <p className="desk-muted">{t("desk.gate.needsYou.restartHelp")}</p>
-              <div className="desk-draft__actions">
-                <Button appearance="secondary" disabled={actions.busy} onClick={() => void draft()}>
-                  {drafting ? (
-                    <>
-                      <Spinner size="sm" label={t("desk.draft.drafting")} aria-hidden="true" />
-                      {t("desk.draft.drafting")}
-                    </>
-                  ) : (
-                    t("desk.draft.start")
-                  )}
-                </Button>
-                {hasDraft && (
-                  <Button appearance="subtle" onClick={() => setDraftOpen(true)}>
-                    {t("desk.draft.review")}
-                  </Button>
-                )}
-              </div>
-              <p className="desk-muted">{t("desk.draft.help")}</p>
-              <div className="desk-check-row">
-                <Checkbox
-                  id={`${id}-override`}
-                  checked={override}
-                  onCheckedChange={(next) => setOverride(next === true)}
-                />
-                <Label htmlFor={`${id}-override`}>{t("desk.start.override")}</Label>
-              </div>
-            </>
-          ) : (
-            <div className="desk-field">
-              <Label htmlFor={`${id}-resume`}>{t("desk.gate.needsYou.resume")}</Label>
-              <Select value={resume} onValueChange={setResume}>
-                <SelectTrigger id={`${id}-resume`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={AUTO_STAGE}>
-                    {summary.resumeStage === null
-                      ? t("desk.gate.needsYou.resumeAuto")
-                      : t("desk.gate.needsYou.resumeRemembered", {
-                          stage: t(`desk.stage.${summary.resumeStage}`)
-                        })}
-                  </SelectItem>
-                  {ACTIVE_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {t(`desk.stage.${stage}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {byline !== undefined && <span className="desk-decision__by">{t(byline)}</span>}
+          {resultNode !== undefined && (
+            <Button
+              appearance="ghost"
+              spacing="compact"
+              className="desk-decision__open"
+              onClick={() => onOpenResult(resultNode)}
+            >
+              {t("desk.inspector.openResult")}
+            </Button>
           )}
-        </>
-      )}
-
-      {mode === "working" && (
-        <p className="desk-loading desk-gate__working" role="status">
-          <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
-          <span>{t("desk.gate.working.label", { stage: t(`desk.stage.${summary.stage}`) })}</span>
-          <span className="desk-muted desk-gate__elapsed">
-            <TimeInStage summary={summary} now={now} />
-          </span>
-        </p>
-      )}
-
-      {mode === "pr-open" && (
-        <>
-          {prUrl !== null && (
-            <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_SECONDARY_LINK}>
-              <GitPullRequest aria-hidden="true" className="desk-icon" />
-              {t("desk.gate.prOpen.openPr")}
-              <ExternalLink aria-hidden="true" className="desk-icon" />
-            </a>
-          )}
-          <p className="desk-muted">
-            {t("desk.gate.prOpen.rounds", {
-              round: summary.prRound,
-              limit: summary.prRoundLimit
-            })}
-          </p>
-          <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
-        </>
-      )}
-
-      {mode === "plan-gate" && requestChanges(PLAN_TARGETS)}
-      {mode === "pr-review" && requestChanges(PR_REVIEW_TARGETS)}
-      {mode === "pr-open" && prFeedback}
-
-      {layout === "side" && (
-        <div className="desk-gate__row">
-          {primary}
-          {secondaryChanges}
         </div>
-      )}
-
+        {mode === "plan-gate" && <PlanGate {...body} />}
+        {mode === "pr-review" && <ReviewGate {...body} />}
+        {mode === "needs-you" && <NeedsYouGate {...body} />}
+        {mode === "intake" && <IntakeGate {...body} />}
+        {mode === "working" && <RunningGate {...body} />}
+        {mode === "pr-open" && <PrOpenGate {...body} />}
+        {(mode === "shipped" || mode === "cancelled") && <EndedGate {...body} />}
+        {mode === "idle" && <p className="desk-muted">{t("desk.gate.intro.idle")}</p>}
+      </section>
       <ShipDialog
         issueNumber={summary.issueNumber}
         pullRequest={detail.state.prNumber ?? null}
-        open={shipOpen}
-        onOpenChange={setShipOpen}
+        open={ship.open}
+        onOpenChange={(open) => setShip((was) => ({ ...was, open }))}
         actions={actions}
+        unviewed={ship.unviewed}
       />
-      <DraftDialog
-        issueNumber={summary.issueNumber}
-        open={draftOpen}
-        onOpenChange={setDraftOpen}
-        actions={actions}
-      />
-      <CancelDialog
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        onCloseAutoFocus={backToMenu}
-        onConfirm={() => void send({ action: "cancel" })}
-      />
-      <RemoveDialog
-        open={removeOpen}
-        onOpenChange={setRemoveOpen}
-        onCloseAutoFocus={backToMenu}
-        onConfirm={(force) => {
-          void send({ action: "remove", force }).then((removed) => {
-            if (removed) onRemoved();
-          });
-        }}
-      />
-    </section>
+    </Card>
   );
-
-  return {
-    decision,
-    placement: layout === "side" ? "pinned" : decides ? "first" : "last",
-    bar: withBar ? (
-      <div className="desk-gate-bar" role="group" aria-labelledby={titleId}>
-        {primary}
-        {secondaryChanges}
-        {moreMenu}
-      </div>
-    ) : null
-  };
 }

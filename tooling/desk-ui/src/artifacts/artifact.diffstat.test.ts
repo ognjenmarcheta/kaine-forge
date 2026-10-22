@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clipLines, parseDiffStat } from "./artifact.diffstat";
+import { clipLines, parseDiffFiles, parseDiffStat } from "./artifact.diffstat";
 import { DIFF_PATCH } from "../../tests/fixture.data";
 
 describe("parseDiffStat", () => {
@@ -31,6 +31,21 @@ describe("parseDiffStat", () => {
 
   it("returns nothing for an empty diff", () => {
     expect(parseDiffStat("")).toEqual({ files: [], added: 0, removed: 0 });
+  });
+});
+
+describe("parseDiffFiles", () => {
+  it("numbers each line on its side, so a finding on a new-file line finds its row", () => {
+    const [board] = parseDiffFiles(
+      "diff --git a/a.ts b/a.ts\n@@ -10,3 +10,3 @@\n keep\n-old\n+new\n\\ No newline at end of file\n tail\n"
+    );
+    expect(board?.lines).toEqual([
+      { kind: "hunk", text: "@@ -10,3 +10,3 @@", oldLine: null, newLine: null },
+      { kind: "context", text: "keep", oldLine: 10, newLine: 10 },
+      { kind: "del", text: "old", oldLine: 11, newLine: null },
+      { kind: "add", text: "new", oldLine: null, newLine: 11 },
+      { kind: "context", text: "tail", oldLine: 12, newLine: 12 }
+    ]);
   });
 });
 

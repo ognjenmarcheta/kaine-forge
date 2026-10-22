@@ -8,12 +8,17 @@ import {
   LOOP_KINDS,
   NODE_KINDS,
   NODE_STATUSES,
+  PLAN_RISKS,
+  RUN_FAILURE_KINDS,
   STAGES
 } from "@repo/desk/contracts";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
+import { FILE_GROUPS } from "../gates/gate.model";
+import { TRACE_FILTERS } from "../issue/issue.trace";
 import { THEMES } from "../shell/shell.preferences";
 import { CHIP_STATES } from "../status/status.model";
 
@@ -114,7 +119,14 @@ describe("desk translations", () => {
       "desk.build.result.": ["pass", "fail", "not-run"],
       "desk.check.kind.": ["loop", "ship"],
       "desk.prefs.theme.": THEMES,
-      "desk.prefs.language.": ["en", "de", "sr"]
+      "desk.prefs.language.": ["en", "de", "sr"],
+      "desk.undo.pending.": UNDOABLE_ACTIONS,
+      "desk.palette.section.": ["here", "recent", "turn", "goto", "issues"],
+      "desk.incident.cause.": [...RUN_FAILURE_KINDS, "repeat"],
+      "desk.diff.group.": FILE_GROUPS,
+      "desk.record.": PLAN_RISKS,
+      "desk.trace.filter.": TRACE_FILTERS,
+      "desk.trace.kind.": NODE_KINDS
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

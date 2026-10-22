@@ -81,6 +81,7 @@ export const buildStage: StageHandler = async (context) => {
     readOnly: false,
     resumeSessionId: state.sessions.builder,
     feedback: pending?.text,
+    ownerNote: state.approveNote ?? undefined,
     plan: plan.value,
     workspaces: await workspacesForPlan(worktree, plan.value)
   });

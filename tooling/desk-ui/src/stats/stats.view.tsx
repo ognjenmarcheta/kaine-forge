@@ -1,14 +1,24 @@
-import type { IssueRollup, LessonReport, RunGroup, RunStats } from "@repo/desk/contracts";
+import type {
+  IssueRollup,
+  IssueSummary,
+  LessonReport,
+  RunGroup,
+  RunStats,
+  StatsDay
+} from "@repo/desk/contracts";
 import { Button, Card } from "@repo/ui";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 
 import { LessonsPanel } from "./stats.lessons";
+import { costByRole, sparkPoints, weekOf, type WeekSeries } from "./stats.model";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { formatCount, formatDuration, formatUsd } from "../shell/shell.format";
+import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
-import { FailureText, Loading, Muted } from "../shell/shell.ui";
+import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
+import { issueStatusOf, type BoardGroup } from "../status/status.model";
 
 /** A dash for a value no run reports, read as "none". */
 function Empty() {
@@ -143,6 +153,139 @@ function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
   );
 }
 
+/** Today in one line: the runs and cost of the day, and what waits on the owner now. */
+function TodayDigest({
+  today,
+  issues
+}: {
+  readonly today: StatsDay | null;
+  readonly issues: readonly IssueSummary[];
+}) {
+  const t = useT();
+  const { language } = useLanguage();
+  const id = useId();
+  const groups = issues.map((summary) => issueStatusOf(summary).group);
+  const count = (group: BoardGroup): number => groups.filter((entry) => entry === group).length;
+  const cost = today?.costUsd ?? null;
+  return (
+    <section className="desk-digest" aria-labelledby={id}>
+      <h2 id={id} className="desk-digest__title">
+        {t("desk.stats.today.title")}
+      </h2>
+      <ul className="desk-digest__items">
+        <li>{t("desk.stats.today.runs", { count: today?.runs ?? 0 })}</li>
+        <li>{t("desk.stats.today.shipped", { count: today?.shipped ?? 0 })}</li>
+        <li>{t("desk.stats.today.needsYou", { count: count("needs-you") })}</li>
+        <li>{t("desk.stats.today.waiting", { count: count("waiting") })}</li>
+        <li>
+          {cost === null
+            ? t("desk.stats.today.noCost")
+            : t("desk.stats.today.cost", { cost: formatUsd(cost, language) })}
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+/** One card of "Last 7 days": the total, a line of the seven days, and today's value. */
+function WeekCard({
+  label,
+  series,
+  format
+}: {
+  readonly label: string;
+  readonly series: WeekSeries;
+  readonly format: (value: number) => string;
+}) {
+  const t = useT();
+  const id = useId();
+  const text = (value: number | null): string =>
+    value === null ? t("desk.common.none") : format(value);
+  return (
+    <div className="desk-stat" role="group" aria-labelledby={id}>
+      <span id={id} className="desk-stat__label">
+        {label}
+      </span>
+      <strong className="desk-stat__value">
+        {series.total === null ? <Empty /> : format(series.total)}
+      </strong>
+      {/* SVG attributes, not a style: the CSP blocks those. The text below says the same. */}
+      <svg
+        className="desk-stat__spark"
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <polyline points={sparkPoints(series.values)} />
+      </svg>
+      <span className="desk-stat__note">
+        {t("desk.stats.week.today", { value: text(series.values.at(-1) ?? null) })}
+      </span>
+      <span className="desk-sr-only">
+        {t("desk.stats.week.series", { values: series.values.map(text).join(", ") })}
+      </span>
+    </div>
+  );
+}
+
+function WeekCards({ days }: { readonly days: readonly StatsDay[] }) {
+  const t = useT();
+  const { language } = useLanguage();
+  const id = useId();
+  const week = weekOf(days);
+  const count = (value: number): string => formatCount(value, language);
+  return (
+    <section className="desk-week" aria-labelledby={id}>
+      <h2 id={id} className="desk-week__title">
+        {t("desk.stats.week.title")}
+      </h2>
+      <div className="desk-week__grid">
+        <WeekCard label={t("desk.stats.week.runs")} series={week.runs} format={count} />
+        <WeekCard
+          label={t("desk.stats.week.cost")}
+          series={week.costUsd}
+          format={(value) => formatUsd(value, language)}
+        />
+        <WeekCard label={t("desk.stats.week.shipped")} series={week.shipped} format={count} />
+      </div>
+    </section>
+  );
+}
+
+/** The cost of each role as a bar. The value is written beside it, so the bar only repeats it. */
+function CostByRole({ groups }: { readonly groups: readonly RunGroup[] }) {
+  const t = useT();
+  const { language } = useLanguage();
+  return (
+    <Card className="desk-panel">
+      <h2>{t("desk.stats.costByRole")}</h2>
+      <ul className="desk-bars">
+        {costByRole(groups).map((entry) => (
+          <li key={entry.role} className="desk-bars__row">
+            <span>{t(`desk.inspector.role.${entry.role}`)}</span>
+            <svg className="desk-bars__track" aria-hidden="true" focusable="false">
+              <rect className="desk-bars__rail" width="100%" height="100%" rx="4" />
+              {entry.share > 0 && (
+                <rect
+                  className="desk-bars__fill"
+                  width={`${(entry.share * 100).toFixed(2)}%`}
+                  height="100%"
+                  rx="4"
+                />
+              )}
+            </svg>
+            <span className="desk-bars__value">
+              {entry.costUsd === null ? t("desk.stats.noCost") : formatUsd(entry.costUsd, language)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Muted>{t("desk.stats.costByRoleHint")}</Muted>
+    </Card>
+  );
+}
+
 function Report({ stats }: { readonly stats: RunStats }) {
   const t = useT();
   if (stats.groups.length === 0) return <Muted>{t("desk.stats.empty")}</Muted>;
@@ -153,10 +296,13 @@ function Report({ stats }: { readonly stats: RunStats }) {
         <GroupsTable groups={stats.groups} />
         <Muted>{t("desk.stats.groupsHint")}</Muted>
       </Card>
-      <Card className="desk-panel">
-        <h2>{t("desk.stats.issues")}</h2>
-        <IssuesTable issues={stats.issues} />
-      </Card>
+      <div className="desk-split">
+        <Card className="desk-panel">
+          <h2>{t("desk.stats.issues")}</h2>
+          <IssuesTable issues={stats.issues} />
+        </Card>
+        <CostByRole groups={stats.groups} />
+      </div>
       {stats.invalidLines > 0 && (
         <Muted>{t("desk.stats.invalidLines", { count: stats.invalidLines })}</Muted>
       )}
@@ -186,29 +332,40 @@ export function StatsView() {
   const [lessons, setLessons] = useState<LessonReport | null>(null);
   const [lessonsError, setLessonsError] = useState<Failure | null>(null);
   const [loading, setLoading] = useState(false);
+  // The placeholder shows for a load the owner asked for, not for each quiet update.
+  const [asked, setAsked] = useState(false);
 
-  const refresh = useCallback((): void => {
-    setLoading(true);
-    api
-      .stats()
-      .then((loaded) => {
-        setStats(loaded);
-        setError(null);
-      })
-      .catch((failure: unknown) => setError(failureOf(failure)))
-      .finally(() => setLoading(false));
-    // Apart from the runs: a lessons failure must not hide the run tables.
-    Promise.resolve()
-      .then(() => api.lessons())
-      .then((loaded) => {
-        setLessons(loaded);
-        setLessonsError(null);
-      })
-      .catch((failure: unknown) => setLessonsError(failureOf(failure)));
-  }, [api]);
+  const load = useCallback(
+    (byOwner: boolean): void => {
+      setLoading(true);
+      if (byOwner) setAsked(true);
+      api
+        .stats()
+        .then((loaded) => {
+          setStats(loaded);
+          setError(null);
+        })
+        .catch((failure: unknown) => setError(failureOf(failure)))
+        .finally(() => {
+          setLoading(false);
+          setAsked(false);
+        });
+      // Apart from the runs: a lessons failure must not hide the run tables.
+      Promise.resolve()
+        .then(() => api.lessons())
+        .then((loaded) => {
+          setLessons(loaded);
+          setLessonsError(null);
+        })
+        .catch((failure: unknown) => setLessonsError(failureOf(failure)));
+    },
+    [api]
+  );
+  const refresh = useCallback((): void => load(true), [load]);
 
   // A finished run changes its issue, so a changed issue list means new numbers.
-  useEffect(refresh, [refresh, state.issues]);
+  useEffect(() => load(false), [load, state.issues]);
+  usePaletteActions([{ id: "stats-refresh", label: t("desk.stats.refresh"), run: refresh }]);
 
   return (
     <>
@@ -222,11 +379,22 @@ export function StatsView() {
         </Button>
       </div>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
-      {stats !== null ? <Report stats={stats} /> : error === null && <Loading />}
+      {stats !== null && (
+        <>
+          <TodayDigest today={stats.days.at(-1) ?? null} issues={Object.values(state.issues)} />
+          <WeekCards days={stats.days} />
+        </>
+      )}
+      {loading && (asked || stats === null) && (
+        <Card className="desk-panel">
+          <LoadingLines label={t("desk.stats.loading")} lines={3} />
+        </Card>
+      )}
+      {stats !== null && <Report stats={stats} />}
       {lessonsError !== null && (
         <FailureText code={lessonsError.code} detail={lessonsError.detail} />
       )}
-      {lessons !== null && <LessonsPanel report={lessons} />}
+      {lessons !== null && <LessonsPanel report={lessons} onReport={setLessons} />}
     </>
   );
 }

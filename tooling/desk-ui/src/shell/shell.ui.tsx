@@ -1,4 +1,4 @@
-import { Spinner } from "@repo/ui";
+import { Skeleton, Spinner } from "@repo/ui";
 import type { ReactNode } from "react";
 
 import type { FailureCode } from "../api/api.client";
@@ -45,6 +45,24 @@ export function Loading() {
       <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
       <span>{t("desk.common.loading")}</span>
     </p>
+  );
+}
+
+/**
+ * Placeholder lines while a report loads again, with what runs now in words. The lines keep the
+ * room of the content, so the page does not jump when it arrives.
+ */
+export function LoadingLines({ label, lines }: { readonly label: string; readonly lines: number }) {
+  return (
+    <div className="desk-skel" role="status" aria-label={label}>
+      <p className="desk-skel__now">
+        <Spinner size="sm" label={label} aria-hidden="true" />
+        <span>{label}</span>
+      </p>
+      {Array.from({ length: lines }, (_, index) => (
+        <Skeleton key={index} className="desk-skel__line" aria-hidden="true" />
+      ))}
+    </div>
   );
 }
 

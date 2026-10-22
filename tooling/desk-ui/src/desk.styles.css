@@ -8,7 +8,7 @@ body {
   margin: 0;
   color: var(--ds-text);
   background: var(--ds-surface-sunken);
-  font: var(--ds-font-body);
+  font: var(--ds-font-body-comfortable);
   font-family: var(--ds-font-family-sans);
 }
 
@@ -38,11 +38,13 @@ p {
 }
 
 h1 {
-  font: var(--ds-font-heading-large);
+  font: var(--ds-font-heading-page);
+  letter-spacing: var(--ds-letter-spacing-heading);
 }
 
 h2 {
   font: var(--ds-font-heading-medium);
+  letter-spacing: var(--ds-letter-spacing-heading);
 }
 
 h3 {
@@ -51,7 +53,7 @@ h3 {
 }
 
 code {
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   overflow-wrap: anywhere;
 }
 
@@ -126,18 +128,27 @@ small {
   inset-block-start: var(--ds-space-100);
 }
 
-/* One row at every width: brand, navigation, then the live pill and the preferences. */
+/*
+ * The masthead stays on top while the page scrolls: the top bar and, while the live stream
+ * reconnects, the amber banner under it. One row at every width: brand, navigation, then
+ * search, the live pill, and the preferences.
+ */
+.desk-masthead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
 .desk-topbar {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: var(--ds-space-300);
+  gap: calc(var(--ds-space-150) + var(--ds-space-025));
   min-width: 0;
-  padding: var(--ds-space-100) var(--ds-space-300);
-  background: var(--ds-surface-raised);
-  box-shadow: var(--ds-shadow-raised);
+  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-300);
+  background: var(--ds-surface);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
   position: relative;
-  z-index: 1;
 }
 
 /* The brand gives way first: its name shrinks before the navigation or the controls do. */
@@ -145,7 +156,7 @@ small {
   display: flex;
   flex: 0 1 auto;
   align-items: center;
-  gap: var(--ds-space-100);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
   min-width: 0;
   overflow: hidden;
 }
@@ -154,49 +165,52 @@ small {
   display: grid;
   flex: none;
   place-items: center;
-  width: var(--ds-control-medium);
-  height: var(--ds-control-medium);
+  width: calc(var(--ds-space-300) + var(--ds-space-075));
+  height: calc(var(--ds-space-300) + var(--ds-space-075));
   color: var(--ds-text-brand-inverse);
   background: var(--ds-background-brand-bold);
-  border-radius: var(--ds-radius-200);
-  font-weight: var(--ds-font-weight-bold);
+  border-radius: var(--ds-radius-100);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
 .desk-brand__name {
   display: grid;
   min-width: 0;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
 .desk-brand__name strong {
   overflow: hidden;
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: var(--ds-letter-spacing-heading);
   text-overflow: ellipsis;
 }
 
 .desk-brand__name small {
-  font: var(--ds-font-body-xsmall);
-}
-
-.desk-brand__short {
-  display: none;
+  overflow: hidden;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+  line-height: 1.2;
+  text-overflow: ellipsis;
 }
 
 .desk-nav {
   display: flex;
   flex: none;
-  gap: var(--ds-space-025);
-  padding: var(--ds-space-050);
-  background: var(--ds-background-neutral);
+  gap: var(--ds-space-050);
+  padding: calc(var(--ds-space-025) + var(--ds-border-width));
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-pill);
 }
 
 .desk-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: var(--ds-control-medium);
-  padding-inline: var(--ds-space-200);
+  gap: var(--ds-space-100);
+  padding: var(--ds-space-075) calc(var(--ds-space-150) + var(--ds-space-025));
   color: var(--ds-text-subtle);
-  font-weight: var(--ds-font-weight-medium);
   text-decoration: none;
   white-space: nowrap;
   border-radius: var(--ds-radius-pill);
@@ -210,33 +224,92 @@ small {
   background: var(--ds-background-neutral-hovered);
 }
 
-/* The selected roles keep the active pill readable on the track in both themes. */
+/* Calm accent: the active page is a raised neutral pill. Orange is kept for what you act on. */
 .desk-nav a[aria-current="page"] {
-  color: var(--ds-text-selected);
-  background: var(--ds-background-selected);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-selected);
-  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-nav .desk-count {
+  font-size: 0.71875rem;
 }
 
 .desk-topbar__end {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
-  gap: var(--ds-space-100);
+  gap: calc(var(--ds-space-150) + var(--ds-space-025));
+  min-width: 0;
   margin-inline-start: auto;
+}
+
+/* Search or jump: a quiet pill with the shortcut at its end. */
+.desk-cmdk.ui-button {
+  justify-content: flex-start;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  width: 15rem;
+  min-width: var(--ds-control-large);
+  flex: 0 1 auto;
+  height: calc(var(--ds-control-medium) + var(--ds-space-050));
+  padding: 0 calc(var(--ds-space-100) + var(--ds-space-025)) 0 var(--ds-space-150);
+  color: var(--ds-text-subtlest);
+  background: var(--ds-surface-sunken);
+  border-color: var(--ds-border);
+  font: var(--ds-font-body-comfortable);
+}
+
+.desk-cmdk.ui-button:hover:not(:disabled) {
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-color: var(--ds-border-strong);
+}
+
+.desk-cmdk__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-kbd {
+  display: inline-block;
+  min-width: calc(var(--ds-space-200) + var(--ds-space-025));
+  margin-inline-start: var(--ds-space-025);
+  padding: 0 calc(var(--ds-space-050) + var(--ds-border-width));
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border-strong);
+  border-bottom-width: calc(var(--ds-border-width) * 2);
+  border-radius: var(--ds-radius-050);
+  font: var(--ds-font-body-xsmall);
+  font-family: var(--ds-font-family-mono);
+  font-weight: var(--ds-font-weight-medium);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.desk-cmdk .desk-cmdk__kbd {
+  margin-inline-start: auto;
+  padding-inline: var(--ds-space-075);
+  background: transparent;
+  border-bottom-width: var(--ds-border-width);
+  line-height: 1.125rem;
 }
 
 .desk-live {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--ds-space-075);
   margin: 0;
-  padding: var(--ds-space-050) var(--ds-space-150);
+  padding: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
   color: var(--ds-text-warning);
   background: var(--ds-background-warning);
   border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
+  font: var(--ds-font-body-compact);
+  font-weight: var(--ds-font-weight-medium);
   white-space: nowrap;
 }
 
@@ -247,14 +320,10 @@ small {
 
 .desk-live__dot {
   flex: none;
-  width: var(--ds-space-100);
-  height: var(--ds-space-100);
+  width: calc(var(--ds-space-075) + var(--ds-border-width));
+  height: calc(var(--ds-space-075) + var(--ds-border-width));
   border-radius: var(--ds-radius-round);
-  background: var(--ds-background-warning-bold);
-}
-
-.desk-live[data-connection="live"] .desk-live__dot {
-  background: var(--ds-background-success-bold);
+  background: currentcolor;
 }
 
 .desk-live[data-connection="reconnecting"] .desk-live__dot {
@@ -267,10 +336,255 @@ small {
   flex: none;
 }
 
-.desk-icon-button {
-  width: var(--ds-control-large);
-  height: var(--ds-control-large);
+.desk-icon-button.ui-button {
+  flex: none;
+  width: calc(var(--ds-control-medium) + var(--ds-space-050));
+  height: calc(var(--ds-control-medium) + var(--ds-space-050));
   padding: 0;
+  border-radius: calc(var(--ds-radius-100) + var(--ds-space-025));
+}
+
+.desk-icon-button.ui-button:hover:not(:disabled) {
+  background: var(--ds-surface-sunken);
+  border-color: var(--ds-border);
+}
+
+/* Preferences: a small panel under the top bar, at its end. */
+.desk-prefs {
+  position: absolute;
+  inset-inline-end: var(--ds-space-200);
+  top: calc(100% + var(--ds-space-025));
+  z-index: 40;
+  display: grid;
+  gap: var(--ds-space-150);
+  width: 17.5rem;
+  padding: calc(var(--ds-space-150) + var(--ds-space-025));
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: calc(var(--ds-radius-200) + var(--ds-space-025));
+  box-shadow: var(--ds-shadow-overlay);
+}
+
+.desk-prefs__title {
+  margin: 0;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-compact);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0;
+}
+
+.desk-prefs__help {
+  margin: 0;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-prefs .desk-check-row {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+}
+
+/* One choice of a few, all visible: the chosen one is ink. */
+.desk-seg {
+  display: inline-flex;
+  justify-self: start;
+  padding: calc(var(--ds-space-025) + var(--ds-border-width));
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+}
+
+.desk-seg .desk-seg__item.ui-button {
+  height: auto;
+  padding: var(--ds-space-075) calc(var(--ds-space-150) + var(--ds-space-025));
+  color: var(--ds-text-subtle);
+  border: 0;
+  font: var(--ds-font-body-comfortable);
+  white-space: nowrap;
+}
+
+.desk-seg .desk-seg__item.ui-button[aria-pressed="true"] {
+  color: var(--ds-surface);
+  background: var(--ds-text);
+}
+
+/* While the live stream reconnects: the page may be out of date. */
+.desk-connbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  padding: var(--ds-space-100) var(--ds-space-300);
+  color: var(--ds-text-warning);
+  background: var(--ds-background-warning);
+  border-bottom: var(--ds-border-width) solid var(--ds-border-warning);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-connbar__spin {
+  flex: none;
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+  border: calc(var(--ds-border-width) * 2) solid var(--ds-background-warning);
+  border-top-color: var(--ds-text-warning);
+  border-radius: var(--ds-radius-round);
+  animation: desk-spin 0.9s linear infinite;
+}
+
+@keyframes desk-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* The command palette: a search box, sections of rows, and a footer of keys. */
+.ui-modal__content:has(> .ui-modal__body > .desk-palette) {
+  top: 4.5rem;
+  translate: -50% 0;
+  gap: 0;
+  max-width: 38.75rem;
+  max-height: calc(100vh - 6rem);
+  padding: 0;
+  overflow: hidden;
+  background: var(--ds-surface-raised);
+  border-radius: var(--ds-radius-250);
+  box-shadow: var(--ds-shadow-floating-bold);
+}
+
+.ui-modal__content:has(> .ui-modal__body > .desk-palette) > .ui-modal__header {
+  position: absolute;
+  width: var(--ds-border-width);
+  height: var(--ds-border-width);
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.ui-modal__body:has(> .desk-palette) {
+  display: block;
+  min-height: 0;
+}
+
+.desk-palette {
+  display: grid;
+}
+
+.desk-palette .desk-palette__input {
+  height: auto;
+  min-height: 3.25rem;
+  padding: 0 calc(var(--ds-space-200) + var(--ds-space-025));
+  border: 0;
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+  border-radius: 0;
+  box-shadow: none;
+  font: var(--ds-font-body-large);
+}
+
+.desk-palette .desk-palette__input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.desk-palette__list {
+  max-height: 23.75rem;
+  overflow: auto;
+  padding: var(--ds-space-075);
+}
+
+.desk-palette__head {
+  padding: var(--ds-space-150) var(--ds-space-150) var(--ds-space-075);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.desk-palette .desk-palette__option.ui-button {
+  display: flex;
+  justify-content: flex-start;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  width: 100%;
+  height: auto;
+  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-150);
+  color: var(--ds-text);
+  border: 0;
+  border-radius: var(--ds-radius-100);
+  font: var(--ds-font-body-comfortable);
+  text-align: start;
+}
+
+.desk-palette .desk-palette__option.ui-button:hover:not(:disabled) {
+  background: var(--ds-surface-sunken);
+}
+
+.desk-palette .desk-palette__option.ui-button[aria-selected="true"] {
+  background: var(--ds-surface-sunken-bold);
+}
+
+.desk-palette__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-palette__detail {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+}
+
+.desk-palette__empty {
+  margin: 0;
+  padding: var(--ds-space-500) var(--ds-space-250);
+  color: var(--ds-text-subtle);
+  text-align: center;
+}
+
+.desk-palette__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  padding: var(--ds-space-100) calc(var(--ds-space-150) + var(--ds-space-025));
+  color: var(--ds-text-subtlest);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+  font: var(--ds-font-body-small);
+}
+
+.desk-palette__spacer {
+  flex: 1;
+}
+
+/* Toasts: ink on the inverse surface. An error keeps its danger tint: it must be read. */
+.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) {
+  color: var(--ds-text-surface-inverse);
+  background: var(--ds-surface-inverse);
+  border-color: var(--ds-surface-inverse);
+  border-radius: var(--ds-radius-200);
+  box-shadow: var(--ds-shadow-floating-bold);
+  font: var(--ds-font-body);
+}
+
+.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) .desk-toast__description {
+  color: var(--ds-text-surface-inverse);
+  opacity: 0.75;
+}
+
+.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) [data-close-button] {
+  color: var(--ds-text-surface-inverse);
+  background: var(--ds-surface-inverse);
+  border-color: var(--ds-border-strong);
+}
+
+.ui-toaster [data-sonner-toast] [data-button].desk-toast__undo {
+  padding: var(--ds-space-025) var(--ds-space-050);
+  color: var(--ds-background-brand-bold);
+  background: none;
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.1875rem;
 }
 
 .desk-menu {
@@ -284,6 +598,9 @@ small {
 }
 
 main {
+  /* The stage side sheet's width, and the room the page makes for it on a wide screen. */
+  --desk-sheet-width: 30rem;
+
   flex: 1;
   width: 100%;
   max-width: 96rem;
@@ -296,54 +613,62 @@ main:focus {
 }
 
 @media (max-width: 64rem) {
-  .desk-brand__name small {
+  .desk-brand__name small,
+  .desk-cmdk__text {
     display: none;
+  }
+
+  .desk-cmdk.ui-button {
+    width: auto;
   }
 }
 
-/* A phone: the short brand, a tighter row, and touch targets of at least 44 px (2.75 rem). */
-@media (max-width: 48rem) {
-  .desk-topbar {
+/* A phone: the mark only, icon-only search, no live pill, and 44 px (2.75 rem) touch targets. */
+@media (max-width: 40rem) {
+  /* The controls at the end close up too, so the row fits 375 px with the count on Board. */
+  .desk-topbar,
+  .desk-topbar__end {
     gap: var(--ds-space-100);
-    padding-inline: var(--ds-space-200);
   }
 
-  .desk-brand__full {
-    position: absolute;
-    width: var(--ds-border-width);
-    height: var(--ds-border-width);
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .desk-topbar {
+    padding: var(--ds-space-100) var(--ds-space-150);
   }
 
-  .desk-brand__short {
-    display: block;
+  .desk-brand__name,
+  .desk-live,
+  .desk-cmdk__kbd {
+    display: none;
   }
 
   .desk-nav a {
     min-height: 2.75rem;
-    padding-inline: var(--ds-space-100);
+    padding-inline: calc(var(--ds-space-100) + var(--ds-space-025));
   }
 
-  .desk-live {
-    padding-inline: var(--ds-space-100);
+  .desk-cmdk.ui-button {
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
   }
 
-  .desk-icon-button {
+  .desk-icon-button.ui-button {
     width: 2.75rem;
     height: 2.75rem;
   }
 
+  .desk-prefs {
+    inset-inline: var(--ds-space-100);
+    width: auto;
+  }
+
+  .desk-connbar {
+    padding: var(--ds-space-100) var(--ds-space-200);
+  }
+
   main {
     padding: var(--ds-space-200);
-  }
-}
-
-/* A narrow phone: two pills, the live status, and 44 px controls leave room for the mark only. */
-@media (max-width: 30rem) {
-  .desk-brand__short {
-    display: none;
   }
 }
 
@@ -379,14 +704,19 @@ main:focus {
   border-radius: var(--ds-radius-200);
 }
 
+/* A card: a hairline frame and no shadow, so the page stays flat and calm. */
 .desk-panel {
-  padding: var(--ds-space-300);
+  padding: var(--ds-space-250);
   margin-block-end: var(--ds-space-300);
   background: var(--ds-surface-raised);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
 }
 
 .desk-panel > h2 {
   margin-block-start: 0;
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading);
 }
 
 .desk-panel__head {
@@ -440,7 +770,7 @@ main:focus {
   background: var(--ds-surface-sunken);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -450,7 +780,6 @@ main:focus {
 .desk-steps,
 .desk-checks,
 .desk-cards,
-.desk-meta,
 .desk-legend,
 .desk-checklist,
 .desk-anomalies,
@@ -503,15 +832,28 @@ main:focus {
   font-weight: var(--ds-font-weight-semibold);
 }
 
+/*
+ * A count of things to act on is orange. `--quiet` (or `data-empty`) makes it neutral, for a
+ * zero or a count that asks for nothing.
+ */
 .desk-count {
   display: inline-block;
-  min-width: var(--ds-space-300);
-  padding-inline: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-background-neutral);
+  min-width: var(--ds-space-250);
+  height: var(--ds-space-250);
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-brand-inverse);
+  background: var(--ds-background-brand-bold);
   border-radius: var(--ds-radius-pill);
   font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-space-250);
   text-align: center;
+}
+
+.desk-count--quiet,
+.desk-count[data-empty] {
+  color: var(--ds-text);
+  background: var(--ds-surface-sunken-bold);
 }
 
 .desk-session {
@@ -694,8 +1036,8 @@ main:focus {
 
 .desk-pulls__row {
   display: grid;
-  gap: var(--ds-space-050);
-  padding-block: var(--ds-space-100);
+  gap: var(--ds-space-075);
+  padding-block: var(--ds-space-150);
   border-bottom: var(--ds-border-width) solid var(--ds-border);
 }
 
@@ -713,8 +1055,8 @@ main:focus {
 }
 
 .desk-column__head {
-  padding-block-end: var(--ds-space-100);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
+  padding-block-end: var(--ds-space-150);
+  border-bottom: var(--ds-border-width) solid var(--ds-border-strong);
 }
 
 .desk-column__head h2 {
@@ -722,7 +1064,8 @@ main:focus {
   align-items: center;
   gap: var(--ds-space-100);
   margin-block: 0 var(--ds-space-050);
-  font: var(--ds-font-heading-xsmall);
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-column__head p {
@@ -732,7 +1075,7 @@ main:focus {
 
 .desk-column__body {
   display: grid;
-  gap: var(--ds-space-150);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
   align-content: start;
   padding-block: var(--ds-space-150);
 }
@@ -747,14 +1090,11 @@ main:focus {
   font: var(--ds-font-body-small);
 }
 
-.desk-column[data-group="needs-you"] .desk-count:not([data-empty]) {
-  color: var(--ds-text-danger);
-  background: var(--ds-background-danger);
-}
-
-.desk-column[data-group="waiting"] .desk-count:not([data-empty]) {
-  color: var(--ds-text-warning);
-  background: var(--ds-background-warning);
+/* A column count is a neutral tally: the cards carry the status, not the header. */
+.desk-column__head .desk-count {
+  color: var(--ds-text-subtlest);
+  background: var(--ds-surface-sunken-bold);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 /* Side by side from 64 rem: a stable board height, and each column scrolls by itself. */
@@ -786,16 +1126,17 @@ main:focus {
 
 .desk-cards {
   display: grid;
-  gap: var(--ds-space-150);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
 }
 
 /* A compact card. Only the title and the buttons are interactive, not the card itself. */
 .desk-card {
   display: grid;
   gap: var(--ds-space-100);
-  padding: var(--ds-space-150) var(--ds-space-200);
+  padding: calc(var(--ds-space-150) + var(--ds-space-025));
   background: var(--ds-surface-raised);
   border-radius: var(--ds-radius-200);
+  box-shadow: none;
   transition:
     background-color var(--ds-motion-control) var(--ds-motion-easing),
     border-color var(--ds-motion-control) var(--ds-motion-easing);
@@ -820,7 +1161,7 @@ main:focus {
 .desk-card__title {
   margin: 0;
   font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-semibold);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-card__title a {
@@ -829,8 +1170,9 @@ main:focus {
 }
 
 .desk-card__title a:hover {
-  color: var(--ds-link);
+  color: var(--ds-text);
   text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
 }
 
 .desk-card__clamp,
@@ -846,7 +1188,7 @@ main:focus {
 .desk-card__reason {
   margin: 0;
   color: var(--ds-text-danger);
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body-compact);
 }
 
 .desk-card .desk-chip {
@@ -870,9 +1212,9 @@ main:focus {
   overflow-wrap: normal;
   flex: 0 1 auto;
   padding: 0 var(--ds-space-050);
-  background: var(--ds-background-neutral);
+  background: var(--ds-surface-sunken-bold);
   border-radius: var(--ds-radius-050);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
 }
 
 .desk-card__meta time {
@@ -937,18 +1279,564 @@ main:focus {
   }
 }
 
-/* The status of an issue: a pill with a dot of the same role, so color is never alone. */
+/* ── Board: head, banner, onboarding, filters ─────────────────────────── */
+
+.desk-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-board-head__text {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.desk-board-head__text h1 {
+  margin-block: 0 var(--ds-space-050);
+}
+
+.desk-board-head__text p {
+  margin: 0;
+}
+
+.desk-board-head .desk-toolbar__start {
+  margin-inline-start: 0;
+}
+
+/* A failed health check: one quiet danger line on top of the board. */
+.desk-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  padding: var(--ds-space-100) calc(var(--ds-space-150) + var(--ds-space-025));
+  margin-block-end: var(--ds-space-200);
+  color: var(--ds-text);
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) solid var(--ds-border-danger);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body);
+}
+
+.desk-banner strong {
+  color: var(--ds-text-danger);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-banner a,
+.desk-banner .ui-button--link {
+  height: auto;
+  padding: 0;
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-banner__spacer {
+  flex: 1;
+}
+
+/* No issue yet: three steps and one way to start. */
+.desk-onboard {
+  display: grid;
+  gap: calc(var(--ds-space-150) + var(--ds-space-025));
+  max-width: 47.5rem;
+  margin: var(--ds-space-300) auto;
+  padding: var(--ds-space-400);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-onboard h2 {
+  margin: 0;
+  font: var(--ds-font-heading-large);
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-onboard p {
+  margin: 0;
+}
+
+.desk-onboard__steps {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+  list-style: decimal;
+}
+
+.desk-onboard__steps a {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-onboard__steps b {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/* Filter chips of the Columns layout: the chosen one is information blue. */
+.desk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+}
+
+.desk-chips .desk-chips__chip.ui-button {
+  gap: var(--ds-space-075);
+  height: var(--ds-control-small);
+  padding: 0 calc(var(--ds-space-150) - var(--ds-border-width));
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  border-color: var(--ds-border);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-chips .desk-chips__chip.ui-button[aria-pressed="true"] {
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+  border-color: var(--ds-border-information);
+}
+
+.desk-chips__count {
+  color: var(--ds-text-subtle);
+}
+
+.desk-chips__chip[aria-pressed="true"] .desk-chips__count {
+  color: inherit;
+}
+
+/* ── Board: Your turn ─────────────────────────────────────────────────── */
+
+.desk-inbox {
+  display: grid;
+  gap: var(--ds-space-250);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .desk-inbox {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+  }
+}
+
+.desk-turn {
+  overflow: hidden;
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-turn__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  padding: calc(var(--ds-space-150) + var(--ds-space-025)) var(--ds-space-250) var(--ds-space-100);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-turn__head h2 {
+  margin: 0;
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-turn__group[data-group="needs-you"] .desk-turn__head h2 {
+  color: var(--ds-text-danger);
+}
+
+.desk-turn__count {
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-turn__note {
+  flex: 1;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-turn__batch.ui-button {
+  height: auto;
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-turn__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Two lines: the title, then why it waits. The actions sit on the right. */
+.desk-turn__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-050) var(--ds-space-200);
+  padding: var(--ds-space-150) var(--ds-space-250);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-turn__group:last-of-type .desk-turn__row:last-child {
+  border-bottom: 0;
+}
+
+/* Next up: an orange bar on the inside edge, and a label. Not a fill. */
+.desk-turn__row[data-first] {
+  box-shadow: inset var(--ds-border-width-thick) 0 0 var(--ds-border-brand);
+}
+
+.desk-turn__main {
+  min-width: 0;
+}
+
+.desk-turn__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+}
+
+.desk-turn__next {
+  color: var(--ds-text-brand);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-space-250);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.desk-turn__title {
+  min-width: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-heading-row);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.desk-turn__title:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-turn__title .desk-issue-number {
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-turn__why {
+  margin: var(--ds-space-025) 0 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+  overflow-wrap: anywhere;
+}
+
+.desk-turn__row[data-group="needs-you"] .desk-turn__why {
+  color: var(--ds-text-danger);
+}
+
+.desk-turn__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-100);
+}
+
+.desk-turn__wait {
+  min-width: 2.75rem;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.desk-turn__acts a {
+  text-decoration: none;
+}
+
+.desk-turn__acts a.ui-button--primary,
+.desk-turn__acts a.ui-button--primary:hover {
+  color: var(--ds-text-brand-inverse);
+}
+
+/* Every row but the first asks quietly: an outline, no fill. */
+.desk-turn__acts .ui-button--subtle,
+.desk-turn__acts .ui-button--subtle:hover {
+  color: var(--ds-text);
+  background: transparent;
+  border-color: var(--ds-border-bold);
+}
+
+.desk-turn__acts .ui-button--subtle:hover:not(:disabled) {
+  border-color: var(--ds-text);
+}
+
+.desk-turn__acts .ui-button:not(:disabled):active {
+  transform: scale(var(--ds-motion-press-scale));
+}
+
+.desk-turn__empty {
+  margin: 0;
+  padding: var(--ds-space-500) var(--ds-space-250);
+  color: var(--ds-text-subtle);
+  text-align: center;
+}
+
+/* ── Board: side list ─────────────────────────────────────────────────── */
+
+.desk-side {
+  display: grid;
+  gap: var(--ds-space-200);
+}
+
+.desk-side__card {
+  padding: var(--ds-space-250);
+  border-radius: var(--ds-radius-250);
+  box-shadow: none;
+}
+
+.desk-side__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-side__head .ui-button--link {
+  height: auto;
+  margin-inline-start: auto;
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-side__title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0 0 var(--ds-space-050);
+  font: var(--ds-font-body-comfortable);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-side__count {
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.desk-side__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-side__item {
+  display: grid;
+  gap: var(--ds-space-050);
+  padding-block: var(--ds-space-150);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-side__name {
+  min-width: 0;
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.desk-side__name:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+.desk-side__number {
+  color: var(--ds-text-brand);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-side__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+/* A running issue spins; a paused one shows two bars. The words say which. */
+.desk-side__glyph {
+  flex: none;
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+  border: calc(var(--ds-border-width) * 2) solid var(--ds-background-information);
+  border-top-color: var(--ds-text-information);
+  border-radius: var(--ds-radius-round);
+  animation: desk-spin 0.9s linear infinite;
+}
+
+.desk-side__meta[data-paused] .desk-side__glyph {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  animation: none;
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-side__meta[data-paused] .desk-side__glyph::before {
+  content: "\275A\275A";
+  font-size: 0.5625rem;
+  letter-spacing: -0.0625rem;
+}
+
+.desk-side__meta .desk-chip {
+  min-height: var(--ds-control-xsmall);
+}
+
+.desk-side__empty {
+  margin: 0;
+  padding-block-start: var(--ds-space-050);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-side__more.ui-button {
+  height: auto;
+  margin-block-start: var(--ds-space-100);
+  padding: 0;
+  color: var(--ds-text);
+  font: var(--ds-font-body-compact);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-050);
+}
+
+/* The low-risk plans a batch approves, listed in its dialog. */
+.desk-batch {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+/*
+ * A phone: Your turn only. The side list, the pull requests, and the layout switch go; each
+ * row stacks, and the next decision's buttons sit in a bar at the bottom of the screen.
+ */
+@media (max-width: 40rem) {
+  .desk-side,
+  .desk-board-head__layout,
+  .desk-board-page .desk-pulls {
+    display: none;
+  }
+
+  .desk-board-page[data-layout="turn"] {
+    padding-block-end: var(--ds-space-1000);
+  }
+
+  .desk-turn__row {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--ds-space-200);
+  }
+
+  .desk-turn__acts {
+    justify-content: stretch;
+  }
+
+  .desk-turn__acts > * {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .desk-turn__acts .ui-button,
+  .desk-turn__acts a {
+    min-height: 2.75rem;
+  }
+
+  .desk-turn__wait {
+    flex: 0 0 auto;
+  }
+
+  .desk-turn__row[data-first] .desk-turn__acts {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 20;
+    flex-wrap: nowrap;
+    padding: var(--ds-space-150) var(--ds-space-200);
+    background: var(--ds-surface-raised);
+    border-top: var(--ds-border-width) solid var(--ds-border);
+    box-shadow: var(--ds-shadow-overlay);
+  }
+}
+
+/* The status of an issue: a pill with a glyph of the same role, so color is never alone. */
 .desk-chip {
   gap: var(--ds-space-075);
+  min-height: var(--ds-control-xsmall);
+  padding-inline: calc(var(--ds-space-100) + var(--ds-border-width));
   white-space: nowrap;
 }
 
-.desk-chip__dot {
-  width: var(--ds-space-075);
-  height: var(--ds-space-075);
-  border-radius: var(--ds-radius-round);
-  background: currentcolor;
+/*
+ * Calm status glyph, in place of the dot: a shape for each tone of `.desk-chip[data-tone]`,
+ * so the status also reads without color. The element is `aria-hidden`; the words carry it.
+ */
+.desk-chip__glyph {
+  display: inline-grid;
   flex: none;
+  place-items: center;
+  min-width: var(--ds-space-150);
+  font: var(--ds-font-body-small);
+  line-height: 1;
+}
+
+.desk-chip[data-tone="success"] .desk-chip__glyph::before {
+  content: "\2713";
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-chip[data-tone="danger"] .desk-chip__glyph {
+  width: 0.875rem;
+  min-width: 0;
+  height: 0.875rem;
+  color: var(--ds-text-inverse);
+  background: var(--ds-background-danger-bold);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-chip[data-tone="danger"] .desk-chip__glyph::before {
+  content: "!";
+  font-size: 0.625rem;
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-chip[data-tone="warning"] .desk-chip__glyph::before {
+  content: "\25F7";
+}
+
+.desk-chip[data-tone="warning-subtle"] .desk-chip__glyph::before {
+  content: "\21BA";
+}
+
+.desk-chip[data-tone="information"] .desk-chip__glyph::before {
+  content: "\21BB";
+}
+
+.desk-chip[data-tone="neutral"] .desk-chip__glyph::before {
+  content: "\2013";
 }
 
 /* Eight segments, one for each flow node. The current one is taller, not only darker. */
@@ -989,57 +1877,100 @@ main:focus {
   font: var(--ds-font-body-small);
 }
 
+.desk-back::before {
+  content: "\2190";
+  margin-inline-end: var(--ds-space-075);
+}
+
 .desk-issue-head {
-  margin-block-end: var(--ds-space-300);
+  margin-block-end: var(--ds-space-050);
 }
 
 .desk-issue-head__title {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100) var(--ds-space-200);
+  align-items: flex-start;
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-150);
 }
 
 .desk-issue-head__title h1 {
+  flex: 1 1 auto;
+  min-width: 0;
   margin-block: var(--ds-space-050);
   overflow-wrap: anywhere;
 }
 
-/* Facts as one wrapping row of compact chips. */
-.desk-meta {
+/* The way back, and where this issue sits in Your turn with J and K to move through it. */
+.desk-crumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-100);
-  margin-block-start: var(--ds-space-100);
+  margin-block-end: var(--ds-space-100);
 }
 
-.desk-meta__item {
+.desk-crumbs__queue {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-075);
-  min-width: 0;
-  max-width: 100%;
-  min-height: var(--ds-control-small);
-  padding-inline: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-pill);
+  margin-inline-start: auto;
+}
+
+.desk-crumbs__where {
+  color: var(--ds-text-subtlest);
   font: var(--ds-font-body-small);
 }
 
-.desk-meta__item a {
+.desk-crumbs__queue .ui-button {
+  gap: var(--ds-space-075);
+}
+
+.desk-crumbs__prev::before {
+  content: "\2190";
+}
+
+.desk-crumbs__next::after {
+  content: "\2192";
+}
+
+.desk-issue-head__more.ui-button {
+  flex: none;
+  width: var(--ds-control-medium);
+  height: var(--ds-control-medium);
+  margin-inline-start: auto;
+  padding: 0;
+}
+
+/* One line of status: the chip, then facts joined by a quiet dot. */
+.desk-imeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) 0;
+  margin-block: 0 var(--ds-space-300);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-imeta .desk-chip {
+  margin-inline-end: var(--ds-space-150);
+}
+
+.desk-imeta__item {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-050);
+  min-width: 0;
+  max-width: 100%;
 }
 
-.desk-meta__branch {
-  padding-inline-end: var(--ds-space-025);
+.desk-imeta__item + .desk-imeta__item::before {
+  content: "·";
+  margin-inline: var(--ds-space-100);
+  color: var(--ds-text-subtlest);
 }
 
-.desk-meta__branch code {
+.desk-imeta__branch code {
   min-width: 0;
   overflow: hidden;
   color: var(--ds-text);
@@ -1048,51 +1979,43 @@ main:focus {
   overflow-wrap: normal;
 }
 
-.desk-meta__copy {
+.desk-imeta__copy.ui-button {
   width: var(--ds-control-xsmall);
-  min-height: var(--ds-control-xsmall);
   height: var(--ds-control-xsmall);
+  min-height: var(--ds-control-xsmall);
   padding: 0;
-  border-radius: var(--ds-radius-pill);
+  color: var(--ds-text-subtlest);
 }
 
-.desk-meta__bar {
-  width: var(--ds-space-600);
+.desk-imeta a {
+  color: var(--ds-text-subtle);
+  text-decoration: none;
 }
 
-.desk-issue-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ds-space-300);
-  align-items: start;
+.desk-imeta a:hover {
+  color: var(--ds-text);
+  text-decoration: underline;
 }
 
+/* The decision and the history. A stage opens in a side sheet beside them. */
 .desk-issue-main {
+  display: grid;
+  gap: var(--ds-space-250);
   min-width: 0;
 }
 
-/* Side by side from 64 rem: the inspector on the right, sticky, with its own scroll. */
-@media (min-width: 64rem) {
-  .desk-issue-grid {
-    grid-template-columns: minmax(0, 1fr) 24rem;
-  }
+.desk-issue-main > .desk-panel,
+.desk-history > .desk-panel {
+  margin: 0;
+}
 
-  .desk-issue-grid > .desk-inspector {
-    grid-column: 2;
-    grid-row: 1;
-    position: sticky;
-    inset-block-start: var(--ds-space-200);
-    max-height: calc(100dvh - var(--ds-space-400));
-  }
-
-  .desk-issue-grid > .desk-issue-main {
-    grid-column: 1;
-    grid-row: 1;
-  }
+.desk-history:focus {
+  outline: none;
 }
 
 .desk-panel__head h2 {
   margin: 0;
+  font: var(--ds-font-heading-card);
 }
 
 .desk-pipeline .desk-panel__head {
@@ -1123,175 +2046,107 @@ main:focus {
   background: var(--tone-solid);
 }
 
-/* Words for a screen reader beside the graph; on a phone the stepper takes its place. */
-.desk-stages-text {
-  position: absolute;
-  width: var(--ds-border-width);
-  height: var(--ds-border-width);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.desk-stepper {
-  display: none;
-}
-
+/* The graph needs room: a phone has the stepper only. */
 @media (max-width: 40rem) {
   .desk-flow,
-  .desk-stages-text,
   .desk-legend {
     display: none;
   }
+}
 
-  .desk-stepper {
-    display: grid;
-    gap: var(--ds-space-050);
-    margin-block-start: var(--ds-space-150);
-  }
+/* The stages as one compact row: a dot and a name each, joined by a line in the run's color. */
+.desk-stepper {
+  display: flex;
+  margin-block: 0 var(--ds-space-250);
+  overflow-x: auto;
 }
 
 .desk-stepper__item {
   position: relative;
+  flex: 1 1 0;
+  min-width: 5.25rem;
 }
 
-.desk-stepper .desk-stepper__button {
-  display: flex;
-  justify-content: flex-start;
-  height: auto;
-  font-weight: var(--ds-font-weight-regular);
-  align-items: flex-start;
-  gap: var(--ds-space-150);
+.desk-stepper__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--ds-space-150) - var(--ds-border-width));
+  inset-inline: -50% 50%;
+  height: calc(var(--ds-border-width) * 2);
+  background: var(--ds-border-strong);
+}
+
+.desk-stepper__item:first-child::before {
+  display: none;
+}
+
+.desk-stepper__item:not([data-status="idle"])::before {
+  background: var(--ds-background-success-bold);
+}
+
+.desk-stepper .desk-stepper__button.ui-button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--ds-space-075);
   width: 100%;
-  min-height: 2.75rem;
-  padding: var(--ds-space-100) var(--ds-space-150);
-  color: var(--ds-text);
-  text-align: start;
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-inline-start: var(--ds-border-width-thick) solid var(--tone-border);
+  height: auto;
+  min-height: 0;
+  padding: var(--ds-space-050) var(--ds-space-025) var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  background: none;
+  border: 0;
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-regular);
   cursor: pointer;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
 }
 
-.desk-stepper .desk-stepper__button:hover {
-  background: var(--ds-surface-raised-hovered);
+.desk-stepper .desk-stepper__button.ui-button:hover {
+  background: var(--ds-surface-sunken);
 }
 
-.desk-stepper .desk-stepper__button[aria-pressed="true"] {
-  background: var(--ds-background-selected);
-  border-color: var(--ds-border-selected);
+/* The selected stage is ink, not orange: selection is not an action. */
+.desk-stepper .desk-stepper__button.ui-button[aria-pressed="true"] {
+  background: var(--ds-surface-raised);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-text);
 }
 
-.desk-stepper__body {
-  display: grid;
-  gap: var(--ds-space-025);
-  min-width: 0;
+.desk-stepper__dot {
+  width: var(--ds-space-200);
+  height: var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border: calc(var(--ds-border-width) * 2) solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-round);
 }
 
-.desk-stepper__title {
-  font-weight: var(--ds-font-weight-semibold);
+.desk-stepper__item:not([data-status="idle"]) .desk-stepper__dot {
+  background: var(--tone-solid);
+  border-color: var(--tone-solid);
 }
 
-.desk-stepper__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-075);
-  color: var(--tone-fg);
+.desk-stepper__item[data-status="running"] .desk-stepper__dot,
+.desk-stepper__item[data-status="waiting"] .desk-stepper__dot,
+.desk-stepper__item[data-status="failed"] .desk-stepper__dot {
+  box-shadow: 0 0 0 var(--ds-space-050) var(--tone-bg);
+}
+
+.desk-stepper__item[data-status="running"] .desk-stepper__dot,
+.desk-stepper__item[data-status="waiting"] .desk-stepper__dot {
+  background: var(--ds-surface);
+}
+
+.desk-stepper__name {
   font: var(--ds-font-body-small);
+  white-space: nowrap;
+}
+
+.desk-stepper__button[aria-current="step"] .desk-stepper__name {
+  color: var(--ds-text);
   font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-stepper__meta,
-.desk-stepper__note {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
-
-.desk-stepper__note {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
 }
 
 /* ── Inspector ────────────────────────────────────────────────────────── */
-
-.desk-inspector {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
-  box-shadow: var(--ds-shadow-raised);
-}
-
-.desk-inspector--loading {
-  display: grid;
-  gap: var(--ds-space-200);
-  padding: var(--ds-space-200);
-}
-
-.desk-inspector__body {
-  display: grid;
-  gap: var(--ds-space-200);
-  align-content: start;
-  min-height: 0;
-  padding: var(--ds-space-200);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.desk-inspector__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-100);
-}
-
-.desk-eyebrow {
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-xsmall);
-  font-weight: var(--ds-font-weight-semibold);
-  text-transform: uppercase;
-}
-
-.desk-inspector__select {
-  width: auto;
-  min-width: 9rem;
-}
-
-.desk-inspector__head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ds-space-150);
-}
-
-.desk-inspector__icon {
-  width: var(--ds-control-large);
-  height: var(--ds-control-large);
-}
-
-.desk-inspector__icon .desk-icon {
-  width: var(--ds-space-250);
-  height: var(--ds-space-250);
-}
-
-.desk-inspector__name h2 {
-  margin: 0;
-  font: var(--ds-font-heading-small);
-}
-
-.desk-inspector__name p {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
 
 .desk-inspector__section h3 {
   margin: 0 0 var(--ds-space-100);
@@ -1309,11 +2164,6 @@ main:focus {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-075);
-}
-
-.desk-inspector__open {
-  justify-self: start;
-  gap: var(--ds-space-100);
 }
 
 /* Two tiles a row, each the same height, so a value that loads or ticks moves nothing. */
@@ -1353,7 +2203,7 @@ main:focus {
   gap: var(--ds-space-075);
   margin: 0;
   min-width: 0;
-  font: var(--ds-font-heading-medium);
+  font: var(--ds-font-heading-card);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1472,173 +2322,753 @@ main:focus {
   margin-block-start: var(--ds-space-025);
 }
 
-/* The decision stays at the bottom of the inspector while its body scrolls. */
-.desk-inspector__actions {
-  flex: none;
-  padding: var(--ds-space-200);
-  background: var(--ds-surface-raised);
+/* ── Decision card ────────────────────────────────────────────────────── */
+
+.desk-decision__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100) var(--ds-space-150);
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-decision__title {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+}
+
+.desk-decision__title:focus {
+  outline: none;
+}
+
+.desk-decision__by {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-code-small);
+}
+
+.desk-decision__open.ui-button {
+  margin-inline-start: auto;
+}
+
+/* A block of the card: a hairline above, its title small and bold. */
+.desk-sec {
+  display: grid;
+  gap: var(--ds-space-100);
+  padding-block: var(--ds-space-200);
   border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-200);
-  border-end-end-radius: var(--ds-radius-200);
 }
 
-/*
- * While the inspector reaches below the screen, its decision sticks to the bottom of the
- * screen, so the primary action is visible without scrolling.
- */
-.desk-inspector__actions {
-  position: sticky;
-  inset-block-end: 0;
-  z-index: 2;
+.desk-sec h3 {
+  margin: 0;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
-/*
- * Below 64 rem the decision is part of the inspector body, in the page flow. A frame keeps
- * it apart from the stage around it.
- */
-.desk-inspector__body > .desk-gate {
+.desk-plain {
+  max-width: 72ch;
+  margin-block: 0 var(--ds-space-200);
+  font: var(--ds-font-body-large);
+}
+
+.desk-reason {
+  margin-block: 0 var(--ds-space-200);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.desk-riskline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) var(--ds-space-150);
+  margin-block-end: var(--ds-space-200);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-record {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+/* What a new round changed: an information rule on the inside edge. */
+.desk-changed {
+  margin-block: var(--ds-space-150) var(--ds-space-200);
+  padding-inline-start: var(--ds-space-150);
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-information);
+}
+
+.desk-changed h3 {
+  margin: 0 0 var(--ds-space-050);
+  color: var(--ds-text-information);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-changed ul {
+  display: grid;
+  gap: var(--ds-space-025);
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+.desk-question {
+  display: grid;
+  gap: var(--ds-space-100);
   padding: var(--ds-space-150);
+  background: var(--ds-background-warning);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-200);
 }
 
+.desk-question__text {
+  margin: 0;
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-criteria {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-criteria li {
+  display: grid;
+  gap: var(--ds-space-025);
+  padding-inline-start: var(--ds-space-150);
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-success);
+}
+
+.desk-criteria .desk-criteria__missing {
+  border-inline-start-color: var(--ds-border-danger);
+}
+
+/* Folded by default: the details that matter less to the decision. */
+.desk-fold {
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-fold > summary {
+  padding-block: var(--ds-space-200);
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-medium);
+  cursor: pointer;
+}
+
+.desk-fold[open] > summary {
+  color: var(--ds-text);
+}
+
+.desk-files {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-files__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ds-space-150);
+  align-items: baseline;
+}
+
+.desk-path {
+  overflow-wrap: anywhere;
+}
+
+.desk-path__dir {
+  color: var(--ds-text-subtlest);
+}
+
+.desk-kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--ds-space-100) var(--ds-space-200);
+  margin: 0;
+}
+
+.desk-kv dt {
+  color: var(--ds-text-subtle);
+}
+
+.desk-kv dd {
+  margin: 0;
+}
+
 /*
- * Below 64 rem only the actions stick to the bottom of the screen: one row of controls,
- * clear of the home indicator, so the stage tiles stay visible above it.
+ * The decision's buttons: at the bottom of the card, sticky while the card scrolls past. On a
+ * phone they are a bar fixed to the bottom of the screen.
  */
-.desk-gate-bar {
+.desk-decide {
   position: sticky;
   inset-block-end: 0;
-  z-index: 2;
+  z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-100);
-  padding: var(--ds-space-100) var(--ds-space-200)
-    calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
+  margin: var(--ds-space-200) calc(var(--ds-space-250) * -1) calc(var(--ds-space-250) * -1);
+  padding: var(--ds-space-150) var(--ds-space-250);
   background: var(--ds-surface-raised);
   border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-200);
-  border-end-end-radius: var(--ds-radius-200);
-  box-shadow: var(--ds-shadow-overlay);
+  border-end-start-radius: var(--ds-radius-250);
+  border-end-end-radius: var(--ds-radius-250);
 }
 
-/* Focus and scrolling into view stop above the bar, so it never covers what they show. */
-html:has(.desk-gate-bar) {
-  scroll-padding-block-end: var(--ds-space-1000);
-}
-
-.desk-gate-bar .ui-button,
-.desk-gate-bar a {
-  min-height: 2.75rem;
+.desk-decide .ui-button,
+.desk-decide a {
+  gap: var(--ds-space-075);
   white-space: nowrap;
 }
 
-.desk-gate-bar .desk-gate__primary {
-  min-width: 0;
+.desk-decide .ui-button--primary .desk-kbd {
+  color: var(--ds-text-brand-inverse);
+  background: transparent;
+  border-color: var(--ds-text-brand-inverse);
 }
 
-@media (max-width: 30rem) {
-  .desk-gate-bar {
-    padding-inline: var(--ds-space-150);
-  }
-
-  .desk-gate-bar .ui-button {
-    padding-inline: var(--ds-space-150);
-  }
+.desk-decide__hint {
+  flex: 1 1 15rem;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
 }
 
-.desk-gate {
-  display: grid;
-  gap: var(--ds-space-100);
-}
-
-.desk-gate__head {
-  display: flex;
+.desk-vprog {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--ds-space-100);
+  margin-inline-end: var(--ds-space-150);
+  color: var(--ds-text);
 }
 
-.desk-gate__title {
-  margin: 0;
-  font: var(--ds-font-heading-xsmall);
+.desk-vprog__bar {
+  width: 5rem;
 }
 
-.desk-gate__title:focus {
-  outline: none;
+.desk-decision a.ui-button--primary,
+.desk-decision a.ui-button--primary:hover {
+  color: var(--ds-text-brand-inverse);
+  text-decoration: none;
 }
 
-.desk-gate__intro {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
-
-.desk-gate .desk-pre {
-  max-height: 8rem;
-  margin: 0;
-}
-
-.desk-gate .desk-field {
-  margin: 0;
+.desk-decision .ui-button:not(:disabled):active {
+  transform: scale(var(--ds-motion-press-scale));
 }
 
 .desk-gate__row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: var(--ds-space-150);
+  margin-block-start: var(--ds-space-150);
+}
+
+/* Running: what the agent does now, in one tinted line. */
+.desk-nowline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--ds-space-100);
+  margin-block: 0 var(--ds-space-150);
+  padding: var(--ds-space-150);
+  background: var(--ds-background-information);
+  border-radius: var(--ds-radius-200);
 }
 
-.desk-gate__row .ui-button,
-.desk-gate__row a {
-  white-space: nowrap;
+.desk-nowline__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.desk-gate__primary {
-  flex: 1 1 auto;
+.desk-nowline__text::before,
+.desk-nowline > .desk-muted::before {
+  content: "· ";
+}
+
+.desk-paused-note {
+  padding: var(--ds-space-025) var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-small);
+}
+
+/* Review: the verdict, ready to ship in one line, and the findings as links into the diff. */
+.desk-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--ds-space-100);
-  min-height: var(--ds-control-large);
+  margin-block: 0 var(--ds-space-150);
 }
 
-.desk-gate .desk-gate__more,
-.desk-gate-bar .desk-gate__more {
-  flex: none;
-  width: var(--ds-control-medium);
-  min-height: var(--ds-control-medium);
-  height: var(--ds-control-medium);
+.desk-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050);
+  margin-block: 0 var(--ds-space-100);
+  color: var(--ds-text-success);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-ready .desk-muted {
+  font: var(--ds-font-body-small);
+}
+
+.desk-ready__open {
+  margin: var(--ds-space-050) 0 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+.desk-finding-links {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin: 0;
   padding: 0;
+  list-style: none;
 }
 
-@media (max-width: 48rem) {
-  .desk-gate .desk-gate__more,
-  .desk-gate-bar .desk-gate__more {
-    width: 2.75rem;
-    min-height: 2.75rem;
-    height: 2.75rem;
+.desk-finding-link.ui-button {
+  display: grid;
+  justify-content: stretch;
+  height: auto;
+  white-space: normal;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ds-space-025) var(--ds-space-150);
+  width: 100%;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  text-align: start;
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  font: inherit;
+  cursor: pointer;
+}
+
+.desk-finding-link.ui-button:hover {
+  background: var(--ds-surface-raised-hovered);
+}
+
+.desk-finding-link__where {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-finding-link__section::before {
+  content: "\00B7\00A0";
+}
+
+.desk-finding-link__text {
+  grid-column: 2;
+}
+
+/* The diff: files in risk order on the left, one file's patch on the right. */
+.desk-diff {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  overflow: hidden;
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+@media (max-width: 47.5rem) {
+  .desk-diff {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.desk-gate a.ui-button--primary,
-.desk-gate a.ui-button--primary:hover,
-.desk-gate-bar a.ui-button--primary,
-.desk-gate-bar a.ui-button--primary:hover {
-  color: var(--ds-text-brand-inverse);
-  text-decoration: none;
+.desk-diff__tree {
+  display: grid;
+  gap: var(--ds-space-075);
+  align-content: start;
+  padding: var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-inline-end: var(--ds-border-width) solid var(--ds-border);
 }
 
-.desk-gate__working {
-  flex-wrap: wrap;
+.desk-diff__progress {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-diff__files {
+  display: grid;
+  gap: var(--ds-space-050);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.desk-gate__elapsed::before {
-  content: "·";
-  margin-inline-end: var(--ds-space-100);
+.desk-diff__group {
+  padding: var(--ds-space-100) var(--ds-space-100) 0;
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.desk-gate .ui-button:not(:disabled):active,
-.desk-gate-bar .ui-button:not(:disabled):active {
-  transform: scale(var(--ds-motion-press-scale));
+.desk-diff__file {
+  display: grid;
+  gap: var(--ds-space-050);
+  padding: var(--ds-space-100);
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-100);
+}
+
+.desk-diff__file[data-current="true"] {
+  background: var(--ds-surface);
+  border-color: var(--ds-border-strong);
+}
+
+.desk-diff__name.ui-button {
+  justify-content: flex-start;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  white-space: normal;
+  color: var(--ds-text);
+  text-align: start;
+  background: none;
+  border: 0;
+  font: var(--ds-font-code-small);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.desk-diff__file[data-viewed="true"] .desk-diff__name {
+  color: var(--ds-text-subtlest);
+  text-decoration: line-through;
+}
+
+.desk-diff__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-diff__badge {
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-warning);
+  background: var(--ds-background-warning);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-diffstat {
+  font: var(--ds-font-code-small);
+}
+
+.desk-diffstat__add {
+  color: var(--ds-text-success);
+}
+
+.desk-diffstat__add::before {
+  content: "+";
+}
+
+.desk-diffstat__del {
+  color: var(--ds-text-danger);
+}
+
+.desk-diffstat__del::before {
+  content: "\2212";
+}
+
+.desk-viewed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-patch {
+  min-width: 0;
+  background: var(--ds-surface);
+}
+
+.desk-patch__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-patch__folded {
+  margin: 0;
+  padding: var(--ds-space-200);
+  color: var(--ds-text-subtle);
+}
+
+.desk-patch__lines {
+  overflow-x: auto;
+  font: var(--ds-font-code-small);
+}
+
+.desk-ln {
+  display: grid;
+  grid-template-columns: 2.75rem 1.125rem minmax(max-content, 1fr);
+  white-space: pre;
+}
+
+.desk-ln__no {
+  padding-inline-end: var(--ds-space-100);
+  color: var(--ds-text-subtlest);
+  text-align: end;
+  user-select: none;
+}
+
+.desk-ln--hunk {
+  color: var(--ds-text-subtlest);
+  background: var(--ds-surface-sunken);
+}
+
+.desk-ln--add {
+  background: var(--ds-background-success);
+}
+
+.desk-ln--del {
+  background: var(--ds-background-danger);
+}
+
+.desk-ln--lit {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: calc(var(--ds-border-width-focused) * -1);
+}
+
+.desk-inline-finding {
+  display: grid;
+  gap: var(--ds-space-050);
+  justify-items: start;
+  margin: var(--ds-space-075) var(--ds-space-150) var(--ds-space-100) 4rem;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body-small);
+  font-family: var(--ds-font-family-sans);
+  white-space: normal;
+}
+
+/* Needs you: the incident on a danger tint, then the ways on, each with what happens next. */
+.desk-incident {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin-block-end: var(--ds-space-100);
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) solid var(--ds-border-danger);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-incident__top {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-incident__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--ds-space-300);
+  height: var(--ds-space-300);
+  color: var(--ds-text-inverse);
+  background: var(--ds-background-danger-bold);
+  border-radius: var(--ds-radius-round);
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.desk-incident__mark::before {
+  content: "!";
+}
+
+.desk-incident__head {
+  margin: 0;
+  font: var(--ds-font-heading-small);
+}
+
+.desk-incident__reason {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.desk-incident__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-why-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-space-300);
+  padding-inline: var(--ds-space-100);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-small);
+}
+
+.desk-opts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+}
+
+@media (max-width: 56.25rem) {
+  .desk-opts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desk-opt {
+  display: grid;
+  gap: var(--ds-space-100);
+  align-content: start;
+  justify-items: start;
+  padding: var(--ds-space-150);
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-opt[data-recommended="true"] {
+  border-color: var(--ds-border-success);
+}
+
+.desk-opt > * {
+  max-width: 100%;
+}
+
+.desk-opt textarea,
+.desk-opt [role="combobox"] {
+  width: 100%;
+}
+
+.desk-opt h4 {
+  margin: 0;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-opt p {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-snug);
+}
+
+.desk-opt .desk-next {
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) dashed var(--ds-border-strong);
+  border-radius: var(--ds-radius-100);
+}
+
+.desk-recommended {
+  padding-inline: var(--ds-space-075);
+  color: var(--ds-text-success);
+  background: var(--ds-background-success);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.desk-command {
+  display: block;
+  width: 100%;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-100);
+  overflow-wrap: anywhere;
+}
+
+/* The ship dialog says when files are not marked viewed. It warns; it does not block. */
+.desk-ship__unviewed {
+  display: grid;
+  gap: var(--ds-space-050);
+  color: var(--ds-text);
+  border: var(--ds-border-width) solid var(--ds-border-warning);
+}
+
+/*
+ * A phone: the decision's buttons are a bar fixed to the bottom of the screen, without the hint
+ * or the key hints. The page leaves room under its end, so the bar never covers it.
+ */
+@media (max-width: 40rem) {
+  .desk-decide {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 20;
+    margin: 0;
+    padding: var(--ds-space-100) var(--ds-space-200)
+      calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
+    border-radius: 0;
+    box-shadow: var(--ds-shadow-overlay);
+  }
+
+  .desk-decide .ui-button,
+  .desk-decide a {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .desk-decide__hint,
+  .desk-decide .desk-kbd,
+  .desk-crumbs .desk-kbd,
+  .desk-crumbs__where {
+    display: none;
+  }
+
+  main:has(.desk-decide) {
+    padding-block-end: 8rem;
+  }
+
+  html:has(.desk-decide) {
+    scroll-padding-block-end: 8rem;
+  }
+
+  .desk-files__row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .desk-files__row > .desk-muted {
+    grid-column: 1 / -1;
+  }
+
+  .desk-kv {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desk-issue-head__title h1 {
+    font: var(--ds-font-heading-large);
+  }
 }
 
 .desk-feedback {
@@ -1667,7 +3097,8 @@ html:has(.desk-gate-bar) {
   display: flex;
   gap: var(--ds-space-025);
   padding: var(--ds-space-025);
-  background: var(--ds-background-neutral);
+  background: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-200);
 }
 
@@ -1688,10 +3119,11 @@ html:has(.desk-gate-bar) {
   cursor: pointer;
 }
 
+/* The chosen target is a raised neutral segment, like the active page: a choice, not an action. */
 .desk-segmented__item[data-checked="true"] {
-  color: var(--ds-text-selected);
-  background: var(--ds-background-selected);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-selected);
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
 }
 
 .desk-segmented__item:has(:focus-visible) {
@@ -1703,6 +3135,11 @@ html:has(.desk-gate-bar) {
 .desk-tabs__list {
   justify-content: flex-start;
   width: 100%;
+}
+
+/* The active tab is underlined in ink, not orange. */
+.desk-tabs__list [role="tab"][data-state="active"] {
+  border-color: var(--ds-text);
 }
 
 .desk-tabs__panel {
@@ -1730,9 +3167,9 @@ html:has(.desk-gate-bar) {
   align-items: center;
   gap: var(--ds-space-150);
   min-height: var(--ds-control-medium);
-  padding-block: var(--ds-space-050);
+  padding-block: calc(var(--ds-space-100) + var(--ds-border-width));
   border-bottom: var(--ds-border-width) solid var(--ds-border);
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body);
 }
 
 .desk-activity__time,
@@ -1778,16 +3215,8 @@ html:has(.desk-gate-bar) {
   height: var(--ds-space-400);
 }
 
-.desk-skeleton--tiles {
-  height: 9rem;
-}
-
 .desk-skeleton--block {
   height: 6rem;
-}
-
-.desk-skeleton--graph {
-  height: 23rem;
 }
 
 .desk-finding {
@@ -1805,18 +3234,29 @@ html:has(.desk-gate-bar) {
   margin-block-end: var(--ds-space-150);
 }
 
+/* Health: the status in a fixed column, then the check, its detail, and its remedy. */
 .desk-checks li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--ds-space-050) var(--ds-space-150);
-  align-items: center;
-  padding-block: var(--ds-space-150);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
+  grid-template-columns: 6.25rem minmax(0, 1fr);
+  gap: var(--ds-space-050) var(--ds-space-200);
+  align-items: start;
+  padding-block: calc(var(--ds-space-150) + var(--ds-space-025));
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
 }
 
-.desk-checks .desk-muted,
-.desk-remedy {
-  grid-column: 2;
+.desk-checks li:first-child {
+  border-block-start: 0;
+}
+
+.desk-checks__body {
+  min-width: 0;
+}
+
+.desk-checks__detail {
+  margin-block: var(--ds-space-025) 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body);
+  overflow-wrap: anywhere;
 }
 
 /* The command to run by hand, a copy button, and the desk's own repair when it has one. */
@@ -1826,29 +3266,92 @@ html:has(.desk-gate-bar) {
   align-items: center;
   gap: var(--ds-space-100);
   min-width: 0;
-}
-
-.desk-remedy code {
-  padding: var(--ds-space-050) var(--ds-space-100);
-  overflow-wrap: anywhere;
-  background: var(--ds-surface-sunken);
+  margin-block-start: var(--ds-space-075);
+  padding: var(--ds-space-100) calc(var(--ds-space-100) + var(--ds-space-025));
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-100);
 }
 
-.desk-drawer {
-  width: min(100%, 44rem) !important;
-  max-width: none !important;
+.desk-remedy__command {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.desk-health__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin-block: 0 var(--ds-space-100);
+  font: var(--ds-font-body-compact);
+}
+
+/* "Setup 4 of 6 ready": a native progress bar, so no style attribute sets its width. */
+.desk-setup {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-setup__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0;
+  font: var(--ds-font-body-compact);
+}
+
+.desk-setup__bar {
+  width: 100%;
+  height: var(--ds-space-075);
+  appearance: none;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-border);
   overflow: hidden;
 }
 
-.desk-drawer__status {
-  color: var(--tone-fg);
-  font-weight: var(--ds-font-weight-semibold);
+.desk-setup__bar::-webkit-progress-bar {
+  background: var(--ds-border);
+  border-radius: var(--ds-radius-pill);
 }
 
-.desk-drawer__body {
-  padding: 0 var(--ds-space-200) var(--ds-space-300);
-  overflow: auto;
+.desk-setup__bar::-webkit-progress-value {
+  background: var(--ds-background-success-bold);
+  border-radius: var(--ds-radius-pill);
+}
+
+.desk-setup__bar::-moz-progress-bar {
+  background: var(--ds-background-success-bold);
+  border-radius: var(--ds-radius-pill);
+}
+
+/* Placeholder lines while a report loads again. */
+.desk-skel {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  padding-block: var(--ds-space-200);
+}
+
+.desk-skel__now {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-skel__line {
+  height: calc(var(--ds-space-150) + var(--ds-space-025));
+  border-radius: var(--ds-radius-050);
+}
+
+.desk-skel__line:nth-child(even) {
+  width: 70%;
 }
 
 /* ── Log ──────────────────────────────────────────────────────────────── */
@@ -1860,7 +3363,7 @@ html:has(.desk-gate-bar) {
   background: var(--ds-surface-sunken);
   border: var(--ds-border-width) solid var(--ds-border);
   border-radius: var(--ds-radius-100);
-  font: var(--ds-font-code);
+  font: var(--ds-font-code-small);
   line-height: var(--ds-space-250);
 }
 
@@ -1887,6 +3390,460 @@ html:has(.desk-gate-bar) {
   inset-block-end: var(--ds-space-150);
 }
 
+/* ── History: one line of summary, then the trace and the live log ──────── */
+
+.desk-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ds-space-050) var(--ds-space-150);
+}
+
+.desk-history__head h2 {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+}
+
+.desk-history__summary {
+  flex: 1 1 16rem;
+  min-width: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-history__toggle.ui-button {
+  margin-inline-start: auto;
+}
+
+.desk-history__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100) var(--ds-space-200);
+  margin-block-start: var(--ds-space-150);
+}
+
+.desk-history__bar .desk-tabs__list {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.desk-history__every {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+/* ── Trace: each step on one time axis, newest first ─────────────────────── */
+
+.desk-trace {
+  display: grid;
+  gap: var(--ds-space-150);
+}
+
+.desk-trace__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-100);
+}
+
+.desk-trace__top .desk-seg__item.ui-button {
+  padding: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
+  font: var(--ds-font-body-small);
+}
+
+/* Name, bar, duration, cost, outcome: the axis above shares the first two columns. */
+.desk-trace__axis,
+.desk-trace__row {
+  display: grid;
+  grid-template-columns: minmax(13.75rem, 18.75rem) minmax(0, 1fr) 6rem 3.5rem 7rem;
+  gap: var(--ds-space-100) calc(var(--ds-space-100) + var(--ds-space-025));
+  align-items: center;
+}
+
+.desk-trace__axis {
+  padding-inline: var(--ds-space-150);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-code-small);
+}
+
+.desk-trace__ticks {
+  display: flex;
+  justify-content: space-between;
+  padding-inline: var(--ds-space-050);
+}
+
+.desk-trace__steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-trace__step {
+  background: var(--ds-surface);
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-trace__step:last-child {
+  border-block-end: 0;
+}
+
+.desk-trace__step[data-problem="true"] {
+  background: color-mix(in srgb, var(--ds-background-warning) 50%, var(--ds-surface));
+}
+
+/* The step a jump brought into view. */
+.desk-trace__step[data-highlight="true"] {
+  box-shadow: inset var(--ds-border-width-focused) 0 0 var(--ds-border-brand);
+}
+
+.desk-trace__row {
+  padding: var(--ds-space-100) var(--ds-space-150);
+}
+
+.desk-trace__name.ui-button {
+  justify-content: flex-start;
+  gap: var(--ds-space-100);
+  min-width: 0;
+  height: auto;
+  min-height: var(--ds-control-small);
+  padding: 0;
+  color: var(--ds-text);
+  text-align: start;
+}
+
+.desk-trace__caret {
+  color: var(--ds-text-subtle);
+  transition: transform var(--ds-motion-control) var(--ds-motion-easing);
+}
+
+.desk-trace__name[aria-expanded="true"] .desk-trace__caret {
+  transform: rotate(90deg);
+}
+
+.desk-trace__kind {
+  flex: none;
+  padding: 0 var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-050);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+
+.desk-trace__kind[data-kind="agent"] {
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+}
+
+.desk-trace__kind[data-kind="human"],
+.desk-trace__kind[data-kind="stop"] {
+  color: var(--ds-text-warning);
+  background: var(--ds-background-warning);
+}
+
+.desk-trace__stage {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-trace__track {
+  display: block;
+  width: 100%;
+  height: var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-050);
+}
+
+.desk-trace__bar[data-bar="ok"] {
+  fill: var(--ds-background-success-bold);
+}
+
+.desk-trace__bar[data-bar="run"] {
+  fill: var(--ds-background-information-bold);
+}
+
+.desk-trace__bar[data-bar="back"] {
+  fill: var(--ds-background-warning-bold);
+}
+
+.desk-trace__bar[data-bar="stop"] {
+  fill: var(--ds-background-danger-bold);
+}
+
+/* Waiting on you: hatched in the pattern's own fill, with a solid edge. */
+.desk-trace__bar[data-bar="wait"] {
+  stroke: var(--ds-border-warning);
+  stroke-width: 1;
+}
+
+.desk-trace__hatch {
+  fill: var(--ds-border-warning);
+}
+
+.desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"] {
+  animation: desk-breathe 1.6s var(--ds-motion-easing) infinite;
+}
+
+.desk-trace__metric {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.desk-trace__outcome {
+  justify-self: end;
+}
+
+.desk-trace__lines {
+  display: grid;
+  gap: var(--ds-space-100);
+  padding: 0 var(--ds-space-150) var(--ds-space-150);
+}
+
+.desk-trace__log {
+  display: grid;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  font: var(--ds-font-code-small);
+}
+
+.desk-trace__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+  padding-block: var(--ds-space-050);
+  border-block-end: var(--ds-border-width) dashed var(--ds-border);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.desk-trace__line > span:first-of-type {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.desk-trace__line[data-kind="history"] > span:first-of-type {
+  color: var(--ds-text-information);
+}
+
+.desk-trace__bytime {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-trace__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  font: var(--ds-font-body-small);
+}
+
+.desk-trace__note {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+@media (max-width: 56rem) {
+  .desk-trace__axis {
+    display: none;
+  }
+
+  .desk-trace__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .desk-trace__track,
+  .desk-trace__metric {
+    display: none;
+  }
+}
+
+@keyframes desk-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── Handoffs: who handed the work to whom ───────────────────────────────── */
+
+.desk-handoffs {
+  margin-block-start: var(--ds-space-250);
+}
+
+.desk-handoffs h3 {
+  margin: 0 0 var(--ds-space-100);
+  font: var(--ds-font-heading-xsmall);
+}
+
+.desk-handoffs__chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--ds-space-075);
+  margin: 0 0 var(--ds-space-100);
+  padding: 0;
+  list-style: none;
+}
+
+.desk-handoffs__hop {
+  display: grid;
+  flex: 1 1 7.5rem;
+  gap: var(--ds-space-025);
+  min-width: 0;
+  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-150);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-handoffs__hop b {
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-handoffs__hop span {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-handoffs__hop[data-problem="true"] {
+  background: var(--ds-background-danger);
+  border: var(--ds-border-width) dashed var(--ds-border-danger);
+}
+
+.desk-handoffs__hop[data-problem="true"] span {
+  color: var(--ds-text-danger);
+}
+
+.desk-handoffs__hop[data-live="true"] {
+  border-color: var(--ds-border-strong);
+  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
+}
+
+/* ── Stage side sheet: beside the page, never over the decision ──────────── */
+
+/*
+ * The sheet starts below the masthead. The sheet measures the masthead and sets
+ * `--desk-masthead`; the fallback here is the top bar's padding, its search control, and its
+ * border. From 75 rem the page makes room; on a phone the sheet is the whole screen.
+ */
+.desk-sheet {
+  --desk-masthead: calc(
+    var(--ds-space-200) + var(--ds-space-050) + var(--ds-control-medium) + var(--ds-space-050) +
+      var(--ds-border-width)
+  );
+
+  position: fixed;
+  inset-block: var(--desk-masthead) 0;
+  inset-inline-end: 0;
+  z-index: 28;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(var(--desk-sheet-width), 100%);
+  background: var(--ds-surface-raised);
+  border-inline-start: var(--ds-border-width) solid var(--ds-border);
+  box-shadow: var(--ds-shadow-overlay);
+}
+
+.desk-sheet:focus {
+  outline: none;
+}
+
+.desk-sheet:focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: calc(var(--ds-border-width-focused) * -1);
+}
+
+.desk-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-050);
+  padding: var(--ds-space-200) var(--ds-space-250);
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-sheet__title {
+  display: grid;
+  flex: 1 1 auto;
+  justify-items: start;
+  gap: var(--ds-space-050);
+  min-width: 0;
+}
+
+.desk-sheet__title h2 {
+  margin: 0;
+  font: var(--ds-font-heading-medium);
+}
+
+.desk-sheet__where {
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+}
+
+.desk-sheet__button.ui-button {
+  flex: none;
+  width: var(--ds-control-large);
+  height: var(--ds-control-large);
+  padding: 0;
+}
+
+.desk-icon--back {
+  transform: scaleX(-1);
+}
+
+.desk-sheet__body {
+  display: grid;
+  align-content: start;
+  gap: var(--ds-space-200);
+  padding: var(--ds-space-200) var(--ds-space-250) var(--ds-space-400);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.desk-sheet__sep {
+  margin: var(--ds-space-100) 0 0;
+  padding-block-start: var(--ds-space-200);
+  color: var(--ds-text-subtlest);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
+  font: var(--ds-font-body-xsmall);
+  font-weight: var(--ds-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+/* The page makes room for the sheet instead of sliding under it. */
+@media (min-width: 75rem) {
+  main:has(.desk-sheet) {
+    width: auto;
+    max-width: none;
+    margin-inline-end: var(--desk-sheet-width);
+  }
+}
+
+@media (max-width: 40rem) {
+  .desk-sheet {
+    inset-block-start: 0;
+    z-index: 60;
+  }
+}
+
 /* ── Flow graph ───────────────────────────────────────────────────────── */
 
 /* Tall enough for the three rows and the loop arcs above and below them at full size. */
@@ -1894,7 +3851,7 @@ html:has(.desk-gate-bar) {
   height: 28rem;
   margin-block-start: var(--ds-space-150);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
+  border-radius: var(--ds-radius-250);
   overflow: hidden;
 }
 
@@ -1984,11 +3941,11 @@ html:has(.desk-gate-bar) {
   border-style: dashed;
 }
 
-/* The selected stage drives the inspector: a thick outline in the selected role. */
+/* The selected stage drives the inspector: an ink outline, not orange, on a raised node. */
 .desk-node[data-selected="true"] {
-  background: var(--ds-background-selected);
-  outline: var(--ds-border-width-thick) solid var(--ds-border-selected);
-  outline-offset: var(--ds-space-025);
+  background: var(--ds-surface-raised);
+  outline: var(--ds-border-width-focused) solid var(--ds-text);
+  outline-offset: var(--ds-border-width);
 }
 
 .desk-node__head {
@@ -1998,9 +3955,7 @@ html:has(.desk-gate-bar) {
   min-width: 0;
 }
 
-.desk-node__icon,
-.desk-stepper__icon,
-.desk-inspector__icon {
+.desk-node__icon {
   display: inline-grid;
   flex: none;
   place-items: center;
@@ -2023,8 +3978,7 @@ html:has(.desk-gate-bar) {
 }
 
 /* The stage that holds the issue now has a solid icon, not only a color. */
-.desk-node[data-current="true"] .desk-node__icon,
-.desk-stepper__icon[data-current="true"] {
+.desk-node[data-current="true"] .desk-node__icon {
   color: var(--ds-text-inverse);
   background: var(--tone-solid);
 }
@@ -2065,8 +4019,7 @@ html:has(.desk-gate-bar) {
   white-space: nowrap;
 }
 
-.desk-node[data-status="running"] .desk-node__dot,
-.desk-stepper__item[data-status="running"] .desk-node__dot {
+.desk-node[data-status="running"] .desk-node__dot {
   animation: desk-pulse 1.4s var(--ds-motion-easing) infinite;
 }
 
@@ -2162,11 +4115,11 @@ html:has(.desk-gate-bar) {
 @media (prefers-reduced-motion: reduce) {
   .react-flow .desk-edge--active .desk-edge__path,
   .desk-node[data-status="running"] .desk-node__dot,
-  .desk-live[data-connection="reconnecting"] .desk-live__dot {
-    animation: none;
-  }
-
-  .desk-stepper__item[data-status="running"] .desk-node__dot {
+  .desk-live[data-connection="reconnecting"] .desk-live__dot,
+  .desk-connbar__spin,
+  .desk-side__glyph,
+  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"],
+  .desk-skel__line {
     animation: none;
   }
 
@@ -2174,13 +4127,14 @@ html:has(.desk-gate-bar) {
   .desk-nav a,
   .desk-node,
   .desk-stepper__button,
-  .desk-card__actions .ui-button {
+  .desk-card__actions .ui-button,
+  .desk-tabs__list [role="tab"],
+  .desk-trace__caret {
     transition: none;
   }
 
   .desk-card__actions .ui-button:not(:disabled):active,
-  .desk-gate .ui-button:not(:disabled):active,
-  .desk-gate-bar .ui-button:not(:disabled):active {
+  .desk-decision .ui-button:not(:disabled):active {
     transform: none;
   }
 }
@@ -2199,21 +4153,23 @@ html:has(.desk-gate-bar) {
 .desk-table {
   width: 100%;
   border-collapse: collapse;
-  font: var(--ds-font-body-small);
+  font: var(--ds-font-body-snug);
   font-variant-numeric: tabular-nums;
 }
 
 .desk-table th,
 .desk-table td {
-  padding: var(--ds-space-075) var(--ds-space-150);
+  padding: calc(var(--ds-space-100) + var(--ds-border-width))
+    calc(var(--ds-space-100) + var(--ds-space-025));
   text-align: start;
   white-space: nowrap;
   border-block-end: var(--ds-border-width) solid var(--ds-border);
 }
 
 .desk-table thead th {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-xsmall);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .desk-table tbody th {
@@ -2243,4 +4199,287 @@ html:has(.desk-gate-bar) {
 
 .desk-table tbody th code {
   overflow-wrap: anywhere;
+}
+
+.desk-lesson__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050) var(--ds-space-100);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-lesson__actions {
+  display: flex;
+  gap: var(--ds-space-050);
+}
+
+.desk-lesson__key {
+  display: block;
+  margin-block-end: var(--ds-space-150);
+}
+
+/* A rank in words, after a dot of its tone. */
+.desk-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-rank__dot {
+  flex: none;
+  width: var(--ds-space-100);
+  height: var(--ds-space-100);
+  border-radius: var(--ds-radius-round);
+  background: var(--tone-solid);
+}
+
+/* Runs: today in one line of pills. */
+.desk-digest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin-block-end: var(--ds-space-200);
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-font-body);
+}
+
+.desk-digest__title {
+  margin: 0;
+  font: var(--ds-font-heading-xsmall);
+}
+
+.desk-digest__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-digest__items li {
+  padding: var(--ds-space-025) calc(var(--ds-space-100) + var(--ds-space-025));
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-pill);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Runs: the last seven days as cards with a line each. */
+.desk-week__title {
+  margin-block: 0 var(--ds-space-100);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.desk-week__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+  margin-block-end: var(--ds-space-200);
+}
+
+.desk-stat {
+  display: grid;
+  gap: var(--ds-space-075);
+  min-width: 0;
+  padding: var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-250);
+}
+
+.desk-stat__label,
+.desk-stat__note {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+.desk-stat__value {
+  font: var(--ds-font-heading-large);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-stat__spark {
+  width: 100%;
+  height: calc(var(--ds-space-400) + var(--ds-space-050));
+}
+
+.desk-stat__spark polyline {
+  fill: none;
+  stroke: var(--ds-border-information);
+  stroke-width: var(--ds-border-width-thick);
+  vector-effect: non-scaling-stroke;
+}
+
+/* Two cards side by side on a wide screen, one above the other on a narrow one. */
+/* The column can shrink below a wide table, which then scrolls inside its card. */
+.desk-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-200);
+  margin-block-end: var(--ds-space-300);
+}
+
+.desk-split > .desk-panel {
+  margin-block-end: 0;
+}
+
+.desk-split--inner {
+  margin-block: var(--ds-space-200) 0;
+}
+
+@media (min-width: 56.25rem) {
+  .desk-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Runs: the cost of each role as a bar, with the value written beside it. */
+.desk-bars {
+  display: grid;
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  margin: 0 0 var(--ds-space-150);
+  padding: 0;
+  list-style: none;
+}
+
+.desk-bars__row {
+  display: grid;
+  grid-template-columns: 6.875rem minmax(0, 1fr) minmax(4.375rem, auto);
+  gap: calc(var(--ds-space-100) + var(--ds-space-025));
+  align-items: center;
+  font: var(--ds-font-body-snug);
+}
+
+.desk-bars__track {
+  width: 100%;
+  height: var(--ds-space-100);
+}
+
+.desk-bars__rail {
+  fill: var(--ds-surface-sunken);
+}
+
+.desk-bars__fill {
+  fill: var(--ds-background-information-bold);
+}
+
+.desk-bars__value {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lessons: the rank help and the promoted lessons, each on a quiet card. */
+.desk-subpanel {
+  min-width: 0;
+  padding: var(--ds-space-250);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-250);
+}
+
+.desk-subpanel h3 {
+  margin-block-start: 0;
+}
+
+.desk-rank-help,
+.desk-promoted {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-rank-help li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
+  font: var(--ds-font-body-snug);
+}
+
+.desk-promoted li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-100);
+  align-items: start;
+  padding: calc(var(--ds-space-100) + var(--ds-border-width)) var(--ds-space-150);
+  background: var(--ds-surface-raised);
+  border-radius: calc(var(--ds-radius-100) + var(--ds-space-025));
+}
+
+.desk-promoted__icon {
+  display: grid;
+  place-items: center;
+  width: var(--ds-space-250);
+  height: var(--ds-space-250);
+  color: var(--ds-text-success);
+  background: var(--ds-background-success);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-promoted__icon svg {
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+}
+
+.desk-promoted__body {
+  min-width: 0;
+}
+
+.desk-promoted__body code {
+  overflow-wrap: anywhere;
+}
+
+.desk-promoted__note {
+  margin-block: var(--ds-space-025);
+  overflow-wrap: anywhere;
+}
+
+.desk-promoted__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050) var(--ds-space-100);
+  margin: 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-compact);
+}
+
+/* A phone is for triage: no week cards, one column, and 44 px (2.75 rem) touch targets. */
+@media (max-width: 40rem) {
+  .desk-week {
+    display: none;
+  }
+
+  .desk-checks li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desk-bars__row {
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  }
+
+  .desk-heading .ui-button,
+  .desk-remedy .ui-button,
+  .desk-lesson__actions .ui-button,
+  .desk-promoted .ui-button {
+    min-height: 2.75rem;
+  }
+
+  .desk-promoted li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .desk-promoted li > .ui-button {
+    grid-column: 1 / -1;
+  }
 }

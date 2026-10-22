@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
-import { useGatePanel, type GatePanelProps } from "./gate.panel";
+import { GatePanel } from "./gate.panel";
 import type { DeskApi } from "../api/api.client";
 import type { ActionSettled } from "../state/desk.provider";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
@@ -35,23 +35,19 @@ const done = (message: string | null): ActionSettled => ({
   outcome: { stop: "needs-you", stage: "needs-you", message }
 });
 
-function Gate(props: GatePanelProps) {
-  const gate = useGatePanel(props);
-  return <>{gate.decision}</>;
-}
-
 const show = (run: IssueActions["run"], api: Partial<DeskApi>, withDraft = false) => {
   const { detail, summary } = makeDetail({ stage: "needs-you", resumeStage: "intake" });
   const artifacts = withDraft
     ? [{ id: "issue-draft" as const, present: true, bytes: 100, updatedAt: null }]
     : [];
   return renderDesk(
-    <Gate
+    <GatePanel
       detail={{ ...detail, artifacts }}
       summary={summary}
+      revision="r1"
       actions={{ busy: false, run }}
-      onRemoved={vi.fn()}
-      layout="side"
+      onOpenResult={vi.fn()}
+      onShowTrace={vi.fn()}
     />,
     fakeApi({
       artifactJson: <T,>() => Promise.resolve(DRAFT as T),

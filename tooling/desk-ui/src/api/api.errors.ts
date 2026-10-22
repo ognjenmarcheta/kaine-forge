@@ -27,6 +27,7 @@ export const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
   authorization: "desk.error.authorization",
   "worktree-dirty": "desk.error.worktree-dirty",
   "remove-failed": "desk.error.remove-failed",
+  "lesson-refused": "desk.error.lesson-refused",
   network: "desk.error.network",
   "invalid-response": "desk.error.invalid-response"
 };

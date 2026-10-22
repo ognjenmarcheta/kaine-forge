@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { planRiskSchema } from "./agent-output.contract";
+import { providerSchema } from "./desk-config.contract";
 import { FLOW_NODE_IDS, flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
 import { ACTIVE_STAGES, feedbackTargetSchema, stageSchema } from "./pipeline.contract";
@@ -48,6 +50,8 @@ export const SERVER_ERROR_CODES = [
   "busy",
   /** The artifact exists in the whitelist but the issue has not written it yet. */
   "artifact-missing",
+  /** A lesson action refused: the lesson changed since the preview, it has an issue, or GitHub failed. */
+  "lesson-refused",
   "internal"
 ] as const;
 
@@ -135,6 +139,14 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       currentNode: flowNodeIdSchema.nullable(),
       /** An action of this issue runs in this server now. */
       busy: z.boolean(),
+      /**
+       * The owner asked to hold the issue. While `busy`, the running stage still ends; then the
+       * issue waits until `resume`.
+       */
+      paused: z.boolean(),
+      pausedAt: timestampSchema.nullable(),
+      /** The risk of the current plan, or `null` before a graded plan exists. */
+      planRisk: planRiskSchema.nullable(),
       createdAt: timestampSchema,
       updatedAt: timestampSchema
     })
@@ -237,6 +249,39 @@ export const shipReadinessSchema = z
   .strict();
 export type ShipReadiness = z.infer<typeof shipReadinessSchema>;
 
+/** The plan the gate shows: its grade and what the latest revision changed. */
+export const planSummarySchema = z
+  .object({
+    risk: planRiskSchema.nullable(),
+    riskReasons: z.array(z.string()),
+    revision: z.string().nullable()
+  })
+  .strict();
+export type PlanSummary = z.infer<typeof planSummarySchema>;
+
+/**
+ * One agent session the owner can resume by hand. `provider` is the CLI that ran the latest run
+ * of the role, from its run summary (`null` when unknown). `command` is what `desk resume` prints:
+ * `cd <worktree> && claude --resume <id>` or `... && codex resume <id>`, `null` without a provider.
+ */
+export const agentSessionSchema = z
+  .object({
+    role: z.enum(["planner", "builder"]),
+    sessionId: z.string().min(1),
+    provider: providerSchema.nullable(),
+    command: z.string().nullable()
+  })
+  .strict();
+export type AgentSession = z.infer<typeof agentSessionSchema>;
+
+export const sessionResumeSchema = z
+  .object({
+    worktreePath: z.string().nullable(),
+    sessions: z.array(agentSessionSchema)
+  })
+  .strict();
+export type SessionResume = z.infer<typeof sessionResumeSchema>;
+
 export const issueDetailSchema = z
   .object({
     summary: issueSummarySchema,
@@ -247,6 +292,13 @@ export const issueDetailSchema = z
     check: checkSummarySchema.nullable(),
     review: reviewSummarySchema.nullable(),
     ship: shipReadinessSchema,
+    /** From `plan.json`. `null` before the plan exists. */
+    plan: planSummarySchema.nullable(),
+    /** What the latest build changed since the one before, from `build.json`. `null` for a first build. */
+    buildRevision: z.string().nullable(),
+    /** The owner's note at the plan approval, or `null`. */
+    approveNote: z.string().nullable(),
+    resume: sessionResumeSchema,
     /** The agent runs of this issue from `runs.jsonl`, oldest first. */
     runs: z.array(runRecordSchema)
   })
@@ -269,7 +321,9 @@ export const ACTION_NAMES = [
   "refresh-pr",
   "pr-feedback",
   "draft",
-  "apply-draft"
+  "apply-draft",
+  "pause",
+  "resume"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
@@ -278,7 +332,13 @@ export const MAX_FEEDBACK_CHARS = 20_000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start"), override: z.boolean().default(false) }).strict(),
-  z.object({ action: z.literal("approve") }).strict(),
+  // The note answers the plan's open questions. The builder reads it as the owner's words.
+  z
+    .object({
+      action: z.literal("approve"),
+      note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS).optional()
+    })
+    .strict(),
   z
     .object({
       action: z.literal("feedback"),
@@ -312,7 +372,10 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     .strict(),
   z.object({ action: z.literal("draft") }).strict(),
   // Applying replaces the issue body on GitHub. Only an explicit yes reaches the engine.
-  z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict()
+  z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict(),
+  // Hold the issue after the running stage. It never stops a running agent: `cancel` does.
+  z.object({ action: z.literal("pause") }).strict(),
+  z.object({ action: z.literal("resume") }).strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
@@ -320,7 +383,8 @@ export type ActionRequestInput = z.input<typeof actionRequestSchema>;
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
   .object({
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "removed"]),
+    /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
+    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "removed", "paused"]),
     stage: stageSchema.nullable(),
     message: z.string().nullable()
   })
@@ -364,6 +428,11 @@ export const logEntrySchema = z
     at: timestampSchema,
     issueNumber: z.number().int().nonnegative(),
     kind: logKindSchema,
+    /**
+     * The issue's stage when the entry was written: the stage of a history event, or the stage
+     * the issue was in. `null` or absent when unknown (entries from before the field existed).
+     */
+    stage: stageSchema.nullable().optional(),
     /** Bounded and redacted text, without a time: `at` holds it and the UI formats it. */
     text: z.string()
   })

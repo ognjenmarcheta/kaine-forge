@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { Inspector } from "./inspector.panel";
+import { StageSheet } from "./inspector.panel";
 import {
   buildArtifact,
   planArtifact,
@@ -18,8 +18,6 @@ import {
 } from "../../tests/fixture.data";
 import { FlowGraph } from "../flow/flow.graph";
 import { FlowStepper } from "../flow/flow.stepper";
-import type { IssueActions } from "../gates/gate.actions";
-import type { GateLayout } from "../gates/gate.panel";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const ARTIFACTS: Readonly<Record<string, string>> = {
@@ -71,38 +69,50 @@ const detailOf = (issueNumber: number, patch: Partial<IssueDetail> = {}) => {
   };
 };
 
-const actions: IssueActions = { busy: false, run: vi.fn() };
-
-const show = (
-  issueNumber: number,
-  selected: FlowNodeId,
-  patch: Partial<IssueDetail> = {},
-  layout: GateLayout = "side"
-) => {
+const show = (issueNumber: number, selected: FlowNodeId, patch: Partial<IssueDetail> = {}) => {
   const { detail, summary } = detailOf(issueNumber, patch);
-  const onSelect = vi.fn();
-  const onOpenResult = vi.fn();
   renderDesk(
-    <Inspector
+    <StageSheet
       detail={detail}
       summary={summary}
       flow={detail.flow}
-      selected={selected}
-      onSelect={onSelect}
+      nodeId={selected}
       revision="r1"
-      actions={actions}
-      onOpenResult={onOpenResult}
-      onRemoved={vi.fn()}
-      layout={layout}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
     />,
     api
   );
-  return { onSelect, onOpenResult };
 };
 
-const region = () => screen.getByRole("complementary");
+const region = () => screen.getByRole("dialog");
 
-describe("Inspector", () => {
+/** The sheet as the issue page holds it: stepping changes the stage it shows. */
+function Sheet({
+  issueNumber,
+  start,
+  onClose
+}: {
+  readonly issueNumber: number;
+  readonly start: FlowNodeId;
+  readonly onClose: () => void;
+}) {
+  const { detail, summary } = detailOf(issueNumber);
+  const [node, setNode] = useState<FlowNodeId>(start);
+  return (
+    <StageSheet
+      detail={detail}
+      summary={summary}
+      flow={detail.flow}
+      nodeId={node}
+      revision="r1"
+      onSelect={setNode}
+      onClose={onClose}
+    />
+  );
+}
+
+describe("StageSheet", () => {
   it("names the selected stage, who works there, and its status, with four tiles", () => {
     show(104, "build");
     expect(within(region()).getByRole("heading", { name: "Build", level: 2 })).toBeTruthy();
@@ -117,7 +127,9 @@ describe("Inspector", () => {
     const list = await screen.findByRole("list", { name: "Acceptance criteria" });
     expect(list.textContent).toContain("Passed: ");
     expect(list.textContent).toContain("An empty board explains how to start an issue");
-    expect(screen.getByText("Should the empty state link to the docs?")).toBeTruthy();
+    // In the stage's own section, not only in the full result below it.
+    const questions = screen.getAllByText("Should the empty state link to the docs?");
+    expect(questions.some((node) => node.closest(".desk-inspector__section") !== null)).toBe(true);
     expect(region().textContent).toContain("You decide");
   });
 
@@ -184,39 +196,29 @@ describe("Inspector", () => {
     expect(region().textContent).toContain("The same check failure came back.");
   });
 
-  it("pins the whole decision below the body on a desktop", () => {
-    show(103, "build");
-    const pinned = region().querySelector(".desk-inspector__actions");
-    expect(pinned?.textContent).toContain("The desk needs you");
-    expect(within(region()).queryByRole("group")).toBeNull();
-  });
+  it("is a non-modal sheet that steps through the stages, stops at either end, and closes on Esc", async () => {
+    const onClose = vi.fn();
+    renderDesk(<Sheet issueNumber={102} start="plan" onClose={onClose} />, api);
+    const sheet = screen.getByRole("dialog", { name: "Plan" });
+    expect(sheet.getAttribute("aria-modal")).toBe("false");
+    expect(sheet.textContent).toContain("Stage 2 of 9 · Agent · Planner");
+    expect(document.activeElement).toBe(sheet);
 
-  it("below 64 rem puts the decision above the tiles and only the actions in the bar", () => {
-    show(103, "build", {}, "bar-narrow");
-    const decision = within(region()).getByRole("region", { name: "The desk needs you" });
-    const tiles = region().querySelector(".desk-kpis");
-    expect(tiles).not.toBeNull();
-    if (tiles === null) return;
-    // The decision comes first in the page, right above the tiles.
-    expect(decision.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(decision.nextElementSibling).toBe(tiles);
-    expect(decision.textContent).toContain("Two consecutive checks failed the same way");
-    within(decision).getByRole("combobox", { name: "Resume from" });
-    // The bar closes the inspector and holds the actions alone.
-    const bar = within(region()).getByRole("group", { name: "The desk needs you" });
-    expect(region().lastElementChild).toBe(bar);
-    within(bar).getByRole("button", { name: "Continue" });
-    within(bar).getByRole("button", { name: "More actions" });
-    expect(region().querySelector(".desk-inspector__actions")).toBeNull();
-  });
+    const previous = screen.getByRole("button", { name: "Previous stage" });
+    await userEvent.click(previous);
+    expect(region().textContent).toContain("Stage 1 of 9");
+    expect(previous).toHaveProperty("disabled", true);
+    // The button that disabled itself gave focus to the sheet, so the arrows keep working.
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("dialog", { name: "Ticket" })).toBeTruthy();
 
-  it("switches the stage from its select and opens the full result", async () => {
-    const { onSelect, onOpenResult } = show(102, "pr-review");
-    await userEvent.click(screen.getByRole("button", { name: "Open full result" }));
-    expect(onOpenResult).toHaveBeenCalledTimes(1);
-    await userEvent.click(screen.getByRole("combobox", { name: "Selected stage" }));
-    await userEvent.click(await screen.findByRole("option", { name: "Plan" }));
-    expect(onSelect).toHaveBeenCalledWith("plan");
+    for (let step = 0; step < 9; step += 1) await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("dialog", { name: "Open PR" }).textContent).toContain("Stage 9 of 9");
+    expect(screen.getByRole("button", { name: "Next stage" })).toHaveProperty("disabled", true);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

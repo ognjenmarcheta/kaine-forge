@@ -94,6 +94,17 @@ export interface IssueSnapshot {
   readonly labelEvents: readonly IssueLabelEvent[];
 }
 
+/** A new issue. The desk sends the body as plain text through stdin. */
+export interface CreateIssueRequest {
+  readonly title: string;
+  readonly body: string;
+}
+
+export interface CreatedIssue {
+  readonly number: number;
+  readonly url: string;
+}
+
 export interface StatusCommentResult {
   readonly action: "created" | "updated" | "unchanged";
   readonly commentId: number;

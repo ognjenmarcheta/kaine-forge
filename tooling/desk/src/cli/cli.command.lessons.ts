@@ -4,6 +4,7 @@ import { parse } from "./cli.args";
 import { UsageError, type CliCommand } from "./cli.types";
 import { HARNESS_SHORT_LENGTH, lessonSourceSchema, type LessonReport } from "../contracts";
 import { repoFingerprint } from "../engine/harness.fingerprint";
+import { readPromotedLessons } from "../stats/stats.lesson-desk";
 import { aggregateLessons, DEFAULT_MIN_ISSUES, readLessonRecords } from "../stats/stats.lessons";
 import { resolveRepoLocation } from "../store/store.root";
 
@@ -74,7 +75,11 @@ export const commandLessons: CliCommand = async (args, deps, io) => {
     source === undefined
       ? read
       : { ...read, records: read.records.filter((record) => record.source === source.data) },
-    { minIssues, currentRepo: await repoFingerprint(repoRoot).catch(() => null) }
+    {
+      minIssues,
+      currentRepo: await repoFingerprint(repoRoot).catch(() => null),
+      promoted: await readPromotedLessons(stateRoot)
+    }
   );
 
   if (values.json === true) io.out(`${JSON.stringify(report, null, 2)}\n`);

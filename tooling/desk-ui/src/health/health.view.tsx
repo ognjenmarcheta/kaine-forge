@@ -1,6 +1,6 @@
 import type { HealthFix, HealthReport } from "@repo/desk/contracts";
-import { Badge, Button, Card, Modal, Spinner } from "@repo/ui";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Button, Card, Modal, Spinner } from "@repo/ui";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { toApiError, type FailureCode } from "../api/api.client";
@@ -8,9 +8,11 @@ import { failureMessageKey } from "../api/api.errors";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { relativeTime } from "../shell/shell.format";
 import { useNow } from "../shell/shell.now";
-import { FailureText, Loading } from "../shell/shell.ui";
+import { usePaletteActions } from "../shell/shell.palette";
+import { FailureText, LoadingLines } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { HEALTH_TONE, appearanceOf, passTone } from "../status/status.model";
+import { StatusChip } from "../status/status.chip";
+import { HEALTH_TONE, passTone } from "../status/status.model";
 
 type Check = HealthReport["checks"][number];
 
@@ -30,7 +32,7 @@ function CopyCommand({ command }: { readonly command: string }) {
   };
   return (
     <>
-      <code>{command}</code>
+      <code className="desk-remedy__command">{command}</code>
       <Button
         appearance="subtle"
         spacing="compact"
@@ -104,7 +106,47 @@ function Remedy({ check, running, onFix }: RemedyProps) {
   );
 }
 
-function Report({
+/** Ready or not, in words, and when the doctor last ran. */
+function Summary({ report }: { readonly report: HealthReport }) {
+  const t = useT();
+  const { language } = useLanguage();
+  const now = useNow();
+  return (
+    <p className="desk-health__summary">
+      <StatusChip tone={passTone(report.ok)}>
+        {t(report.ok ? "desk.health.ok" : "desk.health.problems")}
+      </StatusChip>
+      <span className="desk-muted">
+        {t("desk.health.checked", { when: relativeTime(report.generatedAt, now, language) })}
+      </span>
+    </p>
+  );
+}
+
+/** "Setup 4 of 6 ready", and a bar of the same. Errors stop a run, so they come first. */
+function SetupProgress({ report }: { readonly report: HealthReport }) {
+  const t = useT();
+  const id = useId();
+  const ready = report.checks.filter((check) => check.status === "ok").length;
+  const total = report.checks.length;
+  const blocked = report.checks.some((check) => check.status === "error");
+  return (
+    <div className="desk-setup">
+      <p className="desk-setup__line">
+        <strong id={id}>{t("desk.health.setup", { ready, total })}</strong>
+        {blocked && <span className="desk-muted">{t("desk.health.setupHint")}</span>}
+      </p>
+      <progress
+        className="desk-setup__bar"
+        value={ready}
+        max={Math.max(1, total)}
+        aria-labelledby={id}
+      />
+    </div>
+  );
+}
+
+function Checks({
   report,
   running,
   onFix
@@ -114,31 +156,23 @@ function Report({
   readonly onFix: (fix: HealthFix) => void;
 }) {
   const t = useT();
-  const { language } = useLanguage();
-  const now = useNow();
   return (
-    <Card className="desk-panel">
-      <p>
-        <Badge appearance={appearanceOf(passTone(report.ok))}>
-          {t(report.ok ? "desk.health.ok" : "desk.health.problems")}
-        </Badge>{" "}
-        <span className="desk-muted">
-          {t("desk.health.checked", { when: relativeTime(report.generatedAt, now, language) })}
-        </span>
-      </p>
-      <ul className="desk-checks">
-        {report.checks.map((check) => (
-          <li key={check.id}>
-            <Badge appearance={appearanceOf(HEALTH_TONE[check.status])}>
+    <ul className="desk-checks">
+      {report.checks.map((check) => (
+        <li key={check.id}>
+          <span>
+            <StatusChip tone={HEALTH_TONE[check.status]}>
               {t(`desk.health.status.${check.status}`)}
-            </Badge>
+            </StatusChip>
+          </span>
+          <div className="desk-checks__body">
             <strong>{check.label}</strong>
-            <span className="desk-muted">{check.detail}</span>
+            <p className="desk-checks__detail">{check.detail}</p>
             <Remedy check={check} running={running} onFix={onFix} />
-          </li>
-        ))}
-      </ul>
-    </Card>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -165,6 +199,7 @@ export function HealthView() {
   }, [loadHealth]);
 
   useEffect(refresh, [refresh]);
+  usePaletteActions([{ id: "health-refresh", label: t("desk.health.refresh"), run: refresh }]);
 
   const fix = (repair: HealthFix): void => {
     setRunning(repair);
@@ -199,6 +234,7 @@ export function HealthView() {
     }
   }, [state.repair, t]);
 
+  const report = state.health;
   return (
     <>
       <div className="desk-heading">
@@ -211,10 +247,16 @@ export function HealthView() {
         </Button>
       </div>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
-      {state.health !== null ? (
-        <Report report={state.health} running={running} onFix={fix} />
-      ) : (
-        error === null && <Loading />
+      {(report !== null || loading) && (
+        <Card className="desk-panel">
+          {report !== null && <Summary report={report} />}
+          {report !== null && <SetupProgress report={report} />}
+          {loading ? (
+            <LoadingLines label={t("desk.health.checking")} lines={4} />
+          ) : (
+            report !== null && <Checks report={report} running={running} onFix={fix} />
+          )}
+        </Card>
       )}
     </>
   );

@@ -24,7 +24,7 @@ export type Translate = (key: string, values?: TranslationValues) => string;
 export const translate: Translate = (key, values = {}) =>
   translationInstance.t(key, { ...values, ns: "desk", interpolation: { escapeValue: false } });
 
-export const isSupportedLanguage = (value: string): value is SupportedLanguage =>
+const isSupportedLanguage = (value: string): value is SupportedLanguage =>
   SUPPORTED_LANGUAGES.some((language) => language === value);
 
 interface LanguageContextValue {

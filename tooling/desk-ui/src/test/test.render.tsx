@@ -23,6 +23,10 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   healthFix: unexpected("healthFix"),
   stats: unexpected("stats"),
   lessons: unexpected("lessons"),
+  lessonPromote: unexpected("lessonPromote"),
+  lessonUnpromote: unexpected("lessonUnpromote"),
+  lessonIssuePreview: unexpected("lessonIssuePreview"),
+  lessonIssue: unexpected("lessonIssue"),
   // The board and the Start dialog list GitHub work. Most tests want no list.
   github: () =>
     Promise.resolve({ ok: true, issues: [], pulls: [], fetchedAt: "2026-03-01T10:00:00.000Z" }),
@@ -102,6 +106,9 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,
+    paused: false,
+    pausedAt: null,
+    planRisk: null,
     createdAt: state.createdAt,
     updatedAt: state.updatedAt
   };
@@ -132,6 +139,10 @@ export const makeDetail = (
         currentDiffMatches: atGate ? true : null,
         ready: atGate
       },
+      plan: null,
+      buildRevision: null,
+      approveNote: null,
+      resume: { worktreePath: null, sessions: [] },
       runs: []
     }
   };

@@ -1,7 +1,7 @@
 import type { GithubIssue, GithubLists, GithubPull, IssueSummary } from "@repo/desk/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DeskApi } from "../api/api.client";
 import { DeskApp } from "../desk.app";
@@ -116,6 +116,15 @@ describe("Start dialog issue picker", () => {
   });
 });
 
+/** The full pull request panel sits under the columns; Your turn lists pull requests in short. */
+const showColumns = async (): Promise<void> => {
+  await userEvent.click(await screen.findByRole("button", { name: "Columns" }));
+};
+
+afterEach(() => {
+  localStorage.clear();
+});
+
 describe("Open pull requests on the board", () => {
   it("lists them read-only, links a desk issue on the board, and refreshes from GitHub", async () => {
     const github = vi.fn<DeskApi["github"]>(() =>
@@ -124,6 +133,7 @@ describe("Open pull requests on the board", () => {
       )
     );
     show(github);
+    await showColumns();
 
     const panel = await screen.findByRole("region", { name: "Open pull requests (2)" });
     expect(within(panel).getByRole("link", { name: "#40" }).getAttribute("href")).toBe(
@@ -141,6 +151,7 @@ describe("Open pull requests on the board", () => {
 
   it("does not link a pull request URL that is not http", async () => {
     show(() => Promise.resolve(lists([], [pull({ url: "javascript:alert(1)" })])));
+    await showColumns();
     const panel = await screen.findByRole("region", { name: "Open pull requests (1)" });
     expect(within(panel).queryByRole("link", { name: "#40" })).toBeNull();
     expect(within(panel).getByText(/#40/)).toBeTruthy();

@@ -12,11 +12,11 @@ export const statusLabelText = (t: Translate, label: StatusLabel): string =>
         state: t(`desk.chip.state.${label.state}`)
       });
 
-/** A status in words with a dot of its color, so the color is never the only signal. */
+/** A status in words with a glyph of its tone, so the color is never the only signal. */
 export function StatusChip({ tone, children }: { readonly tone: Tone; readonly children: string }) {
   return (
     <Badge appearance={appearanceOf(tone)} className="desk-chip" data-tone={tone}>
-      <span className="desk-chip__dot" aria-hidden="true" />
+      <span className="desk-chip__glyph" aria-hidden="true" />
       {children}
     </Badge>
   );

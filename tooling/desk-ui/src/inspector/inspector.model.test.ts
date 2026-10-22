@@ -57,7 +57,9 @@ const PLAN: PlannerOutput = {
   openQuestions: ["Link the docs?"],
   changeset: { required: false, packages: [], bump: "patch" },
   pr: { type: "feat", slug: "empty" },
-  plainLanguage: "The board explains itself."
+  plainLanguage: "The board explains itself.",
+  risk: null,
+  riskReasons: []
 };
 
 describe("resolveSelection", () => {
@@ -134,6 +136,7 @@ describe("stageKpis", () => {
             status: "ok",
             value: {
               summary: "s",
+              revision: null,
               filesChanged: ["a", "b"],
               notes: [],
               blockers: [],
@@ -233,6 +236,7 @@ describe("checklists", () => {
   it("fails blockers and keeps the builder's claims as claims", () => {
     const items = buildChecklist({
       summary: "s",
+      revision: null,
       filesChanged: [],
       notes: [],
       blockers: ["No database"],
@@ -349,6 +353,7 @@ describe("agentUsageKpis", () => {
     failedToolCalls: 2,
     denials: 0,
     harness: null,
+    planRisk: null,
     ...over
   });
 

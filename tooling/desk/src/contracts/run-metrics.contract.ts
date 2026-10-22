@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { planRiskSchema } from "./agent-output.contract";
 import { isolationSchema, providerSchema } from "./desk-config.contract";
 import { agentStageRoleSchema, loopCountersSchema } from "./issue-state.contract";
 import { stageSchema } from "./pipeline.contract";
@@ -72,7 +73,12 @@ export const runRecordSchema = z
     failedToolCalls: count,
     denials: count,
     /** `null` when it could not be read, and on records written before it existed. */
-    harness: harnessFingerprintSchema.nullable().default(null)
+    harness: harnessFingerprintSchema.nullable().default(null),
+    /**
+     * The risk of the plan the run worked from: the planner's own result, or the plan a builder
+     * or reviewer got. `null` before a plan exists, and on records written before it existed.
+     */
+    planRisk: planRiskSchema.nullable().default(null)
   })
   .strict();
 export type RunRecord = z.infer<typeof runRecordSchema>;
@@ -128,11 +134,40 @@ export const issueRollupSchema = z
   .strict();
 export type IssueRollup = z.infer<typeof issueRollupSchema>;
 
+/**
+ * Issues graded at one plan risk. An issue counts at the risk of its latest plan. `shipped`: the
+ * desk opened its PR (`pr-open` or `shipped` now). `sentBack`: the plan was made again (two or
+ * more accepted planner runs) or a review sent the work back to `build`.
+ */
+export const riskOutcomeSchema = z
+  .object({ risk: planRiskSchema, issues: count, shipped: count, sentBack: count })
+  .strict();
+export type RiskOutcome = z.infer<typeof riskOutcomeSchema>;
+
+/** The days `RunStats.days` covers, today included. */
+export const STATS_DAYS = 7;
+
+/** One UTC day. `costUsd` is `null` when no run of the day reported a cost. */
+export const statsDaySchema = z
+  .object({
+    date: z.iso.date(),
+    runs: count,
+    costUsd: mean,
+    /** Issues whose PR the desk opened that day, from the issue histories. */
+    shipped: count
+  })
+  .strict();
+export type StatsDay = z.infer<typeof statsDaySchema>;
+
 /** `desk stats --json` and `GET /api/stats`. */
 export const runStatsSchema = z
   .object({
     groups: z.array(runGroupSchema),
     issues: z.array(issueRollupSchema),
+    /** One entry for each of `PLAN_RISKS`, in that order. */
+    riskOutcomes: z.array(riskOutcomeSchema),
+    /** The last `STATS_DAYS` UTC days, oldest first, the last one is today. */
+    days: z.array(statsDaySchema).length(STATS_DAYS),
     /** Lines of `runs.jsonl` that were skipped because they are not a valid record. */
     invalidLines: count
   })

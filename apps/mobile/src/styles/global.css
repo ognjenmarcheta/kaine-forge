@@ -102,6 +102,7 @@
   --ds-border-information: #1d5fb8;
   --ds-border-selected: #f15a24;
   --ds-border-severe: #6e4600;
+  --ds-border-strong: #c9ced6;
   --ds-border-success: #1d7a4a;
   --ds-border-warning: #8a5a00;
   --ds-border-width: 1px;
@@ -126,11 +127,13 @@
   --ds-radius-050: 4px;
   --ds-radius-100: 8px;
   --ds-radius-200: 12px;
+  --ds-radius-250: 16px;
   --ds-radius-300: 20px;
   --ds-radius-400: 28px;
   --ds-radius-pill: 9999px;
   --ds-radius-round: 50%;
   --ds-shadow-floating: 0px 2px 4px #1214190a, 0px 32px 64px #1214191f;
+  --ds-shadow-floating-bold: 0px 2px 4px #1214190a, 0px 32px 64px #12141929;
   --ds-shadow-overflow: 0px 0px 8px #12141914, 0px 0px 1px #1214191f;
   --ds-shadow-overlay: 0px 1px 2px #1214190a, 0px 12px 32px #12141914;
   --ds-shadow-raised: 0px 1px 2px #1214190f, 0px 0px 1px #1214191f;
@@ -157,6 +160,7 @@
   --ds-space-negative-300: -1.5rem;
   --ds-space-negative-400: -2rem;
   --ds-surface: #ffffff;
+  --ds-surface-inverse: #121419;
   --ds-surface-overlay: #ffffff;
   --ds-surface-overlay-hovered: #f5f6f8;
   --ds-surface-overlay-pressed: #eceef1;
@@ -164,6 +168,7 @@
   --ds-surface-raised-hovered: #f5f6f8;
   --ds-surface-raised-pressed: #eceef1;
   --ds-surface-sunken: #f5f6f8;
+  --ds-surface-sunken-bold: #eceef1;
   --ds-text: #121419;
   --ds-text-accent-blue: #0055cc;
   --ds-text-accent-blue-bolder: #09326c;
@@ -199,6 +204,7 @@
   --ds-text-subtle: #4a505c;
   --ds-text-subtlest: #646b78;
   --ds-text-success: #1d7a4a;
+  --ds-text-surface-inverse: #f5f6f8;
   --ds-text-warning: #8a5a00;
   --ds-text-warning-inverse: #121419;
 }
@@ -302,15 +308,18 @@
   --ds-border-information: #7fb0f5;
   --ds-border-selected: #ff6a33;
   --ds-border-severe: #f5c35c;
+  --ds-border-strong: #333943;
   --ds-border-success: #5fc791;
   --ds-border-warning: #e6b44a;
   --ds-link: #ff8a5c;
   --ds-link-pressed: #ffb08f;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
+  --ds-shadow-floating-bold: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
   --ds-shadow-overflow: 0px 0px 8px #00000073, 0px 0px 1px #f2f3f514;
   --ds-shadow-overlay: 0px 1px 2px #00000080, 0px 12px 32px #00000073;
   --ds-shadow-raised: 0px 1px 2px #00000080, 0px 0px 1px #f2f3f514;
   --ds-surface: #0c0e12;
+  --ds-surface-inverse: #22262e;
   --ds-surface-overlay: #1c2027;
   --ds-surface-overlay-hovered: #22262e;
   --ds-surface-overlay-pressed: #2a2f38;
@@ -318,6 +327,7 @@
   --ds-surface-raised-hovered: #1c2027;
   --ds-surface-raised-pressed: #22262e;
   --ds-surface-sunken: #14171d;
+  --ds-surface-sunken-bold: #1c2027;
   --ds-text: #f2f3f5;
   --ds-text-accent-blue: #579dff;
   --ds-text-accent-blue-bolder: #bcd6f0;
@@ -353,6 +363,7 @@
   --ds-text-subtle: #aab1bd;
   --ds-text-subtlest: #868d99;
   --ds-text-success: #5fc791;
+  --ds-text-surface-inverse: #f2f3f5;
   --ds-text-warning: #e6b44a;
   --ds-text-warning-inverse: #121419;
 }

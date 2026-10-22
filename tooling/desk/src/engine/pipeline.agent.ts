@@ -1,6 +1,6 @@
 import { rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { harnessFingerprint } from "./harness.fingerprint";
 import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
@@ -27,9 +27,11 @@ import {
 import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
 import {
   agentOutputJsonSchema,
+  planRiskSchema,
   type AgentStageRole,
   type HarnessFingerprint,
   type LoopCounters,
+  type PlanRisk,
   type PlannerOutput,
   type Provider,
   type RunRecord
@@ -89,6 +91,8 @@ export interface AgentStageInput<T> {
   readonly feedback?: string | undefined;
   /** Goes into the prompt. For the builder it is also the file scope. */
   readonly plan?: PlannerOutput | undefined;
+  /** The owner's note at the plan approval. The builder reads it as the owner's words. */
+  readonly ownerNote?: string | undefined;
   readonly diffPath?: string | undefined;
   /** Exact workspace package names the builder may run scripts for. */
   readonly workspaces?: readonly string[] | undefined;
@@ -174,7 +178,7 @@ export const runAgentStage = async <T>(
   const result = await runAgentStageOnce(context, input, observed);
   const { run } = observed;
   if (run !== null) {
-    await recordRun(context, input.role, run, result.ok);
+    await recordRun(context, input.role, run, result.ok, planRiskOf(input, result));
     await recordLessons(
       context,
       agentRunLessons({
@@ -259,6 +263,7 @@ const runAgentStageOnce = async <T>(
         plan: input.plan,
         diffPath: input.diffPath,
         feedback: input.feedback,
+        ownerNote: input.ownerNote,
         skills,
         skillMode: "invoke"
       },
@@ -454,6 +459,16 @@ const failureReason = (role: AgentStageRole, failure: AgentFailure): string => {
   return `The ${role} failed. ${text}`;
 };
 
+/** Only the grade of a planner result. The full result passed the role schema in the runner. */
+const plannedRiskSchema = z.object({ risk: planRiskSchema.nullable().default(null) });
+
+/** The plan risk a run worked from: the planner's own result, or the plan the run got. */
+const planRiskOf = <T>(input: AgentStageInput<T>, result: AgentStageResult<T>): PlanRisk | null => {
+  if (input.plan !== undefined) return input.plan.risk;
+  if (input.role !== "planner" || !result.ok) return null;
+  return plannedRiskSchema.safeParse(result.result.structured).data?.risk ?? null;
+};
+
 const isFailedResult = (event: AgentEvent): boolean =>
   event.type === "tool_result" && (event.isError || (event.exitCode ?? 0) !== 0);
 
@@ -462,7 +477,8 @@ const recordRun = async (
   context: StageContext,
   role: AgentStageRole,
   run: ObservedRun,
-  accepted: boolean
+  accepted: boolean,
+  planRisk: PlanRisk | null
 ): Promise<void> => {
   const { deps } = context;
   const { outcome } = run;
@@ -488,7 +504,8 @@ const recordRun = async (
     editCalls: calls.filter((call) => EDIT_TOOLS.has(call.tool)).length,
     failedToolCalls: trace.filter(isFailedResult).length,
     denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length,
-    harness: run.harness
+    harness: run.harness,
+    planRisk
   };
   try {
     await appendRunRecord(deps.location.stateRoot, record);

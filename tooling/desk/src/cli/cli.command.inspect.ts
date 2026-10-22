@@ -1,7 +1,8 @@
 import { stat } from "node:fs/promises";
 
+import { resumeLine } from "../agents/agent.resume";
 import { loadDeskConfig } from "../config/config.load";
-import type { IssueState, Provider } from "../contracts";
+import type { IssueState } from "../contracts";
 import { parse, requireIssue } from "./cli.args";
 import { formatState, nextSteps } from "./cli.format";
 import { UsageError, type CliCommand } from "./cli.types";
@@ -135,13 +136,6 @@ export const commandLogs: CliCommand = async (args, deps, io) => {
   return 0;
 };
 
-/** A path that is safe to paste after `cd`. */
-const shellQuote = (value: string): string =>
-  /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
-
-const resumeCommand = (provider: Provider, sessionId: string): string =>
-  provider === "claude" ? `claude --resume ${sessionId}` : `codex resume ${sessionId}`;
-
 const isDirectory = async (target: string): Promise<boolean> => {
   try {
     return (await stat(target)).isDirectory();
@@ -192,9 +186,7 @@ export const commandResume: CliCommand = async (args, deps, io) => {
   const lines = [`#${issue}: resume an agent session by hand.`];
   for (const { role, id } of known) {
     const provider = loaded.config.providers[role];
-    lines.push(
-      `  ${role} (${provider}): cd ${shellQuote(worktree)} && ${resumeCommand(provider, id)}`
-    );
+    lines.push(`  ${role} (${provider}): ${resumeLine(provider, worktree, id)}`);
   }
   lines.push(
     "Stop every desk run for this issue first, and close your session before the next one."

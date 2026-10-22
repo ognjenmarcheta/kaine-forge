@@ -8,7 +8,13 @@ import type {
   PullRequestInfo,
   PullRequestView
 } from "./github/github.pull-request";
-import type { IssueSnapshot, RepositoryInfo, StatusCommentResult } from "./github/github.types";
+import type {
+  CreateIssueRequest,
+  CreatedIssue,
+  IssueSnapshot,
+  RepositoryInfo,
+  StatusCommentResult
+} from "./github/github.types";
 import { stopProcessTree } from "./process/process.tree";
 
 /** One command as an argv array. The desk never runs a shell string. */
@@ -68,6 +74,8 @@ export interface GitHubPort {
   readonly addPullRequestLabel: (pr: number, label: string) => Promise<void>;
   /** Replace the issue body. Only the owner's confirmed apply of an intake draft calls it. */
   readonly editIssueBody: (issueNumber: number, body: string) => Promise<void>;
+  /** Open a new issue. Only the owner's confirmed issue for a lesson calls it. */
+  readonly createIssue: (request: CreateIssueRequest) => Promise<CreatedIssue>;
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;

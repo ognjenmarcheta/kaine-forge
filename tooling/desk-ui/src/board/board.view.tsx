@@ -1,27 +1,39 @@
 import type { IssueSummary } from "@repo/desk/contracts";
-import { Button, Input, Plus, Search, X } from "@repo/ui";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Card, Input, Plus, Search, X, useMediaQuery } from "@repo/ui";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { useApprovePlans } from "./board.actions";
 import { IssueCard } from "./board.card";
-import { groupIssues, matchesSearch } from "./board.grouping";
-import { OpenPullRequests } from "./board.pulls";
+import { FilterChips, useIssueCosts } from "./board.filters";
+import {
+  groupIssues,
+  matchesFilter,
+  matchesSearch,
+  yourTurn,
+  type BoardFilter
+} from "./board.grouping";
+import { OpenPullRequests, SidePullRequests } from "./board.pulls";
+import { DoneList, RunningList } from "./board.side";
 import { StartDialog } from "./board.start-dialog";
+import { TurnInbox } from "./board.turn";
+import { ApproveBatchDialog } from "../gates/gate.confirm";
 import { useT } from "../i18n/i18n.t";
+import { Segmented } from "../shell/shell.layout";
 import { useNow } from "../shell/shell.now";
+import { usePaletteActions } from "../shell/shell.palette";
+import { BOARD_LAYOUTS, useBoardLayout, type BoardLayout } from "../shell/shell.preferences";
+import { RouteLink } from "../shell/shell.router";
 import { toastSettled } from "../shell/shell.toast";
 import { Loading } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { BOARD_GROUPS, type BoardGroup } from "../status/status.model";
+import { BOARD_GROUPS, isLowRiskPlan, type BoardGroup } from "../status/status.model";
 
 /** Cards shown in the finished column before the engineer asks for more. */
 export const DONE_LIMIT = 12;
 /** The board filters once typing pauses this long. */
 const SEARCH_DELAY_MS = 150;
-
-/** A field the `/` shortcut must leave alone: the engineer types there. */
-const isTypingTarget = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+/** A phone: Your turn only, and the next decision in a bar at the bottom. */
+const PHONE_QUERY = "(max-width: 40rem)";
 
 function useDebounced(value: string, delayMs: number): string {
   const [debounced, setDebounced] = useState(value);
@@ -110,74 +122,169 @@ function Column({
   );
 }
 
+/**
+ * A failed health check makes the next start or continue fail. Say so on the board, once,
+ * with the way to Health. The report comes from the store; the board asks for it once when
+ * no page has yet.
+ */
+function HealthBanner() {
+  const t = useT();
+  const { state, loadHealth } = useDesk();
+  const [dismissed, setDismissed] = useState(false);
+  const missing = state.health === null;
+  useEffect(() => {
+    if (missing) loadHealth().catch(() => undefined);
+  }, [missing, loadHealth]);
+  const failures = state.health?.checks.filter((check) => check.status === "error") ?? [];
+  const [first] = failures;
+  if (dismissed || first === undefined) return null;
+  return (
+    <div className="desk-banner" role="alert">
+      <strong>
+        {failures.length === 1
+          ? t("desk.board.health.title", { label: first.label })
+          : t("desk.board.health.titleMore", { label: first.label, count: failures.length - 1 })}
+      </strong>
+      <span>{t("desk.board.health.body")}</span>
+      <RouteLink to={{ view: "health" }}>{t("desk.board.health.open")}</RouteLink>
+      <span className="desk-banner__spacer" />
+      <Button appearance="link" spacing="compact" onClick={() => setDismissed(true)}>
+        {t("desk.board.health.dismiss")}
+      </Button>
+    </div>
+  );
+}
+
+/** No issue on the desk yet: three steps, and the way to start the first one. */
+function Onboarding({ onStart }: { readonly onStart: () => void }) {
+  const t = useT();
+  const heading = useId();
+  return (
+    <Card className="desk-onboard" aria-labelledby={heading} role="region">
+      <h2 id={heading}>{t("desk.board.emptyTitle")}</h2>
+      <p className="desk-muted">{t("desk.board.empty")}</p>
+      <ol className="desk-onboard__steps">
+        <li>
+          <b>{t("desk.board.onboard.setup")}</b>{" "}
+          <span className="desk-muted">{t("desk.board.onboard.setupHelp")}</span>{" "}
+          <RouteLink to={{ view: "health" }}>{t("desk.board.health.open")}</RouteLink>
+        </li>
+        <li>
+          <b>{t("desk.board.onboard.pick")}</b>{" "}
+          <span className="desk-muted">{t("desk.board.onboard.pickHelp")}</span>
+        </li>
+        <li>
+          <b>{t("desk.board.onboard.approve")}</b>{" "}
+          <span className="desk-muted">{t("desk.board.onboard.approveHelp")}</span>
+        </li>
+      </ol>
+      <div>
+        <Button onClick={onStart}>{t("desk.board.onboard.start")}</Button>
+      </div>
+    </Card>
+  );
+}
+
 export function BoardView() {
   const t = useT();
   const { state } = useDesk();
   const now = useNow();
+  const phone = useMediaQuery(PHONE_QUERY);
+  const [storedLayout, setLayout] = useBoardLayout();
+  const layout = phone ? "turn" : storedLayout;
+  const [filter, setFilter] = useState<BoardFilter>("all");
   const [startOpen, setStartOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const search = useDeferredValue(useDebounced(query, SEARCH_DELAY_MS));
   const searchBox = useRef<HTMLInputElement>(null);
+  const approvals = useApprovePlans();
+  const costs = useIssueCosts(layout === "columns");
   useRefusedStartToasts();
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
-      event.preventDefault();
-      searchBox.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const all = useMemo(() => Object.values(state.issues), [state.issues]);
-  const groups = useMemo(
-    () => groupIssues(all.filter((summary) => matchesSearch(summary, search))),
+  const found = useMemo(
+    () => all.filter((summary) => matchesSearch(summary, search)),
     [all, search]
   );
+  const groups = useMemo(
+    () =>
+      groupIssues(
+        layout === "columns"
+          ? found.filter((summary) => matchesFilter(summary, filter, costs))
+          : found
+      ),
+    [found, layout, filter, costs]
+  );
+  const everyGroup = useMemo(() => groupIssues(all), [all]);
+  const turn = useMemo(() => yourTurn(groups), [groups]);
+  // The batch covers every low-risk plan at its gate, whatever the search shows.
+  const batch = useMemo(
+    () =>
+      yourTurn(everyGroup).decisions.filter(
+        (summary) => isLowRiskPlan(summary) && !approvals.pending.has(summary.issueNumber)
+      ),
+    [everyGroup, approvals.pending]
+  );
+
+  const chooseLayout = (next: BoardLayout): void => {
+    setLayout(next);
+    setFilter("all");
+  };
+  const otherLayout: BoardLayout = layout === "turn" ? "columns" : "turn";
+  usePaletteActions([
+    { id: "board-start", label: t("desk.start.open"), run: () => setStartOpen(true) },
+    ...(phone
+      ? []
+      : [
+          {
+            id: "board-layout",
+            label: t(`desk.board.layout.switch.${otherLayout}`),
+            run: () => chooseLayout(otherLayout)
+          }
+        ]),
+    ...(batch.length > 1
+      ? [
+          {
+            id: "board-batch",
+            label: t("desk.board.batch.open", { count: batch.length }),
+            run: () => setBatchOpen(true)
+          }
+        ]
+      : [])
+  ]);
+
+  const turnCount = everyGroup["needs-you"].length + everyGroup.waiting.length;
+  const searching = search.trim() !== "";
 
   return (
-    <div className="desk-board-page">
-      <div className="desk-heading">
-        <div>
-          <h1>{t("desk.board.title")}</h1>
-          <p className="desk-muted">{t("desk.board.intro")}</p>
+    <div className="desk-board-page" data-layout={layout}>
+      <HealthBanner />
+      <div className="desk-board-head">
+        <div className="desk-board-head__text">
+          <h1>
+            {layout === "turn"
+              ? t("desk.board.turn.title", { count: turnCount })
+              : t("desk.board.title")}
+          </h1>
+          <p className="desk-muted">
+            {layout === "turn"
+              ? t("desk.board.turn.intro", {
+                  needs: everyGroup["needs-you"].length,
+                  decisions: everyGroup.waiting.length,
+                  running: everyGroup.running.length
+                })
+              : t("desk.board.intro")}
+          </p>
         </div>
-      </div>
-      <div className="desk-toolbar">
-        <div className="desk-search">
-          <Search aria-hidden="true" className="desk-icon desk-search__icon" />
-          <Input
-            ref={searchBox}
-            type="search"
-            className="desk-search__input"
-            aria-label={t("desk.board.search")}
-            aria-keyshortcuts="/"
-            placeholder={t("desk.board.searchPlaceholder")}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && query !== "") {
-                event.preventDefault();
-                setQuery("");
-              }
-            }}
+        <div className="desk-board-head__layout">
+          <Segmented
+            label={t("desk.board.layout.label")}
+            value={layout}
+            options={BOARD_LAYOUTS}
+            name={(option) => t(`desk.board.layout.${option}`)}
+            onChange={chooseLayout}
           />
-          {query !== "" && (
-            <Button
-              appearance="ghost"
-              spacing="compact"
-              className="desk-search__clear"
-              aria-label={t("desk.board.searchClear")}
-              onClick={() => {
-                setQuery("");
-                searchBox.current?.focus();
-              }}
-            >
-              <X aria-hidden="true" className="desk-icon" />
-            </Button>
-          )}
         </div>
         <Button className="desk-toolbar__start" onClick={() => setStartOpen(true)}>
           <Plus aria-hidden="true" className="desk-icon" />
@@ -187,26 +294,91 @@ export function BoardView() {
       {!state.issuesLoaded ? (
         <Loading />
       ) : all.length === 0 ? (
-        <div className="desk-empty">
-          <h2>{t("desk.board.emptyTitle")}</h2>
-          <p>{t("desk.board.empty")}</p>
-          <Button onClick={() => setStartOpen(true)}>{t("desk.start.open")}</Button>
-        </div>
+        <Onboarding onStart={() => setStartOpen(true)} />
       ) : (
-        <div className="desk-board">
-          {BOARD_GROUPS.map((group) => (
-            <Column
-              key={group}
-              group={group}
-              issues={groups[group]}
-              searching={search.trim() !== ""}
-              now={now}
-            />
-          ))}
-        </div>
+        <>
+          <div className="desk-toolbar">
+            <div className="desk-search" role="search">
+              <Search aria-hidden="true" className="desk-icon desk-search__icon" />
+              <Input
+                ref={searchBox}
+                type="search"
+                className="desk-search__input"
+                aria-label={t("desk.board.search")}
+                placeholder={t("desk.board.searchPlaceholder")}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && query !== "") {
+                    event.preventDefault();
+                    setQuery("");
+                  }
+                }}
+              />
+              {query !== "" && (
+                <Button
+                  appearance="ghost"
+                  spacing="compact"
+                  className="desk-search__clear"
+                  aria-label={t("desk.board.searchClear")}
+                  onClick={() => {
+                    setQuery("");
+                    searchBox.current?.focus();
+                  }}
+                >
+                  <X aria-hidden="true" className="desk-icon" />
+                </Button>
+              )}
+            </div>
+            {layout === "columns" && (
+              <FilterChips issues={found} costs={costs} value={filter} onChange={setFilter} />
+            )}
+          </div>
+          {layout === "turn" ? (
+            <div className="desk-inbox">
+              <TurnInbox
+                needsYou={turn.needsYou}
+                decisions={turn.decisions}
+                batchCount={batch.length}
+                onAskBatch={() => setBatchOpen(true)}
+                approvals={approvals}
+                searching={searching}
+                now={now}
+              />
+              <aside className="desk-side" aria-label={t("desk.board.side.label")}>
+                <RunningList issues={groups.running} now={now} />
+                <SidePullRequests />
+                <DoneList issues={groups.done} />
+              </aside>
+            </div>
+          ) : (
+            <>
+              <div className="desk-board">
+                {BOARD_GROUPS.map((group) => (
+                  <Column
+                    key={group}
+                    group={group}
+                    issues={groups[group]}
+                    searching={searching || filter !== "all"}
+                    now={now}
+                  />
+                ))}
+              </div>
+              <OpenPullRequests />
+            </>
+          )}
+        </>
       )}
-      <OpenPullRequests />
       <StartDialog open={startOpen} onOpenChange={setStartOpen} />
+      <ApproveBatchDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        plans={batch.map((summary) => ({
+          issueNumber: summary.issueNumber,
+          title: summary.readable ? (summary.title ?? t("desk.issue.untitled")) : ""
+        }))}
+        onConfirm={() => approvals.approve(batch.map((summary) => summary.issueNumber))}
+      />
     </div>
   );
 }

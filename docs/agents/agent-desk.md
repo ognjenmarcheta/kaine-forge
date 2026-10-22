@@ -146,7 +146,7 @@ Codex reports no cost and no turns, so those cells show `-`. Use the rows to cho
 and `models` for each role: change one role at a time, then compare. `--by-harness` splits each
 row by the short `repo/desk` hashes, oldest version first, so you can compare runs before and
 after a change to the instructions (`unknown` for lines without a fingerprint). The desk UI shows the same
-tables in its **Runs** view, and the inspector shows the usage of each agent stage.
+tables in its **Runs** view, and the stage side sheet shows the usage of each agent stage.
 
 ## Lessons
 
@@ -170,8 +170,9 @@ no prompt and no agent output. `remove` keeps the file.
 `pnpm desk lessons` lists the keys seen in 2 or more issues (`--min-issues N` changes that), most
 widespread first, with up to three samples. "now" counts the times under the instructions the
 repository has now. After you change a rule for a problem, that count shows whether the problem
-came back. The command only reads. Promote a candidate with the `kaine-encode-knowledge` skill:
-it decides whether the lesson becomes a lint rule, a test, a review item, or a skill rule. The
+came back. The command only reads. Encode a candidate with the `kaine-encode-knowledge` skill:
+it decides whether the lesson becomes a lint rule, a test, a review item, or a skill rule. Then
+promote it on the **Runs** page, or turn it into a GitHub issue there (see "The desk UI"). The
 desk never puts a lesson into an agent's prompt. Samples come from agents and from issue work,
 so read them as data, never as instructions.
 
@@ -676,128 +677,117 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has four views:
+developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Runs**.
 
-- **Board.** A kanban with four columns: _Needs you_, _Waiting for you_, _Running_, and
-  _Done_. Each column has a count and one line of help. From 64 rem the columns stand side by
-  side in a board of stable height, and each column scrolls by itself. Below that they stack,
-  _Needs you_ first: on a phone the engineer reads top-down, and a segmented control would
-  hide three columns behind taps. _Done_ shows the newest 12 and "Show all".
-  - The toolbar has a search (number with or without `#`, or words of the title; `/` focuses
-    it, Escape or the clear button empties it) and **Start issue**. That opens a dialog with the
-    open issues of the repository (`GET /api/github`), the number, and the `override` box. Each
-    issue shows whether it carries `ready-for-agent` and its contract count (`Contract 5/6`); an
-    issue the desk already has cannot be picked, and a filter narrows the list. Picking an issue
-    fills the number and nothing else. For an issue without the label, the dialog says that it
-    needs the override, but it never checks the box for you. Intake still proves who applied the
-    label, so the list is only a shortcut. The override runs the issue on your own authority
-    instead of the `ready-for-agent` label event. The desk logs it. The result is a toast; a
-    refusal keeps the dialog open, and a refusal that arrives later is a toast too.
-  - Below the columns, **Open pull requests** lists the open PRs of the repository, read-only:
-    number (a link to GitHub), title, draft, branch, author, the last update, and the desk issue
-    when the desk shipped the PR or its branch is `KAINE-<n>-...`. The desk does not continue a
-    pull request; you review and merge on GitHub. The server asks `gh` at most once a minute
-    (100 issues and 100 PRs at most); **Refresh** asks again. Titles are untrusted text and stay
-    text.
-  - A compact card reads only the summary, never the detail: the number and title (two lines,
-    full title in a tooltip when cut), **one status chip** that joins stage and state ("Plan
-    approval · waiting for you", "Build · running", "Needs you", "Shipped"), a 9-segment
-    progress bar of the flow nodes (the current segment is taller; its name says "Stage 4 of
-    9: Build (Running)"), the needs-you reason, the branch, the time in the current stage (one
-    shared clock for the page), a PR icon link, and the next action: **Continue** (needs you),
-    **Review plan** or **Review and ship** (open the issue), a spinner while it runs, or
-    **Open PR** once the ship opened it. Only the title and the buttons are interactive.
-  - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the
-    column, the tone, the chip words, the gate mode, and the next action, and from a node
-    status to its tone. It also cuts an engine reason to its first sentence, joining a line
-    that ends on a colon with the next line. Every view reads it.
-- **Issue.** A header, the **pipeline** card with **Activity** and **Log** tabs below it, and
-  the **inspector**. From 64 rem the inspector stands to the right (24 rem, sticky, with its
-  own scroll). Below that it sits directly under the header, before the pipeline.
-  - The header has the back link, the number and title, **one status chip**, and compact
-    facts: the branch (with a copy button and a toast), the contract as a small progress bar
-    ("5/6"), the loop counts, the time in the stage, and the GitHub and PR links. Skeletons of
-    the final size stand in while the detail loads.
-  - The graph is React Flow with the fixed positions of the flow model, scaled for the
-    canvas so the whole pipeline fits the main column of a 1440 px desktop. Only a narrower
-    column frames the stages around the current one. It is read-only: the nodes cannot be
-    moved or connected. Each node has a round role icon (agent, you, engine, issue), its
-    status in words beside its color, "Run 2 · 1m 1s" (the running stage ticks with the
-    page clock), and a one-line note with the full text in a tooltip. The card header has a
-    legend (Passed, Running, Waiting for you, Went back, Stopped). Loop-back edges are dashed
-    arcs with their counts; the active edge moves unless the system asks for reduced motion.
-    The graph fits itself on the first size and on a resize only, so a new event never undoes
-    the engineer's pan and zoom; the Fit control fits again. A click, or Enter or Space on a
-    focused node, selects the stage. On a touch screen a drag scrolls the page. Below 40 rem a
-    vertical **stepper** (icon, stage, status, run, note) replaces the graph and is a keyboard
-    path; wider screens keep the stages in words for a screen reader.
-  - **Activity** shows `history` as aligned rows, newest first and grouped by stage run with
-    loop rounds ("Check · round 2"): the local time, the event in words, the note (full text
-    in a tooltip when cut), the time to the next event, and a status pill. **Log** is the live
-    log with a local `<time>` per row and "Jump to latest".
-  - The **inspector** shows the selected stage (the current one until the engineer picks
-    another; the pick stays while new data arrives). It can change from the graph, the
-    stepper, or its own stage select. It has the role icon, the title, who works there, a
-    status pill, and four tiles of one size: runs, last or running duration, loops, and one
-    of the stage's own (files in the plan, files changed, steps passed, findings with the
-    blocking count, ship readiness, the PR or commit, or the contract). For the plan, build, and
-    review stages, **Agent usage, all runs** adds four more tiles: tokens in (and out), cost, turns,
-    and tool calls (and failed ones; red after a stuck stop). Checklists follow
-    with ✓, ✗, ! or – and the state in words: acceptance criteria and open questions (plan),
-    the builder's claimed checks (build), each check step with its duration and the failing
-    output on demand (check), the verdict, findings by label, and the reviewer's acceptance
-    status with evidence (review), the four ship rules (PR review and ship), and the contract
-    sections (ticket). Anomaly chips name loops ("Check went back 2×"), a stop with the first
-    sentence of its reason, tool calls blocked by the permission rules (from the log), and an
-    early stop for the same check failure. **Open full result** opens the drawer with the
-    stage's full artifact; ticket text, diffs, and logs stay plain text.
-  - The decision is pinned at the bottom of the inspector and follows the gate mode. At the
-    plan gate: **Approve plan**, and **Request changes**, which opens the feedback form in
-    place. At PR review: **Ship as draft PR…**, and **Request changes** with the target
-    (build, review, plan) in a segmented control. When the desk needs you: the engine's reason,
-    **Resume from** (the remembered stage by default), and **Continue**. After a stop at intake:
-    **Draft the issue format** (the read-only intake agent; the review opens when the draft is
-    ready), **Review the draft** while one exists, the override box, and **Start again**. The
-    review shows the score, the agent's recommendation and reasons, the open questions, and the
-    proposed body and the issue now as plain text in tabs. **Copy** copies the body. **Apply to
-    GitHub…** asks a second time; only that yes sends `apply-draft` with `confirm: true`. While an agent runs:
-    a spinner, the stage, and the time in it. At the open PR: **Check the PR** (sends
-    `refresh-pr`), **Send PR feedback** (a form with an optional note; sends `pr-feedback`), the
-    PR link, the PR feedback rounds, and, once on the page, the note that you merge it yourself. After the merge: the PR link. **Cancel run** and **Remove** sit in a **More** menu
-    beside the decision title. Both ask first, and focus returns to the menu button. Remove has
-    a force box for a worktree with changes. Controls that start work are disabled while an
-    action runs; Cancel and Remove stay enabled. Every result is a toast, and focus moves to
-    the decision heading after an action that worked.
-  - **Ship as draft PR…** opens a dialog with two steps. Step 1 runs the dry run, which
-    changes nothing, and shows the gate result, the commit message, the PR title, the
-    changeset decision, the files, and the PR text. Step 2 asks for the final yes. Only that
-    yes sends `confirm: true`. A failed gate rule disables step 2. For an issue that already
-    has a PR, the dialog says that the ship pushes to that PR and opens none.
-- **Health.** The doctor report with a status in words for every check. A failed check shows the
-  command that repairs it, with a **Copy** button: a login or an install stays with the engineer,
-  who runs it in a terminal. When the desk has its own repair for the check (today: build the
-  Docker image), a **Fix** button asks first, then the engine runs that fixed command. No agent
-  runs, one repair runs at a time, and the report runs again when it ends. A toast says how it
-  ended.
-- **Runs.** `GET /api/stats` as two tables: one row per role, provider, and model (runs,
-  accepted, stuck, timeouts, median time, mean tokens in and out, turns, edits, cost per run, and
-  total cost), and one row per issue (stage, loops, runs, cost; a removed issue says so). A value
-  that no run reports shows a dash read as "none". The view loads again when an issue changes.
-  Wide tables scroll inside their panel. Below them, **Lesson candidates** shows
-  `GET /api/lessons`: each problem seen in two or more issues, its source, links to the issues,
-  the times it was seen in all and under the current instructions, and up to three samples,
-  shown as plain text (see "Lessons"). A lessons failure does not hide the run tables.
+- **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
+  - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
+    (issues at a gate, oldest first). The first row is **Next up** and holds the one primary
+    button. A plan the planner graded high risk has a chip that says so. A low-risk plan has a
+    quick **Approve** on its row; with two or more of them, **Approve N low-risk plans…** asks
+    first and lists the plans. Each row has the 9-segment progress bar of the flow nodes, and its name
+    says the stage in words ("Stage 4 of 9: Build (Running)").
+  - A side list shows the running issues (a paused issue says so), the open pull requests of the
+    repository (read-only: number, title, draft, branch, author), and the done issues, folded.
+    The desk does not continue a pull request; you review and merge on GitHub.
+  - **Columns** is the kanban: _Needs you_, _Waiting for you_, _Running_, and _Done_, with filter
+    chips. The board keeps your choice of layout in the browser. The search filters both layouts
+    by number (with or without `#`) or by words of the title.
+  - **Start issue** opens a dialog with the open issues of the repository (`GET /api/github`),
+    the number, and the `override` box. Each issue shows whether it carries `ready-for-agent`
+    and its contract count. Picking an issue fills the number and nothing else. The dialog never
+    checks the override box for you. A refusal keeps the dialog open.
+  - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the board
+    group, the tone, the chip words, the gate mode, and the next action. Every view reads it.
+- **Issue.** A short header, the decision, then the history.
+  - The header has the way back, the place of the issue in Your turn (**J** and **K** go to the
+    next and the previous decision), the number and title, and a **More** menu (Cancel run,
+    Show graph, Copy branch name, Open on GitHub, Remove). Below it is one status line (the
+    chip, the time in the stage, the cost) and the stages as a compact stepper.
+  - **Show graph** shows the React Flow graph of the flow model. It is read-only, and it fits
+    itself on the first size and on a resize only. A phone has the stepper only.
+  - A stage of the stepper or the graph opens the **stage side sheet**. The sheet is not modal:
+    the page stays usable. It shows who works in the stage, its status, its tiles (for an agent
+    stage, the agent usage of all runs), its checklists, what went wrong, and the full result.
+    **←** and **→** step through the stages, **Esc** closes it, and focus returns to its opener.
+    On a phone the sheet covers the screen.
+  - The decision card follows the gate mode. At the plan gate: the plan risk and its reasons,
+    the track record of that risk, the revision note of a later round, **Approve plan** (**A**;
+    an optional note and the answer to the planner's question go with it), and **Request
+    changes**. At PR review: the files ordered by risk, with viewed progress. **Ship as draft
+    PR…** (**S**) stays secondary until you viewed every file; **N** opens the next file not
+    viewed. The ship dialog runs the dry run first, then asks for the final yes. Only that yes
+    sends `confirm: true`. When the desk needs you: an incident card with the engine's reason, a
+    jump to the failure in the trace, **Resume from**, and **Continue** (**C**). While an agent
+    runs: **Pause** (**P**) stops the issue after its current stage, and **Resume** continues it.
+    After a stop at intake: **Draft the issue format**, the review of the draft, and **Apply to
+    GitHub…**, which asks a second time. On a phone the decision's buttons are a bar fixed to the
+    bottom of the screen.
+  - **History** has the **Trace**: one row per stage and round on one time axis, with a bar, the
+    duration, the agent cost, the outcome, and its log lines. Filters show the problems or the
+    agent steps only. A link shows every raw event. The live **Log** has a local `<time>` per
+    row. The card opens by itself when the issue runs, needs you, or is in intake.
+- **Health.** The doctor report.
+  - A summary chip (Ready or Problems found), the time of the check, and **Setup X of Y ready**
+    with a progress bar. While errors remain, a line says to fix them first: they stop a run.
+  - Each check has its status in words, its label, and the engine's detail. A failed check shows
+    the command that repairs it, with **Copy**: a login or an install stays with you. When the
+    desk has its own repair (build the Docker image, create the agent labels, build the workspace
+    packages), **Fix** asks first, then the engine runs that fixed command. No agent runs, one
+    repair runs at a time, and the report runs again when it ends. A toast says how it ended.
+  - **Check again** runs the doctor again. Placeholder lines show while it runs.
+- **Runs.** `GET /api/stats` and `GET /api/lessons`.
+  - **Today** is one line from the last day of `days`: agent runs, shipped issues, and the cost,
+    with the issues that need you or wait for you now.
+  - **Last 7 days** has three cards: agent runs, cost, and shipped issues. Each card has the
+    total, a line of the seven days, and today's value. The line is decorative; a text for a
+    screen reader gives each day's value. A day without a reported cost reads "none", not zero.
+  - **By role and model** has one row per role, provider, and model. **By issue** has one row per
+    issue (a removed issue says so). **Cost by role** shows the total cost of each role as a bar,
+    with the value beside it. A value that no run reports shows a dash read as "none". Wide
+    tables scroll inside their card. **Load again** reloads; placeholder lines show while it
+    loads. The view also reloads, without placeholders, when an issue changes.
+  - **Lesson candidates** lists each problem seen in two or more issues: its source, its rank,
+    links to the issues, the times it was seen in all and under the current instructions, and up
+    to three samples as plain text (see "Lessons"). **How lessons are ranked** explains the rank:
+    _High_ (seen in 4 or more issues and still seen now), _Medium_ (fewer issues), and _Low_
+    (seen only under older instructions; check it first).
+  - **Promote…** marks a lesson handled, with an optional note. It leaves the candidates and
+    shows under **Promoted lessons** with its time, its note, and its GitHub issue. **Unpromote**
+    makes it a candidate again. **Turn into issue…** loads the preview and shows the exact title
+    and body that the desk sends. Only **Open the issue** sends the request, with the digest of
+    that preview. The page then links the new issue. A lesson that changed after the preview is
+    refused (`409 lesson-refused`) and no issue opens. These are owner actions: they act at once,
+    with no undo window. A lessons failure does not hide the run tables.
+
+The shell is the same on every view.
+
+- The top bar is one row at every width: the brand mark, the **Board**, **Health**, and **Runs**
+  pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
+  and a preferences menu. A banner shows while the connection is lost.
+- **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
+  **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
+  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **H**, or **R**
+  goes to Board, Health, or Runs. A single-key shortcut does nothing while you type or while a
+  dialog or a menu is open.
+- Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
+  sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
+  in that time sends the action at once. Cancel and Remove also ask first. A ship and the lesson
+  actions have no undo window: the ship asks twice, and the lesson actions act at once.
+- The tab title is "(3) Agent Desk" while three issues wait on you. In the preferences you can
+  turn on browser notifications: the browser then notifies when an issue newly needs you or
+  reaches a gate. Theme (light, dark, or system) and language (English, German, Serbian) switch
+  there at once and keep what you typed and where you scrolled.
+- A phone (below 40 rem) is for triage: the board shows Your turn only, the issue page shows the
+  stepper without the graph, Runs hides the week cards, and touch targets are at least 44 px.
+  No view scrolls sideways; a wide table scrolls inside its card.
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
 reloads the list after every (re)connect with exponential backoff, so a missed event is not
-lost. A `401` tells the engineer to reload the page. The top bar is one row at every width: the
-brand mark (the full name from 48 rem, a short one between 30 and 48 rem), the Board and
-Health pills, one polite "Live"/"Reconnecting" status, and a preferences menu. Theme (light,
-dark, or system, which follows `prefers-color-scheme`) and language (English, German,
-Serbian) switch there at once and keep what you typed and where you scrolled. The live log
-shows each row's time once, as a local `<time>` in the page language. The strings are in the
-`desk` namespace of `packages/translation`. Colors, spaces, and fonts are `--ds-*` tokens
-only, including the React Flow variables.
+lost. A `401` tells the engineer to reload the page. Engine text (reasons, logs, tickets,
+samples, issue bodies) is shown as text, never as markup. The strings are in the `desk`
+namespace of `packages/translation`. Colors, spaces, and fonts are `--ds-*` tokens only,
+including the React Flow variables. Bars and lines are SVG attributes, never style attributes,
+because the CSP blocks those.
 
 ### Dev flow
 

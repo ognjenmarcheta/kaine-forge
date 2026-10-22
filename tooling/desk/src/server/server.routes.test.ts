@@ -26,6 +26,7 @@ import {
 } from "./server.testing";
 import { REFUSALS, type PipelineResult } from "../engine/pipeline.types";
 import { shipPlanSchema } from "../ship/ship.contract";
+import { builderOutput, planOutput } from "../testing/pipeline.testing";
 
 let harness: Harness;
 let api: Api;
@@ -264,12 +265,69 @@ describe("GET /api/issues/:n", () => {
     });
   });
 
+  it("shows the plan grade, both revisions, the approval note, the pause, and the sessions to resume", async () => {
+    await harness.seed(4, {
+      stage: "check",
+      worktreePath: "/work/KAINE-4",
+      sessions: { builder: "sess-b", planner: "sess-p" },
+      approveNote: "CSV only.",
+      pauseRequested: true,
+      pausedAt: "2026-03-01T10:05:00.000Z"
+    });
+    const plan = planOutput({
+      risk: "high",
+      riskReasons: ["Touches auth."],
+      revision: "Dropped XLSX."
+    });
+    await harness.artifact(4, "plan.json", JSON.stringify(plan));
+    await harness.artifact(
+      4,
+      "build.json",
+      JSON.stringify(builderOutput({ revision: "Added the header row." }))
+    );
+    await harness.artifact(
+      4,
+      "agent-builder.json",
+      JSON.stringify({ role: "builder", provider: "codex", sessionId: "sess-b" })
+    );
+
+    const detail = issueDetailSchema.parse((await api.get("/api/issues/4")).json());
+
+    expect(detail.summary).toMatchObject({
+      paused: true,
+      pausedAt: "2026-03-01T10:05:00.000Z",
+      planRisk: "high"
+    });
+    expect(detail.plan).toEqual({
+      risk: "high",
+      riskReasons: ["Touches auth."],
+      revision: "Dropped XLSX."
+    });
+    expect(detail.buildRevision).toBe("Added the header row.");
+    expect(detail.approveNote).toBe("CSV only.");
+    // The planner ran no recorded run here, so its CLI is unknown and no command is offered.
+    expect(detail.resume).toEqual({
+      worktreePath: "/work/KAINE-4",
+      sessions: [
+        {
+          role: "builder",
+          sessionId: "sess-b",
+          provider: "codex",
+          command: "cd /work/KAINE-4 && codex resume sess-b"
+        },
+        { role: "planner", sessionId: "sess-p", provider: null, command: null }
+      ]
+    });
+  });
+
   it("returns null parts for an issue that has no artifacts yet", async () => {
     await harness.seed(2, { stage: "plan", status: "running" });
     const detail = issueDetailSchema.parse((await api.get("/api/issues/2")).json());
     expect(detail.contract).toBeNull();
     expect(detail.check).toBeNull();
     expect(detail.review).toBeNull();
+    expect([detail.plan, detail.buildRevision, detail.approveNote]).toEqual([null, null, null]);
+    expect(detail.summary).toMatchObject({ paused: false, pausedAt: null, planRisk: null });
     expect(detail.ship).toMatchObject({ atGate: false, ready: false, checkPassed: null });
     expect(detail.flow.nodes.find((node) => node.id === "plan")?.status).toBe("running");
   });
@@ -561,7 +619,13 @@ describe("POST /api/issues/:n/actions", () => {
     {
       name: "approve",
       body: { action: "approve" },
-      check: (h: Harness) => expect(h.runner.approvePlan).toHaveBeenCalledWith(3)
+      check: (h: Harness) => expect(h.runner.approvePlan).toHaveBeenCalledWith(3, {})
+    },
+    {
+      name: "approve with the owner's note",
+      body: { action: "approve", note: " CSV only " },
+      check: (h: Harness) =>
+        expect(h.runner.approvePlan).toHaveBeenCalledWith(3, { note: "CSV only" })
     },
     {
       name: "feedback",
@@ -626,6 +690,16 @@ describe("POST /api/issues/:n/actions", () => {
       name: "apply-draft",
       body: { action: "apply-draft", confirm: true },
       check: (h: Harness) => expect(h.runner.applyDraft).toHaveBeenCalledWith(3, { confirm: true })
+    },
+    {
+      name: "pause",
+      body: { action: "pause" },
+      check: (h: Harness) => expect(h.runner.pause).toHaveBeenCalledWith(3)
+    },
+    {
+      name: "resume",
+      body: { action: "resume" },
+      check: (h: Harness) => expect(h.runner.resume).toHaveBeenCalledWith(3)
     }
   ])("calls the runner for $name", async ({ body, check }) => {
     await harness.seed(3);
@@ -862,7 +936,7 @@ describe("single flight per issue", () => {
     });
   });
 
-  it("lets cancel and remove through while an action runs", async () => {
+  it("lets cancel, remove and pause through while an action runs", async () => {
     await harness.seed(3);
     const slow = pending();
     harness.runner.approvePlan.mockReturnValueOnce(slow.promise);
@@ -874,6 +948,8 @@ describe("single flight per issue", () => {
       (await api.post("/api/issues/3/actions", { action: "remove", force: true })).status
     ).toBe(200);
     expect(harness.runner.remove).toHaveBeenCalledWith(3, { force: true });
+    expect((await api.post("/api/issues/3/actions", { action: "pause" })).status).toBe(200);
+    expect(harness.runner.pause).toHaveBeenCalledWith(3);
     // Other actions still wait.
     expect((await api.post("/api/issues/3/actions", { action: "approve" })).status).toBe(409);
     slow.finish(stoppedAt(makeState(3)));
