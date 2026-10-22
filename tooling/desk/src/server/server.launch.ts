@@ -38,6 +38,7 @@ import { createGitHubPort } from "../github/github.port";
 import { buildWorkerImage } from "../isolation/docker.admin";
 import { dockerDoctorChecks } from "../isolation/docker.doctor";
 import { createDockerIsolation } from "../isolation/isolation.docker";
+import { containerCleanupFor } from "../isolation/isolation.select";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { createDefinitionWrites, type DefinitionWrites } from "../registry/registry.write";
@@ -122,7 +123,11 @@ export const createDefaultDeskRuntime =
       config
     });
 
-    await recoverInterrupted(store, { clock: systemClock, log });
+    await recoverInterrupted(store, {
+      clock: systemClock,
+      cleanupIsolation: containerCleanupFor({ config, docker }),
+      log
+    });
     const lessonDesk = createLessonDesk({
       stateRoot: location.stateRoot,
       clock: systemClock,
@@ -135,6 +140,7 @@ export const createDefaultDeskRuntime =
       git: createGitPort(exec),
       github,
       runnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      docker,
       store,
       clock: systemClock,
       config,
