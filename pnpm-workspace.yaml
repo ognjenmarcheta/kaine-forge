@@ -16,6 +16,8 @@ catalog:
   graphql-ws: "^6.4.1"
   zod: "^4.6.7"
   zustand: "^5.0.15"
+  # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
+  yaml: "^2.9.1"
   "@tanstack/react-query": "^5.104.3"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
   "@xyflow/react": "^12.12.0"

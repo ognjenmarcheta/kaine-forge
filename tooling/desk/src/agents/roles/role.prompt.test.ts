@@ -219,6 +219,16 @@ describe("composeRolePrompt", () => {
     );
   });
 
+  // The snapshots were written before the role bodies moved into `defaults/agents/*.md`.
+  // Codex carries the whole desk text in one prompt: the role body and the desk rules.
+  it.each(["intake", "planner", "builder", "reviewer"] as const)(
+    "composes the %s prompt byte for byte as before",
+    async (role) => {
+      const { prompt } = await compose(role, { provider: "codex" });
+      await expect(prompt).toMatchFileSnapshot(`__snapshots__/role.prompt.${role}.txt`);
+    }
+  );
+
   it("composes every role from the real repository sources", async () => {
     for (const role of ["intake", "planner", "builder", "reviewer"] as const) {
       for (const skillMode of ["invoke", "inline"] as const) {

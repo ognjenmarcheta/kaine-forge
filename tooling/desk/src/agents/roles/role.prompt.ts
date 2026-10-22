@@ -7,8 +7,9 @@ import type { DeskRole } from "../../engine/worktree.bootstrap";
 import type { SkillMode } from "../agent.runner";
 
 /**
- * Compose the prompt for one role. Desk-specific parts come from
- * `tooling/desk/agents/*.md`. Repository sources are read from the WORKTREE at
+ * Compose the prompt for one role. Desk-specific parts are the body of the role's
+ * built-in agent file (`tooling/desk/defaults/agents/<role>.md`, frontmatter stripped) and
+ * the desk rules (`tooling/desk/agents/rules.md`). Repository sources are read from the WORKTREE at
  * run time, so a rule changes in one place (`.ai/`) and the desk follows:
  *
  * - planner: `.ai/agents/kaine-explorer.md`
@@ -60,11 +61,12 @@ export interface RolePrompt {
 
 export interface RolePromptDeps {
   readonly readText?: (file: string) => Promise<string>;
-  /** Directory of the desk's own role files. Default: `tooling/desk/agents`. */
+  /** Directory of the desk's own role files. Default: `tooling/desk/defaults/agents`. */
   readonly agentsDir?: string;
 }
 
-const DEFAULT_AGENTS_DIR = fileURLToPath(new URL("../../../agents/", import.meta.url));
+const DEFAULT_AGENTS_DIR = fileURLToPath(new URL("../../../defaults/agents/", import.meta.url));
+const RULES_FILE = fileURLToPath(new URL("../../../agents/rules.md", import.meta.url));
 
 /** The desk's own files that go into a role's prompt: its role file and the rules. */
 export const deskPromptFiles = (
@@ -72,7 +74,7 @@ export const deskPromptFiles = (
   deps: RolePromptDeps = {}
 ): readonly [roleFile: string, rules: string] => {
   const agentsDir = deps.agentsDir ?? DEFAULT_AGENTS_DIR;
-  return [path.join(agentsDir, `${role}.md`), path.join(agentsDir, "rules.md")];
+  return [path.join(agentsDir, `${role}.md`), RULES_FILE];
 };
 const SKILL_NAME = /^kaine-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;

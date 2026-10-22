@@ -1,0 +1,42 @@
+# Today's desk pipeline as data. Step ids equal the engine's stage names, and the
+# limits equal DEFAULT_LOOP_LIMITS. registry.default-flow.test.ts holds this file
+# to the engine's transition table.
+id: kaine-default
+name: Kaine default
+description: Plan, approve the plan, build, check, review, approve the change, ship a draft PR, and follow the PR.
+steps:
+  - id: plan
+    kind: agent
+    label: Plan
+    agent: planner
+  - id: plan-gate
+    kind: gate
+    label: Approve the plan
+    sendBack: [plan]
+  - id: build
+    kind: agent
+    label: Build
+    agent: builder
+  - id: check
+    kind: check
+    label: Check
+    commands: loop
+    loopBack: { to: build, limit: 3, stopOnSameFailure: true }
+  - id: review
+    kind: agent
+    label: Review
+    agent: reviewer
+    loopBack: { to: build, limit: 2 }
+  - id: pr-review
+    kind: gate
+    label: Approve the change
+    sendBack: [plan, build, review]
+  - id: ship
+    kind: ship
+    label: Ship
+    auto: false
+  - id: pr-open
+    kind: pr-wait
+    label: Pull request open
+    maxRounds: 3
+    backTo: build
