@@ -1,0 +1,13 @@
+# Desk flows cheat sheet
+
+## Make a flow
+
+- Write a YAML file with `id`, `name`, `description` and `steps`.
+- Put it in `.desk/flows/<id>.yaml` for the team or in `.ai.local/desk/flows/<id>.yaml` for you only.
+- A file that does not parse or validate is not used, so check it on the Flows page.
+
+## Run a flow
+
+- `start --flow ID` runs the issue on that flow.
+- Without `--flow`, the desk uses the flow of the issue's first label in `flowLabels`, else `defaultFlow`.
+- At a gate, use `approve <n>` to go on, or `feedback <n> --to TARGET TEXT...` to send feedback.
