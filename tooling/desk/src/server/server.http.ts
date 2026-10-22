@@ -492,7 +492,10 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
 
   const definitions = (): Promise<DefinitionViews> =>
     deps.readDefinitions?.() ??
-    Promise.resolve({ agents: { agents: [], problems: [] }, flows: { flows: [], problems: [] } });
+    Promise.resolve({
+      agents: { agents: [], problems: [], installed: { mcp: [], skills: [] } },
+      flows: { flows: [], problems: [] }
+    });
 
   const requireDefinitionWrites = (): DefinitionWrites => {
     if (deps.definitionWrites === undefined) {

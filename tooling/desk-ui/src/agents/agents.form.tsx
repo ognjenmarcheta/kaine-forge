@@ -2,6 +2,7 @@ import {
   AGENT_OUTPUT_KINDS,
   CAPABILITY_PRESETS,
   PROVIDERS,
+  type AgentList,
   type AgentOutputKind,
   type CapabilityPreset,
   type Provider
@@ -9,13 +10,7 @@ import {
 import { Badge, Checkbox, Input, Label, RadioGroup, RadioGroupItem, Textarea } from "@repo/ui";
 import type { ReactNode } from "react";
 
-import {
-  presetFits,
-  withOutput,
-  type AgentDraft,
-  type AgentField,
-  type Installed
-} from "./agents.model";
+import { presetFits, withOutput, type AgentDraft, type AgentField } from "./agents.model";
 import { useT } from "../i18n/i18n.t";
 
 export interface AgentFormProps {
@@ -24,7 +19,7 @@ export interface AgentFormProps {
   readonly draft: AgentDraft;
   readonly isNew: boolean;
   readonly editable: boolean;
-  readonly installed: Installed;
+  readonly installed: AgentList["installed"];
   readonly errorOf: (field: AgentField) => string | null;
   readonly onChange: (next: AgentDraft, field: AgentField) => void;
   readonly onSubmit: () => void;

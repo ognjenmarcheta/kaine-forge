@@ -117,16 +117,20 @@ function IssuePicker({
 
 /**
  * Start an issue: pick it from the open issues of the repository, or type its number, and pick
- * the flow it runs on. Picking an issue selects the flow the desk would pick for it.
+ * the flow it runs on. Picking an issue selects the flow the desk would pick for it, unless the
+ * dialog opened on a flow.
  * `override` runs it on the owner's own authority instead of the `ready-for-agent` label event:
  * the desk logs it, and it is for your own runs only. The result is a toast; the dialog closes
  * when the desk took the start and stays open on a refusal.
  */
 export function StartDialog({
   open,
+  flowId: preset = null,
   onOpenChange
 }: {
   readonly open: boolean;
+  /** The flow chosen when the dialog opens, for a start from a flow's page. */
+  readonly flowId?: string | null;
   readonly onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
@@ -135,7 +139,7 @@ export function StartDialog({
   const [value, setValue] = useState("");
   const [picked, setPicked] = useState<GithubIssue | null>(null);
   const [override, setOverride] = useState(false);
-  const [flowId, setFlowId] = useState<string | null>(null);
+  const [flowId, setFlowId] = useState<string | null>(preset);
   const [pending, setPending] = useState(false);
   const [touched, setTouched] = useState(false);
   const flows = useFlowList(open);
@@ -153,7 +157,7 @@ export function StartDialog({
     setValue("");
     setPicked(null);
     setOverride(false);
-    setFlowId(null);
+    setFlowId(preset);
     setTouched(false);
   };
 
@@ -209,7 +213,7 @@ export function StartDialog({
           onPick={(issue) => {
             setPicked(issue);
             setValue(String(issue.number));
-            setFlowId(issue.flowId);
+            setFlowId(preset ?? issue.flowId);
             setTouched(false);
           }}
         />

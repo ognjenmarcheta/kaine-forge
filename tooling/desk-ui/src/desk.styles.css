@@ -4782,6 +4782,439 @@ main:focus {
   resize: vertical;
 }
 
+/* ── Flows ────────────────────────────────────────────────────────────── */
+
+/* The library row: the step kinds in order, as quiet chips. */
+.desk-flows__steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-flows__kind {
+  padding: var(--ds-space-025) var(--ds-space-075);
+  color: var(--ds-text-subtle);
+  background: var(--ds-background-neutral);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-flows__kind[data-kind="gate"] {
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+}
+
+/* The editor: the list on the left, the graph beside it on a wide screen. */
+.desk-flows-editor {
+  display: grid;
+  gap: var(--ds-space-300);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .desk-flows-editor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  }
+
+  .desk-flows-editor__canvas {
+    position: sticky;
+    inset-block-start: var(--ds-space-300);
+  }
+}
+
+.desk-flows-editor__canvas {
+  display: grid;
+  gap: var(--ds-space-100);
+  min-width: 0;
+}
+
+.desk-flows-editor__canvas > h2,
+.desk-flows-steps__head h2 {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+.desk-flows-editor__canvas > p {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows-steps__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+  margin-block-start: var(--ds-space-200);
+}
+
+.desk-flows-steps {
+  display: grid;
+  gap: var(--ds-space-150);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-flows-step {
+  display: grid;
+  gap: var(--ds-space-100);
+  min-width: 0;
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-flows-step[data-selected="true"] {
+  border-color: var(--ds-border-selected);
+}
+
+.desk-flows-step[data-invalid="true"] {
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-danger);
+}
+
+.desk-flows-step--setup {
+  background: var(--ds-surface-sunken);
+  border-style: dashed;
+}
+
+.desk-flows-step--setup p {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows-step__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075) var(--ds-space-100);
+  min-width: 0;
+}
+
+.desk-flows-step__icon,
+.desk-flows-node__icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--ds-space-300);
+  height: var(--ds-space-300);
+  color: var(--ds-icon-subtle);
+  background: var(--ds-background-neutral);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-flows-step__title {
+  margin: 0;
+  min-width: 0;
+  font: var(--ds-font-heading-xsmall);
+  overflow-wrap: anywhere;
+}
+
+.desk-flows-step__tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050);
+  margin-inline-start: auto;
+}
+
+.desk-flows-step__problems {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding: var(--ds-space-100) var(--ds-space-100) var(--ds-space-100) var(--ds-space-300);
+  color: var(--ds-text-danger);
+  background: var(--ds-background-danger);
+  border-radius: var(--ds-radius-100);
+  font: var(--ds-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.desk-flows-step__loop {
+  padding-block-start: var(--ds-space-100);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-flows-step__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--ds-space-100) var(--ds-space-200);
+  align-items: start;
+}
+
+.desk-flows-step .desk-field > p,
+.desk-flows-step .desk-fieldset > p {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+/* A parsed command: each word a chip, so the owner sees where the words split. */
+.desk-flows-argv {
+  display: grid;
+  gap: var(--ds-space-050);
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows-argv li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-050);
+}
+
+.desk-flows-argv code {
+  padding: 0 var(--ds-space-050);
+  background: var(--ds-background-neutral);
+  border-radius: var(--ds-radius-050);
+  font: var(--ds-font-code-small);
+  overflow-wrap: anywhere;
+}
+
+/* The palette above the graph: each kind a button that also drags. */
+.desk-flows-palette {
+  display: grid;
+  gap: var(--ds-space-075);
+}
+
+.desk-flows-palette p {
+  margin: 0;
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows-palette__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-075);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-flows-palette .desk-flows-palette__item.ui-button {
+  gap: var(--ds-space-075);
+  border: var(--ds-border-width) dashed var(--ds-border-bold);
+  cursor: grab;
+}
+
+/* Tall enough for the cards and the back arcs above them. */
+.desk-flows-canvas {
+  height: 22rem;
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-250);
+  overflow: hidden;
+}
+
+.react-flow .react-flow__node-flows-step {
+  padding: 0;
+  width: auto;
+  background: transparent;
+  border: 0;
+  border-radius: var(--ds-radius-200);
+}
+
+.react-flow .react-flow__node-flows-step:focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: var(--ds-space-050);
+}
+
+.react-flow .react-flow__node-flows-step.draggable {
+  cursor: grab;
+}
+
+.react-flow .react-flow__node-flows-step.dragging {
+  cursor: grabbing;
+  z-index: 1;
+}
+
+/* Size matches CANVAS_NODE in flows.model.ts: 112 by 72 canvas units (7 by 4.5 rem). */
+.desk-flows-node {
+  position: relative;
+  display: grid;
+  gap: var(--ds-space-050);
+  width: 7rem;
+  height: 4.5rem;
+  padding: var(--ds-space-100) var(--ds-space-075);
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border-bold);
+  border-radius: var(--ds-radius-200);
+  box-shadow: var(--ds-shadow-raised);
+  align-content: start;
+}
+
+.desk-flows-node[data-setup="true"] {
+  background: var(--ds-surface-sunken);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.desk-flows-node[data-selected="true"] {
+  outline: var(--ds-border-width-focused) solid var(--ds-text);
+  outline-offset: var(--ds-border-width);
+}
+
+.desk-flows-node[data-invalid="true"] {
+  border-color: var(--ds-border-danger);
+}
+
+.desk-flows-node__head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-050);
+  min-width: 0;
+}
+
+.desk-flows-node__icon {
+  width: var(--ds-space-250);
+  height: var(--ds-space-250);
+}
+
+.desk-flows-node__icon .desk-icon {
+  width: var(--ds-space-150);
+  height: var(--ds-space-150);
+}
+
+.desk-flows-node__title {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-flows-node__kind {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-flows-node .desk-flows-node__marker {
+  position: absolute;
+  inset-block-end: var(--ds-space-075);
+  inset-inline-end: var(--ds-space-075);
+  color: var(--ds-icon-danger);
+}
+
+/* The dots that start and end a back edge: on top of the card, out of the text's way. */
+.react-flow .desk-flows-handle {
+  width: var(--ds-space-150);
+  min-width: 0;
+  height: var(--ds-space-150);
+  min-height: 0;
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width-focused) solid var(--ds-border-bold);
+}
+
+/* A read-only flow takes no new edges: its dots would promise one. */
+.react-flow .desk-flows-handle:not(.connectable) {
+  visibility: hidden;
+}
+
+.react-flow .desk-flows-handle--out {
+  left: 30%;
+  cursor: crosshair;
+}
+
+.react-flow .desk-flows-handle--in {
+  left: 70%;
+  background: var(--ds-background-neutral);
+  border-style: dashed;
+}
+
+.react-flow .desk-flows-handle.valid {
+  background: var(--ds-background-success-bold);
+  border-color: var(--ds-border-success);
+}
+
+.react-flow .react-flow__connection.invalid .react-flow__connection-path {
+  stroke: var(--ds-border-danger);
+  stroke-dasharray: 4 4;
+}
+
+.desk-flows-edge .react-flow__edge-path {
+  fill: none;
+  stroke: var(--ds-border-information);
+  stroke-width: 2;
+}
+
+.desk-flows-edge[data-kind="backTo"] .react-flow__edge-path {
+  stroke: var(--ds-border-discovery);
+}
+
+.desk-flows-edge[data-selected="true"] .react-flow__edge-path {
+  stroke: var(--ds-border-selected);
+  stroke-width: 3;
+}
+
+.desk-flows-edge[data-invalid="true"] .react-flow__edge-path {
+  stroke: var(--ds-border-danger);
+  stroke-dasharray: 6 4;
+}
+
+.desk-flows-edge__arrow {
+  fill: var(--ds-border-information);
+}
+
+.desk-flows-edge[data-invalid="true"] .desk-flows-edge__arrow {
+  fill: var(--ds-border-danger);
+}
+
+.desk-flows-edge__label {
+  position: absolute;
+  padding: 0 var(--ds-space-050);
+  color: var(--ds-text-subtle);
+  background: var(--ds-surface-raised);
+  border-radius: var(--ds-radius-100);
+  font: var(--ds-font-body-xsmall);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.desk-flows-edge__label[data-invalid="true"] {
+  color: var(--ds-text-danger);
+}
+
+.desk-flows-panel {
+  display: grid;
+  gap: var(--ds-space-075);
+  max-width: 20rem;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text);
+  background: var(--ds-surface-overlay);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  box-shadow: var(--ds-shadow-overlay);
+  font: var(--ds-font-body-small);
+}
+
+.desk-flows-panel p {
+  margin: 0;
+}
+
+.desk-flows-panel--refused {
+  color: var(--ds-text-danger);
+  background: var(--ds-background-danger);
+}
+
+.desk-flows-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-075);
+}
+
 /*
  * A phone or a narrow tablet: the navigation scrolls sideways inside its pill, not the page.
  * The brand name still gives way first, down to the mark.

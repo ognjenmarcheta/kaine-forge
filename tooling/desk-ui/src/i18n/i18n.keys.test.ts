@@ -15,12 +15,14 @@ import {
   PLAN_RISKS,
   PROVIDERS,
   RUN_FAILURE_KINDS,
-  STAGES
+  STAGES,
+  STEP_KINDS
 } from "@repo/desk/contracts";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
 import { TRACE_FILTERS } from "../issue/issue.trace";
@@ -141,7 +143,11 @@ describe("desk translations", () => {
       "desk.agents.output.": AGENT_OUTPUT_KINDS,
       "desk.agents.outputAbout.": AGENT_OUTPUT_KINDS,
       "desk.agents.provider.": PROVIDERS,
-      "desk.agents.presetAbout.": CAPABILITY_PRESETS
+      "desk.agents.presetAbout.": CAPABILITY_PRESETS,
+      "desk.flows.kind.": [...STEP_KINDS, "setup"],
+      "desk.flows.commandSet.": ["loop", "ship", "custom"],
+      "desk.flows.commandSetAbout.": ["loop", "ship", "custom"],
+      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

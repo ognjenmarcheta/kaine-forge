@@ -2,6 +2,7 @@ import {
   AGENT_OUTPUT_KINDS,
   DEFINITION_SOURCES,
   type AgentView,
+  type DefinitionKind,
   type DefinitionProblem
 } from "@repo/desk/contracts";
 import { Badge, Button, Card, Input, Plus, Search, X, buttonVariants } from "@repo/ui";
@@ -23,8 +24,12 @@ import { StatusChip } from "../status/status.chip";
 
 const OPEN_LINK = buttonVariants({ appearance: "subtle", spacing: "compact" });
 
-/** Where an agent comes from, what it overrides, and whether it loads. */
-export function AgentBadges({ view }: { readonly view: AgentView }) {
+/** Where an agent or a flow comes from, what it overrides, and whether it loads. */
+export function DefinitionBadges({
+  view
+}: {
+  readonly view: Pick<AgentView, "source" | "shadows" | "readOnly" | "problems">;
+}) {
   const t = useT();
   return (
     <span className="desk-agent__badges">
@@ -46,17 +51,19 @@ export function AgentBadges({ view }: { readonly view: AgentView }) {
   );
 }
 
-/** Files with an agent's id that do not load. The errors are the engine's words. */
+/** Files of an agent or a flow that do not load. The errors are the engine's words. */
 export function DefinitionProblems({
-  problems
+  problems,
+  kind = "agent"
 }: {
   readonly problems: readonly DefinitionProblem[];
+  readonly kind?: DefinitionKind;
 }) {
   const t = useT();
   if (problems.length === 0) return null;
   return (
     <div className="desk-failure" role="alert">
-      <p>{t("desk.agents.problems")}</p>
+      <p>{t(kind === "agent" ? "desk.agents.problems" : "desk.flows.problems")}</p>
       <ul className="desk-agent__problems">
         {problems.map((problem) => (
           <li key={problem.path}>
@@ -140,7 +147,7 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
       <div className="desk-agent__head">
         <h2 className="desk-agent__name">{definition.name}</h2>
         <code className="desk-agent__id">{definition.id}</code>
-        <AgentBadges view={view} />
+        <DefinitionBadges view={view} />
       </div>
       <p className="desk-agent__desc">{definition.description}</p>
       <dl className="desk-agent__meta">
@@ -299,7 +306,8 @@ export function AgentsView() {
         </>
       )}
       <CloneDialog
-        source={cloning}
+        kind="agent"
+        source={cloning?.definition ?? null}
         taken={agents.map((view) => view.definition.id)}
         onOpenChange={(open) => {
           if (!open) setCloning(null);

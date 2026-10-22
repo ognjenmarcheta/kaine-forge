@@ -1341,3 +1341,118 @@ test("refuses to delete a local agent that a flow uses, and names the flow", asy
   await expect(refusal.getByRole("listitem")).toHaveText(["Design review"]);
   await expect(page).toHaveURL(/agent=ui-builder$/);
 });
+
+/** One flow of the library, found by its name. */
+const flowRow = (page: Page, name: string) =>
+  page
+    .getByRole("list", { name: "Flows" })
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name, level: 2, exact: true }) });
+/** One step of the flow editor's list, found by its numbered heading. */
+const flowStep = (page: Page, heading: string) =>
+  page
+    .locator(".desk-flows-step")
+    .filter({ has: page.getByRole("heading", { name: heading, level: 3, exact: true }) });
+const stepHeadings = (page: Page) => page.locator(".desk-flows-step__title");
+
+test("clones the default flow, adds a report step with a loop back in the list, and saves it as Local", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=flows");
+  await flowRow(page, "Kaine default").getByRole("button", { name: "Clone Kaine default" }).click();
+  const dialog = page.getByRole("dialog", { name: "Clone Kaine default" });
+  await expect(dialog.getByLabel("Id")).toHaveValue("kaine-default-copy");
+  await dialog.getByRole("button", { name: "Clone", exact: true }).click();
+  await expect(page).toHaveURL(/\?view=flows&flow=kaine-default-copy$/);
+  await expect(page.getByRole("heading", { name: "Kaine default (copy)", level: 1 })).toBeVisible();
+
+  // A report agent step after the review.
+  await page.getByRole("button", { name: "Add a step after Review" }).click();
+  await page.getByRole("menuitem", { name: "Agent" }).click();
+  const added = flowStep(page, "6. Agent");
+  await expect(added.getByLabel("Step id")).toBeFocused();
+  await added.getByLabel("Step id").fill("notes");
+  await added.getByLabel("Label").fill("Release notes");
+  // The heading follows the label.
+  const notes = flowStep(page, "6. Release notes");
+  await notes.getByRole("combobox", { name: "Agent" }).click();
+  await page.getByRole("option", { name: "Release notes · Report · Claude" }).click();
+
+  // A loop back from the form: back to the review, at most once.
+  await notes.getByRole("checkbox", { name: "Loop back automatically" }).click();
+  await expect(notes.getByRole("combobox", { name: "Back to" })).toContainText("Review (review)");
+  await notes.getByLabel("Times at most").fill("1");
+  await expect(page.getByRole("group", { name: "Flow graph" })).toContainText(
+    "Loop back, at most 1"
+  );
+
+  // Alt+Down and Alt+Up move the step you are in; focus stays in it.
+  await notes.getByLabel("Label").press("Alt+ArrowDown");
+  await expect(stepHeadings(page).nth(7)).toHaveText("7. Release notes");
+  await expect(flowStep(page, "7. Release notes").getByLabel("Label")).toBeFocused();
+  await page.keyboard.press("Alt+ArrowUp");
+  await expect(stepHeadings(page).nth(6)).toHaveText("6. Release notes");
+
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // The clone said the same path; this toast is the save's.
+  await expect(
+    page
+      .locator("[data-sonner-toast]")
+      .filter({ hasText: "Saved locally" })
+      .getByText("/fixture/.ai.local/desk/flows/kaine-default-copy.yaml")
+  ).toBeVisible();
+  await page.getByRole("link", { name: "All flows" }).click();
+  const row = flowRow(page, "Kaine default (copy)");
+  await expect(row.getByText("Local", { exact: true })).toBeVisible();
+  await expect(row).toContainText("Steps: 9");
+});
+
+test("moves a step by dragging its card on the canvas", async ({ page, desk }) => {
+  await desk.open({}, "?view=flows&flow=design-review");
+  const graph = page.getByRole("group", { name: "Flow graph" });
+  const review = graph.getByRole("group", { name: "Step 6: Review, Agent" });
+  const design = graph.getByRole("group", { name: "Step 5: Design review, Your decision" });
+  const from = await review.boundingBox();
+  const over = await design.boundingBox();
+  if (from === null || over === null) throw new Error("the cards have no box");
+
+  // Grab the card body (the dots on top start an edge) and drop it left of the design review's center.
+  const y = from.y + from.height * 0.7;
+  await page.mouse.move(from.x + from.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(over.x + over.width * 0.3, y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect(stepHeadings(page).nth(5)).toHaveText("5. Review");
+  await expect(stepHeadings(page).nth(6)).toHaveText("6. Design review");
+  await expect(graph.getByRole("group", { name: "Step 5: Review, Agent" })).toBeVisible();
+});
+
+test("warns that an automatic ship opens the draft PR without asking", async ({ page, desk }) => {
+  await desk.open({}, "?view=flows&flow=design-review");
+  const ship = flowStep(page, "8. Ship");
+  const auto = ship.getByRole("checkbox", { name: "Automatic (opens a draft PR without asking)" });
+  await expect(ship.getByText("You do not confirm it first", { exact: false })).toBeHidden();
+  await auto.click();
+  await expect(ship.getByRole("status")).toHaveText(
+    "The desk opens the draft pull request as soon as the checks pass. You do not confirm it first."
+  );
+});
+
+test("promotes a local flow after a confirmation and names the uncommitted file", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=flows&flow=design-review");
+  await page.getByRole("button", { name: "Promote…" }).click();
+  const ask = page.getByRole("dialog", { name: "Promote Design review to the repository?" });
+  await expect(ask).toContainText(".desk/flows/design-review.yaml");
+  await ask.getByRole("button", { name: "Promote", exact: true }).click();
+
+  await expect(
+    page.getByText("Uncommitted: /fixture/.desk/flows/design-review.yaml", { exact: false })
+  ).toBeVisible();
+  await expect(page.locator(".desk-editor__facts")).toContainText("Repository");
+  await expect(page.getByRole("button", { name: "Edit locally" })).toBeVisible();
+});

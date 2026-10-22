@@ -10,7 +10,6 @@ import {
   definitionOf,
   draftOf,
   draftProblems,
-  installedOf,
   serverProblems,
   type AgentDraft,
   type AgentField,
@@ -19,7 +18,7 @@ import {
 } from "./agents.model";
 import { CapabilityPreview } from "./agents.preview";
 import { useAgentList } from "./agents.use";
-import { AgentBadges, DefinitionProblems, useAgentPaletteActions } from "./agents.view";
+import { DefinitionBadges, DefinitionProblems, useAgentPaletteActions } from "./agents.view";
 import { toApiError, type DeskApiError } from "../api/api.client";
 import { useT, type Translate } from "../i18n/i18n.t";
 import { RouteLink, useLeaveGuard, useRouter } from "../shell/shell.router";
@@ -238,7 +237,7 @@ function EditorBody({
           {view !== null && (
             <p className="desk-editor__facts">
               <code className="desk-agent__id">{view.definition.id}</code>
-              <AgentBadges view={view} />
+              <DefinitionBadges view={view} />
             </p>
           )}
         </div>
@@ -301,7 +300,7 @@ function EditorBody({
             draft={draft}
             isNew={isNew}
             editable={editing}
-            installed={installedOf(list.agents)}
+            installed={list.installed}
             errorOf={errorOf}
             onChange={update}
             onSubmit={() => save(false)}
@@ -441,7 +440,8 @@ function EditorBody({
         ]}
       />
       <CloneDialog
-        source={cloning ? view : null}
+        kind="agent"
+        source={cloning ? (view?.definition ?? null) : null}
         taken={taken}
         onOpenChange={(open) => setCloning(open)}
       />

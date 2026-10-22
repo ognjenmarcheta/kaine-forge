@@ -1,4 +1,4 @@
-import { definitionIdSchema, type AgentView } from "@repo/desk/contracts";
+import { definitionIdSchema, type DefinitionKind } from "@repo/desk/contracts";
 import { Button, Input, Label, Modal } from "@repo/ui";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -6,18 +6,44 @@ import { toast } from "sonner";
 import { copyIdOf } from "./agents.model";
 import { toApiError, type DeskApiError } from "../api/api.client";
 import { useT } from "../i18n/i18n.t";
+import type { Route } from "../shell/shell.route";
 import { useRouter } from "../shell/shell.router";
 import { FailureText } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 
+/** What a clone copies: an agent or a flow, by id and name. */
+export interface CloneSource {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** The words of a clone that differ by kind. */
+const WORDS: Readonly<Record<DefinitionKind, { idTaken: string; intro: string; done: string }>> = {
+  agent: {
+    idTaken: "desk.agents.error.idTaken",
+    intro: "desk.agents.clone.intro",
+    done: "desk.agents.clone.done"
+  },
+  flow: {
+    idTaken: "desk.flows.error.idTaken",
+    intro: "desk.flows.clone.intro",
+    done: "desk.flows.clone.done"
+  }
+};
+
+const routeOf = (kind: DefinitionKind, id: string): Route =>
+  kind === "agent" ? { view: "agent", agentId: id } : { view: "flow", flowId: id };
+
 function CloneForm({
+  kind,
   source,
   taken,
   formId,
   onPending,
   onDone
 }: {
-  readonly source: AgentView;
+  readonly kind: DefinitionKind;
+  readonly source: CloneSource;
   readonly taken: readonly string[];
   readonly formId: string;
   readonly onPending: (pending: boolean) => void;
@@ -27,7 +53,7 @@ function CloneForm({
   const id = useId();
   const { api } = useDesk();
   const { navigate } = useRouter();
-  const [newId, setNewId] = useState(() => copyIdOf(source.definition.id));
+  const [newId, setNewId] = useState(() => copyIdOf(source.id));
   const [name, setName] = useState("");
   const [touched, setTouched] = useState(false);
   const [failure, setFailure] = useState<DeskApiError | null>(null);
@@ -35,10 +61,10 @@ function CloneForm({
   const problem = !definitionIdSchema.safeParse(trimmed).success
     ? t("desk.agents.error.id")
     : taken.includes(trimmed)
-      ? t("desk.agents.error.idTaken")
+      ? t(WORDS[kind].idTaken)
       : null;
   const shownProblem = touched || taken.includes(trimmed) ? problem : null;
-  const placeholder = t("desk.agents.clone.namePlaceholder", { name: source.definition.name });
+  const placeholder = t("desk.agents.clone.namePlaceholder", { name: source.name });
 
   return (
     <form
@@ -53,17 +79,12 @@ function CloneForm({
         setFailure(null);
         const copyName = name.trim();
         api
-          .cloneDefinition(
-            "agent",
-            source.definition.id,
-            trimmed,
-            copyName === "" ? undefined : copyName
-          )
+          .cloneDefinition(kind, source.id, trimmed, copyName === "" ? undefined : copyName)
           .then(
             (result) => {
-              toast.success(t("desk.agents.clone.done"), { description: result.path });
+              toast.success(t(WORDS[kind].done), { description: result.path });
               onDone();
-              navigate({ view: "agent", agentId: result.id });
+              navigate(routeOf(kind, result.id));
             },
             (error: unknown) => setFailure(toApiError(error))
           )
@@ -111,17 +132,22 @@ function CloneForm({
 }
 
 /**
- * Copy an agent to a new local id, then open the copy. The server refuses an id that any agent
- * file has, a broken one too, and the dialog shows its words.
+ * Copy an agent or a flow to a new local id, then open the copy. The server refuses an id that
+ * any file of the kind has, a broken one too, and the dialog shows its words.
  */
 export function CloneDialog({
+  kind,
   source,
   taken,
+  title,
   onOpenChange
 }: {
-  /** The agent to copy; `null` closes the dialog. */
-  readonly source: AgentView | null;
+  readonly kind: DefinitionKind;
+  /** The definition to copy; `null` closes the dialog. */
+  readonly source: CloneSource | null;
   readonly taken: readonly string[];
+  /** Instead of "Clone <name>". */
+  readonly title?: string;
   readonly onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
@@ -131,8 +157,8 @@ export function CloneDialog({
     <Modal
       open={source !== null}
       onOpenChange={onOpenChange}
-      title={t("desk.agents.clone.title", { name: source?.definition.name ?? "" })}
-      description={t("desk.agents.clone.intro")}
+      title={title ?? t("desk.agents.clone.title", { name: source?.name ?? "" })}
+      description={t(WORDS[kind].intro)}
       closeButtonLabel={t("desk.common.close")}
       size="sm"
       footer={
@@ -148,7 +174,8 @@ export function CloneDialog({
     >
       {source !== null && (
         <CloneForm
-          key={source.definition.id}
+          key={source.id}
+          kind={kind}
           source={source}
           taken={taken}
           formId={formId}

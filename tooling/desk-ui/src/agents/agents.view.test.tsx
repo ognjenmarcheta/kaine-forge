@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { DeskApp } from "../desk.app";
-import { agentDefinition, agentView } from "../test/test.agents";
+import { INSTALLED, agentDefinition, agentView } from "../test/test.agents";
 import { fakeApi, renderDesk } from "../test/test.render";
 
 const rowOf = async (name: string): Promise<HTMLElement> => {
@@ -26,7 +26,10 @@ describe("AgentsView", () => {
         "builtin"
       )
     ];
-    renderDesk(<DeskApp />, fakeApi({ agents: () => Promise.resolve({ agents, problems: [] }) }));
+    renderDesk(
+      <DeskApp />,
+      fakeApi({ agents: () => Promise.resolve({ agents, problems: [], installed: INSTALLED }) })
+    );
 
     const reviewer = await rowOf("Reviewer");
     expect(within(reviewer).getByText("Built-in")).toBeTruthy();

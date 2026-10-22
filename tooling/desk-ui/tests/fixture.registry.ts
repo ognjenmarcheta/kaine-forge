@@ -13,6 +13,9 @@ import { createHash } from "node:crypto";
 
 import { registryAgents, registryFlows, resolvedOf, type BySource } from "./fixture.data";
 
+/** The MCP servers and skills of the fixture checkout. */
+const INSTALLED = { mcp: ["context7", "serena"], skills: ["kaine-review", "kaine-test"] };
+
 /**
  * The agents and flows of the fixture desk, in memory: the real routes over a registry of three
  * sources, with the real validation of `@repo/desk/contracts`. The file rules of the engine (YAML,
@@ -89,7 +92,8 @@ export function createFixtureRegistry(): FixtureRegistry {
           problems: [],
           resolved: resolvedOf(entry.definition)
         })),
-        problems: []
+        problems: [],
+        installed: INSTALLED
       },
       flows: {
         flows: winners(flows).map((entry): FlowView => ({

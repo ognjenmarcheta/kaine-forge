@@ -424,9 +424,16 @@ export const agentViewSchema = z
   .strict();
 export type AgentView = z.infer<typeof agentViewSchema>;
 
-/** `GET /api/agents`. `problems`: every agent file that does not load. */
+/**
+ * `GET /api/agents`. `problems`: every agent file that does not load. `installed`: the MCP
+ * servers and skills this checkout has; the resolver removes any other name an agent asks for.
+ */
 export const agentListSchema = z
-  .object({ agents: z.array(agentViewSchema), problems: z.array(definitionProblemSchema) })
+  .object({
+    agents: z.array(agentViewSchema),
+    problems: z.array(definitionProblemSchema),
+    installed: z.object({ mcp: z.array(z.string()), skills: z.array(z.string()) }).strict()
+  })
   .strict();
 export type AgentList = z.infer<typeof agentListSchema>;
 

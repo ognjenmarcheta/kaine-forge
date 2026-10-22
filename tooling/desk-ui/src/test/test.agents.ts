@@ -1,4 +1,7 @@
-import type { AgentDefinition, AgentView, DefinitionSource } from "@repo/desk/contracts";
+import type { AgentDefinition, AgentList, AgentView, DefinitionSource } from "@repo/desk/contracts";
+
+/** What the checkout of the page tests has installed. */
+export const INSTALLED: AgentList["installed"] = { mcp: ["serena"], skills: [] };
 
 /** An agent definition for page tests: a read-only report agent unless the test says more. */
 export const agentDefinition = (overrides: Partial<AgentDefinition> = {}): AgentDefinition => ({

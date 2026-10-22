@@ -3,6 +3,7 @@ import { Button } from "@repo/ui";
 import { AgentEditor } from "./agents/agents.editor";
 import { AgentsView } from "./agents/agents.view";
 import { BoardView } from "./board/board.view";
+import { FlowEditor } from "./flows/flows.editor";
 import { FlowsView } from "./flows/flows.view";
 import { HealthView } from "./health/health.view";
 import { useT } from "./i18n/i18n.t";
@@ -43,6 +44,8 @@ function Routes() {
       return <BoardView />;
     case "flows":
       return <FlowsView />;
+    case "flow":
+      return <FlowEditor key={route.flowId} flowId={route.flowId} />;
     case "agents":
       return <AgentsView />;
     case "agent":

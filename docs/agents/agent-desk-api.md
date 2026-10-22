@@ -248,9 +248,12 @@ The `GET` routes show the registry of the checkout the desk serves: the built-in
 `.desk/` (repo), and `.ai.local/desk/` (local). A later source overrides an earlier one by id.
 The write routes are in "Agent and flow writes".
 
-- `AgentList` is `{ agents: AgentView[], problems }`. `FlowList` is `{ flows: FlowView[], problems }`.
-  `problems` lists every agent (or flow) file that does not parse or validate, as
-  `{ path, source, errors }`. Such a file takes part in nothing.
+- `AgentList` is `{ agents: AgentView[], problems, installed }`. `FlowList` is
+  `{ flows: FlowView[], problems }`. `problems` lists every agent (or flow) file that does not
+  parse or validate, as `{ path, source, errors }`. Such a file takes part in nothing.
+- `AgentList.installed` is `{ mcp, skills }`: the MCP server names of `.ai/mcp.json` and the skill
+  names of `.ai/skills/` in the checkout, sorted. The capability resolver removes any other name
+  that an agent asks for.
 - Each view has `definition` (an agent includes its `prompt`), `source`, `shadows` (the source it
   overrides, or `null`), `readOnly` (built-in), `hash`, and `problems`: the broken files with the
   same id, for example a broken local override that the built-in definition still beats.

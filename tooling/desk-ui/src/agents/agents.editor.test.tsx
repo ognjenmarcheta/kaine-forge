@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DeskApiError, type DeskApi } from "../api/api.client";
 import { DeskApp } from "../desk.app";
-import { agentDefinition, agentView } from "../test/test.agents";
+import { INSTALLED, agentDefinition, agentView } from "../test/test.agents";
 import { DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, renderDesk } from "../test/test.render";
 
@@ -22,7 +22,10 @@ const open = (id: string, agents: () => readonly AgentView[], api: Partial<DeskA
   window.history.replaceState(null, "", `?view=agents&agent=${id}`);
   renderDesk(
     <DeskApp />,
-    fakeApi({ agents: () => Promise.resolve({ agents: [...agents()], problems: [] }), ...api })
+    fakeApi({
+      agents: () => Promise.resolve({ agents: [...agents()], problems: [], installed: INSTALLED }),
+      ...api
+    })
   );
 };
 
@@ -169,6 +172,40 @@ describe("AgentEditor", () => {
     ).toEqual(["Design review"]);
     expect(alert.textContent).toContain("The agent 'ui-builder' is used by a flow.");
     expect(window.location.search).toBe("?view=agents&agent=ui-builder");
+  });
+
+  it("offers the MCP servers the checkout installed, and marks an asked-for one it lacks", async () => {
+    const asks = agentView(
+      agentDefinition({
+        id: "ui-builder",
+        name: "UI builder",
+        capabilities: { preset: "read-only", mcp: ["serena", "jira"], skills: [] }
+      }),
+      "local"
+    );
+    open("ui-builder", () => [asks], {
+      agents: () =>
+        Promise.resolve({
+          agents: [asks],
+          problems: [],
+          installed: { mcp: ["context7", "serena"], skills: ["kaine-test"] }
+        })
+    });
+
+    const legend = (await screen.findAllByText("MCP servers")).find(
+      (element) => element.tagName === "LEGEND"
+    );
+    const servers = legend?.closest("fieldset");
+    if (!(servers instanceof HTMLElement)) throw new Error("no MCP servers fieldset");
+    const rows = within(servers)
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+    // No agent asks for context7: it is listed because the checkout has it.
+    expect(rows).toEqual(["context7", "jiraNot installed", "serena"]);
+    expect(
+      within(servers).getByRole("checkbox", { name: "jira" }).getAttribute("aria-checked")
+    ).toBe("true");
+    expect(screen.getByRole("checkbox", { name: "kaine-test" })).toBeTruthy();
   });
 
   it("opens a built-in agent read-only, with Clone to edit instead of Save", async () => {

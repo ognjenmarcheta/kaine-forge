@@ -74,7 +74,7 @@ describe("GET /api/agents", () => {
   it("lists every agent with its source, its broken overrides and what a run gets now", async () => {
     const reply = await api.get("/api/agents");
     expect(reply.status).toBe(200);
-    const { agents, problems } = agentListSchema.parse(reply.json());
+    const { agents, problems, installed } = agentListSchema.parse(reply.json());
 
     expect(agents.map((agent) => [agent.definition.id, agent.source, agent.readOnly])).toEqual([
       ["builder", "builtin", true],
@@ -95,6 +95,17 @@ describe("GET /api/agents", () => {
       provider: "codex",
       sandbox: "codex-read-only",
       removed: expect.arrayContaining([{ kind: "mcp", name: "jira", reason: "not installed" }])
+    });
+    // What the checkout installed, whether or not an agent asks for it: no `jira`.
+    expect(installed).toEqual({
+      mcp: ["context7", "serena"],
+      skills: [
+        "kaine-intake",
+        "kaine-review",
+        "kaine-test",
+        "kaine-write-issue",
+        "kaine-write-plan"
+      ]
     });
   });
 

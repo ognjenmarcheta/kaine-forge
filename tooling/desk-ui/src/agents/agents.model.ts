@@ -187,40 +187,6 @@ export function serverProblems(detail: string | null): ServerProblem[] {
     });
 }
 
-/**
- * The engine's reason for a capability a checkout does not have. The agents API has no list
- * of installed MCP servers and skills, so the page learns them from the agents it lists.
- */
-export const NOT_INSTALLED_REASON = "not installed";
-
-export interface Installed {
-  readonly mcp: readonly string[];
-  readonly skills: readonly string[];
-}
-
-/**
- * The MCP servers and skills this checkout has, as far as the listed agents show: every name an
- * agent asks for, except the names the resolver removed as not installed.
- */
-export function installedOf(agents: readonly AgentView[]): Installed {
-  const collect = (kind: "mcp" | "skills"): string[] => {
-    const removedKind = kind === "mcp" ? "mcp" : "skill";
-    const names = new Set<string>();
-    for (const agent of agents) {
-      const missing = new Set(
-        agent.resolved.removed
-          .filter((entry) => entry.kind === removedKind && entry.reason === NOT_INSTALLED_REASON)
-          .map((entry) => entry.name)
-      );
-      for (const name of [...agent.definition.capabilities[kind], ...agent.resolved[kind]]) {
-        if (!missing.has(name)) names.add(name);
-      }
-    }
-    return [...names].sort();
-  };
-  return { mcp: collect("mcp"), skills: collect("skills") };
-}
-
 // --- the library -----------------------------------------------------------------------------
 
 export type SourceFilter = "all" | DefinitionSource;

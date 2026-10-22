@@ -4,6 +4,7 @@ import { loadCapabilities } from "../agents/capabilities.load";
 import type { AgentList, DefinitionProblem, DeskConfig, FlowList } from "../contracts";
 import { ROLE_FOR_OUTPUT, agentRuntime } from "../engine/pipeline.agent";
 import { loadRegistry, type RegistryEntry, type RegistryProblem } from "../registry/registry.load";
+import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
 /**
  * The agents and flows of a checkout as `GET /api/agents` and `GET /api/flows` show them:
@@ -69,8 +70,13 @@ export const readDefinitionViews = async (
       };
     })
   );
+  const installed = await readInstalledCapabilities(input.repoRoot);
   return {
-    agents: { agents, problems: agentProblems.map(toProblem) },
+    agents: {
+      agents,
+      problems: agentProblems.map(toProblem),
+      installed: { mcp: [...installed.mcp].sort(), skills: [...installed.skills].sort() }
+    },
     flows: {
       flows: registry.flows.map((entry) => entryFields(entry, flowProblems)),
       problems: flowProblems.map(toProblem)
