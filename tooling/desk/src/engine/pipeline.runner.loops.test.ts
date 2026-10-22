@@ -297,6 +297,9 @@ describe("builder blockers and continue", () => {
     const stopped = await toBuild(e);
     expect(stopped).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     expect(stopped.outcome === "stopped" && stopped.message).toContain("- The schema is missing");
+    // The reason names the agent and its step, so a flow's own change agent is not "the builder".
+    expect(stopped.outcome === "stopped" && stopped.message).toContain("Builder is blocked:");
+    expect(stopped.outcome === "stopped" && stopped.message).toContain("feedback to build,");
     const blocked = await stateOf(e);
     expect(blocked).toMatchObject({ stage: "needs-you", resumeStage: "build" });
     expect(blocked.sessions.builder).toBeDefined();

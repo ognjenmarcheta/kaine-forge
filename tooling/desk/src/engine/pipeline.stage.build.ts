@@ -97,15 +97,14 @@ export const buildStage: AgentStepHandler = async (context, step, agent) => {
   if (build.blockers.length > 0) {
     return {
       kind: "needs-you",
-      reason: `The builder is blocked:\n${build.blockers.map((blocker) => `- ${blocker}`).join("\n")}\nAnswer with feedback to build, or continue.`,
+      reason: `${agent.name} is blocked:\n${build.blockers.map((blocker) => `- ${blocker}`).join("\n")}\nAnswer with feedback to ${step.id}, or continue.`,
       patch: { sessions }
     };
   }
   if (run.diff.files.length === 0) {
     return {
       kind: "needs-you",
-      reason:
-        "The builder finished but changed no file. Check the plan, give feedback, or continue.",
+      reason: `${agent.name} finished but changed no file. Check the plan, give feedback, or continue.`,
       patch: { sessions }
     };
   }
