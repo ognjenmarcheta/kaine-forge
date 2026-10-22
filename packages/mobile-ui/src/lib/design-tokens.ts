@@ -6,8 +6,8 @@ export const nativeThemeTokens = {
     text: "#121419",
     subtle: "#4a505c",
     border: "#e3e6eb",
-    primary: "#b8410f",
-    selected: "#fdebe3"
+    primary: "#b3360f",
+    selected: "#fde6de"
   },
   dark: {
     background: "#14171d",
@@ -15,8 +15,8 @@ export const nativeThemeTokens = {
     text: "#f2f3f5",
     subtle: "#aab1bd",
     border: "#23272f",
-    primary: "#ff8a5c",
-    selected: "#2a160d"
+    primary: "#ff7a50",
+    selected: "#2e140c"
   }
 };
 
