@@ -125,3 +125,17 @@ export function builderStepOf(flow: IssueFlow, stopped: string | null): string |
   const before = builds.filter((step) => flow.steps.indexOf(step) <= at).at(-1);
   return (before ?? builds[0])?.id ?? null;
 }
+
+/**
+ * Whether the work after this gate reaches GitHub with no further decision of the owner: the
+ * ship step ships by itself and no gate stands between it and this gate.
+ */
+export function shipsWithoutReview(flow: IssueFlow, gate: string): boolean {
+  const after = flow.steps.slice(flow.steps.findIndex((step) => step.id === gate) + 1);
+  const ship = after.findIndex((step) => step.kind === "ship");
+  return (
+    ship !== -1 &&
+    after[ship]?.auto === true &&
+    !after.slice(0, ship).some((step) => step.kind === "gate")
+  );
+}

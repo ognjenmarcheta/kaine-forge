@@ -827,6 +827,7 @@
   "desk.gate.keys.pause": "anhalten oder fortsetzen",
   "desk.gate.plan.changed": "Was sich seit Runde {{round}} geändert hat",
   "desk.gate.plan.hint": "Startet die Umsetzung. Sie prüfen den Code, bevor etwas gepusht wird.",
+  "desk.gate.plan.hintAutoShip": "Startet die Umsetzung. Dieser Ablauf liefert selbst aus: Wenn die Prüfungen bestehen, öffnet der Desk ohne Rückfrage einen Draft-PR.",
   "desk.gate.pr.changed": "Was sich seit der ersten Umsetzung geändert hat",
   "desk.gate.pr.hint": "Nicht jede Datei ist als gesehen markiert. Ausliefern öffnet einen Entwurfs-Pull-Request.",
   "desk.gate.pr.hintViewed": "Sie haben jede Datei gesehen. Ausliefern öffnet einen Entwurfs-Pull-Request.",

@@ -1,8 +1,10 @@
+import type { FlowStepView } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
-import { incidentOf, orderReviewFiles, resumeCommandOf } from "./gate.model";
+import { incidentOf, orderReviewFiles, resumeCommandOf, shipsWithoutReview } from "./gate.model";
 import { scenarioRuns } from "../../tests/fixture.data";
 import { parseDiffFiles } from "../artifacts/artifact.diffstat";
+import type { IssueFlow } from "../flow/flow.steps";
 import { makeDetail } from "../test/test.render";
 
 const file = (path: string) => `diff --git a/${path} b/${path}\n@@ -1 +1 @@\n-a\n+b\n`;
@@ -77,5 +79,34 @@ describe("resumeCommandOf", () => {
     };
     expect(resumeCommandOf({ ...detail, resume })).toBe("plan");
     expect(resumeCommandOf({ ...detail, resume: { worktreePath: null, sessions: [] } })).toBeNull();
+  });
+});
+
+describe("shipsWithoutReview", () => {
+  const step = (id: string, kind: FlowStepView["kind"], auto = false): FlowStepView => ({
+    id,
+    label: id,
+    kind,
+    agent: null,
+    sendBack: [],
+    auto
+  });
+  const flowOf = (...steps: FlowStepView[]): IssueFlow => ({ source: "local", steps });
+
+  it("is true only when an automatic ship follows the gate with no gate in between", () => {
+    const autoNoGate = flowOf(
+      step("plan-gate", "gate"),
+      step("build", "agent"),
+      step("ship", "ship", true)
+    );
+    const autoAfterGate = flowOf(
+      step("plan-gate", "gate"),
+      step("pr-review", "gate"),
+      step("ship", "ship", true)
+    );
+    const manual = flowOf(step("plan-gate", "gate"), step("ship", "ship"));
+    expect(shipsWithoutReview(autoNoGate, "plan-gate")).toBe(true);
+    expect(shipsWithoutReview(autoAfterGate, "plan-gate")).toBe(false);
+    expect(shipsWithoutReview(manual, "plan-gate")).toBe(false);
   });
 });

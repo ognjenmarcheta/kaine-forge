@@ -827,6 +827,7 @@
   "desk.gate.keys.pause": "pauziraj ili nastavi",
   "desk.gate.plan.changed": "Šta se promenilo od runde {{round}}",
   "desk.gate.plan.hint": "Pokreće izradu. Vi pregledate kod pre nego što se išta pošalje.",
+  "desk.gate.plan.hintAutoShip": "Pokreće izradu. Ovaj tok sam isporučuje: kada provere prođu, desk otvara draft PR bez pitanja.",
   "desk.gate.pr.changed": "Šta se promenilo od prve izrade",
   "desk.gate.pr.hint": "Nije svaka datoteka označena kao pregledana. Isporuka otvara nacrt pull requesta.",
   "desk.gate.pr.hintViewed": "Pregledali ste svaku datoteku. Isporuka otvara nacrt pull requesta.",

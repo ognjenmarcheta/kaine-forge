@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
-import { planRound, sendBackTargets } from "./gate.model";
+import { planRound, sendBackTargets, shipsWithoutReview } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { PlanGateBody } from "../artifacts/artifact.plan";
 import { useJsonArtifact } from "../artifacts/artifact.use";
@@ -90,7 +90,14 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
           }}
         />
       )}
-      <DecideBar labelledBy={titleId} hint={t("desk.gate.plan.hint")}>
+      <DecideBar
+        labelledBy={titleId}
+        hint={t(
+          shipsWithoutReview(issueFlowOf(summary), summary.stage)
+            ? "desk.gate.plan.hintAutoShip"
+            : "desk.gate.plan.hint"
+        )}
+      >
         <Button disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
           {t("desk.gate.plan.approve")}
           <Kbd shortcut="a" />
