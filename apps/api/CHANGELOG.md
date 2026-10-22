@@ -1,5 +1,12 @@
 # @repo/api
 
+## 1.9.3
+
+### Patch Changes
+
+- Updated dependencies [4f69756]
+  - @repo/translation@1.8.0
+
 ## 1.9.2
 
 ### Patch Changes
