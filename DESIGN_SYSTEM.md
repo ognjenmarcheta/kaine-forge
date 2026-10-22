@@ -106,11 +106,11 @@ Use emphasis to control contrast:
 | `bold`               | strong fill, usually paired with inverse text |
 | `bolder` / `boldest` | maximum emphasis                              |
 
-Text on bold backgrounds must use inverse tokens when contrast requires it. Brand and selected bold fills are bright orange, so text and icons on them use `--ds-text-brand-inverse` (dark ink in both themes), not `--ds-text-inverse`.
+Text on bold backgrounds must use inverse tokens when contrast requires it. Brand and selected bold fills are a deep red-orange in both themes, so text and icons on them use `--ds-text-brand-inverse` (white in both themes), not `--ds-text-inverse`, which turns dark in the dark theme. Hovered and pressed brand fills get darker, not lighter, so white text keeps AA contrast.
 
 ## 4. Color Rules
 
-The default palette is the Byteforge brand: one orange for actions, selection, links, and focus (`#f15a24` light, `#ff6a33` dark), on cool white and ink-black neutrals. Light and dark values come from the Byteforge website tokens. The `pnpm --filter @repo/ui test` contrast contract checks the key text and control pairs in both themes against the WCAG AA baseline in §12.
+The default palette is the Byteforge brand: one red-orange for actions, selection, links, and focus (`#d4421a` fills in both themes, with `#b3360f` light and `#ff7a50` dark for text and links), on cool white and ink-black neutrals. Light and dark values come from the Byteforge website tokens. The `pnpm --filter @repo/ui test` contrast contract checks the key text and control pairs in both themes against the WCAG AA baseline in §12.
 
 Semantic roles:
 
