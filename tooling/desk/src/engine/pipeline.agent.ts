@@ -39,6 +39,7 @@ import {
 import {
   compareRefs,
   diffAgainstBase,
+  isOtherIssueRef,
   type DiffResult,
   type RefsSnapshot,
   type RefViolation
@@ -450,7 +451,10 @@ const runAgentStageOnce = async <T>(
   let diffAfter: DiffResult | null = null;
   try {
     const refsAfter = await deps.git.refsSnapshot(worktree);
-    const refViolations = compareRefs(refsBefore, refsAfter);
+    const refViolations = compareRefs(refsBefore, refsAfter).filter(
+      (violation) =>
+        !violation.kind.startsWith("ref-") || !isOtherIssueRef(violation.subject, state.issueNumber)
+    );
     if (refViolations.length > 0) observed.invariants.push("refs");
     violations.push(...refViolations.map(describeRefViolation));
     diffAfter = await diffAgainstBase(deps.exec, worktree, baseSha);

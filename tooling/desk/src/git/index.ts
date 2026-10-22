@@ -14,5 +14,12 @@ export {
   type WorktreeAddRequest,
   type WorktreeEntry
 } from "./git.port";
-export { compareRefs, createGitPort, GitError, runGit, type RunGitOptions } from "./git.real";
+export {
+  compareRefs,
+  createGitPort,
+  GitError,
+  isOtherIssueRef,
+  runGit,
+  type RunGitOptions
+} from "./git.real";
 export { fileModeIgnored, indexExecBits, patchExecBits, setIndexExecBits } from "./git.modes";
