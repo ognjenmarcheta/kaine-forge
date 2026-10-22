@@ -66,6 +66,8 @@ The desk reports what intake will read. The command changes nothing.
 pnpm desk contract --file body.md
 ```
 
+The `--file` form reads only the local file and does not contact GitHub.
+
 ```bash
 pnpm desk contract 457
 ```
