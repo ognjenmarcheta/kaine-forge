@@ -79,7 +79,8 @@ export const readDefinitionViews = async (
     },
     flows: {
       flows: registry.flows.map((entry) => entryFields(entry, flowProblems)),
-      problems: flowProblems.map(toProblem)
+      problems: flowProblems.map(toProblem),
+      defaultFlow: input.config.defaultFlow
     }
   };
 };

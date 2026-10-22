@@ -58,7 +58,7 @@ beforeEach(async () => {
     // A broken override: the built-in planner keeps its id.
     ".ai.local/desk/agents/planner.md": "---\nid: planner\n---\nNo frontmatter fields.\n"
   });
-  const config = deskConfigSchema.parse({ isolation: "docker" });
+  const config = deskConfigSchema.parse({ isolation: "docker", defaultFlow: "fast-lane" });
   harness = await createHarness({
     readDefinitions: () => readDefinitionViews({ repoRoot, config }),
     definitionWrites: createDefinitionWrites({ repoRoot })
@@ -117,14 +117,16 @@ describe("GET /api/agents", () => {
 });
 
 describe("GET /api/flows", () => {
-  it("lists the flows read-only and serves one by id", async () => {
+  it("lists the flows read-only, names the configured default, and serves one by id", async () => {
     const reply = await api.get("/api/flows");
     expect(reply.status).toBe(200);
-    const { flows, problems } = flowListSchema.parse(reply.json());
+    const { flows, problems, defaultFlow } = flowListSchema.parse(reply.json());
     expect(flows.map((flow) => [flow.definition.id, flow.source, flow.readOnly])).toEqual([
       ["kaine-default", "builtin", true]
     ]);
     expect(problems).toEqual([]);
+    // The config's `defaultFlow`, not the built-in flow's id.
+    expect(defaultFlow).toBe("fast-lane");
 
     const flow = flowViewSchema.parse((await api.get("/api/flows/kaine-default")).json());
     expect(flow.hash).toBe(flows[0]?.hash);

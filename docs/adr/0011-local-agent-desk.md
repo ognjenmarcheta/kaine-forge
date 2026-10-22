@@ -1,6 +1,6 @@
 # ADR 0011: Local agent desk
 
-- Status: Accepted
+- Status: Accepted. Superseded in part by [ADR 0012](0012-configurable-flows-and-agents.md): the fixed pipeline layout and the fixed roles.
 - Date: 2026-10-13
 
 The desk ships in phases. Phase 1 covers intake. Phase 2 adds the pipeline engine (library first, then the CLI). Phase 3 adds the ship step and the local server. Phase 4 adds the React desk. Phase 5 adds optional Docker isolation.

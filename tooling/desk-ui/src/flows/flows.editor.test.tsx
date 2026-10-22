@@ -39,7 +39,8 @@ const open = (flows: () => readonly FlowView[], id: string, api: Partial<DeskApi
   renderDesk(
     <DeskApp />,
     fakeApi({
-      flows: () => Promise.resolve({ flows: [...flows()], problems: [] }),
+      flows: () =>
+        Promise.resolve({ flows: [...flows()], problems: [], defaultFlow: "kaine-default" }),
       agents: () => Promise.resolve({ agents: AGENTS, problems: [], installed: INSTALLED }),
       ...api
     })
@@ -97,6 +98,36 @@ describe("FlowEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Move Check down" }));
     expect(headings().slice(2, 5)).toEqual(["2. Approve the plan", "3. Build", "4. Check"]);
     expect(screen.getByRole("button", { name: "Save" })).toHaveProperty("disabled", false);
+  });
+
+  it("marks the flow the config names as the default, in the list and in the editor", async () => {
+    window.history.replaceState(null, "", "?view=flows");
+    renderDesk(
+      <DeskApp />,
+      fakeApi({
+        flows: () =>
+          Promise.resolve({
+            flows: [flowView(DEFAULT_FLOW_SNAPSHOT.flow, "builtin"), flowView(MINE, "local")],
+            problems: [],
+            defaultFlow: "mine"
+          }),
+        agents: () => Promise.resolve({ agents: AGENTS, problems: [], installed: INSTALLED })
+      })
+    );
+    const rowOf = async (name: string): Promise<HTMLElement> => {
+      const heading = await screen.findByRole("heading", { name, level: 2 });
+      const row = heading.closest("li");
+      if (row === null) throw new Error(`no row ${name}`);
+      return row;
+    };
+    expect(within(await rowOf("My flow")).queryByText("Default", { exact: true })).not.toBeNull();
+    // The built-in flow is not the default when the config names another one.
+    expect(within(await rowOf("Kaine default")).queryByText("Default", { exact: true })).toBeNull();
+
+    await userEvent.click(screen.getByRole("link", { name: "Open My flow" }));
+    const facts = (await screen.findByRole("heading", { name: "My flow", level: 1 }))
+      .nextElementSibling;
+    expect(facts?.textContent).toContain("Default");
   });
 
   it("opens a built-in flow read-only, with Clone to edit instead of Save", async () => {

@@ -152,7 +152,8 @@ describe("AgentEditor", () => {
       flows: () =>
         Promise.resolve({
           flows: [flowView(DEFAULT_FLOW_SNAPSHOT.flow), flowView(uses)],
-          problems: []
+          problems: [],
+          defaultFlow: "kaine-default"
         })
     });
 

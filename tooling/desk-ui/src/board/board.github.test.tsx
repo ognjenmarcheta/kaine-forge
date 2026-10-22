@@ -104,7 +104,8 @@ describe("Start dialog issue picker", () => {
         view(CUSTOM_FLOW_SNAPSHOT.flow, "repo"),
         view({ ...DEFAULT_FLOW_SNAPSHOT.flow, id: "careful", name: "Careful" }, "local")
       ],
-      problems: []
+      problems: [],
+      defaultFlow: "kaine-default"
     };
     const act = vi.fn<DeskApi["act"]>(() =>
       Promise.resolve({ status: "accepted", action: "start", issueNumber: 12 })

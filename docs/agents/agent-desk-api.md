@@ -249,8 +249,12 @@ The `GET` routes show the registry of the checkout the desk serves: the built-in
 The write routes are in "Agent and flow writes".
 
 - `AgentList` is `{ agents: AgentView[], problems, installed }`. `FlowList` is
-  `{ flows: FlowView[], problems }`. `problems` lists every agent (or flow) file that does not
-  parse or validate, as `{ path, source, errors }`. Such a file takes part in nothing.
+  `{ flows: FlowView[], problems, defaultFlow }`. `problems` lists every agent (or flow) file
+  that does not parse or validate, as `{ path, source, errors }`. Such a file takes part in
+  nothing.
+- `FlowList.defaultFlow` is the id that `defaultFlow` in the desk config names (default
+  `kaine-default`). `start` picks this flow when no `flowLabels` label matches. The id can name
+  a flow that is not in `flows`.
 - `AgentList.installed` is `{ mcp, skills }`: the MCP server names of `.ai/mcp.json` and the skill
   names of `.ai/skills/` in the checkout, sorted. The capability resolver removes any other name
   that an agent asks for.

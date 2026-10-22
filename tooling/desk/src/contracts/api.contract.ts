@@ -443,9 +443,16 @@ export const flowViewSchema = z
   .strict();
 export type FlowView = z.infer<typeof flowViewSchema>;
 
-/** `GET /api/flows`. `problems`: every flow file that does not load or validate. */
+/**
+ * `GET /api/flows`. `problems`: every flow file that does not load or validate. `defaultFlow`:
+ * the configured `defaultFlow`, the flow `start` picks when no flow label matches.
+ */
 export const flowListSchema = z
-  .object({ flows: z.array(flowViewSchema), problems: z.array(definitionProblemSchema) })
+  .object({
+    flows: z.array(flowViewSchema),
+    problems: z.array(definitionProblemSchema),
+    defaultFlow: definitionIdSchema
+  })
   .strict();
 export type FlowList = z.infer<typeof flowListSchema>;
 

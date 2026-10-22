@@ -494,7 +494,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     deps.readDefinitions?.() ??
     Promise.resolve({
       agents: { agents: [], problems: [], installed: { mcp: [], skills: [] } },
-      flows: { flows: [], problems: [] }
+      flows: { flows: [], problems: [], defaultFlow: DEFAULT_FLOW_ID }
     });
 
   const requireDefinitionWrites = (): DefinitionWrites => {

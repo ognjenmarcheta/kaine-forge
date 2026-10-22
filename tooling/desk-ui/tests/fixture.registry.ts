@@ -104,7 +104,8 @@ export function createFixtureRegistry(): FixtureRegistry {
           hash: hashOf(entry.definition),
           problems: []
         })),
-        problems: []
+        problems: [],
+        defaultFlow: "kaine-default"
       }
     });
 

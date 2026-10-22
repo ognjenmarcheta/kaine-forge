@@ -59,10 +59,13 @@ export function useFlowPaletteActions(flows: readonly FlowView[], onNew: () => v
 
 function FlowRow({
   view,
+  isDefault,
   running,
   onClone
 }: {
   readonly view: FlowView;
+  /** The desk config's `defaultFlow` names this flow. */
+  readonly isDefault: boolean;
   readonly running: number;
   readonly onClone: () => void;
 }) {
@@ -74,9 +77,7 @@ function FlowRow({
         <h2 className="desk-agent__name">{definition.name}</h2>
         <code className="desk-agent__id">{definition.id}</code>
         <DefinitionBadges view={view} />
-        {definition.id === BUILTIN_FLOW_ID && (
-          <Badge appearance="information">{t("desk.flows.default")}</Badge>
-        )}
+        {isDefault && <Badge appearance="information">{t("desk.flows.default")}</Badge>}
       </div>
       <p className="desk-agent__desc">{definition.description}</p>
       <div className="desk-flows__steps">
@@ -160,6 +161,7 @@ export function FlowsView() {
                 <FlowRow
                   key={view.definition.id}
                   view={view}
+                  isDefault={view.definition.id === state.flows.defaultFlow}
                   running={activeIssuesOn(issues, view.definition.id)}
                   onClone={() => setCloning(view.definition)}
                 />

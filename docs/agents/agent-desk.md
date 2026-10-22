@@ -1,9 +1,11 @@
 # Agent desk
 
-The agent desk drives a GitHub issue through intake, plan, build, check, and review
-to a draft PR. The owner approves at two gates and merges every PR. The issue then waits at
-`pr-open` until the owner runs `refresh` after the merge. See
-[ADR 0011](../adr/0011-local-agent-desk.md).
+The agent desk drives a GitHub issue through intake and then the steps of a flow. The
+built-in flow `kaine-default` plans, builds, checks, and reviews the change, then opens a draft
+PR. In it the owner approves at two gates. Other flows come from the repository or from you
+(see "Agents and flows"). The owner merges every PR. The issue then waits at `pr-open` until the
+owner runs `refresh` after the merge. See [ADR 0011](../adr/0011-local-agent-desk.md) and
+[ADR 0012](../adr/0012-configurable-flows-and-agents.md).
 
 ## Commands
 
@@ -16,7 +18,7 @@ take many minutes, so the command prints live progress (see "Live output").
 | Command                                                                                  | What it does                                                                                                                                                            |
 | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `start <n> [--override] [--no-writeback] [--snapshot-file P] [--isolation host\|docker]` | Run intake, setup, and plan to the plan gate. Run it again to retry intake after you fix the issue. `--isolation docker` runs the builder and the checks in containers. |
-| `approve <n>`                                                                            | At the plan gate: approve the plan. Build, check, and review run to `pr-review`.                                                                                        |
+| `approve <n>`                                                                            | At a gate: approve and run on. At the plan gate of the default flow, build, check, and review then run to `pr-review`. At the gate before a ship, use `ship`.           |
 | `feedback <n> --to TARGET TEXT...`                                                       | Send feedback to an agent or check step of the issue's flow (`plan`, `build`, or `review` in the default flow), then run on. `--file P` reads the text from a file.     |
 | `continue <n> [--from STAGE]`                                                            | From `needs-you`: retry the recorded stage (or STAGE), then run on.                                                                                                     |
 | `cancel <n>`                                                                             | End the issue. The worktree stays.                                                                                                                                      |
@@ -130,8 +132,10 @@ denials, errors), and `log` (desk messages). `desk logs` and the future UI read 
 ## Metrics
 
 Every agent run that starts appends one JSON line to `runs.jsonl` in the state root
-(`<git-common-dir>/kaine-desk/`). The line holds the issue, role, provider, model (`null` for the
-CLI default), isolation, loop counts, and duration. It also holds whether the run returned a
+(`<git-common-dir>/kaine-desk/`). The line holds the issue, role, agent id (`agentId`; absent in
+lines written before agents were data), provider, model (`null` for the CLI default), isolation,
+loop counts, and duration. It also holds the capability receipt (`capabilities`, see
+"Capabilities"). It also holds whether the run returned a
 result, whether the stage accepted it, and the failure kind (`stuck` for a stuck stop). Then come
 tokens, cost, turns (Claude only), and counts of tool calls, edit calls, failed calls, and
 denials. It holds no prompt, output, or path. `remove` keeps the file, so the runs of a removed
@@ -142,7 +146,8 @@ input.
 Each line also names the harness the run started with, as `harness: { repo, desk, head }`. `repo`
 is a sha256 over what the agent reads in its checkout: `AGENTS.md`, `CLAUDE.md`, `.ai/review.md`,
 `.ai/permissions.json`, `.ai/agents/*.md`, and the installed `.agents/skills/*/SKILL.md`. `desk`
-is a sha256 over the desk's role file and `rules.md` for that role. `head` is the checkout's
+is a sha256 over the desk's role file and `rules.md` for that role; for a flow agent it also
+covers the hash of the issue's flow snapshot, which holds the agent's prompt. `head` is the checkout's
 commit. The desk takes the fingerprint before the agent starts, so a builder that edits a skill
 does not change it. Lines written before the field existed read as `harness: null`.
 
@@ -217,6 +222,219 @@ macOS, with `terminal-notifier`:
 
 Linux: `{ "notifyCommand": "notify-send 'Desk #{issue}' '{message}'" }`.
 
+## Agents and flows
+
+An **agent** and a **flow** are data, not code. An agent file says what one agent run is: its
+provider, its output kind, its tool set, and its prompt. A flow file lists the steps that an
+issue goes through, in order. The engine runs every flow with one interpreter. See
+[ADR 0012](../adr/0012-configurable-flows-and-agents.md).
+
+### Sources
+
+The desk reads definitions from three sources. A later source overrides an earlier one by id.
+
+| Source   | Files                                                             | Who changes them                                    |
+| -------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| built-in | `tooling/desk/defaults/agents/<id>.md`, `.../flows/<id>.yaml`     | Nobody at run time. They change only with the desk. |
+| repo     | `.desk/agents/<id>.md`, `.desk/flows/<id>.yaml`                   | The team, through a reviewed commit.                |
+| local    | `.ai.local/desk/agents/<id>.md`, `.ai.local/desk/flows/<id>.yaml` | You only. The folder is gitignored.                 |
+
+- The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
+  `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
+- The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
+  the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".
+- The file name is the id. An id matches `^[a-z0-9][a-z0-9-]{0,63}$`.
+- A file that does not parse or validate takes part in nothing. The Agents and Flows pages
+  list it with its errors. A broken local override does not hide the definition below it.
+
+### Agent files
+
+An agent file is Markdown with YAML frontmatter. The body is the prompt. The agent gets it as
+its role prompt.
+
+```markdown
+---
+id: release-notes
+name: Release notes
+description: Writes release notes for the change.
+provider: claude
+output: report
+capabilities:
+  preset: read-only
+  mcp: [serena]
+  skills: [kaine-explain]
+timeoutMinutes: 20
+---
+
+Read the plan and the diff. Write the release notes.
+```
+
+- `provider` is `claude` or `codex`. `model` is optional. Without it, the CLI uses its default
+  model. For a built-in id, `providers` and `models` of the desk config decide.
+- `timeoutMinutes` is optional. Without it, the desk uses its default.
+- `capabilities.mcp` names servers of `.ai/mcp.json`. `capabilities.skills` names skills of
+  `.ai/skills/`. A run does not get a name that the checkout does not have. The run records the
+  removal with the reason `not installed`. It does not fail.
+- A skill name must start with `kaine-`. Setup and the prompt builder refuse any other name, so
+  an agent that names one stops its issue at setup. A custom skill reaches an agent only with a
+  `kaine-` name in `.ai/skills/`.
+
+### Output kinds
+
+The output kind says what a run produces. It selects the result schema and the step handler.
+
+| Output   | What the run does                                              | What it means for the flow                                                                    |
+| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | A gate right after it is the plan approval. A flow that ships needs a plan agent before ship. |
+| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                     |
+| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.      |
+| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it.                                                             |
+| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                      |
+
+### Capabilities
+
+The preset is the tool set of a run:
+
+- `read-only`: the read tools, read-only git, and the read tools of its MCP servers.
+- `run-checks`: `read-only`, plus the exact `test`, `typecheck`, and `lint` commands of the
+  workspaces that the plan names, and one vitest file. It cannot edit.
+- `edit-code`: `run-checks`, plus Edit, Write, `pnpm generate`, and the Serena edits. Only a
+  `change` agent can use it, and a `change` agent must use it.
+
+One resolver (`src/agents/capabilities.resolve.ts`) turns the preset, the servers, and the
+skills into the **capability profile** of a run. These rules always hold:
+
+- The **policy floor** always applies. An agent can only narrow it. The floor is the
+  `.ai/permissions.json` denies, the forbidden git and desk commands, WebFetch and WebSearch,
+  the Serena tools that write memory or run commands, the protected paths, and every skill
+  outside the agent's list. The floor also removes five skills whose procedure needs a denied
+  command: `kaine-open-pr`, `kaine-rebase`, `kaine-release-apps`, `kaine-sync-docs`, and
+  `kaine-triage-deps`.
+- An agent that edits code always runs in the configured isolation. With Docker isolation it
+  runs in a container, and the container loads no MCP server. Every other preset runs on the
+  host.
+- Codex gets no rule lists and no MCP server. Its sandbox is the whole policy
+  (`Codex: sandbox only, no MCP`): `read-only`, or `workspace-write` for an `edit-code` agent.
+  A Codex `change` agent stays disabled on the host.
+- The profile lists each thing the agent asked for and does not get, with the reason: for
+  example `policy floor: ...`, `not installed`, or `no MCP inside the container`.
+
+Each run records its **capability receipt**: the profile it started with, as `capabilities` in
+its `runs.jsonl` line. The stage side sheet shows it. Setup installs into the issue worktree the
+MCP servers and skills that the agents of the flow ask for and the checkout has.
+
+### Flow files
+
+A flow file is YAML with `id`, `name`, `description`, and `steps` (one or more).
+
+```yaml
+id: docs-only
+name: Docs only
+description: Plan, change the docs, check, and ship a draft PR.
+steps:
+  - { id: plan, kind: agent, label: Plan, agent: planner }
+  - { id: approve, kind: gate, label: Approve the plan, sendBack: [plan] }
+  - { id: write, kind: agent, label: Write, agent: builder }
+  - id: verify
+    kind: check
+    label: Check
+    commands: [[pnpm, format:check]]
+    loopBack: { to: write, limit: 2, stopOnSameFailure: true }
+  - { id: final, kind: gate, label: Approve the change, sendBack: [write] }
+  - { id: ship, kind: ship, label: Ship, auto: false }
+  - { id: pr, kind: pr-wait, label: Pull request open, maxRounds: 2, backTo: write }
+```
+
+Every step has `id`, `kind`, `label`, and an optional `loopBack`.
+
+| Kind      | Fields                    | What happens                                                                                       |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `agent`   | `agent`                   | The agent with that id runs. Its output kind selects the handler.                                  |
+| `gate`    | `sendBack` (default `[]`) | You decide. Approve goes forward. Feedback sends the work to one of the `sendBack` steps.          |
+| `check`   | `commands`                | `loop` or `ship` (the `checks.loop` or `checks.ship` set of the config), or a list of argv arrays. |
+| `ship`    | `auto` (default `false`)  | The engine commits, pushes, and opens the draft PR. See "Ship".                                    |
+| `pr-wait` | `maxRounds`, `backTo`     | The draft PR is open. PR feedback sends the work to `backTo`, at most `maxRounds` times.           |
+
+- `loopBack: { to, limit, stopOnSameFailure? }` sends the work back to an earlier step by
+  itself when the step does not pass: a failed check, or a review that asks for changes.
+  `limit` is the budget. `stopOnSameFailure` stops at once when the same check failure repeats.
+  At the limit, or without a `loopBack`, the issue goes to `needs-you`. Your input (an approval,
+  feedback, or `continue`) resets every loop budget.
+- Your input never resets the PR rounds of `maxRounds`.
+- A flow is one path in order, with loop-backs. Two steps never run at the same time.
+- The desk creates the worktree (`setup`) before the first step. `setup` is not a step.
+  `intake`, `needs-you`, `shipped`, and `cancelled` stay engine states.
+- The built-in `kaine-default` flow takes its limits from the config (`maxTestLoops`,
+  `maxReviewLoops`, `maxPrRounds`). Every other flow carries its own.
+
+### Validation
+
+`validateFlow` (`src/contracts/flow-definition.validate.ts`) runs in the engine and in the
+browser. Every rule reports. Nothing stops at the first error.
+
+- The flow id and each step id are valid ids. A step id is used once and is not an engine state.
+- `loopBack.to`, `sendBack`, and `backTo` name an earlier step. `loopBack.limit` is 1 or more.
+- An agent step names an agent that exists. An intake agent cannot be a step.
+- A `pr-wait` step comes directly after the ship step.
+- A flow has at least one agent step and at most one ship step.
+- The ship step has a plan agent step before it. Ship writes the PR summary and the changeset
+  from `plan.json`.
+- The ship step comes after a check step that follows the last change agent.
+
+A save, and every start, adds one rule: a ship step that is not `auto` comes directly after a
+gate, where you confirm it. `validateAgent` checks the id and the preset: a `change` agent needs
+`edit-code`, and only a `change` agent can use it.
+
+### Choose a flow
+
+`start` picks the flow of a new issue in this order:
+
+1. `start --flow ID`, `flowId` in the API, or the flow that you select in the Start dialog.
+2. The flow of the first issue label that `flowLabels` lists.
+3. `defaultFlow` of the config (default `kaine-default`).
+
+An unknown flow, or a flow that does not validate, refuses the start and keeps no state.
+`GET /api/flows` names the configured default as `defaultFlow`.
+
+### Flow snapshots
+
+At Start the desk freezes the flow and every agent that it names into a **flow snapshot**, with
+a sha256 hash. The snapshot goes into the issue state, and the issue runs on it until the end. A
+later edit of a definition file reaches only the issues that start after the edit. The issue
+header shows the flow name and the short hash. The `desk` part of the harness fingerprint
+includes the snapshot hash, so `stats --by-harness` shows a changed prompt.
+
+### Save, promote, and delete
+
+- **Save** writes a local file in `.ai.local/desk/`. A local file can take a built-in or repo
+  id. It then overrides that definition for you only. The server validates first, and it writes
+  nothing when a rule fails.
+- **Clone** copies any definition to a new local id.
+- **Promote** copies a local file to `.desk/agents/` or `.desk/flows/` and deletes the local
+  copy. It asks first, and again before it overwrites a repo file. The desk never stages or
+  commits the file. Review it and commit it like code.
+- **Delete** removes a local file only. The desk cannot delete a built-in or repo definition. It
+  refuses to delete an agent that a flow uses, and it names those flows.
+
+The routes are in [agent-desk-api.md](agent-desk-api.md) ("Agents and flows").
+
+### Ship authorization
+
+A ship needs your approval at a gate of the flow. In the default flow, that is the plan approval
+at `plan-gate`. An approval at any gate counts, except at the gate right before the ship. In a
+flow whose only gate is the gate before the ship, your confirmation there is the approval.
+
+An automatic ship (`auto: true`) needs no approval and no confirmation. It opens a draft PR only,
+and every technical guard of the ship gate still applies (see "Automatic ship"). You merge every
+PR.
+
+### State version 2
+
+`state.json` has `schemaVersion: 2`. It holds the flow snapshot, the loop counts by step id, and
+the agent sessions by agent id. The desk reads a version 1 file and migrates it onto the built-in
+`kaine-default` flow. The old stage names are its step ids, so the old counters and sessions
+keep their meaning. The next normal write stores version 2.
+
 ## Pipeline engine
 
 `createPipelineRunner(deps)` in `src/engine/pipeline.runner.ts` drives an issue. Every
@@ -225,19 +443,19 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 `state.json`, appends to `events.jsonl`, sets labels and the status comment, and calls
 `notify` at a gate or a stop.
 
-| Call                                  | What it does                                                                           |
-| ------------------------------------- | -------------------------------------------------------------------------------------- |
-| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.                 |
-| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                       |
-| `approvePlan(n)`                      | At `plan-gate`: rename the branch if the planner chose another name, then drive.       |
-| `feedback(n, target, text)`           | Send feedback to `plan`, `build`, or `review`. Loop budgets reset. Then drive.         |
-| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.               |
-| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                             |
-| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.      |
-| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                         |
-| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".      |
-| `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR". |
-| `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".          |
+| Call                                  | What it does                                                                                                           |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.                                                 |
+| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                                                       |
+| `approvePlan(n)`                      | At a gate: approve, then drive. At a gate after a plan step, also rename the branch if the planner chose another name. |
+| `feedback(n, target, text)`           | Send feedback to a step of the flow (from a gate, one of its `sendBack` steps). Then drive.                            |
+| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.                                               |
+| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                                                             |
+| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.                                      |
+| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                                                         |
+| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".                                      |
+| `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
+| `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
 
 Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
@@ -245,6 +463,10 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 `dry-run` with the ship plan.
 
 ### Stages
+
+The table shows the stages of the built-in `kaine-default` flow. Another flow has its own steps
+(see "Flow files"). `intake`, `setup`, `needs-you`, `shipped`, and `cancelled` are the same in
+every flow.
 
 | Stage       | Who      | What happens                                                                                                                                                                              |
 | ----------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -263,7 +485,8 @@ message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
 
 A check failure goes back to `build` up to `maxTestLoops` times. The same failure twice in
 a row stops early. A review with blocking findings goes back to `build` up to
-`maxReviewLoops` times. After the limit the issue goes to `needs-you`.
+`maxReviewLoops` times. After the limit the issue goes to `needs-you`. In another flow, each
+step's `loopBack` sets these limits.
 
 ### Invariants
 
@@ -274,10 +497,10 @@ agent stage it checks these rules, whether the run succeeded or not:
   exception: another local branch that moved to the commit of its remote-tracking branch. An IDE
   or Git client that fast-forwards every branch in the background does this. The run's own
   branch has no exception.
-- A read-only role (planner, reviewer) leaves the worktree diff hash unchanged.
+- A read-only agent (every output kind except `change`) leaves the worktree diff hash unchanged.
 - The run shows its skill evidence: a `Skill` call, or a read of `SKILL.md`.
 - No forbidden command, no permission denial, no claimed check that did not run.
-- The builder changed only files that the plan lists (or generated GraphQL output),
+- A change agent changed only files that the plan lists (or generated GraphQL output),
   and no protected path.
 - The result passes the contract schema. The runner parses it, and the engine parses it again.
 
@@ -449,7 +672,7 @@ These facts come from real runs (claude 2.1.282, codex-cli 0.147.0).
   names only read-only git subcommands. A narrow allowlist denied those forms. Deny rules
   stay as a second layer. The HEAD and ref check is the layer that cannot be bypassed.
 - An allow rule does not restrict the `Skill` tool. Only a deny rule does. The desk
-  denies every skill outside the role list by name.
+  denies every skill outside the agent's list by name.
 - Under `dontAsk`, mutating shell commands and writes are denied unless allowed. Read-only
   shell commands such as `echo` run anyway. `--allowedTools` is not a strict list.
 - The bare `Read` tool reads any absolute path. A `Read` of a file in the desk state
@@ -482,8 +705,9 @@ These facts come from real runs (claude 2.1.282, codex-cli 0.147.0).
 
 Under `<state>/issues/<n>/artifacts/`: `ticket.md`, `issue.json`, `plan.json`, `plan.md`,
 `feedback.md`, `build.json`, `check-report.json`, `diff.patch`, `review.json`
-(the review and the findings the engine rejected), `agent-<role>.json` (session, usage,
-denials, tool calls), `receipts-<role>.jsonl`, and `run-settings-<role>.json`.
+(the review and the findings the engine rejected), `report-<agent>.json` for a report agent,
+`agent-<agent>.json` (session, usage, denials, tool calls), `receipts-<agent>.jsonl`, and
+`run-settings-<agent>.json`. `<agent>` is the agent id; the intake draft uses its role name.
 A draft adds `issue-draft.json` and `intake-fit.json`. Ship adds `refs-baseline.json`,
 `ship-plan.json`, `pr-body.md`, `commit-message.txt`, `ship-record.json` (what the ship did so
 far), and `ship/check-report.json`. A PR feedback round adds `pr-feedback.json` and keeps the
@@ -712,7 +936,8 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Runs**.
+developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**, **Health**, and
+**Runs**.
 
 - **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
   - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
@@ -780,6 +1005,44 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
     duration, the agent cost, the outcome, and its log lines. Filters show the problems or the
     agent steps only. A link shows every raw event. The live **Log** has a local `<time>` per
     row. The card opens by itself when the issue runs, needs you, or is in intake.
+- **Flows.** The flows the desk can run an issue on (`GET /api/flows`).
+  - Each row has the name, the id, the source badge, "Overrides ..." when it overrides a lower
+    source, **Read-only** for a built-in flow, the number of problems, and **Default** for the
+    flow that `defaultFlow` of the config names. Below are the step kinds in order and the number of
+    active issues on the flow. **Open** opens the editor; **Clone** makes a local copy. Files
+    that do not load show at the top with their errors.
+  - **New flow** starts as a copy of the built-in flow, because an empty flow is not valid.
+  - The editor shows one draft in two forms: a list of the steps and a graph (React Flow). An
+    edit in one shows in the other at once. Each step in the list has the form of its kind: the
+    agent (intake agents are not listed), the `sendBack` steps, the command set or your own
+    commands (one per line; no shell runs them), the automatic ship box with its warning, the PR
+    rounds and `backTo`, and the loop back with its limit.
+  - The rules of "Validation" run as you type. Each problem shows under its step and on its
+    card. **Save** stays off while a rule fails, and its description says why. A refused save
+    puts each problem of the server under its step.
+  - Every graph action has a keyboard way. In the list, **Up**, **Down**, **Add a step after**,
+    and **Remove** buttons, and **Alt+↑** and **Alt+↓** move the step that you are in. On the
+    graph, **Enter** on a card edits the step in the list, **←** and **→** move it, and
+    **Delete** on an edge removes it. With a pointer you can drag a card sideways to move its
+    step, drag from the dot on top of a card to an earlier card to make a loop back, send-back,
+    or PR feedback edge, and drag a step kind from the palette onto the graph. A palette button
+    adds the step after the selected one.
+  - A built-in flow opens read-only with **Clone to edit**. A repository flow has **Edit
+    locally**; its save asks first, because it writes a local override. A local flow has
+    **Save**, **Promote…**, and **Delete…**. Promote asks first and names the file; after it, the
+    page says the file is uncommitted. **Start an issue on this flow…** opens the Start dialog
+    with the flow selected. Leaving with unsaved changes asks first.
+- **Agents.** The agents the desk can run (`GET /api/agents`).
+  - A search (name, id, or description) and filters by source and by output narrow the list.
+    Each row has the name, the id, the output, the provider, the source badges, the tool set,
+    and the number of MCP servers and skills it asks for. **Open** and **Clone** work as on
+    Flows. **New agent** opens an empty editor.
+  - The editor has the fields of "Agent files" and the prompt. A tool set that the output does
+    not allow is off, with the reason. A server or skill that the checkout does not have says
+    "Not installed". **What a run gets** shows the profile that the server resolved with the
+    config of the desk now; before a save it shows only what the agent asks for.
+  - Clone, Edit locally, Save, Promote, and Delete work as on Flows. Delete refuses an agent
+    that a flow uses and lists those flows.
 - **Health.** The doctor report.
   - A summary chip (Ready or Problems found), the time of the check, and **Setup X of Y ready**
     with a progress bar. While errors remain, a line says to fix them first: they stop a run.
@@ -817,13 +1080,14 @@ developer tooling. It has four views: **Board**, **Issue**, **Health**, and **Ru
 
 The shell is the same on every view.
 
-- The top bar is one row at every width: the brand mark, the **Board**, **Health**, and **Runs**
+- The top bar is one row at every width: the brand mark, the **Board**, **Flows**, **Agents**,
+  **Health**, and **Runs**
   pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
   and a preferences menu. A banner shows while the connection is lost.
 - **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
   **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
-  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **H**, or **R**
-  goes to Board, Health, or Runs. A single-key shortcut does nothing while you type or while a
+  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**, **H**, or **R**
+  goes to Board, Flows, Agents, Health, or Runs. A single-key shortcut does nothing while you type or while a
   dialog or a menu is open.
 - Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
   sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
@@ -1019,9 +1283,9 @@ every command. The `elevated` sandbox cannot read the worktree or `.git` (codex-
 
 - The first run of an issue is slow: the import, then fetch and install of all dependencies. On
   macOS the volumes live in the Docker VM, and installs and tests are slower than on the host.
-- No MCP server in a container: it needs a network or a host tool. Setup installs Serena and
-  Context7 into the issue worktree, so host runs (the planner and the reviewer in both modes)
-  can use them. The Docker builder stays offline on purpose (see "Threat model") and reads the
+- No MCP server in a container: it needs a network or a host tool. Setup installs the MCP
+  servers that the flow's agents ask for (Serena and Context7 in the default flow) into the issue
+  worktree, so host runs (the planner and the reviewer in both modes) can use them. The Docker builder stays offline on purpose (see "Threat model") and reads the
   installed package types in `node_modules` for library APIs.
 - A Codex role gets no MCP server, on the host too: run with the desk's flags
   (`--ignore-user-config`), Codex lists none, although the worktree `.codex/config.toml` lists

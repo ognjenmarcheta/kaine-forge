@@ -38,7 +38,7 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   agents: unexpected("agents"),
   agent: unexpected("agent"),
   // The Start dialog lists the flows. Most tests want none.
-  flows: () => Promise.resolve({ flows: [], problems: [] }),
+  flows: () => Promise.resolve({ flows: [], problems: [], defaultFlow: "kaine-default" }),
   flow: unexpected("flow"),
   saveAgent: unexpected("saveAgent"),
   saveFlow: unexpected("saveFlow"),

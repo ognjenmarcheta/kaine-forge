@@ -22,7 +22,6 @@ import { CloneDialog } from "../agents/agents.clone-dialog";
 import { DefinitionBadges, DefinitionProblems } from "../agents/agents.view";
 import { toApiError, type DeskApiError } from "../api/api.client";
 import { StartDialog } from "../board/board.start-dialog";
-import { BUILTIN_FLOW_ID } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
 import { RouteLink, useLeaveGuard, useRouter } from "../shell/shell.router";
 import { FailureText, LoadingLines, Pre } from "../shell/shell.ui";
@@ -39,12 +38,15 @@ type Dialog = "override" | "promote" | "overwrite" | "delete" | null;
 function EditorBody({
   view,
   flows,
+  isDefault,
   agents,
   reload,
   onPromoted
 }: {
   readonly view: FlowView;
   readonly flows: readonly FlowView[];
+  /** The desk config's `defaultFlow` names this flow. */
+  readonly isDefault: boolean;
   readonly agents: readonly AgentView[];
   readonly reload: () => void;
   readonly onPromoted: (path: string) => void;
@@ -197,9 +199,7 @@ function EditorBody({
           <p className="desk-editor__facts">
             <code className="desk-agent__id">{flowId}</code>
             <DefinitionBadges view={view} />
-            {flowId === BUILTIN_FLOW_ID && (
-              <Badge appearance="information">{t("desk.flows.default")}</Badge>
-            )}
+            {isDefault && <Badge appearance="information">{t("desk.flows.default")}</Badge>}
           </p>
         </div>
         <div className="desk-editor__actions">
@@ -465,6 +465,7 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
         key={`${view.source}-${view.hash}`}
         view={view}
         flows={flows}
+        isDefault={flowId === state.flows.defaultFlow}
         agents={state.agents.agents}
         reload={reload}
         onPromoted={setPromoted}
