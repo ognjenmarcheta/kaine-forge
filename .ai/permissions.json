@@ -78,6 +78,68 @@
       "command": "gh pr review",
       "flag": "--approve",
       "reason": "The repository owner reviews and approves contributions. Agents must not approve on the owner's behalf."
+    },
+    {
+      "id": "but-land",
+      "decision": "deny",
+      "command": "but land",
+      "reason": "Lands a GitButler branch on the target without a pull request. Only the repository owner merges into main.",
+      "instead": "but pr new <branch> --draft"
+    },
+    {
+      "id": "but-pr-auto-merge",
+      "decision": "deny",
+      "command": "but pr auto-merge",
+      "reason": "Only the repository owner merges manually. Agents must not enable automatic merging."
+    },
+    {
+      "id": "but-no-verify",
+      "decision": "deny",
+      "command": "but",
+      "flag": "--no-verify",
+      "reason": "Bypasses the pre-push hook, which is the only local commitlint and AI-attribution gate for GitButler commits. Fix the hook failure instead of skipping it."
+    },
+    {
+      "id": "but-no-hooks",
+      "decision": "deny",
+      "command": "but",
+      "flag": "--no-hooks",
+      "reason": "Same bypass as --no-verify under its GitButler name."
+    },
+    {
+      "id": "but-push-force",
+      "decision": "ask",
+      "command": "but push",
+      "flag": "--with-force",
+      "reason": "Force-pushes a GitButler branch that is not fast-forward. Destructive on a shared branch."
+    },
+    {
+      "id": "but-push-force-short",
+      "decision": "ask",
+      "command": "but push",
+      "flag": "-f",
+      "reason": "Short form of --with-force."
+    },
+    {
+      "id": "but-skip-force-push-protection",
+      "decision": "ask",
+      "command": "but",
+      "flag": "--skip-force-push-protection",
+      "reason": "Turns off GitButler's lease check, so a force push can overwrite commits someone else pushed."
+    },
+    {
+      "id": "but-push-skip-protection-short",
+      "decision": "ask",
+      "command": "but push",
+      "flag": "-s",
+      "reason": "Short form of --skip-force-push-protection."
+    },
+    {
+      "id": "but-pr-new-skip-protection-short",
+      "decision": "ask",
+      "command": "but pr new",
+      "flag": "-s",
+      "reason": "Short form of --skip-force-push-protection."
     }
   ]
 }

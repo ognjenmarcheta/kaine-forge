@@ -611,11 +611,16 @@ describe("renderClaudeSettings", () => {
     };
 
     expect(permissions.allow).toEqual(
-      expect.arrayContaining(["mcp__context7__query-docs", "mcp__serena__initial_instructions"])
+      expect.arrayContaining([
+        "mcp__context7__query-docs",
+        "mcp__serena__initial_instructions",
+        "mcp__gitbutler__gitbutler_workspace"
+      ])
     );
-    // Wildcards, whole servers, code execution, memory writes, and browser servers stay prompted.
+    // Wildcards, whole servers, code execution, memory writes, pull request changes, and
+    // browser servers stay prompted.
     const prompted =
-      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|^mcp__(?!context7__|serena__)/;
+      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|mark_review_ready|^mcp__(?!context7__|serena__|gitbutler__)/;
     expect(permissions.allow.filter((rule) => prompted.test(rule))).toEqual([]);
   });
 

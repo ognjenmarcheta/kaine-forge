@@ -18,6 +18,16 @@ Complete the requested stage; a branch-only request does not require a commit or
 
 Examples: `KAINE-287-fix-metro-image-size`, `KAINE-427-chore-clack-prompts`, `KAINE-docs-pr-ci-badge`.
 
+## GitButler workspace
+
+When `git branch --show-current` prints `gitbutler/workspace`, the checkout is in GitButler mode. Follow the `.ai/guide.md` GitButler rules and replace the git steps of this skill:
+
+1. Branch setup: do not run `git switch`. Choose the name with the same rule, validate it with `git check-ref-format --branch <branch>`, and let the first `but commit -b <branch>` create it. Use `but pull` to start from the latest `main`.
+2. Preflight: read `but status` instead of `git status`. Other sessions' branches can be applied in the same workspace; leave them alone.
+3. Commit: `but diff`, then `but commit -b <branch> -m "<message>" <ids>` with only this task's file or hunk IDs.
+4. Pull request: write the title (first line) and description to a file, then run `but pr new <branch> --draft -F <file>`. It pushes the branch. It runs the `pre-push` checks only when the GitButler project setting "Enable Husky hooks" is on, so first run `pnpm exec commitlint --from origin/main --to <branch>`. For a stack, name the top branch; GitButler opens the PRs from the bottom up with the right bases. Do not use `gh pr create` for a stacked branch.
+5. When the GitButler MCP server is installed, call `gitbutler_review_card` with the new PR numbers so the user sees the PR and CI state.
+
 ## Preflight
 
 1. Confirm the working tree scope with `git status --short`.
