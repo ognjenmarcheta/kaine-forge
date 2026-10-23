@@ -3,7 +3,8 @@
 //   heartbeat  host timer: mark repos with a Ready listener as self-hosted
 //   offline    host shutdown: route every managed repo back to hosted runners
 //   watchdog   hosted workflow: route repos with a stale heartbeat back to hosted
-//              runners and re-run the runs that wait for the self-hosted label
+//              runners and re-run the runs that wait for the self-hosted label;
+//              retry re-runs that failed after the cancel on the next run
 import { Buffer } from "node:buffer";
 import { execFileSync } from "node:child_process";
 import console from "node:console";
@@ -14,6 +15,7 @@ import { pathToFileURL } from "node:url";
 
 export const ROUTING_VARIABLE = "CI_SELF_HOSTED_LINUX";
 export const HEARTBEAT_VARIABLE = "CI_RUNNER_HEARTBEAT";
+export const PENDING_VARIABLE = "CI_RUNNER_RERUN_PENDING";
 export const RUNNER_LABEL = "kaine-ci-linux";
 const LISTENER_SELECTOR = "app.kubernetes.io/component=runner-scale-set-listener";
 
@@ -71,9 +73,11 @@ export function appJwt(appId, privateKey, nowSeconds) {
 }
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
+// Actions sets GITHUB_API_URL; the host units run without it.
+const apiUrl = process.env.GITHUB_API_URL || "https://api.github.com";
 
 async function github(token, method, path, body) {
-  const response = await fetch(`https://api.github.com${path}`, {
+  const response = await fetch(`${apiUrl}${path}`, {
     method,
     headers: {
       Accept: "application/vnd.github+json",
@@ -149,15 +153,51 @@ async function offline() {
   }
 }
 
+const runIds = (value) => (value ?? "").split(" ").filter((id) => /^\d+$/.test(id));
+
+async function savePending(token, repo, ids) {
+  if (ids.length > 0) await setVariable(token, repo, PENDING_VARIABLE, ids.join(" "));
+  else await github(token, "DELETE", `/repos/${repo}/actions/variables/${PENDING_VARIABLE}`);
+}
+
+/** Re-runs cancelled runs whose earlier re-run failed; returns the ids still failing. */
+async function retryPending(token, repo, ids) {
+  const failing = [];
+  for (const id of ids) {
+    try {
+      const run = await github(token, "GET", `/repos/${repo}/actions/runs/${id}`);
+      // Skip runs that are gone or that someone re-ran since.
+      if (run?.status !== "completed" || run.conclusion !== "cancelled") continue;
+      await github(token, "POST", `/repos/${repo}/actions/runs/${id}/rerun`);
+      console.log(`${repo}: re-ran ${run.html_url}`);
+    } catch (error) {
+      console.error(`::error::${repo}: run ${id}: ${error.message}`);
+      failing.push(id);
+    }
+  }
+  return failing;
+}
+
+/**
+ * Cancels and re-runs the runs that wait for the self-hosted label. A cancelled
+ * run no longer lists as queued, so the ids of those whose re-run failed are
+ * returned for the pending list; other failures are only counted.
+ */
 async function rerunOnHosted(token, repo) {
-  let failed = 0;
+  const result = { failed: 0, cancelled: [] };
   for (const status of ["queued", "in_progress"]) {
-    const { workflow_runs: runs } = await github(
-      token,
-      "GET",
-      `/repos/${repo}/actions/runs?status=${status}&per_page=100`
-    );
+    let runs;
+    try {
+      runs = (
+        await github(token, "GET", `/repos/${repo}/actions/runs?status=${status}&per_page=100`)
+      ).workflow_runs;
+    } catch (error) {
+      console.error(`::error::${repo}: ${error.message}`);
+      result.failed++;
+      continue;
+    }
     for (const run of runs) {
+      let cancelled = false;
       try {
         const { jobs } = await github(
           token,
@@ -166,24 +206,26 @@ async function rerunOnHosted(token, repo) {
         );
         if (!waitsForSelfHosted(jobs)) continue;
         await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/cancel`);
+        cancelled = true;
         for (let attempt = 0; attempt < 24; attempt++) {
-          await sleep(5_000);
           if (
             (await github(token, "GET", `/repos/${repo}/actions/runs/${run.id}`)).status ===
             "completed"
           ) {
             break;
           }
+          await sleep(5_000);
         }
         await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/rerun`);
         console.log(`${repo}: re-ran ${run.html_url}`);
       } catch (error) {
         console.error(`::error::${repo}: ${run.html_url}: ${error.message}`);
-        failed++;
+        if (cancelled) result.cancelled.push(String(run.id));
+        else result.failed++;
       }
     }
   }
-  if (failed > 0) throw new Error(`${failed} run(s) not re-run on hosted runners`);
+  return result;
 }
 
 async function watchdog() {
@@ -194,19 +236,25 @@ async function watchdog() {
   for (const { full_name: repo, archived } of repositories) {
     if (archived) continue;
     try {
+      const stored = runIds(await getVariable(token, repo, PENDING_VARIABLE));
+      const pending = await retryPending(token, repo, stored);
       const routing = await getVariable(token, repo, ROUTING_VARIABLE);
       const heartbeat = await getVariable(token, repo, HEARTBEAT_VARIABLE);
-      if (!needsFallback({ routing, heartbeat, nowSeconds: nowSeconds(), maxAgeHours })) continue;
-      await setVariable(token, repo, ROUTING_VARIABLE, "false");
-      console.log(`::warning::${repo}: no runner heartbeat for ${maxAgeHours} h, routed to hosted`);
-      try {
-        await rerunOnHosted(token, repo);
-      } catch (error) {
+      let failed = 0;
+      if (needsFallback({ routing, heartbeat, nowSeconds: nowSeconds(), maxAgeHours })) {
+        await setVariable(token, repo, ROUTING_VARIABLE, "false");
+        console.log(
+          `::warning::${repo}: no runner heartbeat for ${maxAgeHours} h, routed to hosted`
+        );
+        const moved = await rerunOnHosted(token, repo);
+        pending.push(...moved.cancelled);
+        failed = moved.failed;
         // Only a repo routed to self-hosted is eligible, so this makes the next
-        // watchdog run retry the runs still waiting for the label.
-        await setVariable(token, repo, ROUTING_VARIABLE, "true");
-        throw error;
+        // watchdog run retry the runs still queued for the label.
+        if (failed > 0) await setVariable(token, repo, ROUTING_VARIABLE, "true");
       }
+      if (pending.join(" ") !== stored.join(" ")) await savePending(token, repo, pending);
+      if (failed > 0 || pending.length > 0) process.exitCode = 1;
     } catch (error) {
       console.error(`::error::${repo}: ${error.message}`);
       process.exitCode = 1;

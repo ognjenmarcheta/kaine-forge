@@ -205,7 +205,10 @@ for you:
   runner): for every repository the App is installed on, a heartbeat older than
   `CI_RUNNER_FALLBACK_HOURS` (default `2`) sets `CI_SELF_HOSTED_LINUX=false`. The
   watchdog then cancels and re-runs the runs that wait for the `kaine-ci-linux`
-  label. It covers crashes, power cuts, and network loss.
+  label. It covers crashes, power cuts, and network loss. When a re-run fails
+  after its cancel, the watchdog stores the run ID in `CI_RUNNER_RERUN_PENDING`,
+  retries it on each later run, and deletes the variable when no ID is left. A
+  watchdog run with a failure or a pending ID fails, so GitHub notifies you.
 
 Enable the watchdog in exactly one repository that the App is installed on.
 Add the repository variables `CI_RUNNER_WATCHDOG=true` and
