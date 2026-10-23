@@ -26,3 +26,7 @@ Use this skill when updating a feature branch from `main`.
 7. Summarize conflicts, resolutions, and verification.
 
 Prefer non-interactive git commands where possible.
+
+## GitButler workspace
+
+When `git branch --show-current` prints `gitbutler/workspace`, do not run `git rebase`. Run `but pull` to rebase every applied branch onto the updated target. Use `but pull --check` first only when other sessions' branches may move. Resolve conflicted commits oldest first with `but resolve`; revert a wrong resolution with `but undo`. Then continue with steps 5–7.
