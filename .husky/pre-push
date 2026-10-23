@@ -1,12 +1,29 @@
 #!/usr/bin/env sh
 set -e
+# GitButler's `but commit` skips commit-msg, so lint every pushed commit here too.
+while read -r _ LOCAL_SHA _ REMOTE_SHA; do
+  case "$LOCAL_SHA" in *[!0]*) ;; *) continue ;; esac
+  case "$REMOTE_SHA" in
+    *[!0]*) git cat-file -e "$REMOTE_SHA" 2>/dev/null && FROM="$REMOTE_SHA" || FROM="" ;;
+    *) FROM="" ;;
+  esac
+  [ -n "$FROM" ] || FROM="$(git merge-base "$LOCAL_SHA" "refs/remotes/$1/main" 2>/dev/null || true)"
+  if [ -z "$FROM" ]; then PUSHED_FULL=1; continue; fi
+  pnpm exec commitlint --from "$FROM" --to "$LOCAL_SHA" </dev/null
+  # The oldest base across pushed refs scopes the typecheck when HEAD has no upstream.
+  PUSHED_BASE="$(git merge-base "${PUSHED_BASE:-$FROM}" "$FROM" 2>/dev/null || true)"
+  [ -n "$PUSHED_BASE" ] || PUSHED_FULL=1
+done
 pnpm ai:doctor -- --strict
 # Typecheck only packages changed since the remote tip (falls back to full typecheck).
+BASE=""
 if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
   BASE="$(git merge-base HEAD @{u} 2>/dev/null || true)"
-  if [ -n "$BASE" ] && [ "$BASE" != "$(git rev-parse HEAD)" ]; then
-    pnpm exec turbo run typecheck --filter="...[${BASE}]" --continue
-    exit 0
-  fi
+elif [ -z "$PUSHED_FULL" ]; then
+  BASE="$PUSHED_BASE"
+fi
+if [ -n "$BASE" ] && [ "$BASE" != "$(git rev-parse HEAD)" ]; then
+  pnpm exec turbo run typecheck --filter="...[${BASE}]" --continue
+  exit 0
 fi
 pnpm typecheck

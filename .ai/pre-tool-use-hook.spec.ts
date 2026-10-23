@@ -68,7 +68,11 @@ describe("permissions policy", () => {
       "release-apps",
       "git-no-verify",
       "gh-pr-merge",
-      "gh-pr-approve"
+      "gh-pr-approve",
+      "but-land",
+      "but-pr-auto-merge",
+      "but-no-verify",
+      "but-no-hooks"
     ]);
   });
 
@@ -76,7 +80,12 @@ describe("permissions policy", () => {
     "gh pr merge 123",
     "gh pr merge 123 --auto",
     "gh pr merge 123 --admin",
-    "gh pr review 123 --approve"
+    "gh pr review 123 --approve",
+    "but land KAINE-1-feat-x --yes",
+    "but --json land KAINE-1-feat-x",
+    "but -C . --status-after land KAINE-1-feat-x",
+    "but --current-dir=. land KAINE-1-feat-x",
+    "but pr auto-merge 123"
   ])("blocks agent merging through %s", (command) => {
     expect(matchGuardedCommand(command, rules)?.decision).toBe("deny");
     expect(runHook(command).status).toBe(2);
@@ -111,7 +120,11 @@ describe("matchGuardedCommand", () => {
     "git commit -- --no-verify",
     "git -C . push --force-with-lease",
     "pnpm --filter @repo/db run db:push:local",
-    "pnpm --dir . db:prepare:local"
+    "pnpm --dir . db:prepare:local",
+    'but commit -b KAINE-1-feat-x -m "--no-verify" ab:1',
+    'but pr new KAINE-1-feat-x --draft -m "--no-hooks"',
+    "but push KAINE-1-feat-x",
+    "but branch new -s KAINE-1-feat-x"
   ])("allows argument data and safe variants: %s", (command) => {
     expect(matchGuardedCommand(command, rules)).toBeNull();
   });
@@ -123,6 +136,15 @@ describe("matchGuardedCommand", () => {
     'echo "example | pnpm test" && git commit --no-verify'
   ])("detects actual flags after quoted data: %s", (command) => {
     expect(matchGuardedCommand(command, rules)?.id).toBe("git-no-verify");
+  });
+
+  it.each([
+    ["but push KAINE-1-feat-x --no-verify", "but-no-verify"],
+    ['but pr new KAINE-1-feat-x -m "title" --no-hooks', "but-no-hooks"],
+    ["but -C . push KAINE-1-feat-x -f", "but-push-force-short"],
+    ["but pr new KAINE-1-feat-x -s", "but-pr-new-skip-protection-short"]
+  ])("guards GitButler hook and force-push bypasses: %s", (command, id) => {
+    expect(matchGuardedCommand(command, rules)?.id).toBe(id);
   });
 
   it("retains actual review approval after a quoted review body", () => {

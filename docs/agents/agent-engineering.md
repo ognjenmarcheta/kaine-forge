@@ -60,6 +60,7 @@ in repository-owned hook launch definitions. Updates follow the existing
 | filesystem      | `@modelcontextprotocol/server-filesystem@2026.8.31` | opt-in  | not probed                 |
 | firecrawl       | `firecrawl-mcp@3.25.5`                              | opt-in  | not probed                 |
 | graphify        | local `graphify-mcp` executable                     | opt-in  | not probed                 |
+| gitbutler       | local `but` executable (`but mcp serve`)            | opt-in  | initialization passed      |
 
 Every `npx` launch starts with `--prefix=.ai`, and `validateMcpPins` enforces it. From the
 repository root, `npx` first scans the pnpm `node_modules` tree for a local copy. On Windows
@@ -91,6 +92,23 @@ and names the main checkout to reinstall.
 The generated `.claude/settings.json` allows the read-only Context7 tools and Serena's
 read-only tools without a prompt. `serena_repl`, Serena edit and memory-write tools, and
 all browser tools stay prompted.
+
+### GitButler MCP
+
+GitButler's server (`but mcp serve`, probed with `but` 0.22.3 on 2026-10-23) lists six tools.
+The model sees two: `gitbutler_workspace` (stacks, branches, and commits) and
+`gitbutler_review_card` (pull request and CI state). The other four are app-only: the server's
+MCP App views call them, and a headless Claude Code run on 2026-10-23 could not see them.
+Five tools are read-only, and the generated `.claude/settings.json` allows them without a
+prompt. `gitbutler_mark_review_ready` turns a draft pull request ready, so it stays prompted.
+
+The server has no commit, push, merge, or land tool. Every GitButler write runs through the
+`but` CLI in a shell, where the guarded-command hooks apply: `but land` and
+`but pr auto-merge` are denied, `--no-verify` and `--no-hooks` are denied, and force-push
+flags ask. That is the difference from GitHub MCP below. The server is opt-in because it
+needs the `but` executable, and the Agent Desk does not list it in any capability profile,
+because the desk grants non-Serena servers wholesale. See
+[ADR 0013](../adr/0013-gitbutler-recommended-vcs-client.md).
 
 ### MCP servers not adopted
 
