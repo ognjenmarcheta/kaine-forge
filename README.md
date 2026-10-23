@@ -174,4 +174,4 @@ Each top-level `Dockerfile.<app>` is a deployable app: `Dockerfile.api` and `Doc
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+Apache-2.0 — see [`LICENSE`](LICENSE). This project is based on a template by [Byteforge](https://byteforge.software). Keep the [`NOTICE`](NOTICE) file in every copy and derived work that you distribute.
