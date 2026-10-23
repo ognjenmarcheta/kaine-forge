@@ -137,8 +137,15 @@ requirement.
 - Runner pods cannot reach the host or the LAN (NetworkPolicy). They reach the
   internet, cluster DNS, and an in-cluster Docker Hub pull-through cache.
 - k3s keeps 4 CPUs and 10 GiB for the desktop (`k3s-config.yaml`). Each runner
-  pod requests 2 CPUs and 4 GiB. Pods beyond the free capacity wait as `Pending`,
-  so this caps parallel jobs across all repositories.
+  pod requests 1 CPU and 2 GiB; jobs mostly wait on the network, and memory
+  limits stay high. Pods beyond the free capacity wait as `Pending`, so this caps
+  parallel jobs across all repositories (about 8 on a 32 GiB machine).
+- Runner pods share a persistent pnpm store on the host
+  (`/var/lib/ci-runners/pnpm-store`, set through `npm_config_store_dir`). The
+  setup action then skips the GitHub pnpm cache, so jobs install from local disk
+  instead of downloading and saving about 1 GB per job. The store is shared and
+  writable across jobs and repositories, which is acceptable only with trusted
+  contributors. It grows over time; delete the directory to reset it.
 - Privileged DinD is root-equivalent on the host. Use it only for private
   repositories with trusted contributors. The routing expression keeps fork PRs
   on hosted runners.
@@ -179,7 +186,7 @@ requirement.
    ```
 
 4. Run `tooling/ci-runners/ci-runners.sh add-repo <owner>/<repo> [max-runners]`
-   for each repository (default 4 runners). The scale set appears under
+   for each repository (default 8 runners). The scale set appears under
    **Settings → Actions → Runners**. The heartbeat then sets
    `CI_SELF_HOSTED_LINUX=true` on that repository.
 5. To remove a repository, run `helm uninstall <repo> --namespace arc-runners`
