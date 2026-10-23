@@ -8,8 +8,6 @@ import { Buffer } from "node:buffer";
 import { execFileSync } from "node:child_process";
 import console from "node:console";
 import { createSign } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -17,7 +15,6 @@ import { pathToFileURL } from "node:url";
 export const ROUTING_VARIABLE = "CI_SELF_HOSTED_LINUX";
 export const HEARTBEAT_VARIABLE = "CI_RUNNER_HEARTBEAT";
 export const RUNNER_LABEL = "kaine-ci-linux";
-const STATE_FILE = "/var/lib/ci-runners/repos.json";
 const LISTENER_SELECTOR = "app.kubernetes.io/component=runner-scale-set-listener";
 
 /** `owner/name` from a scale set's repository githubConfigUrl. */
@@ -110,6 +107,9 @@ function kubectlJson(args) {
   return JSON.parse(execFileSync("kubectl", [...args, "-o", "json"], { encoding: "utf8" }));
 }
 
+const runnerSets = () =>
+  kubectlJson(["get", "autoscalingrunnersets.actions.github.com", "-n", "arc-runners"]);
+
 /** Installation token from the same App secret ARC uses, so no second key copy exists. */
 async function hostInstallationToken() {
   const { data } = kubectlJson(["get", "secret", "arc-github-app", "-n", "arc-runners"]);
@@ -120,15 +120,10 @@ async function hostInstallationToken() {
 }
 
 async function heartbeat() {
-  const runnerSets = kubectlJson([
-    "get",
-    "autoscalingrunnersets.actions.github.com",
-    "-n",
-    "arc-runners"
-  ]);
-  mkdirSync(dirname(STATE_FILE), { recursive: true });
-  writeFileSync(STATE_FILE, JSON.stringify(managedRepos(runnerSets)));
-  const repos = readyRepos(runnerSets, kubectlJson(["get", "pods", "-A", "-l", LISTENER_SELECTOR]));
+  const repos = readyRepos(
+    runnerSets(),
+    kubectlJson(["get", "pods", "-A", "-l", LISTENER_SELECTOR])
+  );
   if (repos.length === 0) return;
   const token = await hostInstallationToken();
   const now = String(nowSeconds());
@@ -140,7 +135,7 @@ async function heartbeat() {
 }
 
 async function offline() {
-  const repos = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const repos = managedRepos(runnerSets());
   if (repos.length === 0) return;
   const token = await hostInstallationToken();
   for (const repo of repos) {
