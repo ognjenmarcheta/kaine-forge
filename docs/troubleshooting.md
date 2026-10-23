@@ -141,6 +141,20 @@ pnpm ai:doctor
 
 Edit only canonical sources under `.ai/`, never generated agent outputs by hand. See `docs/agents/day-one.md`.
 
+### GitButler: commits skip hooks, or `git commit` fails on `gitbutler/workspace`
+
+**Symptom:** `git commit` prints `GITBUTLER_ERROR: Cannot commit directly to gitbutler/workspace branch`. Or a bad commit message passes `but commit` and `but push` and fails later in CI.
+
+**Cause:** GitButler manages the workspace branch. `but setup` wraps the husky `pre-commit` and `post-checkout` stubs in `.husky/_` to block plain `git commit` there. `but commit` does not run the `pre-commit` or `commit-msg` hooks. `pnpm install` regenerates `.husky/_` through husky's `prepare` script and can remove the GitButler wrapper.
+
+**Fix:**
+
+- Commit with `but commit -b <branch> -m "<message>"` while on `gitbutler/workspace`.
+- Turn on "Enable Husky hooks" in the GitButler project settings (Git hooks). It is off by default, and without it GitButler skips every hook under `.husky`, so `but push` and `but pr new` run no `pre-push` checks.
+- Push with `but push` or `but pr new`. With the setting on, they run the `pre-push` hook, which runs commitlint (including the no-AI-co-author rule) on every pushed commit. Do not pass `--no-verify` or `--no-hooks`.
+- If `pnpm install` removed the wrapper, run `but setup` again to restore the workspace guard.
+- To leave GitButler mode, run `but teardown`.
+
 ## Ports reference (defaults)
 
 | Service  | Default host port | Notes                          |

@@ -18,11 +18,20 @@
       "Bash(pnpm release:apps)",
       "Bash(pnpm release:apps *)",
       "Bash(gh pr merge)",
-      "Bash(gh pr merge *)"
+      "Bash(gh pr merge *)",
+      "Bash(but land)",
+      "Bash(but land *)",
+      "Bash(but pr auto-merge)",
+      "Bash(but pr auto-merge *)"
     ],
     "allow": [
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
+      "mcp__gitbutler__gitbutler_workspace",
+      "mcp__gitbutler__gitbutler_branch_details",
+      "mcp__gitbutler__gitbutler_commit_details",
+      "mcp__gitbutler__gitbutler_review_card",
+      "mcp__gitbutler__gitbutler_refresh_reviews",
       "mcp__serena__initial_instructions",
       "mcp__serena__find_symbol",
       "mcp__serena__find_referencing_symbols",
