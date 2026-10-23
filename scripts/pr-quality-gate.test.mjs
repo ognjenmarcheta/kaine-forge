@@ -376,6 +376,34 @@ ${check.run}`
   });
 });
 
+describe("Self-hosted Docker builds", () => {
+  const job = parse(readFileSync(".github/workflows/ci-pr.yml", "utf8")).jobs["docker-images"];
+  const detect = job.steps.find((step) => step.id === "buildkit");
+  const buildx = job.steps.find((step) => step.uses?.startsWith("docker/setup-buildx-action@"));
+  const build = job.steps.find((step) => step.uses?.startsWith("docker/build-push-action@"));
+  function evaluate(expression, endpoint) {
+    assert.ok(expression.startsWith("${{") && expression.endsWith("}}"));
+    const { tokens } = new Lexer(expression.slice(3, -2)).lex();
+    const parsed = new Parser(tokens, ["steps", "matrix"], []).parse();
+    const context = { steps: { buildkit: { outputs: { endpoint } } }, matrix: { app: "api" } };
+    return new Evaluator(parsed, JSON.parse(JSON.stringify(context), data.reviver))
+      .evaluate()
+      .coerceString();
+  }
+
+  it("builds on the shared BuildKit daemon only when the runner provides one", () => {
+    assert.equal(detect.run, 'echo "endpoint=${BUILDKIT_HOST:-}" >> "$GITHUB_OUTPUT"');
+    const endpoint = "tcp://buildkitd.arc-runners.svc.cluster.local:1234";
+    assert.equal(evaluate(buildx.with.driver, endpoint), "remote");
+    assert.equal(evaluate(buildx.with.endpoint, endpoint), endpoint);
+    assert.equal(evaluate(build.with["cache-from"], endpoint), "");
+    assert.equal(evaluate(build.with["cache-to"], endpoint), "");
+    assert.equal(evaluate(buildx.with.driver, ""), "docker-container");
+    assert.equal(evaluate(build.with["cache-from"], ""), "type=gha,scope=api");
+    assert.equal(evaluate(build.with["cache-to"], ""), "type=gha,mode=max,scope=api");
+  });
+});
+
 describe("Hand-kept alignments", () => {
   const ciPr = parse(readFileSync(".github/workflows/ci-pr.yml", "utf8"));
   const rootPackage = JSON.parse(readFileSync("package.json", "utf8"));
