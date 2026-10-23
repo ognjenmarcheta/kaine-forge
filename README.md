@@ -69,6 +69,7 @@ Other templates fit other shapes better:
 - pnpm `10.29.3`
 - Docker Desktop or compatible Docker runtime for Postgres, MinIO, and image builds
 - Rust toolchain for desktop/Tauri work
+- [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`): the default Serena MCP server starts through `uvx`
 - Optional: [Graphify](https://github.com/Graphify-Labs/graphify) CLI (`uv tool install "graphifyy[sql,mcp]"`) for the `pnpm graph` codebase knowledge graph
 - Recommended: [GitButler](https://docs.gitbutler.com/) desktop app and `but` CLI (`curl -fsSL https://gitbutler.com/install.sh | sh`) for parallel branches in one checkout. See [CONTRIBUTING.md](CONTRIBUTING.md#recommended-gitbutler)
 - Optional: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) for the `pnpm scan:secrets` full-history secret scan

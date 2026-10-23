@@ -175,6 +175,14 @@ Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/s
 
 `pnpm ai:install` keeps each agent's recorded skill selection in `.ai.local/installations/<agent>.json`. A reinstall also adds default skills that the team added since that record, and keeps any skill you removed. `pnpm ai:doctor` reports a new team skill as missing until you reinstall.
 
+Claude Code does not start the project MCP servers in `.mcp.json` until you approve them. `claude mcp list` shows an unapproved server as "Pending approval". Approve them once per checkout: run `/mcp` in a Claude Code session, or name them in the untracked `.claude/settings.local.json`:
+
+```json
+{ "enabledMcpjsonServers": ["context7", "playwright", "serena", "gitbutler"] }
+```
+
+Name each server instead of setting `enableAllProjectMcpServers`, so a server added to `.mcp.json` later still needs your approval. A running session loads MCP servers only at start; open a new session after you approve.
+
 When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
 
 ## Day-one agent ramp
