@@ -137,8 +137,9 @@ requirement.
 - Runner pods cannot reach the host or the LAN (NetworkPolicy). They reach the
   internet, cluster DNS, and an in-cluster Docker Hub pull-through cache.
 - k3s keeps 4 CPUs and 10 GiB for the desktop (`k3s-config.yaml`). Each runner
-  pod requests 1 CPU and 2 GiB; jobs mostly wait on the network, and memory
-  limits stay high. Pods beyond the free capacity wait as `Pending`, so this caps
+  pod requests 1 CPU and 2 GiB; jobs mostly wait on the network. The runner
+  container may use up to 16 GiB, because tools size their worker pools by
+  every host CPU they see. Pods beyond the free capacity wait as `Pending`, so this caps
   parallel jobs across all repositories (about 8 on a 32 GiB machine).
 - Runner pods share a persistent pnpm store on the host
   (`/var/lib/ci-runners/pnpm-store`, set through `npm_config_store_dir`). The
