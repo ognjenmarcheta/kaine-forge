@@ -133,10 +133,13 @@ updates:
       - dependency-name: "changesets/action"
         update-types: ["version-update:semver-major"]
 
-  # Dockerfile.api and Dockerfile.web pin base images by digest. Dependabot
-  # matches any file whose name contains "dockerfile" and bumps the sha256.
+  # Dockerfile.api, Dockerfile.web, and the ARC runner image pin base images by
+  # digest. Dependabot matches any file whose name contains "dockerfile" and
+  # bumps the sha256.
   - package-ecosystem: docker
-    directory: "/"
+    directories:
+      - "/"
+      - "/tooling/ci-runners"
     schedule:
       interval: weekly
       day: monday

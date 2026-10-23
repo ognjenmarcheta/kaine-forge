@@ -44,6 +44,7 @@ kaine-forge/
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
   tooling/
+    ci-runners/      optional ARC self-hosted runner setup (docs/self-hosted-ci.md)
     desk/            local agent desk engine, CLI, and server (`@repo/desk`)
     desk-ui/         React UI for the agent desk (`@repo/desk-ui`)
     factory-ui/      dashboard UI for the optional software factory (`@repo/factory-ui`)

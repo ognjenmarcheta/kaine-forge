@@ -131,7 +131,7 @@
     "expo-updates",
     "expo-system-ui"
   ],
-  "ignoreBinaries": ["graphify", "gitleaks", "codex", "uvx"],
+  "ignoreBinaries": ["graphify", "gitleaks", "codex", "uvx", "kubectl"],
   "metro": false,
   "rules": {
     "exports": "off",

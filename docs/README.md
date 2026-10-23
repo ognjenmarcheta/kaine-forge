@@ -14,7 +14,7 @@ Use this index to find the right source of truth quickly.
 
 ## Operational docs
 
-- [`self-hosted-ci.md`](self-hosted-ci.md): optional private-repository runner routing, setup, validation, and rollback.
+- [`self-hosted-ci.md`](self-hosted-ci.md): optional private-repository runner routing, the ARC reference setup with automatic hosted fallback, validation, and rollback.
 - [`release-checklist.md`](release-checklist.md): release validation checklist.
 - [`troubleshooting.md`](troubleshooting.md): common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - [`.env.example`](../.env.example): commented environment variable defaults (behavior detail lives in `MONOREPO_GUIDE.md` section 9).

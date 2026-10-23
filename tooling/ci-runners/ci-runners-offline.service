@@ -1,0 +1,17 @@
+[Unit]
+Description=Route ARC repos to hosted runners on shutdown (docs/self-hosted-ci.md)
+# Stop order is the reverse of start order, so ExecStop runs while k3s and the
+# network are still up.
+After=k3s.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ExecStart=/bin/true
+ExecStop=/usr/bin/node /usr/local/lib/ci-runners/ci-runners.mjs offline
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
