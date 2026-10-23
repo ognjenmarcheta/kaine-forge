@@ -1,0 +1,48 @@
+name: Runner Watchdog
+
+# Dead-man's switch for the optional ARC runners (docs/self-hosted-ci.md). The
+# workstation heartbeat stops when the machine crashes, loses power, or loses
+# network; this routes those repos back to hosted runners and re-runs the runs
+# that wait for the self-hosted label. Planned shutdowns switch on the host.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: runner-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    name: Route Stale Runners to Hosted
+    # Opt-in for the one repo that holds the App secret; template copies stay
+    # skipped, and skipped jobs use no minutes.
+    if: vars.CI_RUNNER_WATCHDOG == 'true'
+    # Always hosted: it must run while the self-hosted machine is down.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      # The token covers every repo the App is installed on. The action cannot
+      # request the Variables permission, so it is not narrowed.
+      - name: Create GitHub App token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.CI_RUNNER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_RUNNER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Route stale repos to hosted runners
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          CI_RUNNER_FALLBACK_HOURS: ${{ vars.CI_RUNNER_FALLBACK_HOURS }}
+        run: node scripts/ci-runners.mjs watchdog

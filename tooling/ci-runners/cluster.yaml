@@ -1,0 +1,102 @@
+# Shared cluster objects for the ARC runner scale sets (docs/self-hosted-ci.md).
+# bootstrap.sh applies this file; add-repo.sh installs one scale set per repo
+# into the arc-runners namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-runners
+---
+# Docker Hub pull-through cache. Every job starts a fresh DinD daemon, so without
+# it each job pulls postgres/valkey/minio again and hits anonymous rate limits.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-mirror
+  namespace: arc-runners
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-mirror
+  template:
+    metadata:
+      labels:
+        app: docker-mirror
+    spec:
+      containers:
+        - name: registry
+          image: registry:3.1.1
+          env:
+            - name: REGISTRY_PROXY_REMOTEURL
+              value: https://registry-1.docker.io
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: cache
+              mountPath: /var/lib/registry
+      volumes:
+        - name: cache
+          hostPath:
+            path: /var/lib/ci-runners/docker-mirror
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-mirror
+  namespace: arc-runners
+spec:
+  selector:
+    app: docker-mirror
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+# Runner pods reach the internet, cluster DNS, and the mirror, but not the host
+# or the LAN: no local dev databases, Docker bridge, or other machines.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-egress
+  namespace: arc-runners
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: runner
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app: docker-mirror
+      ports:
+        - protocol: TCP
+          port: 5000

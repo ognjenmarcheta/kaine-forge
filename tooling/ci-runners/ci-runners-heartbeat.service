@@ -1,0 +1,9 @@
+[Unit]
+Description=Mark repos with a ready ARC listener as self-hosted (docs/self-hosted-ci.md)
+After=k3s.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+ExecStart=/usr/bin/node /usr/local/lib/ci-runners/ci-runners.mjs heartbeat

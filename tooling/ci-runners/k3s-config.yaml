@@ -1,0 +1,11 @@
+# /etc/rancher/k3s/config.yaml for the ARC runner host (installed by bootstrap.sh).
+write-kubeconfig-mode: "0600"
+disable:
+  - traefik
+  - servicelb
+  - metrics-server
+kubelet-arg:
+  # Capacity kept for the desktop. Runner pod requests fill the rest; extra pods
+  # wait as Pending, which caps parallel jobs across all repos.
+  - system-reserved=cpu=4,memory=10Gi
+  - eviction-hard=memory.available<1Gi,nodefs.available<10%

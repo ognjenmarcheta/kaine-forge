@@ -51,6 +51,8 @@ Provide a clean, isolated environment for **each job**. Register runners with
 `--ephemeral`, then destroy or reset the VM after the job and register a fresh
 runner for the next job. Ephemeral registration removes the runner after one
 job; it does not clean the host. The owner supplies this lifecycle automation.
+For one Linux workstation, [Reference setup: ARC on one Linux workstation](#reference-setup-arc-on-one-linux-workstation)
+supplies it.
 Keep management tokens outside job environments. Keep runner diagnostic logs
 outside the disposable VM. See [GitHub runner security](https://docs.github.com/en/actions/reference/security/secure-use)
 and [ephemeral runner operation](https://docs.github.com/en/actions/reference/runners/self-hosted-runners).
@@ -118,6 +120,104 @@ clean environment. It retains its existing permissions and updates deployment
 branches only inside the Release workflow after its gates pass. Do not run
 `pnpm release:apps` locally to validate runner setup.
 
+## Reference setup: ARC on one Linux workstation
+
+`tooling/ci-runners/` runs the Linux contract above on one Ubuntu machine with
+[Actions Runner Controller](https://docs.github.com/en/actions/concepts/runners/actions-runner-controller)
+(ARC) on single-node k3s. It is one tested way to run the contract, not a
+requirement.
+
+- Each job runs in a new pod: a runner container and a privileged Docker-in-Docker
+  (DinD) sidecar in one network namespace. Service containers on `127.0.0.1`
+  work as on a hosted VM. ARC deletes the pod, its Docker daemon, and the
+  workspace after the job.
+- Each repository gets its own runner scale set with the `kaine-ci-linux` labels.
+  Personal accounts have no shared runner pool, so a repository is added with one
+  command. Scale sets scale to zero when idle.
+- Runner pods cannot reach the host or the LAN (NetworkPolicy). They reach the
+  internet, cluster DNS, and an in-cluster Docker Hub pull-through cache.
+- k3s keeps 4 CPUs and 10 GiB for the desktop (`k3s-config.yaml`). Each runner
+  pod requests 2 CPUs and 4 GiB. Pods beyond the free capacity wait as `Pending`,
+  so this caps parallel jobs across all repositories.
+- Privileged DinD is root-equivalent on the host. Use it only for private
+  repositories with trusted contributors. The routing expression keeps fork PRs
+  on hosted runners.
+
+| File                         | Purpose                                                    |
+| ---------------------------- | ---------------------------------------------------------- |
+| `ci-runners.sh`              | `bootstrap` the host; `add-repo` one repository            |
+| `runner.Dockerfile`          | Official runner image plus Node.js, `gh`, and `zstd`       |
+| `scale-set.values.yaml`      | Shared scale set: labels, DinD pod spec, resource requests |
+| `cluster.yaml`               | Namespace, Docker Hub cache, runner egress policy          |
+| `k3s-config.yaml`            | k3s flags and desktop capacity reserve                     |
+| `scripts/ci-runners.mjs`     | Heartbeat, shutdown hook, and watchdog logic               |
+| `ci-runners-*.service/timer` | systemd units for the heartbeat and the shutdown hook      |
+
+### Install
+
+1. Run `tooling/ci-runners/ci-runners.sh bootstrap` as your normal user. It asks
+   for `sudo`. It installs pinned k3s and Helm, builds and imports the runner
+   image, applies `cluster.yaml`, installs the ARC controller, and enables the
+   heartbeat timer and shutdown hook. It writes the kubeconfig to
+   `~/.kube/k3s-arc.yaml`. Run it again after you change files in this folder.
+2. Create a GitHub App on the account that owns the repositories (**Settings →
+   Developer settings → GitHub Apps**). Turn off the webhook. Repository
+   permissions: **Administration** read and write (runner registration),
+   **Variables** read and write (heartbeat and fallback), **Actions** read and
+   write (cancel and re-run queued runs). Generate a private key. Install the
+   App on each repository that uses the runners and on the repository that runs
+   the watchdog. Note the Client ID and the installation ID (the number at the
+   end of the installation settings URL).
+3. Create the cluster secret yourself. Do not paste the key into chat or tracked files:
+
+   ```bash
+   kubectl --kubeconfig ~/.kube/k3s-arc.yaml create secret generic arc-github-app \
+     --namespace arc-runners \
+     --from-literal=github_app_id=<client-id> \
+     --from-literal=github_app_installation_id=<installation-id> \
+     --from-file=github_app_private_key=<path-to-key.pem>
+   ```
+
+4. Run `tooling/ci-runners/ci-runners.sh add-repo <owner>/<repo> [max-runners]`
+   for each repository (default 4 runners). The scale set appears under
+   **Settings → Actions → Runners**. The heartbeat then sets
+   `CI_SELF_HOSTED_LINUX=true` on that repository.
+5. To remove a repository, run `helm uninstall <repo> --namespace arc-runners`
+   with the same kubeconfig and set its `CI_SELF_HOSTED_LINUX` to `false`.
+
+The runner image pins the runner version. GitHub stops serving old runner
+versions, so bump the base image when Dependabot proposes it and run
+`bootstrap` again.
+
+### Automatic hosted fallback
+
+Workflow expressions have no clock, so this setup switches the routing variable
+for you:
+
+- **Heartbeat** (`ci-runners-heartbeat.timer`, every 15 minutes and 2 minutes
+  after boot): for each scale set with a Ready listener, it sets
+  `CI_SELF_HOSTED_LINUX=true` and `CI_RUNNER_HEARTBEAT=<unix seconds>`. A machine
+  that is on but has a broken ARC sends no heartbeat.
+- **Shutdown hook** (`ci-runners-offline.service`): a clean shutdown or reboot,
+  for example into another operating system, sets `CI_SELF_HOSTED_LINUX=false`
+  at once.
+- **Watchdog** (`.github/workflows/runner-watchdog.yml`, hourly on a hosted
+  runner): for every repository the App is installed on, a heartbeat older than
+  `CI_RUNNER_FALLBACK_HOURS` (default `2`) sets `CI_SELF_HOSTED_LINUX=false`. The
+  watchdog then cancels and re-runs the runs that wait for the `kaine-ci-linux`
+  label. It covers crashes, power cuts, and network loss. When a re-run fails
+  after its cancel, the watchdog stores the run ID in `CI_RUNNER_RERUN_PENDING`,
+  retries it on each later run, and deletes the variable when no ID is left. A
+  watchdog run with a failure or a pending ID fails, so GitHub notifies you.
+
+Enable the watchdog in exactly one repository that the App is installed on.
+Add the repository variables `CI_RUNNER_WATCHDOG=true` and
+`CI_RUNNER_APP_CLIENT_ID=<client-id>` and the secret
+`CI_RUNNER_APP_PRIVATE_KEY`. Other copies of the workflow stay skipped. Each
+hourly run bills about one hosted minute in a private repository. To spend
+less, raise `CI_RUNNER_FALLBACK_HOURS` and the cron interval together. The
+heartbeat sets `true` again when the machine returns.
+
 ## Validate before rollout
 
 Use an owner-managed private test repository with disposable deployment targets.
@@ -141,8 +241,10 @@ disk use, and artifact/cache storage. No automated billing monitor is added.
 
 ## Queued jobs and rollback
 
-An enabled self-hosted job waits for a matching available runner. There is no
-automatic hosted fallback. GitHub fails jobs that remain queued for more than
+An enabled self-hosted job waits for a matching available runner. GitHub has no
+automatic hosted fallback. The reference setup adds one: see
+[Automatic hosted fallback](#automatic-hosted-fallback). Other setups switch the
+variable by hand. GitHub fails jobs that remain queued for more than
 24 hours; `timeout-minutes` does not limit queue time. See [routing precedence](https://docs.github.com/en/actions/reference/runners/self-hosted-runners#routing-precedence-for-self-hosted-runners).
 
 Restore the runner and its labels to continue queued work. To return to hosted
@@ -158,4 +260,4 @@ Run `pnpm check:affected` while iterating and `pnpm check` before a PR. Run
 `pnpm build:core` for API/web runtime changes. These commands use no hosted
 minutes, but they do not publish required GitHub checks. Self-hosted CI remains
 the supported path for reporting checks without hosted compute. This change
-does not add `act`, a scheduler, or managed runner tooling.
+does not add `act`. The optional runner tooling lives in `tooling/ci-runners/`.

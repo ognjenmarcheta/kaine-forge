@@ -1,0 +1,88 @@
+# Shared gha-runner-scale-set values. add-repo.sh sets githubConfigUrl and
+# maxRunners per repo. The labels match the routing expression in the workflows.
+githubConfigSecret: arc-github-app
+scaleSetLabels:
+  - self-hosted
+  - linux
+  - x64
+  - kaine-ci-linux
+minRunners: 0
+maxRunners: 4
+
+# The DinD pod spec from the chart, expanded so dockerd can use the in-cluster
+# Docker Hub mirror. The runner and DinD share the pod network namespace, so
+# service containers published on 127.0.0.1 work as on a hosted VM, and the
+# whole pod (daemon, containers, workspace) is deleted after the job.
+# Requests are the machine-wide cap: k3s system-reserved keeps capacity for the
+# desktop, and pods beyond the rest wait as Pending until a job finishes.
+template:
+  spec:
+    initContainers:
+      - name: init-dind-externals
+        image: kaine-ci-runner:local
+        imagePullPolicy: Never
+        command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
+        volumeMounts:
+          - name: dind-externals
+            mountPath: /home/runner/tmpDir
+      - name: dind
+        image: docker:29.9.2-dind
+        args:
+          - dockerd
+          - --host=unix:///var/run/docker.sock
+          - --group=$(DOCKER_GROUP_GID)
+          - --registry-mirror=http://docker-mirror.arc-runners.svc.cluster.local:5000
+          - --insecure-registry=docker-mirror.arc-runners.svc.cluster.local:5000
+        env:
+          - name: DOCKER_GROUP_GID
+            value: "123"
+        securityContext:
+          privileged: true
+        restartPolicy: Always
+        startupProbe:
+          exec:
+            command: ["docker", "info"]
+          initialDelaySeconds: 0
+          failureThreshold: 24
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            memory: 6Gi
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: dind-sock
+            mountPath: /var/run
+          - name: dind-externals
+            mountPath: /home/runner/externals
+    containers:
+      - name: runner
+        image: kaine-ci-runner:local
+        imagePullPolicy: Never
+        command: ["/home/runner/run.sh"]
+        env:
+          - name: DOCKER_HOST
+            value: unix:///var/run/docker.sock
+          - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
+            value: "120"
+        resources:
+          requests:
+            cpu: 1500m
+            memory: 3Gi
+          limits:
+            memory: 8Gi
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: dind-sock
+            mountPath: /var/run
+    volumes:
+      - name: work
+        emptyDir: {}
+      - name: dind-sock
+        emptyDir: {}
+      - name: dind-externals
+        emptyDir: {}
