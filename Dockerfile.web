@@ -30,7 +30,7 @@ COPY --from=pruner /app/tsconfig.base.json ./
 RUN pnpm turbo run build --filter=@repo/web... \
   && test -f apps/web/dist/index.html
 
-FROM nginxinc/nginx-unprivileged:alpine@sha256:6a23acdfca2b9cfbcec61419e3f1426bcbedb91362f2f19306a8567423bb4612 AS runner
+FROM nginxinc/nginx-unprivileged:alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runner
 
 # Alpine security fixes land before the pinned nginx image is rebuilt (issue #491).
 # CI passes the ISO week as APT_REFRESH, as for Dockerfile.api, so this layer reruns weekly.
