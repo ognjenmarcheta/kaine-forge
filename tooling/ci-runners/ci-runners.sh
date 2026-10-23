@@ -42,6 +42,12 @@ bootstrap() {
 
   mkdir -p "$(dirname "$KUBECONFIG")"
   sudo install -m 600 -o "$(id -u)" -g "$(id -g)" /etc/rancher/k3s/k3s.yaml "$KUBECONFIG"
+  # A fresh k3s answers before its node registers, and `kubectl wait --all`
+  # fails at once when no node exists yet.
+  for _ in $(seq 60); do
+    [ -n "$(kubectl get nodes -o name 2>/dev/null)" ] && break
+    sleep 3
+  done
   kubectl wait --for=condition=Ready node --all --timeout=180s
 
   if [ "$(helm version --template '{{.Version}}' 2>/dev/null)" != "$HELM_VERSION" ]; then
