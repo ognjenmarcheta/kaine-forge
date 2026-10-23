@@ -459,8 +459,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # ARC runners set BUILDKIT_HOST to a shared BuildKit daemon whose layer
+      # cache persists on the host (docs/self-hosted-ci.md). There the build
+      # skips the GitHub cache; elsewhere it uses a fresh builder and type=gha.
+      - name: Detect shared BuildKit
+        id: buildkit
+        run: echo "endpoint=${BUILDKIT_HOST:-}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver: ${{ steps.buildkit.outputs.endpoint && 'remote' || 'docker-container' }}
+          endpoint: ${{ steps.buildkit.outputs.endpoint }}
 
       # Weekly key for the OS upgrade layers in Dockerfile.api (apt) and Dockerfile.web (apk); docker-cache.yml computes the same.
       - name: Compute apt refresh key
@@ -475,8 +485,8 @@ jobs:
           build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
           tags: local/${{ matrix.app }}:ci
           load: true
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          cache-from: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,scope={0}', matrix.app) || '' }}
+          cache-to: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,mode=max,scope={0}', matrix.app) || '' }}
 
       # Scans the image that was just built, not a registry copy, so a
       # vulnerability introduced by this PR's base image or apt layers is caught
