@@ -364,9 +364,10 @@ describe("applyTemplateAdoption", () => {
     expect(references).toEqual([{ path: "README.md", line: 1, match: "ognjenmarcheta" }]);
   });
 
-  it("reports active template references for check mode", () => {
+  it("reports active template references for check mode, but not the attribution NOTICE", () => {
     const references = activeTemplateReferences(
       new Map<string, string>([
+        ["NOTICE", "Kaine Forge\nCopyright 2026 Byteforge\n"],
         ["README.md", "# Kaine Forge\n"],
         ["apps/web/index.html", "<title>kaine-forge</title>\n"],
         ["apps/web/src/stores/theme.store.ts", 'name: "kaine.theme.mode",\n'],

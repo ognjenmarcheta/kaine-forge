@@ -447,6 +447,9 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     normalized.startsWith(".git/") ||
     normalized.startsWith(".worktrees/") ||
     normalized.startsWith(".ai.local/") ||
+    // Apache-2.0 requires adopters to keep the template's attribution notices.
+    normalized === "LICENSE" ||
+    normalized === "NOTICE" ||
     normalized.startsWith(".ai/template-adoption") ||
     // Historical planning records document the template's own development.
     normalized.startsWith("docs/superpowers/") ||
