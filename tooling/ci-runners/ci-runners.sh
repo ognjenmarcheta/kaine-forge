@@ -2,6 +2,7 @@
 # ARC self-hosted runners on one Linux workstation (docs/self-hosted-ci.md).
 #   ci-runners.sh bootstrap                       install or update the host (asks for sudo)
 #   ci-runners.sh add-repo owner/repo [max-runners]  install or update one repo's scale set
+#                                                    (default max-runners: scale-set.values.yaml)
 # Run as your normal user. Both commands are safe to re-run.
 set -euo pipefail
 
@@ -87,9 +88,13 @@ bootstrap() {
 }
 
 add_repo() {
-  local repo="${1:-}" max="${2:-4}" name
+  local repo="${1:-}" max="${2:-}" name
+  local max_args=()
   [[ "$repo" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]] || die "usage: $0 add-repo owner/repo [max-runners]"
-  [[ "$max" =~ ^[1-9][0-9]*$ ]] || die "max-runners must be a positive integer"
+  if [ -n "$max" ]; then
+    [[ "$max" =~ ^[1-9][0-9]*$ ]] || die "max-runners must be a positive integer"
+    max_args=(--set-json maxRunners="$max")
+  fi
   kubectl get secret arc-github-app --namespace arc-runners >/dev/null ||
     die "create the arc-github-app secret first (docs/self-hosted-ci.md)"
   name="$(tr '[:upper:]._' '[:lower:]--' <<<"${repo#*/}")"
@@ -97,7 +102,7 @@ add_repo() {
     --version "$ARC_VERSION" --namespace arc-runners \
     --values "$here/scale-set.values.yaml" \
     --set githubConfigUrl="https://github.com/$repo" \
-    --set-json maxRunners="$max" --wait
+    "${max_args[@]}" --wait
   sudo systemctl start ci-runners-heartbeat.service
   echo "$repo: scale set '$name' installed; heartbeat sent. Check Settings → Actions → Runners."
 }

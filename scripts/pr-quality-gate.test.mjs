@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { describe, it } from "node:test";
 import { data, Evaluator, Lexer, Parser } from "@actions/expressions";
@@ -328,6 +330,49 @@ ${check.run}`
     assert.equal(noDocker.status, 1);
     assert.match(noDocker.stdout, /access to a running Docker daemon/);
     assert.equal(preflight({ os: "macOS", missing: "docker", dockerStatus: "1" }).status, 0);
+  });
+
+  it("skips the GitHub pnpm cache only when a writable local store is configured", () => {
+    const detect = setup.runs.steps.find((step) => step.id === "pnpm-store");
+    const node = setup.runs.steps.find((step) => step.uses?.startsWith("actions/setup-node@"));
+    function localStore(storeDir) {
+      const dir = mkdtempSync(join(tmpdir(), "pnpm-store-"));
+      const output = join(dir, "output");
+      writeFileSync(output, "");
+      const env = { ...process.env, GITHUB_OUTPUT: output };
+      delete env.npm_config_store_dir;
+      if (storeDir !== undefined) env.npm_config_store_dir = storeDir(dir);
+      const result = spawnSync(bash, ["--noprofile", "--norc"], {
+        encoding: "utf8",
+        env,
+        input: detect.run
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const local = readFileSync(output, "utf8").trim();
+      rmSync(dir, { recursive: true, force: true });
+      return local;
+    }
+    function cache(local) {
+      const expression = node.with.cache;
+      assert.ok(expression.startsWith("${{") && expression.endsWith("}}"));
+      const { tokens } = new Lexer(expression.slice(3, -2)).lex();
+      const parsed = new Parser(tokens, ["steps"], []).parse();
+      const context = { steps: { "pnpm-store": { outputs: local ? { local } : {} } } };
+      return new Evaluator(parsed, JSON.parse(JSON.stringify(context), data.reviver))
+        .evaluate()
+        .coerceString();
+    }
+    assert.equal(
+      localStore((dir) => dir),
+      "local=true"
+    );
+    assert.equal(
+      localStore((dir) => join(dir, "missing")),
+      ""
+    );
+    assert.equal(localStore(undefined), "");
+    assert.equal(cache("true"), "");
+    assert.equal(cache(undefined), "pnpm");
   });
 });
 

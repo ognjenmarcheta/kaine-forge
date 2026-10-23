@@ -1,5 +1,5 @@
-# Shared gha-runner-scale-set values. add-repo.sh sets githubConfigUrl and
-# maxRunners per repo. The labels match the routing expression in the workflows.
+# Shared gha-runner-scale-set values. ci-runners.sh add-repo sets githubConfigUrl
+# and, when given, maxRunners per repo. The labels match the routing expression in the workflows.
 githubConfigSecret: arc-github-app
 scaleSetLabels:
   - self-hosted
@@ -7,14 +7,17 @@ scaleSetLabels:
   - x64
   - kaine-ci-linux
 minRunners: 0
-maxRunners: 4
+maxRunners: 8
 
 # The DinD pod spec from the chart, expanded so dockerd can use the in-cluster
 # Docker Hub mirror. The runner and DinD share the pod network namespace, so
 # service containers published on 127.0.0.1 work as on a hosted VM, and the
 # whole pod (daemon, containers, workspace) is deleted after the job.
 # Requests are the machine-wide cap: k3s system-reserved keeps capacity for the
-# desktop, and pods beyond the rest wait as Pending until a job finishes.
+# desktop, and pods beyond the rest wait as Pending until a job finishes. Jobs
+# mostly wait on the network, so requests stay small and limits stay high.
+# /pnpm-store persists on the host and is shared by every runner pod, so jobs
+# install from local disk instead of the 1 GB GitHub cache.
 template:
   spec:
     initContainers:
@@ -25,6 +28,15 @@ template:
         volumeMounts:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
+      - name: init-pnpm-store
+        image: kaine-ci-runner:local
+        imagePullPolicy: Never
+        command: ["chown", "runner:runner", "/pnpm-store"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+          - name: pnpm-store
+            mountPath: /pnpm-store
       - name: dind
         image: docker:29.9.2-dind
         args:
@@ -47,8 +59,8 @@ template:
           periodSeconds: 5
         resources:
           requests:
-            cpu: 500m
-            memory: 1Gi
+            cpu: 250m
+            memory: 512Mi
           limits:
             memory: 6Gi
         volumeMounts:
@@ -68,10 +80,13 @@ template:
             value: unix:///var/run/docker.sock
           - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
             value: "120"
+          # setup-node-pnpm skips the GitHub pnpm cache when this store is writable.
+          - name: npm_config_store_dir
+            value: /pnpm-store
         resources:
           requests:
-            cpu: 1500m
-            memory: 3Gi
+            cpu: 750m
+            memory: 1536Mi
           limits:
             memory: 8Gi
         volumeMounts:
@@ -79,6 +94,8 @@ template:
             mountPath: /home/runner/_work
           - name: dind-sock
             mountPath: /var/run
+          - name: pnpm-store
+            mountPath: /pnpm-store
     volumes:
       - name: work
         emptyDir: {}
@@ -86,3 +103,7 @@ template:
         emptyDir: {}
       - name: dind-externals
         emptyDir: {}
+      - name: pnpm-store
+        hostPath:
+          path: /var/lib/ci-runners/pnpm-store
+          type: DirectoryOrCreate
