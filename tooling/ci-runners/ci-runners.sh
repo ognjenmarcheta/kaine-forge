@@ -6,6 +6,8 @@
 set -euo pipefail
 
 K3S_VERSION="v1.36.5+k3s1"
+# install.sh from the K3S_VERSION tag; update both when K3S_VERSION changes.
+K3S_INSTALL_SHA256="46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e152fbfad"
 HELM_VERSION="v3.22.0"
 HELM_SHA256="1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb"
 ARC_VERSION="0.15.0"
@@ -28,7 +30,12 @@ bootstrap() {
     k3s_config_changed=1
   fi
   if [ "$(k3s --version 2>/dev/null | awk 'NR == 1 { print $3 }')" != "$K3S_VERSION" ]; then
-    curl -sfL https://get.k3s.io | sudo INSTALL_K3S_VERSION="$K3S_VERSION" sh -
+    tmp="$(mktemp -d)"
+    curl -fsSLo "$tmp/install.sh" \
+      "https://raw.githubusercontent.com/k3s-io/k3s/${K3S_VERSION/+/%2B}/install.sh"
+    echo "$K3S_INSTALL_SHA256  $tmp/install.sh" | sha256sum -c -
+    sudo INSTALL_K3S_VERSION="$K3S_VERSION" sh "$tmp/install.sh"
+    rm -rf "$tmp"
   elif [ -n "${k3s_config_changed:-}" ]; then
     sudo systemctl restart k3s
   fi

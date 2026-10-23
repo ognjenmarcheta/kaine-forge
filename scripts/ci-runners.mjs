@@ -150,6 +150,7 @@ async function offline() {
 }
 
 async function rerunOnHosted(token, repo) {
+  let failed = 0;
   for (const status of ["queued", "in_progress"]) {
     const { workflow_runs: runs } = await github(
       token,
@@ -157,26 +158,32 @@ async function rerunOnHosted(token, repo) {
       `/repos/${repo}/actions/runs?status=${status}&per_page=100`
     );
     for (const run of runs) {
-      const { jobs } = await github(
-        token,
-        "GET",
-        `/repos/${repo}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`
-      );
-      if (!waitsForSelfHosted(jobs)) continue;
-      await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/cancel`);
-      for (let attempt = 0; attempt < 24; attempt++) {
-        await sleep(5_000);
-        if (
-          (await github(token, "GET", `/repos/${repo}/actions/runs/${run.id}`)).status ===
-          "completed"
-        ) {
-          break;
+      try {
+        const { jobs } = await github(
+          token,
+          "GET",
+          `/repos/${repo}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`
+        );
+        if (!waitsForSelfHosted(jobs)) continue;
+        await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/cancel`);
+        for (let attempt = 0; attempt < 24; attempt++) {
+          await sleep(5_000);
+          if (
+            (await github(token, "GET", `/repos/${repo}/actions/runs/${run.id}`)).status ===
+            "completed"
+          ) {
+            break;
+          }
         }
+        await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/rerun`);
+        console.log(`${repo}: re-ran ${run.html_url}`);
+      } catch (error) {
+        console.error(`::error::${repo}: ${run.html_url}: ${error.message}`);
+        failed++;
       }
-      await github(token, "POST", `/repos/${repo}/actions/runs/${run.id}/rerun`);
-      console.log(`${repo}: re-ran ${run.html_url}`);
     }
   }
+  if (failed > 0) throw new Error(`${failed} run(s) not re-run on hosted runners`);
 }
 
 async function watchdog() {
@@ -186,12 +193,24 @@ async function watchdog() {
   const { repositories } = await github(token, "GET", "/installation/repositories?per_page=100");
   for (const { full_name: repo, archived } of repositories) {
     if (archived) continue;
-    const routing = await getVariable(token, repo, ROUTING_VARIABLE);
-    const heartbeat = await getVariable(token, repo, HEARTBEAT_VARIABLE);
-    if (!needsFallback({ routing, heartbeat, nowSeconds: nowSeconds(), maxAgeHours })) continue;
-    await setVariable(token, repo, ROUTING_VARIABLE, "false");
-    console.log(`::warning::${repo}: no runner heartbeat for ${maxAgeHours} h, routed to hosted`);
-    await rerunOnHosted(token, repo);
+    try {
+      const routing = await getVariable(token, repo, ROUTING_VARIABLE);
+      const heartbeat = await getVariable(token, repo, HEARTBEAT_VARIABLE);
+      if (!needsFallback({ routing, heartbeat, nowSeconds: nowSeconds(), maxAgeHours })) continue;
+      await setVariable(token, repo, ROUTING_VARIABLE, "false");
+      console.log(`::warning::${repo}: no runner heartbeat for ${maxAgeHours} h, routed to hosted`);
+      try {
+        await rerunOnHosted(token, repo);
+      } catch (error) {
+        // Only a repo routed to self-hosted is eligible, so this makes the next
+        // watchdog run retry the runs still waiting for the label.
+        await setVariable(token, repo, ROUTING_VARIABLE, "true");
+        throw error;
+      }
+    } catch (error) {
+      console.error(`::error::${repo}: ${error.message}`);
+      process.exitCode = 1;
+    }
   }
 }
 
