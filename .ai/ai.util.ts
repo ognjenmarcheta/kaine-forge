@@ -876,10 +876,18 @@ const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
 /**
  * Read-only MCP tools that skip the permission prompt. Serena's REPL interface exposes only
  * `initial_instructions`; the other names cover `--serena-interface tools`. Browser tools and
- * `serena_repl` stay prompted because they reach external sites or run code.
+ * `serena_repl` stay prompted because they reach external sites or run code. GitButler's
+ * `gitbutler_mark_review_ready` stays prompted because it changes a pull request.
  */
 const CLAUDE_MCP_READ_ALLOW = [
   ...["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`),
+  ...[
+    "gitbutler_workspace",
+    "gitbutler_branch_details",
+    "gitbutler_commit_details",
+    "gitbutler_review_card",
+    "gitbutler_refresh_reviews"
+  ].map((tool) => `mcp__gitbutler__${tool}`),
   ...[
     "initial_instructions",
     "find_symbol",

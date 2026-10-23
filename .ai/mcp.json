@@ -68,6 +68,11 @@
       "command": "graphify-mcp",
       "args": ["graphify-out/graph.json"],
       "default": false
+    },
+    "gitbutler": {
+      "command": "but",
+      "args": ["mcp", "serve"],
+      "default": false
     }
   }
 }
