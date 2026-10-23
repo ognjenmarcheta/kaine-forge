@@ -32,7 +32,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 - `apps/mobile`: Expo and React Native app using shared data/auth/translation packages and `@repo/mobile-ui`.
 - `apps/e2e`: Playwright web/API tests with accessibility coverage.
 - `packages/*`: shared auth, db, email, logger, config, feature flags, persistence, query helpers, storage, todos, translation, web UI, and mobile UI packages.
-- `tooling/*`: the local agent desk (`@repo/desk` engine and `@repo/desk-ui`), the factory dashboard UI (`@repo/factory-ui`), and GraphQL codegen (`@repo/graphql-codegen`).
+- `tooling/*`: the local agent desk (`@repo/desk` engine and `@repo/desk-ui`) and GraphQL codegen (`@repo/graphql-codegen`).
 - `.ai/`: canonical agent scaffold — see [Agent-ready](#agent-ready).
 
 ## Agent-ready

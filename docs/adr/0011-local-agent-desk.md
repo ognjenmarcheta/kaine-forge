@@ -65,6 +65,10 @@ The factory is frozen. After the first verified draft PR (Phase 3), the factory
 controller, its UI, and its docs are removed. Its Docker assets move into the desk
 for Phase 5. ADR 0010 is then marked superseded by this ADR.
 
+The factory was retired on 2026-10-23, after the desk shipped its first draft PRs. The desk
+has its own Docker assets in `tooling/desk/docker/`, so the factory assets were removed and
+not moved.
+
 ## Consequences
 
 Two tools exist until the factory is retired. The desk is not a replacement before

@@ -15,6 +15,7 @@ Kaine Forge is a reusable monorepo template built with Turborepo and pnpm. It pr
 - `packages/translation`: i18n resources and helpers.
 - `packages/todos`: shared Todo workflow and attachment helpers.
 - `packages/query`, `packages/storage`, `packages/persistence`, `packages/feature-flags`, `packages/logger`, and `packages/config`: shared infrastructure.
+- `tooling/desk` and `tooling/desk-ui`: the local agent desk that drives a GitHub issue to a draft PR (`pnpm desk:run`).
 - `tooling/graphql-codegen`: GraphQL Code Generator configuration.
 
 The repository is a template. Keep defaults generic, avoid product-specific assets or services, and make downstream customization easy.

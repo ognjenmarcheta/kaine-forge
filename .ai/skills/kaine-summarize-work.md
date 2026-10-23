@@ -32,7 +32,7 @@ implementation evidence and use only one final **In plain language** section.
 4. Check that both parts agree. Add no new promises or unsupported claims. Passing
    tests do not establish behavior outside their coverage.
 
-## Headless runs (Agent Desk or factory worker)
+## Headless runs (Agent Desk)
 
 When the prompt supplies a result schema, the schema owns the handoff. Report the
 evidence in its fields, put the plain-language ending in its plain-language field,

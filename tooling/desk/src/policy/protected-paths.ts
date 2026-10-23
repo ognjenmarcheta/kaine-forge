@@ -2,8 +2,7 @@ import path from "node:path";
 
 /**
  * Paths an agent run may never change, whatever the plan says. They hold
- * policy (hooks, permissions), agent installs, secrets and Git itself. The
- * rules follow the factory's `safeFile` and the Agent Desk plan.
+ * policy (hooks, permissions), agent installs, secrets and Git itself.
  *
  * Generated GraphQL outputs are not listed here. An agent may change them
  * only by running `pnpm generate`; the engine proves that with its drift check
