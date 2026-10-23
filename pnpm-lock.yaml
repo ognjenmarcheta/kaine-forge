@@ -221,9 +221,6 @@ importers:
       '@graphql-inspector/cli':
         specifier: 7.0.1
         version: 7.0.1(@types/node@24.19.2)(graphql@16.14.2)
-      '@repo/factory-ui':
-        specifier: workspace:*
-        version: link:tooling/factory-ui
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
@@ -1018,52 +1015,6 @@ importers:
       prettier:
         specifier: 'catalog:'
         version: 3.9.10
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.12(@opentelemetry/api@1.9.0)(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(@vitest/ui@4.1.12)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
-
-  tooling/factory-ui:
-    dependencies:
-      '@repo/translation':
-        specifier: workspace:*
-        version: link:../../packages/translation
-      '@repo/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      react:
-        specifier: 'catalog:'
-        version: 19.2.8
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.2.8(react@19.2.8)
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.7
-    devDependencies:
-      '@playwright/test':
-        specifier: 'catalog:'
-        version: 1.64.1
-      '@repo/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@tailwindcss/vite':
-        specifier: 'catalog:'
-        version: 4.3.3(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.2.7(@types/react@19.2.18)
-      '@vitejs/plugin-react':
-        specifier: 'catalog:'
-        version: 6.1.2(babel-plugin-react-compiler@1.0.0)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
-      tailwindcss:
-        specifier: 'catalog:'
-        version: 4.3.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: 'catalog:'
         version: 4.1.12(@opentelemetry/api@1.9.0)(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(@vitest/ui@4.1.12)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))

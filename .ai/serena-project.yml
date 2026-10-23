@@ -39,7 +39,6 @@ ls_additional_workspace_folders:
   - packages/ui
   - tooling/desk
   - tooling/desk-ui
-  - tooling/factory-ui
   - tooling/graphql-codegen
 language_backend:
 ignored_memory_patterns: []

@@ -137,28 +137,38 @@ requirement.
 - Runner pods cannot reach the host or the LAN (NetworkPolicy). They reach the
   internet, cluster DNS, and an in-cluster Docker Hub pull-through cache.
 - k3s keeps 4 CPUs and 10 GiB for the desktop (`k3s-config.yaml`). Each runner
-  pod requests 1 CPU and 2 GiB; jobs mostly wait on the network, and memory
-  limits stay high. Pods beyond the free capacity wait as `Pending`, so this caps
-  parallel jobs across all repositories (about 8 on a 32 GiB machine).
+  pod requests 1 CPU and 2 GiB; jobs mostly wait on the network. The runner
+  container may use up to 16 GiB, because tools size their worker pools by
+  every host CPU they see. Pods beyond the free capacity wait as `Pending`, so
+  this caps parallel jobs across all repositories (about 8 on a 32 GiB machine).
+  Memory is overcommitted on purpose: when several large jobs run at once, the
+  kubelet can evict or OOM-kill a runner pod and a rerun fixes the job, while
+  the desktop keeps its reserved memory.
 - Runner pods share a persistent pnpm store on the host
   (`/var/lib/ci-runners/pnpm-store`, set through `npm_config_store_dir`). The
   setup action then skips the GitHub pnpm cache, so jobs install from local disk
   instead of downloading and saving about 1 GB per job. The store is shared and
   writable across jobs and repositories, which is acceptable only with trusted
   contributors. It grows over time; delete the directory to reset it.
+- Docker image jobs build on one shared BuildKit daemon (`buildkitd`, found
+  through `BUILDKIT_HOST`). Its layer cache persists on the host
+  (`/var/lib/ci-runners/buildkit`, at most 60 GB, keeping 50 GB of disk free),
+  so builds skip the `type=gha` cache there. Hosted runners keep `type=gha`.
+  The daemon is privileged and its cache is shared across repositories, with
+  the same trust limits as the pnpm store.
 - Privileged DinD is root-equivalent on the host. Use it only for private
   repositories with trusted contributors. The routing expression keeps fork PRs
   on hosted runners.
 
-| File                         | Purpose                                                    |
-| ---------------------------- | ---------------------------------------------------------- |
-| `ci-runners.sh`              | `bootstrap` the host; `add-repo` one repository            |
-| `runner.Dockerfile`          | Official runner image plus Node.js, `gh`, and `zstd`       |
-| `scale-set.values.yaml`      | Shared scale set: labels, DinD pod spec, resource requests |
-| `cluster.yaml`               | Namespace, Docker Hub cache, runner egress policy          |
-| `k3s-config.yaml`            | k3s flags and desktop capacity reserve                     |
-| `scripts/ci-runners.mjs`     | Heartbeat, shutdown hook, and watchdog logic               |
-| `ci-runners-*.service/timer` | systemd units for the heartbeat and the shutdown hook      |
+| File                         | Purpose                                                        |
+| ---------------------------- | -------------------------------------------------------------- |
+| `ci-runners.sh`              | `bootstrap` the host; `add-repo` one repository                |
+| `runner.Dockerfile`          | Official runner image plus Node.js, `gh`, and `zstd`           |
+| `scale-set.values.yaml`      | Shared scale set: labels, DinD pod spec, resource requests     |
+| `cluster.yaml`               | Namespace, Docker Hub cache, BuildKit daemon, network policies |
+| `k3s-config.yaml`            | k3s flags and desktop capacity reserve                         |
+| `scripts/ci-runners.mjs`     | Heartbeat, shutdown hook, and watchdog logic                   |
+| `ci-runners-*.service/timer` | systemd units for the heartbeat and the shutdown hook          |
 
 ### Install
 

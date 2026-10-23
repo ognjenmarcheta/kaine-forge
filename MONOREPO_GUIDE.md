@@ -47,7 +47,6 @@ kaine-forge/
     ci-runners/      optional ARC self-hosted runner setup (docs/self-hosted-ci.md)
     desk/            local agent desk engine, CLI, and server (`@repo/desk`)
     desk-ui/         React UI for the agent desk (`@repo/desk-ui`)
-    factory-ui/      dashboard UI for the optional software factory (`@repo/factory-ui`)
     graphql-codegen/ GraphQL Code Generator config
     dev-mobile-lan.ts  `pnpm dev:mobile:lan` launcher
 ```
@@ -367,7 +366,6 @@ Root commands:
 | `pnpm desk`           | local agent desk CLI; see `docs/agents/agent-desk.md`                                                                 |
 | `pnpm desk:run`       | build the desk UI, then serve the desk (`--port N`, `--no-open`)                                                      |
 | `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
-| `pnpm factory`        | optional local software factory (frozen; the desk is replacing it); see `docs/agents/software-factory.md`             |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
 

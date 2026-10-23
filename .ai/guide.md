@@ -11,6 +11,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Read `CONTEXT.md` before naming domain concepts or shaping organization-scoped APIs.
 - Read `REVIEW.md` before reviewing code or when acting as a reviewer (canonical source `.ai/review.md`).
 - Read `docs/agents/day-one.md` when contributing with an agent for the first time or with little repo context.
+- Read `docs/agents/agent-desk.md` before you run, change, or explain the agent desk.
 
 ## Working Rules
 
@@ -50,6 +51,16 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
+- Run the local agent desk (UI): `pnpm desk:run`; check its setup: `pnpm desk doctor`
+
+## Agent Desk
+
+The agent desk (`@repo/desk` in `tooling/desk`, `@repo/desk-ui` in `tooling/desk-ui`) is the local software factory of this repository. It drives one GitHub issue through intake, plan, build, check, and review to a draft PR. The owner approves at the plan gate and the PR-review gate, and merges every PR. The manual is `docs/agents/agent-desk.md`; its "Get started" section is the first-run path.
+
+- When the user asks to run the factory or the desk, or to hand an issue to agents end to end, start the desk with `pnpm desk:run --no-open` as a background command. Give the user the `Agent desk:` URL that it prints. On a new machine, run `pnpm desk doctor` first and report its errors.
+- Inside a desk run, the prompt supplies a result schema. Fill the schema. Do not commit, push, or open a PR: the desk engine owns those steps.
+- In an interactive session, do not edit an issue worktree that a desk run drives. Check with `pnpm desk status <n>`.
+- The earlier software factory and its `@repo/factory-ui` dashboard were removed. ADR 0011 records why. Do not restore them.
 
 ## Version Control with GitButler
 
