@@ -44,11 +44,22 @@ runs:
       with:
         version: ${{ inputs.pnpm-version }}
 
+    # ARC runners mount a persistent pnpm store and point npm_config_store_dir at
+    # it (docs/self-hosted-ci.md). Restoring and saving the 1 GB GitHub cache
+    # there would only slow the job down, so it is skipped.
+    - name: Detect local pnpm store
+      id: pnpm-store
+      shell: bash
+      run: |
+        if [ -n "${npm_config_store_dir:-}" ] && [ -w "$npm_config_store_dir" ]; then
+          echo "local=true" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Setup Node
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version-file: ".nvmrc"
-        cache: pnpm
+        cache: ${{ steps.pnpm-store.outputs.local != 'true' && 'pnpm' || '' }}
 
     - name: Install dependencies
       shell: bash
