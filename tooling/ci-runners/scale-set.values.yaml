@@ -90,8 +90,10 @@ template:
           requests:
             cpu: 750m
             memory: 1536Mi
+          # Turbo and vitest size their worker pools by the 16 host CPUs they
+          # see, so a large affected set needs far more memory than the request.
           limits:
-            memory: 8Gi
+            memory: 16Gi
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work
