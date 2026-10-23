@@ -58,8 +58,113 @@ spec:
     - port: 5000
       targetPort: 5000
 ---
-# Runner pods reach the internet, cluster DNS, and the mirror, but not the host
-# or the LAN: no local dev databases, Docker bridge, or other machines.
+# Shared BuildKit daemon for Docker image jobs. Its layer cache persists on the
+# host, so image builds reuse layers across jobs instead of moving them through
+# the GitHub cache. Runner pods find it through BUILDKIT_HOST.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildkitd-config
+  namespace: arc-runners
+data:
+  buildkitd.toml: |
+    [worker.oci]
+      gc = true
+      reservedSpace = "10GB"
+      maxUsedSpace = "60GB"
+      minFreeSpace = "50GB"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildkitd
+  namespace: arc-runners
+spec:
+  replicas: 1
+  # One daemon owns the cache directory at a time.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: buildkitd
+  template:
+    metadata:
+      labels:
+        app: buildkitd
+    spec:
+      containers:
+        - name: buildkitd
+          image: moby/buildkit:v0.34.0
+          args:
+            - --addr
+            - unix:///run/buildkit/buildkitd.sock
+            - --addr
+            - tcp://0.0.0.0:1234
+            - --config
+            - /etc/buildkit/buildkitd.toml
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 1234
+          readinessProbe:
+            exec:
+              command: ["buildctl", "debug", "workers"]
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              memory: 10Gi
+          volumeMounts:
+            - name: cache
+              mountPath: /var/lib/buildkit
+            - name: config
+              mountPath: /etc/buildkit
+      volumes:
+        - name: cache
+          hostPath:
+            path: /var/lib/ci-runners/buildkit
+            type: DirectoryOrCreate
+        - name: config
+          configMap:
+            name: buildkitd-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildkitd
+  namespace: arc-runners
+spec:
+  selector:
+    app: buildkitd
+  ports:
+    - port: 1234
+      targetPort: 1234
+---
+# The BuildKit endpoint has no authentication, so only runner pods reach it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: buildkitd-ingress
+  namespace: arc-runners
+spec:
+  podSelector:
+    matchLabels:
+      app: buildkitd
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: runner
+      ports:
+        - protocol: TCP
+          port: 1234
+---
+# Runner pods reach the internet, cluster DNS, the mirror, and BuildKit, but not
+# the host or the LAN: no local dev databases, Docker bridge, or other machines.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -100,3 +205,10 @@ spec:
       ports:
         - protocol: TCP
           port: 5000
+    - to:
+        - podSelector:
+            matchLabels:
+              app: buildkitd
+      ports:
+        - protocol: TCP
+          port: 1234
