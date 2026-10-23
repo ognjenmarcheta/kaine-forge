@@ -1,5 +1,22 @@
 # @repo/web
 
+## 1.8.2
+
+### Patch Changes
+
+- Updated dependencies [527509e]
+- Updated dependencies [500e8a7]
+- Updated dependencies [500e8a7]
+- Updated dependencies [b7011e2]
+  - @repo/ui@1.7.0
+  - @repo/translation@1.9.0
+  - @repo/auth@2.0.0
+  - @repo/feature-flags@1.1.1
+  - @repo/persistence@1.1.2
+  - @repo/query@1.3.6
+  - @repo/storage@1.2.2
+  - @repo/todos@1.1.0
+
 ## 1.8.1
 
 ### Patch Changes
