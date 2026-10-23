@@ -15,7 +15,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 ## Working Rules
 
 - Work from the repo root unless a command explicitly needs a workspace directory.
-- Name new work branches `KAINE-<issue-number>-<type>-<description>`, or `KAINE-<type>-<description>` when no GitHub issue exists. Keep `KAINE` uppercase; use a Conventional Commit type and a short lowercase, hyphen-separated description. Use a real issue number when available; do not create an issue just for naming. No agent names, personal prefixes, spaces, or slashes. Preserve existing branch names and automation-owned `dependabot/*`, `changeset-release/*`, and `release/<app>` names. Follow `CONTRIBUTING.md` Branch names and `kaine-open-pr` for the full workflow.
+- Name new work branches `KAINE-<issue-number>-<type>-<description>`, or `KAINE-<type>-<description>` when no GitHub issue exists. Keep `KAINE` uppercase; use a Conventional Commit type and a short lowercase, hyphen-separated description. Use a real issue number when available; do not create an issue just for naming. No agent names, personal prefixes, spaces, or slashes. Preserve existing branch names, automation-owned `dependabot/*`, `changeset-release/*`, and `release/<app>` names, and GitButler's own `gitbutler/workspace` and `gitbutler/target`. Follow `CONTRIBUTING.md` Branch names and `kaine-open-pr` for the full workflow.
 - Use `pnpm --filter <workspace> <script>` for scoped commands, for example `pnpm --filter @repo/api test`.
 - Keep changes surgical. Avoid broad refactors unless the task explicitly asks for them.
 - Prefer tests that prove the requested behavior over snapshot churn or unrelated coverage.
@@ -50,6 +50,21 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
+
+## Version Control with GitButler
+
+GitButler is the recommended local version-control client. It runs several branches in one checkout, so parallel agent sessions do not need a worktree each. Docs: https://docs.gitbutler.com/ai-agents/getting-started.
+
+- When `git branch --show-current` prints `gitbutler/workspace`, use the `but` CLI for every write: commit, branch, amend, absorb, squash, move, push, pull, and pull requests. Do not run `git add`, `git commit`, `git switch`, `git checkout`, `git rebase`, `git stash`, `git merge`, `git cherry-pick`, or `git push` there. Read-only git (`git log`, `git blame`, `git show`) is fine. On any other branch, use plain git.
+- Use one GitButler branch for each agent session. Name it with the branch rule above and pass it every time: `but commit -b KAINE-<n>-<type>-<description> -m "<message>" <ids>`. Without `-b`, GitButler generates a name. Always pass `-m` so no editor opens.
+- Commit only the changes that belong to your session. Select them by file or hunk ID from `but diff`. Do not move, amend, squash, discard, or push another session's branch.
+- Put a dependent change on a stacked branch (`but branch new <name> -A <parent>`). Amend a small fix into its unpublished commit (`but absorb`, `but amend`). Ask before you rewrite pushed or reviewed history. Recover with `but undo` or `but oplog`.
+- Use `--json` for output that you parse. Add `--status-after` only when the next step needs the new IDs.
+- Update from `main` with `but pull`. Resolve conflicts with `but resolve`.
+- Open pull requests with `but pr new <branch> --draft -F <message-file>`. It pushes the branch and its stack ancestors and sets the stack bases. Never run `but land` or `but pr auto-merge`: only the owner merges.
+- `but commit` does not run the `commit-msg` hook. The `pre-push` hook runs commitlint, including the no-AI-co-author rule, on every pushed commit, but GitButler runs `.husky` hooks only when the project setting "Enable Husky hooks" is on. It is off by default. Before `but push` or `but pr new`, run `pnpm exec commitlint --from origin/main --to <branch>` yourself. Wrap commit body lines at 100 characters.
+- Each contributor installs GitButler's own agent skill: `but skill install --detect`. `but skill check` shows whether it matches the CLI version. Do not vendor it into `.ai/skills/`.
+- Use a separate worktree only when an agent needs its own runtime state, such as ports, build output, or a database. The Agent Desk keeps its plain-git worktrees.
 
 ## AI Behavioral Guidelines
 
@@ -203,10 +218,10 @@ In the final response for substantive work, state what you actually verified, no
 
 ### MCP tool routing
 
-- Pick the tool by question: repo symbols and callers → Serena; blast radius across layers → Graphify (`kaine-graph`); third-party library APIs → the installed package, then Context7; live UI behavior → Playwright; performance traces, network, and console → Chrome DevTools (opt-in); GitHub → the `gh` CLI with `--json <fields>`; files → the agent's native tools. If a server is unavailable, state that limit and use ordinary tools.
+- Pick the tool by question: repo symbols and callers → Serena; blast radius across layers → Graphify (`kaine-graph`); third-party library APIs → the installed package, then Context7; live UI behavior → Playwright; performance traces, network, and console → Chrome DevTools (opt-in); GitButler workspace stacks, branches, and review status → GitButler MCP (opt-in, read-only tools); GitHub → the `gh` CLI with `--json <fields>`; files → the agent's native tools. If a server is unavailable, state that limit and use ordinary tools.
 - Before writing code against a version-sensitive third-party API (better-auth, Drizzle, GraphQL Yoga, TanStack, Vite, Tauri, Expo), take the exact version from the `pnpm-workspace.yaml` catalog and read the installed package's types or source: that is the exact version. Use Context7 for packages that are not installed and for guides or examples. Context7 snapshots can lag the catalog, so check the version in its library ID, resolve each ID once per session, and query a narrow topic. Do not use either for repo code.
 - Use Playwright to check a UI change against `pnpm dev:web` (`http://localhost:3000`) as the seed user in `packages/db/src/seed/users.seed.ts`. Prefer accessibility snapshots to screenshots, and close the browser when done. Lasting proof belongs in an `apps/e2e/tests/*.e2e.ts` spec, not the transcript.
-- `docs/agents/agent-engineering.md` records why GitHub, Sequential Thinking, and default filesystem MCP servers are not adopted. Add a server only with that record.
+- `docs/agents/agent-engineering.md` records why GitHub, Sequential Thinking, and default filesystem MCP servers are not adopted, and why GitButler MCP is opt-in. Add a server only with that record.
 
 Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of truth for shared guide content, skills, MCP servers, Serena seed files, subagent definitions, lightweight Codex/Claude/Grok session hooks, and the command guard hooks for every supported agent. Run `pnpm ai:install` after editing `.ai/` sources so AGENTS, Claude import, Serena files, local per-agent installs, and AI setup hooks stay aligned. Supported install targets: `claude`, `codex`, `cursor`, `opencode`, `grok`. `pnpm quick-setup` and `pnpm initialize` also run `pnpm ai:install` during onboarding after dependency installation. Run `pnpm ai:doctor` to lint skills, check MCP requirements, and surface drift. Installed agent outputs should not be edited directly.
 
@@ -301,3 +316,12 @@ failure behavior are documented in `docs/agents/agent-engineering.md`.
 - **ask** `git reset --hard` — Discards uncommitted work irrecoverably.
 - **deny** `gh pr merge` — Only the repository owner merges manually. Agents may create PRs but must not merge them or enable automatic merging.
 - **deny** `gh pr review ... --approve` — The repository owner reviews and approves contributions. Agents must not approve on the owner's behalf.
+- **deny** `but land` — Lands a GitButler branch on the target without a pull request. Only the repository owner merges into main. Use `but pr new <branch> --draft` instead.
+- **deny** `but pr auto-merge` — Only the repository owner merges manually. Agents must not enable automatic merging.
+- **deny** `but ... --no-verify` — Bypasses the pre-push hook, which is the only local commitlint and AI-attribution gate for GitButler commits. Fix the hook failure instead of skipping it.
+- **deny** `but ... --no-hooks` — Same bypass as --no-verify under its GitButler name.
+- **ask** `but push ... --with-force` — Force-pushes a GitButler branch that is not fast-forward. Destructive on a shared branch.
+- **ask** `but push ... -f` — Short form of --with-force.
+- **ask** `but ... --skip-force-push-protection` — Turns off GitButler's lease check, so a force push can overwrite commits someone else pushed.
+- **ask** `but push ... -s` — Short form of --skip-force-push-protection.
+- **ask** `but pr new ... -s` — Short form of --skip-force-push-protection.

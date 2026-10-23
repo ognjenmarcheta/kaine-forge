@@ -1,5 +1,15 @@
 #!/usr/bin/env sh
 set -e
+# GitButler's `but commit` skips commit-msg, so lint every pushed commit here too.
+while read -r _ LOCAL_SHA _ REMOTE_SHA; do
+  case "$LOCAL_SHA" in *[!0]*) ;; *) continue ;; esac
+  case "$REMOTE_SHA" in
+    *[!0]*) git cat-file -e "$REMOTE_SHA" 2>/dev/null && FROM="$REMOTE_SHA" || FROM="" ;;
+    *) FROM="" ;;
+  esac
+  [ -n "$FROM" ] || FROM="$(git merge-base "$LOCAL_SHA" "refs/remotes/$1/main" 2>/dev/null || true)"
+  [ -z "$FROM" ] || pnpm exec commitlint --from "$FROM" --to "$LOCAL_SHA" </dev/null
+done
 pnpm ai:doctor -- --strict
 # Typecheck only packages changed since the remote tip (falls back to full typecheck).
 if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then

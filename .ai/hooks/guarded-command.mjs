@@ -114,12 +114,20 @@ function scanCommands(command, shell) {
 /** @param {string[]} tokens @returns {string[]} */
 function normalizeCommand(tokens) {
   const [executable, ...args] = tokens;
-  if (executable !== "pnpm" && executable !== "git") return tokens;
-  const valued = executable === "pnpm" ? ["--filter", "-C", "--dir"] : ["-C"];
+  if (executable !== "pnpm" && executable !== "git" && executable !== "but") return tokens;
+  const valued =
+    executable === "pnpm"
+      ? ["--filter", "-C", "--dir"]
+      : executable === "but"
+        ? ["-C", "--current-dir"]
+        : ["-C"];
   let index = 0;
   while (index < args.length) {
     if (valued.includes(args[index]) && args[index + 1] !== undefined) index += 2;
     else if (executable === "pnpm" && /^(--filter|--dir)=/.test(args[index])) index++;
+    // but accepts its global flags before the subcommand.
+    else if (executable === "but" && /^(--json|--status-after|--current-dir=.*)$/.test(args[index]))
+      index++;
     else break;
   }
   if (executable === "pnpm" && args[index] === "run") index++;
@@ -153,7 +161,9 @@ function hasFlag(tokens, flag) {
         ]
       : tokens[0] === "gh" && tokens[1] === "pr" && tokens[2] === "review"
         ? ["-b", "--body", "-F", "--body-file", "-R", "--repo"]
-        : [];
+        : tokens[0] === "but"
+          ? ["-m", "--message", "-F", "--file"]
+          : [];
   for (let index = 1; index < tokens.length; index++) {
     if (tokens[index] === "--") break;
     if (valued.includes(tokens[index])) index++;
