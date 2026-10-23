@@ -44,7 +44,7 @@ Agents get the same encoded rules as humans — generated, linted, and drift-che
 - `kaine-*` skills cover tests, review, PRs, CI fixes, releases, and triage.
 - [`REVIEW.md`](REVIEW.md) is one review checklist for humans and agents; [`docs/agents/day-one.md`](docs/agents/day-one.md) is the day-one ramp.
 - Repeated agent failures become lint rules, tests, or skills ([ADR 0009](docs/adr/0009-domain-knowledge-as-agent-infra.md)).
-- The local agent desk (`pnpm desk:run`) drives a GitHub issue through intake, plan, build, check, and review to a draft PR; the owner approves at two gates and merges. See [`docs/agents/agent-desk.md`](docs/agents/agent-desk.md).
+- The local agent desk (`pnpm desk:run`) is the repository's software factory. It drives a GitHub issue through intake, plan, build, check, and review to a draft PR; the owner approves at two gates and merges. See [`docs/agents/agent-desk.md`](docs/agents/agent-desk.md).
 
 <!-- TEMPLATE_ONLY_START -->
 

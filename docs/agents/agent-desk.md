@@ -1,8 +1,8 @@
 # Agent desk
 
-The agent desk drives a GitHub issue through intake and then the steps of a flow. The
-built-in flow `kaine-default` plans, builds, checks, and reviews the change, then opens a draft
-PR. In it the owner approves at two gates. Other flows come from the repository or from you
+The agent desk is the local software factory of this repository. It drives a GitHub issue
+through intake and then the steps of a flow. The built-in flow `kaine-default` plans, builds,
+checks, and reviews the change, then opens a draft PR. In it the owner approves at two gates. Other flows come from the repository or from you
 (see "Agents and flows"). The owner merges every PR. The issue then waits at `pr-open` until the
 owner runs `refresh` after the merge. See [ADR 0011](../adr/0011-local-agent-desk.md) and
 [ADR 0012](../adr/0012-configurable-flows-and-agents.md).
