@@ -20,23 +20,6 @@ const namespaceFiles = readdirSync(join(localesDir, "en"))
 // is scoped to a locale and a key, so it cannot exempt newly scaffolded copy.
 const identicalValues: Readonly<Record<string, readonly string[]>> = {
   de: [
-    // Factory brand, technical terms, language autonyms, and interpolation-only labels.
-    "factory.json:brand",
-    "factory.json:issue",
-    "factory.json:docker",
-    "factory.json:information",
-    "factory.json:code",
-    "factory.json:en",
-    "factory.json:sr",
-    "factory.json:de",
-    "factory.json:issueNumber",
-    "factory.json:runTitle",
-    "factory.json:issueTitle",
-    "factory.json:milliseconds",
-    "factory.json:sourceLocation",
-    "factory.json:separator",
-    "factory.json:mark",
-
     // Agent desk: brand, autonyms, issue numbers, and technical terms that German developers use as they are.
     "desk.json:desk.flow.metrics",
     "desk.json:desk.stats.column.issue",
@@ -108,21 +91,6 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "todos.json:todos.ai.promptLabel"
   ],
   sr: [
-    // Factory brand, technical terms, language autonyms, and interpolation-only labels.
-    "factory.json:brand",
-    "factory.json:pr",
-    "factory.json:docker",
-    "factory.json:en",
-    "factory.json:sr",
-    "factory.json:de",
-    "factory.json:issueNumber",
-    "factory.json:runTitle",
-    "factory.json:issueTitle",
-    "factory.json:milliseconds",
-    "factory.json:sourceLocation",
-    "factory.json:separator",
-    "factory.json:mark",
-
     "auth.json:auth.form.emailPlaceholder",
 
     // Agent desk: brand, autonyms, issue numbers, and technical terms that Serbian developers use as they are.

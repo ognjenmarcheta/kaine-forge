@@ -2,9 +2,8 @@ import { stripVTControlCharacters } from "node:util";
 
 /**
  * Remove secrets from text before it reaches the log file or the terminal.
- * This is a copy of `redact()` in `.ai/factory-progress.ts` (a workspace cannot
- * import `.ai/*`). It is a safety net for known token shapes, not a proof that
- * a line has no secret.
+ * It is a safety net for known token shapes, not a proof that a line has no
+ * secret.
  */
 export const redact = (text: string): string =>
   stripVTControlCharacters(text)

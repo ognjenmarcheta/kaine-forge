@@ -79,8 +79,7 @@ export default [
       "apps/web/**/*.{ts,tsx}",
       "apps/desktop/**/*.{ts,tsx}",
       "packages/ui/**/*.{ts,tsx}",
-      "tooling/desk-ui/**/*.{ts,tsx}",
-      "tooling/factory-ui/**/*.{ts,tsx}"
+      "tooling/desk-ui/**/*.{ts,tsx}"
     ],
     rules: {
       "no-restricted-imports": [

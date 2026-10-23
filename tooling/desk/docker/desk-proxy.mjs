@@ -4,7 +4,6 @@ import http from "node:http";
 import net from "node:net";
 import { chmodSync, existsSync, unlinkSync } from "node:fs";
 
-// Copied from the software factory proxy (.ai/docker/factory-proxy.mjs).
 // TLS stays end to end: the proxy only tunnels a CONNECT to an allowlisted
 // host on port 443. Dependency fetches cannot reach a provider, and provider
 // runs cannot reach the npm registry.

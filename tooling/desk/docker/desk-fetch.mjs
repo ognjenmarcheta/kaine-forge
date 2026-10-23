@@ -4,10 +4,10 @@ import process from "node:process";
 
 import { proxyEnvironment, startBridge } from "./desk-bridge.mjs";
 
-// Copied from the software factory (.ai/docker/factory-fetch.mjs). Fills the pnpm
-// store and the virtual store from the lockfile through the registry-only proxy. It
-// runs no repository script (`--ignore-scripts --ignore-pnpmfile`). The container has
-// no network interface: its only way out is the proxy socket.
+// Fills the pnpm store and the virtual store from the lockfile through the
+// registry-only proxy. It runs no repository script (`--ignore-scripts
+// --ignore-pnpmfile`). The container has no network interface: its only way out
+// is the proxy socket.
 if (
   Object.values(networkInterfaces())
     .flat()

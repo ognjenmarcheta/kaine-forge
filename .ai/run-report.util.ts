@@ -19,7 +19,6 @@ export const codingRunSchema = z.object({
   failure: z.string().optional(),
   isolation: z.record(z.string(), z.json()).optional(),
   runId: z.string().uuid(),
-  factoryRunId: z.string().uuid().optional(),
   workspace: z.string(),
   revision: z.string(),
   model: z.string(),
