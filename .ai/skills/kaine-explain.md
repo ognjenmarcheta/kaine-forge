@@ -78,7 +78,7 @@ Keep it proportionate: one short paragraph often suffices. Do not merely repeat
 file lists, check counts, or the whole answer. Do not invent a next step or use the
 ending as a reason to stop authorized work. Explain jargon respectfully.
 
-## Headless runs (Agent Desk or factory worker)
+## Headless runs (Agent Desk)
 
 When the prompt supplies a result schema, the schema owns the output. Do not write
 interactive HTML, files under `.ai.local/explain/`, or text outside the schema. Put

@@ -1,6 +1,6 @@
 # ADR 0010: Local factory dashboard
 
-- Status: Accepted
+- Status: Superseded by [ADR 0011](0011-local-agent-desk.md). The factory, its controller, and this dashboard were removed on 2026-10-23.
 - Date: 2026-09-28
 
 Scope: the optional software factory.

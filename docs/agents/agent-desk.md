@@ -1,11 +1,37 @@
 # Agent desk
 
-The agent desk drives a GitHub issue through intake and then the steps of a flow. The
-built-in flow `kaine-default` plans, builds, checks, and reviews the change, then opens a draft
-PR. In it the owner approves at two gates. Other flows come from the repository or from you
+The agent desk is the local software factory of this repository. It drives a GitHub issue
+through intake and then the steps of a flow. The built-in flow `kaine-default` plans, builds,
+checks, and reviews the change, then opens a draft PR. In it the owner approves at two gates. Other flows come from the repository or from you
 (see "Agents and flows"). The owner merges every PR. The issue then waits at `pr-open` until the
 owner runs `refresh` after the merge. See [ADR 0011](../adr/0011-local-agent-desk.md) and
 [ADR 0012](../adr/0012-configurable-flows-and-agents.md).
+
+## Get started
+
+Do these steps once per machine, from the repository root:
+
+```sh
+pnpm desk doctor                # check the tools; under each failure it prints the repair command
+pnpm desk labels sync --apply   # once per repository: create the agent:* labels on GitHub
+pnpm desk:run                   # build the UI, start the server, and open the desk in a browser
+```
+
+`desk doctor` needs `gh` signed in as the repository owner and the `claude` or `codex` CLI for
+each agent role. The default reviewer uses the other provider than the builder. With only
+Claude, set `providers.reviewer` to `claude` in `.ai.local/desk/config.json` (see "Config").
+
+Then drive one issue:
+
+1. Write the issue in the issue format ([`issue-format.md`](issue-format.md)).
+   `pnpm desk contract <n>` scores it. Then add the `ready-for-agent` label as the owner.
+2. Start the issue in the desk UI, or run `pnpm desk start <n>`. The desk stops at the plan gate.
+3. Read the plan. Approve it, or send feedback to the planner.
+4. The desk builds, checks, and reviews, then stops at `pr-review`. Read the diff. Ship it as a
+   draft PR from the UI, or run `pnpm desk ship <n>`.
+5. Review and merge the PR on GitHub yourself. Then run `pnpm desk refresh <n>`.
+
+To see the whole pipeline without a GitHub issue, use "Try it without GitHub".
 
 ## Commands
 
@@ -121,9 +147,8 @@ denials, errors), and `log` (desk messages). `desk logs` and the future UI read 
 
 - Every text field passes `redact()` before it is written: bearer tokens, `sk-` keys,
   GitHub tokens, JWTs, `token=`/`password=` pairs, and URL credentials. It also cuts each
-  field at 4000 characters. `redact()` is a copy of the one in `.ai/factory-progress.ts`.
-  It catches known shapes. It is not a proof that a log holds no secret. Read a log before
-  you share it.
+  field at 4000 characters. It catches known shapes. It is not a proof that a log holds no
+  secret. Read a log before you share it.
 - The file stops at 4 MiB. Then it moves to `agent.log.jsonl.1` (the older copy is
   dropped) and the new file starts with a `note` record that says so.
 - A failed log write never stops a run. The command prints a warning at the end.
@@ -1398,7 +1423,3 @@ DESK_DOCKER=1 pnpm --filter @repo/desk exec vitest run src/isolation/docker.inte
 They need Docker, the network (one `pnpm fetch` of one small package), and a few minutes. They
 label every resource `kaine-desk=1` and remove all of it, also on failure. They do not touch an
 existing `kaine-desk-auth-*` volume: the tests that need one skip themselves.
-
-## Planned
-
-- After the first verified real draft PR: retire the factory.

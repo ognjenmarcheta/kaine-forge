@@ -83,6 +83,9 @@ template:
           # setup-node-pnpm skips the GitHub pnpm cache when this store is writable.
           - name: npm_config_store_dir
             value: /pnpm-store
+          # The Docker Image job builds on this shared daemon when it is set.
+          - name: BUILDKIT_HOST
+            value: tcp://buildkitd.arc-runners.svc.cluster.local:1234
         resources:
           requests:
             cpu: 750m

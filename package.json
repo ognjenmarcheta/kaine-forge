@@ -1,7 +1,7 @@
 {
   "name": "kaine-forge",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.29.3",
   "engines": {
     "node": ">=22"
@@ -49,8 +49,8 @@
     "ai:doctor": "tsx .ai/doctor.ts",
     "ai:context": "tsx .ai/context-audit.ts",
     "ai:install": "tsx .ai/install.ts",
-    "ai:lint": "eslint .ai/*.ts .ai/docker/*.mjs",
-    "ai:test": "vitest run --config .ai/vitest.config.ts && node --test .ai/docker/factory-provider.test.mjs .ai/docker/factory-proxy.test.mjs && tsx .ai/harness-eval.ts --check",
+    "ai:lint": "eslint .ai/*.ts",
+    "ai:test": "vitest run --config .ai/vitest.config.ts && tsx .ai/harness-eval.ts --check",
     "ai:typecheck": "tsc --noEmit -p .ai/tsconfig.json",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
@@ -59,7 +59,6 @@
     "eval:assistant:review": "pnpm --filter @repo/api eval:assistant review",
     "eval:assistant:record": "pnpm --filter @repo/api eval:assistant record",
     "agent:run": "tsx .ai/agent-run.ts",
-    "factory": "tsx .ai/factory.ts",
     "desk": "tsx tooling/desk/src/cli/desk.cli.ts",
     "desk:ui": "pnpm --filter @repo/desk-ui dev",
     "desk:run": "pnpm --filter @repo/desk-ui build && pnpm desk serve",
@@ -118,7 +117,6 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",
-    "zod": "catalog:",
-    "@repo/factory-ui": "workspace:*"
+    "zod": "catalog:"
   }
 }

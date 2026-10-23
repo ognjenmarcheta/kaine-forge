@@ -6,7 +6,7 @@ export type ControllerIdentity =
   | { readonly ok: false; readonly reason: string };
 
 /**
- * The factory's controller check, as a pure function. `gh` must authenticate
+ * The owner check, as a pure function. `gh` must authenticate
  * as the repository owner. For a repository outside a personal account the
  * owner cannot be derived, so it must be configured. Case does not matter.
  */

@@ -5,7 +5,6 @@ import authDe from "./locales/de/auth.json";
 import commonDe from "./locales/de/common.json";
 import dashboardDe from "./locales/de/dashboard.json";
 import deskDe from "./locales/de/desk.json";
-import factoryDe from "./locales/de/factory.json";
 import navigationDe from "./locales/de/navigation.json";
 import notesDe from "./locales/de/notes.json";
 import organizationsDe from "./locales/de/organizations.json";
@@ -16,7 +15,6 @@ import authEn from "./locales/en/auth.json";
 import commonEn from "./locales/en/common.json";
 import dashboardEn from "./locales/en/dashboard.json";
 import deskEn from "./locales/en/desk.json";
-import factoryEn from "./locales/en/factory.json";
 import navigationEn from "./locales/en/navigation.json";
 import notesEn from "./locales/en/notes.json";
 import organizationsEn from "./locales/en/organizations.json";
@@ -27,7 +25,6 @@ import authSr from "./locales/sr/auth.json";
 import commonSr from "./locales/sr/common.json";
 import dashboardSr from "./locales/sr/dashboard.json";
 import deskSr from "./locales/sr/desk.json";
-import factorySr from "./locales/sr/factory.json";
 import navigationSr from "./locales/sr/navigation.json";
 import notesSr from "./locales/sr/notes.json";
 import organizationsSr from "./locales/sr/organizations.json";
@@ -47,7 +44,6 @@ void translationInstance.init({
   returnNull: false,
   resources: {
     de: {
-      factory: factoryDe,
       desk: deskDe,
       assistant: assistantDe,
       auth: authDe,
@@ -60,7 +56,6 @@ void translationInstance.init({
       todos: todosDe
     },
     en: {
-      factory: factoryEn,
       desk: deskEn,
       assistant: assistantEn,
       auth: authEn,
@@ -73,7 +68,6 @@ void translationInstance.init({
       todos: todosEn
     },
     sr: {
-      factory: factorySr,
       desk: deskSr,
       assistant: assistantSr,
       auth: authSr,
