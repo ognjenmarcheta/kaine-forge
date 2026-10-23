@@ -70,5 +70,6 @@ GitButler is the recommended local client. Plain git stays fully supported.
   - `pnpm install` regenerates `.husky/_` and can remove GitButler's workspace guard. Rerun
     `but setup` to restore it (`docs/troubleshooting.md`).
   - The guard rules follow the `but` 0.22.3 flag names. A CLI rename needs a rule update.
-  - On `gitbutler/workspace`, `HEAD` has no upstream, so `pre-push` typechecks the whole
-    workspace instead of only the changed packages.
+  - On `gitbutler/workspace`, `HEAD` has no upstream, so `pre-push` scopes the typecheck to
+    the oldest base of the pushed refs. A push with no base, such as a branch delete,
+    typechecks the whole workspace.
