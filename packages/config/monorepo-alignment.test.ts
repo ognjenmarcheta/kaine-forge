@@ -1089,7 +1089,7 @@ describe("monorepo alignment", () => {
   });
 
   it("applies the DOM client import block to every DOM workspace, tooling UIs included (issue #518)", async () => {
-    // react.js already treats tooling/desk-ui and tooling/factory-ui as DOM apps,
+    // react.js already treats tooling/desk-ui as a DOM app,
     // but the server-only and mobile-ui import gates in base.js listed only
     // apps/web, apps/desktop and packages/ui. Ask ESLint which rules a file in
     // each workspace gets, so a glob typo fails here instead of passing silently.
@@ -1109,13 +1109,7 @@ describe("monorepo alignment", () => {
       return JSON.stringify(rules?.["no-restricted-imports"] ?? null);
     };
 
-    const domWorkspaces = [
-      "apps/web",
-      "apps/desktop",
-      "packages/ui",
-      "tooling/desk-ui",
-      "tooling/factory-ui"
-    ];
+    const domWorkspaces = ["apps/web", "apps/desktop", "packages/ui", "tooling/desk-ui"];
     // Each config resolution loads the whole flat config; resolve them together.
     const [mobile, ...domOptions] = await Promise.all(
       ["apps/mobile", ...domWorkspaces].map((workspace) =>

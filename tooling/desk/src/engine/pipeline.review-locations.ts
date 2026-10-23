@@ -4,7 +4,7 @@ import { normalizeRepoPath } from "../policy/protected-paths";
 /**
  * Which new-side lines a unified diff shows, per file. A review comment may
  * point only at a line a reader of the diff can see: an added line or a
- * context line. The idea comes from the factory's `reviewLocations`.
+ * context line.
  */
 export const diffNewLines = (patch: string): Map<string, ReadonlySet<number>> => {
   const lines = new Map<string, Set<number>>();

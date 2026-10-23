@@ -1,6 +1,0 @@
-node_modules
-dist
-.turbo
-coverage
-test-results
-playwright-report
