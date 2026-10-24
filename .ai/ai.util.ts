@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { isScalar, isSeq, parse as parseYaml, parseDocument } from "yaml";
+
+import { PROJECT_AI_PATH, readTemplateConfig, TEMPLATE_CONFIG_PATH } from "./template-sync.util";
 
 export const generatedTextEqual = (actual: string, expected: string): boolean =>
   actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
@@ -26,6 +28,12 @@ export const DAY_ONE_DOC = join(REPO_ROOT, "docs", "agents", "day-one.md");
 export const CONTRIBUTING_OUT = join(REPO_ROOT, "CONTRIBUTING.md");
 export const LOCAL_MCP_ENV_SRC = join(REPO_ROOT, ".ai.local", "mcp.env");
 export const LOCAL_MCP_SRC = join(REPO_ROOT, ".ai.local", "mcp.json");
+export const PROJECT_AI_DIR = join(REPO_ROOT, PROJECT_AI_PATH);
+export const PROJECT_GUIDE_SRC = join(PROJECT_AI_DIR, "guide.md");
+export const PROJECT_REVIEW_SRC = join(PROJECT_AI_DIR, "review.md");
+export const PROJECT_SKILLS_SRC_DIR = join(PROJECT_AI_DIR, "skills");
+export const PROJECT_AGENTS_SRC_DIR = join(PROJECT_AI_DIR, "agents");
+export const TEMPLATE_CONFIG_SRC = join(REPO_ROOT, TEMPLATE_CONFIG_PATH);
 
 export const KAINE_PREFIX = "kaine-";
 export const GEN_NOTICE = "GENERATED FILE. Do not edit directly. Run: pnpm ai:install";
@@ -306,62 +314,113 @@ export const parseSkillFile = (name: string, content: string): Skill => {
   return skill;
 };
 
-export const discoverSkills = (): Skill[] => {
-  const entries = readdirSync(SKILLS_SRC_DIR, { withFileTypes: true });
+/** Name prefix of project-owned skills and agents: `<repoSlug>-` from the adoption record. */
+export const projectNamePrefix = (configFile: string = TEMPLATE_CONFIG_SRC): string | null => {
+  const config = readTemplateConfig(configFile);
+  return config ? `${config.adoption.repoSlug}-` : null;
+};
+
+/** Installed skill and agent names the installer owns, so it may remove stale ones. */
+export const managedNamePredicate = (
+  projectPrefix: string | null = projectNamePrefix()
+): ((name: string) => boolean) => {
+  return (name) =>
+    name.startsWith(KAINE_PREFIX) || (projectPrefix !== null && name.startsWith(projectPrefix));
+};
+
+/** A canonical source folder and the prefix its names need; null means no adoption record. */
+export interface CanonicalSourceDir {
+  dir: string;
+  prefix: string | null;
+}
+
+const canonicalSourceDirs = (templateDir: string, projectDir: string): CanonicalSourceDir[] => [
+  { dir: templateDir, prefix: KAINE_PREFIX },
+  ...(existsSync(projectDir) ? [{ dir: projectDir, prefix: projectNamePrefix() }] : [])
+];
+
+export const skillSourceDirs = (): CanonicalSourceDir[] =>
+  canonicalSourceDirs(SKILLS_SRC_DIR, PROJECT_SKILLS_SRC_DIR);
+
+export const agentSourceDirs = (): CanonicalSourceDir[] =>
+  canonicalSourceDirs(AGENTS_SRC_DIR, PROJECT_AGENTS_SRC_DIR);
+
+const markdownFileNames = (dir: string): string[] =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+        .map((entry) => entry.name)
+    : [];
+
+const missingProjectPrefix = (dir: string): string =>
+  `${relative(REPO_ROOT, dir)}: project sources need ${TEMPLATE_CONFIG_PATH} (run pnpm template:adopt --write) to set their name prefix`;
+
+export const discoverSkills = (
+  sources: readonly CanonicalSourceDir[] = skillSourceDirs()
+): Skill[] => {
   const skills: Skill[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
-      continue;
+  for (const { dir, prefix } of sources) {
+    for (const fileName of markdownFileNames(dir)) {
+      if (prefix === null) {
+        throw new Error(missingProjectPrefix(dir));
+      }
+
+      const name = fileName.replace(/\.md$/, "");
+      const skill = parseSkillFile(name, readFileSync(join(dir, fileName), "utf8"));
+
+      if (!skill.name.startsWith(prefix)) {
+        throw new Error(`${name}: canonical skill names must start with '${prefix}'`);
+      }
+
+      skills.push(skill);
     }
-
-    const name = entry.name.replace(/\.md$/, "");
-    const skill = parseSkillFile(name, readFileSync(join(SKILLS_SRC_DIR, entry.name), "utf8"));
-
-    if (!skill.name.startsWith(KAINE_PREFIX)) {
-      throw new Error(`${name}: canonical skill names must start with '${KAINE_PREFIX}'`);
-    }
-
-    skills.push(skill);
   }
 
   return [...skills].sort((left, right) => left.name.localeCompare(right.name));
 };
 
-export const lintSkillsDir = (): LintIssue[] => {
+export const lintSkillsDir = (
+  sources: readonly CanonicalSourceDir[] = skillSourceDirs()
+): LintIssue[] => {
   const issues: LintIssue[] = [];
-  const entries = readdirSync(SKILLS_SRC_DIR, { withFileTypes: true });
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+  for (const { dir, prefix } of sources) {
+    const fileNames = markdownFileNames(dir);
+    if (prefix === null) {
+      if (fileNames.length > 0) {
+        issues.push({ file: dir, level: "error", message: missingProjectPrefix(dir) });
+      }
       continue;
     }
 
-    const name = entry.name.replace(/\.md$/, "");
-    const file = join(SKILLS_SRC_DIR, entry.name);
+    for (const fileName of fileNames) {
+      const name = fileName.replace(/\.md$/, "");
+      const file = join(dir, fileName);
 
-    try {
-      const skill = parseSkillFile(name, readFileSync(file, "utf8"));
-      if (!skill.name.startsWith(KAINE_PREFIX)) {
-        issues.push({
-          file,
-          level: "error",
-          message: `name '${skill.name}' must start with '${KAINE_PREFIX}'`
-        });
+      try {
+        const skill = parseSkillFile(name, readFileSync(file, "utf8"));
+        if (!skill.name.startsWith(prefix)) {
+          issues.push({
+            file,
+            level: "error",
+            message: `name '${skill.name}' must start with '${prefix}'`
+          });
+        }
+        if (skill.description.length > DESCRIPTION_SOFT_LIMIT) {
+          issues.push({
+            file,
+            level: "warning",
+            message: `description is ${skill.description.length} chars; Claude truncates skill listings at 1536`
+          });
+        }
+        if (skill.body.trim().length === 0) {
+          issues.push({ file, level: "error", message: "body is empty" });
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push({ file, level: "error", message: reason });
       }
-      if (skill.description.length > DESCRIPTION_SOFT_LIMIT) {
-        issues.push({
-          file,
-          level: "warning",
-          message: `description is ${skill.description.length} chars; Claude truncates skill listings at 1536`
-        });
-      }
-      if (skill.body.trim().length === 0) {
-        issues.push({ file, level: "error", message: "body is empty" });
-      }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      issues.push({ file, level: "error", message: reason });
     }
   }
 
@@ -401,58 +460,62 @@ export const parseAgentDefinitionFile = (name: string, content: string): AgentDe
   };
 };
 
-export const discoverAgentDefinitions = (dir: string = AGENTS_SRC_DIR): AgentDefinition[] => {
-  if (!existsSync(dir)) {
-    return [];
-  }
-
+export const discoverAgentDefinitions = (
+  sources: readonly CanonicalSourceDir[] = agentSourceDirs()
+): AgentDefinition[] => {
   const definitions: AgentDefinition[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
-      continue;
+
+  for (const { dir, prefix } of sources) {
+    for (const fileName of markdownFileNames(dir)) {
+      if (prefix === null) {
+        throw new Error(missingProjectPrefix(dir));
+      }
+
+      const name = fileName.replace(/\.md$/, "");
+      const definition = parseAgentDefinitionFile(name, readFileSync(join(dir, fileName), "utf8"));
+
+      if (!definition.name.startsWith(prefix)) {
+        throw new Error(`${name}: canonical agent definition names must start with '${prefix}'`);
+      }
+
+      definitions.push(definition);
     }
-
-    const name = entry.name.replace(/\.md$/, "");
-    const definition = parseAgentDefinitionFile(name, readFileSync(join(dir, entry.name), "utf8"));
-
-    if (!definition.name.startsWith(KAINE_PREFIX)) {
-      throw new Error(
-        `${name}: canonical agent definition names must start with '${KAINE_PREFIX}'`
-      );
-    }
-
-    definitions.push(definition);
   }
 
   return [...definitions].sort((left, right) => left.name.localeCompare(right.name));
 };
 
-export const lintAgentDefinitionsDir = (dir: string = AGENTS_SRC_DIR): LintIssue[] => {
-  if (!existsSync(dir)) {
-    return [];
-  }
-
+export const lintAgentDefinitionsDir = (
+  sources: readonly CanonicalSourceDir[] = agentSourceDirs()
+): LintIssue[] => {
   const issues: LintIssue[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+
+  for (const { dir, prefix } of sources) {
+    const fileNames = markdownFileNames(dir);
+    if (prefix === null) {
+      if (fileNames.length > 0) {
+        issues.push({ file: dir, level: "error", message: missingProjectPrefix(dir) });
+      }
       continue;
     }
 
-    const name = entry.name.replace(/\.md$/, "");
-    const file = join(dir, entry.name);
+    for (const fileName of fileNames) {
+      const name = fileName.replace(/\.md$/, "");
+      const file = join(dir, fileName);
 
-    try {
-      const definition = parseAgentDefinitionFile(name, readFileSync(file, "utf8"));
-      if (!definition.name.startsWith(KAINE_PREFIX)) {
-        issues.push({
-          file,
-          level: "error",
-          message: `name '${definition.name}' must start with '${KAINE_PREFIX}'`
-        });
+      try {
+        const definition = parseAgentDefinitionFile(name, readFileSync(file, "utf8"));
+        if (!definition.name.startsWith(prefix)) {
+          issues.push({
+            file,
+            level: "error",
+            message: `name '${definition.name}' must start with '${prefix}'`
+          });
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push({ file, level: "error", message: reason });
       }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      issues.push({ file, level: "error", message: reason });
     }
   }
 
@@ -853,13 +916,28 @@ export const mcpEnvValue = (name: string, localEnv: Record<string, string>): str
 const buildSkillsIndex = (skills: Skill[]): string =>
   skills.map((skill) => `- \`${skill.name}\`: ${skill.description}`).join("\n");
 
-export const renderAgentDoc = (guide: string, skills: Skill[]): string => {
+const readOptionalSource = (file: string): string | null =>
+  existsSync(file) ? readFileSync(file, "utf8") : null;
+
+/** Puts project-owned text after the upstream text; upstream output is unchanged without it. */
+const appendProjectSource = (source: string, projectSource: string | null): string =>
+  projectSource?.trim() ? `${source.trim()}\n\n${projectSource.trim()}` : source.trim();
+
+export const renderAgentDoc = (
+  guide: string,
+  skills: Skill[],
+  projectGuide: string | null = readOptionalSource(PROJECT_GUIDE_SRC)
+): string => {
   const issues = lintGuideSkillList(
     guide,
     skills.map((skill) => skill.name)
   );
   if (issues.length) throw new Error(issues.map((issue) => issue.message).join("; "));
-  return `${guide.trim().replace(GUIDE_SKILL_INDEX_MARKER, buildSkillsIndex(skills))}\n\n${renderGuardedCommandsSection(readPermissionsSource())}\n`;
+  const body = appendProjectSource(
+    guide.trim().replace(GUIDE_SKILL_INDEX_MARKER, buildSkillsIndex(skills)),
+    projectGuide
+  );
+  return `${body}\n\n${renderGuardedCommandsSection(readPermissionsSource())}\n`;
 };
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
@@ -1137,7 +1215,10 @@ export const shouldFailDoctor = (options: {
 export const renderSerenaMemory = (source: string): string =>
   `${HTML_HEADER}\n\n${source.trim()}\n`;
 
-export const renderReviewDoc = (source: string): string => `${HTML_HEADER}\n\n${source.trim()}\n`;
+export const renderReviewDoc = (
+  source: string,
+  projectReview: string | null = readOptionalSource(PROJECT_REVIEW_SRC)
+): string => `${HTML_HEADER}\n\n${appendProjectSource(source, projectReview)}\n`;
 
 export const renderMcpJson = (source: McpSource): string =>
   `${JSON.stringify({ _generated: GEN_NOTICE, ...source }, null, 2)}\n`;

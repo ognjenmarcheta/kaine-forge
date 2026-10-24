@@ -17,6 +17,12 @@ import {
   type TemplateAdoptionConfig,
   type TemplateAdoptionInput
 } from "./template-adoption.util";
+import {
+  nextTemplateConfig,
+  readTemplateConfig,
+  renderTemplateConfig,
+  TEMPLATE_CONFIG_PATH
+} from "./template-sync.util";
 
 interface CliOptions {
   configPath?: string;
@@ -226,6 +232,14 @@ const writeChangedFiles = (changedFiles: string[], files: ReadonlyMap<string, st
   }
 };
 
+// pnpm ai:sync re-applies this identity to upstream files, so adoption records it.
+const writeTemplateConfig = (config: TemplateAdoptionConfig): void => {
+  const absolutePath = join(REPO_ROOT, TEMPLATE_CONFIG_PATH);
+  const next = nextTemplateConfig(config, readTemplateConfig(absolutePath));
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  writeFileSync(absolutePath, renderTemplateConfig(next));
+};
+
 const printConfig = (config: TemplateAdoptionConfig): void => {
   const printable: TemplateAdoptionInput = {
     productName: config.productName,
@@ -291,6 +305,8 @@ const main = async (): Promise<void> => {
 
   if (options.write) {
     writeChangedFiles(changedPaths, result.files);
+    writeTemplateConfig(config);
+    console.log(`  ${TEMPLATE_CONFIG_PATH} ${chalk.gray("(adoption record for pnpm ai:sync)")}`);
     console.log();
     outro(
       chalk.green(`Updated ${changedPaths.length} file(s). Run pnpm ai:install after adoption.`)

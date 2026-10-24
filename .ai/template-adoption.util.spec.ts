@@ -400,6 +400,9 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption(".tauri-target/release/build/out/a.js")).toBe(true);
     expect(excludedFromTemplateAdoption(".worktrees/adopted-repo/README.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/template-adoption.util.ts")).toBe(true);
+    // The sync tooling and the project record keep the upstream URL --check must not flag.
+    expect(excludedFromTemplateAdoption(".ai/template-sync.util.ts")).toBe(true);
+    expect(excludedFromTemplateAdoption(".ai/project/template.json")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/skills/kaine-adopt-template.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".agents/skills/kaine-adopt-template/SKILL.md")).toBe(true);
     expect(excludedFromTemplateAdoption("node_modules/example/package.json")).toBe(true);

@@ -9,11 +9,14 @@ import {
   opencodePermissionEntries,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
+  discoverSkills,
+  KAINE_PREFIX,
   lintAgentDefinitionsDir,
   lintContextSource,
   lintDomainKnowledgeArtifacts,
   lintGuideSkillList,
   lintReviewSource,
+  managedNamePredicate,
   missingEnvVarsForMcpServers,
   mergeMcpSources,
   parseAgentDefinitionFile,
@@ -47,6 +50,11 @@ import {
   REVIEW_REQUIRED_HEADINGS,
   shouldFailDoctor
 } from "./ai.util";
+
+const kaineSource = (dir: string) => [{ dir, prefix: KAINE_PREFIX }];
+
+const skillDef = (name: string): string =>
+  `---\nname: ${name}\ndescription: Does ${name} things.\n---\n\nBody.\n`;
 
 const agentDef = (
   name: string,
@@ -233,6 +241,18 @@ describe("renderAgentDoc", () => {
     expect(output).toContain("- `kaine-foo`: Does foo.");
   });
 
+  it("places the project guide after the upstream rules and changes nothing without one", () => {
+    const guide = "# Guide\n\nUpstream rule.\n<!-- kaine:skills-index -->\n";
+    const withProject = renderAgentDoc(guide, [], "## Project rules\n\nAcme rule.\n");
+
+    expect(withProject.indexOf("Upstream rule.")).toBeLessThan(withProject.indexOf("Acme rule."));
+    expect(withProject.indexOf("Acme rule.")).toBeLessThan(
+      withProject.indexOf("## Guarded Commands")
+    );
+    expect(renderAgentDoc(guide, [], null)).toBe(renderAgentDoc(guide, [], "  \n"));
+    expect(renderAgentDoc(guide, [], null)).not.toContain("Acme rule.");
+  });
+
   it("renders the Claude import file", () => {
     expect(renderClaudeImport()).toBe("@AGENTS.md\n");
   });
@@ -312,14 +332,22 @@ describe("shouldFailDoctor", () => {
 
 describe("renderReviewDoc", () => {
   it("wraps the source with the HTML generated-file notice", () => {
-    expect(renderReviewDoc("# Review\n\nBody.")).toBe(
+    expect(renderReviewDoc("# Review\n\nBody.", null)).toBe(
       "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n# Review\n\nBody.\n"
     );
   });
 
+  it("appends the project review checklist after the upstream checklist", () => {
+    expect(renderReviewDoc("## Correctness\n\n- x\n", "## Acme\n\n- y\n")).toBe(
+      "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n## Correctness\n\n- x\n\n## Acme\n\n- y\n"
+    );
+  });
+
   it("trims surrounding whitespace on the source body", () => {
-    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n")).toContain("## Correctness\n\n- x\n");
-    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n").startsWith("<!--")).toBe(true);
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n", null)).toContain(
+      "## Correctness\n\n- x\n"
+    );
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n", null).startsWith("<!--")).toBe(true);
   });
 });
 
@@ -903,7 +931,7 @@ describe("discoverAgentDefinitions", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
       writeFileSync(join(dir, "kaine-explorer.md"), agentDef("kaine-explorer"));
-      const defs = discoverAgentDefinitions(dir);
+      const defs = discoverAgentDefinitions(kaineSource(dir));
       expect(defs.map((def) => def.name)).toEqual(["kaine-explorer", "kaine-implementer"]);
     });
   });
@@ -911,12 +939,70 @@ describe("discoverAgentDefinitions", () => {
   it("rejects a non-kaine name", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "helper.md"), agentDef("helper"));
-      expect(() => discoverAgentDefinitions(dir)).toThrow(/must start with 'kaine-'/);
+      expect(() => discoverAgentDefinitions(kaineSource(dir))).toThrow(/must start with 'kaine-'/);
     });
   });
 
   it("returns an empty list when the directory is missing", () => {
-    expect(discoverAgentDefinitions(join(tmpdir(), "kaine-agents-missing-xyz"))).toEqual([]);
+    expect(
+      discoverAgentDefinitions(kaineSource(join(tmpdir(), "kaine-agents-missing-xyz")))
+    ).toEqual([]);
+  });
+});
+
+describe("project skill and agent sources", () => {
+  const withSourceDirs = (fn: (template: string, project: string) => void): void => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-project-sources-"));
+    const template = join(root, "skills");
+    const project = join(root, "project-skills");
+    mkdirSync(template, { recursive: true });
+    mkdirSync(project, { recursive: true });
+    try {
+      fn(template, project);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("discovers project skills that use the project prefix next to template skills", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(template, "kaine-review.md"), skillDef("kaine-review"));
+      writeFileSync(join(project, "acme-deploy.md"), skillDef("acme-deploy"));
+      const skills = discoverSkills([...kaineSource(template), { dir: project, prefix: "acme-" }]);
+      expect(skills.map((skill) => skill.name)).toEqual(["acme-deploy", "kaine-review"]);
+    });
+  });
+
+  it("rejects a project skill without the project prefix", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(project, "deploy.md"), skillDef("deploy"));
+      expect(() =>
+        discoverSkills([...kaineSource(template), { dir: project, prefix: "acme-" }])
+      ).toThrow(/must start with 'acme-'/);
+    });
+  });
+
+  it("rejects project agents when no adoption record names the prefix", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(project, "acme-helper.md"), agentDef("acme-helper"));
+      const sources = [...kaineSource(template), { dir: project, prefix: null }];
+      expect(() => discoverAgentDefinitions(sources)).toThrow(/template\.json/);
+      expect(lintAgentDefinitionsDir(sources)).toEqual([
+        expect.objectContaining({
+          level: "error",
+          message: expect.stringContaining("template.json")
+        })
+      ]);
+    });
+  });
+
+  it("lets the installer remove only template and project outputs, never personal copies", () => {
+    const isManaged = managedNamePredicate("acme-");
+    expect(["kaine-review", "acme-deploy", "my-review", "review"].filter(isManaged)).toEqual([
+      "kaine-review",
+      "acme-deploy"
+    ]);
+    expect(managedNamePredicate(null)("acme-deploy")).toBe(false);
   });
 });
 
@@ -935,14 +1021,14 @@ describe("lintAgentDefinitionsDir", () => {
   it("passes for a valid definition", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
-      expect(lintAgentDefinitionsDir(dir)).toEqual([]);
+      expect(lintAgentDefinitionsDir(kaineSource(dir))).toEqual([]);
     });
   });
 
   it("flags a non-kaine name", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "helper.md"), agentDef("helper"));
-      const issues = lintAgentDefinitionsDir(dir);
+      const issues = lintAgentDefinitionsDir(kaineSource(dir));
       expect(issues).toHaveLength(1);
       expect(issues[0]?.level).toBe("error");
       expect(issues[0]?.message).toContain("kaine-");
@@ -955,7 +1041,7 @@ describe("lintAgentDefinitionsDir", () => {
         join(dir, "kaine-implementer.md"),
         "---\nname: kaine-implementer\ndescription: x\n---\n\n"
       );
-      const issues = lintAgentDefinitionsDir(dir);
+      const issues = lintAgentDefinitionsDir(kaineSource(dir));
       expect(
         issues.some((issue) => issue.level === "error" && /body is empty/.test(issue.message))
       ).toBe(true);
