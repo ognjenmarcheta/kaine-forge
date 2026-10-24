@@ -6,7 +6,7 @@ import type { AgentProcess } from "../agents/agent.process";
 import { createReplayRunner } from "../agents/agent.replay";
 import { checkReportSchema } from "../check";
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase } from "../git";
+import { createGitPort, diffAgainstBase } from "../git";
 import { createDockerIsolation, type DockerIsolation } from "./isolation.docker";
 import { baseRequest } from "../testing/agent.testing";
 import { jsonReply, type FakeRun } from "../testing/docker.fake";
@@ -135,6 +135,7 @@ describe("runChecks in containers", () => {
     kind: "loop" as const,
     config: deskConfigSchema.parse({}),
     exec: e.docker.exec,
+    git: createGitPort(e.docker.exec),
     baseSha: e.baseSha,
     artifactsDir: artifacts(e)
   });

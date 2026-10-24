@@ -38,7 +38,6 @@ import {
 } from "../contracts";
 import {
   compareRefs,
-  diffAgainstBase,
   isOtherIssueRef,
   type DiffResult,
   type RefsSnapshot,
@@ -271,7 +270,7 @@ const runAgentStageOnce = async <T>(
   let diffBefore: DiffResult;
   try {
     refsBefore = await deps.git.refsSnapshot(worktree);
-    diffBefore = await diffAgainstBase(deps.exec, worktree, baseSha);
+    diffBefore = await deps.git.diffAgainstBase(worktree, baseSha);
   } catch (error) {
     return stop(`Cannot inspect the worktree before the ${name} run: ${message(error)}`);
   }
@@ -457,7 +456,7 @@ const runAgentStageOnce = async <T>(
     );
     if (refViolations.length > 0) observed.invariants.push("refs");
     violations.push(...refViolations.map(describeRefViolation));
-    diffAfter = await diffAgainstBase(deps.exec, worktree, baseSha);
+    diffAfter = await deps.git.diffAgainstBase(worktree, baseSha);
   } catch (error) {
     violations.push(`Cannot inspect the worktree after the ${name} run: ${message(error)}`);
   }

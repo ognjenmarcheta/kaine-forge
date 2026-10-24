@@ -1,6 +1,6 @@
 import type { CheckKind, CheckReport } from "../check";
 import { isShipGate, type FlowSnapshot, type HistoryEvent } from "../contracts";
-import { isValidBranchName } from "../engine/worktree.bootstrap";
+import { isValidBranchName } from "../git";
 import type { RecheckResult } from "../github/github.authorization";
 import type { ControllerIdentity } from "../github/github.identity";
 import type { PullRequestView } from "../github/github.pull-request";

@@ -108,16 +108,15 @@ export {
   branchName,
   evaluateStep,
   installsForAgents,
-  isValidBranchName,
   slugify,
   type BootstrapInput,
   type BootstrapPlan,
   type BootstrapStep,
-  type BranchName,
   type DeskRole,
   type StepExpectation,
   type StepVerdict
 } from "./engine/worktree.bootstrap";
+export { isValidBranchName, type BranchName } from "./git";
 export {
   authorize,
   contentFingerprint,
