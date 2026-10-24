@@ -45,8 +45,9 @@ describe("todos.router", () => {
     workflows: {
       todo: createTodoWorkflow({
         createTodo: todosAdapter.createTodo,
+        deleteAttachmentObject: async () => undefined,
         deleteTodo: todosAdapter.deleteTodo,
-        deleteTodoAttachments: vi.fn(async () => undefined),
+        deleteTodoAttachments: vi.fn(async () => []),
         publishTodoEvent: (eventName, ...payload) => {
           testPubsub.publish(eventName, ...payload);
         },

@@ -1,6 +1,7 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { buildStorageKey, STORAGE_DEFAULTS, validateFile } from "@repo/storage";
 
+import { ATTACHMENT_ENTITY_TYPES } from "./attachment.lifecycle";
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 
@@ -58,6 +59,8 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
   getFileById: (scope: AuthenticatedOrganizationScope, fileId: string) => Promise<TFile | null>;
   listFiles: (scope: AuthenticatedOrganizationScope, filter: FilesFilterInput) => Promise<TFile[]>;
   presignedUrlExpirySeconds: number | (() => number);
+  /** Whether a Todo with this id exists in the scope's Active Organization. */
+  todoExists: (scope: AuthenticatedOrganizationScope, todoId: string) => Promise<boolean>;
   updateFileStatus: (
     scope: AuthenticatedOrganizationScope,
     fileId: string,
@@ -81,6 +84,15 @@ export function createStorageLifecycle<TFile extends StoredFile>(
 
       if (!validation.valid) {
         throw new Error(`file validation failed: ${validation.errors.join(", ")}`);
+      }
+
+      // The client names the Attachment's target, so the server proves it is a
+      // Todo in the Active Organization before linking it.
+      if (
+        input.entityType === ATTACHMENT_ENTITY_TYPES.todo &&
+        (!input.entityId || !(await adapter.todoExists(scope, input.entityId)))
+      ) {
+        throw new Error("attachment target not found");
       }
 
       const fileId = adapter.createFileId();

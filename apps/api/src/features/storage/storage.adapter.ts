@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
+import { coercePagination } from "../todos/todos.util";
 
 export async function createFileRecord(
   scope: AuthenticatedOrganizationScope,
@@ -60,11 +61,7 @@ export async function listFiles(
   scope: AuthenticatedOrganizationScope,
   filter: FilesFilterInput
 ): Promise<File[]> {
-  const limit = Math.min(
-    filter.limit ?? STORAGE_CONFIG.pagination.defaultLimit,
-    STORAGE_CONFIG.pagination.maxLimit
-  );
-  const offset = filter.offset ?? 0;
+  const { limit, offset } = coercePagination(filter, STORAGE_CONFIG.pagination);
 
   const conditions = [eq(filesTable.organizationId, scope.organizationId)];
 
