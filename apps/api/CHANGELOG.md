@@ -1,5 +1,19 @@
 # @repo/api
 
+## 1.9.4
+
+### Patch Changes
+
+- Updated dependencies [500e8a7]
+- Updated dependencies [500e8a7]
+- Updated dependencies [b7011e2]
+  - @repo/translation@1.9.0
+  - @repo/auth@2.0.0
+  - @repo/db@1.6.3
+  - @repo/feature-flags@1.1.1
+  - @repo/logger@1.1.0
+  - @repo/storage@1.2.2
+
 ## 1.9.3
 
 ### Patch Changes

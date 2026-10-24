@@ -1,5 +1,11 @@
 # @repo/config
 
+## 1.4.1
+
+### Patch Changes
+
+- b7011e2: Retire the software factory: remove the `factory` translation namespace that only the deleted `@repo/factory-ui` used, and drop `tooling/factory-ui` from the DOM-client ESLint globs.
+
 ## 1.4.0
 
 ### Minor Changes
