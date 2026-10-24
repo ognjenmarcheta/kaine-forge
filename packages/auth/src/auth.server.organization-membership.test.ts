@@ -85,11 +85,7 @@ describe("auth.server organization membership reads", () => {
 
     await auth.listOrganizationsByScope(scope);
 
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.from).toHaveBeenCalled();
-    expect(chain.innerJoin).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalled();
-    expect(chain.orderBy).toHaveBeenCalled();
+    expect(chain.where).toHaveBeenCalledWith(["members.user_id", "user-1"]);
   });
 
   it("gets the current Active Organization through Authenticated Organization Scope", async () => {
@@ -98,7 +94,10 @@ describe("auth.server organization membership reads", () => {
 
     await expect(auth.getCurrentOrganizationByScope(scope)).resolves.toEqual({ id: "org-1" });
 
-    expect(chain.limit).toHaveBeenCalledWith(1);
+    expect(chain.where).toHaveBeenCalledWith([
+      ["members.user_id", "user-1"],
+      ["members.organization_id", "org-1"]
+    ]);
   });
 
   it("rejects member listing when the User is not in the Active Organization", async () => {
@@ -116,8 +115,7 @@ describe("auth.server organization membership reads", () => {
 
     await auth.listOrganizationMembersByScope(scope);
 
-    expect(mockDb.select).toHaveBeenCalledTimes(2);
-    expect(chain.innerJoin).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalled();
+    expect(chain.where).toHaveBeenCalledTimes(2);
+    expect(chain.where).toHaveBeenLastCalledWith(["members.organization_id", "org-1"]);
   });
 });

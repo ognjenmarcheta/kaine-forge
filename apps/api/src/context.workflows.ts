@@ -3,7 +3,7 @@ import type { Logger } from "@repo/logger";
 import { createNote, deleteNote, updateNote } from "./features/notes/notes.adapter";
 import { createNoteWorkflow } from "./features/notes/notes.workflow";
 import { createAttachmentLifecycle } from "./features/storage/attachment.lifecycle";
-import { deleteFilesByEntity, listFiles } from "./features/storage/storage.adapter";
+import { deleteFilesByEntity } from "./features/storage/storage.adapter";
 import { createTodo, deleteTodo, toggleTodo, updateTodo } from "./features/todos/todos.adapter";
 import { createTodoWorkflow } from "./features/todos/todos.workflow";
 import { formatLoggableError } from "./observability";
@@ -37,7 +37,7 @@ export interface ApiWorkflows {
  * would pull the database into test files that deliberately load none.
  */
 export function createApiWorkflows({ logger, publish }: ApiWorkflowDeps): ApiWorkflows {
-  const attachmentLifecycle = createAttachmentLifecycle({ deleteFilesByEntity, listFiles });
+  const attachmentLifecycle = createAttachmentLifecycle({ deleteFilesByEntity });
 
   return {
     note: createNoteWorkflow({
