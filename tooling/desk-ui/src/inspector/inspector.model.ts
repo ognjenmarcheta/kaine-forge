@@ -11,17 +11,12 @@ import type {
   PlannerOutput,
   ReviewArtifactView,
   RunRecord,
-  ShipReadiness
+  ShipReadiness,
+  StepRole
 } from "@repo/desk/contracts";
 
 import type { ArtifactState } from "../artifacts/artifact.use";
-import {
-  TICKET_NODE,
-  flowStepOf,
-  issueFlowOfView,
-  stepRoleOf,
-  type StepRole
-} from "../flow/flow.steps";
+import { TICKET_NODE, flowStepOf, issueFlowOfView } from "../flow/flow.steps";
 import type { TranslationValues } from "../i18n/i18n.t";
 import { reasonExcerpt, type Tone } from "../status/status.model";
 
@@ -43,7 +38,9 @@ export const resolveSelection = (picked: FlowNodeId | null, model: FlowModel): F
 type StageRole = StepRole | "ticket";
 
 export const stageRoleOf = (detail: IssueDetail, id: FlowNodeId): StageRole | null =>
-  id === TICKET_NODE ? "ticket" : stepRoleOf(issueFlowOfView(detail.flowDefinition), id);
+  id === TICKET_NODE
+    ? "ticket"
+    : (flowStepOf(issueFlowOfView(detail.flowDefinition), id)?.role ?? null);
 
 /** A report step that has run, and the agent whose `report-<agent id>.json` holds its result. */
 export interface RanReport {
