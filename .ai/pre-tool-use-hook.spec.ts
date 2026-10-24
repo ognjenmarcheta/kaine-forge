@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -248,6 +249,32 @@ describe("matchGuardedCommand", () => {
 });
 
 describe("pre-tool-use hook", () => {
+  it("keeps every valid rule when the policy holds one malformed rule", () => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-hook-policy-"));
+    try {
+      mkdirSync(join(root, ".ai", "hooks"), { recursive: true });
+      for (const file of ["pre-tool-use.mjs", "guarded-command.mjs"]) {
+        copyFileSync(join(process.cwd(), ".ai", "hooks", file), join(root, ".ai", "hooks", file));
+      }
+      const policy = JSON.parse(
+        readFileSync(join(process.cwd(), ".ai", "permissions.json"), "utf8")
+      );
+      // A deny rule with no command used to throw inside the matcher, so the
+      // hook skipped and every rule after it was lost.
+      policy.rules.unshift({ id: "broken", decision: "deny", reason: "no command" });
+      writeFileSync(join(root, ".ai", "permissions.json"), JSON.stringify(policy));
+
+      const result = spawnSync("node", [join(root, ".ai", "hooks", "pre-tool-use.mjs")], {
+        input: JSON.stringify({ tool_input: { command: "pnpm db:push" }, tool_name: "Bash" }),
+        encoding: "utf8"
+      });
+
+      expect(result.status).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("denies documented Claude PowerShell events", () => {
     const result = runHook("pnpm --dir . db:push", "claude", "PowerShell");
     expect(result.status).toBe(2);
