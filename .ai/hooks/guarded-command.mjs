@@ -2,8 +2,38 @@
 // Imported by .ai/hooks/pre-tool-use.mjs and by the OpenCode guardrail plugin,
 // so the matching logic has exactly one implementation.
 
+import { readFileSync } from "node:fs";
+
 /** Deny is evaluated before ask, so the stronger verdict always wins. */
 export const GUARD_DECISIONS = ["deny", "ask"];
+
+const isOptionalString = (value) => value === undefined || typeof value === "string";
+
+const isGuardedCommandRule = (rule) =>
+  rule !== null &&
+  typeof rule === "object" &&
+  typeof rule.id === "string" &&
+  GUARD_DECISIONS.includes(rule.decision) &&
+  typeof rule.command === "string" &&
+  rule.command.trim() !== "" &&
+  typeof rule.reason === "string" &&
+  isOptionalString(rule.flag) &&
+  isOptionalString(rule.instead);
+
+/**
+ * Reads the policy and keeps every well-formed rule. A malformed rule is
+ * dropped on its own, so one bad entry cannot disable the others. An unreadable
+ * file or a missing `rules` array throws; callers decide how to fail open.
+ * @param {string} path Absolute path to permissions.json.
+ * @returns {Array<{ id: string, decision: string, command: string, flag?: string, reason: string, instead?: string }>}
+ */
+export function loadGuardedCommandRules(path) {
+  const source = JSON.parse(readFileSync(path, "utf8"));
+  if (!Array.isArray(source?.rules)) {
+    throw new Error("permissions.json: rules must be an array");
+  }
+  return source.rules.filter(isGuardedCommandRule);
+}
 
 const HEREDOC_START = /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/;
 

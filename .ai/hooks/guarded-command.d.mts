@@ -13,6 +13,7 @@ export interface GuardedCommandRule {
 }
 
 export declare const GUARD_DECISIONS: readonly string[];
+export declare function loadGuardedCommandRules(path: string): GuardedCommandRule[];
 export declare function stripHeredocBodies(command: string): string;
 export declare function splitShellSegments(command: string): string[];
 export declare function matchGuardedCommand<TRule extends GuardedCommandRule>(
