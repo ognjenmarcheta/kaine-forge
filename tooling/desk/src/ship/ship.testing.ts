@@ -12,7 +12,7 @@ import { diffAgainstBase } from "../git";
 import { createGitPort } from "../git";
 import { authorize } from "../github/github.authorization";
 import type { Exec, ExecRequest } from "../ports";
-import { shipIssue, type ShipDeps, type ShipRequest } from "./ship.run";
+import { prepareShip, runShip, type ShipDeps, type ShipRequest } from "./ship.run";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
 import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import {
@@ -112,6 +112,10 @@ export interface ShipEnv {
   readonly setPlan: (over: Partial<PlannerOutput>) => Promise<void>;
   /** Forget the recorded calls, for a test that runs the executor more than once. */
   readonly resetCalls: () => void;
+  /**
+   * Both phases of a confirmed ship from the stored state, as the runner runs them. A ship that
+   * `shipAdmission` refuses throws: the admission cases have their own tests.
+   */
   readonly ship: (over?: Partial<ShipRequest>, deps?: Partial<ShipDeps>) => Promise<ShipResult>;
   readonly commitCount: () => Promise<number>;
   readonly cleanup: () => Promise<void>;
@@ -320,8 +324,16 @@ export const createShipEnv = async (options: ShipEnvOptions = {}): Promise<ShipE
     resetCalls: () => {
       calls.length = 0;
     },
-    ship: (over = {}, depsOver = {}) =>
-      shipIssue({ ...deps, ...depsOver }, { issue: ISSUE, confirm: true, ...over }),
+    ship: async (over = {}, depsOver = {}) => {
+      const read = await store.read(ISSUE);
+      if (read.status !== "ok") throw new Error(`the ship env has no state for #${ISSUE}`);
+      const prepared = await prepareShip(
+        { ...deps, ...depsOver },
+        { state: read.state, intent: "confirmed", writeback: true, ...over }
+      );
+      if (prepared.status === "not-admitted") throw new Error(prepared.reason);
+      return prepared.status === "admitted" ? runShip(prepared.ticket) : prepared;
+    },
     commitCount: async () =>
       Number(await clone.git(["rev-list", "--count", `${baseSha}..HEAD`], worktree)),
     cleanup: () => scratch.cleanup()
