@@ -10,24 +10,23 @@ import { protectedPathReason } from "../policy";
  * The ship gate as a pure function. Every fact is gathered by the caller and
  * passed in, so each rule is testable on its own. `evaluateShipGate` reports
  * every failed rule, not only the first, so the engineer sees all of them.
- * ALL rules must hold:
+ * Whether the owner confirmed is not a gate rule: `shipAdmission` decides it before the
+ * gate runs. ALL rules must hold:
  *
- * 1. the engineer confirmed (an automatic ship confirms itself);
- * 2. the check report passed, is of an accepted kind, and was taken on the
+ * 1. the check report passed, is of an accepted kind, and was taken on the
  *    code that ships (`diffHash`);
- * 3. `gh` is signed in as the configured owner;
- * 4. the branch name is valid and is the branch of the issue;
- * 5. the authorization snapshot still holds (issue open, text unchanged);
- * 6. HEAD, the branch and the remotes are as the last agent stage left them;
- * 7. no protected path is in the diff, and the diff is not empty;
- * 8. the owner approved at a gate of the flow (`ownerApproved`), and the reviewer approved the
+ * 2. `gh` is signed in as the configured owner;
+ * 3. the branch name is valid and is the branch of the issue;
+ * 4. the authorization snapshot still holds (issue open, text unchanged);
+ * 5. HEAD, the branch and the remotes are as the last agent stage left them;
+ * 6. no protected path is in the diff, and the diff is not empty;
+ * 7. the owner approved at a gate of the flow (`ownerApproved`), and the reviewer approved the
  *    code that ships;
- * 9. for an update of an open PR (a PR feedback round): a fresh read of the PR
+ * 8. for an update of an open PR (a PR feedback round): a fresh read of the PR
  *    shows it open, on the issue branch, at a head the desk knows.
  */
 
 export const SHIP_GATE_FAILURES = [
-  "not-confirmed",
   "checks-missing",
   "checks-wrong-kind",
   "checks-failed",
@@ -87,8 +86,6 @@ export interface ShipGatePullRequest {
 }
 
 export interface ShipGateInput {
-  /** The engineer's explicit confirmation. Only `true` passes. */
-  readonly confirm: boolean;
   readonly checks: {
     readonly report: CheckReport | null;
     /** The kinds that count. Before the ship checks run, a passed `loop` report counts too. */
@@ -180,8 +177,6 @@ export const evaluateShipGate = (input: ShipGateInput): ShipGateResult => {
   const fail = (kind: ShipGateFailureKind, message: string): void => {
     failures.push({ kind, message });
   };
-
-  if (input.confirm !== true) fail("not-confirmed", "Ship needs the explicit confirmation.");
 
   const { report, accept } = input.checks;
   if (report === null) {
