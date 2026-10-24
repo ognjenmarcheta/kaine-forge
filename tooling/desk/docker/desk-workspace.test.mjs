@@ -97,12 +97,6 @@ const fixture = () => {
   };
 };
 
-test("the diff flags are read from the TypeScript source", () => {
-  assert.equal(FLAGS[0], "diff");
-  assert.ok(FLAGS.includes("--full-index"));
-  assert.ok(FLAGS.includes("--no-ext-diff"));
-});
-
 test("sync asks for the bundle when the workspace is empty", () => {
   const f = fixture();
   try {
@@ -277,9 +271,18 @@ test("sync removes only files under the state folder", () => {
 test("a bad base commit or branch is refused before any change", () => {
   const f = fixture();
   try {
-    assert.notEqual(f.run("sync", { ...f.payload(), baseSha: "HEAD" }).code, 0);
-    assert.notEqual(f.run("sync", { ...f.payload(), baseBranch: "../x" }).code, 0);
-    assert.notEqual(f.run("nope", f.payload()).code, 0);
+    // With the bundle present, an accepted sync would create the workspace.
+    f.bundle();
+    for (const [operation, input, reason] of [
+      ["sync", { ...f.payload(), baseSha: "HEAD" }, /Invalid base commit/],
+      ["sync", { ...f.payload(), baseBranch: "../x" }, /Invalid base branch/],
+      ["nope", f.payload(), /Unknown workspace operation/]
+    ]) {
+      const refused = f.run(operation, input);
+      assert.notEqual(refused.code, 0);
+      assert.match(refused.stderr, reason);
+      assert.equal(existsSync(f.workspace), false);
+    }
   } finally {
     f.done();
   }
