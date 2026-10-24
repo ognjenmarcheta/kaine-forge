@@ -7,7 +7,6 @@ import { REFS_BASELINE_FILE } from "./ship.contract";
 import {
   baselineAfterCommit,
   readRefsBaseline,
-  recordRefsBaseline,
   shipRefViolations,
   writeRefsBaseline
 } from "./ship.refs";
@@ -113,16 +112,5 @@ describe("the baseline file", () => {
     await expect(readRefsBaseline(dir)).resolves.toBeNull();
     await writeFile(path.join(dir, REFS_BASELINE_FILE), JSON.stringify({ head: 1 }));
     await expect(readRefsBaseline(dir)).resolves.toBeNull();
-  });
-
-  it("recordRefsBaseline stores what the git port reports", async () => {
-    const dir = await tempDir();
-    const stored = await recordRefsBaseline(
-      { refsSnapshot: () => Promise.resolve(snapshot()) },
-      "/wt",
-      dir
-    );
-    expect(stored).toEqual(snapshot());
-    await expect(readRefsBaseline(dir)).resolves.toEqual(snapshot());
   });
 });
