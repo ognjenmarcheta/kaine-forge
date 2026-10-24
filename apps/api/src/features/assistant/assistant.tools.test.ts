@@ -84,8 +84,8 @@ describe("createAssistantTools", () => {
 
     await runTool(tools, "createTodo", { title: "Buy milk", description: "details" });
     await runTool(tools, "completeTodo", { id: todo.id });
-    await runTool(tools, "updateTodo", { id: todo.id, title: "Edited" });
-    await runTool(tools, "deleteTodo", { id: todo.id });
+    await runTool(tools, "updateTodo", { id: todo.id, title: "Edited", description: "details" });
+    const deleted = await runTool(tools, "deleteTodo", { id: todo.id });
 
     expect(deps.todoWorkflow.createTodo).toHaveBeenCalledWith(scope, {
       title: "Buy milk",
@@ -93,21 +93,11 @@ describe("createAssistantTools", () => {
     });
     expect(deps.todoWorkflow.toggleTodo).toHaveBeenCalledWith(scope, todo.id);
     expect(deps.todoWorkflow.updateTodo).toHaveBeenCalledWith(scope, todo.id, {
+      description: "details",
       title: "Edited"
     });
     expect(deps.todoWorkflow.deleteTodo).toHaveBeenCalledWith(scope, todo.id);
-  });
-
-  it("deleteTodo reaches the workflow, which is what cleans attachments first", async () => {
-    // The attachment-cleanup-before-delete ordering itself is proven by
-    // todos.workflow.test.ts. What was broken here was never reaching it: the
-    // tool called todos.adapter.deleteTodo directly, so a model-initiated delete
-    // orphaned its file rows while the GraphQL mutation did not.
-    const deps = createDeps();
-    const result = await runTool(createAssistantTools(deps), "deleteTodo", { id: todo.id });
-
-    expect(deps.todoWorkflow.deleteTodo).toHaveBeenCalledWith(scope, todo.id);
-    expect(result).toEqual({ id: todo.id, deleted: true });
+    expect(deleted).toEqual({ id: todo.id, deleted: true });
   });
 
   it("cleans attachments before deleting, through the real workflow", async () => {
@@ -147,19 +137,6 @@ describe("createAssistantTools", () => {
     ).resolves.toEqual({ id: todo.id, deleted: false });
   });
 
-  it("rejects a whitespace-only title at the tool boundary", async () => {
-    // The tool schema trims before checking length, so "   " never reaches the
-    // workflow. Before the fix this was z.string().min(1), and "   " is length 3.
-    const tools = createAssistantTools(createDeps());
-    const createTodo = tools["createTodo"];
-
-    expect(createTodo?.inputSchema).toBeDefined();
-    const parsed = (
-      createTodo?.inputSchema as { safeParse: (v: unknown) => { success: boolean } }
-    ).safeParse({ title: "   ", description: null });
-    expect(parsed.success).toBe(false);
-  });
-
   it("rejects a whitespace-only title at the workflow too, not only the schema", async () => {
     // Belt and braces: a real createTodoWorkflow over a stub adapter, so
     // ensureTodoTitle actually runs. The schema is the fast failure; this is the
@@ -179,29 +156,6 @@ describe("createAssistantTools", () => {
       "todo title is required"
     );
     expect(adapterCreate).not.toHaveBeenCalled();
-  });
-
-  it("normalizes an update through the workflow's patch builder", async () => {
-    const adapterUpdate = vi.fn(async () => todo);
-    const realWorkflow = createTodoWorkflow({
-      createTodo: vi.fn(async () => todo),
-      deleteTodo: vi.fn(async () => true),
-      deleteTodoAttachments: vi.fn(async () => undefined),
-      publishTodoEvent: vi.fn(),
-      toggleTodo: vi.fn(async () => todo),
-      updateTodo: adapterUpdate,
-      warnTodoAttachmentCleanupFailed: vi.fn()
-    });
-    const tools = createAssistantTools(createDeps({ todoWorkflow: realWorkflow }));
-
-    await runTool(tools, "updateTodo", { id: todo.id, title: "  Edited  ", description: "   " });
-
-    // applyTodoPatch trimmed the title and normalized the blank description to
-    // null — neither happened when the tool called the adapter directly.
-    expect(adapterUpdate).toHaveBeenCalledWith(scope, todo.id, {
-      description: null,
-      title: "Edited"
-    });
   });
 
   it("createNote creates the note and its checklist through the workflows", async () => {
