@@ -77,6 +77,11 @@ jobs:
           EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
           EOF
 
+      # pretest:e2e downloads only the browser. Hosted images ship Chromium's
+      # system libraries; self-hosted runners need them installed, as in CI PR.
+      - name: Install Playwright Chromium
+        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+
       - name: Run quality gates
         run: |
           pnpm run check:ci
