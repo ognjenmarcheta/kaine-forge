@@ -5,7 +5,13 @@ import { z } from "zod";
 import { harnessFingerprint } from "./harness.fingerprint";
 import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
 import { agentRunLessons, recordLessons } from "./pipeline.lessons";
-import type { StageContext } from "./pipeline.types";
+import type {
+  AgentStep,
+  AgentStepHandler,
+  StageContext,
+  StageOutcome,
+  StatePatch
+} from "./pipeline.types";
 import {
   describeFailure,
   type AgentEvent,
@@ -31,6 +37,7 @@ import {
   type DeskConfig,
   type HarnessFingerprint,
   type LoopCounters,
+  type PendingFeedback,
   type PlanRisk,
   type PlannerOutput,
   type Provider,
@@ -84,7 +91,7 @@ const DEFAULT_TIMEOUTS_MS: Readonly<Record<AgentStageRole, number>> = {
  * The permission profile an agent runs with, by what it produces: its tool rules, sandbox,
  * repository role text and verification. A report agent is read-only, like the planner.
  */
-export const ROLE_FOR_OUTPUT: Readonly<Record<AgentOutputKind, AgentStageRole>> = {
+const ROLE_FOR_OUTPUT: Readonly<Record<AgentOutputKind, AgentStageRole>> = {
   intake: "intake",
   plan: "planner",
   change: "builder",
@@ -106,7 +113,7 @@ const SCHEMA_FOR_OUTPUT: Readonly<Record<AgentOutputKind, AgentOutputRole>> = {
  * `intake`) the desk config decides, as it did before agents were data. Any other agent
  * brings its own.
  */
-export const agentRuntime = (
+const agentRuntime = (
   config: DeskConfig,
   role: AgentStageRole,
   agent: AgentDefinition | undefined
@@ -114,6 +121,29 @@ export const agentRuntime = (
   agent === undefined || agent.id === role
     ? { provider: config.providers[role], model: config.models[role] ?? agent?.model }
     : { provider: agent.provider, model: agent.model };
+
+/**
+ * How a flow agent runs, by what it produces. Only a change agent may change the worktree. A
+ * plan or change agent resumes its earlier session, so a revision keeps its context; a review or
+ * report agent starts fresh, so it judges the work without its own earlier reading.
+ */
+export interface AgentProfile {
+  readonly role: AgentStageRole;
+  readonly readOnly: boolean;
+  readonly resumes: boolean;
+  readonly provider: Provider;
+  readonly model: string | undefined;
+}
+
+export const agentProfileOf = (config: DeskConfig, agent: AgentDefinition): AgentProfile => {
+  const role = ROLE_FOR_OUTPUT[agent.output];
+  return {
+    role,
+    readOnly: agent.output !== "change",
+    resumes: agent.output === "plan" || agent.output === "change",
+    ...agentRuntime(config, role, agent)
+  };
+};
 
 /** Larger tickets are read from the artifact file. Inline text stays well under the prompt limit. */
 const TICKET_INLINE_LIMIT = 30_000;
@@ -168,7 +198,7 @@ const short = (value: string | null): string => (value === null ? "none" : value
 export const describeRefViolation = (violation: RefViolation): string =>
   `${violation.kind} at ${violation.subject}: ${short(violation.before)} -> ${short(violation.after)}`;
 
-const exists = async (file: string): Promise<boolean> => {
+export const exists = async (file: string): Promise<boolean> => {
   try {
     await stat(file);
     return true;
@@ -213,6 +243,74 @@ interface Observed {
   readonly violations: Violation[];
   readonly invariants: ("refs" | "read-only")[];
 }
+
+/** What an agent step adds to its run, beyond what the step and its agent decide. */
+export type AgentStepExtras = Pick<
+  AgentStageInput<unknown>,
+  "feedback" | "plan" | "ownerNote" | "diffPath" | "workspaces"
+>;
+
+export interface AgentStepSpec<T> {
+  readonly schema: z.ZodType<T>;
+  /**
+   * What the run reads besides the ticket, or the outcome when the step cannot run. `pending`:
+   * the feedback that waits for this step. The run gets its text unless `feedback` replaces it.
+   */
+  readonly prepare?: (
+    context: StageContext,
+    step: AgentStep,
+    agent: AgentDefinition,
+    pending: PendingFeedback | null
+  ) => Promise<AgentStepExtras | StageOutcome>;
+  /** What the step writes and reports, after a run that passed every engine invariant. */
+  readonly finish: (
+    context: StageContext,
+    step: AgentStep,
+    agent: AgentDefinition,
+    run: { readonly result: AgentRunResult<T>; readonly diff: DiffResult }
+  ) => Promise<StageOutcome>;
+}
+
+/**
+ * An agent step of a flow. The step and its agent decide the run: the permission role, the
+ * read-only rule, the resumed session, and the feedback that waits for the step. After the run,
+ * the outcome keeps the agent's session (when it resumes) and, unless the step stops at
+ * `needs-you`, clears the pending feedback. The spec's own patch wins over both.
+ */
+export const agentStep =
+  <T>(spec: AgentStepSpec<T>): AgentStepHandler =>
+  async (context, step, agent) => {
+    const state = context.state();
+    const pending = state.pendingFeedback?.target === step.id ? state.pendingFeedback : null;
+    const prepared = (await spec.prepare?.(context, step, agent, pending)) ?? {};
+    if ("kind" in prepared) return prepared;
+    const profile = agentProfileOf(context.deps.config, agent);
+    const run = await runAgentStage(context, {
+      role: profile.role,
+      agent,
+      schema: spec.schema,
+      readOnly: profile.readOnly,
+      resumeSessionId: profile.resumes ? state.sessions[agent.id] : undefined,
+      feedback: pending?.text,
+      ...prepared
+    });
+    if (!run.ok) {
+      return run.aborted ? { kind: "aborted" } : { kind: "needs-you", reason: run.reason };
+    }
+    const outcome = await spec.finish(context, step, agent, run);
+    if (outcome.kind === "aborted") return outcome;
+    const { sessionId } = run.result;
+    const patch: StatePatch = {
+      // An empty session id means the runner returned none.
+      ...(profile.resumes && sessionId !== ""
+        ? { sessions: { ...state.sessions, [agent.id]: sessionId } }
+        : {}),
+      // A step that completes has used the feedback it read.
+      ...(outcome.kind === "needs-you" ? {} : { pendingFeedback: null }),
+      ...outcome.patch
+    };
+    return { ...outcome, patch };
+  };
 
 export const runAgentStage = async <T>(
   context: StageContext,
