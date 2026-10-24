@@ -5,10 +5,10 @@ import {
   bootstrapPlan,
   branchName,
   evaluateStep,
-  isValidBranchName,
   slugify,
   type BootstrapInput
 } from "./worktree.bootstrap";
+import { isValidBranchName } from "../git";
 
 /** The pattern AGENTS.md states, plus `revert`, which CONTRIBUTING.md also allows. */
 const AGENTS_PATTERN =
@@ -58,16 +58,6 @@ describe("branchName", () => {
   it.each([0, -1, 1.5, Number.NaN])("rejects the issue number %s", (issue) => {
     expect(() => branchName({ issue, type: "feat", slug: "x" })).toThrow(RangeError);
   });
-
-  it("recognizes valid and invalid names", () => {
-    expect(isValidBranchName("KAINE-feat-docs-only")).toBe(true);
-    expect(isValidBranchName("KAINE-7-docs-x")).toBe(true);
-    expect(isValidBranchName("kaine-7-feat-x")).toBe(false);
-    expect(isValidBranchName("KAINE-7-feature-x")).toBe(false);
-    expect(isValidBranchName("KAINE-7-feat-X")).toBe(false);
-    expect(isValidBranchName("claude/KAINE-7-feat-x")).toBe(false);
-    expect(isValidBranchName("KAINE-7-feat-")).toBe(false);
-  });
 });
 
 describe("slugify", () => {
@@ -94,50 +84,11 @@ describe("bootstrapPlan", () => {
     const plan = bootstrapPlan(input({ agents: ["claude", "codex"] }));
     expect(plan.branch).toBe("KAINE-123-feat-export-reports");
     expect(plan.steps.map((step) => step.id)).toEqual([
-      "check-branch",
-      "fetch-base",
-      "worktree-add",
       "install",
       "env-ensure",
       "ai-install",
       "ai-doctor-claude",
-      "ai-doctor-codex",
-      "baseline-status",
-      "base-head"
-    ]);
-  });
-
-  it("validates the branch name before it touches the repository", () => {
-    const [first, second, third] = bootstrapPlan(input()).steps;
-    expect(first?.argv).toEqual([
-      "git",
-      "check-ref-format",
-      "--branch",
-      "KAINE-123-feat-export-reports"
-    ]);
-    expect(second?.argv).toEqual(["git", "fetch", "origin", "main"]);
-    expect(third?.argv).toEqual([
-      "git",
-      "worktree",
-      "add",
-      "-b",
-      "KAINE-123-feat-export-reports",
-      "/work/kaine-forge.worktrees/KAINE-123",
-      "origin/main"
-    ]);
-    expect([first, second, third].every((step) => step?.cwd === "repo")).toBe(true);
-  });
-
-  it("checks out the existing branch instead of creating it when asked", () => {
-    const add = bootstrapPlan(input({ existingBranch: true })).steps.find(
-      (step) => step.id === "worktree-add"
-    );
-    expect(add?.argv).toEqual([
-      "git",
-      "worktree",
-      "add",
-      "/work/kaine-forge.worktrees/KAINE-123",
-      "KAINE-123-feat-export-reports"
+      "ai-doctor-codex"
     ]);
   });
 
@@ -164,9 +115,6 @@ describe("bootstrapPlan", () => {
       "--serena-interface",
       "tools"
     ]);
-    for (const id of ["install", "env-ensure", "ai-install", "baseline-status", "base-head"]) {
-      expect(byId[id]?.cwd).toBe("worktree");
-    }
   });
 
   it("repeats --agent for each agent and checks readiness per agent", () => {
@@ -181,22 +129,10 @@ describe("bootstrapPlan", () => {
     expect(doctors.every((step) => step.expect.kind === "installation-ready")).toBe(true);
   });
 
-  it("ends by requiring a clean tree and recording the base commit", () => {
-    const steps = bootstrapPlan(input()).steps;
-    expect(steps.at(-2)).toMatchObject({
-      argv: ["git", "status", "--short"],
-      expect: { kind: "stdout-empty" }
-    });
-    expect(steps.at(-1)).toMatchObject({
-      argv: ["git", "rev-parse", "HEAD"],
-      expect: { kind: "record", as: "baseHead" }
-    });
-  });
-
   it("never emits --no-verify, gh, a shell, or an argv word with shell syntax", () => {
     const plan = bootstrapPlan(input({ agents: ["claude", "codex"], mcp: ["serena"] }));
     for (const step of plan.steps) {
-      expect(["git", "pnpm"]).toContain(step.argv[0]);
+      expect(step.argv[0]).toBe("pnpm");
       expect(step.argv.join(" ")).not.toContain("--no-verify");
       for (const word of step.argv) {
         expect(word).not.toBe("gh");
@@ -245,16 +181,6 @@ describe("evaluateStep", () => {
     });
   });
 
-  it("requires an empty status for the baseline", () => {
-    expect(evaluateStep(step({ kind: "stdout-empty" }), { code: 0, stdout: "\n" }).ok).toBe(true);
-    expect(
-      evaluateStep(step({ kind: "stdout-empty" }), { code: 0, stdout: " M file.ts\n" })
-    ).toMatchObject({
-      ok: false,
-      reason: expect.stringContaining("not clean")
-    });
-  });
-
   it("requires installation=ready in the doctor JSON", () => {
     const ready = JSON.stringify({ installation: "ready", problems: [] });
     const bad = JSON.stringify({ installation: "needs-attention", problems: ["x"] });
@@ -288,18 +214,5 @@ describe("evaluateStep", () => {
         stdout: `${banner}${JSON.stringify({ installation: "missing" })}`
       })
     ).toMatchObject({ ok: false, reason: expect.stringContaining("missing") });
-  });
-
-  it("records a full commit hash and rejects anything else", () => {
-    const hash = "a".repeat(40);
-    expect(
-      evaluateStep(step({ kind: "record", as: "baseHead" }), { code: 0, stdout: `${hash}\n` })
-    ).toEqual({
-      ok: true,
-      recorded: { baseHead: hash }
-    });
-    expect(
-      evaluateStep(step({ kind: "record", as: "baseHead" }), { code: 0, stdout: "HEAD" }).ok
-    ).toBe(false);
   });
 });

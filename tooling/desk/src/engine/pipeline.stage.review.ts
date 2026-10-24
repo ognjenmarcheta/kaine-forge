@@ -8,7 +8,6 @@ import {
   type ReviewFinding,
   type ReviewerOutput
 } from "../contracts";
-import { diffAgainstBase } from "../git";
 import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
 import {
   ARTIFACTS,
@@ -82,7 +81,7 @@ export const reviewStage: AgentStepHandler = async (context, step, agent) => {
 
   let diff;
   try {
-    diff = await diffAgainstBase(deps.exec, state.worktreePath, state.baseSha);
+    diff = await deps.git.diffAgainstBase(state.worktreePath, state.baseSha);
   } catch (error) {
     return {
       kind: "needs-you",

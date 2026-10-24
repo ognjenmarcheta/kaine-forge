@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { looksLikeGitError, looksRejected, pushBranch, runGitSafely } from "./ship.git";
+import { tryGit } from "./git.run";
+import { looksLikeGitError, looksRejected, pushBranch } from "./git.ship";
 import { fakeExec, ok } from "../testing/exec.fake";
 
 describe("looksRejected", () => {
@@ -48,12 +49,13 @@ describe("pushBranch", () => {
   });
 });
 
-describe("runGitSafely", () => {
-  it("never prompts and never waits for an editor", async () => {
+describe("tryGit", () => {
+  it("never prompts, takes no optional lock, and never waits for an editor", async () => {
     const fake = fakeExec([{ argv: ["git"], reply: ok("") }]);
-    await runGitSafely(fake.exec, "/wt", ["status"]);
+    await tryGit(fake.exec, "/wt", ["status"]);
     expect(fake.calls[0]?.env).toMatchObject({
       GIT_TERMINAL_PROMPT: "0",
+      GIT_OPTIONAL_LOCKS: "0",
       GIT_EDITOR: "true",
       GIT_SEQUENCE_EDITOR: "true"
     });
@@ -61,7 +63,7 @@ describe("runGitSafely", () => {
 
   it("reports a failure as a value with a bounded log", async () => {
     const fake = fakeExec([{ argv: ["git"], reply: { code: 1, stderr: "x\n".repeat(500) } }]);
-    const outcome = await runGitSafely(fake.exec, "/wt", ["status"]);
+    const outcome = await tryGit(fake.exec, "/wt", ["status"]);
     expect(outcome.ok).toBe(false);
     expect(outcome.log.split("\n").length).toBeLessThanOrEqual(120);
   });
