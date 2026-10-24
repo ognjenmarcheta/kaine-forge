@@ -1,5 +1,11 @@
 # @repo/desktop
 
+## 1.2.1
+
+### Patch Changes
+
+- 58855c2: License the template under Apache-2.0 instead of MIT. A new `NOTICE` file credits Byteforge, and every distributed copy or derived work must keep it. Template adoption leaves `LICENSE` and `NOTICE` unchanged.
+
 ## 1.2.0
 
 ### Minor Changes

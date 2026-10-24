@@ -1,5 +1,22 @@
 # @repo/desk-ui
 
+## 0.5.0
+
+### Minor Changes
+
+- 500e8a7: Make the agent desk's flows and agents configurable data: issues run on a frozen flow snapshot through one interpreter, agents resolve presets against a policy floor and record a capability receipt per run, and definitions save locally and promote to `.desk/`. The desk UI adds the Flows and Agents pages, a flow picker on Start, the issue's flow in its header and stages, and capability receipts in the stage side sheet, with new `desk` translation keys.
+- 500e8a7: Add `pnpm doc:export`, which exports a small Markdown subset to Word (`.docx`) and PowerPoint (`.pptx`) files with the same bytes for the same input, and verifies exported files with `--verify`. The tool keeps its input and output inside the repository and outside dot-directories, `node_modules`, and the desk's protected paths. Agent Desk agents gain opt-in extra tools (`capabilities.tools`, catalog `doc-export`) for the edit-code preset: the resolver allows exactly `pnpm doc:export`, the capability profile and run receipt list `extraTools`, and the Agents page adds an Extra tools field with new `desk` translation keys.
+
+### Patch Changes
+
+- Updated dependencies [527509e]
+- Updated dependencies [500e8a7]
+- Updated dependencies [500e8a7]
+- Updated dependencies [b7011e2]
+  - @repo/ui@1.7.0
+  - @repo/desk@0.5.0
+  - @repo/translation@1.9.0
+
 ## 0.4.0
 
 ### Minor Changes
