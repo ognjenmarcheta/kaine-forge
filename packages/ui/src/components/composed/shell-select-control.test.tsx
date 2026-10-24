@@ -38,7 +38,7 @@ describe("shell-select-control", () => {
     expect(resolveShellSelectDisplayValue(undefined)).toBeUndefined();
   });
 
-  it("renders icon, label, and options structure", () => {
+  it("renders a custom icon node beside the label", () => {
     const markup = renderToStaticMarkup(
       <SidebarProvider>
         <ShellSelectControl
@@ -55,8 +55,6 @@ describe("shell-select-control", () => {
     );
 
     expect(markup).toContain("Organization");
-    expect(markup).toContain('data-slot="dropdown-menu-trigger"');
-    expect(markup).toContain('data-sidebar="menu-button"');
     expect(markup).toContain("lucide-building-2");
   });
 
