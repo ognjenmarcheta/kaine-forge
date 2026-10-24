@@ -27,12 +27,9 @@ export interface CreateFeatureOptions {
 // registered. Invalid CLI input throws a plain Error instead, because there is
 // no file to point the caller at.
 export class CreateFeatureError extends Error {
-  readonly path: string;
-
-  constructor(path: string, message: string) {
+  constructor(message: string) {
     super(message);
     this.name = "CreateFeatureError";
-    this.path = path;
   }
 }
 
@@ -1051,7 +1048,7 @@ export const wiringTargets = [
 const anchorIndex = (path: string, source: string, anchor: string): number => {
   const index = source.indexOf(anchor);
   if (index === -1) {
-    throw new CreateFeatureError(path, `${path}: anchor not found: ${JSON.stringify(anchor)}`);
+    throw new CreateFeatureError(`${path}: anchor not found: ${JSON.stringify(anchor)}`);
   }
   return index;
 };
@@ -1068,7 +1065,6 @@ const insertBeforeClose = (
   const end = source.indexOf(close, start + open.length);
   if (end === -1) {
     throw new CreateFeatureError(
-      path,
       `${path}: found ${JSON.stringify(open)} but no closing ${JSON.stringify(close)}`
     );
   }
@@ -1098,10 +1094,10 @@ const insertSortedLine = (path: string, source: string, matcher: RegExp, line: s
   const last = indices[indices.length - 1];
 
   if (first === undefined || last === undefined) {
-    throw new CreateFeatureError(path, `${path}: no lines match ${String(matcher)}`);
+    throw new CreateFeatureError(`${path}: no lines match ${String(matcher)}`);
   }
   if (lines.includes(line)) {
-    throw new CreateFeatureError(path, `${path}: already contains ${line.trim()}`);
+    throw new CreateFeatureError(`${path}: already contains ${line.trim()}`);
   }
 
   const insertAt = indices.find((index) => byLine(lines[index] ?? "", line) > 0) ?? last + 1;
@@ -1122,12 +1118,12 @@ const insertObjectEntry = (
   const last = indices[indices.length - 1];
 
   if (first === undefined || last === undefined) {
-    throw new CreateFeatureError(path, `${path}: no object entries match ${String(matcher)}`);
+    throw new CreateFeatureError(`${path}: no object entries match ${String(matcher)}`);
   }
 
   const existing = indices.map((index) => (lines[index] ?? "").replace(/,\s*$/, ""));
   if (existing.includes(entry)) {
-    throw new CreateFeatureError(path, `${path}: already contains ${entry.trim()}`);
+    throw new CreateFeatureError(`${path}: already contains ${entry.trim()}`);
   }
 
   const rendered = [...existing, entry]
@@ -1287,24 +1283,18 @@ const wireTarget = (path: string, source: string, names: FeatureNames): string =
   if (path === "apps/web/src/router.tsx") {
     return wireWebRouter(source, names);
   }
-  throw new CreateFeatureError(path, `${path}: no wiring rule for this target`);
+  throw new CreateFeatureError(`${path}: no wiring rule for this target`);
 };
 
 const assertNotRegistered = (files: ReadonlyMap<string, string>, names: FeatureNames): void => {
   const features = files.get("apps/api/src/schema/features.ts");
   if (features?.includes(`name: "${names.pluralKebab}"`)) {
-    throw new CreateFeatureError(
-      "apps/api/src/schema/features.ts",
-      `api feature '${names.pluralKebab}' is already registered`
-    );
+    throw new CreateFeatureError(`api feature '${names.pluralKebab}' is already registered`);
   }
 
   const definition = files.get("packages/translation/src/translation.definition.ts");
   if (definition?.includes(`\n  "${names.pluralKebab}"`)) {
-    throw new CreateFeatureError(
-      "packages/translation/src/translation.definition.ts",
-      `translation namespace '${names.pluralKebab}' already exists`
-    );
+    throw new CreateFeatureError(`translation namespace '${names.pluralKebab}' already exists`);
   }
 };
 
@@ -1317,7 +1307,7 @@ export const applyCreateFeature = (
   const created = buildFeatureFiles(names);
   for (const path of created.keys()) {
     if (files.has(path)) {
-      throw new CreateFeatureError(path, `${path}: already exists; choose another feature name`);
+      throw new CreateFeatureError(`${path}: already exists; choose another feature name`);
     }
   }
 
@@ -1330,13 +1320,13 @@ export const applyCreateFeature = (
   for (const path of wiringTargets) {
     const source = files.get(path);
     if (source === undefined) {
-      throw new CreateFeatureError(path, `${path}: wiring target is missing from the repository`);
+      throw new CreateFeatureError(`${path}: wiring target is missing from the repository`);
     }
     const normalized = source.replace(/\r\n/g, "\n");
     const wired = wireTarget(path, normalized, names);
     const updated = source.includes("\r\n") ? wired.replace(/\n/g, "\r\n") : wired;
     if (updated === source) {
-      throw new CreateFeatureError(path, `${path}: wiring made no change`);
+      throw new CreateFeatureError(`${path}: wiring made no change`);
     }
     next.set(path, updated);
     changedPaths.push(path);
@@ -1810,11 +1800,11 @@ Add the organization-scoped \`${names.pluralKebab}\` feature: Postgres table, Gr
 // here would rewrite unrelated lines in every locale.
 const appendJsonEntry = (path: string, source: string, key: string, value: string): string => {
   if (source.includes(`${JSON.stringify(key)}:`)) {
-    throw new CreateFeatureError(path, `${path}: already contains ${key}`);
+    throw new CreateFeatureError(`${path}: already contains ${key}`);
   }
   const close = source.lastIndexOf("\n}");
   if (close === -1) {
-    throw new CreateFeatureError(path, `${path}: not a JSON object`);
+    throw new CreateFeatureError(`${path}: not a JSON object`);
   }
   const entry = `,\n  ${JSON.stringify(key)}: ${JSON.stringify(value)}`;
   return `${source.slice(0, close)}${entry}${source.slice(close)}`;

@@ -158,16 +158,6 @@ describe("parseCreateFeatureArgs", () => {
   });
 });
 
-describe("CreateFeatureError", () => {
-  it("names the file the caller has to look at", () => {
-    const error = new CreateFeatureError("apps/web/src/router.tsx", "anchor not found");
-    expect(error).toBeInstanceOf(Error);
-    expect(error.name).toBe("CreateFeatureError");
-    expect(error.path).toBe("apps/web/src/router.tsx");
-    expect(error.message).toBe("anchor not found");
-  });
-});
-
 describe("buildFeatureFiles", () => {
   const names = deriveFeatureNames({
     name: "purchase-order",
