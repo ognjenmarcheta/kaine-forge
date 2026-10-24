@@ -3,7 +3,7 @@ import { API_ERROR_CODES } from "@repo/desk/contracts";
 import type { FailureCode } from "./api.client";
 
 /** The translation key for each failure. Every server code and each client failure has one. */
-export const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
+const FAILURE_MESSAGE_KEYS: Readonly<Record<FailureCode, string>> = {
   "bad-request": "desk.error.bad-request",
   unauthorized: "desk.error.unauthorized",
   forbidden: "desk.error.forbidden",
