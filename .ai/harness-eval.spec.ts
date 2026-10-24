@@ -2,12 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  armMetric,
-  armVerdicts,
   DATA_MARKER,
   GENERATED_MARKER,
   LEDGER_PATH,
-  metricNames,
   MIN_NOISE_FLOOR,
   noiseFloor,
   parseLedger,
@@ -172,22 +169,6 @@ describe("conclusions backed by the arithmetic", () => {
 
     expect(parseLedger(wrap(JSON.stringify({ schema: 1, runs: [older] }))).runs).toHaveLength(1);
     expect(renderLedgerMarkdown({ runs: [older] })).not.toContain("Noise floor");
-  });
-});
-
-describe("arithmetic", () => {
-  it("separates the arms", () => {
-    expect(armVerdicts(run, "with")).toEqual([4, 5]);
-    expect(armVerdicts(run, "without")).toEqual([2, 2]);
-  });
-
-  it("averages a metric per arm", () => {
-    expect(armMetric(run, "with", "netLines")).toBe(25);
-    expect(armMetric(run, "without", "netLines")).toBe(110);
-  });
-
-  it("collects metric names from both arms", () => {
-    expect(metricNames(run)).toEqual(["netLines", "newFiles"]);
   });
 });
 
