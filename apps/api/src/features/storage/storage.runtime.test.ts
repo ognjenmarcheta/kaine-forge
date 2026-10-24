@@ -44,6 +44,7 @@ describe("createStorageRuntime", () => {
       getFileById: async () => null,
       listFiles: async () => [],
       presignedUrlExpirySeconds: () => 900,
+      todoExists: async () => true,
       updateFileStatus: async () => ({
         id: "file-1",
         key: "org-1/todo/file-1/photo.png",
@@ -109,6 +110,7 @@ describe("createStorageRuntime", () => {
       getFileById,
       listFiles,
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus: async () => file
     });
 
@@ -155,6 +157,7 @@ describe("createStorageRuntime", () => {
       listFiles: async () => [],
       logger,
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus
     });
 

@@ -4,6 +4,7 @@ import { createNote, deleteNote, updateNote } from "./features/notes/notes.adapt
 import { createNoteWorkflow } from "./features/notes/notes.workflow";
 import { createAttachmentLifecycle } from "./features/storage/attachment.lifecycle";
 import { deleteFilesByEntity } from "./features/storage/storage.adapter";
+import { deleteStorageObject } from "./features/storage/storage.runtime";
 import { createTodo, deleteTodo, toggleTodo, updateTodo } from "./features/todos/todos.adapter";
 import { createTodoWorkflow } from "./features/todos/todos.workflow";
 import { formatLoggableError } from "./observability";
@@ -48,9 +49,11 @@ export function createApiWorkflows({ logger, publish }: ApiWorkflowDeps): ApiWor
     }),
     todo: createTodoWorkflow({
       createTodo,
+      deleteAttachmentObject: ({ bucket, key }) => deleteStorageObject(bucket, key),
       deleteTodo,
       deleteTodoAttachments: async (scope, id) => {
-        await attachmentLifecycle.deleteTodoAttachments(scope, id);
+        const files = await attachmentLifecycle.deleteTodoAttachments(scope, id);
+        return files.map(({ bucket, key }) => ({ bucket, key }));
       },
       publishTodoEvent: publish,
       toggleTodo,
@@ -60,7 +63,7 @@ export function createApiWorkflows({ logger, publish }: ApiWorkflowDeps): ApiWor
         // enumerable property of the error onto the record. See observability.ts.
         logger.warn(
           { error: formatLoggableError(err), todoId },
-          "failed to soft-delete todo attachments"
+          "failed to clean up todo attachments"
         );
       }
     })

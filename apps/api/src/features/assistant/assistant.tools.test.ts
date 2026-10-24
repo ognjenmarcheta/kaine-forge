@@ -108,12 +108,14 @@ describe("createAssistantTools", () => {
     const order: string[] = [];
     const realWorkflow = createTodoWorkflow({
       createTodo: vi.fn(async () => todo),
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: vi.fn(async () => {
         order.push("deleteTodo");
         return true;
       }),
       deleteTodoAttachments: vi.fn(async () => {
         order.push("deleteTodoAttachments");
+        return [];
       }),
       publishTodoEvent: vi.fn(),
       toggleTodo: vi.fn(async () => todo),
@@ -144,8 +146,9 @@ describe("createAssistantTools", () => {
     const adapterCreate = vi.fn(async () => todo);
     const realWorkflow = createTodoWorkflow({
       createTodo: adapterCreate,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: vi.fn(async () => true),
-      deleteTodoAttachments: vi.fn(async () => undefined),
+      deleteTodoAttachments: vi.fn(async () => []),
       publishTodoEvent: vi.fn(),
       toggleTodo: vi.fn(async () => todo),
       updateTodo: vi.fn(async () => todo),
