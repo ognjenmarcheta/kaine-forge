@@ -11,19 +11,6 @@ export interface ApiAuthIdentity {
   session: AuthSession | null;
 }
 
-export function createApiAuthIdentity(session: AuthSession | null): ApiAuthIdentity {
-  const organizationScope = session?.activeOrganizationId
-    ? requireAuthenticatedOrganizationScope(session)
-    : null;
-
-  return {
-    organizationScope,
-    requireOrganizationScope: () =>
-      organizationScope ?? requireAuthenticatedOrganizationScope(session),
-    session
-  };
-}
-
 export async function resolveApiAuthIdentity(
   session: AuthSession | null,
   auth: Pick<ServerAuth, "getOrganizationMembershipProof">

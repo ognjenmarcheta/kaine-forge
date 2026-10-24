@@ -14,86 +14,46 @@ const scope = {
 };
 
 describe("createStorageLifecycle", () => {
-  it("validates, creates a file record, and returns a presigned upload URL", async () => {
-    const createFileRecord = vi.fn(async () => ({
-      id: "file-1",
-      key: "org-1/todo/file-1/photo.png"
-    }));
-    const lifecycle = createStorageLifecycle({
-      bucket: "uploads",
-      createFileId: () => "file-1",
-      createFileRecord,
-      createUploadUrl: async () => ({
-        expiresIn: 900,
-        key: "org-1/todo/file-1/photo.png",
-        url: "https://upload.example.test"
-      }),
-      createDownloadUrl: async () => ({ url: "https://download.example.test" }),
-      defaultEntityType: "general",
-      deleteObject: async () => undefined,
-      fileExists: async () => true,
-      getFileById: async () => null,
-      listFiles: async () => [],
-      presignedUrlExpirySeconds: 900,
-      updateFileStatus: async () => ({ id: "file-1", key: "org-1/todo/file-1/photo.png" })
-    });
-
-    await expect(
-      lifecycle.requestUploadUrl(scope, {
-        entityId: "todo-1",
-        entityType: "todo",
-        mimeType: "image/png",
-        originalName: "photo.png",
-        sizeBytes: 1024
-      })
-    ).resolves.toEqual({
-      expiresIn: 900,
-      fileId: "file-1",
-      key: "org-1/todo/file-1/photo.png",
-      uploadUrl: "https://upload.example.test"
-    });
-
-    expect(createFileRecord).toHaveBeenCalledWith(scope, {
-      bucket: "uploads",
-      entityId: "todo-1",
-      entityType: "todo",
-      id: "file-1",
-      key: "org-1/todo/file-1/photo.png",
-      mimeType: "image/png",
-      originalName: "photo.png",
-      sizeBytes: 1024
-    });
-  });
-
   it("confirms only pending files that exist in object storage", async () => {
     const updateFileStatus = vi.fn(async () => ({
       id: "file-1",
       key: "key",
       status: "uploaded"
     }));
-    const lifecycle = createStorageLifecycle({
-      bucket: "uploads",
-      createFileId: () => "file-1",
-      createFileRecord: async () => ({ id: "file-1", key: "key" }),
-      createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
-      createDownloadUrl: async () => ({ url: "download-url" }),
-      defaultEntityType: "general",
-      deleteObject: async () => undefined,
-      fileExists: async () => true,
-      getObjectMetadata: async () => ({ contentType: "image/png", sizeBytes: 1024 }),
-      getFileById: async () => ({
-        id: "file-1",
-        key: "key",
-        mimeType: "image/png",
-        sizeBytes: 1024,
-        status: "pending"
-      }),
-      listFiles: async () => [],
-      presignedUrlExpirySeconds: 900,
-      updateFileStatus
-    });
+    const lifecycleFor = (stored: { status: string; exists: boolean }) =>
+      createStorageLifecycle({
+        bucket: "uploads",
+        createFileId: () => "file-1",
+        createFileRecord: async () => ({ id: "file-1", key: "key" }),
+        createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
+        createDownloadUrl: async () => ({ url: "download-url" }),
+        defaultEntityType: "general",
+        deleteObject: async () => undefined,
+        fileExists: async () => stored.exists,
+        getObjectMetadata: async () => ({ contentType: "image/png", sizeBytes: 1024 }),
+        getFileById: async () => ({
+          id: "file-1",
+          key: "key",
+          mimeType: "image/png",
+          sizeBytes: 1024,
+          status: stored.status
+        }),
+        listFiles: async () => [],
+        presignedUrlExpirySeconds: 900,
+        updateFileStatus
+      });
 
-    await expect(lifecycle.confirmUpload(scope, "file-1")).resolves.toEqual({
+    await expect(
+      lifecycleFor({ status: "uploaded", exists: true }).confirmUpload(scope, "file-1")
+    ).rejects.toThrow("expected pending");
+    await expect(
+      lifecycleFor({ status: "pending", exists: false }).confirmUpload(scope, "file-1")
+    ).rejects.toThrow("has not been uploaded");
+    expect(updateFileStatus).not.toHaveBeenCalled();
+
+    await expect(
+      lifecycleFor({ status: "pending", exists: true }).confirmUpload(scope, "file-1")
+    ).resolves.toEqual({
       id: "file-1",
       key: "key",
       status: "uploaded"

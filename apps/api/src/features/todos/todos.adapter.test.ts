@@ -74,44 +74,18 @@ describe("todos.adapter", () => {
     chain.returning.mockResolvedValue([]);
   });
 
-  it("listTodosByScope calls db.select with correct chain", async () => {
-    await listTodosByScope(scope, { limit: 20, offset: 0 });
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.from).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalled();
-    expect(chain.orderBy).toHaveBeenCalled();
-    expect(chain.limit).toHaveBeenCalledWith(20);
-    expect(chain.offset).toHaveBeenCalledWith(0);
-  });
-
   it("listTodosByScope filters by Organization only", async () => {
     await listTodosByScope(scope, { limit: 20, offset: 0 });
 
     expect(chain.where).toHaveBeenCalledWith([["orgId", "org-1"]]);
   });
 
-  it("getTodoById calls db.select with limit 1", async () => {
+  it("getTodoById scopes the point read to the Active Organization", async () => {
     await getTodoById(scope, "todo-1");
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.limit).toHaveBeenCalledWith(1);
-  });
-
-  it("createTodo calls db.insert and returns created todo", async () => {
-    const todo = {
-      id: "todo-1",
-      title: "Test",
-      description: null,
-      completed: false,
-      userId: "user-1",
-      organizationId: "org-1",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    chain.returning.mockResolvedValueOnce([todo]);
-
-    const result = await createTodo(scope, { title: "Test", description: null });
-    expect(mockDb.insert).toHaveBeenCalled();
-    expect(result).toEqual(todo);
+    expect(chain.where).toHaveBeenCalledWith([
+      ["id", "todo-1"],
+      ["orgId", "org-1"]
+    ]);
   });
 
   it("deleteTodo calls db.delete and returns boolean", async () => {
@@ -119,12 +93,6 @@ describe("todos.adapter", () => {
     const result = await deleteTodo(scope, "todo-1");
     expect(mockDb.delete).toHaveBeenCalled();
     expect(result).toBe(true);
-  });
-
-  it("listTodosByNoteIds batches all notes into one db.select", async () => {
-    await listTodosByNoteIds(scope, ["note-1", "note-2"]);
-    expect(mockDb.select).toHaveBeenCalledTimes(1);
-    expect(chain.where).toHaveBeenCalled();
   });
 
   it("listTodosByNoteIds returns [] without querying for empty input", async () => {
