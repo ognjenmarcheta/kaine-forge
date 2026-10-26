@@ -1,7 +1,4 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-
-import type { CreateTodoInput } from "./todos.type";
-import { ensureTodoTitle, parseOptionalDescription } from "./todos.util";
+import type { Todos } from "./todos.module";
 import type { PubSubEventMap } from "../../pubsub";
 
 export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
@@ -24,37 +21,18 @@ export interface GenerateTodosPayload {
 }
 
 export interface TodoAiWorkflowAdapter {
-  createTodo: (
-    scope: AuthenticatedOrganizationScope,
-    input: { description: string | null; title: string }
-  ) => Promise<TodoEventPayload>;
+  /** The Todo module's create: it normalizes the draft and publishes `todo:created`. */
+  createTodo: Todos["create"];
   generateTodoDrafts: (input: { prompt: string }) => Promise<GeneratedTodoDraft[]>;
   isConfigured: () => boolean;
   maxGeneratedTodos: number;
-  publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
-    eventName: TEventName,
-    ...payload: PubSubEventMap[TEventName]
-  ) => void;
   /** Object-wrapped so a later field is not a call-site break. */
   reportGenerationFailure: (input: { err: unknown }) => void;
 }
 
-function normalizeGeneratedTodo(draft: CreateTodoInput): {
-  description: string | null;
-  title: string;
-} {
-  return {
-    description: parseOptionalDescription(draft.description ?? null),
-    title: ensureTodoTitle(draft.title)
-  };
-}
-
 export function createTodoAiWorkflow(adapter: TodoAiWorkflowAdapter) {
   return {
-    async generateTodos(
-      scope: AuthenticatedOrganizationScope,
-      input: GenerateTodosInput
-    ): Promise<GenerateTodosPayload> {
+    async generateTodos(input: GenerateTodosInput): Promise<GenerateTodosPayload> {
       if (!adapter.isConfigured()) {
         return {
           status: "AI_NOT_CONFIGURED",
@@ -77,9 +55,7 @@ export function createTodoAiWorkflow(adapter: TodoAiWorkflowAdapter) {
         const createdTodos: TodoEventPayload[] = [];
 
         for (const draft of drafts.slice(0, adapter.maxGeneratedTodos)) {
-          const todo = await adapter.createTodo(scope, normalizeGeneratedTodo(draft));
-          adapter.publishTodoEvent("todo:created", todo);
-          createdTodos.push(todo);
+          createdTodos.push(await adapter.createTodo(draft));
         }
 
         return {

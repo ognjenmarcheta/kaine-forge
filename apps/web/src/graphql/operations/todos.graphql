@@ -107,60 +107,23 @@ mutation ToggleTodo($id: ID!) {
 subscription OnTodoCreated {
   todoCreated {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }
 
 subscription OnTodoUpdated {
   todoUpdated {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }
 
 subscription OnTodoDeleted {
   todoDeleted {
     id
-    organizationId
   }
 }
 
 subscription OnTodoToggled {
   todoToggled {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }

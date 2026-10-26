@@ -39,11 +39,6 @@ vi.mock("drizzle-orm", () => ({
   gt: (left: unknown, right: unknown) => ({ left, right })
 }));
 
-vi.mock("./auth.server.organization", () => ({
-  getOrganizationMembershipProof: vi.fn()
-}));
-
-const { getOrganizationMembershipProof } = await import("./auth.server.organization");
 const { listInvitationsForScope } = await import("./auth.server.invitation");
 
 const adminScope = {
@@ -57,7 +52,6 @@ describe("auth.server.invitation", () => {
   beforeEach(() => {
     selectWhereArgs.length = 0;
     selectRows = [];
-    vi.mocked(getOrganizationMembershipProof).mockReset();
   });
 
   it("lists only pending unexpired invitations for the scope organization", async () => {

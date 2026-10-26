@@ -5,6 +5,8 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> =
   T | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
 import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
+export type AttachmentEntityType = "general" | "todo";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -19,7 +21,7 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   limit?: number | null | undefined;
   offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
@@ -33,7 +35,7 @@ export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   mimeType: string;
   originalName: string;
   sizeBytes: number;
@@ -196,7 +198,7 @@ export type GetFileQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: unknown;
@@ -216,7 +218,7 @@ export type GetFilesQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: unknown;
@@ -394,67 +396,19 @@ export type ToggleTodoMutation = {
 
 export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoCreatedSubscription = {
-  todoCreated: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: unknown;
-    updatedAt: unknown;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoCreatedSubscription = { todoCreated: { id: string } };
 
 export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoUpdatedSubscription = {
-  todoUpdated: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: unknown;
-    updatedAt: unknown;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoUpdatedSubscription = { todoUpdated: { id: string } };
 
 export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoDeletedSubscription = { todoDeleted: { id: string; organizationId: string } };
+export type OnTodoDeletedSubscription = { todoDeleted: { id: string } };
 
 export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoToggledSubscription = {
-  todoToggled: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: unknown;
-    updatedAt: unknown;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoToggledSubscription = { todoToggled: { id: string } };
 
 export const GetConversationsDocument = {
   kind: "Document",
@@ -1797,28 +1751,7 @@ export const OnTodoCreatedDocument = {
             name: { kind: "Name", value: "todoCreated" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "completed" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "attachments" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
-                    ]
-                  }
-                },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
-              ]
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }]
             }
           }
         ]
@@ -1841,28 +1774,7 @@ export const OnTodoUpdatedDocument = {
             name: { kind: "Name", value: "todoUpdated" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "completed" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "attachments" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
-                    ]
-                  }
-                },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
-              ]
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }]
             }
           }
         ]
@@ -1885,10 +1797,7 @@ export const OnTodoDeletedDocument = {
             name: { kind: "Name", value: "todoDeleted" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "organizationId" } }
-              ]
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }]
             }
           }
         ]
@@ -1911,28 +1820,7 @@ export const OnTodoToggledDocument = {
             name: { kind: "Name", value: "todoToggled" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "completed" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "attachments" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
-                    ]
-                  }
-                },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
-              ]
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }]
             }
           }
         ]

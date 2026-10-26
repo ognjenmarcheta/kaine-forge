@@ -210,7 +210,7 @@ describe("lease", () => {
       await e.pipeline.approvePlan(99),
       await e.pipeline.continueFrom(99),
       await e.pipeline.cancel(99),
-      await e.pipeline.ship(99, { confirm: true })
+      await e.pipeline.ship(99, {})
     ]) {
       expect(result).toMatchObject({ outcome: "refused", refusal: "unknown-issue" });
     }
@@ -359,22 +359,19 @@ describe("restart and ship", () => {
     expect(e.runner.requests).toHaveLength(before);
   });
 
-  it("refuses ship without confirmation, with a typed error and no side effect", async () => {
+  it("refuses a ship the ship module does not admit, with a typed error and no side effect", async () => {
     const e = await open({ steps: [planStep(), buildStep(), reviewStep()] });
     await e.pipeline.start(ISSUE, { override: false });
-    expect(await e.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    const commentsBefore = e.github.comments.length;
+    // At the plan gate: only the ship gate admits a confirmed ship.
+    expect(await e.pipeline.ship(ISSUE, {})).toMatchObject({
       outcome: "refused",
       refusal: "invalid-transition"
     });
-    await e.pipeline.approvePlan(ISSUE);
-    const before = await readFile(e.store.statePath(ISSUE), "utf8");
-    const commentsBefore = e.github.comments.length;
-    expect(await e.pipeline.ship(ISSUE, { confirm: false })).toMatchObject({
-      outcome: "refused",
-      refusal: "ship-refused"
-    });
     expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
     expect(e.github.comments).toHaveLength(commentsBefore);
+    expect(e.github.createdPullRequests).toEqual([]);
   });
 
   it("lists status with the needs-you reason", async () => {

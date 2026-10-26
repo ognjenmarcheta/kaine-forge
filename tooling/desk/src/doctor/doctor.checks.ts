@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { DeskConfigLoadResult } from "../config/config.load";
 import type { DeskConfig, HealthFix, Provider } from "../contracts";
 import { worktreeDirFor } from "../engine/pipeline.stage.setup";
+import { tryGit } from "../git";
 import { checkControllerIdentity } from "../github/github.identity";
 import { AGENT_LABELS } from "../github/github.labels";
 import type { Exec, GitHubPort } from "../ports";
@@ -120,17 +121,15 @@ const checkPnpm = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck> => {
 };
 
 const checkGit = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck[]> => {
-  const version = await exec({ argv: ["git", "--version"], cwd, timeoutMs: 15_000 });
-  if (version.code !== 0) {
+  const version = await tryGit(exec, cwd, ["--version"], { timeoutMs: 15_000 });
+  if (!version.ok) {
     return [check("git", "git", "error", "git is not installed or does not start")];
   }
   const parsed = versionOf(version.stdout);
   const supported =
     parsed !== null &&
     (parsed[0]! > MIN_GIT[0] || (parsed[0] === MIN_GIT[0] && parsed[1]! >= MIN_GIT[1]));
-  const worktrees = await exec({
-    argv: ["git", "worktree", "list", "--porcelain"],
-    cwd,
+  const worktrees = await tryGit(exec, cwd, ["worktree", "list", "--porcelain"], {
     timeoutMs: 15_000
   });
   return [
@@ -145,8 +144,8 @@ const checkGit = async ({ exec, cwd }: DoctorDeps): Promise<DoctorCheck[]> => {
     check(
       "git-worktree",
       "git worktrees",
-      worktrees.code === 0 ? "ok" : "error",
-      worktrees.code === 0
+      worktrees.ok ? "ok" : "error",
+      worktrees.ok
         ? "git worktree list works in this checkout"
         : "git worktree list failed: run the desk inside the repository"
     )
