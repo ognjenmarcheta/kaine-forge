@@ -38,6 +38,7 @@ describe("auth.server getSessionFromHeaders", () => {
         id: "user-1",
         email: "user@example.com",
         emailVerified: true,
+        twoFactorEnabled: false,
         name: "User"
       }
     });
@@ -52,6 +53,7 @@ describe("auth.server getSessionFromHeaders", () => {
         id: "user-1",
         email: "user@example.com",
         emailVerified: true,
+        twoFactorEnabled: false,
         name: "User"
       },
       expiresAt: "2026-03-01T00:00:00.000Z",
@@ -71,6 +73,7 @@ describe("auth.server getSessionFromHeaders", () => {
         id: "user-1",
         email: "user@example.com",
         emailVerified: false,
+        twoFactorEnabled: false,
         name: "User"
       }
     });

@@ -6,13 +6,24 @@ import {
   membersTable,
   organizationsTable,
   sessionsTable,
+  twoFactorsTable,
   usersTable,
   verificationsTable
 } from "@repo/db";
 import { createEmailSender, type EmailMessage } from "@repo/email";
-import { betterAuth } from "better-auth";
+import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer, organization } from "better-auth/plugins";
+// The minimal entry leaves out Kysely; the drizzle adapter owns database
+// access and drizzle-kit owns migrations (better-auth performance guide).
+import { betterAuth } from "better-auth/minimal";
+import {
+  bearer,
+  captcha,
+  emailOTP,
+  haveIBeenPwned,
+  organization,
+  twoFactor
+} from "better-auth/plugins";
 
 import { assertProductionAuthSecret, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
@@ -32,7 +43,8 @@ const AUTH_SCHEMA = {
   verifications: verificationsTable,
   organizations: organizationsTable,
   members: membersTable,
-  invitations: invitationsTable
+  invitations: invitationsTable,
+  twoFactors: twoFactorsTable
 } as const;
 
 // One sender shared by every auth email hook below; adapters own delivery
@@ -48,6 +60,76 @@ async function sendAuthEmail(message: EmailMessage): Promise<void> {
   } catch {
     // Swallowed on purpose; see above.
   }
+}
+
+// Codes are short-lived secrets; the send is not awaited so response timing
+// does not reveal whether an account exists (better-auth email OTP guidance).
+function sendAuthEmailInBackground(message: EmailMessage): void {
+  void sendAuthEmail(message);
+}
+
+type EmailOtpType = "sign-in" | "email-verification" | "forget-password" | "change-email";
+
+const EMAIL_OTP_SUBJECTS: Record<EmailOtpType, string> = {
+  "sign-in": "Your sign-in code",
+  "email-verification": "Your email verification code",
+  "forget-password": "Your password reset code",
+  "change-email": "Your email change code"
+};
+
+function buildEmailOtpMessage(input: {
+  email: string;
+  otp: string;
+  type: EmailOtpType;
+}): EmailMessage {
+  const minutes = String(AUTH_DEFINITIONS.EMAIL_OTP_MAX_AGE_SECONDS / 60);
+
+  return {
+    to: input.email,
+    subject: EMAIL_OTP_SUBJECTS[input.type],
+    text: `Your code is ${input.otp}. It expires in ${minutes} minutes. If you did not request it, ignore this email.`
+  };
+}
+
+// Endpoints a bot could abuse to create accounts, guess passwords, or send
+// email. Paths are relative to the /api/auth base path.
+const AUTH_CAPTCHA_ENDPOINTS = [
+  "/sign-up/email",
+  "/sign-in/email",
+  "/request-password-reset",
+  "/email-otp/send-verification-otp",
+  "/email-otp/request-password-reset"
+] as const;
+
+// Captcha is opt-in like social login: Cloudflare Turnstile activates only
+// when TURNSTILE_SECRET_KEY is set, so local development and tests run
+// without a third-party round trip.
+function resolveCaptchaOptions(env: Record<string, string | undefined>): {
+  provider: "cloudflare-turnstile";
+  secretKey: string;
+  endpoints: string[];
+  allowedHostnames?: string[];
+} | null {
+  const secretKey = env.TURNSTILE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    return null;
+  }
+
+  const allowedHostnames = parseCommaList(env.TURNSTILE_ALLOWED_HOSTNAMES);
+
+  return {
+    provider: "cloudflare-turnstile",
+    secretKey,
+    endpoints: [...AUTH_CAPTCHA_ENDPOINTS],
+    ...(allowedHostnames.length > 0 ? { allowedHostnames } : {})
+  };
+}
+
+// The Have I Been Pwned check calls api.pwnedpasswords.com and fails closed
+// when it is unreachable, so offline development and e2e can turn it off.
+function isPasswordBreachCheckEnabled(env: Record<string, string | undefined>): boolean {
+  return env.AUTH_PASSWORD_BREACH_CHECK !== "false";
 }
 
 interface SocialProviderCredentials {
@@ -79,7 +161,7 @@ export function resolveSocialProviders(
   return providers;
 }
 
-function parseTrustedOrigins(value: string | undefined): string[] {
+function parseCommaList(value: string | undefined): string[] {
   if (!value) {
     return [];
   }
@@ -94,7 +176,7 @@ function parseTrustedOrigins(value: string | undefined): string[] {
 export const EXPO_AUTH_SCHEME = "kaineforge";
 
 export function resolveTrustedOrigins(env: Record<string, string | undefined>): string[] {
-  const origins = parseTrustedOrigins(env.API_CORS_ORIGINS);
+  const origins = parseCommaList(env.API_CORS_ORIGINS);
   const schemeOrigin = `${EXPO_AUTH_SCHEME}://`;
 
   if (!origins.includes(schemeOrigin)) {
@@ -111,11 +193,20 @@ export function createAuthInstance() {
   assertProductionAuthSecret(process.env.BETTER_AUTH_SECRET);
 
   const config = getServerAuthConfig();
+  const captchaOptions = resolveCaptchaOptions(process.env);
+  // A spread of a conditional array turns the plugins tuple into an array
+  // and erases better-auth's plugin type inference (session fields such as
+  // activeOrganizationId), so the disabled case is an inert plugin instead.
+  const captchaPlugin = captchaOptions
+    ? captcha(captchaOptions)
+    : ({ id: "captcha-disabled" } satisfies BetterAuthPlugin);
   // Secure (and the __Secure- name prefix) follows the public base URL, so
   // local http://localhost keeps working; production serves https.
   const secureCookies = config.baseUrl.startsWith("https://");
 
   return betterAuth({
+    // TOTP issuer shown in authenticator apps.
+    appName: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
     baseURL: config.baseUrl,
     secret: config.secret,
     // Browser clients live on separate origins (Vite dev server, deployed
@@ -171,7 +262,14 @@ export function createAuthInstance() {
     },
     session: {
       expiresIn: AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS,
-      updateAge: AUTH_DEFINITIONS.SESSION_UPDATE_AGE_SECONDS
+      updateAge: AUTH_DEFINITIONS.SESSION_UPDATE_AGE_SECONDS,
+      // Cookie clients skip the database session read for this window; bearer
+      // clients always hit the database. Membership is still proven per
+      // GraphQL request (ADR 0015).
+      cookieCache: {
+        enabled: true,
+        maxAge: AUTH_DEFINITIONS.SESSION_COOKIE_CACHE_MAX_AGE_SECONDS
+      }
     },
     // Rate limiting for /api/auth and /graphql is handled by our own API
     // middleware, so better-auth's built-in limiter stays off.
@@ -221,6 +319,8 @@ export function createAuthInstance() {
       }
     },
     plugins: [
+      // Runs first so rejected bots never reach password hashing or email.
+      captchaPlugin,
       // Enables Expo deep-link OAuth return and mobile cookie/origin handling.
       expo(),
       organization({
@@ -261,7 +361,36 @@ export function createAuthInstance() {
           })
         }
       }),
-      bearer()
+      bearer(),
+      // Second factor for password sign-in only; email OTP and social sign-in
+      // are not challenged (better-auth default, ADR 0015).
+      twoFactor({
+        issuer: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
+        otpOptions: {
+          sendOTP: ({ user, otp }) => {
+            sendAuthEmailInBackground({
+              to: user.email,
+              subject: "Your sign-in verification code",
+              text: `Your verification code is ${otp}. If you did not try to sign in, change your password.`
+            });
+          }
+        }
+      }),
+      emailOTP({
+        otpLength: AUTH_DEFINITIONS.EMAIL_OTP_LENGTH,
+        expiresIn: AUTH_DEFINITIONS.EMAIL_OTP_MAX_AGE_SECONDS,
+        allowedAttempts: AUTH_DEFINITIONS.EMAIL_OTP_ALLOWED_ATTEMPTS,
+        storeOTP: "hashed",
+        // Accounts are created only through the captcha-protected sign-up
+        // form, which also collects the user's name.
+        disableSignUp: true,
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          sendAuthEmailInBackground(buildEmailOtpMessage({ email, otp, type }));
+        }
+      }),
+      // Wraps our scrypt hash hook, so sign-up, change-password, and both
+      // reset flows reject passwords found in known breaches.
+      haveIBeenPwned({ enabled: isPasswordBreachCheckEnabled(process.env) })
     ]
   });
 }

@@ -25,7 +25,13 @@ function scopeFor(organizationId: string, userId: string): AuthenticatedOrganiza
   return {
     membership: { id: `membership-${userId}`, role: "member", userId },
     organizationId,
-    user: { email: `${userId}@example.test`, emailVerified: true, id: userId, name: "User" },
+    user: {
+      email: `${userId}@example.test`,
+      emailVerified: true,
+      id: userId,
+      name: "User",
+      twoFactorEnabled: false
+    },
     userId
   };
 }

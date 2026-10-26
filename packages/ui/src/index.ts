@@ -75,6 +75,7 @@ export {
   RotateCcw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
   Terminal,
   TriangleAlert,

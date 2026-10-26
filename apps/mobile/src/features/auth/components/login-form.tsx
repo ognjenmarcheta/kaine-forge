@@ -1,5 +1,6 @@
 import { validateAuthLoginForm } from "@repo/auth/form";
 import type { AuthSocialProvider } from "@repo/auth/transport";
+import { getAuthErrorMessageKey, isTwoFactorRequiredError } from "@repo/auth/transport";
 import {
   Button,
   Card,
@@ -14,6 +15,7 @@ import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 
+import { CaptchaWidget, isCaptchaPending } from "./captcha-widget";
 import { ScreenContainer } from "../../../components/screen-container";
 import { ThemeOptions } from "../../../components/theme-options";
 import { useAuth } from "../../../hooks/use-auth";
@@ -35,6 +37,8 @@ export function LoginForm() {
   const [password, setPassword] = useState("ChangeMe123!");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   async function onSubmit() {
     const validationError = validateAuthLoginForm({ email, password });
@@ -46,11 +50,21 @@ export function LoginForm() {
     try {
       setIsSubmitting(true);
       setError(null);
-      await login({ email, password });
+      await login({ email, password, ...(captchaToken ? { captchaToken } : {}) });
       router.replace("/dashboard");
-    } catch {
-      setError(t("error.generic"));
+    } catch (loginError) {
+      // Mobile has no two-factor step yet; the web app completes the sign-in.
+      setError(
+        t(
+          isTwoFactorRequiredError(loginError)
+            ? "auth.twoFactor.mobileUnsupported"
+            : getAuthErrorMessageKey(loginError)
+        )
+      );
     } finally {
+      // Turnstile tokens are single-use, so every attempt needs a new one.
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
       setIsSubmitting(false);
     }
   }
@@ -104,9 +118,10 @@ export function LoginForm() {
                 value={password}
                 onChangeText={setPassword}
               />
+              <CaptchaWidget resetKey={captchaResetKey} onTokenChange={setCaptchaToken} />
               {error ? <Text className="text-sm text-ds-text-danger">{error}</Text> : null}
               <Button
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCaptchaPending(captchaToken)}
                 onPress={() => {
                   void onSubmit();
                 }}

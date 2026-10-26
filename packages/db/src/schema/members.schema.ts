@@ -1,4 +1,4 @@
-import { pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
@@ -17,6 +17,9 @@ export const membersTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [
-    uniqueIndex("members_organization_user_unique").on(table.organizationId, table.userId)
+    uniqueIndex("members_organization_user_unique").on(table.organizationId, table.userId),
+    // The unique index leads with organization_id; listing a user's
+    // organizations filters by user_id alone.
+    index("members_user_id_idx").on(table.userId)
   ]
 );
