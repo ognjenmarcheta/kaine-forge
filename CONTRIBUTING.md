@@ -158,7 +158,7 @@ Repository settings the template cannot carry over (GitHub copies files, not set
 
 - Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, or the Release workflow cannot open version pull requests.
 - Import both branch rulesets from `.github/rulesets/main.json` and `.github/rulesets/main-owner.json`, after confirming the owner is the only repository administrator.
-- Optional: set the remote Turbo cache secret `TURBO_TOKEN` and variable `TURBO_TEAM` (see [CI speed](#ci-speed-maintainers)).
+- CI caches Turbo task results with no setup (see [CI speed](#ci-speed-maintainers)).
 
 ## AI Assistant Files
 
@@ -289,15 +289,16 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 ## CI speed (maintainers)
 
-### Remote Turbo cache (recommended for forks and high PR volume)
+### Turbo cache in CI
 
-1. Create a [Vercel Remote Cache](https://turborepo.dev/docs/core-concepts/remote-caching) token (or compatible provider).
-2. Set repository **secret** `TURBO_TOKEN` and **variable** `TURBO_TEAM`.
-3. CI jobs already export these env vars; when unset, builds still use local `.turbo/cache` between jobs.
+- CI needs no setup. The `rharkor/caching-for-turbo` step runs a Turbo remote-cache server in each job and stores each task result as its own GitHub Actions cache entry. Any job can reuse a task that another job or `main` already ran.
+- A PR branch can read caches saved on `main`, so the Release job seeds the cache for every PR.
+- For a local remote cache, set `TURBO_TOKEN` and `TURBO_TEAM` in your shell ([Vercel Remote Cache](https://turborepo.dev/docs/core-concepts/remote-caching) or a compatible server). CI does not read them.
 
 ### Affected and path filters
 
 - PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck. Workspace tests run once, over the full repo, in the `coverage` job.
+- `ai-checks` runs the root `.ai/` checks and the `scripts/*.test.mjs` tests on every PR, beside `check-fast`. `build-core` and e2e also start beside `check-fast`; the PR Quality Gate still needs every job.
 - Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs.
 - Mobile typecheck is required when `apps/mobile/**`, any `packages/**`, `scripts/sync-mobile-design-tokens.mjs`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or `tsconfig.base.json` change. Metro resolves `@repo/*` to package source, so any shared package can break the mobile bundle.
 - Shared setup lives in `.github/actions/setup-node-pnpm`.
