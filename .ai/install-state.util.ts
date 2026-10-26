@@ -6,7 +6,8 @@ import { type Agent, AGENTS, REPO_ROOT, SERENA_INTERFACES, type SerenaInterface 
 
 export const agentSchema = z.enum(AGENTS);
 const selectionFields = {
-  skills: z.array(z.string().regex(/^kaine-[a-z0-9-]+$/)),
+  // Template `kaine-*` and project `<repoSlug>-*` skill names.
+  skills: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]*$/)),
   mcps: z.array(z.string().min(1))
 };
 const selectionSchema = z.discriminatedUnion("schemaVersion", [
