@@ -1,21 +1,15 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 
-import type { ScopedData } from "../../context.data";
-import type { ApiWorkflows } from "../../context.workflows";
-import { listNotesByScope } from "../notes/notes.adapter";
+import type { Notes } from "../notes/notes.module";
 import type { Todos } from "../todos/todos.module";
 
-// Model-chosen writes go through the same modules the GraphQL resolvers use,
-// so they get attachment cleanup on delete and title normalization on create and
-// update. Calling todos.adapter directly here is what made a model-initiated
-// delete orphan its attachment rows (issue #393). Note reads stay on the
-// adapter, over the request's scoped data: they have no guard to bypass.
+// Model-chosen reads and writes go through the same modules the GraphQL
+// resolvers use, so they get attachment cleanup on delete and title
+// normalization on create and update. Calling todos.adapter directly here is
+// what made a model-initiated delete orphan its attachment rows (issue #393).
 export interface AssistantToolDeps {
-  data: ScopedData;
-  noteWorkflow: Pick<ApiWorkflows["note"], "createNote" | "updateNote">;
-  scope: AuthenticatedOrganizationScope;
+  notes: Pick<Notes, "create" | "list" | "update">;
   todos: Pick<Todos, "create" | "delete" | "list" | "toggle" | "update">;
 }
 
@@ -25,12 +19,7 @@ export interface AssistantToolDeps {
 const todoTitleSchema = z.string().trim().min(1).max(255);
 const noteTitleSchema = z.string().trim().min(1).max(255);
 
-export function createAssistantTools({
-  data,
-  noteWorkflow,
-  scope,
-  todos
-}: AssistantToolDeps): ToolSet {
+export function createAssistantTools({ notes, todos }: AssistantToolDeps): ToolSet {
   return {
     createTodo: tool({
       description: "Create a new todo for the user.",
@@ -96,7 +85,7 @@ export function createAssistantTools({
         todoTitles: z.array(todoTitleSchema).optional()
       }),
       execute: async ({ title, body, todoTitles }) => {
-        const note = await noteWorkflow.createNote(scope, { title, body: body ?? null });
+        const note = await notes.create({ title, body: body ?? null });
         const created: { id: string; title: string }[] = [];
 
         for (const todoTitle of todoTitles ?? []) {
@@ -115,8 +104,8 @@ export function createAssistantTools({
       description: "List the user's notes to find a note id.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
       execute: async ({ limit }) => {
-        const notes = await listNotesByScope(data, { limit, offset: 0 });
-        return notes.map((note) => ({ id: note.id, title: note.title }));
+        const listed = await notes.list({ limit, offset: 0 });
+        return listed.map((note) => ({ id: note.id, title: note.title }));
       }
     }),
     updateNote: tool({
@@ -127,7 +116,7 @@ export function createAssistantTools({
         body: z.string().nullable().optional()
       }),
       execute: async ({ id, title, body }) => {
-        const note = await noteWorkflow.updateNote(scope, id, {
+        const note = await notes.update(id, {
           ...(title === undefined ? {} : { title }),
           ...(body === undefined ? {} : { body })
         });

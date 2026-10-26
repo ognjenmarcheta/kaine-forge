@@ -1,5 +1,4 @@
 import type { ToolSet } from "ai";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,29 +7,11 @@ import {
   assistantToolSchemaCases
 } from "./assistant.eval.data";
 import { createAssistantTools } from "./assistant.tools";
-import { createScopedData } from "../../context.data";
-
-vi.mock("../notes/notes.adapter", () => ({ listNotesByScope: vi.fn() }));
-
-const scope = {
-  membership: { id: "membership-1", role: "owner", userId: "user-1" },
-  organizationId: "org-1",
-  user: {
-    email: "u@example.test",
-    emailVerified: true,
-    id: "user-1",
-    name: "User",
-    twoFactorEnabled: false
-  },
-  userId: "user-1"
-};
 
 // No model, no database, no network: the tool set is a pure function of its
 // deps, so the contract tier runs in CI at zero cost.
 const tools: ToolSet = createAssistantTools({
-  data: createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope }),
-  noteWorkflow: { createNote: vi.fn(), updateNote: vi.fn() },
-  scope,
+  notes: { create: vi.fn(), list: vi.fn(), update: vi.fn() },
   todos: {
     create: vi.fn(),
     delete: vi.fn(),

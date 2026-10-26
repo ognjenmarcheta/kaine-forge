@@ -1,30 +1,7 @@
 import type { ToolExecutionOptions, ToolSet } from "ai";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAssistantTools, type AssistantToolDeps } from "./assistant.tools";
-import { createScopedData } from "../../context.data";
-import * as notesAdapter from "../notes/notes.adapter";
-
-// Reads only. The absence of the write functions here is itself the assertion
-// that the tools module no longer imports them (issue #393) — if it did, these
-// tests would fail with "is not a function" rather than passing.
-vi.mock("../notes/notes.adapter", () => ({ listNotesByScope: vi.fn() }));
-
-const scope = {
-  membership: { id: "membership-1", role: "owner", userId: "user-1" },
-  organizationId: "org-1",
-  user: {
-    email: "user@example.com",
-    emailVerified: false,
-    id: "user-1",
-    name: "User",
-    twoFactorEnabled: false
-  },
-  userId: "user-1"
-};
-// Opaque here: the mocked adapters never query it.
-const data = createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope });
 
 const todo = {
   completed: false,
@@ -66,12 +43,11 @@ async function runTool(tools: ToolSet, name: string, input: unknown): Promise<un
 
 function createDeps(overrides: Partial<AssistantToolDeps> = {}): AssistantToolDeps {
   return {
-    data,
-    noteWorkflow: {
-      createNote: vi.fn(async () => note),
-      updateNote: vi.fn(async () => note)
+    notes: {
+      create: vi.fn(async () => note),
+      list: vi.fn(async () => [note]),
+      update: vi.fn(async () => note)
     },
-    scope,
     todos: {
       create: vi.fn(async () => todo),
       delete: vi.fn(async () => true),
@@ -125,10 +101,7 @@ describe("createAssistantTools", () => {
       todoTitles: ["a", "b"]
     });
 
-    expect(deps.noteWorkflow.createNote).toHaveBeenCalledWith(scope, {
-      title: note.title,
-      body: null
-    });
+    expect(deps.notes.create).toHaveBeenCalledWith({ title: note.title, body: null });
     expect(deps.todos.create).toHaveBeenCalledTimes(2);
     expect(deps.todos.create).toHaveBeenNthCalledWith(1, {
       title: "a",
@@ -160,8 +133,7 @@ describe("createAssistantTools", () => {
     expect(result).toEqual({ id: todo.id, title: todo.title, noteId: note.id });
   });
 
-  it("lists Todos through the module and Notes through the scoped adapter", async () => {
-    vi.mocked(notesAdapter.listNotesByScope).mockResolvedValue([note]);
+  it("lists Todos and Notes through their modules", async () => {
     const deps = createDeps();
     const tools = createAssistantTools(deps);
 
@@ -169,6 +141,6 @@ describe("createAssistantTools", () => {
     await runTool(tools, "listNotes", { limit: 5 });
 
     expect(deps.todos.list).toHaveBeenCalledWith({ limit: 5, offset: 0 });
-    expect(notesAdapter.listNotesByScope).toHaveBeenCalledWith(data, { limit: 5, offset: 0 });
+    expect(deps.notes.list).toHaveBeenCalledWith({ limit: 5, offset: 0 });
   });
 });

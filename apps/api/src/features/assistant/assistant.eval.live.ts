@@ -27,7 +27,6 @@ import {
 } from "./assistant.eval.report";
 import { scoreAssistantEval, substituteFixture, type EvalAction } from "./assistant.eval.scoring";
 import type { ModelUsage } from "../../ai.telemetry";
-import { createApiWorkflows } from "../../context.workflows";
 
 it("executes the explicitly requested synthetic evaluation run", async () => {
   const options = evalOptionsSchema.parse(JSON.parse(process.env["KAINE_EVAL_OPTIONS"] ?? "{}"));
@@ -93,9 +92,8 @@ it("executes the explicitly requested synthetic evaluation run", async () => {
           totalTokens: undefined
         };
         const runtime = createAssistantAiRuntime({
-          data: fixture.data,
+          notes: fixture.notes,
           todos: fixture.todos,
-          workflows: createApiWorkflows({ data: fixture.data, publish: () => {} }),
           publishAssistantDelta: () => {},
           recordModelCall: (event) => {
             usage = {

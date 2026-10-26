@@ -1,4 +1,3 @@
-import { drizzle } from "drizzle-orm/node-postgres";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Only the fields these tests read. Typing the mock's parameter is what makes
@@ -83,7 +82,6 @@ vi.mock("./assistant.tools", () => ({ createAssistantTools: vi.fn(() => toolSet)
 
 import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { createAssistantTools } from "./assistant.tools";
-import { createScopedData } from "../../context.data";
 
 const scope = {
   membership: { id: "membership-1", role: "owner", userId: "user-1" },
@@ -98,9 +96,7 @@ const scope = {
   userId: "user-1"
 };
 
-const workflows = {
-  note: { createNote: vi.fn(), deleteNote: vi.fn(), updateNote: vi.fn() }
-};
+const notes = { create: vi.fn(), list: vi.fn(), update: vi.fn() };
 const todos = {
   create: vi.fn(),
   delete: vi.fn(),
@@ -110,12 +106,10 @@ const todos = {
 };
 
 const deps = () => ({
-  // Opaque here: the model is mocked and never calls the read tools.
-  data: createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope }),
+  notes,
   publishAssistantDelta: vi.fn(),
   recordModelCall: vi.fn(),
-  todos,
-  workflows
+  todos
 });
 
 const runInput = {
@@ -237,14 +231,12 @@ describe("createAssistantAiRuntime", () => {
       expect(instructions).toContain("Do not use markdown");
     });
 
-    it("forwards the Todo module, the workflows, and scope to the tool factory", async () => {
+    it("forwards the Todo and Note modules to the tool factory", async () => {
       const injected = deps();
       await createAssistantAiRuntime(injected).runAgent(runInput);
 
       expect(createAssistantTools).toHaveBeenCalledWith({
-        data: injected.data,
-        noteWorkflow: injected.workflows.note,
-        scope,
+        notes: injected.notes,
         todos: injected.todos
       });
       expect(aiSdkMocks.streamText.mock.calls[0]?.[0]).toMatchObject({ tools: toolSet });
