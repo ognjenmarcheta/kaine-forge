@@ -52,6 +52,12 @@ function getS3Client(): ReturnType<typeof createStorageClient> {
   return _s3;
 }
 
+export async function deleteStorageObject(bucket: string, key: string): Promise<void> {
+  await deleteObject(getS3Client(), bucket, key, {
+    abortSignal: AbortSignal.timeout(STORAGE_CONFIG.objectDeleteTimeoutMs)
+  });
+}
+
 export function createStorageRuntime<TFile extends StorageRuntimeFile>(
   adapter: StorageRuntimeAdapter<TFile>
 ): StorageRuntime<TFile> {
@@ -82,9 +88,7 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
     createUploadUrl: async (bucket, key, mimeType, expiresIn) =>
       generatePresignedUploadUrl(getS3Client(), bucket, key, mimeType, expiresIn),
     defaultEntityType: STORAGE_CONFIG.defaultEntityType,
-    deleteObject: async (bucket, key) => {
-      await deleteObject(getS3Client(), bucket, key);
-    },
+    deleteObject: deleteStorageObject,
     fileExists: async (bucket, key) => objectExists(getS3Client(), bucket, key),
     getObjectMetadata: async (bucket, key) => headObjectMetadata(getS3Client(), bucket, key),
     getFileById: async (scope, fileId) => {
@@ -97,6 +101,10 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
     },
     logger,
     presignedUrlExpirySeconds: () => getStorageConfig().presignedUrlExpirySeconds,
+    todoExists: async (scope, todoId) => {
+      const { getTodoById } = await import("../todos/todos.adapter");
+      return (await getTodoById(scope, todoId)) !== null;
+    },
     updateFileStatus: async (scope, fileId, status) => {
       const adapter = await import("./storage.adapter");
       return adapter.updateFileStatus(scope, fileId, status);

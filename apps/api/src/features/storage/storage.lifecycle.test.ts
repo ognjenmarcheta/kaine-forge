@@ -40,6 +40,7 @@ describe("createStorageLifecycle", () => {
         }),
         listFiles: async () => [],
         presignedUrlExpirySeconds: 900,
+        todoExists: async () => true,
         updateFileStatus
       });
 
@@ -81,6 +82,7 @@ describe("createStorageLifecycle", () => {
       }),
       listFiles: async () => [],
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus: async () => ({ id: "file-1", key: "key", status: "uploaded" })
     });
 
@@ -108,6 +110,7 @@ describe("createStorageLifecycle", () => {
       }),
       listFiles: async () => [],
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus
     });
 
@@ -146,6 +149,7 @@ describe("createStorageLifecycle", () => {
       getFileById: async (_scope, fileId) => (fileId === "file-1" ? uploadedFile : pendingFile),
       listFiles,
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus: async () => uploadedFile
     });
 
@@ -160,5 +164,39 @@ describe("createStorageLifecycle", () => {
 
     expect(listFiles).toHaveBeenCalledWith(scope, { entityType: "todo" });
     expect(createDownloadUrl).toHaveBeenCalledWith("uploads", uploadedFile.key, 900);
+  });
+
+  it("links an Attachment to a Todo only when that Todo is in the Active Organization", async () => {
+    const createFileRecord = vi.fn(async () => ({ id: "file-1", key: "key" }));
+    const todoExists = vi.fn(async (_scope: unknown, todoId: string) => todoId === "todo-own");
+    const lifecycle = createStorageLifecycle({
+      bucket: "uploads",
+      createFileId: () => "file-1",
+      createFileRecord,
+      createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "url" }),
+      createDownloadUrl: async () => ({ url: "download-url" }),
+      defaultEntityType: "general",
+      deleteObject: async () => undefined,
+      fileExists: async () => true,
+      getFileById: async () => null,
+      listFiles: async () => [],
+      presignedUrlExpirySeconds: 900,
+      todoExists,
+      updateFileStatus: async () => ({ id: "file-1", key: "key" })
+    });
+    const upload = { mimeType: "image/png", originalName: "a.png", sizeBytes: 1024 };
+
+    await expect(
+      lifecycle.requestUploadUrl(scope, { ...upload, entityId: "todo-other", entityType: "todo" })
+    ).rejects.toThrow("attachment target not found");
+    await expect(
+      lifecycle.requestUploadUrl(scope, { ...upload, entityType: "todo" })
+    ).rejects.toThrow("attachment target not found");
+    expect(createFileRecord).not.toHaveBeenCalled();
+
+    await expect(
+      lifecycle.requestUploadUrl(scope, { ...upload, entityId: "todo-own", entityType: "todo" })
+    ).resolves.toMatchObject({ fileId: "file-1" });
+    expect(todoExists).toHaveBeenCalledWith(scope, "todo-own");
   });
 });

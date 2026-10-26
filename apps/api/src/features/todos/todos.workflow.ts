@@ -9,6 +9,11 @@ type TodoEventPayload =
   | PubSubEventMap["todo:updated"][0]
   | PubSubEventMap["todo:toggled"][0];
 
+interface AttachmentObject {
+  bucket: string;
+  key: string;
+}
+
 export interface TodoWorkflowAdapter {
   createTodo: (
     scope: AuthenticatedOrganizationScope,
@@ -16,8 +21,14 @@ export interface TodoWorkflowAdapter {
     // value, so the adapter never has to guess.
     input: { description: string | null; noteId: string | null; title: string }
   ) => Promise<TodoEventPayload>;
+  /** Deletes one stored object. Must settle in bounded time: the workflow does not await it. */
+  deleteAttachmentObject: (object: AttachmentObject) => Promise<void>;
   deleteTodo: (scope: AuthenticatedOrganizationScope, id: string) => Promise<boolean>;
-  deleteTodoAttachments: (scope: AuthenticatedOrganizationScope, id: string) => Promise<void>;
+  /** Soft-deletes the Todo's Attachment rows and returns the objects they point to. */
+  deleteTodoAttachments: (
+    scope: AuthenticatedOrganizationScope,
+    id: string
+  ) => Promise<AttachmentObject[]>;
   publishTodoEvent: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
@@ -47,8 +58,9 @@ export function createTodoWorkflow(adapter: TodoWorkflowAdapter) {
       return result;
     },
     async deleteTodo(scope: AuthenticatedOrganizationScope, id: string): Promise<boolean> {
+      let objects: AttachmentObject[] = [];
       try {
-        await adapter.deleteTodoAttachments(scope, id);
+        objects = await adapter.deleteTodoAttachments(scope, id);
       } catch (err) {
         adapter.warnTodoAttachmentCleanupFailed({ err, todoId: id });
       }
@@ -61,6 +73,19 @@ export function createTodoWorkflow(adapter: TodoWorkflowAdapter) {
           organizationId: scope.organizationId
         });
       }
+
+      // Objects go last, off the response path, and best effort: a slow or
+      // failing object store must not delay or undo the Todo delete. The
+      // adapter bounds each delete; a failure leaves an orphan (issue #602).
+      void Promise.all(
+        objects.map(async (object) => {
+          try {
+            await adapter.deleteAttachmentObject(object);
+          } catch (err) {
+            adapter.warnTodoAttachmentCleanupFailed({ err, todoId: id });
+          }
+        })
+      );
 
       return result;
     },
