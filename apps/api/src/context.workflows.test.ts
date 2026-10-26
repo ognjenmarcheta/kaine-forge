@@ -28,6 +28,7 @@ import * as storageRuntime from "./features/storage/storage.runtime";
 import * as todosAdapter from "./features/todos/todos.adapter";
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "user-1" },
   organizationId: "org-1",
   user: {
     email: "u@example.test",

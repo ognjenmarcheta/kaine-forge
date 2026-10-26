@@ -10,6 +10,7 @@ vi.mock("@repo/db", async () => ({ ...(await import("@repo/db/schema")), db: tes
 import { listTodosByScope } from "./todos.adapter";
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "00000000-0000-0000-0000-000000000001" },
   organizationId: "00000000-0000-0000-0000-000000000001",
   userId: "00000000-0000-0000-0000-000000000001",
   user: {

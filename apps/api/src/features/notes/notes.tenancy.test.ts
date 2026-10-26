@@ -69,7 +69,7 @@ vi.mock("@repo/auth/server", () => ({
         }
       });
     },
-    // A real query, so the real resolveAuthenticatedOrganizationScope
+    // A real query, so the real resolveOrganizationScope
     // membership gate runs against real rows.
     getOrganizationMembershipProof: async (input: { organizationId: string; userId: string }) => {
       const { and, eq } = await import("drizzle-orm");
@@ -384,6 +384,7 @@ describe("attachment deletion SQL", () => {
       .returning();
 
     const scope = {
+      membership: { id: "membership-1", role: "owner", userId: fixture.userId },
       organizationId: fixture.orgA,
       userId: fixture.userId,
       user: {

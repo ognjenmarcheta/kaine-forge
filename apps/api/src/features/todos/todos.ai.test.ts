@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createTodoAiWorkflow } from "./todos.ai";
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "user-1" },
   organizationId: "org-1",
   user: {
     email: "user@example.com",
