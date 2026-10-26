@@ -65,5 +65,6 @@ describe("files.entity_type enum migration", () => {
     await expect(
       client.query("UPDATE files SET entity_type = 'note' WHERE key = 'todo'")
     ).rejects.toThrow(/invalid input value for enum attachment_entity_type/);
-  });
+    // Applies every migration on PGlite, which takes over 10 s on a loaded CI runner.
+  }, 30_000);
 });
