@@ -383,7 +383,7 @@ pnpm --filter @repo/mobile-ui typecheck
 - Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/archive/publication-readiness.md` records the 2026-09-13 verification of those settings.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
-- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`). Coverage, core build and e2e, Docker images, and the mobile jobs run only when the Turbo package graph says the PR affects them (`scripts/ci-affected.mjs`); Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
 - CI caches each Turbo task in the GitHub Actions cache (`rharkor/caching-for-turbo`), with no secrets. A local remote cache is optional: `TURBO_TOKEN` and `TURBO_TEAM` in your shell.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.

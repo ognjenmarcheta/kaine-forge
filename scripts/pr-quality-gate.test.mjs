@@ -11,7 +11,13 @@ import { QUALITY_JOBS, qualityGateFailures } from "./pr-quality-gate.mjs";
 
 function passingInput() {
   const needs = Object.fromEntries(QUALITY_JOBS.map((job) => [job, { result: "success" }]));
-  needs["detect-paths"].outputs = { code: "true", docker: "true", graphql: "true", mobile: "true" };
+  needs["detect-paths"].outputs = {
+    unit: "true",
+    web_api: "true",
+    mobile: "true",
+    graphql: "true",
+    docker_matrix: '[{"app":"api","dockerfile":"Dockerfile.api"}]'
+  };
   return { eventName: "pull_request", visibility: "public", codeScanningEnabled: "", needs };
 }
 
@@ -30,13 +36,14 @@ describe("PR Quality Gate", () => {
     });
   }
 
-  it("accepts a docs-only PR without build or matrix check names", () => {
+  it("accepts a docs- or tooling-only PR without build or matrix check names", () => {
     const input = passingInput();
     input.needs["detect-paths"].outputs = {
-      code: "false",
-      docker: "false",
+      unit: "false",
+      web_api: "false",
+      mobile: "false",
       graphql: "false",
-      mobile: "false"
+      docker_matrix: "[]"
     };
     for (const job of QUALITY_JOBS.slice(5)) input.needs[job].result = "skipped";
     assert.deepEqual(qualityGateFailures(input), []);
@@ -47,18 +54,32 @@ describe("PR Quality Gate", () => {
   it("does not accept missing path detection as a docs-only change", () => {
     const input = passingInput();
     input.needs["detect-paths"] = { result: "success", outputs: {} };
-    assert.equal(qualityGateFailures(input).length, 4);
+    assert.equal(qualityGateFailures(input).length, 5);
+    input.needs["detect-paths"].outputs = { ...passingInput().needs["detect-paths"].outputs };
+    input.needs["detect-paths"].outputs.docker_matrix = '{"app":"api"}';
+    assert.deepEqual(qualityGateFailures(input), ["Missing or invalid path result: docker_matrix"]);
   });
 
   it("requires mobile jobs for mobile changes and permits unrelated job skips", () => {
     const input = passingInput();
-    input.needs["detect-paths"].outputs.docker = "false";
+    input.needs["detect-paths"].outputs.docker_matrix = "[]";
     input.needs["detect-paths"].outputs.graphql = "false";
     input.needs["docker-images"].result = "skipped";
     input.needs["graphql-schema"].result = "skipped";
     assert.deepEqual(qualityGateFailures(input), []);
     input.needs["mobile-export"].result = "skipped";
     assert.deepEqual(qualityGateFailures(input), ["mobile-export: skipped"]);
+  });
+
+  it("requires coverage for a package change that cannot reach the web app or API", () => {
+    const input = passingInput();
+    input.needs["detect-paths"].outputs.web_api = "false";
+    for (const job of ["build-core", "e2e-web-api", "e2e-report"]) {
+      input.needs[job].result = "skipped";
+    }
+    assert.deepEqual(qualityGateFailures(input), []);
+    input.needs.coverage.result = "skipped";
+    assert.deepEqual(qualityGateFailures(input), ["coverage: skipped"]);
   });
 
   it("permits dependency review to skip only without public or opted-in scanning", () => {

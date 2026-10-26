@@ -299,8 +299,9 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 - PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck. Workspace tests run once, over the full repo, in the `coverage` job.
 - `ai-checks` runs the root `.ai/` checks and the `scripts/*.test.mjs` tests on every PR, beside `check-fast`. `build-core` and e2e also start beside `check-fast`; the PR Quality Gate still needs every job.
-- Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs.
-- Mobile typecheck is required when `apps/mobile/**`, any `packages/**`, `scripts/sync-mobile-design-tokens.mjs`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or `tsconfig.base.json` change. Metro resolves `@repo/*` to package source, so any shared package can break the mobile bundle.
+- `detect-paths` runs `turbo ls --affected` and `scripts/ci-affected.mjs` to choose the heavy jobs from the package graph: coverage when an app or package is affected, core build and e2e when `@repo/api`, `@repo/web`, or `@repo/e2e` is affected, one Docker image per affected app, and the mobile jobs when `@repo/mobile` or `@repo/mobile-ui` is affected. A tooling-only or docs-only PR skips them all.
+- The graph is safe to trust because `turbo boundaries` (Check Fast) fails on an import that is not a declared dependency, Metro's `@repo/*` resolution in `apps/mobile` included.
+- Files outside the package graph (the `force` filter: CI workflow and setup action, `Dockerfile.*`, `.npmrc`, `.nvmrc`, root `vitest*.ts`, `scripts/**`, `MONOREPO_GUIDE.md`, `DESIGN_SYSTEM.md`) run every job. Merge queue and manual runs always run every job. The PR Quality Gate re-derives the allowed skips from the `detect-paths` outputs.
 - Shared setup lives in `.github/actions/setup-node-pnpm`.
 
 ### Dependency catalogs
