@@ -33,10 +33,15 @@ export function resolveStorageConfig(env?: Record<string, string | undefined>): 
       ? forcePathStyleRaw === "true"
       : STORAGE_DEFAULTS.forcePathStyle;
 
-  const expiryRaw = source[STORAGE_ENV_KEYS.presignedUrlExpiry];
-  const presignedUrlExpirySeconds = expiryRaw
-    ? parseInt(expiryRaw, 10)
-    : STORAGE_DEFAULTS.presignedUrlExpirySeconds;
+  const fallbackExpiry = source[STORAGE_ENV_KEYS.presignedUrlExpiry];
+  const uploadUrlExpirySeconds = parseSeconds(
+    source[STORAGE_ENV_KEYS.uploadUrlExpiry] || fallbackExpiry,
+    STORAGE_DEFAULTS.uploadUrlExpirySeconds
+  );
+  const downloadUrlExpirySeconds = parseSeconds(
+    source[STORAGE_ENV_KEYS.downloadUrlExpiry] || fallbackExpiry,
+    STORAGE_DEFAULTS.downloadUrlExpirySeconds
+  );
 
   return {
     endpoint,
@@ -45,6 +50,11 @@ export function resolveStorageConfig(env?: Record<string, string | undefined>): 
     secretKey,
     bucket,
     forcePathStyle,
-    presignedUrlExpirySeconds
+    uploadUrlExpirySeconds,
+    downloadUrlExpirySeconds
   };
+}
+
+function parseSeconds(raw: string | undefined, fallback: number): number {
+  return raw ? parseInt(raw, 10) : fallback;
 }

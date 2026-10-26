@@ -5,12 +5,18 @@ export const STORAGE_ENV_KEYS = {
   secretKey: "S3_SECRET_KEY",
   bucket: "S3_BUCKET",
   forcePathStyle: "S3_FORCE_PATH_STYLE",
-  presignedUrlExpiry: "S3_PRESIGNED_URL_EXPIRY"
+  /** Fallback for both expiries below when they are unset. */
+  presignedUrlExpiry: "S3_PRESIGNED_URL_EXPIRY",
+  uploadUrlExpiry: "S3_UPLOAD_URL_EXPIRY",
+  downloadUrlExpiry: "S3_DOWNLOAD_URL_EXPIRY"
 } as const;
 
 export const STORAGE_DEFAULTS = {
   region: "us-east-1",
-  presignedUrlExpirySeconds: 3600,
+  uploadUrlExpirySeconds: 600,
+  downloadUrlExpirySeconds: 300,
+  /** Bytes read from the start of an uploaded object to check its signature. */
+  signatureSampleBytes: 512,
   maxFileSizeBytes: 10 * 1024 * 1024,
   forcePathStyle: true
 } as const;
@@ -43,3 +49,21 @@ export const DEFAULT_ALLOWED_MIME_TYPES: readonly string[] = [
   ...COMMON_MIME_TYPES.documents,
   ...COMMON_MIME_TYPES.spreadsheets
 ];
+
+/**
+ * File name extensions each MIME type accepts. A file whose extension is not
+ * listed for its claimed type fails `validateFile` (for example `x.pdf.exe`).
+ */
+export const MIME_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/gif": ["gif"],
+  "image/webp": ["webp"],
+  "application/pdf": ["pdf"],
+  "application/msword": ["doc"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ["docx"],
+  "text/plain": ["txt"],
+  "application/vnd.ms-excel": ["xls"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ["xlsx"],
+  "text/csv": ["csv"]
+};

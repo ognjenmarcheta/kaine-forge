@@ -60,7 +60,12 @@ const apiEnvSchema = z.object({
   S3_SECRET_KEY: z.string().optional(),
   S3_BUCKET: z.string().optional(),
   S3_FORCE_PATH_STYLE: z.string().optional(),
-  S3_PRESIGNED_URL_EXPIRY: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional())
+  S3_PRESIGNED_URL_EXPIRY: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  S3_UPLOAD_URL_EXPIRY: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
+  S3_DOWNLOAD_URL_EXPIRY: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional())
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

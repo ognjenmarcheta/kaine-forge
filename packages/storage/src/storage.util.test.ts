@@ -3,11 +3,20 @@ import { describe, expect, it } from "vitest";
 import { STORAGE_DEFAULTS } from "./storage.definition";
 import {
   buildStorageKey,
+  contentDisposition,
   getFileExtension,
+  matchesFileSignature,
   parseStorageKey,
   sanitizeFilename,
   validateFile
 } from "./storage.util";
+
+const bytes = (...values: (number | string)[]) =>
+  Uint8Array.from(
+    values.flatMap((value) =>
+      typeof value === "string" ? [...value].map((char) => char.charCodeAt(0)) : [value]
+    )
+  );
 
 describe("buildStorageKey", () => {
   it("builds an org-scoped key", () => {
@@ -151,6 +160,52 @@ describe("validateFile", () => {
     expect(validateFile({ mimeType: "image/svg+xml", sizeBytes: 1024 }).valid).toBe(false);
     expect(validateFile({ mimeType: "application/x-msdownload", sizeBytes: 1024 }).valid).toBe(
       false
+    );
+  });
+
+  it("rejects a name whose extension does not belong to the claimed type", () => {
+    const check = (originalName: string) =>
+      validateFile({ mimeType: "application/pdf", sizeBytes: 1024, originalName }).valid;
+
+    expect(check("invoice.PDF")).toBe(true);
+    expect(check("invoice.pdf.exe")).toBe(false);
+    expect(check("invoice")).toBe(false);
+  });
+});
+
+describe("matchesFileSignature", () => {
+  const png = bytes(0x89, "PNG", 0x0d, 0x0a, 0x1a, 0x0a);
+  const zip = bytes("PK", 0x03, 0x04);
+  const ole = bytes(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1);
+
+  it.each([
+    ["image/jpeg", bytes(0xff, 0xd8, 0xff, 0xe0)],
+    ["image/png", png],
+    ["image/gif", bytes("GIF89a")],
+    ["image/webp", bytes("RIFF", 0, 0, 0, 0, "WEBPVP8 ")],
+    ["application/pdf", bytes("%PDF-1.7")],
+    ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip],
+    ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", zip],
+    ["application/msword", ole],
+    ["application/vnd.ms-excel", ole],
+    ["text/csv", bytes("a,b\n1,2\n")]
+  ])("accepts a real %s", (mimeType, sample) => {
+    expect(matchesFileSignature(mimeType, sample)).toBe(true);
+  });
+
+  it("rejects bytes of another type, binary claimed as text, and types with no signature", () => {
+    expect(matchesFileSignature("application/pdf", png)).toBe(false);
+    expect(matchesFileSignature("image/png", bytes("<html>"))).toBe(false);
+    expect(matchesFileSignature("text/plain", bytes("MZ", 0x90, 0))).toBe(false);
+    expect(matchesFileSignature("video/mp4", png)).toBe(false);
+  });
+});
+
+describe("contentDisposition", () => {
+  it("renders images inline and downloads everything else under a safe name", () => {
+    expect(contentDisposition("image/png", "photo.png")).toBe("inline");
+    expect(contentDisposition("application/pdf", 'q3 "report".pdf')).toBe(
+      'attachment; filename="q3_report_.pdf"'
     );
   });
 });

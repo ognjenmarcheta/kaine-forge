@@ -37,7 +37,6 @@ services:
         echo 'waiting for minio...'; sleep 1;
       done;
       mc mb --ignore-existing local/kaine-forge-dev;
-      mc anonymous set download local/kaine-forge-dev;
       exit 0;
       "
 

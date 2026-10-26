@@ -222,7 +222,7 @@ Important runtime variables:
 | `VITE_GRAPHQL_URL`                                                 | web GraphQL URL                                                                                                        |
 | `EXPO_PUBLIC_API_URL`                                              | mobile API base URL                                                                                                    |
 | `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                                                                     |
-| `S3_*`                                                             | S3-compatible storage settings                                                                                         |
+| `S3_*`                                                             | S3-compatible storage settings; `S3_UPLOAD_URL_EXPIRY` / `S3_DOWNLOAD_URL_EXPIRY` set presigned URL lifetimes          |
 | `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.

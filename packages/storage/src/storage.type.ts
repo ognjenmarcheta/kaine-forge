@@ -16,7 +16,8 @@ export interface StorageConfig {
   secretKey: string;
   bucket: string;
   forcePathStyle: boolean;
-  presignedUrlExpirySeconds: number;
+  uploadUrlExpirySeconds: number;
+  downloadUrlExpirySeconds: number;
 }
 
 export interface StorageKeyParts {
@@ -45,6 +46,8 @@ export interface FileValidationOptions {
 export interface FileValidationInput {
   mimeType: string;
   sizeBytes: number;
+  /** When present, its extension must be one `MIME_EXTENSIONS` lists for `mimeType`. */
+  originalName?: string | undefined;
 }
 
 export interface FileValidationResult {
