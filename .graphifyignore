@@ -1,0 +1,4 @@
+# Graphify scan exclusions (gitignore syntax; .gitignore already applies).
+# Generated files with no architecture signal that would become false hubs.
+pnpm-lock.yaml
+packages/db/drizzle/meta/

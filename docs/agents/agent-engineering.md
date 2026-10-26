@@ -132,6 +132,29 @@ skills are a per-contributor install (`npx skills add better-auth/skills`), not 
 because team skills must use the `kaine-` prefix; ADR 0013 sets the same precedent for
 GitButler's skill.
 
+### Graphify knowledge graph
+
+Graphify 0.9.95 (released 2026-10-23, read at tag `v0.9.95` and installed with `uv` on
+2026-10-26) is optional tooling for each machine. `.ai/hooks/graph-status.mjs` holds the one
+version pin and the freshness check. The SessionStart hook and `pnpm doctor` print its
+`Knowledge graph:` line, and `pnpm graph:status` prints it for agents without a SessionStart
+hook. Freshness is commits on either side of the recorded build commit plus working-tree files
+changed after the build, not file age.
+
+- Agents must use the graph for impact work (cross-package refactors, plans, and reviews of
+  shared code) when the CLI is installed, and refresh a stale graph first. The CLI is the query
+  path; the MCP server stays opt-in, because a default server fails at startup on machines
+  without the optional executable. Upstream also advises one query path, not both.
+- `pnpm graph` runs `graphify update . --force`. On this repo it builds in about 7 s and
+  refreshes in about 6 s. Its code path imports no LLM module. The old
+  `extract --code-only && cluster-only --no-label` pair clustered twice and wrote
+  `Community N` names. `cluster-only` without `--no-label` falls back to `claude -p` for names.
+- No PreToolUse nudge: upstream's `hook-guard` pushes the graph before every search, which
+  conflicts with Serena for symbol questions. No git hooks: `but commit` skips husky hooks by
+  default, so refresh-on-use is the freshness mechanism.
+- Every Graphify installer is forbidden (`kaine-graph` lists them). The platform installers
+  write into the repo for Cursor, OpenCode, and Gemini, even without `--project`.
+
 ### MCP servers not adopted
 
 | Server              | Reason                                                                                                                                                                                                                |
