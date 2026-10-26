@@ -21,6 +21,7 @@ import {
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
+  validateMcpServers,
   readPersonalMcpSource,
   REPO_ROOT,
   shouldFailDoctor
@@ -65,7 +66,11 @@ const printLintIssue = (issue: LintIssue): void => {
 
 const main = (): void => {
   const strict = process.argv.includes("--strict");
-  const guardErrors = [...checkGuardContracts(), ...validateMcpPins(readMcpSource())];
+  const guardErrors = [
+    ...checkGuardContracts(),
+    ...validateMcpServers(readMcpSource()),
+    ...validateMcpPins(readMcpSource())
+  ];
   const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir(), ...lintSyncConflicts()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
@@ -146,7 +151,7 @@ const main = (): void => {
     const missing = requirements.filter(
       (requirement) => !requirement.isSet && !requirement.hasFallback
     );
-    const commandOk = commandExists(server.command);
+    const commandOk = Boolean(server.url) || commandExists(server.command);
     const envOk = missing.length === 0;
     const allOk = commandOk && envOk;
     const icon = allOk ? chalk.green("✓") : chalk.yellow("⚠");
@@ -155,7 +160,7 @@ const main = (): void => {
       ? chalk.red(`missing command: ${server.command ?? "unknown"}`)
       : !envOk
         ? chalk.yellow(`missing env: ${missing.map((item) => item.name).join(", ")}`)
-        : chalk.gray("ok");
+        : chalk.gray(server.url ? "ok (remote)" : "ok");
     console.log(`  ${icon}  ${name.padEnd(18)}  ${status}${tag}`);
   }
   if (merged.collisions.length > 0) {

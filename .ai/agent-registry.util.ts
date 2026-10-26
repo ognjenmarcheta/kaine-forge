@@ -54,7 +54,11 @@ export const AGENT_REGISTRY: Readonly<Record<Agent, AgentFacts>> = {
     label: "Claude Code",
     skillDir: ".claude/skills",
     renderSkill: renderClaudeSkill,
-    mcpConfig: { path: ".mcp.json", format: "json", render: renderMcpJson },
+    mcpConfig: {
+      path: ".mcp.json",
+      format: "json",
+      render: (source) => renderMcpJson(source, "claude")
+    },
     agentDefinitions: { dir: ".claude/agents", render: renderClaudeAgentDefinition },
     generatedFiles: [{ path: ".claude/settings.json", render: renderClaudeSettings }],
     installMarkers: [".claude"],
@@ -73,7 +77,11 @@ export const AGENT_REGISTRY: Readonly<Record<Agent, AgentFacts>> = {
     label: "Cursor",
     skillDir: ".cursor/skills",
     renderSkill: renderCursorSkill,
-    mcpConfig: { path: ".cursor/mcp.json", format: "json", render: renderMcpJson },
+    mcpConfig: {
+      path: ".cursor/mcp.json",
+      format: "json",
+      render: (source) => renderMcpJson(source, "cursor")
+    },
     generatedFiles: [
       { path: ".cursor/hooks.json", render: renderCursorHooks, hook: true },
       {

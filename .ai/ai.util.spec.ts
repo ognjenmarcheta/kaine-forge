@@ -492,9 +492,12 @@ describe("lintDomainKnowledgeArtifacts", () => {
 
 describe("renderMcpJson", () => {
   it("emits the generated marker and the source", () => {
-    const json = renderMcpJson({
-      mcpServers: { foo: { command: "foo-bin" } }
-    });
+    const json = renderMcpJson(
+      {
+        mcpServers: { foo: { command: "foo-bin" } }
+      },
+      "claude"
+    );
     const parsed = JSON.parse(json) as Record<string, unknown>;
     expect(parsed._generated).toMatch(/GENERATED FILE/);
     expect(parsed.mcpServers).toEqual({ foo: { command: "foo-bin" } });
@@ -622,6 +625,7 @@ describe("renderClaudeSettings", () => {
     expect(permissions.allow).toEqual(
       expect.arrayContaining([
         "mcp__context7__query-docs",
+        "mcp__better-auth__search_docs",
         "mcp__serena__initial_instructions",
         "mcp__gitbutler__gitbutler_workspace"
       ])
@@ -629,7 +633,7 @@ describe("renderClaudeSettings", () => {
     // Wildcards, whole servers, code execution, memory writes, pull request changes, and
     // browser servers stay prompted.
     const prompted =
-      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|mark_review_ready|^mcp__(?!context7__|serena__|gitbutler__)/;
+      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|mark_review_ready|^mcp__(?!context7__|better-auth__|serena__|gitbutler__)/;
     expect(permissions.allow.filter((rule) => prompted.test(rule))).toEqual([]);
   });
 
@@ -738,14 +742,6 @@ describe("renderOpencodeConfig", () => {
     expect(bash).not.toHaveProperty("*");
     // Flag rules stay with the plugin: a glob cannot constrain a flag by name.
     expect(Object.keys(bash).some((pattern) => pattern.startsWith("git push"))).toBe(false);
-  });
-
-  it("skips servers without a command", () => {
-    const json = renderOpencodeConfig({
-      mcpServers: { broken: { args: ["x"] } }
-    });
-    const parsed = JSON.parse(json) as { mcp: Record<string, unknown> };
-    expect(parsed.mcp).toEqual({});
   });
 });
 

@@ -116,6 +116,8 @@ export type GuardRule = GuardedCommandRule;
 
 export interface McpServer {
   command?: string;
+  /** Remote Streamable HTTP endpoint; set this or `command`, never both. */
+  url?: string;
   args?: string[];
   env?: Record<string, string>;
   agents?: Agent[];
@@ -749,6 +751,18 @@ export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 export const readMcpSource = (): McpSource =>
   JSON.parse(readFileSync(MCP_SRC, "utf8")) as McpSource;
 
+/** Each server launches a local `command` or reaches a remote `url`; a remote URL uses TLS. */
+export const validateMcpServers = (source: McpSource): string[] => {
+  const problems: string[] = [];
+  for (const [name, server] of Object.entries(source.mcpServers)) {
+    if (Boolean(server.command) === Boolean(server.url))
+      problems.push(`${name}: set exactly one of command or url`);
+    if (server.url && !server.url.startsWith("https://"))
+      problems.push(`${name}: use an https:// url`);
+  }
+  return problems;
+};
+
 /**
  * The well-formed rules of the guarded-command policy, through the loader the
  * hook uses. pnpm ai:doctor reports any rule this drops.
@@ -936,6 +950,7 @@ const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
  */
 const CLAUDE_MCP_READ_ALLOW = [
   ...["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`),
+  ...["search_docs", "get_doc"].map((tool) => `mcp__better-auth__${tool}`),
   ...[
     "gitbutler_workspace",
     "gitbutler_branch_details",
@@ -1197,13 +1212,24 @@ export const renderReviewDoc = (
   projectReview: string | null = readOptionalSource(PROJECT_REVIEW_SRC)
 ): string => `${HTML_HEADER}\n\n${appendProjectSource(source, projectReview)}\n`;
 
-export const renderMcpJson = (source: McpSource): string =>
-  `${JSON.stringify({ _generated: GEN_NOTICE, ...source }, null, 2)}\n`;
+/** Claude Code needs `type: "http"` beside a remote `url`; Cursor infers the transport. */
+export const renderMcpJson = (source: McpSource, agent: "claude" | "cursor"): string => {
+  const mcpServers = Object.fromEntries(
+    Object.entries(source.mcpServers).map(([name, server]) => [
+      name,
+      agent === "claude" && server.url ? { type: "http", ...server } : server
+    ])
+  );
+  return `${JSON.stringify({ _generated: GEN_NOTICE, mcpServers }, null, 2)}\n`;
+};
 
 export const publicMcpServer = (server: McpServer): McpServer => {
   const result: McpServer = {};
   if (server.command) {
     result.command = server.command;
+  }
+  if (server.url) {
+    result.url = server.url;
   }
   if (server.args) {
     result.args = server.args;
@@ -1338,6 +1364,9 @@ const renderMcpServersToml = (source: McpSource): string[] => {
     lines.push(`[mcp_servers.${name}]`);
     if (server.command) {
       lines.push(`command = ${JSON.stringify(server.command)}`);
+    }
+    if (server.url) {
+      lines.push(`url = ${JSON.stringify(server.url)}`);
     }
     if (server.args) {
       lines.push(`args = ${JSON.stringify(server.args)}`);
@@ -1529,6 +1558,11 @@ export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
+    if (server.url) {
+      mcp[name] = { type: "remote", url: server.url, enabled: true };
+      continue;
+    }
+    // validateMcpServers rejects a server with neither field before install renders it.
     if (!server.command) {
       continue;
     }

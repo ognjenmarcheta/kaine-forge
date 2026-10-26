@@ -34,6 +34,7 @@ import {
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
+  validateMcpServers,
   REVIEW_OUT,
   REVIEW_SRC,
   SERENA_INTERFACES,
@@ -518,6 +519,10 @@ const main = async (): Promise<void> => {
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
+  const invalidMcps = validateMcpServers(merged.source);
+  if (invalidMcps.length > 0) {
+    throw new Error(`Invalid MCP server(s):\n${invalidMcps.join("\n")}`);
+  }
 
   const mcpSelection = new Set(options.mcps);
   const knownMcps = new Set(Object.keys(merged.source.mcpServers));
