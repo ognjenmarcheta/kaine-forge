@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 
 const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
+const appRoot = fileURLToPath(new URL(".", import.meta.url));
+// The CI PR e2e job serves this build through `vite preview`, so Build Core sets
+// E2E_FIXTURES=true to add the dev-only Playwright fixture page. The shipped build
+// (Dockerfile.web, Release) does not set it and contains index.html only.
+const e2eFixtures = process.env["E2E_FIXTURES"] === "true";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, workspaceRoot, "VITE_");
@@ -33,6 +38,18 @@ export default defineConfig(({ mode }) => {
         "@repo/ui": path.join(workspaceRoot, "packages/ui/src/index.ts")
       }
     },
+    ...(e2eFixtures
+      ? {
+          build: {
+            rolldownOptions: {
+              input: {
+                main: path.join(appRoot, "index.html"),
+                motion: path.join(appRoot, "motion.fixture.html")
+              }
+            }
+          }
+        }
+      : {}),
     server: {
       port: 3000,
       proxy: {

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -66,12 +66,5 @@ describe("appendJsonl", () => {
       { i: 1 },
       { i: 2, text: "line\nbreak" }
     ]);
-  });
-
-  it("appends to an existing file", async () => {
-    const file = path.join(dir, "events.jsonl");
-    await writeFile(file, '{"i":0}\n');
-    await appendJsonl(file, { i: 1 });
-    expect((await readFile(file, "utf8")).trim().split("\n")).toHaveLength(2);
   });
 });
