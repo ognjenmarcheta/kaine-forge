@@ -18,7 +18,7 @@ services:
   # RustFS: an S3-compatible server on MinIO's ports. MinIO's public images no
   # longer pull (#685). The credentials match S3_ACCESS_KEY / S3_SECRET_KEY in .env.example.
   storage:
-    image: rustfs/rustfs:1.0.1
+    image: rustfs/rustfs:1.0.3
     environment:
       RUSTFS_ACCESS_KEY: minioadmin
       RUSTFS_SECRET_KEY: minioadmin
@@ -31,7 +31,7 @@ services:
   # Creates the buckets through the S3 API: the private Attachment bucket, with
   # CORS for the browser's direct PUT, and the public-read Public Asset bucket.
   storage-init:
-    image: amazon/aws-cli:2.37.13
+    image: amazon/aws-cli:2.38.5
     depends_on:
       - storage
     environment:
