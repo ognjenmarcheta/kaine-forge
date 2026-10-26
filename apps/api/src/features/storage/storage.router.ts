@@ -14,25 +14,37 @@ export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.logger).getFile(scope, args.id);
+      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).getFile(scope, args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.logger).listFiles(scope, args.filter ?? {});
+      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).listFiles(
+        scope,
+        args.filter ?? {}
+      );
     }
   },
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.logger).requestUploadUrl(scope, args.input);
+      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).requestUploadUrl(
+        scope,
+        args.input
+      );
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.logger).confirmUpload(scope, args.fileId);
+      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).confirmUpload(
+        scope,
+        args.fileId
+      );
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.logger).deleteFile(scope, args.fileId);
+      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).deleteFile(
+        scope,
+        args.fileId
+      );
     }
   },
   FileInfo: {
@@ -41,7 +53,7 @@ export const storageResolvers = {
       _args: unknown,
       ctx: ResolverContext
     ) {
-      return createApiStorageRuntime(ctx.data).getDownloadUrl(parent);
+      return createApiStorageRuntime(ctx.data, ctx.todos).getDownloadUrl(parent);
     }
   }
 };

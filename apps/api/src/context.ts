@@ -9,7 +9,10 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
-import { createApiWorkflows, type ApiWorkflows } from "./context.workflows";
+import { createApiWorkflows, type ApiWorkflowDeps, type ApiWorkflows } from "./context.workflows";
+import { createTodoAttachments } from "./features/storage/attachment.lifecycle";
+import { deleteStorageObject } from "./features/storage/storage.runtime";
+import { createTodos, type Todos } from "./features/todos/todos.module";
 import { pubsub } from "./pubsub";
 
 export interface ApiContext {
@@ -21,6 +24,7 @@ export interface ApiContext {
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
   /** Organization-scoped data access for this request; see context.data.ts. */
   data: ScopedData;
+  todos: Todos;
   loaders: ApiLoaders;
   workflows: ApiWorkflows;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
@@ -47,6 +51,19 @@ export async function createContextFromHeaders(
   });
 
   const data = createScopedData({ db, requireOrganizationScope });
+  const publish: ApiWorkflowDeps["publish"] = (eventName, ...payload) => {
+    pubsub.publish(eventName, ...payload);
+  };
+  const todos = createTodos({
+    attachments: createTodoAttachments({
+      data,
+      deleteObject: ({ bucket, key }) => deleteStorageObject(bucket, key),
+      logger: contextLogger
+    }),
+    data,
+    logger: contextLogger,
+    publish
+  });
 
   return {
     auth,
@@ -56,14 +73,9 @@ export async function createContextFromHeaders(
     organizationScope,
     requireOrganizationScope,
     data,
-    loaders: createApiLoaders(data),
-    workflows: createApiWorkflows({
-      data,
-      logger: contextLogger,
-      publish: (eventName, ...payload) => {
-        pubsub.publish(eventName, ...payload);
-      }
-    }),
+    todos,
+    loaders: createApiLoaders(data, todos),
+    workflows: createApiWorkflows({ data, publish }),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub

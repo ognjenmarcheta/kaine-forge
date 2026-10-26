@@ -4,7 +4,7 @@ import DataLoader from "dataloader";
 import type { ScopedData } from "./context.data";
 import { ATTACHMENT_ENTITY_TYPES } from "./features/storage/attachment.lifecycle";
 import { listFilesByEntityIds } from "./features/storage/storage.adapter";
-import { listTodosByNoteIds } from "./features/todos/todos.adapter";
+import type { Todos } from "./features/todos/todos.module";
 
 export interface ApiLoaders {
   noteTodos: DataLoader<string, Todo[]>;
@@ -13,26 +13,24 @@ export interface ApiLoaders {
 
 interface LoaderAdapter {
   listFilesByEntityIds: typeof listFilesByEntityIds;
-  listTodosByNoteIds: typeof listTodosByNoteIds;
 }
 
 const defaultAdapter: LoaderAdapter = {
-  listFilesByEntityIds,
-  listTodosByNoteIds
+  listFilesByEntityIds
 };
 
 // Loaders are created per request so field resolvers batch their fan-out into
 // one organization-scoped query instead of one query per parent row.
 export function createApiLoaders(
   data: ScopedData,
+  todos: Pick<Todos, "listByNoteIds">,
   adapter: LoaderAdapter = defaultAdapter
 ): ApiLoaders {
   return {
     noteTodos: new DataLoader(async (noteIds) => {
-      const todos = await adapter.listTodosByNoteIds(data, [...noteIds]);
       const byNoteId = new Map<string, Todo[]>();
 
-      for (const todo of todos) {
+      for (const todo of await todos.listByNoteIds(noteIds)) {
         if (!todo.noteId) {
           continue;
         }
