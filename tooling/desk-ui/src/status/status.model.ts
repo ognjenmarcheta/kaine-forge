@@ -1,6 +1,6 @@
 import type { IssueSummary, NodeStatus, StageId } from "@repo/desk/contracts";
 
-import { issueFlowOf, stepRoleOf, type IssueFlow } from "../flow/flow.steps";
+import { flowStepOf, issueFlowOf, type IssueFlow } from "../flow/flow.steps";
 
 /**
  * One place that turns engine codes into what the page shows: the board column, the color
@@ -96,7 +96,7 @@ export function gateModeOf(summary: ReadableSummary): GateMode {
   if (summary.busy || summary.status === "running" || summary.status === "queued") {
     return "working";
   }
-  switch (stepRoleOf(issueFlowOf(summary), summary.stage)) {
+  switch (flowStepOf(issueFlowOf(summary), summary.stage)?.role) {
     case "plan-gate":
       return "plan-gate";
     case "ship-gate":

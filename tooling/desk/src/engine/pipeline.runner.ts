@@ -6,12 +6,11 @@ import {
   fitConfidence,
   flowForLabels,
   issueDraftSchema,
-  isShipGate,
   positionKind,
   stepOf,
+  stepRoleOf,
   type AgentOutputKind,
   type FlowSnapshot,
-  type FlowStep,
   type Isolation,
   type HistoryEvent,
   type IssueState,
@@ -223,42 +222,9 @@ const handlerFor = (snapshot: FlowSnapshot, stage: StageId): StageHandler | null
     : (context) => handler(context, step, agent);
 };
 
-/** The step before `stage` in flow order. */
-const previousStepOf = (snapshot: FlowSnapshot, stage: StageId): FlowStep | undefined => {
-  const index = snapshot.flow.steps.findIndex((step) => step.id === stage);
-  return index <= 0 ? undefined : snapshot.flow.steps[index - 1];
-};
-
-/** A gate right after a plan step: approving it approves the plan. */
-const isPlanGate = (snapshot: FlowSnapshot, stage: StageId): boolean => {
-  const previous = previousStepOf(snapshot, stage);
-  return (
-    stepOf(snapshot, stage)?.kind === "gate" &&
-    previous?.kind === "agent" &&
-    agentOf(snapshot, previous.agent)?.output === "plan"
-  );
-};
-
-/**
- * The flow's ship step and the gate before it, where the owner confirms a ship that is not
- * `automatic`.
- */
-const shipOf = (
-  snapshot: FlowSnapshot
-): {
-  readonly step: FlowStep;
-  readonly gate: FlowStep | undefined;
-  readonly automatic: boolean;
-} | null => {
-  const step = snapshot.flow.steps.find((entry) => entry.kind === "ship");
-  return step === undefined
-    ? null
-    : {
-        step,
-        gate: previousStepOf(snapshot, step.id),
-        automatic: step.kind === "ship" && step.auto
-      };
-};
+/** The flow's ship step opens the PR without the owner's confirmation. */
+const shipsAutomatically = (snapshot: FlowSnapshot): boolean =>
+  snapshot.flow.steps.some((step) => step.kind === "ship" && step.auto);
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
@@ -394,7 +360,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
   const gateMessage = async (state: IssueState): Promise<string | null> => {
     const dir = store.artifactsDir(state.issueNumber);
     const snapshot = state.flowSnapshot;
-    if (isPlanGate(snapshot, state.stage)) {
+    const role = stepRoleOf(snapshot, state.stage);
+    if (role === "plan-gate") {
       const plan = await readPlan(dir);
       if (plan.status !== "ok") return null;
       return [
@@ -405,7 +372,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           : `Open questions:\n${plan.value.openQuestions.map((question) => `- ${question}`).join("\n")}`
       ].join("\n");
     }
-    if (isShipGate(snapshot, state.stage)) {
+    if (role === "ship-gate") {
       const review = await readArtifactJson(dir, ARTIFACTS.review, reviewArtifactSchema);
       if (review.status !== "ok") return null;
       return `Review approved with ${review.value.review.findings.length} finding(s). ${review.value.review.plainLanguage}`;
@@ -603,7 +570,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       }
       if (positionKind(snapshot, stage) === "ship") {
         // An automatic ship, or a retry after `continue` of a ship the engineer confirmed before.
-        if (shipOf(snapshot)?.automatic === true) {
+        if (shipsAutomatically(snapshot)) {
           const issue = session.state.issueNumber;
           if (deps.noWriteback === true || noWriteback.has(issue)) {
             await applyOutcome(session, stage, {
@@ -859,7 +826,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         // A new approval replaces the note of an earlier one.
         patch: () => (planGate ? { approveNote: options.note?.trim() || null } : undefined),
         prepare: async (session) => {
-          planGate = isPlanGate(session.state.flowSnapshot, session.state.stage);
+          planGate = stepRoleOf(session.state.flowSnapshot, session.state.stage) === "plan-gate";
           if (!planGate) {
             if (options.note?.trim()) {
               return refused(
@@ -1065,17 +1032,22 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
-        const automatic = shipOf(snapshot)?.automatic === true;
+        const automatic = shipsAutomatically(snapshot);
         if (
           targetKind === "ship" &&
           (session.state.resumeStage !== target ||
             (session.state.shipConfirmed !== true && !automatic))
         ) {
           // Only a ship that failed is retried: one the engineer confirmed, or an automatic one.
-          const gate = shipOf(snapshot)?.gate?.id ?? "the gate before it";
+          // An automatic ship has no ship gate, so the owner continues the recorded stage instead.
+          const gate =
+            snapshot.flow.steps.find((step) => stepRoleOf(snapshot, step.id) === "ship-gate")?.id ??
+            "the gate before it";
           return refused(
             "ship-refused",
-            `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
+            automatic
+              ? `'${target}' runs automatically after the step before it. Continue #${issue} from where it stopped: pnpm desk continue ${issue}. Nothing was changed.`
+              : `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
             session.state
           );
         }
@@ -1120,9 +1092,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     mode: { readonly dryRun: boolean; readonly retry: boolean }
   ): Promise<ShipExecution> => {
     const issue = session.state.issueNumber;
-    const shipping = shipOf(session.state.flowSnapshot);
-    if (shipping === null) throw new Error("Internal error: the flow has no ship step.");
-    const shipStage = shipping.step.id;
+    const shipping = session.state.flowSnapshot.flow.steps.find((step) => step.kind === "ship");
+    if (shipping === undefined) throw new Error("Internal error: the flow has no ship step.");
+    const shipStage = shipping.id;
     let began = false;
     const begin = async (): Promise<void> => {
       if (began) return;

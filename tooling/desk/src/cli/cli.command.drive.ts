@@ -4,9 +4,9 @@ import path from "node:path";
 import {
   actionTargetProblem,
   definitionIdSchema,
-  isShipGate,
   isolationSchema,
   stageIdSchema,
+  stepRoleOf,
   type ActionRequest
 } from "../contracts";
 import { parse, parseIssueNumber, requireIssue } from "./cli.args";
@@ -193,7 +193,7 @@ export const commandShip: CliCommand = (args, deps, io) => {
       // No flag. Ask only where the ship can start. Elsewhere the runner gives its own refusal.
       const [entry] = await runner.status(issue);
       const state = entry?.result.status === "ok" ? entry.result.state : null;
-      if (state === null || !isShipGate(state.flowSnapshot, state.stage)) {
+      if (state === null || stepRoleOf(state.flowSnapshot, state.stage) !== "ship-gate") {
         return runner.ship(issue, { confirm: false });
       }
       const decline = (reason: string): ShipActionResult => ({
