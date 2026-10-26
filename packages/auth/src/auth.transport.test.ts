@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthTransport, parseSocialProviders } from "./auth.transport";
+import {
+  AuthRequestError,
+  createAuthTransport,
+  getAuthErrorMessageKey,
+  isTwoFactorRequiredError,
+  parseSocialProviders
+} from "./auth.transport";
 import type { AuthTransportAdapter } from "./auth.transport";
 import type { AuthSession } from "./auth.type";
 
@@ -14,7 +20,9 @@ vi.mock("better-auth/client", () => ({
 }));
 
 vi.mock("better-auth/client/plugins", () => ({
-  organizationClient: organizationClientMock
+  emailOTPClient: () => ({ id: "email-otp" }),
+  organizationClient: organizationClientMock,
+  twoFactorClient: () => ({ id: "two-factor" })
 }));
 
 interface StubError {
@@ -39,6 +47,7 @@ interface SessionData {
     emailVerified: boolean;
     id: string;
     name: string;
+    twoFactorEnabled?: boolean;
   };
 }
 
@@ -60,6 +69,7 @@ function sessionPayload(activeOrganizationId: string | null = "org-1"): StubResu
         id: "user-1",
         email: "user@example.com",
         emailVerified: false,
+        twoFactorEnabled: false,
         name: "User"
       }
     },
@@ -75,6 +85,7 @@ function expectedSession(activeOrganizationId: string | null = "org-1"): AuthSes
       id: "user-1",
       email: "user@example.com",
       emailVerified: false,
+      twoFactorEnabled: false,
       name: "User"
     }
   };
@@ -89,12 +100,34 @@ function createClientStub() {
     getSession: vi.fn(async () => sessionPayload()),
     signIn: {
       email: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      emailOtp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       social: vi.fn(async () => stubResult({ url: "https://provider.example.test" }))
     },
     signUp: {
       email: vi.fn(async () => stubResult<Record<string, unknown>>({}))
     },
     signOut: vi.fn(async () => stubResult({ success: true })),
+    twoFactor: {
+      disable: vi.fn(async () => stubResult<Record<string, unknown>>({ status: true })),
+      enable: vi.fn(async () =>
+        stubResult<Record<string, unknown>>({
+          backupCodes: ["code-1", "code-2"],
+          totpURI: "otpauth://totp/Kaine%20Forge:user?secret=ABC"
+        })
+      ),
+      generateBackupCodes: vi.fn(async () =>
+        stubResult<{ backupCodes: string[] }>({ backupCodes: ["new-1"] })
+      ),
+      sendOtp: vi.fn(async () => stubResult<Record<string, unknown>>({ status: true })),
+      verifyTotp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      verifyOtp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      verifyBackupCode: vi.fn(async () => stubResult<Record<string, unknown>>({}))
+    },
+    emailOtp: {
+      requestPasswordReset: vi.fn(async () => stubResult({ success: true })),
+      resetPassword: vi.fn(async () => stubResult({ success: true })),
+      sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
+    },
     organization: {
       list: vi.fn(async () =>
         stubResult<{ createdAt?: string; id: string; name: string; slug: string }[]>([])
@@ -135,11 +168,15 @@ describe("createAuthTransport", () => {
       plugins: unknown[];
     };
     expect(options.baseURL).toBe("https://api.example.test");
-    expect(options.plugins).toEqual([{ id: "organization" }]);
+    expect(options.plugins).toEqual([
+      { id: "organization" },
+      { id: "two-factor" },
+      { id: "email-otp" }
+    ]);
     expect(options.fetchOptions.credentials).toBe("include");
   });
 
-  it("forwards optional client plugins (e.g. Expo) after organizationClient", () => {
+  it("forwards optional client plugins (e.g. Expo) after the built-in plugins", () => {
     const client = createClientStub();
     createAuthClientMock.mockReturnValue(client);
     const expoPlugin = { id: "expo-client" };
@@ -151,7 +188,12 @@ describe("createAuthTransport", () => {
     const options = createAuthClientMock.mock.calls[0]?.[0] as {
       plugins: unknown[];
     };
-    expect(options.plugins).toEqual([{ id: "organization" }, expoPlugin]);
+    expect(options.plugins).toEqual([
+      { id: "organization" },
+      { id: "two-factor" },
+      { id: "email-otp" },
+      expoPlugin
+    ]);
   });
 
   it("maps the better-auth session payload to AuthSession", async () => {
@@ -166,6 +208,7 @@ describe("createAuthTransport", () => {
           id: "user-1",
           email: "user@example.com",
           emailVerified: true,
+          twoFactorEnabled: false,
           name: "User"
         }
       },
@@ -182,6 +225,7 @@ describe("createAuthTransport", () => {
         id: "user-1",
         email: "user@example.com",
         emailVerified: true,
+        twoFactorEnabled: false,
         name: "User"
       }
     });
@@ -208,10 +252,196 @@ describe("createAuthTransport", () => {
     await expect(
       transport.loginWithPassword({ email: "user@example.com", password: "secret" })
     ).resolves.toEqual(expectedSession());
-    expect(client.signIn.email).toHaveBeenCalledWith({
+    expect(client.signIn.email).toHaveBeenCalledWith(
+      { email: "user@example.com", password: "secret" },
+      undefined
+    );
+  });
+
+  it("sends the captcha token as the x-captcha-response header", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await transport.loginWithPassword({
       email: "user@example.com",
-      password: "secret"
+      password: "secret",
+      captchaToken: "turnstile-token"
     });
+
+    expect(client.signIn.email).toHaveBeenCalledWith(
+      { email: "user@example.com", password: "secret" },
+      { headers: { "x-captcha-response": "turnstile-token" } }
+    );
+  });
+
+  it("signals a required second factor instead of reading a session that does not exist", async () => {
+    const client = createClientStub();
+    client.signIn.email.mockResolvedValue(
+      stubResult<Record<string, unknown>>({
+        twoFactorRedirect: true,
+        twoFactorMethods: ["totp", "otp"]
+      })
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+    const error: unknown = await transport
+      .loginWithPassword({ email: "user@example.com", password: "secret" })
+      .catch((caught: unknown) => caught);
+
+    expect(isTwoFactorRequiredError(error)).toBe(true);
+    expect(error).toMatchObject({ twoFactorMethods: ["totp", "otp"] });
+    expect(client.getSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { method: "totp", call: "verifyTotp" },
+    { method: "otp", call: "verifyOtp" },
+    { method: "backup", call: "verifyBackupCode" }
+  ] as const)("completes a two-factor sign-in with a $method code", async ({ method, call }) => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(
+      transport.verifyTwoFactor({ method, code: "123456", trustDevice: true })
+    ).resolves.toEqual(expectedSession());
+    expect(client.twoFactor[call]).toHaveBeenCalledWith({ code: "123456", trustDevice: true });
+  });
+
+  it("starts TOTP enrollment with the password and returns the URI and backup codes", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.enableTwoFactor("secret")).resolves.toEqual({
+      backupCodes: ["code-1", "code-2"],
+      totpUri: "otpauth://totp/Kaine%20Forge:user?secret=ABC"
+    });
+    expect(client.twoFactor.enable).toHaveBeenCalledWith({ password: "secret" });
+  });
+
+  it("returns the regenerated backup codes", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.regenerateBackupCodes("secret")).resolves.toEqual(["new-1"]);
+    expect(client.twoFactor.generateBackupCodes).toHaveBeenCalledWith({ password: "secret" });
+  });
+
+  type Client = ReturnType<typeof createClientStub>;
+  type Transport = ReturnType<typeof createAuthTransport>;
+
+  // Each step sends the body the better-auth endpoint expects; email-code
+  // requests also carry the captcha token. `call` names the client method.
+  const authSteps: {
+    name: string;
+    run: (transport: Transport) => Promise<unknown>;
+    call: (client: Client) => (...args: never[]) => unknown;
+    args: unknown[];
+  }[] = [
+    {
+      name: "sends a sign-in code with the captcha token",
+      run: (transport) =>
+        transport.sendSignInOtp({ email: "user@example.com", captchaToken: "turnstile-token" }),
+      call: (client) => client.emailOtp.sendVerificationOtp,
+      args: [
+        { email: "user@example.com", type: "sign-in" },
+        { headers: { "x-captcha-response": "turnstile-token" } }
+      ]
+    },
+    {
+      name: "signs in with an email code",
+      run: (transport) => transport.signInWithOtp({ email: "user@example.com", otp: "123456" }),
+      call: (client) => client.signIn.emailOtp,
+      args: [{ email: "user@example.com", otp: "123456" }]
+    },
+    {
+      name: "requests a password reset code",
+      run: (transport) => transport.requestPasswordResetOtp({ email: "user@example.com" }),
+      call: (client) => client.emailOtp.requestPasswordReset,
+      args: [{ email: "user@example.com" }, undefined]
+    },
+    {
+      name: "resets the password with an email code",
+      run: (transport) =>
+        transport.resetPasswordWithOtp({
+          email: "user@example.com",
+          otp: "123456",
+          password: "new-password"
+        }),
+      call: (client) => client.emailOtp.resetPassword,
+      args: [{ email: "user@example.com", otp: "123456", password: "new-password" }]
+    },
+    {
+      name: "emails a second-factor code",
+      run: (transport) => transport.sendTwoFactorOtp(),
+      call: (client) => client.twoFactor.sendOtp,
+      args: []
+    },
+    {
+      name: "verifies TOTP enrollment",
+      run: (transport) => transport.verifyTotpEnrollment("654321"),
+      call: (client) => client.twoFactor.verifyTotp,
+      args: [{ code: "654321" }]
+    },
+    {
+      name: "turns two-factor off with the password",
+      run: (transport) => transport.disableTwoFactor("secret"),
+      call: (client) => client.twoFactor.disable,
+      args: [{ password: "secret" }]
+    }
+  ];
+
+  it.each(authSteps)("$name", async ({ run, call, args }) => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await run(createAuthTransport({ adapter: createAdapter() }));
+
+    expect(call(client)).toHaveBeenCalledWith(...args);
+  });
+
+  it.each(authSteps)(
+    "fails with the server error code instead of reporting success: $name",
+    async ({ run, call }) => {
+      const client = createClientStub();
+      const method = call(client);
+      // SAFETY: every client stub method is a vi.fn mock created in createClientStub.
+      vi.mocked(method as () => Promise<unknown>).mockResolvedValue({
+        data: null,
+        error: { status: 400, code: "INVALID_OTP" }
+      });
+      createAuthClientMock.mockReturnValue(client);
+
+      await expect(run(createAuthTransport({ adapter: createAdapter() }))).rejects.toMatchObject({
+        code: "INVALID_OTP"
+      });
+    }
+  );
+
+  it("keeps the better-auth error code so clients can show a precise message", async () => {
+    const client = createClientStub();
+    client.signUp.email.mockResolvedValue({
+      data: null,
+      error: { status: 400, code: "PASSWORD_COMPROMISED" }
+    });
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+    const error: unknown = await transport
+      .signupWithPassword({ email: "user@example.com", name: "User", password: "password1" })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AuthRequestError);
+    expect(getAuthErrorMessageKey(error)).toBe("auth.error.passwordCompromised");
+    expect(getAuthErrorMessageKey(new Error("network down"))).toBe("error.generic");
   });
 
   it("signs up with email and returns the refreshed session", async () => {
@@ -227,11 +457,10 @@ describe("createAuthTransport", () => {
         password: "secret"
       })
     ).resolves.toEqual(expectedSession());
-    expect(client.signUp.email).toHaveBeenCalledWith({
-      email: "user@example.com",
-      name: "User",
-      password: "secret"
-    });
+    expect(client.signUp.email).toHaveBeenCalledWith(
+      { email: "user@example.com", name: "User", password: "secret" },
+      undefined
+    );
   });
 
   it("throws a stable auth request error for failed requests", async () => {

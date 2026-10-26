@@ -28,7 +28,13 @@ beforeAll(async () => {
   scope = {
     membership: { id: "membership-1", role: "owner", userId: user.id },
     organizationId: organization.id,
-    user: { email: user.email, emailVerified: true, id: user.id, name: user.name },
+    user: {
+      email: user.email,
+      emailVerified: true,
+      id: user.id,
+      name: user.name,
+      twoFactorEnabled: false
+    },
     userId: user.id
   };
   notes = createNotes({

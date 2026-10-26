@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "catalog:",
+    "@marsidev/react-turnstile": "1.6.3",
     "@repo/auth": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/persistence": "workspace:*",
@@ -33,6 +34,7 @@
     "graphql-ws": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-qr-code": "2.2.0",
     "react-router-dom": "^7.18.4",
     "sonner": "catalog:",
     "zod": "catalog:",
