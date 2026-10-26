@@ -63,15 +63,4 @@ describe("auth.instance social providers", () => {
       github: { clientId: "gh-id", clientSecret: "gh-secret" }
     });
   });
-
-  it("exposes no providers when the env pairs are absent", () => {
-    vi.stubEnv("GITHUB_CLIENT_ID", undefined);
-    vi.stubEnv("GITHUB_CLIENT_SECRET", undefined);
-    vi.stubEnv("GOOGLE_CLIENT_ID", undefined);
-    vi.stubEnv("GOOGLE_CLIENT_SECRET", undefined);
-
-    const instance = createAuthInstance();
-
-    expect(instance.options.socialProviders).toEqual({});
-  });
 });

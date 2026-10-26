@@ -71,6 +71,13 @@
       "when": 1784653811454,
       "tag": "0009_fresh_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793003478547,
+      "tag": "0010_large_firestar",
+      "breakpoints": true
     }
   ]
 }

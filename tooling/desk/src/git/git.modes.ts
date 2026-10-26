@@ -1,6 +1,6 @@
 import type { Exec } from "../ports";
 import { withWorktreeIndex } from "./git.diff";
-import { runGit } from "./git.real";
+import { runGit } from "./git.run";
 
 /**
  * Exec bits on a host where git ignores them on disk (`core.fileMode=false`, the

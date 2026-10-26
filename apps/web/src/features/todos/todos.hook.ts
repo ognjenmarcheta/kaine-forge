@@ -18,7 +18,7 @@ import {
   type GetTodosQuery,
   type GetTodosQueryVariables
 } from "../../graphql/generated/react-query";
-import { useSubscription } from "../../hooks/use-subscription";
+import { useLiveTodos } from "../../hooks/use-live-list";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 import { queryRuntime } from "../../lib/query-runtime";
 
@@ -93,29 +93,11 @@ export function useTodos(
   const generate = useGenerateTodosMutation({ retry: false });
   const removeFile = useDeleteFileMutation({ retry: false });
   const invalidationKeys = [listKey, detailKey];
-  useSubscription({
-    query: "subscription { todoCreated { id } }",
-    enabled,
-    invalidateKeys: invalidationKeys
-  });
-  useSubscription({
-    query: "subscription { todoUpdated { id } }",
-    enabled,
-    invalidateKeys: invalidationKeys
-  });
-  useSubscription({
-    query: "subscription { todoToggled { id } }",
-    enabled,
-    invalidateKeys: invalidationKeys
-  });
-  useSubscription<{ todoDeleted: { id: string } }>({
-    query: "subscription { todoDeleted { id } }",
+  useLiveTodos({
     enabled,
     invalidateKeys: invalidationKeys,
-    onData: ({ todoDeleted }) =>
-      setEditing((current) =>
-        current?.base.id === todoDeleted.id ? { ...current, deleted: true } : current
-      )
+    onDeleted: (id) =>
+      setEditing((current) => (current?.base.id === id ? { ...current, deleted: true } : current))
   });
   useEffect(() => {
     if (detail.isSuccess && detail.data.todo === null)

@@ -9,12 +9,15 @@
 // pnpm ai:doctor validates the file so that failure mode stays visible.
 
 import { Buffer } from "node:buffer";
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { guardedCommandMessage, matchGuardedCommand } from "./guarded-command.mjs";
+import {
+  guardedCommandMessage,
+  loadGuardedCommandRules,
+  matchGuardedCommand
+} from "./guarded-command.mjs";
 
 const args = process.argv.slice(2);
 const agentIndex = args.indexOf("--agent");
@@ -36,14 +39,6 @@ const readStdinJson = async () => {
   } catch {
     return {};
   }
-};
-
-const readRules = () => {
-  const source = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
-  if (!Array.isArray(source.rules)) {
-    throw new Error("permissions.json: rules must be an array");
-  }
-  return source.rules;
 };
 
 // Codex uses a structured deny with exit 0: Windows shell wrappers can remap
@@ -90,7 +85,7 @@ const main = async () => {
 
   const rule = matchGuardedCommand(
     command,
-    readRules(),
+    loadGuardedCommandRules(join(repoRoot, ".ai", "permissions.json")),
     input.tool_name === "PowerShell" ? "powershell" : "bash"
   );
   if (!rule) {

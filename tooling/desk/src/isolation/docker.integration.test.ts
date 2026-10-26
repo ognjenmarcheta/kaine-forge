@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAgentProcess } from "../agents/agent.process";
 import { createReplayRunner } from "../agents/agent.replay";
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase, fileModeIgnored } from "../git";
+import { createGitPort, diffAgainstBase, fileModeIgnored } from "../git";
 import { createExec } from "../ports";
 import { checkContainer, dockerRunArgs, proxyContainer } from "./docker.args";
 import { containerBase } from "./docker.context";
@@ -661,6 +661,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
       kind: "loop" as const,
       config: deskConfigSchema.parse({ checks: { loop: [["pnpm", "check:affected"]] } }),
       exec,
+      git: createGitPort(exec),
       baseSha: w.baseSha,
       artifactsDir: path.join(w.artifacts, "check")
     };

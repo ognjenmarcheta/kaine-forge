@@ -2,30 +2,26 @@ import path from "node:path";
 import { z } from "zod";
 
 import {
-  CONVENTIONAL_TYPES,
   PROVIDERS,
   type AgentDefinition,
   type ConventionalType,
   type InstalledCapabilities,
   type Provider
 } from "../contracts";
+import { isGitBranchName, isValidBranchName, type BranchName } from "../git";
 
 /**
- * The worktree setup recipe as pure data. `bootstrapPlan` returns the ordered
- * argv steps and runs nothing: the executor arrives in a later phase. Every
- * step is an argv array, so there is no shell to inject into.
+ * The worktree setup recipe as pure data. `bootstrapPlan` returns the branch and the ordered
+ * argv steps that run in the new worktree, and runs nothing. Every step is an argv array, so
+ * there is no shell to inject into. The git work around them (check the branch name, fetch
+ * the base, add the worktree, then require a clean tree and read the base commit) goes through
+ * `GitPort` in `createWorktree`.
  */
 
-export type BranchName = string;
-
-/** `KAINE-<issue>-<type>-<slug>`, as AGENTS.md and CONTRIBUTING.md define it. */
-const BRANCH_PATTERN = new RegExp(`^KAINE-(\\d+-)?(${CONVENTIONAL_TYPES.join("|")})-[a-z0-9-]+$`);
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SKILL_PATTERN = /^kaine-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MCP_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SLUG_LENGTH = 40;
-
-export const isValidBranchName = (name: string): name is BranchName => BRANCH_PATTERN.test(name);
 
 /** Lower-case, hyphen-separated slug from free text such as an issue title. */
 export const slugify = (text: string): string => {
@@ -96,20 +92,14 @@ export const installsForAgents = (
     .sort()
 });
 
-export type StepCwd = "repo" | "worktree";
-
 /** What a finished step must show. The executor checks it with `evaluateStep`. */
 export type StepExpectation =
-  | { readonly kind: "exit-zero" }
-  | { readonly kind: "stdout-empty" }
-  | { readonly kind: "installation-ready" }
-  /** The trimmed stdout is a value the run keeps, such as the base commit. */
-  | { readonly kind: "record"; readonly as: "baseHead" };
+  { readonly kind: "exit-zero" } | { readonly kind: "installation-ready" };
 
+/** One step of the recipe. It runs in the new worktree. */
 export interface BootstrapStep {
   readonly id: string;
   readonly argv: readonly string[];
-  readonly cwd: StepCwd;
   readonly expect: StepExpectation;
 }
 
@@ -124,8 +114,6 @@ export interface BootstrapInput {
   readonly agents: readonly Provider[];
   readonly skills: readonly string[];
   readonly mcp: readonly string[];
-  /** The branch already exists (a removed worktree kept it): check it out instead of creating it. */
-  readonly existingBranch?: boolean;
 }
 
 export interface BootstrapPlan {
@@ -144,7 +132,7 @@ const assertAll = (what: string, values: readonly string[], pattern: RegExp): vo
 export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   const branch = branchName(input);
   const { base, worktreeDir } = input;
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(base) || base.includes("..")) {
+  if (!isGitBranchName(base)) {
     throw new RangeError(`Invalid base branch '${base}'`);
   }
   if (!path.isAbsolute(worktreeDir)) {
@@ -165,57 +153,21 @@ export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
 
   const steps: BootstrapStep[] = [
     {
-      id: "check-branch",
-      argv: ["git", "check-ref-format", "--branch", branch],
-      cwd: "repo",
-      expect: { kind: "exit-zero" }
-    },
-    {
-      id: "fetch-base",
-      argv: ["git", "fetch", "origin", base],
-      cwd: "repo",
-      expect: { kind: "exit-zero" }
-    },
-    {
-      id: "worktree-add",
-      argv:
-        input.existingBranch === true
-          ? ["git", "worktree", "add", worktreeDir, branch]
-          : ["git", "worktree", "add", "-b", branch, worktreeDir, `origin/${base}`],
-      cwd: "repo",
-      expect: { kind: "exit-zero" }
-    },
-    {
       id: "install",
       argv: ["pnpm", "install", "--frozen-lockfile", "--prefer-offline"],
-      cwd: "worktree",
       expect: { kind: "exit-zero" }
     },
     {
       id: "env-ensure",
       argv: ["pnpm", "env:ensure"],
-      cwd: "worktree",
       expect: { kind: "exit-zero" }
     },
-    { id: "ai-install", argv: installArgv, cwd: "worktree", expect: { kind: "exit-zero" } },
+    { id: "ai-install", argv: installArgv, expect: { kind: "exit-zero" } },
     ...agents.map((agent): BootstrapStep => ({
       id: `ai-doctor-${agent}`,
       argv: ["pnpm", "ai:doctor", "--agent", agent, "--local", "--json"],
-      cwd: "worktree",
       expect: { kind: "installation-ready" }
-    })),
-    {
-      id: "baseline-status",
-      argv: ["git", "status", "--short"],
-      cwd: "worktree",
-      expect: { kind: "stdout-empty" }
-    },
-    {
-      id: "base-head",
-      argv: ["git", "rev-parse", "HEAD"],
-      cwd: "worktree",
-      expect: { kind: "record", as: "baseHead" }
-    }
+    }))
   ];
   return { branch, steps };
 };
@@ -231,9 +183,7 @@ const jsonReport = (stdout: string): string => {
   return start === -1 ? stdout : stdout.slice(start);
 };
 
-export type StepVerdict =
-  | { readonly ok: true; readonly recorded?: { readonly baseHead: string } }
-  | { readonly ok: false; readonly reason: string };
+export type StepVerdict = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
 /** Judge one finished step against its expectation. Pure: the caller supplies the result. */
 export const evaluateStep = (
@@ -246,10 +196,6 @@ export const evaluateStep = (
   switch (step.expect.kind) {
     case "exit-zero":
       return { ok: true };
-    case "stdout-empty":
-      return result.stdout.trim() === ""
-        ? { ok: true }
-        : { ok: false, reason: `${step.id}: the fresh worktree is not clean` };
     case "installation-ready": {
       let json: unknown;
       try {
@@ -262,12 +208,6 @@ export const evaluateStep = (
       return report.data.installation === "ready"
         ? { ok: true }
         : { ok: false, reason: `${step.id}: installation is ${report.data.installation}` };
-    }
-    case "record": {
-      const head = result.stdout.trim();
-      return /^[0-9a-f]{40}$/.test(head)
-        ? { ok: true, recorded: { baseHead: head } }
-        : { ok: false, reason: `${step.id} did not print a commit hash` };
     }
   }
 };

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GitPort, RefsSnapshot } from "./git.port";
-import { compareRefs, createGitPort, GitError, isOtherIssueRef } from "./git.real";
+import { compareRefs, createGitPort, isOtherIssueRef } from "./git.real";
+import { GitError } from "./git.run";
 import { createScratch, hermeticExec, type TestRepo, type TestScratch } from "../testing/git.repo";
 
 // Each test builds a real repository; give a loaded machine room.

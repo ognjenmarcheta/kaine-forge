@@ -6,7 +6,9 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
+  AGENTS,
   renderClaudeSettings,
   renderCodexConfig,
   renderCursorHooks,
@@ -15,6 +17,7 @@ import {
   renderOpencodeGuardrailPlugin,
   REPO_ROOT
 } from "./ai.util";
+import { readGuardedCommandPolicy } from "./hooks/guarded-command.mjs";
 import { validateHookPins } from "./mcp-probe.util";
 
 // These are hook inputs only. No proposed shell command is ever executed.
@@ -41,6 +44,11 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
       errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
+
+  check(".ai/permissions.json", () => {
+    for (const index of readGuardedCommandPolicy(join(repoRoot, ".ai/permissions.json")).dropped)
+      errors.push(`.ai/permissions.json: rules[${index}] is malformed, so no agent enforces it`);
+  });
 
   check("cursor configuration", () => {
     assert.deepEqual(JSON.parse(renderCursorHooks()), {
@@ -84,7 +92,7 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
     }).parse(JSON.parse(result.stdout));
   });
 
-  for (const agent of ["claude", "codex", "grok", "cursor"]) {
+  for (const agent of AGENTS.filter((name) => AGENT_REGISTRY[name].preToolUseHook)) {
     for (const [index, command] of commands.entries()) {
       check(`${agent} ${command}`, () => {
         const result = spawnSync(
