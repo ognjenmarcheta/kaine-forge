@@ -47,6 +47,8 @@ describe("shipAdmission", () => {
     readonly writeback?: boolean;
     readonly dryRun?: boolean;
     readonly refusal: "invalid-transition" | "ship-refused" | null;
+    /** A command the reason must name, and one it must not. */
+    readonly says?: { readonly has: string; readonly not: string };
   }[] = [
     {
       name: "confirmed at the ship gate",
@@ -103,10 +105,19 @@ describe("shipAdmission", () => {
       refusal: "ship-refused"
     },
     {
+      name: "retry of an automatic ship from a stop at another step",
+      state: stateAt("needs-you", { resumeStage: "build" }, AUTO_SNAPSHOT),
+      intent: "retry",
+      refusal: "ship-refused",
+      // An automatic ship has no ship gate: `ship --confirm` would be refused there too.
+      says: { has: "pnpm desk continue 7", not: "--confirm" }
+    },
+    {
       name: "retry from a stop at another step",
       state: stateAt("needs-you", { resumeStage: "build", shipConfirmed: true }),
       intent: "retry",
-      refusal: "ship-refused"
+      refusal: "ship-refused",
+      says: { has: "pnpm desk ship 7 --confirm", not: "pnpm desk continue" }
     },
     {
       name: "confirmed without write-back",
@@ -125,8 +136,13 @@ describe("shipAdmission", () => {
     }
   ];
 
-  it.each(cases)("$name", ({ state, intent, writeback, dryRun, refusal }) => {
+  it.each(cases)("$name", ({ state, intent, writeback, dryRun, refusal, says }) => {
     const admission = shipAdmission(state, intent, { writeback: writeback ?? true, dryRun });
     expect(admission.ok ? null : admission.refusal).toBe(refusal);
+    if (says !== undefined) {
+      const reason = admission.ok ? "" : admission.reason;
+      expect(reason).toContain(says.has);
+      expect(reason).not.toContain(says.not);
+    }
   });
 });

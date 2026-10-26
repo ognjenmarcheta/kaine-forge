@@ -71,10 +71,13 @@ export const shipAdmission = (
       const there =
         state.stage === ship.id || (state.stage === "needs-you" && state.resumeStage === ship.id);
       if (!there || (state.shipConfirmed !== true && !ship.auto)) {
-        // Only a ship that failed is retried: one the owner confirmed, or an automatic one.
+        // Only a ship that failed is retried: one the owner confirmed, or an automatic one. An
+        // automatic ship has no ship gate, so the owner continues the recorded stage instead.
         return refuse(
           "ship-refused",
-          `A ship starts only from '${gate?.id ?? "the gate before it"}', with your confirmation: pnpm desk ship ${n} --confirm. Nothing was changed.`
+          ship.auto
+            ? `'${ship.id}' runs automatically after the step before it. Continue #${n} from where it stopped: pnpm desk continue ${n}. Nothing was changed.`
+            : `A ship starts only from '${gate?.id ?? "the gate before it"}', with your confirmation: pnpm desk ship ${n} --confirm. Nothing was changed.`
         );
       }
       break;
