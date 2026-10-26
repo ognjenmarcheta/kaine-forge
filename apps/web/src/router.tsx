@@ -13,6 +13,7 @@ import {
   NavUser,
   Separator,
   OrganizationSwitcher,
+  ShieldCheck,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger
@@ -30,6 +31,7 @@ import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
+import { SecurityRoute } from "./features/security/security.route";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
@@ -47,6 +49,7 @@ const ROUTE_TO_BREADCRUMB = {
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
   "/notes": "navigation.notes",
+  "/security": "navigation.security",
   "/todos": "navigation.todos"
 } as const;
 
@@ -98,6 +101,7 @@ function ShellContent() {
   const isTodosActive = location.pathname === "/todos";
   const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
   const isAssistantActive = location.pathname === "/assistant";
+  const isSecurityActive = location.pathname === "/security";
   const currentRouteKey = isBreadcrumbRoute(location.pathname)
     ? ROUTE_TO_BREADCRUMB[location.pathname]
     : isNotesActive
@@ -194,7 +198,13 @@ function ShellContent() {
                         title: t("navigation.members")
                       }
                     ]
-                  : [])
+                  : []),
+                {
+                  href: "/security",
+                  icon: ShieldCheck,
+                  isActive: isSecurityActive,
+                  title: t("navigation.security")
+                }
               ]}
               renderLink={(item, content) => <NavLink to={item.href ?? "#"}>{content}</NavLink>}
             />
@@ -305,6 +315,10 @@ export const appRouter = createBrowserRouter([
       {
         element: <OrganizationsRoute />,
         path: "members"
+      },
+      {
+        element: <SecurityRoute />,
+        path: "security"
       }
     ]
   },

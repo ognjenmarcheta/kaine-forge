@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LiveOutput } from "./cli.types";
 import { createCliEnv, type CliEnv, type CliEnvOptions } from "../testing/cli.testing";
 import {
-  ISSUE,
   builderOutput,
   planOutput,
   reviewOutput,
@@ -92,7 +91,6 @@ describe("status", () => {
     });
     const all = JSON.parse((await e.run("status", "--json")).stdout);
     expect(all.issues.map((entry: { issue: number }) => entry.issue)).toEqual([7]);
-    expect(JSON.parse((await e.run("status", "--json")).stdout)).toEqual(all);
   });
 
   it("exits 1 for an unknown or unreadable issue that was asked for by number", async () => {
@@ -258,6 +256,5 @@ describe("resume", () => {
   it("exits 2 without a number", async () => {
     const e = await open();
     expect((await e.run("resume")).code).toBe(2);
-    expect(ISSUE).toBe(7);
   });
 });

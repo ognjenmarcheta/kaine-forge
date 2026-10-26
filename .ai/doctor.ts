@@ -1,10 +1,12 @@
 #!/usr/bin/env tsx
 
 import chalk from "chalk";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
+  AGENTS,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
   discoverSkills,
@@ -19,8 +21,8 @@ import {
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
+  validateMcpServers,
   readPersonalMcpSource,
-  renderOpencodeAgentDefinition,
   REPO_ROOT,
   shouldFailDoctor
 } from "./ai.util";
@@ -29,13 +31,34 @@ import {
   commandExists,
   envRequirements,
   installed,
-  SKILL_DIRS,
   computeSkillDrift,
   computeSharedDrift,
   computeHookDrift
 } from "./installation.util";
 import { validateMcpPins } from "./mcp-probe.util";
 import { runReadinessCommand } from "./readiness";
+import {
+  findConflictMarkers,
+  listLocalSyncedFiles,
+  parseSyncManifest,
+  readLocalFiles,
+  SYNC_MANIFEST_PATH
+} from "./template-sync.util";
+
+// Conflict markers that pnpm ai:sync left in synced files block the doctor until resolved.
+const lintSyncConflicts = (): LintIssue[] => {
+  const manifestFile = join(REPO_ROOT, SYNC_MANIFEST_PATH);
+  if (!existsSync(manifestFile)) return [];
+  const { paths } = parseSyncManifest(JSON.parse(readFileSync(manifestFile, "utf8")));
+  return findConflictMarkers(readLocalFiles(REPO_ROOT, listLocalSyncedFiles(REPO_ROOT, paths))).map(
+    (path) => ({
+      file: join(REPO_ROOT, path),
+      level: "error",
+      message: "unresolved pnpm ai:sync conflict markers"
+    })
+  );
+};
+
 const printLintIssue = (issue: LintIssue): void => {
   const icon = issue.level === "error" ? chalk.red("✗") : chalk.yellow("⚠");
   console.log(`  ${icon}  ${chalk.gray(relative(REPO_ROOT, issue.file))}: ${issue.message}`);
@@ -43,8 +66,12 @@ const printLintIssue = (issue: LintIssue): void => {
 
 const main = (): void => {
   const strict = process.argv.includes("--strict");
-  const guardErrors = [...checkGuardContracts(), ...validateMcpPins(readMcpSource())];
-  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
+  const guardErrors = [
+    ...checkGuardContracts(),
+    ...validateMcpServers(readMcpSource()),
+    ...validateMcpPins(readMcpSource())
+  ];
+  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir(), ...lintSyncConflicts()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
   const agentDefinitions = lintErrors.length === 0 ? discoverAgentDefinitions() : [];
@@ -98,21 +125,17 @@ const main = (): void => {
   console.log();
 
   console.log(chalk.bold("Local installs"));
-  const installs: Array<readonly [string, string]> = [
-    ["Claude skills", ".claude/skills"],
-    ["Claude MCP", ".mcp.json"],
-    ["Codex skills", ".agents/skills"],
-    ["Codex MCP config", ".codex/config.toml"],
-    ["Cursor skills", ".cursor/skills"],
-    ["Cursor rules", ".cursor/rules"],
-    ["OpenCode skills", ".opencode/skills"],
-    ["OpenCode config", "opencode.json"],
-    ["OpenCode agents", ".opencode/agents"],
-    ["Grok skills", ".grok/skills"],
-    ["Grok MCP config", ".grok/config.toml"],
-    ["Grok session hook", ".grok/hooks/kaine-session-start.json"],
-    ["Grok agents", ".grok/agents"]
-  ];
+  const installs = AGENTS.flatMap((agent) => {
+    const facts = AGENT_REGISTRY[agent];
+    return [
+      [`${facts.label} skills`, facts.skillDir],
+      [`${facts.label} MCP config`, facts.mcpConfig.path],
+      ...(facts.agentDefinitions
+        ? [[`${facts.label} agents`, facts.agentDefinitions.dir] as const]
+        : []),
+      ...facts.generatedFiles.map((file) => [`${facts.label} ${file.path}`, file.path] as const)
+    ] as const;
+  });
   for (const [label, path] of installs) {
     if (installed(path) === "yes") {
       console.log(`  ${chalk.green("✓")}  ${label}`);
@@ -128,7 +151,7 @@ const main = (): void => {
     const missing = requirements.filter(
       (requirement) => !requirement.isSet && !requirement.hasFallback
     );
-    const commandOk = commandExists(server.command);
+    const commandOk = Boolean(server.url) || commandExists(server.command);
     const envOk = missing.length === 0;
     const allOk = commandOk && envOk;
     const icon = allOk ? chalk.green("✓") : chalk.yellow("⚠");
@@ -137,7 +160,7 @@ const main = (): void => {
       ? chalk.red(`missing command: ${server.command ?? "unknown"}`)
       : !envOk
         ? chalk.yellow(`missing env: ${missing.map((item) => item.name).join(", ")}`)
-        : chalk.gray("ok");
+        : chalk.gray(server.url ? "ok (remote)" : "ok");
     console.log(`  ${icon}  ${name.padEnd(18)}  ${status}${tag}`);
   }
   if (merged.collisions.length > 0) {
@@ -169,19 +192,23 @@ const main = (): void => {
     strictDriftCount = fileDrift.filter((entry) => entry.tracked).length;
     const skillDrift = computeSkillDrift(skills);
     const hookDrift = computeHookDrift();
-    const claudeAgentDrift = computeAgentDefinitionDrift(
-      agentDefinitions,
-      join(REPO_ROOT, ".claude", "agents")
-    );
-    const grokAgentDrift = computeAgentDefinitionDrift(
-      agentDefinitions,
-      join(REPO_ROOT, ".grok", "agents")
-    );
-    const opencodeAgentDrift = computeAgentDefinitionDrift(
-      agentDefinitions,
-      join(REPO_ROOT, ".opencode", "agents"),
-      renderOpencodeAgentDefinition
-    );
+    // Agent definitions count only for agents installed in this checkout.
+    const agentDefinitionDrift = AGENTS.flatMap((agent) => {
+      const { agentDefinitions: definitions, installMarkers } = AGENT_REGISTRY[agent];
+      if (!definitions || !installMarkers.some((marker) => existsSync(join(REPO_ROOT, marker))))
+        return [];
+      return [
+        {
+          label: `${agent} agents`,
+          drift: computeAgentDefinitionDrift(
+            agentDefinitions,
+            join(REPO_ROOT, definitions.dir),
+            definitions.render
+          ),
+          orphanHint: `${definitions.dir}/<name>.md`
+        }
+      ];
+    });
     const reportAgentDrift = (
       label: string,
       agentDrift: ReturnType<typeof computeAgentDefinitionDrift>,
@@ -213,16 +240,9 @@ const main = (): void => {
       return true;
     };
 
-    const hasAgentDrift =
-      claudeAgentDrift.missing.length > 0 ||
-      claudeAgentDrift.stale.length > 0 ||
-      claudeAgentDrift.orphan.length > 0 ||
-      grokAgentDrift.missing.length > 0 ||
-      grokAgentDrift.stale.length > 0 ||
-      grokAgentDrift.orphan.length > 0 ||
-      opencodeAgentDrift.missing.length > 0 ||
-      opencodeAgentDrift.stale.length > 0 ||
-      opencodeAgentDrift.orphan.length > 0;
+    const hasAgentDrift = agentDefinitionDrift.some(
+      ({ drift }) => drift.missing.length > 0 || drift.stale.length > 0 || drift.orphan.length > 0
+    );
 
     if (
       fileDrift.length === 0 &&
@@ -238,18 +258,8 @@ const main = (): void => {
         );
       }
 
-      reportAgentDrift("claude agents", claudeAgentDrift, ".claude/agents/<name>.md");
-      // Only surface Grok agent drift when a Grok install tree is present.
-      if (
-        existsSync(join(REPO_ROOT, ".grok", "agents")) ||
-        existsSync(join(REPO_ROOT, ".grok", "skills")) ||
-        existsSync(join(REPO_ROOT, ".grok", "config.toml"))
-      ) {
-        reportAgentDrift("grok agents", grokAgentDrift, ".grok/agents/<name>.md");
-      }
-      if (existsSync(join(REPO_ROOT, "opencode.json"))) {
-        reportAgentDrift("opencode agents", opencodeAgentDrift, ".opencode/agents/<name>.md");
-      }
+      for (const { label, drift, orphanHint } of agentDefinitionDrift)
+        reportAgentDrift(label, drift, orphanHint);
       // Local-install drift (skills, hooks, agents, settings) stays advisory:
       // those artifacts are gitignored and absent in CI checkouts. Under
       // --strict, drift in committed artifacts also gates the exit code below.
@@ -267,7 +277,7 @@ const main = (): void => {
           );
         }
         if (entry.orphan.length > 0) {
-          const cleanupHint = SKILL_DIRS.find((dir) => dir.agent === entry.agent)?.dir;
+          const cleanupHint = AGENT_REGISTRY[entry.agent].skillDir;
           console.log(
             `  ${chalk.yellow("⚠")}  ${agentLabel}  orphan: ${entry.orphan.join(", ")}   ${chalk.gray(`(delete ${cleanupHint}/<name>/)`)}`
           );
@@ -278,11 +288,7 @@ const main = (): void => {
   console.log();
 
   console.log(chalk.bold("Useful commands"));
-  console.log(chalk.gray("  pnpm ai:install --agent claude"));
-  console.log(chalk.gray("  pnpm ai:install --agent codex"));
-  console.log(chalk.gray("  pnpm ai:install --agent cursor"));
-  console.log(chalk.gray("  pnpm ai:install --agent opencode"));
-  console.log(chalk.gray("  pnpm ai:install --agent grok"));
+  for (const agent of AGENTS) console.log(chalk.gray(`  pnpm ai:install --agent ${agent}`));
   console.log();
 
   console.log(

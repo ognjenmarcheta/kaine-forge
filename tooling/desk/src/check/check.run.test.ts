@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase, type DiffResult } from "../git";
+import { createGitPort, diffAgainstBase, type DiffResult } from "../git";
 import type { Clock, Exec, ExecRequest } from "../ports";
 import { checkReportSchema } from "./check.contract";
 import { CHECK_REPORT_FILE, runChecks } from "./check.run";
@@ -68,6 +68,7 @@ const run = (
     kind: "loop",
     config: config(),
     exec: fake.exec,
+    git: createGitPort(fake.exec),
     baseSha: base,
     artifactsDir: artifacts,
     ...over
@@ -313,6 +314,7 @@ describe("runChecks with an executor", () => {
       kind: "loop",
       config: config(),
       exec: hostExec,
+      git: createGitPort(hostExec),
       baseSha: base,
       artifactsDir: artifacts,
       executor: { exec: executor.exec, diff: diffOf(hash) }
@@ -340,6 +342,7 @@ describe("runChecks with an executor", () => {
       kind: "loop",
       config: config(),
       exec: hostExec,
+      git: createGitPort(hostExec),
       baseSha: base,
       artifactsDir: artifacts,
       executor: {
@@ -369,6 +372,7 @@ describe("runChecks with an executor", () => {
         kind: "loop",
         config: config(),
         exec: hostExec,
+        git: createGitPort(hostExec),
         baseSha: base,
         artifactsDir: artifacts,
         executor: {

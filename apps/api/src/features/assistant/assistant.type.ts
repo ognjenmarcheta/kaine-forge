@@ -23,8 +23,3 @@ export interface SendMessagePayload {
   status: SendMessageStatus;
   toolActions: AssistantToolAction[];
 }
-
-export interface MessagesPagination {
-  limit: number;
-  offset: number;
-}

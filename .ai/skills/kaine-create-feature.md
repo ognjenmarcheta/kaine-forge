@@ -6,7 +6,7 @@ argument-hint: singular feature name, optional plural and label
 
 # Create a Feature Slice
 
-Use this skill when adding a new organization-scoped CRUD feature to the API and web. One feature touches 34 files across five workspaces; the CLI emits 22 of them and wires the other 11 registration points, so hand-writing the slice is the wrong default.
+Use this skill when adding a new organization-scoped CRUD feature to the API and web. One feature touches 33 files across five workspaces; the CLI emits 19 of them, wires the other 13 registration points, and leaves you the migration, so hand-writing the slice is the wrong default.
 
 Do **not** use it when the feature is not organization-scoped CRUD, or when it needs mobile. `CONTEXT.md` **Template platform surfaces** makes mobile a deliberate subset — the generator has no mobile mode on purpose. Fall back to the manual steps in `MONOREPO_GUIDE.md` section 19.
 
@@ -31,7 +31,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    The CLI writes the files, runs prettier and `eslint --fix` over them, then runs `pnpm generate`. It refuses to start — with no partial writes — when a scaffold path exists, a wiring anchor moved, or the name is already registered.
 
 4. Replace the placeholder columns. Every slice starts with `title varchar(255) NOT NULL` and `body text` (ceiling tracked in issue #383). Edit `packages/db/src/schema/{plural}.schema.ts` to the real shape, then match:
-   - `apps/api/src/features/{plural}/{plural}.type.ts` and `.util.ts`
+   - `apps/api/src/features/{plural}/{plural}.type.ts`, `.util.ts`, and `.module.ts`
    - the SDL in `apps/api/src/features/{plural}/{plural}.schema.ts`
    - `apps/web/src/graphql/operations/{plural}.graphql`
    - the two web routes
@@ -44,7 +44,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    pnpm db:generate
    ```
 
-   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one.
+   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one. The generated `{plural}.module.test.ts` runs on PGlite, which replays every migration, so it fails with `relation "{plural}" does not exist` until this step is done.
 
 6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
@@ -60,8 +60,10 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
 Do not "improve" these — they are the contract `.ai/create-feature.util.spec.ts` asserts:
 
-- Every adapter function takes `AuthenticatedOrganizationScope` and filters on `scope.organizationId`.
-- Every resolver opens with `ctx.requireOrganizationScope()`; every subscription pipes through `filterByOrganization`.
+- The feature is one deep module, `create{Plural}` in `{plural}.module.ts`, on the request context as `ctx.{plural}`. It reads and writes only through `ScopedData` (`ctx.data`), which adds the organization predicate; no file imports the `db` singleton.
+- Resolvers only call `ctx.{plural}`. Subscriptions come from `organizationSubscriptions([...])`, whose fields the wiring adds to `ORGANIZATION_SUBSCRIPTIONS` in `apps/api/src/pubsub.ts`.
+- The module test runs on PGlite through `createTestDatabase()` from `@repo/db/testing` and proves that another Organization's rows stay unreadable and unchanged. It does not mock `@repo/db`.
+- Web routes subscribe through `useLive{Plural}` in `apps/web/src/hooks/use-live-list.ts`, which uses the generated `On*Document` subscriptions — never a subscription string.
 - `Create*Input` and `Update*Input` carry no `organizationId`. A client-supplied organization id is an anti-pattern.
 - Web query keys go through `createActiveOrganizationQueryKey` from `@repo/query`.
 - The UI uses `@repo/ui` primitives and `--ds-*` tokens only, and every string goes through `t()`.

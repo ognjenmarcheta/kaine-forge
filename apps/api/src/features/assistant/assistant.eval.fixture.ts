@@ -1,4 +1,3 @@
-import { PGlite } from "@electric-sql/pglite";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   notesTable,
@@ -7,27 +6,19 @@ import {
   organizationsTable,
   membersTable
 } from "@repo/db/schema";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import path from "node:path";
+import type { TestDatabase } from "@repo/db/testing";
+import { createLogger } from "@repo/logger";
 import { isDeepStrictEqual } from "node:util";
 
 import type { ExecutableEvalCase } from "./assistant.eval.data";
 import { substituteFixture } from "./assistant.eval.scoring";
+import { createScopedData } from "../../context.data";
+import { createNotes } from "../notes/notes.module";
+import { createAttachments } from "../storage/attachment.module";
+import { createMemoryObjectStore } from "../storage/attachment.store.memory";
+import { createTodos } from "../todos/todos.module";
 
-export function createEvalDatabase() {
-  const client = new PGlite();
-  return { client, db: drizzle(client) };
-}
-
-export async function seedEvalFixture(
-  database: ReturnType<typeof createEvalDatabase>,
-  evaluation: ExecutableEvalCase
-) {
-  await database.client.waitReady;
-  await migrate(database.db, {
-    migrationsFolder: path.resolve(import.meta.dirname, "../../../../../packages/db/drizzle")
-  });
+export async function seedEvalFixture(database: TestDatabase, evaluation: ExecutableEvalCase) {
   const [user] = await database.db
     .insert(usersTable)
     .values({ name: "Evaluation", email: "eval@example.test" })
@@ -41,13 +32,22 @@ export async function seedEvalFixture(
     ])
     .returning();
   if (!own || !foreign) throw new Error("Missing fixture Organizations");
-  await database.db
+  const [member] = await database.db
     .insert(membersTable)
-    .values({ organizationId: own.id, userId: user.id, role: "owner" });
+    .values({ organizationId: own.id, userId: user.id, role: "owner" })
+    .returning();
+  if (!member) throw new Error("Missing fixture Organization Membership");
   const scope: AuthenticatedOrganizationScope = {
+    membership: { id: member.id, role: member.role, userId: member.userId },
     organizationId: own.id,
     userId: user.id,
-    user: { id: user.id, name: user.name, email: user.email, emailVerified: false }
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: false,
+      twoFactorEnabled: false
+    }
   };
   const [foreignTodo] = await database.db
     .insert(todosTable)
@@ -92,7 +92,19 @@ export async function seedEvalFixture(
       .filter((row) => before.notes.some((original) => original.id === row.id))
       .sort((a, b) => a.id.localeCompare(b.id))
   });
+  const data = createScopedData({ db: database.db, requireOrganizationScope: () => scope });
+  // An in-memory object store: an evaluation never reaches object storage.
+  const logger = createLogger({ name: "eval", level: "silent" });
+  const todos = createTodos({
+    attachments: createAttachments({ data, logger, store: createMemoryObjectStore() }),
+    data,
+    logger,
+    publish: () => {}
+  });
   return {
+    data,
+    notes: createNotes({ data, publish: () => {} }),
+    todos,
     scope,
     ids,
     before,

@@ -65,19 +65,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [loginMutation.mutateAsync, logoutMutation.mutateAsync, queryClient, signupMutation.mutateAsync]
   );
 
-  const login = useCallback(
-    async (input: { email: string; password: string }) => {
+  const login = useCallback<AuthContextValue["login"]>(
+    async (input) => {
       await authTransition.login(input);
     },
     [authTransition]
   );
 
-  const signup = useCallback(
-    async (input: { email: string; name: string; password: string }) => {
+  const signup = useCallback<AuthContextValue["signup"]>(
+    async (input) => {
       await authTransition.signup(input);
     },
     [authTransition]
   );
+
+  const completeSignIn = useCallback<AuthContextValue["completeSignIn"]>(
+    async (signIn) => {
+      await authTransition.authenticate(() => sessionLifecycle.completeSignIn(signIn));
+    },
+    [authTransition]
+  );
+
+  const refreshSession = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.session() });
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     void session;
@@ -86,13 +97,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      completeSignIn,
       isLoading: sessionQuery.status === "pending",
       login,
       logout,
+      refreshSession,
       session,
       signup
     }),
-    [login, logout, session, sessionQuery.status, signup]
+    [completeSignIn, login, logout, refreshSession, session, sessionQuery.status, signup]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

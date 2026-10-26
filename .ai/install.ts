@@ -6,15 +6,15 @@ import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative } from "node:path";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
   type Agent,
   type AgentDefinition,
-  CURSOR_RULES_SRC,
+  AGENTS,
   discoverAgentDefinitions,
   discoverSkills,
   ensureLocalMcpEnv,
-  isRecord,
-  KAINE_PREFIX,
+  managedNamePredicate,
   LOCAL_MCP_SRC,
   MCP_JSON_EXAMPLE_SRC,
   missingEnvVarsForMcpServers,
@@ -28,30 +28,13 @@ import {
   readPersonalMcpSource,
   REPO_ROOT,
   renderAgentDoc,
-  renderClaudeAgentDefinition,
   renderClaudeImport,
-  renderClaudeSettings,
-  renderClaudeSkill,
-  renderCodexConfig,
-  renderCodexSkill,
-  renderCursorHooks,
-  renderCursorRulesFile,
-  renderCursorSkill,
-  renderGrokAgentDefinition,
-  renderGrokConfig,
-  renderGrokPreToolUseHook,
-  renderGrokSessionStartHook,
-  renderGrokSkill,
-  renderMcpJson,
-  renderOpencodeAgentDefinition,
-  renderOpencodeConfig,
-  renderOpencodeGuardrailPlugin,
   removeLegacyOpencodeGuardrail,
-  renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
+  validateMcpServers,
   REVIEW_OUT,
   REVIEW_SRC,
   SERENA_INTERFACES,
@@ -86,6 +69,8 @@ interface InstallOptions {
 }
 
 let localMcpEnv: Record<string, string> = {};
+// Template `kaine-*` and project `<repoSlug>-*` outputs; stale ones are removed on install.
+const isManagedName = managedNamePredicate();
 
 const usage = `Usage:
   pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena] [--serena-interface tools|REPL]
@@ -98,25 +83,7 @@ Claude and Codex launch Serena with the REPL interface unless --serena-interface
 is recorded. REPL code runs outside the guarded-command hooks.
 `;
 
-const ALL_AGENTS: Agent[] = ["claude", "codex", "cursor", "opencode", "grok"];
-
-const isAgent = (value: string): value is Agent => ALL_AGENTS.some((agent) => agent === value);
-
-const SKILL_DIRS: Record<Agent, string> = {
-  claude: ".claude/skills",
-  codex: ".agents/skills",
-  cursor: ".cursor/skills",
-  opencode: ".opencode/skills",
-  grok: ".grok/skills"
-};
-
-const AGENT_LABELS: Record<Agent, string> = {
-  claude: "Claude Code",
-  codex: "Codex",
-  cursor: "Cursor",
-  opencode: "OpenCode",
-  grok: "Grok Build"
-};
+const isAgent = (value: string): value is Agent => AGENTS.some((agent) => agent === value);
 
 const parseListArg = (value: string): string[] =>
   value
@@ -150,9 +117,9 @@ const promptAgents = async (): Promise<Agent[]> => {
   const detected = detectAgents();
   const result = await multiselect<Agent>({
     message: "Which AI coding tools do you use?",
-    options: ALL_AGENTS.map((agent) => ({
+    options: AGENTS.map((agent) => ({
       value: agent,
-      label: AGENT_LABELS[agent],
+      label: AGENT_REGISTRY[agent].label,
       ...(detected.has(agent) ? { hint: "detected" } : {})
     })),
     initialValues: detected.size > 0 ? [...detected] : ["claude"],
@@ -168,46 +135,12 @@ const promptAgents = async (): Promise<Agent[]> => {
 };
 
 const installedMcpsForAgent = (agent: Agent): Set<string> => {
-  const result = new Set<string>();
-  const configFile =
-    agent === "claude"
-      ? join(REPO_ROOT, ".mcp.json")
-      : agent === "codex"
-        ? join(REPO_ROOT, ".codex", "config.toml")
-        : agent === "cursor"
-          ? join(REPO_ROOT, ".cursor", "mcp.json")
-          : agent === "grok"
-            ? join(REPO_ROOT, ".grok", "config.toml")
-            : join(REPO_ROOT, "opencode.json");
-
-  if (!existsSync(configFile)) {
-    return result;
-  }
-
-  const content = readFileSync(configFile, "utf8");
-  if (configFile.endsWith(".toml")) {
-    for (const match of content.matchAll(/^\[mcp_servers\.([\w-]+)]/gm)) {
-      result.add(match[1]!);
-    }
-    return result;
-  }
-
   try {
-    const parsed: unknown = JSON.parse(content);
-    if (!isRecord(parsed)) {
-      return result;
-    }
-    for (const name of Object.keys(isRecord(parsed.mcpServers) ? parsed.mcpServers : {})) {
-      result.add(name);
-    }
-    for (const name of Object.keys(isRecord(parsed.mcp) ? parsed.mcp : {})) {
-      result.add(name);
-    }
+    return new Set(Object.keys(installedServers(agent, REPO_ROOT, true)));
   } catch {
-    return result;
+    // A missing or unreadable config has no installed MCPs to preserve.
+    return new Set();
   }
-
-  return result;
 };
 
 const installedMcpsForAgents = (agents: Agent[]): Set<string> => {
@@ -450,7 +383,8 @@ const installAgent = (
   knownSkills: string[]
 ): string[] => {
   const skippedMcps: string[] = [];
-  const skillsDir = SKILL_DIRS[agent];
+  const facts = AGENT_REGISTRY[agent];
+  const skillsDir = facts.skillDir;
   const expected = new Set(
     requestedSkills.filter((skill) => skill.agents.includes(agent)).map((skill) => skill.name)
   );
@@ -461,28 +395,13 @@ const installAgent = (
     }
 
     const file = join(REPO_ROOT, skillsDir, skill.name, "SKILL.md");
-    const render =
-      agent === "claude"
-        ? renderClaudeSkill
-        : agent === "codex"
-          ? renderCodexSkill
-          : agent === "cursor"
-            ? renderCursorSkill
-            : agent === "grok"
-              ? renderGrokSkill
-              : renderOpencodeSkill;
-
-    writeGenerated(file, render(skill), results);
+    writeGenerated(file, facts.renderSkill(skill), results);
   }
 
   const dirAbs = join(REPO_ROOT, skillsDir);
   if (existsSync(dirAbs)) {
     for (const entry of readdirSync(dirAbs, { withFileTypes: true })) {
-      if (
-        !entry.isDirectory() ||
-        !entry.name.startsWith(KAINE_PREFIX) ||
-        expected.has(entry.name)
-      ) {
+      if (!entry.isDirectory() || !isManagedName(entry.name) || expected.has(entry.name)) {
         continue;
       }
 
@@ -529,7 +448,7 @@ const installAgent = (
         if (
           !entry.isFile() ||
           !entry.name.endsWith(".md") ||
-          !entry.name.startsWith(KAINE_PREFIX) ||
+          !isManagedName(entry.name.replace(/\.md$/, "")) ||
           expectedAgentDefs.has(entry.name.replace(/\.md$/, ""))
         ) {
           continue;
@@ -540,56 +459,21 @@ const installAgent = (
       }
     }
   };
-  if (agent === "claude") {
-    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
-    writeConfig(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
-    installAgentDefinitions(join(REPO_ROOT, ".claude", "agents"), renderClaudeAgentDefinition);
+  writeConfig(
+    join(REPO_ROOT, facts.mcpConfig.path),
+    facts.mcpConfig.render(resolved.source),
+    results
+  );
+  for (const generated of facts.generatedFiles) {
+    const content = generated.render();
+    if (content !== undefined) writeConfig(join(REPO_ROOT, generated.path), content, results);
   }
-  if (agent === "codex") {
-    writeConfig(
-      join(REPO_ROOT, ".codex", "config.toml"),
-      renderCodexConfig(resolved.source),
-      results
+  if (agent === "opencode") removeLegacyOpencodeGuardrail(REPO_ROOT);
+  if (facts.agentDefinitions) {
+    installAgentDefinitions(
+      join(REPO_ROOT, facts.agentDefinitions.dir),
+      facts.agentDefinitions.render
     );
-  }
-  if (agent === "cursor") {
-    writeConfig(join(REPO_ROOT, ".cursor", "mcp.json"), renderMcpJson(resolved.source), results);
-    writeConfig(join(REPO_ROOT, ".cursor", "hooks.json"), renderCursorHooks(), results);
-    if (existsSync(CURSOR_RULES_SRC)) {
-      writeConfig(
-        join(REPO_ROOT, ".cursor", "rules", "kaine-rules.mdc"),
-        renderCursorRulesFile(readFileSync(CURSOR_RULES_SRC, "utf8")),
-        results
-      );
-    }
-  }
-  if (agent === "opencode") {
-    writeConfig(join(REPO_ROOT, "opencode.json"), renderOpencodeConfig(resolved.source), results);
-    writeConfig(
-      join(REPO_ROOT, ".opencode", "plugins", "kaine-guardrail.ts"),
-      renderOpencodeGuardrailPlugin(),
-      results
-    );
-    removeLegacyOpencodeGuardrail(REPO_ROOT);
-    installAgentDefinitions(join(REPO_ROOT, ".opencode", "agents"), renderOpencodeAgentDefinition);
-  }
-  if (agent === "grok") {
-    writeConfig(
-      join(REPO_ROOT, ".grok", "config.toml"),
-      renderGrokConfig(resolved.source),
-      results
-    );
-    writeConfig(
-      join(REPO_ROOT, ".grok", "hooks", "kaine-session-start.json"),
-      renderGrokSessionStartHook(),
-      results
-    );
-    writeConfig(
-      join(REPO_ROOT, ".grok", "hooks", "kaine-pre-tool-use.json"),
-      renderGrokPreToolUseHook(),
-      results
-    );
-    installAgentDefinitions(join(REPO_ROOT, ".grok", "agents"), renderGrokAgentDefinition);
   }
 
   writeInstallSelection(agent, {
@@ -635,6 +519,10 @@ const main = async (): Promise<void> => {
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
+  const invalidMcps = validateMcpServers(merged.source);
+  if (invalidMcps.length > 0) {
+    throw new Error(`Invalid MCP server(s):\n${invalidMcps.join("\n")}`);
+  }
 
   const mcpSelection = new Set(options.mcps);
   const knownMcps = new Set(Object.keys(merged.source.mcpServers));
@@ -675,13 +563,13 @@ const main = async (): Promise<void> => {
           )
         );
     }
-    const skillDirectory = join(REPO_ROOT, SKILL_DIRS[agent]);
+    const skillDirectory = join(REPO_ROOT, AGENT_REGISTRY[agent].skillDir);
     const installedSkills = existsSync(skillDirectory)
       ? readdirSync(skillDirectory, { withFileTypes: true })
           .filter(
             (entry) =>
               entry.isDirectory() &&
-              entry.name.startsWith(KAINE_PREFIX) &&
+              isManagedName(entry.name) &&
               allSkills.some((skill) => skill.name === entry.name)
           )
           .map((entry) => entry.name)

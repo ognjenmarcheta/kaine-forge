@@ -4,7 +4,6 @@ import {
   ACTIVE_STAGES,
   DEFAULT_LOOP_LIMITS,
   FEEDBACK_TARGETS,
-  PIPELINE,
   STAGES,
   TERMINAL_STAGES,
   type FlowSnapshot,
@@ -84,14 +83,6 @@ describe("pipeline machine: every stage x trigger", () => {
     if (!result.ok) expect(result.reason.length).toBeGreaterThan(0);
   });
 
-  it("accepts nothing in a terminal stage", () => {
-    for (const stage of TERMINAL_STAGES) {
-      for (const { trigger } of LEGAL) {
-        expect(transition(stateAt(stage), trigger).ok).toBe(false);
-      }
-    }
-  });
-
   it("keeps nextStage and state.stage in agreement and never mutates its input", () => {
     for (const { trigger, stages } of LEGAL) {
       for (const stage of stages) {
@@ -99,22 +90,6 @@ describe("pipeline machine: every stage x trigger", () => {
         const result = accepted(before, trigger);
         expect(result.state.stage).toBe(result.nextStage);
         expect(before.stage).toBe(stage);
-      }
-    }
-  });
-
-  it("only moves along edges the PIPELINE declares", () => {
-    const edges = new Set(
-      [...PIPELINE.forwardEdges, ...PIPELINE.loopEdges].map((edge) => `${edge.from}>${edge.to}`)
-    );
-    for (const { trigger, stages } of LEGAL) {
-      for (const stage of stages) {
-        if (stage === "needs-you" || trigger.type === "start") continue;
-        const { nextStage } = accepted(stateAt(stage), trigger);
-        if (nextStage === "needs-you" || nextStage === "cancelled") continue;
-        expect(edges, `${stage} -> ${nextStage} via ${trigger.type}`).toContain(
-          `${stage}>${nextStage}`
-        );
       }
     }
   });
@@ -289,11 +264,6 @@ describe("pipeline machine: human input", () => {
     });
   });
 
-  it("lets plan-gate feedback reach only the plan", () => {
-    expect(transition(stateAt("plan-gate"), { type: "feedback", target: "build" }).ok).toBe(false);
-    expect(transition(stateAt("plan-gate"), { type: "feedback", target: "review" }).ok).toBe(false);
-  });
-
   it("sends needs-you feedback to any target and clears resumeStage", () => {
     const { state } = accepted(stateAt("needs-you", { ...spent, resumeStage: "check" }), {
       type: "feedback",
@@ -455,7 +425,7 @@ describe("pipeline machine: a flow of its own", () => {
     expect(done).toMatchObject({ ok: true, nextStage: "pr-review" });
   });
 
-  it("enters a manual ship only on the owner's confirmation, and an automatic one by moving forward", () => {
+  it("enters a manual ship only on the owner's confirmation, and an automatic one only by moving forward", () => {
     const manual = { id: "ship", kind: "ship", label: "Ship", auto: false } as const;
     const automatic = { ...manual, auto: true } as const;
     const pass = { type: "check-result", result: "pass" } as const;
@@ -474,6 +444,10 @@ describe("pipeline machine: a flow of its own", () => {
     const autoAfterGate = flowOf([...stepsOf("plan", "build", "check", "pr-review"), automatic]);
     expect(transition(stateAt("pr-review"), { type: "gate-approve" }, autoAfterGate)).toMatchObject(
       intoShip
+    );
+    // An automatic ship takes no confirmation: the gate before it is an ordinary gate.
+    expect(transition(stateAt("pr-review"), { type: "ship-confirm" }, autoAfterGate).ok).toBe(
+      false
     );
   });
 

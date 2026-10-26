@@ -1,8 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { isScalar, isSeq, parse as parseYaml, parseDocument } from "yaml";
+
+import {
+  guardedCommandMessage,
+  loadGuardedCommandRules,
+  type GuardedCommandRule
+} from "./hooks/guarded-command.mjs";
+import { PROJECT_AI_PATH, readTemplateConfig, TEMPLATE_CONFIG_PATH } from "./template-sync.util";
 
 export const generatedTextEqual = (actual: string, expected: string): boolean =>
   actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
@@ -26,6 +33,12 @@ export const DAY_ONE_DOC = join(REPO_ROOT, "docs", "agents", "day-one.md");
 export const CONTRIBUTING_OUT = join(REPO_ROOT, "CONTRIBUTING.md");
 export const LOCAL_MCP_ENV_SRC = join(REPO_ROOT, ".ai.local", "mcp.env");
 export const LOCAL_MCP_SRC = join(REPO_ROOT, ".ai.local", "mcp.json");
+export const PROJECT_AI_DIR = join(REPO_ROOT, PROJECT_AI_PATH);
+export const PROJECT_GUIDE_SRC = join(PROJECT_AI_DIR, "guide.md");
+export const PROJECT_REVIEW_SRC = join(PROJECT_AI_DIR, "review.md");
+export const PROJECT_SKILLS_SRC_DIR = join(PROJECT_AI_DIR, "skills");
+export const PROJECT_AGENTS_SRC_DIR = join(PROJECT_AI_DIR, "agents");
+export const TEMPLATE_CONFIG_SRC = join(REPO_ROOT, TEMPLATE_CONFIG_PATH);
 
 export const KAINE_PREFIX = "kaine-";
 export const GEN_NOTICE = "GENERATED FILE. Do not edit directly. Run: pnpm ai:install";
@@ -60,11 +73,11 @@ export const REQUIRED_SERENA_MEMORIES = [
 
 export const DAY_ONE_CONTRIBUTING_MARKER = "Day-one agent ramp";
 
-const ALL_AGENTS = ["claude", "codex", "cursor", "opencode", "grok"] as const;
+export const AGENTS = ["claude", "codex", "cursor", "opencode", "grok"] as const;
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
 const DESCRIPTION_SOFT_LIMIT = 1500;
 
-export type Agent = (typeof ALL_AGENTS)[number];
+export type Agent = (typeof AGENTS)[number];
 /** Serena's `--agent-interface`: one MCP tool per operation, or Python through `serena_repl`. */
 export const SERENA_INTERFACES = ["tools", "REPL"] as const;
 export type SerenaInterface = (typeof SERENA_INTERFACES)[number];
@@ -99,17 +112,12 @@ export interface AgentDefinitionDrift {
   orphan: string[];
 }
 
-export interface GuardRule {
-  id: string;
-  decision: "deny" | "ask";
-  command: string;
-  flag?: string;
-  reason: string;
-  instead?: string;
-}
+export type GuardRule = GuardedCommandRule;
 
 export interface McpServer {
   command?: string;
+  /** Remote Streamable HTTP endpoint; set this or `command`, never both. */
+  url?: string;
   args?: string[];
   env?: Record<string, string>;
   agents?: Agent[];
@@ -168,7 +176,7 @@ export interface WriteResult {
 }
 
 const isAgent = (value: unknown): value is Agent =>
-  typeof value === "string" && ALL_AGENTS.some((agent) => agent === value);
+  typeof value === "string" && AGENTS.some((agent) => agent === value);
 
 const isEffort = (value: unknown): value is Effort =>
   typeof value === "string" && EFFORT_LEVELS.some((effort) => effort === value);
@@ -178,7 +186,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
   if (value === undefined || value === null) {
-    return [...ALL_AGENTS];
+    return [...AGENTS];
   }
   if (!Array.isArray(value)) {
     throw new Error(`${skillName}: 'agents' must be a list`);
@@ -188,7 +196,7 @@ const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
   for (const agent of value) {
     if (!isAgent(agent)) {
       throw new Error(
-        `${skillName}: unknown agent '${String(agent)}'. Allowed: ${ALL_AGENTS.join(", ")}.`
+        `${skillName}: unknown agent '${String(agent)}'. Allowed: ${AGENTS.join(", ")}.`
       );
     }
     agents.push(agent);
@@ -306,62 +314,113 @@ export const parseSkillFile = (name: string, content: string): Skill => {
   return skill;
 };
 
-export const discoverSkills = (): Skill[] => {
-  const entries = readdirSync(SKILLS_SRC_DIR, { withFileTypes: true });
+/** Name prefix of project-owned skills and agents: `<repoSlug>-` from the adoption record. */
+export const projectNamePrefix = (configFile: string = TEMPLATE_CONFIG_SRC): string | null => {
+  const config = readTemplateConfig(configFile);
+  return config ? `${config.adoption.repoSlug}-` : null;
+};
+
+/** Installed skill and agent names the installer owns, so it may remove stale ones. */
+export const managedNamePredicate = (
+  projectPrefix: string | null = projectNamePrefix()
+): ((name: string) => boolean) => {
+  return (name) =>
+    name.startsWith(KAINE_PREFIX) || (projectPrefix !== null && name.startsWith(projectPrefix));
+};
+
+/** A canonical source folder and the prefix its names need; null means no adoption record. */
+export interface CanonicalSourceDir {
+  dir: string;
+  prefix: string | null;
+}
+
+const canonicalSourceDirs = (templateDir: string, projectDir: string): CanonicalSourceDir[] => [
+  { dir: templateDir, prefix: KAINE_PREFIX },
+  ...(existsSync(projectDir) ? [{ dir: projectDir, prefix: projectNamePrefix() }] : [])
+];
+
+export const skillSourceDirs = (): CanonicalSourceDir[] =>
+  canonicalSourceDirs(SKILLS_SRC_DIR, PROJECT_SKILLS_SRC_DIR);
+
+export const agentSourceDirs = (): CanonicalSourceDir[] =>
+  canonicalSourceDirs(AGENTS_SRC_DIR, PROJECT_AGENTS_SRC_DIR);
+
+const markdownFileNames = (dir: string): string[] =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+        .map((entry) => entry.name)
+    : [];
+
+const missingProjectPrefix = (dir: string): string =>
+  `${relative(REPO_ROOT, dir)}: project sources need ${TEMPLATE_CONFIG_PATH} (run pnpm template:adopt --write or pnpm ai:sync --init) to set their name prefix`;
+
+export const discoverSkills = (
+  sources: readonly CanonicalSourceDir[] = skillSourceDirs()
+): Skill[] => {
   const skills: Skill[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
-      continue;
+  for (const { dir, prefix } of sources) {
+    for (const fileName of markdownFileNames(dir)) {
+      if (prefix === null) {
+        throw new Error(missingProjectPrefix(dir));
+      }
+
+      const name = fileName.replace(/\.md$/, "");
+      const skill = parseSkillFile(name, readFileSync(join(dir, fileName), "utf8"));
+
+      if (!skill.name.startsWith(prefix)) {
+        throw new Error(`${name}: canonical skill names must start with '${prefix}'`);
+      }
+
+      skills.push(skill);
     }
-
-    const name = entry.name.replace(/\.md$/, "");
-    const skill = parseSkillFile(name, readFileSync(join(SKILLS_SRC_DIR, entry.name), "utf8"));
-
-    if (!skill.name.startsWith(KAINE_PREFIX)) {
-      throw new Error(`${name}: canonical skill names must start with '${KAINE_PREFIX}'`);
-    }
-
-    skills.push(skill);
   }
 
   return [...skills].sort((left, right) => left.name.localeCompare(right.name));
 };
 
-export const lintSkillsDir = (): LintIssue[] => {
+export const lintSkillsDir = (
+  sources: readonly CanonicalSourceDir[] = skillSourceDirs()
+): LintIssue[] => {
   const issues: LintIssue[] = [];
-  const entries = readdirSync(SKILLS_SRC_DIR, { withFileTypes: true });
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+  for (const { dir, prefix } of sources) {
+    const fileNames = markdownFileNames(dir);
+    if (prefix === null) {
+      if (fileNames.length > 0) {
+        issues.push({ file: dir, level: "error", message: missingProjectPrefix(dir) });
+      }
       continue;
     }
 
-    const name = entry.name.replace(/\.md$/, "");
-    const file = join(SKILLS_SRC_DIR, entry.name);
+    for (const fileName of fileNames) {
+      const name = fileName.replace(/\.md$/, "");
+      const file = join(dir, fileName);
 
-    try {
-      const skill = parseSkillFile(name, readFileSync(file, "utf8"));
-      if (!skill.name.startsWith(KAINE_PREFIX)) {
-        issues.push({
-          file,
-          level: "error",
-          message: `name '${skill.name}' must start with '${KAINE_PREFIX}'`
-        });
+      try {
+        const skill = parseSkillFile(name, readFileSync(file, "utf8"));
+        if (!skill.name.startsWith(prefix)) {
+          issues.push({
+            file,
+            level: "error",
+            message: `name '${skill.name}' must start with '${prefix}'`
+          });
+        }
+        if (skill.description.length > DESCRIPTION_SOFT_LIMIT) {
+          issues.push({
+            file,
+            level: "warning",
+            message: `description is ${skill.description.length} chars; Claude truncates skill listings at 1536`
+          });
+        }
+        if (skill.body.trim().length === 0) {
+          issues.push({ file, level: "error", message: "body is empty" });
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push({ file, level: "error", message: reason });
       }
-      if (skill.description.length > DESCRIPTION_SOFT_LIMIT) {
-        issues.push({
-          file,
-          level: "warning",
-          message: `description is ${skill.description.length} chars; Claude truncates skill listings at 1536`
-        });
-      }
-      if (skill.body.trim().length === 0) {
-        issues.push({ file, level: "error", message: "body is empty" });
-      }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      issues.push({ file, level: "error", message: reason });
     }
   }
 
@@ -401,58 +460,62 @@ export const parseAgentDefinitionFile = (name: string, content: string): AgentDe
   };
 };
 
-export const discoverAgentDefinitions = (dir: string = AGENTS_SRC_DIR): AgentDefinition[] => {
-  if (!existsSync(dir)) {
-    return [];
-  }
-
+export const discoverAgentDefinitions = (
+  sources: readonly CanonicalSourceDir[] = agentSourceDirs()
+): AgentDefinition[] => {
   const definitions: AgentDefinition[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
-      continue;
+
+  for (const { dir, prefix } of sources) {
+    for (const fileName of markdownFileNames(dir)) {
+      if (prefix === null) {
+        throw new Error(missingProjectPrefix(dir));
+      }
+
+      const name = fileName.replace(/\.md$/, "");
+      const definition = parseAgentDefinitionFile(name, readFileSync(join(dir, fileName), "utf8"));
+
+      if (!definition.name.startsWith(prefix)) {
+        throw new Error(`${name}: canonical agent definition names must start with '${prefix}'`);
+      }
+
+      definitions.push(definition);
     }
-
-    const name = entry.name.replace(/\.md$/, "");
-    const definition = parseAgentDefinitionFile(name, readFileSync(join(dir, entry.name), "utf8"));
-
-    if (!definition.name.startsWith(KAINE_PREFIX)) {
-      throw new Error(
-        `${name}: canonical agent definition names must start with '${KAINE_PREFIX}'`
-      );
-    }
-
-    definitions.push(definition);
   }
 
   return [...definitions].sort((left, right) => left.name.localeCompare(right.name));
 };
 
-export const lintAgentDefinitionsDir = (dir: string = AGENTS_SRC_DIR): LintIssue[] => {
-  if (!existsSync(dir)) {
-    return [];
-  }
-
+export const lintAgentDefinitionsDir = (
+  sources: readonly CanonicalSourceDir[] = agentSourceDirs()
+): LintIssue[] => {
   const issues: LintIssue[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
+
+  for (const { dir, prefix } of sources) {
+    const fileNames = markdownFileNames(dir);
+    if (prefix === null) {
+      if (fileNames.length > 0) {
+        issues.push({ file: dir, level: "error", message: missingProjectPrefix(dir) });
+      }
       continue;
     }
 
-    const name = entry.name.replace(/\.md$/, "");
-    const file = join(dir, entry.name);
+    for (const fileName of fileNames) {
+      const name = fileName.replace(/\.md$/, "");
+      const file = join(dir, fileName);
 
-    try {
-      const definition = parseAgentDefinitionFile(name, readFileSync(file, "utf8"));
-      if (!definition.name.startsWith(KAINE_PREFIX)) {
-        issues.push({
-          file,
-          level: "error",
-          message: `name '${definition.name}' must start with '${KAINE_PREFIX}'`
-        });
+      try {
+        const definition = parseAgentDefinitionFile(name, readFileSync(file, "utf8"));
+        if (!definition.name.startsWith(prefix)) {
+          issues.push({
+            file,
+            level: "error",
+            message: `name '${definition.name}' must start with '${prefix}'`
+          });
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push({ file, level: "error", message: reason });
       }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      issues.push({ file, level: "error", message: reason });
     }
   }
 
@@ -688,31 +751,23 @@ export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 export const readMcpSource = (): McpSource =>
   JSON.parse(readFileSync(MCP_SRC, "utf8")) as McpSource;
 
-const isGuardRule = (value: unknown): value is GuardRule =>
-  isRecord(value) &&
-  typeof value["id"] === "string" &&
-  (value["decision"] === "deny" || value["decision"] === "ask") &&
-  typeof value["command"] === "string" &&
-  value["command"].trim() !== "" &&
-  typeof value["reason"] === "string" &&
-  (value["flag"] === undefined || typeof value["flag"] === "string") &&
-  (value["instead"] === undefined || typeof value["instead"] === "string");
+/** Each server launches a local `command` or reaches a remote `url`; a remote URL uses TLS. */
+export const validateMcpServers = (source: McpSource): string[] => {
+  const problems: string[] = [];
+  for (const [name, server] of Object.entries(source.mcpServers)) {
+    if (Boolean(server.command) === Boolean(server.url))
+      problems.push(`${name}: set exactly one of command or url`);
+    if (server.url && !server.url.startsWith("https://"))
+      problems.push(`${name}: use an https:// url`);
+  }
+  return problems;
+};
 
 /**
- * Parses the guarded-command policy at the trust boundary and drops anything
- * that does not satisfy GuardRule, so a malformed entry weakens the guard
- * rather than reaching a consumer as an unchecked shape. `pnpm ai:test`
- * asserts the committed file loses no rules to this filter.
+ * The well-formed rules of the guarded-command policy, through the loader the
+ * hook uses. pnpm ai:doctor reports any rule this drops.
  */
-export const readPermissionsSource = (): GuardRule[] => {
-  const parsed: unknown = JSON.parse(readFileSync(PERMISSIONS_SRC, "utf8"));
-
-  if (!isRecord(parsed) || !Array.isArray(parsed["rules"])) {
-    return [];
-  }
-
-  return parsed["rules"].filter(isGuardRule);
-};
+export const readPermissionsSource = (): GuardRule[] => loadGuardedCommandRules(PERMISSIONS_SRC);
 
 /**
  * Claude permission strings for the rules its matcher can express. Rules
@@ -760,8 +815,7 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
   // Generated Skills Index above uses bullets for the same reason.
   const rows = rules.map((rule) => {
     const target = rule.flag ? `${rule.command} ... ${rule.flag}` : rule.command;
-    const guidance = rule.instead ? `${rule.reason} Use \`${rule.instead}\` instead.` : rule.reason;
-    return `- **${rule.decision}** \`${target}\` — ${guidance}`;
+    return `- **${rule.decision}** \`${target}\` — ${guardedCommandMessage(rule)}`;
   });
 
   return [
@@ -853,13 +907,28 @@ export const mcpEnvValue = (name: string, localEnv: Record<string, string>): str
 const buildSkillsIndex = (skills: Skill[]): string =>
   skills.map((skill) => `- \`${skill.name}\`: ${skill.description}`).join("\n");
 
-export const renderAgentDoc = (guide: string, skills: Skill[]): string => {
+const readOptionalSource = (file: string): string | null =>
+  existsSync(file) ? readFileSync(file, "utf8") : null;
+
+/** Puts project-owned text after the upstream text; upstream output is unchanged without it. */
+const appendProjectSource = (source: string, projectSource: string | null): string =>
+  projectSource?.trim() ? `${source.trim()}\n\n${projectSource.trim()}` : source.trim();
+
+export const renderAgentDoc = (
+  guide: string,
+  skills: Skill[],
+  projectGuide: string | null = readOptionalSource(PROJECT_GUIDE_SRC)
+): string => {
   const issues = lintGuideSkillList(
     guide,
     skills.map((skill) => skill.name)
   );
   if (issues.length) throw new Error(issues.map((issue) => issue.message).join("; "));
-  return `${guide.trim().replace(GUIDE_SKILL_INDEX_MARKER, buildSkillsIndex(skills))}\n\n${renderGuardedCommandsSection(readPermissionsSource())}\n`;
+  const body = appendProjectSource(
+    guide.trim().replace(GUIDE_SKILL_INDEX_MARKER, buildSkillsIndex(skills)),
+    projectGuide
+  );
+  return `${body}\n\n${renderGuardedCommandsSection(readPermissionsSource())}\n`;
 };
 
 export const renderClaudeImport = (): string => "@AGENTS.md\n";
@@ -881,6 +950,7 @@ const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
  */
 const CLAUDE_MCP_READ_ALLOW = [
   ...["resolve-library-id", "query-docs"].map((tool) => `mcp__context7__${tool}`),
+  ...["search_docs", "get_doc"].map((tool) => `mcp__better-auth__${tool}`),
   ...[
     "gitbutler_workspace",
     "gitbutler_branch_details",
@@ -1137,15 +1207,29 @@ export const shouldFailDoctor = (options: {
 export const renderSerenaMemory = (source: string): string =>
   `${HTML_HEADER}\n\n${source.trim()}\n`;
 
-export const renderReviewDoc = (source: string): string => `${HTML_HEADER}\n\n${source.trim()}\n`;
+export const renderReviewDoc = (
+  source: string,
+  projectReview: string | null = readOptionalSource(PROJECT_REVIEW_SRC)
+): string => `${HTML_HEADER}\n\n${appendProjectSource(source, projectReview)}\n`;
 
-export const renderMcpJson = (source: McpSource): string =>
-  `${JSON.stringify({ _generated: GEN_NOTICE, ...source }, null, 2)}\n`;
+/** Claude Code needs `type: "http"` beside a remote `url`; Cursor infers the transport. */
+export const renderMcpJson = (source: McpSource, agent: "claude" | "cursor"): string => {
+  const mcpServers = Object.fromEntries(
+    Object.entries(source.mcpServers).map(([name, server]) => [
+      name,
+      agent === "claude" && server.url ? { type: "http", ...server } : server
+    ])
+  );
+  return `${JSON.stringify({ _generated: GEN_NOTICE, mcpServers }, null, 2)}\n`;
+};
 
 export const publicMcpServer = (server: McpServer): McpServer => {
   const result: McpServer = {};
   if (server.command) {
     result.command = server.command;
+  }
+  if (server.url) {
+    result.url = server.url;
   }
   if (server.args) {
     result.args = server.args;
@@ -1217,7 +1301,7 @@ export const resolveInstallMcpSource = (
   const skipped: string[] = [];
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
-    const agents = server.agents ?? [...ALL_AGENTS];
+    const agents = server.agents ?? [...AGENTS];
     const isPersonal = options.personalNames.has(name);
     if (!agents.includes(options.agent)) {
       continue;
@@ -1280,6 +1364,9 @@ const renderMcpServersToml = (source: McpSource): string[] => {
     lines.push(`[mcp_servers.${name}]`);
     if (server.command) {
       lines.push(`command = ${JSON.stringify(server.command)}`);
+    }
+    if (server.url) {
+      lines.push(`url = ${JSON.stringify(server.url)}`);
     }
     if (server.args) {
       lines.push(`args = ${JSON.stringify(server.args)}`);
@@ -1411,30 +1498,20 @@ export const renderCursorHooks = (): string =>
  */
 export const renderOpencodeGuardrailPlugin = (): string =>
   `// ${GEN_NOTICE}
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { guardedCommandMessage, matchGuardedCommand } from "../../.ai/hooks/guarded-command.mjs";
-import type { GuardedCommandRule } from "../../.ai/hooks/guarded-command.mjs";
+import {
+  guardedCommandMessage,
+  loadGuardedCommandRules,
+  matchGuardedCommand
+} from "../../.ai/hooks/guarded-command.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const readRules = () => {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
-    if (!parsed || typeof parsed !== "object" || !("rules" in parsed) || !Array.isArray(parsed.rules)) {
-      return [];
-    }
-    return parsed.rules.filter((rule: unknown): rule is GuardedCommandRule =>
-      rule !== null && typeof rule === "object" &&
-      "id" in rule && typeof rule.id === "string" &&
-      "decision" in rule && (rule.decision === "deny" || rule.decision === "ask") &&
-      "command" in rule && typeof rule.command === "string" &&
-      "reason" in rule && typeof rule.reason === "string" &&
-      (!("flag" in rule) || typeof rule.flag === "string") &&
-      (!("instead" in rule) || typeof rule.instead === "string")
-    );
+    return loadGuardedCommandRules(join(repoRoot, ".ai", "permissions.json"));
   } catch {
     // Fail open, like the hook: a broken policy must not block every command.
     return [];
@@ -1481,6 +1558,11 @@ export const renderOpencodeConfig = (source: McpSource): string => {
   const mcp: Record<string, unknown> = {};
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
+    if (server.url) {
+      mcp[name] = { type: "remote", url: server.url, enabled: true };
+      continue;
+    }
+    // validateMcpServers rejects a server with neither field before install renders it.
     if (!server.command) {
       continue;
     }

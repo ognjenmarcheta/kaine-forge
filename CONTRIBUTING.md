@@ -158,7 +158,36 @@ Repository settings the template cannot carry over (GitHub copies files, not set
 
 - Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, or the Release workflow cannot open version pull requests.
 - Import both branch rulesets from `.github/rulesets/main.json` and `.github/rulesets/main-owner.json`, after confirming the owner is the only repository administrator.
-- Optional: set the remote Turbo cache secret `TURBO_TOKEN` and variable `TURBO_TEAM` (see [CI speed](#ci-speed-maintainers)).
+- CI caches Turbo task results with no setup (see [CI speed](#ci-speed-maintainers)).
+
+### Stay up to date with the template AI setup
+
+`template:adopt --write` records your identity and the upstream in `.ai/project/template.json`. Commit that file. Put your own AI rules in `.ai/project/`: `guide.md` (appended to `AGENTS.md`), `review.md` (appended to `REVIEW.md`), `skills/`, and `agents/`. Project skill and agent names start with your `repoSlug`. Sync never writes this folder.
+
+Pull upstream changes on a clean tree, then review and commit the diff:
+
+```bash
+pnpm ai:sync --check
+pnpm ai:sync
+```
+
+Sync merges the files in `.ai/template-sync.manifest.json` and keeps your names and edits. It marks overlapping edits with git conflict markers. Resolve them, then run `pnpm ai:install` and `pnpm ai:doctor`. `--ref <tag|sha>` picks another upstream point, and `--dry-run` writes nothing.
+
+<!-- TEMPLATE_ONLY_START -->
+
+If your project was adopted before `ai:sync` existed, copy the sync tool from upstream, commit it, and initialize it with your adoption config:
+
+```bash
+git fetch https://github.com/ognjenmarcheta/kaine-forge.git main
+for f in .ai/template-sync.ts .ai/template-sync.util.ts .ai/template-adoption.util.ts; do git show FETCH_HEAD:$f > $f; done
+git add .ai/template-sync.ts .ai/template-sync.util.ts .ai/template-adoption.util.ts
+git commit -m "chore(ai): add template sync tool"
+pnpm exec tsx .ai/template-sync.ts --init template-adoption.json
+```
+
+Add `"ai:sync": "tsx .ai/template-sync.ts"` to your root `package.json` scripts. If sync picks the wrong starting point, pass `--base <upstream-sha>`.
+
+<!-- TEMPLATE_ONLY_END -->
 
 ## AI Assistant Files
 
@@ -178,10 +207,12 @@ Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/s
 Claude Code does not start the project MCP servers in `.mcp.json` until you approve them. `claude mcp list` shows an unapproved server as "Pending approval". Approve them once per checkout: run `/mcp` in a Claude Code session, or name them in the untracked `.claude/settings.local.json`:
 
 ```json
-{ "enabledMcpjsonServers": ["context7", "playwright", "serena", "gitbutler"] }
+{ "enabledMcpjsonServers": ["context7", "better-auth", "playwright", "serena", "gitbutler"] }
 ```
 
 Name each server instead of setting `enableAllProjectMcpServers`, so a server added to `.mcp.json` later still needs your approval. A running session loads MCP servers only at start; open a new session after you approve.
+
+`better-auth` is a remote server (`https://mcp.better-auth.com/mcp`). It has only read-only documentation tools and needs no credentials. For auth work, also install the Better Auth agent skills for your agents: `npx skills add better-auth/skills`. The template does not vendor them, because team skills in `.ai/skills/` must use the `kaine-` prefix.
 
 When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
 
@@ -202,6 +233,7 @@ When review rejects a change for domain or template reasons, use `kaine-encode-k
 - Describe the behavior change, risk, and validation.
 - Include tests for new behavior.
 - Include a changeset for source changes in `apps/**`, `packages/**`, or `tooling/**`, unless the PR is intentionally non-releasable and labeled `release:skip-changeset`.
+- A breaking GraphQL schema change fails **GraphQL Schema Compatibility** until the owner adds the label `graphql:breaking-approved` and re-runs the job.
 - Keep Jira, CodeRabbit, company-specific MCP servers, and other org-specific automation out of the template by default.
 
 Create release metadata:
@@ -288,17 +320,19 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 
 ## CI speed (maintainers)
 
-### Remote Turbo cache (recommended for forks and high PR volume)
+### Turbo cache in CI
 
-1. Create a [Vercel Remote Cache](https://turborepo.dev/docs/core-concepts/remote-caching) token (or compatible provider).
-2. Set repository **secret** `TURBO_TOKEN` and **variable** `TURBO_TEAM`.
-3. CI jobs already export these env vars; when unset, builds still use local `.turbo/cache` between jobs.
+- CI needs no setup. The `rharkor/caching-for-turbo` step runs a Turbo remote-cache server in each job and stores each task result as its own GitHub Actions cache entry. Any job can reuse a task that another job or `main` already ran.
+- A PR branch can read caches saved on `main`, so the Release job seeds the cache for every PR.
+- For a local remote cache, set `TURBO_TOKEN` and `TURBO_TEAM` in your shell ([Vercel Remote Cache](https://turborepo.dev/docs/core-concepts/remote-caching) or a compatible server). CI does not read them.
 
 ### Affected and path filters
 
 - PR `check-fast` runs Turbo with `--filter=...[origin/<base>]` so only changed packages (and dependents) run format/lint/typecheck. Workspace tests run once, over the full repo, in the `coverage` job.
-- Path filters skip GraphQL drift, core build, Docker image builds, and e2e on pure docs/AI PRs.
-- Mobile typecheck is required when `apps/mobile/**`, any `packages/**`, `scripts/sync-mobile-design-tokens.mjs`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or `tsconfig.base.json` change. Metro resolves `@repo/*` to package source, so any shared package can break the mobile bundle.
+- `ai-checks` runs the root `.ai/` checks and the `scripts/*.test.mjs` tests on every PR, beside `check-fast`. `build-core` and e2e also start beside `check-fast`; the PR Quality Gate still needs every job.
+- `detect-paths` runs `turbo ls --affected` and `scripts/ci-affected.mjs` to choose the heavy jobs from the package graph: coverage when an app or package is affected, core build and e2e when `@repo/api`, `@repo/web`, or `@repo/e2e` is affected, one Docker image per affected app, and the mobile jobs when `@repo/mobile` or `@repo/mobile-ui` is affected. A tooling-only or docs-only PR skips them all.
+- The graph is safe to trust because `turbo boundaries` (Check Fast) fails on an import that is not a declared dependency, Metro's `@repo/*` resolution in `apps/mobile` included.
+- Files outside the package graph (the `force` filter: CI workflow and setup action, `Dockerfile.*`, `.npmrc`, `.nvmrc`, root `vitest*.ts`, `scripts/**`, `MONOREPO_GUIDE.md`, `DESIGN_SYSTEM.md`) run every job. Merge queue and manual runs always run every job. The PR Quality Gate re-derives the allowed skips from the `detect-paths` outputs.
 - Shared setup lives in `.github/actions/setup-node-pnpm`.
 
 ### Dependency catalogs

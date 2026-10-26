@@ -9,6 +9,7 @@ import {
   TEMP_CHAT_PREFIX
 } from "./assistant.definition";
 import type { AssistantMessageDeltaData, ChatMessage } from "./assistant.type";
+import { OnAssistantMessageDeltaDocument } from "../../graphql/generated/graphql";
 import {
   GetConversationDocument,
   type GetConversationQuery,
@@ -94,10 +95,10 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
       )
     }));
   }, []);
-  useSubscription<AssistantMessageDeltaData>({
+  useSubscription({
     enabled,
     onData: handleDelta,
-    query: "subscription { assistantMessageDelta { conversationId delta } }"
+    query: OnAssistantMessageDeltaDocument
   });
 
   const messages: ChatMessage[] = [

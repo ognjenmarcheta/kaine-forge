@@ -4,14 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { Input } from "./input";
 
 describe("Input", () => {
-  it("renders with base field classes and placeholder", () => {
-    render(<Input placeholder="Email" onChangeText={() => undefined} />);
-
-    const input = screen.getByPlaceholderText("Email");
-    expect(input.className).toContain("rounded-md");
-    expect(input.className).toContain("border-ds-border");
-  });
-
   it("forwards typed text through onChangeText", () => {
     const onChangeText = vi.fn();
     render(<Input placeholder="Email" value="" onChangeText={onChangeText} />);

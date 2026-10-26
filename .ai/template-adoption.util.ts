@@ -450,7 +450,10 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     // Apache-2.0 requires adopters to keep the template's attribution notices.
     normalized === "LICENSE" ||
     normalized === "NOTICE" ||
-    normalized.startsWith(".ai/template-adoption") ||
+    // Adoption and sync tooling keep the upstream identity they compare against.
+    normalized.startsWith(".ai/template-") ||
+    // Project-owned AI sources: written by adoption and the project, never by upstream.
+    normalized.startsWith(".ai/project/") ||
     // Historical planning records document the template's own development.
     normalized.startsWith("docs/superpowers/") ||
     // Changesets are release-note records, like the excluded CHANGELOGs they feed.

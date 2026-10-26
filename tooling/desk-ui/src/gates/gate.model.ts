@@ -10,7 +10,7 @@ import {
 } from "@repo/desk/contracts";
 
 import type { DiffFile } from "../artifacts/artifact.diffstat";
-import { flowStepOf, stepRoleOf, type IssueFlow } from "../flow/flow.steps";
+import { flowStepOf, type IssueFlow } from "../flow/flow.steps";
 
 /**
  * What the decision cards show, from the issue detail. Pure: codes, numbers, and engine text.
@@ -102,7 +102,7 @@ export function resumeCommandOf(detail: IssueDetail): string | null {
  */
 export function sendBackTargets(flow: IssueFlow, gate: string): string[] {
   const targets = [...(flowStepOf(flow, gate)?.sendBack ?? [])].reverse();
-  const builds = targets.filter((id) => stepRoleOf(flow, id) === "change");
+  const builds = targets.filter((id) => flowStepOf(flow, id)?.role === "change");
   return [...builds, ...targets.filter((id) => !builds.includes(id))];
 }
 
@@ -120,7 +120,7 @@ export const retryTargets = (flow: FlowDefinition): string[] =>
  * the stage that stopped, else the first one. `null` for a flow without a change step.
  */
 export function builderStepOf(flow: IssueFlow, stopped: string | null): string | null {
-  const builds = flow.steps.filter((step) => stepRoleOf(flow, step.id) === "change");
+  const builds = flow.steps.filter((step) => step.role === "change");
   const at = flow.steps.findIndex((step) => step.id === stopped);
   const before = builds.filter((step) => flow.steps.indexOf(step) <= at).at(-1);
   return (before ?? builds[0])?.id ?? null;

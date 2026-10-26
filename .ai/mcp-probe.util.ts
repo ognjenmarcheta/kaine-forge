@@ -15,6 +15,8 @@ export const isPinnedUvxSource = (source: string | undefined): source is string 
 export function validateMcpPins(source: McpSource): string[] {
   const problems: string[] = [];
   for (const [name, server] of Object.entries(source.mcpServers)) {
+    // A remote server runs no local package, so it has no version to pin.
+    if (server.url) continue;
     if (server.command === "npx") {
       const args = server.args ?? [];
       const specifierAt = args.findIndex((arg) => !arg.startsWith("-"));

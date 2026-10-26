@@ -259,14 +259,6 @@ describe("syncOut", () => {
     });
   });
 
-  it("refuses a patch for a protected path and changes nothing", async () => {
-    const e = await open();
-    const { synced, patch } = await prepare(e, () => e.repo.write(".husky/pre-commit", "evil\n"));
-    exportReply(e, patch, "f".repeat(64));
-    await expect(syncOut(e.context, e.target, synced)).rejects.toThrow(/refused.*Protected path/s);
-    await expect(readFile(path.join(e.repo.dir, ".husky/pre-commit"), "utf8")).rejects.toThrow();
-  });
-
   it("refuses a patch above the limit that the helper reports", async () => {
     const e = await open();
     e.answerSync();

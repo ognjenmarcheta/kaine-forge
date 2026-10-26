@@ -42,6 +42,7 @@ Use this skill when turning this template repository into a downstream product r
 
 8. Replace the mark in `media/brand/` and `media/logo.png` with your own logo, then regenerate the app icons as `media/brand/README.md` describes. Adoption already rewrites the README image alt text.
 9. Adoption empties `docs/agents/monorepo-scorecard.md` of the template's own run history and keeps the band descriptors, dimensions, and calibration heading. Record your first run with the `kaine-scorecard` skill.
+10. Commit `.ai/project/template.json`. `pnpm ai:sync` reads it to pull later upstream AI setup changes. Put project-specific AI rules, review checks, skills, and agents in `.ai/project/`, not in upstream-owned `.ai/` files.
 
 ## Config Shape
 
@@ -75,4 +76,5 @@ Optional fields can override derived defaults:
 - Preserve internal `@repo/*` package names and imports.
 - Do not rewrite changelogs, generated GraphQL artifacts, build outputs, lockfile history, dependency folders, or `.ai.local/`.
 - Do not hand-edit generated assistant outputs. Change `.ai/` sources, then run `pnpm ai:install`.
+- Do not rewrite `.ai/project/` or `.ai/template-*` files: they keep the upstream identity that sync compares against.
 - Keep intentional historical references only after documenting why they are not active template identity.

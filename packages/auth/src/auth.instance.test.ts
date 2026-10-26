@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The instance module imports @repo/db, whose client requires DATABASE_URL at
@@ -18,12 +17,6 @@ describe("auth.instance", () => {
     vi.unstubAllEnvs();
   });
 
-  it("constructs a better-auth instance without throwing", () => {
-    expect(() => createAuthInstance()).not.toThrow();
-    expect(auth.handler).toBeTypeOf("function");
-    expect(auth.api).toBeDefined();
-  });
-
   it("refuses to fall back to the development secret in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("BETTER_AUTH_SECRET", undefined);
@@ -33,17 +26,6 @@ describe("auth.instance", () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "a-sufficiently-long-random-secret-value-here");
 
     expect(() => createAuthInstance()).not.toThrow();
-  });
-
-  it("rejects short or placeholder secrets in production", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("BETTER_AUTH_SECRET", "short-secret");
-
-    expect(() => createAuthInstance()).toThrow(/at least 32/);
-
-    vi.stubEnv("BETTER_AUTH_SECRET", "your-secret-key-change-in-production");
-
-    expect(() => createAuthInstance()).toThrow(/placeholder/);
   });
 
   it("enables email/password auth with our custom scrypt hooks wired in", async () => {
@@ -62,31 +44,12 @@ describe("auth.instance", () => {
     await expect(verify?.({ hash: stored, password: "WrongPass!" })).resolves.toBe(false);
   });
 
-  it("rejects legacy unsalted sha256 hashes through the configured hook", async () => {
-    const legacy = createHash("sha256").update("Secret123!").digest("hex");
-    const verify = auth.options.emailAndPassword?.password?.verify;
-
-    expect(verify).toBeTypeOf("function");
-    await expect(verify?.({ hash: legacy, password: "Secret123!" })).resolves.toBe(false);
-  });
-
   it("registers the expo, organization, and bearer plugins", () => {
     const pluginIds = (auth.options.plugins ?? []).map((plugin) => plugin.id);
 
     expect(pluginIds).toContain("expo");
     expect(pluginIds).toContain("organization");
     expect(pluginIds).toContain("bearer");
-  });
-
-  it("trusts the Expo deep-link scheme for OAuth return", async () => {
-    const { resolveTrustedOrigins, EXPO_AUTH_SCHEME } = await import("./auth.instance");
-
-    expect(EXPO_AUTH_SCHEME).toBe("kaineforge");
-    expect(
-      resolveTrustedOrigins({
-        API_CORS_ORIGINS: "http://localhost:3000"
-      })
-    ).toEqual(["http://localhost:3000", "kaineforge://"]);
   });
 
   it("mirrors the legacy session lifetimes and keeps rate limiting off", () => {

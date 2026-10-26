@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { insertTodoSchema, selectTodoSchema } from "./todos.validator";
+import { insertTodoSchema } from "./todos.validator";
 
 describe("todos.validator", () => {
   it("accepts valid insert payloads", () => {
@@ -18,6 +18,7 @@ describe("todos.validator", () => {
   it("rejects insert payload without title", () => {
     expect(() =>
       insertTodoSchema.parse({
+        organizationId: "550e8400-e29b-41d4-a716-446655440010",
         userId: "550e8400-e29b-41d4-a716-446655440000"
       })
     ).toThrowError();
@@ -30,21 +31,5 @@ describe("todos.validator", () => {
         userId: "550e8400-e29b-41d4-a716-446655440000"
       })
     ).toThrowError();
-  });
-
-  it("accepts valid selected rows", () => {
-    const parsed = selectTodoSchema.parse({
-      completed: false,
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      description: null,
-      id: "550e8400-e29b-41d4-a716-446655440000",
-      noteId: null,
-      organizationId: "550e8400-e29b-41d4-a716-446655440010",
-      title: "todo",
-      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      userId: "550e8400-e29b-41d4-a716-446655440000"
-    });
-
-    expect(parsed.completed).toBe(false);
   });
 });

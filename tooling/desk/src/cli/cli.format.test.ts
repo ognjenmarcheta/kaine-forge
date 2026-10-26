@@ -27,10 +27,6 @@ const stateAt = (stage: Stage, over: Partial<IssueState> = {}): IssueState =>
   });
 
 describe("nextSteps", () => {
-  it("names the approve command at the plan gate", () => {
-    expect(nextSteps(stateAt("plan-gate"))[0]).toBe("approve with: pnpm desk approve 12");
-  });
-
   it("names the exact continue command and the stage it retries at needs-you", () => {
     expect(nextSteps(stateAt("needs-you", { resumeStage: "check" }))).toEqual([
       "continue with: pnpm desk continue 12 (retries 'check')",
@@ -49,6 +45,22 @@ describe("nextSteps", () => {
       'send feedback: pnpm desk feedback 12 --to build|review|plan "<text>"',
       "see what ship would do: pnpm desk ship 12 --dry-run",
       "ship as a draft PR: pnpm desk ship 12 --confirm"
+    ]);
+  });
+
+  it("names the approve command, not a ship confirmation, at a gate before an automatic ship", () => {
+    const flowSnapshot = {
+      ...DEFAULT_SNAPSHOT,
+      flow: {
+        ...DEFAULT_SNAPSHOT.flow,
+        steps: DEFAULT_SNAPSHOT.flow.steps.map((step) =>
+          step.kind === "ship" ? { ...step, auto: true } : step
+        )
+      }
+    };
+    expect(nextSteps(stateAt("pr-review", { flowSnapshot }))).toEqual([
+      "approve with: pnpm desk approve 12",
+      'or send feedback: pnpm desk feedback 12 --to build|review|plan "<text>"'
     ]);
   });
 

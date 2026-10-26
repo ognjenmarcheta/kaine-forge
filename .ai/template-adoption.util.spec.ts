@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
+import { REPO_ROOT } from "./ai.util";
 import {
   activeTemplateReferences,
   adoptionTargets,
@@ -400,6 +402,9 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption(".tauri-target/release/build/out/a.js")).toBe(true);
     expect(excludedFromTemplateAdoption(".worktrees/adopted-repo/README.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/template-adoption.util.ts")).toBe(true);
+    // The sync tooling and the project record keep the upstream URL --check must not flag.
+    expect(excludedFromTemplateAdoption(".ai/template-sync.util.ts")).toBe(true);
+    expect(excludedFromTemplateAdoption(".ai/project/template.json")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/skills/kaine-adopt-template.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".agents/skills/kaine-adopt-template/SKILL.md")).toBe(true);
     expect(excludedFromTemplateAdoption("node_modules/example/package.json")).toBe(true);
@@ -411,32 +416,12 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption("README.md")).toBe(false);
   });
 
-  it("keeps the replacement manifest allowlisted", () => {
-    expect(adoptionTargets).toContain("README.md");
-    expect(adoptionTargets).toContain("CONTEXT.md");
-    expect(adoptionTargets).toContain("CONTRIBUTING.md");
-    expect(adoptionTargets).toContain("docker-compose.yml");
-    expect(adoptionTargets).toContain(".ai/guide.md");
-    expect(adoptionTargets).toContain(".ai/review.md");
-    expect(adoptionTargets).toContain("docs/agents/day-one.md");
-    expect(adoptionTargets).toContain("docs/adr/0009-domain-knowledge-as-agent-infra.md");
-    expect(adoptionTargets).toContain(".ai/skills/kaine-open-pr.md");
-    expect(adoptionTargets).toContain(".ai/skills/kaine-test.md");
-    expect(adoptionTargets).toContain("packages/auth/src/auth.instance.ts");
-    expect(adoptionTargets).toContain("apps/web/src/stores/theme.store.ts");
-    expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.definition.ts");
-    expect(adoptionTargets).toContain("apps/mobile/src/lib/auth-api.ts");
-    expect(adoptionTargets).toContain("apps/mobile/src/features/auth/auth.config.ts");
-    expect(adoptionTargets).toContain("apps/desktop/src-tauri/src/main.rs");
-    expect(adoptionTargets).toContain("docs/troubleshooting.md");
-    expect(adoptionTargets).toContain("docs/agents/issue-tracker.md");
-    expect(adoptionTargets).toContain(".ai/hooks/session-start.mjs");
-    expect(adoptionTargets).toContain(".ai/agents/kaine-explorer.md");
-    expect(adoptionTargets).toContain(".claude/settings.json");
-    expect(adoptionTargets).toContain(".github/CODEOWNERS");
-    expect(adoptionTargets).toContain(".github/ISSUE_TEMPLATE/config.yml");
-    expect(adoptionTargets).not.toContain("REVIEW.md");
-    expect(adoptionTargets).not.toContain("pnpm-lock.yaml");
-    expect(adoptionTargets).not.toContain("packages/ui/src/example.ts");
+  it("lists only tracked files the adoption does not exclude", () => {
+    const tracked = new Set(
+      execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" }).split("\0")
+    );
+
+    expect(adoptionTargets.filter((path) => !tracked.has(path))).toEqual([]);
+    expect(adoptionTargets.filter((path) => excludedFromTemplateAdoption(path))).toEqual([]);
   });
 });

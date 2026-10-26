@@ -6,7 +6,9 @@ import { z } from "zod";
 const rawEnv = {
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_GRAPHQL_URL: process.env.EXPO_PUBLIC_GRAPHQL_URL,
-  EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS: process.env.EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS
+  EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS: process.env.EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS,
+  EXPO_PUBLIC_TURNSTILE_SITE_KEY: process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY,
+  EXPO_PUBLIC_TURNSTILE_BASE_URL: process.env.EXPO_PUBLIC_TURNSTILE_BASE_URL
 };
 
 // A present-but-blank key inlines as ""; treat it as unset so declared defaults
@@ -28,7 +30,18 @@ const absoluteHttpUrl = (fallback: string) =>
 const mobileEnvSchema = z.object({
   EXPO_PUBLIC_API_URL: absoluteHttpUrl("http://localhost:4000"),
   EXPO_PUBLIC_GRAPHQL_URL: absoluteHttpUrl("http://localhost:4000/graphql"),
-  EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS: z.preprocess(blankAsUnset, z.string().optional())
+  EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS: z.preprocess(blankAsUnset, z.string().optional()),
+  // Turnstile site key; login and signup render the captcha only when it is set.
+  EXPO_PUBLIC_TURNSTILE_SITE_KEY: z.preprocess(blankAsUnset, z.string().optional()),
+  // Origin the captcha WebView pretends to load from. Its hostname must be
+  // allowed for the site key; defaults to EXPO_PUBLIC_API_URL.
+  EXPO_PUBLIC_TURNSTILE_BASE_URL: z.preprocess(
+    blankAsUnset,
+    z
+      .string()
+      .refine((value) => /^https?:\/\//.test(value), "must be an absolute http(s) URL")
+      .optional()
+  )
 });
 
 export type MobileEnv = z.infer<typeof mobileEnvSchema>;

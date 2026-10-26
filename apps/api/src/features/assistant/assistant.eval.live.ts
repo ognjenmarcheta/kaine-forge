@@ -1,4 +1,4 @@
-import { createLogger } from "@repo/logger";
+import { createTestDatabase } from "@repo/db/testing";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,17 +6,7 @@ import path from "node:path";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
 
-// A fresh database binding for each case; neither production singleton is reachable.
-const holder = vi.hoisted((): { database: ReturnType<typeof createEvalDatabase> | null } => ({
-  database: null
-}));
-vi.mock("@repo/db", async () => ({
-  ...(await import("@repo/db/schema")),
-  get db() {
-    if (!holder.database) throw new Error("Evaluation database not initialized");
-    return holder.database.db;
-  }
-}));
+// A fresh database for each case; neither production singleton is reachable.
 vi.mock("@repo/db/client", () => {
   throw new Error("Real PostgreSQL access is forbidden in evaluations");
 });
@@ -26,7 +16,7 @@ vi.mock("pg", () => {
 
 import { ASSISTANT_SYSTEM_PROMPT, createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { assistantEvalCases } from "./assistant.eval.data";
-import { createEvalDatabase, seedEvalFixture } from "./assistant.eval.fixture";
+import { seedEvalFixture } from "./assistant.eval.fixture";
 import { EVAL_LIMITS, evalOptionsSchema } from "./assistant.eval.options";
 import {
   digest,
@@ -37,7 +27,6 @@ import {
 } from "./assistant.eval.report";
 import { scoreAssistantEval, substituteFixture, type EvalAction } from "./assistant.eval.scoring";
 import type { ModelUsage } from "../../ai.telemetry";
-import { createApiWorkflows } from "../../context.workflows";
 
 it("executes the explicitly requested synthetic evaluation run", async () => {
   const options = evalOptionsSchema.parse(JSON.parse(process.env["KAINE_EVAL_OPTIONS"] ?? "{}"));
@@ -66,9 +55,9 @@ it("executes the explicitly requested synthetic evaluation run", async () => {
     if (!evaluation) throw new Error("Unknown case");
     for (let repetition = 1; repetition <= options.repeat; repetition += 1) {
       if (Date.now() >= deadline) throw new Error("Evaluation run deadline reached");
-      holder.database = createEvalDatabase();
+      const database = await createTestDatabase();
       try {
-        const fixture = await seedEvalFixture(holder.database, evaluation);
+        const fixture = await seedEvalFixture(database, evaluation);
         const startedAt = Date.now();
         const prompt = substituteFixture(evaluation.prompt, fixture.ids);
         const actions: EvalAction[] = [];
@@ -103,10 +92,8 @@ it("executes the explicitly requested synthetic evaluation run", async () => {
           totalTokens: undefined
         };
         const runtime = createAssistantAiRuntime({
-          workflows: createApiWorkflows({
-            logger: createLogger({ name: "assistant-eval", level: "silent" }),
-            publish: () => {}
-          }),
+          notes: fixture.notes,
+          todos: fixture.todos,
           publishAssistantDelta: () => {},
           recordModelCall: (event) => {
             usage = {
@@ -188,8 +175,7 @@ it("executes the explicitly requested synthetic evaluation run", async () => {
         });
         writeEvalReport(reportPath, report);
       } finally {
-        await holder.database.client.close();
-        holder.database = null;
+        await database.close();
       }
     }
   }

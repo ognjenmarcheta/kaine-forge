@@ -181,7 +181,7 @@ Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs 
 pnpm generate
 ```
 
-CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit.
+CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit. It also fails on a breaking schema change against the PR base. The owner accepts an intended break with the label `graphql:breaking-approved`, then re-runs the **GraphQL Schema Compatibility** job.
 
 ## 9. Runtime and Environment Rules
 
@@ -196,6 +196,9 @@ Important runtime variables:
 | `BETTER_AUTH_URL`                                                  | public auth/API base URL                                                                                               |
 | `EMAIL_PROVIDER`                                                   | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)                                                      |
 | `AUTH_REQUIRE_EMAIL_VERIFICATION`                                  | soft verification flag (does not gate login; see ADR 0007)                                                             |
+| `AUTH_PASSWORD_BREACH_CHECK`                                       | Have I Been Pwned check on new passwords; on unless `false` (fails closed when offline; ADR 0015)                      |
+| `TURNSTILE_SECRET_KEY` / `TURNSTILE_ALLOWED_HOSTNAMES`             | Cloudflare Turnstile captcha on sign-up, sign-in, reset, and email codes; off when the secret is blank (ADR 0015)      |
+| `VITE_TURNSTILE_SITE_KEY` / `EXPO_PUBLIC_TURNSTILE_*`              | captcha widget gates for web and mobile; mobile base URL hostname must be allowed for the site key                     |
 | `GITHUB_*` / `GOOGLE_*`                                            | optional OAuth; each provider needs both id and secret                                                                 |
 | `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated)                                                                                      |
 | `API_HOST`                                                         | optional API listen host, for example `0.0.0.0` for LAN testing                                                        |
@@ -223,6 +226,8 @@ Important runtime variables:
 | `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
+
+**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes) need no other change.
 
 Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases. Password reset uses better-auth routes (`/api/auth/request-password-reset`, `/api/auth/reset-password`). Production hardening checklist: `SECURITY.md`.
 
@@ -383,8 +388,8 @@ pnpm --filter @repo/mobile-ui typecheck
 - Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/archive/publication-readiness.md` records the 2026-09-13 verification of those settings.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
-- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
-- Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`). Coverage, core build and e2e, Docker images, and the mobile jobs run only when the Turbo package graph says the PR affects them (`scripts/ci-affected.mjs`); Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
+- CI caches each Turbo task in the GitHub Actions cache (`rharkor/caching-for-turbo`), with no secrets. A local remote cache is optional: `TURBO_TOKEN` and `TURBO_TEAM` in your shell.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.
 
@@ -438,7 +443,7 @@ Local gitignored outputs:
 - `.grok/config.toml`
 - `opencode.json`
 
-MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
+MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects add tool-specific skills, agents, guide rules, and review checks in `.ai/project/`, and MCP servers in their own `.ai/` sources. `pnpm ai:sync` pulls upstream template AI changes and never writes `.ai/project/` (ADR 0014).
 
 Graphify is optional per-developer tooling: `pnpm graph` writes a queryable codebase knowledge graph to `graphify-out/`, which is local, gitignored, and dockerignored. The `kaine-graph` skill documents install, build, and query workflows, and the shared MCP catalog carries an opt-in `graphify` server. Keep Graphify out of `pnpm initialize`, husky hooks, and CI, and never run Graphify's per-project installers, which write into generated files such as `AGENTS.md` and `CLAUDE.md`.
 
@@ -452,7 +457,7 @@ Pick the reference feature that matches your scope: clone `notes` for a plain or
 pnpm create:feature <singular> --plural <plural> --write
 ```
 
-That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 13 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
 
 Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 
@@ -480,7 +485,7 @@ Organization-scoped client query keys come from `createActiveOrganizationQueryKe
 | Editing assistant guidance or skills                  | Edit `.ai/` and run `pnpm ai:install` + `pnpm ai:doctor` |
 | Using raw colors or spacing in UI                     | Use design-system tokens                                 |
 | Importing web UI into mobile                          | Use `@repo/mobile-ui`                                    |
-| Adding org-specific tools to the template             | Keep them downstream in project-specific `.ai/` sources  |
+| Adding org-specific tools to the template             | Keep them downstream in `.ai/project/`                   |
 
 ## 21. Reference Docs
 

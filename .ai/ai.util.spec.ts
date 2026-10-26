@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,11 +9,14 @@ import {
   opencodePermissionEntries,
   computeAgentDefinitionDrift,
   discoverAgentDefinitions,
+  discoverSkills,
+  KAINE_PREFIX,
   lintAgentDefinitionsDir,
   lintContextSource,
   lintDomainKnowledgeArtifacts,
   lintGuideSkillList,
   lintReviewSource,
+  managedNamePredicate,
   missingEnvVarsForMcpServers,
   mergeMcpSources,
   parseAgentDefinitionFile,
@@ -25,28 +28,30 @@ import {
   renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
-  renderClaudeSkill,
   renderCodexConfig,
-  renderCursorHooks,
   renderCursorRulesFile,
   renderCursorSkill,
   renderGrokConfig,
   renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
-  renderGrokSkill,
   renderGuardedCommandsSection,
   renderMcpJson,
   renderOpencodeAgentDefinition,
   renderOpencodeConfig,
-  renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
   REVIEW_REQUIRED_HEADINGS,
+  REVIEW_SRC,
   shouldFailDoctor
 } from "./ai.util";
+
+const kaineSource = (dir: string) => [{ dir, prefix: KAINE_PREFIX }];
+
+const skillDef = (name: string): string =>
+  `---\nname: ${name}\ndescription: Does ${name} things.\n---\n\nBody.\n`;
 
 const agentDef = (
   name: string,
@@ -233,6 +238,18 @@ describe("renderAgentDoc", () => {
     expect(output).toContain("- `kaine-foo`: Does foo.");
   });
 
+  it("places the project guide after the upstream rules and changes nothing without one", () => {
+    const guide = "# Guide\n\nUpstream rule.\n<!-- kaine:skills-index -->\n";
+    const withProject = renderAgentDoc(guide, [], "## Project rules\n\nAcme rule.\n");
+
+    expect(withProject.indexOf("Upstream rule.")).toBeLessThan(withProject.indexOf("Acme rule."));
+    expect(withProject.indexOf("Acme rule.")).toBeLessThan(
+      withProject.indexOf("## Guarded Commands")
+    );
+    expect(renderAgentDoc(guide, [], null)).toBe(renderAgentDoc(guide, [], "  \n"));
+    expect(renderAgentDoc(guide, [], null)).not.toContain("Acme rule.");
+  });
+
   it("renders the Claude import file", () => {
     expect(renderClaudeImport()).toBe("@AGENTS.md\n");
   });
@@ -312,30 +329,32 @@ describe("shouldFailDoctor", () => {
 
 describe("renderReviewDoc", () => {
   it("wraps the source with the HTML generated-file notice", () => {
-    expect(renderReviewDoc("# Review\n\nBody.")).toBe(
+    expect(renderReviewDoc("# Review\n\nBody.", null)).toBe(
       "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n# Review\n\nBody.\n"
     );
   });
 
+  it("appends the project review checklist after the upstream checklist", () => {
+    expect(renderReviewDoc("## Correctness\n\n- x\n", "## Acme\n\n- y\n")).toBe(
+      "<!-- GENERATED FILE. Do not edit directly. Run: pnpm ai:install -->\n\n## Correctness\n\n- x\n\n## Acme\n\n- y\n"
+    );
+  });
+
   it("trims surrounding whitespace on the source body", () => {
-    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n")).toContain("## Correctness\n\n- x\n");
-    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n").startsWith("<!--")).toBe(true);
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n", null)).toContain(
+      "## Correctness\n\n- x\n"
+    );
+    expect(renderReviewDoc("\n\n## Correctness\n\n- x\n\n", null).startsWith("<!--")).toBe(true);
   });
 });
 
 describe("REVIEW_REQUIRED_HEADINGS", () => {
-  it("lists the nine compact-hybrid headings in order", () => {
-    expect([...REVIEW_REQUIRED_HEADINGS]).toEqual([
-      "Correctness",
-      "Security, Auth & Tenancy",
-      "Architecture & Boundaries",
-      "Data & GraphQL",
-      "Performance",
-      "UI & i18n",
-      "Quality Gates",
-      "Domain Language",
-      "Template & AI Hygiene"
-    ]);
+  it("matches the section headings of the canonical review source in order", () => {
+    const headings = [...readFileSync(REVIEW_SRC, "utf8").matchAll(/^## (.+)$/gm)].map(
+      (match) => match[1]
+    );
+
+    expect([...REVIEW_REQUIRED_HEADINGS]).toEqual(headings);
   });
 });
 
@@ -473,9 +492,12 @@ describe("lintDomainKnowledgeArtifacts", () => {
 
 describe("renderMcpJson", () => {
   it("emits the generated marker and the source", () => {
-    const json = renderMcpJson({
-      mcpServers: { foo: { command: "foo-bin" } }
-    });
+    const json = renderMcpJson(
+      {
+        mcpServers: { foo: { command: "foo-bin" } }
+      },
+      "claude"
+    );
     const parsed = JSON.parse(json) as Record<string, unknown>;
     expect(parsed._generated).toMatch(/GENERATED FILE/);
     expect(parsed.mcpServers).toEqual({ foo: { command: "foo-bin" } });
@@ -594,16 +616,6 @@ describe("renderGrokSessionStartHook", () => {
   });
 });
 
-describe("renderGrokSkill", () => {
-  it("matches the Claude skill shape", () => {
-    const skill = parseSkillFile(
-      "kaine-foo",
-      "---\nname: kaine-foo\ndescription: Does foo.\n---\n\nBody.\n"
-    );
-    expect(renderGrokSkill(skill)).toBe(renderClaudeSkill(skill));
-  });
-});
-
 describe("renderClaudeSettings", () => {
   it("auto-allows read-only MCP lookups but keeps code-running and browser tools prompted", () => {
     const { permissions } = JSON.parse(renderClaudeSettings()) as {
@@ -613,6 +625,7 @@ describe("renderClaudeSettings", () => {
     expect(permissions.allow).toEqual(
       expect.arrayContaining([
         "mcp__context7__query-docs",
+        "mcp__better-auth__search_docs",
         "mcp__serena__initial_instructions",
         "mcp__gitbutler__gitbutler_workspace"
       ])
@@ -620,7 +633,7 @@ describe("renderClaudeSettings", () => {
     // Wildcards, whole servers, code execution, memory writes, pull request changes, and
     // browser servers stay prompted.
     const prompted =
-      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|mark_review_ready|^mcp__(?!context7__|serena__|gitbutler__)/;
+      /\*|^mcp__(?:(?!__).)+$|serena_repl|(write|edit|delete|rename)_memory|mark_review_ready|^mcp__(?!context7__|better-auth__|serena__|gitbutler__)/;
     expect(permissions.allow.filter((rule) => prompted.test(rule))).toEqual([]);
   });
 
@@ -729,14 +742,6 @@ describe("renderOpencodeConfig", () => {
     expect(bash).not.toHaveProperty("*");
     // Flag rules stay with the plugin: a glob cannot constrain a flag by name.
     expect(Object.keys(bash).some((pattern) => pattern.startsWith("git push"))).toBe(false);
-  });
-
-  it("skips servers without a command", () => {
-    const json = renderOpencodeConfig({
-      mcpServers: { broken: { args: ["x"] } }
-    });
-    const parsed = JSON.parse(json) as { mcp: Record<string, unknown> };
-    expect(parsed.mcp).toEqual({});
   });
 });
 
@@ -903,7 +908,7 @@ describe("discoverAgentDefinitions", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
       writeFileSync(join(dir, "kaine-explorer.md"), agentDef("kaine-explorer"));
-      const defs = discoverAgentDefinitions(dir);
+      const defs = discoverAgentDefinitions(kaineSource(dir));
       expect(defs.map((def) => def.name)).toEqual(["kaine-explorer", "kaine-implementer"]);
     });
   });
@@ -911,12 +916,70 @@ describe("discoverAgentDefinitions", () => {
   it("rejects a non-kaine name", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "helper.md"), agentDef("helper"));
-      expect(() => discoverAgentDefinitions(dir)).toThrow(/must start with 'kaine-'/);
+      expect(() => discoverAgentDefinitions(kaineSource(dir))).toThrow(/must start with 'kaine-'/);
     });
   });
 
   it("returns an empty list when the directory is missing", () => {
-    expect(discoverAgentDefinitions(join(tmpdir(), "kaine-agents-missing-xyz"))).toEqual([]);
+    expect(
+      discoverAgentDefinitions(kaineSource(join(tmpdir(), "kaine-agents-missing-xyz")))
+    ).toEqual([]);
+  });
+});
+
+describe("project skill and agent sources", () => {
+  const withSourceDirs = (fn: (template: string, project: string) => void): void => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-project-sources-"));
+    const template = join(root, "skills");
+    const project = join(root, "project-skills");
+    mkdirSync(template, { recursive: true });
+    mkdirSync(project, { recursive: true });
+    try {
+      fn(template, project);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("discovers project skills that use the project prefix next to template skills", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(template, "kaine-review.md"), skillDef("kaine-review"));
+      writeFileSync(join(project, "acme-deploy.md"), skillDef("acme-deploy"));
+      const skills = discoverSkills([...kaineSource(template), { dir: project, prefix: "acme-" }]);
+      expect(skills.map((skill) => skill.name)).toEqual(["acme-deploy", "kaine-review"]);
+    });
+  });
+
+  it("rejects a project skill without the project prefix", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(project, "deploy.md"), skillDef("deploy"));
+      expect(() =>
+        discoverSkills([...kaineSource(template), { dir: project, prefix: "acme-" }])
+      ).toThrow(/must start with 'acme-'/);
+    });
+  });
+
+  it("rejects project agents when no adoption record names the prefix", () => {
+    withSourceDirs((template, project) => {
+      writeFileSync(join(project, "acme-helper.md"), agentDef("acme-helper"));
+      const sources = [...kaineSource(template), { dir: project, prefix: null }];
+      expect(() => discoverAgentDefinitions(sources)).toThrow(/template\.json/);
+      expect(lintAgentDefinitionsDir(sources)).toEqual([
+        expect.objectContaining({
+          level: "error",
+          message: expect.stringContaining("template.json")
+        })
+      ]);
+    });
+  });
+
+  it("lets the installer remove only template and project outputs, never personal copies", () => {
+    const isManaged = managedNamePredicate("acme-");
+    expect(["kaine-review", "acme-deploy", "my-review", "review"].filter(isManaged)).toEqual([
+      "kaine-review",
+      "acme-deploy"
+    ]);
+    expect(managedNamePredicate(null)("acme-deploy")).toBe(false);
   });
 });
 
@@ -935,14 +998,14 @@ describe("lintAgentDefinitionsDir", () => {
   it("passes for a valid definition", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "kaine-implementer.md"), agentDef("kaine-implementer"));
-      expect(lintAgentDefinitionsDir(dir)).toEqual([]);
+      expect(lintAgentDefinitionsDir(kaineSource(dir))).toEqual([]);
     });
   });
 
   it("flags a non-kaine name", () => {
     withAgentsDir((dir) => {
       writeFileSync(join(dir, "helper.md"), agentDef("helper"));
-      const issues = lintAgentDefinitionsDir(dir);
+      const issues = lintAgentDefinitionsDir(kaineSource(dir));
       expect(issues).toHaveLength(1);
       expect(issues[0]?.level).toBe("error");
       expect(issues[0]?.message).toContain("kaine-");
@@ -955,7 +1018,7 @@ describe("lintAgentDefinitionsDir", () => {
         join(dir, "kaine-implementer.md"),
         "---\nname: kaine-implementer\ndescription: x\n---\n\n"
       );
-      const issues = lintAgentDefinitionsDir(dir);
+      const issues = lintAgentDefinitionsDir(kaineSource(dir));
       expect(
         issues.some((issue) => issue.level === "error" && /body is empty/.test(issue.message))
       ).toBe(true);
@@ -1136,34 +1199,5 @@ describe("renderGrokPreToolUseHook", () => {
     expect(parsed.hooks.PreToolUse[0]?.matcher).toBe(".*");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("pre-tool-use.mjs");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("--agent grok");
-  });
-});
-
-describe("renderCursorHooks", () => {
-  it("registers the shell event, not a PreToolUse block Cursor would ignore", () => {
-    expect(JSON.parse(renderCursorHooks())).toEqual({
-      version: 1,
-      hooks: {
-        beforeShellExecution: [
-          {
-            command: "node .ai/hooks/pre-tool-use.mjs --agent cursor",
-            timeout: 10
-          }
-        ]
-      }
-    });
-  });
-});
-
-describe("renderOpencodeGuardrailPlugin", () => {
-  it("listens on tool.execute.before and reuses the shared matcher", () => {
-    const plugin = renderOpencodeGuardrailPlugin();
-
-    // OpenCode ignores JSON hooks entirely, so the plugin API is the only path.
-    expect(plugin).toContain('"tool.execute.before":');
-    expect(plugin).toContain("throw new Error(");
-    expect(plugin).toContain('from "../../.ai/hooks/guarded-command.mjs"');
-    // The callback blocks by throwing; ask remains an advisory.
-    expect(plugin).toContain('rule.decision === "deny"');
   });
 });

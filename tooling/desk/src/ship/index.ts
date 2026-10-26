@@ -81,4 +81,19 @@ export {
   shipRefViolations,
   writeRefsBaseline
 } from "./ship.refs";
-export { shipIssue, type ShipDeps, type ShipRequest, type ShipTimeouts } from "./ship.run";
+export {
+  SHIP_INTENTS,
+  shipAdmission,
+  type ShipAdmission,
+  type ShipAdmissionOptions,
+  type ShipIntent
+} from "./ship.admission";
+export {
+  prepareShip,
+  runShip,
+  type ShipDeps,
+  type ShipPreparation,
+  type ShipRequest,
+  type ShipTicket,
+  type ShipTimeouts
+} from "./ship.run";

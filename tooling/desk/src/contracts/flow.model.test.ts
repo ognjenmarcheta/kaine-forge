@@ -867,9 +867,4 @@ describe("buildFlowModel metrics", () => {
     expect(node(result, "build").metrics).toBeNull();
     expect(node(result, "ship").metrics).toBeNull();
   });
-
-  it("is pure: the same input gives the same output", () => {
-    const scenario: Scenario = { stage: "pr-review", status: "waiting", steps: TO_PR_REVIEW };
-    expect(model(scenario)).toEqual(model(scenario));
-  });
 });

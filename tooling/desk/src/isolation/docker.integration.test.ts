@@ -6,11 +6,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAgentProcess } from "../agents/agent.process";
 import { createReplayRunner } from "../agents/agent.replay";
 import { deskConfigSchema } from "../contracts";
-import { diffAgainstBase, fileModeIgnored } from "../git";
+import { createGitPort, diffAgainstBase, fileModeIgnored } from "../git";
 import { createExec } from "../ports";
 import { checkContainer, dockerRunArgs, proxyContainer } from "./docker.args";
 import { containerBase } from "./docker.context";
-import { buildImage, inspectImage, readImageContext } from "./docker.image";
+import { PINNED, buildImage, inspectImage, readImageContext } from "./docker.image";
 import { allFilters, resourceLabels, socketVolume } from "./docker.names";
 import { runIsolationProbes, runProbe } from "./docker.probe";
 import { withProxy } from "./docker.proxy";
@@ -59,7 +59,7 @@ attempt("rootWrite", () => {
   writeFileSync("/etc/desk-agent", "x");
   return "WROTE";
 });
-attempt("hostHome", () => existsSync("/Users") || existsSync("/home/" + "ognjenmarceta"));
+attempt("hostHome", () => existsSync("/Users") || existsSync(${JSON.stringify(homedir())}));
 attempt("ghToken", () => Boolean(process.env.GH_TOKEN || process.env.GITHUB_TOKEN));
 attempt("dockerSocket", () => existsSync("/var/run/docker.sock"));
 attempt("claudeConfig", () => process.env.CLAUDE_CONFIG_DIR);
@@ -166,6 +166,8 @@ interface World {
   readonly baseSha: string;
   readonly isolation: DockerIsolation;
   readonly tag: string;
+  /** The pnpm version the image was built with. */
+  readonly pnpmVersion: string;
   readonly artifacts: string;
   /** Machine-wide login volumes that existed before this run. The run never removes those. */
   readonly authBefore: ReadonlySet<string>;
@@ -288,7 +290,16 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
     });
     const artifacts = path.join(scratch.root, "artifacts");
     await mkdir(artifacts, { recursive: true });
-    world = { scratch, repo, baseSha, isolation, tag: context.tag, artifacts, authBefore };
+    world = {
+      scratch,
+      repo,
+      baseSha,
+      isolation,
+      tag: context.tag,
+      pnpmVersion: context.buildArgs.PNPM_VERSION ?? "",
+      artifacts,
+      authBefore
+    };
   }, 900_000);
 
   afterAll(async () => {
@@ -336,9 +347,9 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
         ],
         timeoutMs: 60_000
       });
-    expect((await version("claude")).stdout).toContain("2.1.282");
-    expect((await version("codex")).stdout).toContain("0.147.0");
-    expect((await version("pnpm")).stdout.trim()).toBe("10.29.3");
+    expect((await version("claude")).stdout).toContain(PINNED.claude);
+    expect((await version("codex")).stdout).toContain(PINNED.codex);
+    expect((await version("pnpm")).stdout.trim()).toBe(w.pnpmVersion);
     const image = await inspectImage(exec, w.tag);
     expect(image).toMatchObject({ status: "current" });
   }, 120_000);
@@ -650,6 +661,7 @@ describe.skipIf(!enabled)("Docker isolation (real Docker, DESK_DOCKER=1)", () =>
       kind: "loop" as const,
       config: deskConfigSchema.parse({ checks: { loop: [["pnpm", "check:affected"]] } }),
       exec,
+      git: createGitPort(exec),
       baseSha: w.baseSha,
       artifactsDir: path.join(w.artifacts, "check")
     };

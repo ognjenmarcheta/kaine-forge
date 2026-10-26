@@ -44,16 +44,20 @@ command. Startup never certifies MCP connectivity or sandbox enforcement.
 30-second startup, which matches Claude Code's default `MCP_TIMEOUT`, and process-tree cleanup. Results include a separate `cleanup` status.
 Cleanup launch errors, nonzero termination, timeout or an unconfirmed exit prevent a pass.
 Initialization and cleanup failures are retained together. Raw server output and environment
-values are not printed. This proves initialization, not tool behavior. Other
-transports have no passing startup claim. Probes stay out of hooks and ordinary CI.
+values are not printed. This proves initialization, not tool behavior. A remote
+(`url`) server reports `not-probed` with the reason "remote, not probed"; it does not fail
+or pass the run. Other transports have no passing startup claim. Probes stay out of hooks and ordinary CI.
 
-`validateMcpPins` runs in doctor and AI tests. Guard checks also validate dependency pins
+`validateMcpServers` runs in doctor and install: each server sets exactly one of `command` or
+`url`, and a `url` starts with `https://`. `validateMcpPins` runs in doctor and AI tests. It
+exempts remote servers, which launch no local package. Guard checks also validate dependency pins
 in repository-owned hook launch definitions. Updates follow the existing
 [dependency triage workflow](../../.ai/skills/kaine-triage-deps.md).
 
 | Server          | Exact launch dependency                             | Default | Verification on 2026-10-20 |
 | --------------- | --------------------------------------------------- | ------- | -------------------------- |
 | context7        | `@upstash/context7-mcp@4.1.1`                       | yes     | initialization passed      |
+| better-auth     | remote `https://mcp.better-auth.com/mcp`            | yes     | not probed (remote)        |
 | playwright      | `@playwright/mcp@0.0.82`                            | yes     | initialization passed      |
 | serena          | PyPI `serena-agent==2.1.0` through `uvx`            | yes     | initialization passed      |
 | chrome-devtools | `chrome-devtools-mcp@1.10.1`                        | opt-in  | initialization passed      |
@@ -89,8 +93,8 @@ Claude desktop worktree sessions load project MCP servers from the main checkout
 `.mcp.json`, not the worktree's. The Claude `SessionStart` hook warns when the two differ
 and names the main checkout to reinstall.
 
-The generated `.claude/settings.json` allows the read-only Context7 tools and Serena's
-read-only tools without a prompt. `serena_repl`, Serena edit and memory-write tools, and
+The generated `.claude/settings.json` allows the read-only Context7 tools, the Better Auth
+documentation tools, and Serena's read-only tools without a prompt. `serena_repl`, Serena edit and memory-write tools, and
 all browser tools stay prompted.
 
 ### GitButler MCP
@@ -109,6 +113,24 @@ flags ask. That is the difference from GitHub MCP below. The server is opt-in be
 needs the `but` executable, and the Agent Desk does not list it in any capability profile,
 because the desk grants non-Serena servers wholesale. See
 [ADR 0013](../adr/0013-gitbutler-recommended-vcs-client.md).
+
+### Better Auth MCP
+
+Better Auth's remote server (`https://mcp.better-auth.com/mcp`, server `better-auth` 0.0.1,
+listed with HTTP `initialize` and `tools/list` on 2026-10-26) has two tools: `search_docs`
+(documentation snippets for a query and a documentation version) and `get_doc` (one full
+documentation page or the version index). Both declare `readOnlyHint: true`, and the
+generated `.claude/settings.json` allows them without a prompt. The server needs no
+credentials and reads no repository data.
+
+It is a default server because better-auth is a core template dependency and the server
+returns version-matched documentation for its plugins and flows. The installed package's
+types stay authoritative for the exact API. The installer writes it natively for each agent:
+Claude `{ "type": "http", "url" }`, Cursor `{ "url" }`, Codex and Grok Build `url = "…"`, and
+OpenCode `{ "type": "remote", "url" }`. No `mcp-remote` stdio bridge runs. Better Auth's agent
+skills are a per-contributor install (`npx skills add better-auth/skills`), not vendored,
+because team skills must use the `kaine-` prefix; ADR 0013 sets the same precedent for
+GitButler's skill.
 
 ### MCP servers not adopted
 

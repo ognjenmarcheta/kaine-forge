@@ -13,7 +13,9 @@ test("registers a new account, signs out, and signs back in", async ({ page }) =
   const account = {
     email: `e2e-${uniqueSuffix}@test.test`,
     name: `E2E User ${uniqueSuffix}`,
-    password: "ChangeMe123!"
+    // Not a known-breached password, so the flow also works against a dev API
+    // that runs the Have I Been Pwned check.
+    password: `E2e-${uniqueSuffix}-Pass!`
   } as const;
 
   await page.goto("/auth");
