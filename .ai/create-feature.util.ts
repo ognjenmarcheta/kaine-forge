@@ -762,10 +762,7 @@ export interface ${names.singularPascal}DeletedPayload {
 const wireApiContext = (source: string, names: FeatureNames): string => {
   const path = "apps/api/src/context.ts";
   if (source.includes(`\n  ${names.pluralCamel}: `)) {
-    throw new CreateFeatureError(
-      path,
-      `${path}: ApiContext already has a '${names.pluralCamel}' field`
-    );
+    throw new CreateFeatureError(`${path}: ApiContext already has a '${names.pluralCamel}' field`);
   }
 
   const withImport = insertSortedLine(
