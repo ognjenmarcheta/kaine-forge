@@ -6,9 +6,7 @@ import { pipe } from "graphql-yoga";
 import { createTodo, getTodoById, listTodosByScope } from "./todos.adapter";
 import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
 import { createTodoAiRuntime } from "./todos.ai-runtime";
-import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
-import { coercePagination } from "./todos.util";
 import type { ApiContext } from "../../context";
 import { errorReporter, formatLoggableError } from "../../observability";
 import { filterByOrganization } from "../../pubsub";
@@ -33,7 +31,7 @@ function createTodoAiWorkflowForContext(ctx: ResolverContext) {
   });
 
   return createTodoAiWorkflow({
-    createTodo,
+    createTodo: (_scope, input) => createTodo(ctx.data, input),
     generateTodoDrafts: aiRuntime.generateTodoDrafts,
     isConfigured: aiRuntime.isConfigured,
     maxGeneratedTodos: aiRuntime.maxGeneratedTodos,
@@ -62,14 +60,10 @@ export const todosResolvers = {
   },
   Query: {
     async todos(_parent: unknown, args: TodosQueryArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      const pagination = coercePagination(args, TODOS_CONFIG.pagination);
-
-      return listTodosByScope(scope, pagination, args);
+      return listTodosByScope(ctx.data, args, args);
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return getTodoById(scope, args.id);
+      return getTodoById(ctx.data, args.id);
     }
   },
   Mutation: {

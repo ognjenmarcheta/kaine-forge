@@ -1,3 +1,4 @@
+import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { createLogger } from "@repo/logger";
 import { createPubSub, createSchema, createYoga } from "graphql-yoga";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 // SAFETY: initialized before any resolver call; the getter rejects missing setup.
 const holder = vi.hoisted(() => ({
-  database: null as ReturnType<typeof createEvalDatabase> | null
+  database: null as TestDatabase | null
 }));
 vi.mock("@repo/db", async () => ({
   ...(await import("@repo/db/schema")),
@@ -22,17 +23,18 @@ vi.mock("pg", () => {
 });
 
 import { assistantEvalCases } from "./features/assistant/assistant.eval.data";
-import { createEvalDatabase, seedEvalFixture } from "./features/assistant/assistant.eval.fixture";
+import { seedEvalFixture } from "./features/assistant/assistant.eval.fixture";
+import { createScopedData } from "./context.data";
 import { createApiWorkflows } from "./context.workflows";
 import { __plural__Resolvers } from "./features/__plural__/__plural__.router";
 import { __plural__TypeDefs } from "./features/__plural__/__plural__.schema";
 
 afterEach(async () => {
-  await holder.database?.client.close();
+  await holder.database?.close();
 });
 
 it("replays migrations and proves API CRUD, validation and unchanged foreign rows", async () => {
-  const database = createEvalDatabase();
+  const database = await createTestDatabase();
   holder.database = database;
   const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-note-update");
   if (!evaluation) throw new Error("Missing base fixture");
@@ -68,16 +70,20 @@ it("replays migrations and proves API CRUD, validation and unchanged foreign row
     variables: Record<string, string> = {},
     foreign = false
   ) => {
+    const scope = {
+      ...fixture.scope,
+      organizationId: foreign ? foreignId : fixture.scope.organizationId
+    };
+    const data = createScopedData({ db: database.db, requireOrganizationScope: () => scope });
     const yoga = createYoga({
       schema,
       logging: false,
       context: {
-        requireOrganizationScope: () => ({
-          ...fixture.scope,
-          organizationId: foreign ? foreignId : fixture.scope.organizationId
-        }),
+        requireOrganizationScope: () => scope,
+        data,
         pubsub: createPubSub(),
         workflows: createApiWorkflows({
+          data,
           logger: createLogger({ name: "verifier", level: "silent" }),
           publish: () => {}
         })

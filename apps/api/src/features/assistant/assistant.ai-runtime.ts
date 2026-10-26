@@ -14,6 +14,7 @@ import {
 import { createAssistantTools } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
 import { modelFailureCategory, startModelRun, type ModelRunTelemetry } from "../../ai.telemetry";
+import type { ScopedData } from "../../context.data";
 import type { ApiWorkflows } from "../../context.workflows";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
@@ -68,6 +69,8 @@ export interface RunAgentResult {
 }
 
 export interface AssistantAiRuntimeDeps {
+  /** Scoped reads for the tools (listTodos, listNotes). */
+  data: ScopedData;
   publishAssistantDelta: (payload: AssistantMessageDeltaPayload) => void;
   recordModelCall: (telemetry: AssistantModelCallTelemetry) => void;
   // The workflows publish their own events, so the runtime no longer forwards
@@ -154,6 +157,7 @@ function flattenSteps<TTools extends ToolSet>(
 }
 
 export function createAssistantAiRuntime({
+  data,
   publishAssistantDelta,
   recordModelCall,
   workflows,
@@ -188,6 +192,7 @@ export function createAssistantAiRuntime({
           instructions: ASSISTANT_SYSTEM_PROMPT,
           messages: toModelMessages(messages),
           tools: createAssistantTools({
+            data,
             noteWorkflow: workflows.note,
             scope,
             todoWorkflow: workflows.todo

@@ -1,7 +1,7 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import type { File, Todo } from "@repo/db";
 import DataLoader from "dataloader";
 
+import type { ScopedData } from "./context.data";
 import { ATTACHMENT_ENTITY_TYPES } from "./features/storage/attachment.lifecycle";
 import { listFilesByEntityIds } from "./features/storage/storage.adapter";
 import { listTodosByNoteIds } from "./features/todos/todos.adapter";
@@ -24,13 +24,12 @@ const defaultAdapter: LoaderAdapter = {
 // Loaders are created per request so field resolvers batch their fan-out into
 // one organization-scoped query instead of one query per parent row.
 export function createApiLoaders(
-  requireOrganizationScope: () => AuthenticatedOrganizationScope,
+  data: ScopedData,
   adapter: LoaderAdapter = defaultAdapter
 ): ApiLoaders {
   return {
     noteTodos: new DataLoader(async (noteIds) => {
-      const scope = requireOrganizationScope();
-      const todos = await adapter.listTodosByNoteIds(scope, [...noteIds]);
+      const todos = await adapter.listTodosByNoteIds(data, [...noteIds]);
       const byNoteId = new Map<string, Todo[]>();
 
       for (const todo of todos) {
@@ -48,9 +47,8 @@ export function createApiLoaders(
       return noteIds.map((noteId) => byNoteId.get(noteId) ?? []);
     }),
     todoAttachments: new DataLoader(async (todoIds) => {
-      const scope = requireOrganizationScope();
       const files = await adapter.listFilesByEntityIds(
-        scope,
+        data,
         ATTACHMENT_ENTITY_TYPES.todo,
         [...todoIds],
         "uploaded"

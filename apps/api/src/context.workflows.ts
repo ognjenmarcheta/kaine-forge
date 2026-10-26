@@ -1,5 +1,6 @@
 import type { Logger } from "@repo/logger";
 
+import type { ScopedData } from "./context.data";
 import { createNote, deleteNote, updateNote } from "./features/notes/notes.adapter";
 import { createNoteWorkflow } from "./features/notes/notes.workflow";
 import { createAttachmentLifecycle } from "./features/storage/attachment.lifecycle";
@@ -11,6 +12,7 @@ import { formatLoggableError } from "./observability";
 import type { PubSubEventMap } from "./pubsub";
 
 export interface ApiWorkflowDeps {
+  data: ScopedData;
   logger: Logger;
   publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
@@ -37,27 +39,27 @@ export interface ApiWorkflows {
  * already loads `@repo/db` — a feature router importing it as a value instead
  * would pull the database into test files that deliberately load none.
  */
-export function createApiWorkflows({ logger, publish }: ApiWorkflowDeps): ApiWorkflows {
+export function createApiWorkflows({ data, logger, publish }: ApiWorkflowDeps): ApiWorkflows {
   const attachmentLifecycle = createAttachmentLifecycle({ deleteFilesByEntity });
 
   return {
     note: createNoteWorkflow({
-      createNote,
-      deleteNote,
+      createNote: (_scope, input) => createNote(data, input),
+      deleteNote: (_scope, id) => deleteNote(data, id),
       publishNoteEvent: publish,
-      updateNote
+      updateNote: (_scope, id, patch) => updateNote(data, id, patch)
     }),
     todo: createTodoWorkflow({
-      createTodo,
+      createTodo: (_scope, input) => createTodo(data, input),
       deleteAttachmentObject: ({ bucket, key }) => deleteStorageObject(bucket, key),
-      deleteTodo,
-      deleteTodoAttachments: async (scope, id) => {
-        const files = await attachmentLifecycle.deleteTodoAttachments(scope, id);
+      deleteTodo: (_scope, id) => deleteTodo(data, id),
+      deleteTodoAttachments: async (_scope, id) => {
+        const files = await attachmentLifecycle.deleteTodoAttachments(data, id);
         return files.map(({ bucket, key }) => ({ bucket, key }));
       },
       publishTodoEvent: publish,
-      toggleTodo,
-      updateTodo,
+      toggleTodo: (_scope, id) => toggleTodo(data, id),
+      updateTodo: (_scope, id, patch) => updateTodo(data, id, patch),
       warnTodoAttachmentCleanupFailed: ({ err, todoId }) => {
         // `error`, not `err`: pino's default serializer would copy every
         // enumerable property of the error onto the record. See observability.ts.

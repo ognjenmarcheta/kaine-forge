@@ -1,4 +1,3 @@
-import { PGlite } from "@electric-sql/pglite";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   notesTable,
@@ -7,27 +6,14 @@ import {
   organizationsTable,
   membersTable
 } from "@repo/db/schema";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import path from "node:path";
+import type { TestDatabase } from "@repo/db/testing";
 import { isDeepStrictEqual } from "node:util";
 
 import type { ExecutableEvalCase } from "./assistant.eval.data";
 import { substituteFixture } from "./assistant.eval.scoring";
+import { createScopedData } from "../../context.data";
 
-export function createEvalDatabase() {
-  const client = new PGlite();
-  return { client, db: drizzle(client) };
-}
-
-export async function seedEvalFixture(
-  database: ReturnType<typeof createEvalDatabase>,
-  evaluation: ExecutableEvalCase
-) {
-  await database.client.waitReady;
-  await migrate(database.db, {
-    migrationsFolder: path.resolve(import.meta.dirname, "../../../../../packages/db/drizzle")
-  });
+export async function seedEvalFixture(database: TestDatabase, evaluation: ExecutableEvalCase) {
   const [user] = await database.db
     .insert(usersTable)
     .values({ name: "Evaluation", email: "eval@example.test" })
@@ -102,6 +88,7 @@ export async function seedEvalFixture(
       .sort((a, b) => a.id.localeCompare(b.id))
   });
   return {
+    data: createScopedData({ db: database.db, requireOrganizationScope: () => scope }),
     scope,
     ids,
     before,

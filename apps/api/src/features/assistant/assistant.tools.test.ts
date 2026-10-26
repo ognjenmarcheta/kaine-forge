@@ -1,7 +1,9 @@
 import type { ToolExecutionOptions, ToolSet } from "ai";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAssistantTools, type AssistantToolDeps } from "./assistant.tools";
+import { createScopedData } from "../../context.data";
 import * as notesAdapter from "../notes/notes.adapter";
 import * as todosAdapter from "../todos/todos.adapter";
 import { createTodoWorkflow } from "../todos/todos.workflow";
@@ -24,6 +26,8 @@ const scope = {
   },
   userId: "user-1"
 };
+// Opaque here: the mocked adapters never query it.
+const data = createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope });
 
 const todo = {
   completed: false,
@@ -65,6 +69,7 @@ async function runTool(tools: ToolSet, name: string, input: unknown): Promise<un
 
 function createDeps(overrides: Partial<AssistantToolDeps> = {}): AssistantToolDeps {
   return {
+    data,
     noteWorkflow: {
       createNote: vi.fn(async () => note),
       updateNote: vi.fn(async () => note)
@@ -219,7 +224,7 @@ describe("createAssistantTools", () => {
     await runTool(tools, "listTodos", { limit: 5 });
     await runTool(tools, "listNotes", { limit: 5 });
 
-    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(scope, { limit: 5, offset: 0 });
-    expect(notesAdapter.listNotesByScope).toHaveBeenCalledWith(scope, { limit: 5, offset: 0 });
+    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(data, { limit: 5, offset: 0 });
+    expect(notesAdapter.listNotesByScope).toHaveBeenCalledWith(data, { limit: 5, offset: 0 });
   });
 });

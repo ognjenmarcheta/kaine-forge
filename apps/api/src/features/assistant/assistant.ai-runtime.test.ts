@@ -1,3 +1,4 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Only the fields these tests read. Typing the mock's parameter is what makes
@@ -82,6 +83,7 @@ vi.mock("./assistant.tools", () => ({ createAssistantTools: vi.fn(() => toolSet)
 
 import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { createAssistantTools } from "./assistant.tools";
+import { createScopedData } from "../../context.data";
 
 const scope = {
   membership: { id: "membership-1", role: "owner", userId: "user-1" },
@@ -107,6 +109,8 @@ const workflows = {
 };
 
 const deps = () => ({
+  // Opaque here: the model is mocked and never calls the read tools.
+  data: createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope }),
   publishAssistantDelta: vi.fn(),
   recordModelCall: vi.fn(),
   workflows
@@ -236,6 +240,7 @@ describe("createAssistantAiRuntime", () => {
       await createAssistantAiRuntime(injected).runAgent(runInput);
 
       expect(createAssistantTools).toHaveBeenCalledWith({
+        data: injected.data,
         noteWorkflow: injected.workflows.note,
         scope,
         todoWorkflow: injected.workflows.todo
