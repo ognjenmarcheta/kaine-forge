@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 
-import { type Agent, REPO_ROOT, SERENA_INTERFACES, type SerenaInterface } from "./ai.util";
+import { type Agent, AGENTS, REPO_ROOT, SERENA_INTERFACES, type SerenaInterface } from "./ai.util";
 
-export const agentSchema = z.enum(["claude", "codex", "cursor", "opencode", "grok"]);
+export const agentSchema = z.enum(AGENTS);
 const selectionFields = {
   // Template `kaine-*` and project `<repoSlug>-*` skill names.
   skills: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]*$/)),

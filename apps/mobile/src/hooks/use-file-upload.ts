@@ -2,6 +2,7 @@ import {
   createReactNativeUploadTransfer,
   createAttachmentUploadWorkflow,
   toReactNativeUploadRequestInput,
+  type AttachmentEntityType,
   type ReactNativeUploadFile,
   type UploadState
 } from "@repo/storage/client";
@@ -17,7 +18,7 @@ type UploadStatus = UploadState["status"];
 type FileInput = ReactNativeUploadFile;
 
 interface UseFileUploadOptions {
-  entityType?: string;
+  entityType?: AttachmentEntityType;
   entityId?: string;
   onSuccess?: (fileId: string) => void;
   onError?: (error: Error) => void;

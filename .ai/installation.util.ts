@@ -1,8 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { delimiter, isAbsolute, join, sep } from "node:path";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
   type Agent,
+  AGENTS,
   generatedTextEqual,
   checkSerenaProjectSemantics,
   managedNamePredicate,
@@ -14,16 +16,7 @@ import {
   renderAgentDoc,
   renderClaudeImport,
   renderClaudeSettings,
-  renderClaudeSkill,
-  renderCodexSkill,
   renderCodexConfig,
-  renderCursorSkill,
-  renderCursorHooks,
-  renderOpencodeGuardrailPlugin,
-  renderGrokPreToolUseHook,
-  renderGrokSessionStartHook,
-  renderGrokSkill,
-  renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
   REVIEW_OUT,
@@ -50,6 +43,8 @@ interface AgentDrift {
 }
 
 interface FileDrift {
+  /** Set when the file belongs to one agent's install. */
+  agent?: Agent;
   label: string;
   status: "missing" | "stale";
   // Committed artifacts fail --strict; local-install artifacts (absent in CI
@@ -98,18 +93,6 @@ export const envRequirements = (
 export const installed = (path: string): string =>
   existsSync(join(REPO_ROOT, path)) ? "yes" : "no";
 
-export const SKILL_DIRS: ReadonlyArray<{
-  agent: Agent;
-  dir: string;
-  render: (skill: Skill) => string;
-}> = [
-  { agent: "claude", dir: ".claude/skills", render: renderClaudeSkill },
-  { agent: "codex", dir: ".agents/skills", render: renderCodexSkill },
-  { agent: "cursor", dir: ".cursor/skills", render: renderCursorSkill },
-  { agent: "opencode", dir: ".opencode/skills", render: renderOpencodeSkill },
-  { agent: "grok", dir: ".grok/skills", render: renderGrokSkill }
-];
-
 export const computeSkillDrift = (
   skills: Skill[],
   root = REPO_ROOT,
@@ -118,9 +101,10 @@ export const computeSkillDrift = (
   const drift: AgentDrift[] = [];
   const isManagedName = managedNamePredicate(projectNamePrefix(join(root, TEMPLATE_CONFIG_PATH)));
 
-  for (const { agent, dir, render } of SKILL_DIRS) {
+  for (const agent of AGENTS) {
     if (onlyAgent && onlyAgent !== agent) continue;
-    const dirAbs = join(root, dir);
+    const { skillDir, renderSkill } = AGENT_REGISTRY[agent];
+    const dirAbs = join(root, skillDir);
     if (!existsSync(dirAbs)) {
       continue;
     }
@@ -150,7 +134,7 @@ export const computeSkillDrift = (
         missing.push(skill.name);
         continue;
       }
-      if (!generatedTextEqual(readFileSync(filePath, "utf8"), render(skill))) {
+      if (!generatedTextEqual(readFileSync(filePath, "utf8"), renderSkill(skill))) {
         stale.push(skill.name);
       }
     }
@@ -265,48 +249,35 @@ export const computeSharedDrift = (skills: Skill[]): FileDrift[] => {
 
 export const computeHookDrift = (): FileDrift[] => {
   const drift: FileDrift[] = [];
-  for (const [directory, path, expected] of [
-    [".cursor", ".cursor/hooks.json", renderCursorHooks()],
-    [".opencode", ".opencode/plugins/kaine-guardrail.ts", renderOpencodeGuardrailPlugin()]
-  ] as const) {
-    if (!existsSync(join(REPO_ROOT, directory))) continue;
-    const absolute = join(REPO_ROOT, path);
-    if (!existsSync(absolute)) {
-      drift.push({ label: path, status: "missing" });
-    } else if (
-      !(path.endsWith(".json")
-        ? managedConfigMatches(readFileSync(absolute, "utf8"), expected)
-        : generatedTextEqual(readFileSync(absolute, "utf8"), expected))
-    ) {
-      drift.push({ label: path, status: "stale" });
+  for (const agent of AGENTS) {
+    const { generatedFiles, installMarkers } = AGENT_REGISTRY[agent];
+    if (!installMarkers.some((marker) => existsSync(join(REPO_ROOT, marker)))) continue;
+    for (const { path, render, hook } of generatedFiles) {
+      const expected = hook ? render() : undefined;
+      if (expected === undefined) continue;
+      const absolute = join(REPO_ROOT, path);
+      if (!existsSync(absolute)) {
+        drift.push({ agent, label: path, status: "missing" });
+      } else if (
+        !(path.endsWith(".json")
+          ? managedConfigMatches(readFileSync(absolute, "utf8"), expected)
+          : generatedTextEqual(readFileSync(absolute, "utf8"), expected))
+      ) {
+        drift.push({ agent, label: path, status: "stale" });
+      }
     }
   }
-  const codexConfig = join(REPO_ROOT, ".codex", "config.toml");
 
+  // Codex keeps its hook settings inside the MCP config, so only the managed
+  // non-MCP keys are compared.
+  const codexConfig = join(REPO_ROOT, AGENT_REGISTRY.codex.mcpConfig.path);
   if (existsSync(codexConfig)) {
     const content = readFileSync(codexConfig, "utf8");
     if (
       !managedConfigMatches(content, renderCodexConfig({ mcpServers: {} }), true) ||
       content.includes("codex_hooks = true")
     ) {
-      drift.push({ label: ".codex/config.toml hooks", status: "stale" });
-    }
-  }
-
-  const grokInstalled =
-    existsSync(join(REPO_ROOT, ".grok", "skills")) ||
-    existsSync(join(REPO_ROOT, ".grok", "config.toml"));
-  if (grokInstalled) {
-    for (const hook of [
-      { name: "kaine-session-start.json", content: renderGrokSessionStartHook() },
-      { name: "kaine-pre-tool-use.json", content: renderGrokPreToolUseHook() }
-    ]) {
-      const hookPath = join(REPO_ROOT, ".grok", "hooks", hook.name);
-      if (!existsSync(hookPath)) {
-        drift.push({ label: `.grok/hooks/${hook.name}`, status: "missing" });
-      } else if (!generatedTextEqual(readFileSync(hookPath, "utf8"), hook.content)) {
-        drift.push({ label: `.grok/hooks/${hook.name}`, status: "stale" });
-      }
+      drift.push({ agent: "codex", label: ".codex/config.toml hooks", status: "stale" });
     }
   }
 

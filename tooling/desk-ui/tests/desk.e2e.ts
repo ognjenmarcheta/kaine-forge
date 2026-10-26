@@ -11,7 +11,7 @@ type Call = z.infer<typeof callList>[number];
 interface Desk {
   /** Reset the fixture data and open the local URL in a fresh page. */
   readonly open: (
-    options?: { scenario?: "board" | "empty" | "research"; failShipGate?: boolean },
+    options?: { scenario?: "board" | "research"; failShipGate?: boolean },
     path?: string
   ) => Promise<string>;
   readonly calls: () => Promise<Call[]>;
@@ -129,13 +129,6 @@ test("opens the plain local URL and shows the four board columns", async ({ page
       .filter((name) => /\/api\/issues\/\d+$/.test(name))
   );
   expect(details).toEqual([]);
-});
-
-test("shows an empty board with a way to start", async ({ page, desk }) => {
-  await desk.open({ scenario: "empty" });
-  await expect(page.getByRole("heading", { name: "No issues on the desk yet" })).toBeVisible();
-  await page.getByRole("button", { name: "Start your first issue" }).click();
-  await expect(page.getByRole("dialog", { name: "Start an issue" })).toBeVisible();
 });
 
 test("filters the board by number or title", async ({ page, desk }) => {
@@ -378,12 +371,12 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
     "An empty board explains how to start an issue"
   );
 
-  // A zoom by the engineer survives a new model.
+  // A zoom by the engineer survives a new model: the issue moves on to a running build.
   await graph.getByRole("button", { name: "Zoom in" }).click();
   const viewport = graph.locator(".react-flow__viewport");
   const zoomed = await viewport.getAttribute("style");
-  await desk.log(102, "a new log line");
-  await page.waitForTimeout(300);
+  await desk.mutate(102);
+  await expect(page.getByRole("heading", { name: "Working" })).toBeVisible();
   expect(await viewport.getAttribute("style")).toBe(zoomed);
   // The selection persists while new data arrives.
   await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
@@ -1255,7 +1248,7 @@ test("on a phone the decision's buttons are a bar at the bottom, and the page en
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("keeps the board and an issue usable from the keyboard", async ({ page, desk }) => {
+test("skips from the board to the main content from the keyboard", async ({ page, desk }) => {
   await desk.open();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();

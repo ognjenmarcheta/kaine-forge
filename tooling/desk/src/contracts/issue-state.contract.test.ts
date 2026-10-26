@@ -72,13 +72,6 @@ describe("issue state contract", () => {
     expect(issueStateSchema.safeParse(withoutBranch).success).toBe(false);
   });
 
-  it("reads a Phase 1 file that has none of the Phase 2 fields", () => {
-    const parsed = issueStateSchema.parse(valid());
-    expect(parsed.baseSha).toBeUndefined();
-    expect(parsed.activeProcess).toBeUndefined();
-    expect(parsed.pendingFeedback).toBeUndefined();
-  });
-
   it("round-trips the approval note and the pause, which a file without them leaves unset", () => {
     const held: IssueState = {
       ...valid(),

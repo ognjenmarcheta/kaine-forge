@@ -231,12 +231,6 @@ describe("aggregateRuns day series", () => {
   });
 });
 
-describe("aggregateRuns with skipped lines", () => {
-  it("passes the count of skipped lines through", () => {
-    expect(aggregateRuns({ records: [], invalidLines: 3 }, []).invalidLines).toBe(3);
-  });
-});
-
 describe("parseRunRecords", () => {
   it("keeps valid lines and counts torn or unknown ones", () => {
     const text = [

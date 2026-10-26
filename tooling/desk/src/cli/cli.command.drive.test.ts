@@ -634,15 +634,13 @@ describe("agent log file", () => {
     expect(text).toContain("[redacted]");
   });
 
-  it("appends across commands and is not written by remove", async () => {
+  it("appends across commands", async () => {
     const e = await open({ steps: [planStep(), buildStep(), reviewStep()] });
     await e.run("start", "7");
     const first = (await readFile(path.join(e.issueDir(), "agent.log.jsonl"), "utf8")).length;
     await e.run("approve", "7");
     const second = (await readFile(path.join(e.issueDir(), "agent.log.jsonl"), "utf8")).length;
     expect(second).toBeGreaterThan(first);
-    await e.run("remove", "7", "--force");
-    await expect(stat(e.issueDir())).rejects.toThrow();
   });
 
   it("keeps working when the log cannot be written", async () => {

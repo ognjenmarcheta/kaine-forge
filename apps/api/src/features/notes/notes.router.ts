@@ -1,10 +1,6 @@
-import { pipe } from "graphql-yoga";
-
-import { getNoteById, listNotesByScope } from "./notes.adapter";
 import type { CreateNoteInput, UpdateNoteInput } from "./notes.type";
-import { coercePagination } from "./notes.util";
 import type { ApiContext } from "../../context";
-import { filterByOrganization } from "../../pubsub";
+import { organizationSubscriptions } from "../../pubsub";
 import type { CreateTodoInput } from "../todos/todos.type";
 
 type ResolverContext = ApiContext;
@@ -23,64 +19,27 @@ export const notesResolvers = {
   },
   Query: {
     async notes(_parent: unknown, args: NotesQueryArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return listNotesByScope(scope, coercePagination(args), args.search ?? undefined);
+      return ctx.notes.list(args);
     },
     async note(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return getNoteById(scope, args.id);
+      return ctx.notes.get(args.id);
     }
   },
   Mutation: {
     async createNote(_parent: unknown, args: CreateNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.createNote(scope, args.input);
+      return ctx.notes.create(args.input);
     },
     async updateNote(_parent: unknown, args: UpdateNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.updateNote(scope, args.id, args.input);
+      return ctx.notes.update(args.id, args.input);
     },
     async deleteNote(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.deleteNote(scope, args.id);
+      return ctx.notes.delete(args.id);
     },
     async addTodoToNote(_parent: unknown, args: AddTodoToNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      // Through the workflow, so the title is normalized and the created event
-      // is published once, in one place (issue #393).
-      return ctx.workflows.todo.createTodo(scope, {
-        ...args.input,
-        noteId: args.noteId
-      });
+      // Through the Todo module, so the title is normalized and the created
+      // event is published once, in one place (issue #393).
+      return ctx.todos.create({ ...args.input, noteId: args.noteId });
     }
   },
-  Subscription: {
-    noteCreated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:created"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    noteUpdated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:updated"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    noteDeleted: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:deleted"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    }
-  }
+  Subscription: organizationSubscriptions(["noteCreated", "noteUpdated", "noteDeleted"])
 };

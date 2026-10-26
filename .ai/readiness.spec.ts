@@ -4,14 +4,12 @@ import path from "node:path";
 import { parse } from "smol-toml";
 import { expect, it } from "vitest";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
   type Agent,
   discoverSkills,
   type McpSource,
-  renderCodexConfig,
   renderCodexSkill,
-  renderGrokConfig,
-  renderMcpJson,
   renderOpencodeConfig,
   REPO_ROOT,
   validateMcpServers
@@ -24,7 +22,7 @@ import {
 } from "./install-state.util";
 import { computeSkillDrift } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
-import { agentConfigPaths, installedServers } from "./readiness";
+import { installedServers } from "./readiness";
 
 it("respects selected skills and detects content drift independently of timestamps", () => {
   const root = mkdtempSync(path.join(tmpdir(), "kaine-readiness-"));
@@ -114,17 +112,20 @@ it("rejects malformed installed configuration and ignores disabled servers", () 
 it("renders a remote MCP server as the native remote entry each agent loads", () => {
   const url = "https://docs.example.test/mcp";
   const source: McpSource = { mcpServers: { docs: { url } } };
-  const cases: Array<[Agent, string, string[], Record<string, unknown>]> = [
-    ["claude", renderMcpJson(source, "claude"), ["mcpServers"], { type: "http", url }],
-    ["cursor", renderMcpJson(source, "cursor"), ["mcpServers"], { url }],
-    ["codex", renderCodexConfig(source), ["mcp_servers"], { url }],
-    ["grok", renderGrokConfig(source), ["mcp_servers"], { url }],
-    ["opencode", renderOpencodeConfig(source), ["mcp"], { type: "remote", url, enabled: true }]
+  // Rendered through the agent registry, the same path pnpm ai:install writes.
+  const cases: Array<[Agent, string[], Record<string, unknown>]> = [
+    ["claude", ["mcpServers"], { type: "http", url }],
+    ["cursor", ["mcpServers"], { url }],
+    ["codex", ["mcp_servers"], { url }],
+    ["grok", ["mcp_servers"], { url }],
+    ["opencode", ["mcp"], { type: "remote", url, enabled: true }]
   ];
   const root = mkdtempSync(path.join(tmpdir(), "kaine-remote-mcp-"));
   try {
-    for (const [agent, content, [key], entry] of cases) {
-      const file = path.join(root, agentConfigPaths[agent]);
+    for (const [agent, [key], entry] of cases) {
+      const config = AGENT_REGISTRY[agent].mcpConfig;
+      const content = config.render(source);
+      const file = path.join(root, config.path);
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, content);
       const parsed: unknown = file.endsWith(".toml") ? parse(content) : JSON.parse(content);

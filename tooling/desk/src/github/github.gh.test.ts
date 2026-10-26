@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { createGhClient, fetchRepository, fetchViewer, GhError } from "./github.gh";
-import { fail, fakeExec, ok } from "../testing/exec.fake";
+import { createGhClient, fetchRepository, GhError } from "./github.gh";
+import { fakeExec, ok } from "../testing/exec.fake";
 
 const clientFor = (routes: Parameters<typeof fakeExec>[0]) => {
   const fake = fakeExec(routes);
@@ -105,17 +105,5 @@ describe("gh client", () => {
       ownerType: "Organization"
     });
     expect(calls[0]?.cwd).toBe("/repo");
-  });
-
-  it("reads the signed-in login", async () => {
-    const { gh } = clientFor([{ argv: ["gh", "api", "user"], reply: ok('{"login":"me"}') }]);
-    await expect(fetchViewer(gh)).resolves.toBe("me");
-  });
-
-  it("surfaces an unauthenticated gh as an error", async () => {
-    const { gh } = clientFor([
-      { argv: ["gh"], reply: fail("To get started with GitHub CLI, run: gh auth login") }
-    ]);
-    await expect(fetchViewer(gh)).rejects.toThrow("gh auth login");
   });
 });
