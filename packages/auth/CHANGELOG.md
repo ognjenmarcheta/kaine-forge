@@ -1,5 +1,12 @@
 # @repo/auth
 
+## 3.0.1
+
+### Patch Changes
+
+- Updated dependencies [0d5959c]
+  - @repo/db@1.8.0
+
 ## 3.0.0
 
 ### Major Changes
