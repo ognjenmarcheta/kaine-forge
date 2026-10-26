@@ -13,6 +13,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { ExecutableEvalCase } from "./assistant.eval.data";
 import { substituteFixture } from "./assistant.eval.scoring";
 import { createScopedData } from "../../context.data";
+import { createNotes } from "../notes/notes.module";
 import { createTodoAttachments } from "../storage/attachment.lifecycle";
 import { createTodos } from "../todos/todos.module";
 
@@ -95,6 +96,7 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
   });
   return {
     data,
+    notes: createNotes({ data, publish: () => {} }),
     todos,
     scope,
     ids,

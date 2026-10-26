@@ -11,7 +11,6 @@ vi.mock("pg", () => {
 import { assistantEvalCases } from "./assistant.eval.data";
 import { seedEvalFixture } from "./assistant.eval.fixture";
 import { createAssistantTools } from "./assistant.tools";
-import { createApiWorkflows } from "../../context.workflows";
 import { createNote, deleteNote, getNoteById } from "../notes/notes.adapter";
 
 let database: TestDatabase;
@@ -43,12 +42,7 @@ describe("evaluation fixture with production tools and workflows", () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "create-simple");
     if (!evaluation) throw new Error("Missing case");
     const fixture = await seedEvalFixture(database, evaluation);
-    const tools = createAssistantTools({
-      data: fixture.data,
-      scope: fixture.scope,
-      todos: fixture.todos,
-      noteWorkflow: createApiWorkflows({ data: fixture.data, publish: () => {} }).note
-    });
+    const tools = createAssistantTools({ notes: fixture.notes, todos: fixture.todos });
     const execute = tools["createTodo"]?.execute;
     if (!execute) throw new Error("Missing create tool");
     await execute(
@@ -63,12 +57,7 @@ describe("evaluation fixture with production tools and workflows", () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-todo-delete");
     if (!evaluation) throw new Error("Missing case");
     const fixture = await seedEvalFixture(database, evaluation);
-    const tools = createAssistantTools({
-      data: fixture.data,
-      scope: fixture.scope,
-      todos: fixture.todos,
-      noteWorkflow: createApiWorkflows({ data: fixture.data, publish: () => {} }).note
-    });
+    const tools = createAssistantTools({ notes: fixture.notes, todos: fixture.todos });
     const remove = tools["deleteTodo"]?.execute;
     const rename = tools["updateNote"]?.execute;
     if (!remove || !rename) throw new Error("Missing tools");

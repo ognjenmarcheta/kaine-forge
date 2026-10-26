@@ -1,6 +1,5 @@
 import { pipe } from "graphql-yoga";
 
-import { getNoteById, listNotesByScope } from "./notes.adapter";
 import type { CreateNoteInput, UpdateNoteInput } from "./notes.type";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
@@ -22,24 +21,21 @@ export const notesResolvers = {
   },
   Query: {
     async notes(_parent: unknown, args: NotesQueryArgs, ctx: ResolverContext) {
-      return listNotesByScope(ctx.data, args, args.search);
+      return ctx.notes.list(args);
     },
     async note(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
-      return getNoteById(ctx.data, args.id);
+      return ctx.notes.get(args.id);
     }
   },
   Mutation: {
     async createNote(_parent: unknown, args: CreateNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.createNote(scope, args.input);
+      return ctx.notes.create(args.input);
     },
     async updateNote(_parent: unknown, args: UpdateNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.updateNote(scope, args.id, args.input);
+      return ctx.notes.update(args.id, args.input);
     },
     async deleteNote(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.note.deleteNote(scope, args.id);
+      return ctx.notes.delete(args.id);
     },
     async addTodoToNote(_parent: unknown, args: AddTodoToNoteArgs, ctx: ResolverContext) {
       // Through the Todo module, so the title is normalized and the created

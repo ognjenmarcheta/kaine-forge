@@ -9,11 +9,11 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
-import { createApiWorkflows, type ApiWorkflowDeps, type ApiWorkflows } from "./context.workflows";
+import { createNotes, type Notes } from "./features/notes/notes.module";
 import { createTodoAttachments } from "./features/storage/attachment.lifecycle";
 import { deleteStorageObject } from "./features/storage/storage.runtime";
 import { createTodos, type Todos } from "./features/todos/todos.module";
-import { pubsub } from "./pubsub";
+import { pubsub, type PubSubEventMap } from "./pubsub";
 
 export interface ApiContext {
   auth: ServerAuth;
@@ -25,8 +25,8 @@ export interface ApiContext {
   /** Organization-scoped data access for this request; see context.data.ts. */
   data: ScopedData;
   todos: Todos;
+  notes: Notes;
   loaders: ApiLoaders;
-  workflows: ApiWorkflows;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
   pubsub: typeof pubsub;
@@ -51,7 +51,10 @@ export async function createContextFromHeaders(
   });
 
   const data = createScopedData({ db, requireOrganizationScope });
-  const publish: ApiWorkflowDeps["publish"] = (eventName, ...payload) => {
+  const publish = <TEventName extends keyof PubSubEventMap>(
+    eventName: TEventName,
+    ...payload: PubSubEventMap[TEventName]
+  ): void => {
     pubsub.publish(eventName, ...payload);
   };
   const todos = createTodos({
@@ -74,8 +77,8 @@ export async function createContextFromHeaders(
     requireOrganizationScope,
     data,
     todos,
+    notes: createNotes({ data, publish }),
     loaders: createApiLoaders(data, todos),
-    workflows: createApiWorkflows({ data, publish }),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub
