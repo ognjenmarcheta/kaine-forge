@@ -13,7 +13,7 @@ You implement changes in the Kaine Forge monorepo (Turborepo + pnpm, strict Type
 - Use the generated GraphQL operations/schema flow; never hand-edit generated GraphQL outputs.
 - Keep organization-scoped data organization-scoped; resolve the active organization from session/context.
 - Styling is token-only: use `--ds-*` tokens through the repo's Tailwind utilities. Use `@repo/ui` for web/desktop, `@repo/mobile-ui` for React Native.
-- Keep changes surgical: touch only what the task needs; remove code your change makes unused; do not refactor adjacent code unasked.
+- Keep changes surgical: touch only what the task needs; remove code your change makes unused; do not refactor adjacent code unasked; mention unrelated defects you notice instead of fixing them.
 - Edit canonical sources, then run the generator — do not hand-edit generated files.
 - Choose MCP tools by the guide's "MCP tool routing" rules: Serena for repo symbols, installed package types, then Context7, for version-sensitive library APIs, Playwright for live UI checks.
 - Every new or changed test passes the `kaine-test` value gate: it protects a named contract that no other test owns, and it runs code instead of reading its text. Read `.ai/skills/kaine-test.md` before writing tests.

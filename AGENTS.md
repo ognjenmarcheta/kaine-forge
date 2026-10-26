@@ -120,7 +120,8 @@ The ladder runs after you understand the problem, not instead of it: read the ta
 - Touch only the files needed for the requested outcome.
 - Preserve existing style, naming, file layout, imports, and formatting outside the changed lines.
 - Do not improve adjacent code, comments, tests, or docs unless that work is required for the task.
-- Remove imports, variables, and helper code that your change made unused. Do not remove pre-existing dead code unless asked.
+- Every changed line traces to the request. A line that does not trace to it belongs in another change.
+- Remove imports, variables, and helper code that your change made unused. Do not remove pre-existing dead code or fix unrelated defects unless asked; name them in the handoff so they are not lost.
 - Keep generated files in their normal flow. Edit canonical sources, then run the generator.
 
 ### Goal-Driven Execution
