@@ -6,7 +6,6 @@ import {
   LABEL_DEFINITIONS,
   applyLabelChange,
   bestEffort,
-  labelCreateArgv,
   labelForState,
   labelSyncCommands,
   planLabelChange
@@ -155,19 +154,5 @@ describe("label definitions", () => {
       'gh label create agent:working --color 1d76db --description "The agent desk is working on this issue" --force'
     );
     for (const command of commands) expect(command).not.toMatch(/[;&|$`]/);
-  });
-
-  it("builds argv for gh label create", () => {
-    const [first] = LABEL_DEFINITIONS;
-    expect(first && labelCreateArgv(first)).toEqual([
-      "label",
-      "create",
-      "agent:working",
-      "--color",
-      "1d76db",
-      "--description",
-      "The agent desk is working on this issue",
-      "--force"
-    ]);
   });
 });

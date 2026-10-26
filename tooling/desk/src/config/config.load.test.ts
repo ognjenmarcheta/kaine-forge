@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { deskConfigSchema } from "../contracts";
 import { loadDeskConfig } from "./config.load";
 
 let dir: string;
@@ -22,10 +21,11 @@ const writeConfig = async (content: string): Promise<string> => {
 
 describe("loadDeskConfig", () => {
   it("returns the defaults when no path is given", async () => {
-    expect(await loadDeskConfig(undefined, "linux")).toEqual({
+    const result = await loadDeskConfig(undefined, "linux");
+    expect(result).toMatchObject({
       ok: true,
       source: "defaults",
-      config: deskConfigSchema.parse({})
+      config: { isolation: "host", maxTestLoops: 3 }
     });
   });
 

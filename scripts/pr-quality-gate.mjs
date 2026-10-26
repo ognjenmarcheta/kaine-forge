@@ -7,6 +7,7 @@ export const QUALITY_JOBS = [
   "changeset-required",
   "dependency-review",
   "check-fast",
+  "ai-checks",
   "coverage",
   "mobile-typecheck",
   "mobile-export",
@@ -31,28 +32,37 @@ export function qualityGateFailures({ eventName, visibility, codeScanningEnabled
   const failures = [];
   const pullRequest = eventName === "pull_request";
   const paths = needs["detect-paths"]?.outputs;
+  let dockerApps = [];
   if (pullRequest) {
-    for (const key of ["code", "docker", "graphql", "mobile"]) {
+    for (const key of ["unit", "web_api", "mobile", "graphql"]) {
       if (!["true", "false"].includes(paths?.[key])) {
         failures.push(`Missing or invalid path result: ${key}`);
       }
     }
+    try {
+      dockerApps = JSON.parse(paths?.docker_matrix);
+      if (!Array.isArray(dockerApps)) throw new TypeError("not an array");
+    } catch {
+      failures.push("Missing or invalid path result: docker_matrix");
+    }
   }
 
-  const code = !pullRequest || paths?.code === "true";
+  const affected = (key) => !pullRequest || paths?.[key] === "true";
+  const webApi = affected("web_api");
   const required = {
     "detect-paths": true,
     "changeset-required": pullRequest,
     "dependency-review": pullRequest && (visibility === "public" || codeScanningEnabled === "true"),
     "check-fast": true,
-    coverage: code,
-    "mobile-typecheck": !pullRequest || paths?.mobile === "true",
-    "mobile-export": !pullRequest || paths?.mobile === "true",
+    "ai-checks": true,
+    coverage: affected("unit"),
+    "mobile-typecheck": affected("mobile"),
+    "mobile-export": affected("mobile"),
     "graphql-schema": pullRequest && paths?.graphql === "true",
-    "build-core": code,
-    "docker-images": !pullRequest || paths?.docker === "true",
-    "e2e-web-api": code,
-    "e2e-report": code
+    "build-core": webApi,
+    "docker-images": !pullRequest || dockerApps.length > 0,
+    "e2e-web-api": webApi,
+    "e2e-report": webApi
   };
 
   for (const job of QUALITY_JOBS) {

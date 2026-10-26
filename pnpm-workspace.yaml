@@ -40,6 +40,8 @@ catalog:
   tailwindcss: "^4.3.3"
   # Tooling
   "@playwright/test": "^1.64.1"
+  # In-process Postgres for migration and tenancy tests (packages/db, apps/api).
+  "@electric-sql/pglite": "^0.5.10"
   "@tailwindcss/vite": "^4.3.3"
   "@vitejs/plugin-react": "^6.1.2"
   vite: "^8.3.4"

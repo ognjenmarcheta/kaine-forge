@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { STORAGE_DEFAULTS } from "./storage.definition";
 import {
   buildStorageKey,
   getFileExtension,
@@ -76,7 +77,7 @@ describe("sanitizeFilename", () => {
 
   it("truncates to 200 characters", () => {
     const longName = "a".repeat(250) + ".txt";
-    expect(sanitizeFilename(longName).length).toBeLessThanOrEqual(200);
+    expect(sanitizeFilename(longName)).toHaveLength(200);
   });
 
   it("preserves alphanumeric, dots, dashes, and underscores", () => {
@@ -128,9 +129,12 @@ describe("validateFile", () => {
   });
 
   it("uses default max size when not specified", () => {
-    const result = validateFile({ mimeType: "image/png", sizeBytes: 5 * 1024 * 1024 });
+    const { maxFileSizeBytes } = STORAGE_DEFAULTS;
 
-    expect(result.valid).toBe(true);
+    expect(validateFile({ mimeType: "image/png", sizeBytes: maxFileSizeBytes }).valid).toBe(true);
+    expect(validateFile({ mimeType: "image/png", sizeBytes: maxFileSizeBytes + 1 }).valid).toBe(
+      false
+    );
   });
 
   it("skips mime type check when allowedMimeTypes is empty", () => {

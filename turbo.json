@@ -12,6 +12,7 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*", "!CHANGELOG.md"],
       "outputs": ["dist/**", "build/**"],
       "env": [
+        "E2E_FIXTURES",
         "VITE_API_URL",
         "VITE_GRAPHQL_URL",
         "VITE_API_PROXY_TARGET",

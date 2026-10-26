@@ -2,6 +2,13 @@ import type { FILE_STATUS } from "./storage.definition";
 
 export type FileStatus = (typeof FILE_STATUS)[keyof typeof FILE_STATUS];
 
+/**
+ * What an Attachment is attached to. Mirrors the GraphQL `AttachmentEntityType`
+ * enum: web and mobile pass it into their generated operation types, so a drift
+ * fails their typecheck.
+ */
+export type AttachmentEntityType = "general" | "todo";
+
 export interface StorageConfig {
   endpoint: string;
   region: string;

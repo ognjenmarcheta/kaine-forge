@@ -66,7 +66,7 @@ const ENV_ALLOWLIST: ReadonlySet<string> = new Set([
   "OPENAI_API_KEY"
 ]);
 
-export const agentEnv = (
+const agentEnv = (
   parent: NodeJS.ProcessEnv,
   extra: Readonly<Record<string, string>> = {}
 ): Record<string, string> => {

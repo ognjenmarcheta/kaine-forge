@@ -65,6 +65,7 @@ import { createServerAuth } from "./auth.server";
 
 describe("auth.server organization membership reads", () => {
   const scope: AuthenticatedOrganizationScope = {
+    membership: { id: "membership-1", role: "owner", userId: "user-1" },
     organizationId: "org-1",
     user: {
       email: "u1@example.com",
@@ -100,22 +101,11 @@ describe("auth.server organization membership reads", () => {
     ]);
   });
 
-  it("rejects member listing when the User is not in the Active Organization", async () => {
-    chain.limit.mockResolvedValueOnce([]);
-    const auth = createServerAuth();
-
-    await expect(auth.listOrganizationMembersByScope(scope)).rejects.toThrowError(
-      "organization not accessible"
-    );
-  });
-
-  it("lists members when the User is in the Active Organization", async () => {
-    chain.limit.mockResolvedValueOnce([{ id: "member-1" }]);
+  it("lists the members of the Active Organization", async () => {
     const auth = createServerAuth();
 
     await auth.listOrganizationMembersByScope(scope);
 
-    expect(chain.where).toHaveBeenCalledTimes(2);
-    expect(chain.where).toHaveBeenLastCalledWith(["members.organization_id", "org-1"]);
+    expect(chain.where).toHaveBeenCalledWith(["members.organization_id", "org-1"]);
   });
 });
