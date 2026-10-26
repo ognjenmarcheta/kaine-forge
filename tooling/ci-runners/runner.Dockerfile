@@ -3,7 +3,7 @@
 # git, curl, unzip, and jq. This adds what the self-hosted prerequisite check in
 # .github/actions/setup-node-pnpm still needs: node on PATH and gh, plus zstd so
 # actions/cache uses zstd as on hosted runners.
-FROM node:22.23.2-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9 AS node
+FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS node
 
 FROM ghcr.io/actions/actions-runner:2.338.1@sha256:e275409999c37162649aa050ca573f03eab2eabcb3a1e7fcc47548de6b4f9690
 
