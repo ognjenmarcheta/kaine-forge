@@ -33,3 +33,9 @@ Use a two-tier CI strategy:
 
 - Mobile Export Validation now also runs in the required PR gate on pull requests that touch mobile paths (`ci-pr.yml`, issue #305 / PR #313). Deep Checks keeps the scheduled run.
 - `docker-cache.yml` builds both images on pushes to `main` to seed the Docker layer cache that PR branches fall back to (issue #359 / PR #364).
+
+## Status update (2026-10-26)
+
+- Build Core Apps, and so e2e, no longer waits for Check Fast. Both start after Detect Changed Paths. The PR Quality Gate still needs every job, so a Check Fast failure still blocks the merge.
+- The root `.ai/` checks and the `scripts/*.test.mjs` tests moved from Check Fast to their own job, AI and Script Checks.
+- The Turbo cache moved from one `actions/cache` blob per job to a per-task cache in the GitHub Actions cache (`rharkor/caching-for-turbo`). ADR 0017 records the measurements.

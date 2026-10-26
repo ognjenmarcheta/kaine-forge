@@ -384,7 +384,7 @@ pnpm --filter @repo/mobile-ui typecheck
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
 - PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
-- Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
+- CI caches each Turbo task in the GitHub Actions cache (`rharkor/caching-for-turbo`), with no secrets. A local remote cache is optional: `TURBO_TOKEN` and `TURBO_TEAM` in your shell.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.
 
