@@ -8,6 +8,7 @@ import { useTodos } from "./todos.hook";
 import type { TodoItem } from "./todos.type";
 import type {
   CreateTodoMutationVariables,
+  GenerateTodosMutationVariables,
   UpdateTodoMutationVariables,
   GetTodosQueryVariables
 } from "../../graphql/generated/react-query";
@@ -16,7 +17,12 @@ const api = vi.hoisted(() => ({
   rows: new Map<string, TodoItem>(),
   create: vi.fn<(variables: CreateTodoMutationVariables) => Promise<{ createTodo: TodoItem }>>(),
   update: vi.fn<(variables: UpdateTodoMutationVariables) => Promise<{ updateTodo: TodoItem }>>(),
-  generate: vi.fn<() => Promise<{ generateTodos: { status: string; todos: TodoItem[] } }>>(),
+  generate:
+    vi.fn<
+      (
+        variables: GenerateTodosMutationVariables
+      ) => Promise<{ generateTodos: { status: string; todos: TodoItem[] } }>
+    >(),
   searches: vi.fn<(variables: GetTodosQueryVariables) => void>()
 }));
 vi.mock("../../lib/graphql-codegen-fetcher", () => ({
@@ -267,15 +273,14 @@ it("paginates and deduplicates loaded results", async () => {
   expect(current.rows).toHaveLength(56);
   expect(current.list.hasNextPage).toBe(false);
 });
-it("uses the generated AI operation and returns unconfigured status without retry", async () => {
+it("sends the prompt through the generated AI operation", async () => {
   api.generate.mockResolvedValue({ generateTodos: { status: "AI_NOT_CONFIGURED", todos: [] } });
   await render();
-  let result;
   await act(async () => {
-    result = await current.generate("Plan release");
+    await current.generate("Plan release");
   });
-  expect(result).toEqual({ generateTodos: { status: "AI_NOT_CONFIGURED", todos: [] } });
-  expect(api.generate).toHaveBeenCalledTimes(1);
+  expect(api.generate).toHaveBeenCalledOnce();
+  expect(api.generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
 });
 
 it("retains a confirmed completion when refreshing fails", async () => {

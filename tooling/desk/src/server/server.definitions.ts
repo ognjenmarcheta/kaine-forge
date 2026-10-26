@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { loadCapabilities } from "../agents/capabilities.load";
 import type { AgentList, DefinitionProblem, DeskConfig, FlowList } from "../contracts";
-import { ROLE_FOR_OUTPUT, agentRuntime } from "../engine/pipeline.agent";
+import { agentProfileOf } from "../engine/pipeline.agent";
 import { loadRegistry, type RegistryEntry, type RegistryProblem } from "../registry/registry.load";
 import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
@@ -57,7 +57,7 @@ export const readDefinitionViews = async (
   const agents = await Promise.all(
     registry.agents.map(async (entry) => {
       const agent = entry.definition;
-      const { provider, model } = agentRuntime(input.config, ROLE_FOR_OUTPUT[agent.output], agent);
+      const { provider, model } = agentProfileOf(input.config, agent);
       return {
         ...entryFields(entry, agentProblems),
         resolved: await loadCapabilities({

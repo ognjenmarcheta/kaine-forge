@@ -9,11 +9,11 @@ export const benchmarkFixtures = {
       "Organization switching reuses stale cached data. Find and fix the shared query-key defect. Trace callers. Prove Organization separation, inactive behavior, parameter preservation and input immutability. Keep the repair in the shared helper."
   },
   "notes-deletion": {
-    target: "apps/api/src/features/notes/notes.adapter.ts",
+    target: "apps/api/src/context.data.ts",
     workspace: "apps/api",
     tests: ["src/features/assistant/assistant.eval.fixture.test.ts"],
-    from: ".delete(notesTable)\n    .where(and(eq(notesTable.id, id), eq(notesTable.organizationId, scope.organizationId)))",
-    to: ".delete(notesTable)\n    .where(eq(notesTable.id, id))",
+    from: "return db.delete(table).where(organizationPredicate(table, scope, conditions));",
+    to: "return db.delete(table).where(and(...conditions));",
     prompt:
       "Note deletion can remove another Organization's Note. Trace the real deletion path and repair its shared adapter. Prove owner deletion succeeds and a foreign deletion leaves the entire foreign row unchanged with disposable PGlite data."
   }

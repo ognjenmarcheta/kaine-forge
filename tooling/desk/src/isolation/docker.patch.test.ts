@@ -102,6 +102,9 @@ describe("guardPatch", () => {
     const repo = await open();
     const verdict = await guardPatch(hermeticExec, repo.dir, newFilePatch("../outside"), OPTIONS);
     expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? "" : verdict.reasons.join(" ")).toMatch(
+      /Protected path: unsafe path '\.\.\/outside'/
+    );
   });
 
   it("refuses a rename into a protected path", async () => {

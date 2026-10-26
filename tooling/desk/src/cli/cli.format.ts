@@ -1,6 +1,6 @@
 import {
   loopSteps,
-  nextStepOf,
+  stepRoleOf,
   stepOf,
   type IssueState,
   type IssueStatus,
@@ -21,44 +21,23 @@ export const BELL = "\u0007";
 /** The commands that move an issue on from where it waits. Shown at every stop. */
 export const nextSteps = (state: IssueState): string[] => {
   const n = state.issueNumber;
-  switch (state.stage) {
-    case "plan-gate":
-      return [
-        `approve with: pnpm desk approve ${n}`,
-        `or send feedback: pnpm desk feedback ${n} --to plan "<text>"`
-      ];
-    case "pr-review":
-      return [
-        `send feedback: pnpm desk feedback ${n} --to build|review|plan "<text>"`,
-        `see what ship would do: pnpm desk ship ${n} --dry-run`,
-        `ship as a draft PR: pnpm desk ship ${n} --confirm`
-      ];
-    case "needs-you": {
-      if (state.resumeStage === "intake") {
-        return [`fix the issue, then run: pnpm desk start ${n}`];
-      }
-      const retry = state.resumeStage === null ? "" : ` (retries '${state.resumeStage}')`;
-      return [
-        `continue with: pnpm desk continue ${n}${retry}`,
-        `or send feedback: pnpm desk feedback ${n} --to build "<text>"`
-      ];
-    }
-    case "pr-open":
-      return [
-        ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
-        "review it and merge it yourself on GitHub. The desk never merges.",
-        `after you merge or close it, run: pnpm desk refresh ${n}`,
-        `or send the PR feedback back to build: pnpm desk feedback ${n} --from-pr "[your words]"`
-      ];
-    default:
-      return flowSteps(state);
-  }
+  if (state.stage !== "needs-you") return flowSteps(state);
+  if (state.resumeStage === "intake") return [`fix the issue, then run: pnpm desk start ${n}`];
+  const retry = state.resumeStage === null ? "" : ` (retries '${state.resumeStage}')`;
+  return [
+    `continue with: pnpm desk continue ${n}${retry}`,
+    `or send feedback: pnpm desk feedback ${n} --to build "<text>"`
+  ];
 };
 
-/** The same commands at a gate or the open PR of a flow with its own step ids. */
+/**
+ * The commands at a gate or the open PR, by the role of the step. Feedback names the change
+ * steps first (the usual answer), then the latest step first.
+ */
 const flowSteps = (state: IssueState): string[] => {
   const n = state.issueNumber;
-  const step = stepOf(state.flowSnapshot, state.stage);
+  const snapshot = state.flowSnapshot;
+  const step = stepOf(snapshot, state.stage);
   if (step?.kind === "pr-wait") {
     return [
       ...(state.prUrl ? [`open the draft PR: ${state.prUrl}`] : []),
@@ -68,17 +47,20 @@ const flowSteps = (state: IssueState): string[] => {
     ];
   }
   if (step?.kind !== "gate") return [];
+  const latest = [...step.sendBack].reverse();
+  const changes = latest.filter((id) => stepRoleOf(snapshot, id) === "change");
+  const targets = [...changes, ...latest.filter((id) => !changes.includes(id))];
   const feedback =
-    step.sendBack.length === 0
+    targets.length === 0
       ? []
-      : [`send feedback: pnpm desk feedback ${n} --to ${step.sendBack.join("|")} "<text>"`];
-  return nextStepOf(state.flowSnapshot, step.id)?.kind === "ship"
+      : [`send feedback: pnpm desk feedback ${n} --to ${targets.join("|")} "<text>"`];
+  return stepRoleOf(snapshot, step.id) === "ship-gate"
     ? [
         ...feedback,
         `see what ship would do: pnpm desk ship ${n} --dry-run`,
         `ship as a draft PR: pnpm desk ship ${n} --confirm`
       ]
-    : [`approve with: pnpm desk approve ${n}`, ...feedback];
+    : [`approve with: pnpm desk approve ${n}`, ...feedback.map((line) => `or ${line}`)];
 };
 
 /** The `--json` shape of a driving command. */

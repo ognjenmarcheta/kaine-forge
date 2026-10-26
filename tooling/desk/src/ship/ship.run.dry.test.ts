@@ -4,7 +4,6 @@ import { describe, expect, vi } from "vitest";
 
 import { SHIP_PLAN_FILE, SHIP_RECORD_FILE, SHIP_CHECK_DIR, shipPlanSchema } from "./ship.contract";
 import { parseTemplate } from "./ship.pr-body";
-import { shipIssue } from "./ship.run";
 import {
   expectSafeCalls,
   fileExists,
@@ -13,6 +12,7 @@ import {
   shipTest,
   worktreeStatus
 } from "./ship.testing";
+import { fakeGitHub } from "../testing/github.fake";
 
 vi.setConfig({ testTimeout: 180_000 });
 
@@ -21,7 +21,7 @@ const RELEASABLE = {
   changeset: { required: true, packages: ["@repo/desk"], bump: "minor" as const }
 };
 
-describe("shipIssue with dryRun", () => {
+describe("prepareShip with dryRun", () => {
   shipTest(
     "writes the plan, the PR body and the commit message and changes nothing else",
     {
@@ -96,11 +96,13 @@ describe("shipIssue with dryRun", () => {
       edits: SOURCE
     },
     async (env) => {
-      const gate = await env.ship({ dryRun: true, confirm: false });
+      const gate = await env.ship({ dryRun: true }, { github: fakeGitHub({ viewer: "intruder" }) });
       expect(gate.status).toBe("dry-run");
       if (gate.status === "dry-run") {
         expect(gate.plan.gate.ok).toBe(false);
-        expect(gate.plan.gate.failures.map((failure) => failure.kind)).toEqual(["not-confirmed"]);
+        expect(gate.plan.gate.failures.map((failure) => failure.kind)).toEqual(
+          expect.arrayContaining(["identity"])
+        );
         expect(gate.plan.changeset).toMatchObject({ kind: "skip-label" });
       }
 
@@ -122,15 +124,4 @@ describe("shipIssue with dryRun", () => {
       }
     }
   );
-});
-
-describe("shipIssue and a missing state", () => {
-  shipTest("returns a typed failure for an issue with no state", { edits: SOURCE }, async (env) => {
-    const result = await shipIssue(env.deps, { issue: 99, confirm: true });
-    expect(result).toMatchObject({
-      status: "failed",
-      failure: { kind: "state", message: expect.stringContaining("#99") }
-    });
-    expect(gitArgv(env)).toEqual([]);
-  });
 });

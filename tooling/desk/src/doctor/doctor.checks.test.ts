@@ -78,11 +78,13 @@ const run = (
   } = {}
 ) => {
   const fake = fakeExec(routes);
+  const github = fakeGitHub({ viewer: over.viewer ?? "octo-owner" });
   return {
     fake,
+    github,
     report: runDoctor({
       exec: fake.exec,
-      github: fakeGitHub({ viewer: over.viewer ?? "octo-owner" }),
+      github,
       cwd: over.cwd ?? "/repo",
       nodeVersion: over.nodeVersion ?? "v24.12.0",
       loadConfig: over.load ?? loaded(),
@@ -121,7 +123,7 @@ describe("helpMentions", () => {
 
 describe("runDoctor", () => {
   it("passes on a healthy machine and writes nothing", async () => {
-    const { report, fake } = run();
+    const { report, fake, github } = run();
     const result = await report;
     expect(result.ok).toBe(true);
     expect(result.checks.every((check) => check.status === "ok")).toBe(true);
@@ -140,11 +142,20 @@ describe("runDoctor", () => {
       "codex-flags",
       "workspace-builds"
     ]);
-    // Only read-only probes ran.
-    for (const call of fake.calls) {
-      expect(call.argv.slice(0, 2)).not.toEqual(["git", "push"]);
-      if (call.argv[1] === "label") expect(call.argv[2]).toBe("list");
-    }
+    // Every command was one of the read-only probes, and nothing reached GitHub as a write.
+    const unprobed = fake.calls.filter(
+      (call) => !healthy.some((route) => route.argv.every((word, i) => call.argv[i] === word))
+    );
+    expect(unprobed.map((call) => call.argv.join(" "))).toEqual([]);
+    expect([
+      github.createdLabels,
+      github.labelEdits,
+      github.comments,
+      github.bodyEdits,
+      github.createdIssues,
+      github.createdPullRequests,
+      github.pullRequestLabels
+    ]).toEqual([[], [], [], [], [], [], []]);
   });
 
   it("warns about missing execution labels and offers the sync", async () => {

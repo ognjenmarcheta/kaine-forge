@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { agentEnv, createAgentProcess } from "./agent.process";
+import { createAgentProcess } from "./agent.process";
 
 const node = (script: string) => [process.execPath, "-e", script];
 const run = createAgentProcess();
@@ -141,6 +141,7 @@ describe("createAgentProcess", () => {
     const scoped = createAgentProcess({
       PATH: process.env.PATH ?? "",
       GH_TOKEN: "gh-secret",
+      GITHUB_TOKEN: "github-secret",
       SSH_AUTH_SOCK: "/tmp/agent.sock",
       CODEX_HOME: "/tmp/codex-home",
       LC_ALL: "C"
@@ -154,15 +155,10 @@ describe("createAgentProcess", () => {
     });
     const env = JSON.parse(lines[0] ?? "{}") as Record<string, string>;
     expect(env.GH_TOKEN).toBeUndefined();
+    expect(env.GITHUB_TOKEN).toBeUndefined();
     expect(env.SSH_AUTH_SOCK).toBeUndefined();
     expect(env.CODEX_HOME).toBe("/tmp/codex-home");
     expect(env.LC_ALL).toBe("C");
     expect(env.KAINE_DESK_RECEIPTS).toBe("/tmp/r.jsonl");
-  });
-});
-
-describe("agentEnv", () => {
-  it("drops credentials the agent never needs", () => {
-    expect(agentEnv({ GITHUB_TOKEN: "x", GH_TOKEN: "y", HOME: "/h" })).toEqual({ HOME: "/h" });
   });
 });

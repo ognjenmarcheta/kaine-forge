@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, vi } from "vitest";
 
 import { shipRecordSchema, SHIP_RECORD_FILE } from "./ship.contract";
+import { prepareShip, runShip } from "./ship.run";
 import {
   expectSafeCalls,
   fileExists as exists,
@@ -14,6 +15,7 @@ import {
   type ShipEnv
 } from "./ship.testing";
 import { fakeGitHub, snapshotOf } from "../testing/github.fake";
+import { ISSUE } from "../testing/pipeline.testing";
 
 // Real git, a local bare "origin", real hooks. Every git call is slow on a busy machine.
 vi.setConfig({ testTimeout: 180_000 });
@@ -23,7 +25,7 @@ const RELEASABLE = {
   changeset: { required: true, packages: ["@repo/desk"], bump: "minor" as const }
 };
 
-describe("shipIssue: the happy path with real git", () => {
+describe("the ship: the happy path with real git", () => {
   shipTest(
     "commits exactly the diff and the changeset, pushes, and opens a draft PR",
     { edits: SOURCE, plan: RELEASABLE },
@@ -184,7 +186,7 @@ describe("shipIssue: the happy path with real git", () => {
   );
 });
 
-describe("shipIssue: the gate refuses before anything changes", () => {
+describe("the ship: the gate refuses before anything changes", () => {
   const expectUntouched = async (env: ShipEnv): Promise<void> => {
     expect(await env.commitCount()).toBe(0);
     expect(await env.hookLog()).toEqual([]);
@@ -195,6 +197,35 @@ describe("shipIssue: the gate refuses before anything changes", () => {
     const mutating = ["add", "commit", "push", "rebase", "reset"];
     expect(gitArgv(env).some((argv) => mutating.includes(argv[0] ?? ""))).toBe(false);
   };
+
+  shipTest(
+    "admits no ship outside the ship gate, changes nothing before the ticket runs, and spends it once",
+    { edits: SOURCE },
+    async (env) => {
+      const read = await env.store.read(ISSUE);
+      if (read.status !== "ok") throw new Error("the ship env has a state");
+      env.resetCalls();
+      const outside = await prepareShip(env.deps, {
+        state: { ...read.state, stage: "plan-gate" },
+        intent: "confirmed",
+        writeback: true
+      });
+      expect(outside).toMatchObject({ status: "not-admitted", refusal: "invalid-transition" });
+      expect(env.calls).toEqual([]);
+
+      const admitted = await prepareShip(env.deps, {
+        state: read.state,
+        intent: "confirmed",
+        writeback: true
+      });
+      if (admitted.status !== "admitted") throw new Error(`not admitted: ${admitted.status}`);
+      expect(admitted.ticket.intent).toBe("confirmed");
+      await expectUntouched(env);
+
+      expect(await runShip(admitted.ticket)).toMatchObject({ status: "shipped" });
+      expect(() => runShip(admitted.ticket)).toThrow(/spent/);
+    }
+  );
 
   // One repository, many refusals: each case breaks one thing, checks the answer and the
   // untouched tree, and puts the thing back. This keeps the number of real repositories low.
@@ -212,10 +243,6 @@ describe("shipIssue: the gate refuses before anything changes", () => {
       expect(refusalKinds(result), name).toEqual(kinds);
       await expectUntouched(env);
     };
-    const before = await status(env);
-
-    await refused("no confirmation", ["not-confirmed"], {}, { confirm: false });
-    expect(await status(env)).toBe(before);
 
     await refused("gh signed in as someone else", ["authorization-unavailable", "identity"], {
       github: fakeGitHub({ viewer: "intruder" })
@@ -270,7 +297,7 @@ describe("shipIssue: the gate refuses before anything changes", () => {
   );
 });
 
-describe("shipIssue on a host that ignores file modes", () => {
+describe("the ship on a host that ignores file modes", () => {
   shipTest(
     "commits the exec bit that the index holds, as the reviewed diff has it",
     { edits: SOURCE, plan: RELEASABLE },

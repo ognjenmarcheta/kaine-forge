@@ -4,7 +4,7 @@ import path from "node:path";
 import { CONVENTIONAL_TYPES, type ConventionalType, type Provider } from "../contracts";
 import { createWorktree } from "../worktree";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "./intake.run";
-import { ROLE_FOR_OUTPUT, agentRuntime } from "./pipeline.agent";
+import { agentProfileOf } from "./pipeline.agent";
 import { readArtifactJson } from "./pipeline.artifacts";
 import type { PipelineDeps, StageHandler } from "./pipeline.types";
 import { installsForAgents, slugify } from "./worktree.bootstrap";
@@ -92,9 +92,7 @@ export const setupStage: StageHandler = async (context) => {
   const agents = [
     ...new Set<Provider>([
       ...Object.values(deps.config.providers),
-      ...flowAgents.map(
-        (agent) => agentRuntime(deps.config, ROLE_FOR_OUTPUT[agent.output], agent).provider
-      )
+      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider)
     ])
   ];
   const installs = installsForAgents(

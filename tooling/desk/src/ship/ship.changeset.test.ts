@@ -255,8 +255,12 @@ describe("renderChangeset", () => {
   });
 
   it("rejects an empty summary, no package and a bad package name", () => {
-    expect(() => renderChangeset({ packages: [], bump: "patch", summary: "x" })).toThrow();
-    expect(() => renderChangeset({ packages: ["@repo/a"], bump: "patch", summary: " " })).toThrow();
+    expect(() => renderChangeset({ packages: [], bump: "patch", summary: "x" })).toThrow(
+      /at least one package/
+    );
+    expect(() => renderChangeset({ packages: ["@repo/a"], bump: "patch", summary: " " })).toThrow(
+      /needs a summary/
+    );
     expect(() => renderChangeset({ packages: ['x"y'], bump: "patch", summary: "x" })).toThrow(
       /Invalid package name/
     );

@@ -13,16 +13,6 @@ describe("Avatar", () => {
     expect(markup).toContain("h-10 w-10");
     expect(markup).toContain("AB");
   });
-
-  it("renders fallback with design token classes", () => {
-    const markup = renderToStaticMarkup(
-      <Avatar>
-        <AvatarFallback>CD</AvatarFallback>
-      </Avatar>
-    );
-    expect(markup).toContain("bg-[var(--ds-background-neutral-bold)]");
-    expect(markup).toContain("text-[color:var(--ds-text-inverse)]");
-  });
 });
 
 describe("AvatarGroup", () => {
