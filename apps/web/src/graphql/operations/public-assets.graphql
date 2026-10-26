@@ -1,0 +1,21 @@
+query GetPublicAssets {
+  publicAssets {
+    avatarUrl
+    organizationLogoUrl
+  }
+}
+
+mutation RequestPublicAssetUpload($input: RequestPublicAssetUploadInput!) {
+  requestPublicAssetUpload(input: $input) {
+    uploadUrl
+    stagingKey
+    expiresIn
+  }
+}
+
+mutation ConfirmPublicAssetUpload($kind: PublicAssetKind!, $stagingKey: String!) {
+  confirmPublicAssetUpload(kind: $kind, stagingKey: $stagingKey) {
+    avatarUrl
+    organizationLogoUrl
+  }
+}

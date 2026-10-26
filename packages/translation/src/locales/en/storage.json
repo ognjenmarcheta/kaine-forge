@@ -17,5 +17,12 @@
   "storage.download": "Download",
   "storage.validation.fileTooLarge": "File is too large",
   "storage.validation.invalidType": "File type is not allowed",
-  "storage.progress": "Upload progress"
+  "storage.progress": "Upload progress",
+  "storage.publicAssets.avatar.title": "Profile picture",
+  "storage.publicAssets.avatar.description": "Shown next to your name. Use a JPEG, PNG, GIF, or WebP image up to 10 MB.",
+  "storage.publicAssets.organizationLogo.title": "Organization logo",
+  "storage.publicAssets.organizationLogo.description": "Shown to every member of this organization. Use a JPEG, PNG, GIF, or WebP image up to 10 MB.",
+  "storage.publicAssets.choose": "Choose image",
+  "storage.publicAssets.uploading": "Uploading...",
+  "storage.publicAssets.error": "The image could not be saved. Try another image."
 }

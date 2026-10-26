@@ -6,6 +6,7 @@ import {
   contentDisposition,
   getFileExtension,
   matchesFileSignature,
+  publicAssetKeyFromUrl,
   parseStorageKey,
   sanitizeFilename,
   validateFile
@@ -229,5 +230,17 @@ describe("getFileExtension", () => {
 
   it("returns last extension for multiple dots", () => {
     expect(getFileExtension("archive.tar.gz")).toBe("gz");
+  });
+});
+
+describe("publicAssetKeyFromUrl", () => {
+  it("returns the key only for a URL served from the base URL", () => {
+    const base = "https://cdn.example.com";
+
+    expect(publicAssetKeyFromUrl(base, `${base}/avatars/a.webp`)).toBe("avatars/a.webp");
+    expect(publicAssetKeyFromUrl(base, "https://lh3.googleusercontent.com/a.png")).toBeNull();
+    expect(
+      publicAssetKeyFromUrl(base, "https://cdn.example.com.evil.test/avatars/a.webp")
+    ).toBeNull();
   });
 });

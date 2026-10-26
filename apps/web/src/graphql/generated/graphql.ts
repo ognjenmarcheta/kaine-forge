@@ -33,6 +33,14 @@ export type GenerateTodosInput = {
 
 export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
+export type PublicAssetKind = "avatar" | "organization_logo";
+
+export type RequestPublicAssetUploadInput = {
+  kind: PublicAssetKind;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
@@ -186,6 +194,29 @@ export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>
 
 export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
 
+export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetPublicAssetsQuery = {
+  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+};
+
+export type RequestPublicAssetUploadMutationVariables = Exact<{
+  input: RequestPublicAssetUploadInput;
+}>;
+
+export type RequestPublicAssetUploadMutation = {
+  requestPublicAssetUpload: { uploadUrl: string; stagingKey: string; expiresIn: number };
+};
+
+export type ConfirmPublicAssetUploadMutationVariables = Exact<{
+  kind: PublicAssetKind;
+  stagingKey: string;
+}>;
+
+export type ConfirmPublicAssetUploadMutation = {
+  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+};
+
 export type GetFileQueryVariables = Exact<{
   id: string | number;
 }>;
@@ -279,6 +310,7 @@ export type GetTodosQuery = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   }>;
 };
@@ -301,6 +333,7 @@ export type GetTodoQuery = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   } | null;
 };
@@ -321,6 +354,7 @@ export type CreateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -344,6 +378,7 @@ export type GenerateTodosMutation = {
         mimeType: string;
         sizeBytes: number;
         downloadUrl: string | null;
+        thumbnailUrl: string | null;
       }>;
     }>;
   };
@@ -366,6 +401,7 @@ export type UpdateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -390,6 +426,7 @@ export type ToggleTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -1061,6 +1098,141 @@ export const OnNoteDeletedDocument = {
     }
   ]
 } as unknown as DocumentNode<OnNoteDeletedSubscription, OnNoteDeletedSubscriptionVariables>;
+export const GetPublicAssetsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetPublicAssets" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "publicAssets" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetPublicAssetsQuery, GetPublicAssetsQueryVariables>;
+export const RequestPublicAssetUploadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RequestPublicAssetUpload" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "NamedType",
+              name: { kind: "Name", value: "RequestPublicAssetUploadInput" }
+            }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "requestPublicAssetUpload" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "uploadUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "stagingKey" } },
+                { kind: "Field", name: { kind: "Name", value: "expiresIn" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  RequestPublicAssetUploadMutation,
+  RequestPublicAssetUploadMutationVariables
+>;
+export const ConfirmPublicAssetUploadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "ConfirmPublicAssetUpload" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "kind" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "PublicAssetKind" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "stagingKey" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "confirmPublicAssetUpload" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "kind" },
+                value: { kind: "Variable", name: { kind: "Name", value: "kind" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "stagingKey" },
+                value: { kind: "Variable", name: { kind: "Name", value: "stagingKey" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  ConfirmPublicAssetUploadMutation,
+  ConfirmPublicAssetUploadMutationVariables
+>;
 export const GetFileDocument = {
   kind: "Document",
   definitions: [
@@ -1367,7 +1539,8 @@ export const GetTodosDocument = {
                       { kind: "Field", name: { kind: "Name", value: "originalName" } },
                       { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                     ]
                   }
                 },
@@ -1430,7 +1603,8 @@ export const GetTodoDocument = {
                       { kind: "Field", name: { kind: "Name", value: "originalName" } },
                       { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                     ]
                   }
                 }
@@ -1489,7 +1663,8 @@ export const CreateTodoDocument = {
                       { kind: "Field", name: { kind: "Name", value: "originalName" } },
                       { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                     ]
                   }
                 }
@@ -1556,7 +1731,8 @@ export const GenerateTodosDocument = {
                             { kind: "Field", name: { kind: "Name", value: "originalName" } },
                             { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                             { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                            { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                            { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                            { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                           ]
                         }
                       }
@@ -1631,7 +1807,8 @@ export const UpdateTodoDocument = {
                       { kind: "Field", name: { kind: "Name", value: "originalName" } },
                       { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                     ]
                   }
                 }
@@ -1724,7 +1901,8 @@ export const ToggleTodoDocument = {
                       { kind: "Field", name: { kind: "Name", value: "originalName" } },
                       { kind: "Field", name: { kind: "Name", value: "mimeType" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
                     ]
                   }
                 }

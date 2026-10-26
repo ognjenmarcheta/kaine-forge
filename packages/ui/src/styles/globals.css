@@ -1420,6 +1420,13 @@ summary:focus-visible {
   min-width: 0;
   flex: 1;
 }
+.ui-todos__thumbnail {
+  width: var(--ds-space-400);
+  height: var(--ds-space-400);
+  object-fit: cover;
+  border-radius: var(--ds-radius-050);
+  flex: none;
+}
 @media (min-width: 768px) and (min-height: 640px) {
   .ui-app-shell:has(.ui-todos) {
     height: 100dvh;

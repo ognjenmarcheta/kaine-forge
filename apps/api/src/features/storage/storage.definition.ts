@@ -1,6 +1,15 @@
 import type { AttachmentEntityType } from "@repo/db";
 
 export const STORAGE_CONFIG = {
+  image: {
+    /** Concurrent image jobs per API process; others wait their turn. */
+    concurrency: 2,
+    /** Rejects decompression bombs before libvips allocates their pixels. */
+    maxInputPixels: 24_000_000,
+    thumbnailSize: 320,
+    /** A thumbnail lives next to its Attachment's object under this suffix. */
+    thumbnailKeySuffix: ".thumb.webp"
+  },
   defaultEntityType: "general" satisfies AttachmentEntityType,
   /** Upper bound for one background object delete after its row is gone. */
   objectDeleteTimeoutMs: 10_000,

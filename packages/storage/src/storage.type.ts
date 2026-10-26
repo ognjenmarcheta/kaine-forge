@@ -20,6 +20,12 @@ export interface StorageConfig {
   downloadUrlExpirySeconds: number;
 }
 
+export interface PublicAssetConfig {
+  bucket: string;
+  /** The CDN (or bucket) URL that serves `bucket`, without a trailing slash. */
+  baseUrl: string;
+}
+
 export interface StorageKeyParts {
   organizationId: string;
   entityType: string;

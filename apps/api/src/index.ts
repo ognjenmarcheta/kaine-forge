@@ -21,8 +21,9 @@ const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
 const { createApiServer } = await import("./server");
 const { resolveApiStartupConfig } = await import("./startup.config");
-const { startAttachmentSweep, sweepAttachmentObjects, withSweepLock } =
+const { startAttachmentSweep, sweepAttachmentObjects, sweepStaleObjects, withSweepLock } =
   await import("./features/storage/attachment.sweep");
+const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-assets.definition");
 const { s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
 
@@ -50,15 +51,22 @@ if (sweep) {
     logger,
     sweep: async () => {
       await withSweepLock(db, async (tx) => {
+        const cutoff = new Date(Date.now() - sweep.pendingTtlMs);
         const result = await sweepAttachmentObjects({
           db: tx,
           logger,
           store: s3ObjectStore,
-          pendingCutoff: new Date(Date.now() - sweep.pendingTtlMs)
+          pendingCutoff: cutoff
+        });
+        const staged = await sweepStaleObjects({
+          logger,
+          store: s3ObjectStore,
+          prefix: PUBLIC_ASSET_CONFIG.stagingPrefix,
+          before: cutoff
         });
 
-        if (result.purged > 0 || result.failed > 0) {
-          logger.info(result, "attachment sweep finished");
+        if (result.purged > 0 || result.failed > 0 || staged > 0) {
+          logger.info({ ...result, staged }, "attachment sweep finished");
         }
       });
     }

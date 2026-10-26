@@ -34,6 +34,14 @@ export type GenerateTodosInput = {
 
 export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
+export type PublicAssetKind = "avatar" | "organization_logo";
+
+export type RequestPublicAssetUploadInput = {
+  kind: PublicAssetKind;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
@@ -187,6 +195,29 @@ export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>
 
 export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
 
+export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetPublicAssetsQuery = {
+  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+};
+
+export type RequestPublicAssetUploadMutationVariables = Exact<{
+  input: RequestPublicAssetUploadInput;
+}>;
+
+export type RequestPublicAssetUploadMutation = {
+  requestPublicAssetUpload: { uploadUrl: string; stagingKey: string; expiresIn: number };
+};
+
+export type ConfirmPublicAssetUploadMutationVariables = Exact<{
+  kind: PublicAssetKind;
+  stagingKey: string;
+}>;
+
+export type ConfirmPublicAssetUploadMutation = {
+  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+};
+
 export type GetFileQueryVariables = Exact<{
   id: string | number;
 }>;
@@ -280,6 +311,7 @@ export type GetTodosQuery = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   }>;
 };
@@ -302,6 +334,7 @@ export type GetTodoQuery = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   } | null;
 };
@@ -322,6 +355,7 @@ export type CreateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -345,6 +379,7 @@ export type GenerateTodosMutation = {
         mimeType: string;
         sizeBytes: number;
         downloadUrl: string | null;
+        thumbnailUrl: string | null;
       }>;
     }>;
   };
@@ -367,6 +402,7 @@ export type UpdateTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -391,6 +427,7 @@ export type ToggleTodoMutation = {
       mimeType: string;
       sizeBytes: number;
       downloadUrl: string | null;
+      thumbnailUrl: string | null;
     }>;
   };
 };
@@ -778,6 +815,102 @@ export const OnNoteDeletedDocument = new TypedDocumentString(`
   }
 }
     `);
+export const GetPublicAssetsDocument = new TypedDocumentString(`
+    query GetPublicAssets {
+  publicAssets {
+    avatarUrl
+    organizationLogoUrl
+  }
+}
+    `);
+
+export const useGetPublicAssetsQuery = <TData = GetPublicAssetsQuery, TError = unknown>(
+  variables?: GetPublicAssetsQueryVariables,
+  options?: Omit<UseQueryOptions<GetPublicAssetsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetPublicAssetsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetPublicAssetsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetPublicAssets"] : ["GetPublicAssets", variables],
+    queryFn: useGraphqlFetcher<GetPublicAssetsQuery, GetPublicAssetsQueryVariables>(
+      GetPublicAssetsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useGetPublicAssetsQuery.getKey = (variables?: GetPublicAssetsQueryVariables) =>
+  variables === undefined ? ["GetPublicAssets"] : ["GetPublicAssets", variables];
+
+export const RequestPublicAssetUploadDocument = new TypedDocumentString(`
+    mutation RequestPublicAssetUpload($input: RequestPublicAssetUploadInput!) {
+  requestPublicAssetUpload(input: $input) {
+    uploadUrl
+    stagingKey
+    expiresIn
+  }
+}
+    `);
+
+export const useRequestPublicAssetUploadMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    RequestPublicAssetUploadMutation,
+    TError,
+    RequestPublicAssetUploadMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    RequestPublicAssetUploadMutation,
+    TError,
+    RequestPublicAssetUploadMutationVariables,
+    TContext
+  >({
+    mutationKey: ["RequestPublicAssetUpload"],
+    mutationFn: useGraphqlFetcher<
+      RequestPublicAssetUploadMutation,
+      RequestPublicAssetUploadMutationVariables
+    >(RequestPublicAssetUploadDocument),
+    ...options
+  });
+};
+
+useRequestPublicAssetUploadMutation.getKey = () => ["RequestPublicAssetUpload"];
+
+export const ConfirmPublicAssetUploadDocument = new TypedDocumentString(`
+    mutation ConfirmPublicAssetUpload($kind: PublicAssetKind!, $stagingKey: String!) {
+  confirmPublicAssetUpload(kind: $kind, stagingKey: $stagingKey) {
+    avatarUrl
+    organizationLogoUrl
+  }
+}
+    `);
+
+export const useConfirmPublicAssetUploadMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    ConfirmPublicAssetUploadMutation,
+    TError,
+    ConfirmPublicAssetUploadMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    ConfirmPublicAssetUploadMutation,
+    TError,
+    ConfirmPublicAssetUploadMutationVariables,
+    TContext
+  >({
+    mutationKey: ["ConfirmPublicAssetUpload"],
+    mutationFn: useGraphqlFetcher<
+      ConfirmPublicAssetUploadMutation,
+      ConfirmPublicAssetUploadMutationVariables
+    >(ConfirmPublicAssetUploadDocument),
+    ...options
+  });
+};
+
+useConfirmPublicAssetUploadMutation.getKey = () => ["ConfirmPublicAssetUpload"];
+
 export const GetFileDocument = new TypedDocumentString(`
     query GetFile($id: ID!) {
   file(id: $id) {
@@ -951,6 +1084,7 @@ export const GetTodosDocument = new TypedDocumentString(`
       mimeType
       sizeBytes
       downloadUrl
+      thumbnailUrl
     }
     createdAt
     updatedAt
@@ -992,6 +1126,7 @@ export const GetTodoDocument = new TypedDocumentString(`
       mimeType
       sizeBytes
       downloadUrl
+      thumbnailUrl
     }
   }
 }
@@ -1028,6 +1163,7 @@ export const CreateTodoDocument = new TypedDocumentString(`
       mimeType
       sizeBytes
       downloadUrl
+      thumbnailUrl
     }
   }
 }
@@ -1063,6 +1199,7 @@ export const GenerateTodosDocument = new TypedDocumentString(`
         mimeType
         sizeBytes
         downloadUrl
+        thumbnailUrl
       }
     }
   }
@@ -1101,6 +1238,7 @@ export const UpdateTodoDocument = new TypedDocumentString(`
       mimeType
       sizeBytes
       downloadUrl
+      thumbnailUrl
     }
   }
 }
@@ -1151,6 +1289,7 @@ export const ToggleTodoDocument = new TypedDocumentString(`
       mimeType
       sizeBytes
       downloadUrl
+      thumbnailUrl
     }
   }
 }
