@@ -84,6 +84,7 @@ import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { createAssistantTools } from "./assistant.tools";
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "user-1" },
   organizationId: "org-1",
   user: { email: "u@example.test", emailVerified: true, id: "user-1", name: "User" },
   userId: "user-1"
