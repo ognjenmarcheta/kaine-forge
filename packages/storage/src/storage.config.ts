@@ -67,5 +67,16 @@ export function resolvePublicAssetConfig(
   const bucket = source[STORAGE_ENV_KEYS.publicBucket];
   const baseUrl = source[STORAGE_ENV_KEYS.publicBaseUrl];
 
-  return bucket && baseUrl ? { bucket, baseUrl: baseUrl.replace(/\/+$/, "") } : null;
+  return bucket && baseUrl ? { bucket, baseUrl: withoutTrailingSlashes(baseUrl) } : null;
+}
+
+// A loop, not /\/+$/: that regex backtracks polynomially on long runs of "/".
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+
+  while (end > 0 && url[end - 1] === "/") {
+    end -= 1;
+  }
+
+  return url.slice(0, end);
 }
