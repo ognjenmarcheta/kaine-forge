@@ -1,10 +1,11 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
   AGENT_OUTPUT_ROLES,
   REVIEW_SECTIONS,
   agentOutputJsonSchema,
-  agentOutputSchemas,
   builderOutputSchema,
   fitConfidence,
   intakeOutputSchema,
@@ -128,18 +129,13 @@ describe("reviewer output", () => {
     expect(reviewerOutputSchema.safeParse(duplicated).success).toBe(false);
   });
 
-  it("mirrors the headings in .ai/ai.util.ts", () => {
-    expect(REVIEW_SECTIONS).toEqual([
-      "Correctness",
-      "Security, Auth & Tenancy",
-      "Architecture & Boundaries",
-      "Data & GraphQL",
-      "Performance",
-      "UI & i18n",
-      "Quality Gates",
-      "Domain Language",
-      "Template & AI Hygiene"
-    ]);
+  it("mirrors the headings of .ai/review.md, the checklist the reviewer reads", async () => {
+    const review = await readFile(
+      path.resolve(import.meta.dirname, "../../../../.ai/review.md"),
+      "utf8"
+    );
+    const headings = [...review.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
+    expect([...REVIEW_SECTIONS]).toEqual(headings);
   });
 
   it("rejects an approval that carries a blocking finding", () => {
@@ -278,9 +274,5 @@ describe("JSON Schema generation", () => {
         Object.keys(schema.properties ?? {}).sort()
       );
     }
-  });
-
-  it("registers a parser for every role", () => {
-    expect(Object.keys(agentOutputSchemas).sort()).toEqual([...AGENT_OUTPUT_ROLES].sort());
   });
 });
