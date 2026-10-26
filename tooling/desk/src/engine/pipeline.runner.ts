@@ -1039,12 +1039,15 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             (session.state.shipConfirmed !== true && !automatic))
         ) {
           // Only a ship that failed is retried: one the engineer confirmed, or an automatic one.
+          // An automatic ship has no ship gate, so the owner continues the recorded stage instead.
           const gate =
             snapshot.flow.steps.find((step) => stepRoleOf(snapshot, step.id) === "ship-gate")?.id ??
             "the gate before it";
           return refused(
             "ship-refused",
-            `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
+            automatic
+              ? `'${target}' runs automatically after the step before it. Continue #${issue} from where it stopped: pnpm desk continue ${issue}. Nothing was changed.`
+              : `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
             session.state
           );
         }

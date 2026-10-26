@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 
 import { runChecks } from "../check";
-import type { FlowStep, IssueState } from "../contracts";
+import type { FlowSnapshot, FlowStep, IssueState } from "../contracts";
 import { createPipelineRunner, type PipelineRunner } from "./pipeline.runner";
 import type { IsolatedCheckRequest, IsolationPort } from "../isolation/isolation.port";
 import { createLogSink } from "../log/log.writer";
@@ -524,6 +524,35 @@ describe("refresh at pr-open", () => {
     if (result.outcome === "refused") expect(result.reason).toContain("writes nothing to GitHub");
     expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
     expect(e.github.createdPullRequests).toEqual([]);
+  });
+
+  it("tells the owner to continue, not to confirm, when an automatic ship cannot be retried", async () => {
+    // An automatic ship has no ship gate: `ship --confirm` would be refused there too.
+    const automatic: FlowSnapshot = {
+      ...DEFAULT_SNAPSHOT,
+      flow: {
+        ...DEFAULT_SNAPSHOT.flow,
+        steps: DEFAULT_SNAPSHOT.flow.steps.map((step) =>
+          step.kind === "ship" ? { ...step, auto: true } : step
+        )
+      }
+    };
+    const e = await seeded(
+      prOpen({
+        flowSnapshot: automatic,
+        stage: "needs-you",
+        resumeStage: "build",
+        prNumber: null,
+        prUrl: null
+      })
+    );
+    const before = await readFile(e.store.statePath(ISSUE), "utf8");
+    const result = await e.pipeline.continueFrom(ISSUE, "ship");
+    expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
+    const reason = result.outcome === "refused" ? result.reason : "";
+    expect(reason).toContain(`pnpm desk continue ${ISSUE}`);
+    expect(reason).not.toContain("--confirm");
+    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
   });
 
   it("does not let continue park an issue without a PR at pr-open", async () => {
