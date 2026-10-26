@@ -50,6 +50,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Deployable app release branches: the Release workflow updates them; manual `pnpm release:apps` is a human operation.
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
+- Pull upstream template AI setup changes into an adopted project: `pnpm ai:sync` (`--check` reports only)
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
 - Run the local agent desk (UI): `pnpm desk:run`; check its setup: `pnpm desk doctor`
 
@@ -238,7 +239,7 @@ Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of t
 
 Codex, Claude, and Grok Build `SessionStart` hooks inject compact repo context at startup: repository name, branch, worktree status, and AI setup health. Hooks warn when local generated AI files look missing or stale, but they do not block work; run `pnpm ai:install --agent <agent>` and `pnpm ai:doctor` when they warn. Grok project MCP lives in `.grok/config.toml` (requires folder trust in Grok Build).
 
-Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and leaves your personal copies alone.
+Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and project `<repoSlug>-*` skills, and leaves your personal copies alone; personal copies must not use either prefix.
 
 ### Skill selection for each request
 
@@ -288,7 +289,7 @@ The `kaine-graph` skill layers an optional generated knowledge graph over the ha
 
 The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
-Downstream products can add more skills in `.ai/skills/` without changing this generator.
+Downstream products keep their own guide rules, review checks, skills, and agents in `.ai/project/` (`guide.md`, `review.md`, `skills/`, `agents/`). Project skill and agent names start with the `repoSlug` from `.ai/project/template.json`. `pnpm ai:sync` merges upstream changes into the other `.ai/` sources and never writes `.ai/project/` (ADR 0014).
 
 Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/agents/*.md`, `.ai/hooks/*`, `.ai/permissions.json`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/review.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
 

@@ -160,6 +160,35 @@ Repository settings the template cannot carry over (GitHub copies files, not set
 - Import both branch rulesets from `.github/rulesets/main.json` and `.github/rulesets/main-owner.json`, after confirming the owner is the only repository administrator.
 - CI caches Turbo task results with no setup (see [CI speed](#ci-speed-maintainers)).
 
+### Stay up to date with the template AI setup
+
+`template:adopt --write` records your identity and the upstream in `.ai/project/template.json`. Commit that file. Put your own AI rules in `.ai/project/`: `guide.md` (appended to `AGENTS.md`), `review.md` (appended to `REVIEW.md`), `skills/`, and `agents/`. Project skill and agent names start with your `repoSlug`. Sync never writes this folder.
+
+Pull upstream changes on a clean tree, then review and commit the diff:
+
+```bash
+pnpm ai:sync --check
+pnpm ai:sync
+```
+
+Sync merges the files in `.ai/template-sync.manifest.json` and keeps your names and edits. It marks overlapping edits with git conflict markers. Resolve them, then run `pnpm ai:install` and `pnpm ai:doctor`. `--ref <tag|sha>` picks another upstream point, and `--dry-run` writes nothing.
+
+<!-- TEMPLATE_ONLY_START -->
+
+If your project was adopted before `ai:sync` existed, copy the sync tool from upstream, commit it, and initialize it with your adoption config:
+
+```bash
+git fetch https://github.com/ognjenmarcheta/kaine-forge.git main
+for f in .ai/template-sync.ts .ai/template-sync.util.ts .ai/template-adoption.util.ts; do git show FETCH_HEAD:$f > $f; done
+git add .ai/template-sync.ts .ai/template-sync.util.ts .ai/template-adoption.util.ts
+git commit -m "chore(ai): add template sync tool"
+pnpm exec tsx .ai/template-sync.ts --init template-adoption.json
+```
+
+Add `"ai:sync": "tsx .ai/template-sync.ts"` to your root `package.json` scripts. If sync picks the wrong starting point, pass `--base <upstream-sha>`.
+
+<!-- TEMPLATE_ONLY_END -->
+
 ## AI Assistant Files
 
 `.ai/` is canonical for shared assistant guidance. Do not edit installed assistant outputs directly.
