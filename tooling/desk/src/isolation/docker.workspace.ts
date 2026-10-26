@@ -12,8 +12,8 @@ import { containerBase, parseReply, runContainer, type DockerContext } from "./d
 import { issueVolume, resourceLabels } from "./docker.names";
 import { applyPatch, guardPatch } from "./docker.patch";
 import { withProxy } from "./docker.proxy";
+import { runGit } from "../git";
 import { DIFF_FLAGS, diffAgainstBase, parseNameStatus, type DiffResult } from "../git/git.diff";
-import { runGit } from "../git/git.real";
 
 /**
  * Moving work between the host worktree and the issue volume. The worktree is

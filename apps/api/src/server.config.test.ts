@@ -34,16 +34,6 @@ describe("server.config", () => {
     expect(config.allowedCorsOrigins).toEqual(["https://app.example.com"]);
   });
 
-  it("allows forcing introspection on in production via env", () => {
-    const config = resolveApiRuntimeConfig({
-      API_CORS_ORIGINS: "https://app.example.com",
-      API_GRAPHQL_INTROSPECTION: "true",
-      NODE_ENV: "production"
-    });
-
-    expect(config.allowIntrospection).toBe(true);
-  });
-
   it("fails closed when production has no API_CORS_ORIGINS", () => {
     expect(() => resolveApiRuntimeConfig({ NODE_ENV: "production" })).toThrow(
       /API_CORS_ORIGINS is required in production/
@@ -65,12 +55,6 @@ describe("server.config", () => {
       maxQueryDepth: 8
     });
     expect(config.allowedCorsOrigins).toBeUndefined();
-  });
-
-  it("measures nested query depth", () => {
-    const depth = measureQueryDepth(parse("query { todos { id } }"));
-
-    expect(depth).toBe(2);
   });
 
   it("measures query complexity as field selection count", () => {

@@ -15,7 +15,7 @@ import {
   type GetNotesQuery,
   type GetNotesQueryVariables
 } from "../../graphql/generated/react-query";
-import { useSubscription } from "../../hooks/use-subscription";
+import { useLiveNotes, useLiveTodos } from "../../hooks/use-live-list";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 import { queryRuntime } from "../../lib/query-runtime";
 
@@ -107,50 +107,21 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   }, [selected, serverId, detail.data, detail.isSuccess]);
 
   const invalidationKeys = [listKey, detailKey];
-  useSubscription({
-    query: "subscription { noteCreated { id } }",
-    enabled,
-    invalidateKeys: invalidationKeys
-  });
-  useSubscription({
-    query: "subscription { noteUpdated { id } }",
-    enabled,
-    invalidateKeys: invalidationKeys
-  });
-  useSubscription<{ noteDeleted: { id: string } }>({
-    query: "subscription { noteDeleted { id } }",
+  useLiveNotes({
     enabled,
     invalidateKeys: invalidationKeys,
-    onData: ({ noteDeleted }) =>
+    onDeleted: (id) =>
       changeDrafts((all) =>
         Object.fromEntries(
           Object.entries(all).map(([key, draft]) => [
             key,
-            draft.serverId === noteDeleted.id ? { ...draft, deleted: true } : draft
+            draft.serverId === id ? { ...draft, deleted: true } : draft
           ])
         )
       )
   });
-  useSubscription({
-    query: "subscription { todoCreated { id } }",
-    enabled,
-    invalidateKeys: [detailKey]
-  });
-  useSubscription({
-    query: "subscription { todoUpdated { id } }",
-    enabled,
-    invalidateKeys: [detailKey]
-  });
-  useSubscription({
-    query: "subscription { todoDeleted { id } }",
-    enabled,
-    invalidateKeys: [detailKey]
-  });
-  useSubscription({
-    query: "subscription { todoToggled { id } }",
-    enabled,
-    invalidateKeys: [detailKey]
-  });
+  // A Note's embedded Todos change through Todo events.
+  useLiveTodos({ enabled, invalidateKeys: [detailKey] });
 
   async function refresh() {
     await Promise.all([

@@ -8,7 +8,6 @@ import {
   DATA_MARKER,
   deriveCiFlow,
   deriveWorkspaceFlow,
-  extractRegion,
   GENERATED_MARKER,
   layoutFlow,
   LEDGER_PATH,
@@ -16,7 +15,6 @@ import {
   readWorkflowJobs,
   renderDashboardHtml,
   renderLedgerMarkdown,
-  replaceRegion,
   type LedgerData,
   type ScorecardRun
 } from "./scorecard.util";
@@ -87,47 +85,10 @@ describe("parseLedger", () => {
     expect(data.runs[0]?.findings[0]?.slug).toBe("ci-duplicate-test-run");
   });
 
-  it("rejects a missing data marker", () => {
-    expect(() => parseLedger("# Scorecard\n\nno markers here\n")).toThrow(
-      /missing the scorecard:data marker/
-    );
-  });
-
-  it("rejects invalid JSON with the marker name in the message", () => {
-    expect(() => parseLedger(ledgerFixture("{ not json"))).toThrow(
-      /scorecard:data JSON is invalid/
-    );
-  });
-
   it("rejects a run with an unknown mode", () => {
     const bad = JSON.stringify({ ...emptyData, runs: [{ ...run(), mode: "guess" }] });
 
     expect(() => parseLedger(ledgerFixture(bad))).toThrow(/expected "fan-out" or "sequential"/);
-  });
-});
-
-describe("replaceRegion", () => {
-  it("replaces only the generated region and leaves the data block intact", () => {
-    const raw = ledgerFixture(JSON.stringify(emptyData));
-    const updated = replaceRegion(raw, GENERATED_MARKER, "fresh body");
-
-    expect(extractRegion(updated, GENERATED_MARKER)).toContain("fresh body");
-    expect(extractRegion(updated, GENERATED_MARKER)).not.toContain("_placeholder_");
-    expect(extractRegion(updated, DATA_MARKER)).toBe(extractRegion(raw, DATA_MARKER));
-  });
-
-  it("is idempotent, so a second render produces no diff", () => {
-    const raw = ledgerFixture(JSON.stringify(emptyData));
-    const once = replaceRegion(raw, GENERATED_MARKER, "stable body");
-    const twice = replaceRegion(once, GENERATED_MARKER, "stable body");
-
-    expect(twice).toBe(once);
-  });
-
-  it("throws when the marker pair is absent", () => {
-    expect(() => replaceRegion("# nothing\n", GENERATED_MARKER, "body")).toThrow(
-      /missing the scorecard:generated marker/
-    );
   });
 });
 

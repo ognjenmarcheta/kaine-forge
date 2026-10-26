@@ -12,6 +12,7 @@ it("validates the independent CRUD verifier against working APIs and a deliberat
     // Trusted control only: candidate artifacts must use certified sandbox execution.
     const source = readFileSync(path.join(REPO_ROOT, ".ai/fixtures/crud.verifier.test.txt"), "utf8")
       .replaceAll("__plural__", "notes")
+      .replaceAll("__Plural__", "Notes")
       .replaceAll("__Singular__", "Note")
       .replaceAll("__singular__", "note")
       .replaceAll('"./features/', '"../features/')

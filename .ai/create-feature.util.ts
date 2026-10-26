@@ -191,15 +191,9 @@ export type New${names.singularPascal} = InferInsertModel<typeof ${names.pluralC
 const apiConfigFile = (names: FeatureNames): string =>
   `export const ${names.pluralConstant}_CONFIG = { pagination: { defaultLimit: 20, maxLimit: 100 } } as const;\n`;
 
-const apiTypeFile = (names: FeatureNames): string => `export interface Pagination {
-  limit: number;
-  offset: number;
-}
-export interface PaginationInput {
-  limit?: number;
-  offset?: number;
-}
-export interface Create${names.singularPascal}Input {
+const apiTypeFile = (
+  names: FeatureNames
+): string => `export interface Create${names.singularPascal}Input {
   title: string;
   body?: string | null;
 }
@@ -213,24 +207,8 @@ export interface ${names.singularPascal}Patch {
 }
 `;
 
-const apiUtilFile = (
-  names: FeatureNames
-): string => `import { ${names.pluralConstant}_CONFIG } from "./${names.pluralKebab}.config";
-import type { Pagination, PaginationInput } from "./${names.pluralKebab}.type";
-
-const MIN_TITLE_LENGTH = 1;
+const apiUtilFile = (names: FeatureNames): string => `const MIN_TITLE_LENGTH = 1;
 const MAX_TITLE_LENGTH = 255;
-
-export function coercePagination(input: PaginationInput): Pagination {
-  const rawLimit = input.limit ?? ${names.pluralConstant}_CONFIG.pagination.defaultLimit;
-  const rawOffset = input.offset ?? 0;
-  const limit = Math.min(
-    ${names.pluralConstant}_CONFIG.pagination.maxLimit,
-    Math.max(1, Math.floor(rawLimit))
-  );
-  const offset = Math.max(0, Math.floor(rawOffset));
-  return { limit, offset };
-}
 
 export function ensure${names.singularPascal}Title(title: string): string {
   const trimmed = title.trim();
@@ -246,163 +224,101 @@ export function parseOptionalBody(body?: string | null): string | null {
 }
 `;
 
-const apiAdapterFile = (
+const apiModuleFile = (
   names: FeatureNames
-): string => `import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { db, ${names.pluralCamel}Table, type ${names.singularPascal} } from "@repo/db";
-import { and, desc, eq } from "drizzle-orm";
+): string => `import type { ${names.singularPascal} } from "@repo/db";
+import { ${names.pluralCamel}Table } from "@repo/db/schema";
+import { desc, eq } from "drizzle-orm";
 
-import type { ${names.singularPascal}Patch, Pagination } from "./${names.pluralKebab}.type";
-
-export async function list${names.pluralPascal}ByScope(
-  scope: AuthenticatedOrganizationScope,
-  pagination: Pagination
-): Promise<${names.singularPascal}[]> {
-  return db
-    .select()
-    .from(${names.pluralCamel}Table)
-    .where(and(eq(${names.pluralCamel}Table.organizationId, scope.organizationId)))
-    .orderBy(desc(${names.pluralCamel}Table.createdAt))
-    .limit(pagination.limit)
-    .offset(pagination.offset);
-}
-
-export async function get${names.singularPascal}ById(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<${names.singularPascal} | null> {
-  const rows = await db
-    .select()
-    .from(${names.pluralCamel}Table)
-    .where(
-      and(
-        eq(${names.pluralCamel}Table.id, id),
-        eq(${names.pluralCamel}Table.organizationId, scope.organizationId)
-      )
-    )
-    .limit(1);
-  return rows[0] ?? null;
-}
-
-export async function create${names.singularPascal}(
-  scope: AuthenticatedOrganizationScope,
-  input: { title: string; body: string | null }
-): Promise<${names.singularPascal}> {
-  const rows = await db
-    .insert(${names.pluralCamel}Table)
-    .values({
-      userId: scope.userId,
-      organizationId: scope.organizationId,
-      title: input.title,
-      body: input.body
-    })
-    .returning();
-  const ${names.singularCamel} = rows[0];
-  if (!${names.singularCamel}) throw new Error("failed to create ${names.singularWords}");
-  return ${names.singularCamel};
-}
-
-export async function update${names.singularPascal}(
-  scope: AuthenticatedOrganizationScope,
-  id: string,
-  patch: ${names.singularPascal}Patch
-): Promise<${names.singularPascal}> {
-  const rows = await db
-    .update(${names.pluralCamel}Table)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(
-      and(
-        eq(${names.pluralCamel}Table.id, id),
-        eq(${names.pluralCamel}Table.organizationId, scope.organizationId)
-      )
-    )
-    .returning();
-  const ${names.singularCamel} = rows[0];
-  if (!${names.singularCamel}) throw new Error("${names.singularWords} not found");
-  return ${names.singularCamel};
-}
-
-export async function delete${names.singularPascal}(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<boolean> {
-  const rows = await db
-    .delete(${names.pluralCamel}Table)
-    .where(
-      and(
-        eq(${names.pluralCamel}Table.id, id),
-        eq(${names.pluralCamel}Table.organizationId, scope.organizationId)
-      )
-    )
-    .returning({ id: ${names.pluralCamel}Table.id });
-  return rows.length > 0;
-}
-`;
-
-const apiWorkflowFile = (
-  names: FeatureNames
-): string => `import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-
-import type { Create${names.singularPascal}Input, Update${names.singularPascal}Input } from "./${names.pluralKebab}.type";
+import { ${names.pluralConstant}_CONFIG } from "./${names.pluralKebab}.config";
+import type {
+  Create${names.singularPascal}Input,
+  ${names.singularPascal}Patch,
+  Update${names.singularPascal}Input
+} from "./${names.pluralKebab}.type";
 import { ensure${names.singularPascal}Title, parseOptionalBody } from "./${names.pluralKebab}.util";
+import { clampPagination, type PaginationInput, type ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
 
-type ${names.singularPascal}EventPayload = PubSubEventMap["${names.singularCamel}:created"][0];
-
-export interface ${names.singularPascal}WorkflowAdapter {
-  create${names.singularPascal}: (
-    scope: AuthenticatedOrganizationScope,
-    input: { title: string; body: string | null }
-  ) => Promise<${names.singularPascal}EventPayload>;
-  delete${names.singularPascal}: (
-    scope: AuthenticatedOrganizationScope,
-    id: string
-  ) => Promise<boolean>;
-  publish${names.singularPascal}Event: <TEventName extends keyof PubSubEventMap>(
+export interface ${names.singularPascal}ModuleDeps {
+  data: ScopedData;
+  publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
-  update${names.singularPascal}: (
-    scope: AuthenticatedOrganizationScope,
-    id: string,
-    patch: { title?: string; body?: string | null }
-  ) => Promise<${names.singularPascal}EventPayload>;
 }
 
-export function create${names.singularPascal}Workflow(adapter: ${names.singularPascal}WorkflowAdapter) {
+/**
+ * Every ${names.singularPascal} read and write for one request's Authenticated Organization
+ * Scope. Writes normalize their input and publish one \`${names.singularCamel}:*\` event.
+ */
+export interface ${names.pluralPascal} {
+  list: (page: PaginationInput) => Promise<${names.singularPascal}[]>;
+  get: (id: string) => Promise<${names.singularPascal} | null>;
+  /** Throws \`${names.singularWords} title is required\`/\`too long\` and writes nothing. */
+  create: (input: Create${names.singularPascal}Input) => Promise<${names.singularPascal}>;
+  /** Throws \`${names.singularWords} not found\` when no ${names.singularPascal} with this id is in the scope. */
+  update: (id: string, input: Update${names.singularPascal}Input) => Promise<${names.singularPascal}>;
+  /** Publishes \`${names.singularCamel}:deleted\` only when a row was deleted. */
+  delete: (id: string) => Promise<boolean>;
+}
+
+export function create${names.pluralPascal}({ data, publish }: ${names.singularPascal}ModuleDeps): ${names.pluralPascal} {
   return {
-    async create${names.singularPascal}(
-      scope: AuthenticatedOrganizationScope,
-      input: Create${names.singularPascal}Input
-    ) {
-      const ${names.singularCamel} = await adapter.create${names.singularPascal}(scope, {
-        title: ensure${names.singularPascal}Title(input.title),
-        body: parseOptionalBody(input.body ?? null)
-      });
-      adapter.publish${names.singularPascal}Event("${names.singularCamel}:created", ${names.singularCamel});
+    async list(page) {
+      const { limit, offset } = clampPagination(page, ${names.pluralConstant}_CONFIG.pagination);
+      return data
+        .selectFrom(${names.pluralCamel}Table)
+        .orderBy(desc(${names.pluralCamel}Table.createdAt), desc(${names.pluralCamel}Table.id))
+        .limit(limit)
+        .offset(offset);
+    },
+    async get(id) {
+      const rows = await data
+        .selectFrom(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, id))
+        .limit(1);
+      return rows[0] ?? null;
+    },
+    async create(input) {
+      const rows = await data
+        .insert(${names.pluralCamel}Table)
+        .values({
+          ...data.stamp("userId"),
+          title: ensure${names.singularPascal}Title(input.title),
+          body: parseOptionalBody(input.body ?? null)
+        })
+        .returning();
+      const ${names.singularCamel} = rows[0];
+      if (!${names.singularCamel}) throw new Error("failed to create ${names.singularWords}");
+      publish("${names.singularCamel}:created", ${names.singularCamel});
       return ${names.singularCamel};
     },
-    async update${names.singularPascal}(
-      scope: AuthenticatedOrganizationScope,
-      id: string,
-      input: Update${names.singularPascal}Input
-    ) {
-      const patch: { title?: string; body?: string | null } = {};
+    async update(id, input) {
+      const patch: ${names.singularPascal}Patch = {};
       if (input.title !== undefined) patch.title = ensure${names.singularPascal}Title(input.title);
-      if (input.body !== undefined) patch.body = parseOptionalBody(input.body ?? null);
-      const ${names.singularCamel} = await adapter.update${names.singularPascal}(scope, id, patch);
-      adapter.publish${names.singularPascal}Event("${names.singularCamel}:updated", ${names.singularCamel});
+      if (input.body !== undefined) patch.body = parseOptionalBody(input.body);
+      const rows = await data
+        .update(
+          ${names.pluralCamel}Table,
+          { ...patch, updatedAt: new Date() },
+          eq(${names.pluralCamel}Table.id, id)
+        )
+        .returning();
+      const ${names.singularCamel} = rows[0];
+      if (!${names.singularCamel}) throw new Error("${names.singularWords} not found");
+      publish("${names.singularCamel}:updated", ${names.singularCamel});
       return ${names.singularCamel};
     },
-    async delete${names.singularPascal}(scope: AuthenticatedOrganizationScope, id: string) {
-      const deleted = await adapter.delete${names.singularPascal}(scope, id);
-      if (deleted) {
-        adapter.publish${names.singularPascal}Event("${names.singularCamel}:deleted", {
-          id,
-          organizationId: scope.organizationId
+    async delete(id) {
+      const rows = await data
+        .delete(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, id))
+        .returning({
+          id: ${names.pluralCamel}Table.id,
+          organizationId: ${names.pluralCamel}Table.organizationId
         });
-      }
-      return deleted;
+      const row = rows[0];
+      if (row) publish("${names.singularCamel}:deleted", row);
+      return row !== undefined;
     }
   };
 }
@@ -454,522 +370,190 @@ const apiSdlFile = (
 \`;
 `;
 
-const apiRouterFile = (names: FeatureNames): string => `import { pipe } from "graphql-yoga";
-
-import {
-  create${names.singularPascal},
-  delete${names.singularPascal},
-  get${names.singularPascal}ById,
-  list${names.pluralPascal}ByScope,
-  update${names.singularPascal}
-} from "./${names.pluralKebab}.adapter";
-import type { Create${names.singularPascal}Input, Update${names.singularPascal}Input } from "./${names.pluralKebab}.type";
-import { coercePagination } from "./${names.pluralKebab}.util";
-import { create${names.singularPascal}Workflow } from "./${names.pluralKebab}.workflow";
+const apiRouterFile = (
+  names: FeatureNames
+): string => `import type { Create${names.singularPascal}Input, Update${names.singularPascal}Input } from "./${names.pluralKebab}.type";
 import type { ApiContext } from "../../context";
-import { filterByOrganization } from "../../pubsub";
+import type { PaginationInput } from "../../context.data";
+import { organizationSubscriptions } from "../../pubsub";
 
 type ResolverContext = ApiContext;
-type ${names.pluralPascal}QueryArgs = { limit?: number; offset?: number };
 type ${names.singularPascal}ByIdArgs = { id: string };
 type Create${names.singularPascal}Args = { input: Create${names.singularPascal}Input };
 type Update${names.singularPascal}Args = { id: string; input: Update${names.singularPascal}Input };
 
-function create${names.singularPascal}WorkflowForContext(ctx: ResolverContext) {
-  return create${names.singularPascal}Workflow({
-    create${names.singularPascal},
-    delete${names.singularPascal},
-    publish${names.singularPascal}Event: (eventName, ...payload) => {
-      ctx.pubsub.publish(eventName, ...payload);
-    },
-    update${names.singularPascal}
-  });
-}
-
 export const ${names.pluralCamel}Resolvers = {
   Query: {
-    async ${names.pluralCamel}(
-      _parent: unknown,
-      args: ${names.pluralPascal}QueryArgs,
-      ctx: ResolverContext
-    ) {
-      const scope = ctx.requireOrganizationScope();
-      return list${names.pluralPascal}ByScope(scope, coercePagination(args));
+    async ${names.pluralCamel}(_parent: unknown, args: PaginationInput, ctx: ResolverContext) {
+      return ctx.${names.pluralCamel}.list(args);
     },
-    async ${names.singularCamel}(
-      _parent: unknown,
-      args: ${names.singularPascal}ByIdArgs,
-      ctx: ResolverContext
-    ) {
-      const scope = ctx.requireOrganizationScope();
-      return get${names.singularPascal}ById(scope, args.id);
+    async ${names.singularCamel}(_parent: unknown, args: ${names.singularPascal}ByIdArgs, ctx: ResolverContext) {
+      return ctx.${names.pluralCamel}.get(args.id);
     }
   },
   Mutation: {
-    async create${names.singularPascal}(
-      _parent: unknown,
-      args: Create${names.singularPascal}Args,
-      ctx: ResolverContext
-    ) {
-      const scope = ctx.requireOrganizationScope();
-      return create${names.singularPascal}WorkflowForContext(ctx).create${names.singularPascal}(
-        scope,
-        args.input
-      );
+    async create${names.singularPascal}(_parent: unknown, args: Create${names.singularPascal}Args, ctx: ResolverContext) {
+      return ctx.${names.pluralCamel}.create(args.input);
     },
-    async update${names.singularPascal}(
-      _parent: unknown,
-      args: Update${names.singularPascal}Args,
-      ctx: ResolverContext
-    ) {
-      const scope = ctx.requireOrganizationScope();
-      return create${names.singularPascal}WorkflowForContext(ctx).update${names.singularPascal}(
-        scope,
-        args.id,
-        args.input
-      );
+    async update${names.singularPascal}(_parent: unknown, args: Update${names.singularPascal}Args, ctx: ResolverContext) {
+      return ctx.${names.pluralCamel}.update(args.id, args.input);
     },
-    async delete${names.singularPascal}(
-      _parent: unknown,
-      args: ${names.singularPascal}ByIdArgs,
-      ctx: ResolverContext
-    ) {
-      const scope = ctx.requireOrganizationScope();
-      return create${names.singularPascal}WorkflowForContext(ctx).delete${names.singularPascal}(
-        scope,
-        args.id
-      );
+    async delete${names.singularPascal}(_parent: unknown, args: ${names.singularPascal}ByIdArgs, ctx: ResolverContext) {
+      return ctx.${names.pluralCamel}.delete(args.id);
     }
   },
-  Subscription: {
-    ${names.singularCamel}Created: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(
-          ctx.pubsub.subscribe("${names.singularCamel}:created"),
-          filterByOrganization(organizationId)
-        );
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    ${names.singularCamel}Updated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(
-          ctx.pubsub.subscribe("${names.singularCamel}:updated"),
-          filterByOrganization(organizationId)
-        );
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    ${names.singularCamel}Deleted: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(
-          ctx.pubsub.subscribe("${names.singularCamel}:deleted"),
-          filterByOrganization(organizationId)
-        );
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    }
-  }
+  Subscription: organizationSubscriptions([
+    "${names.singularCamel}Created",
+    "${names.singularCamel}Updated",
+    "${names.singularCamel}Deleted"
+  ])
 };
 `;
 
-const apiAdapterTestFile = (
+const apiModuleTestFile = (
   names: FeatureNames
-): string => `import { beforeEach, describe, expect, it, vi } from "vitest";
+): string => `import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import { organizationsTable, ${names.pluralCamel}Table, usersTable } from "@repo/db/schema";
+import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-const { chain, mockDb } = vi.hoisted(() => {
-  const chain = {
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    offset: vi.fn(),
-    returning: vi.fn(),
-    set: vi.fn(),
-    values: vi.fn()
-  };
-  Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-  chain.returning.mockResolvedValue([]);
+import { create${names.pluralPascal}, type ${names.pluralPascal} } from "./${names.pluralKebab}.module";
+import { createScopedData } from "../../context.data";
+import type { PubSubEventMap } from "../../pubsub";
 
-  const mockDb = {
-    select: vi.fn(() => chain),
-    insert: vi.fn(() => chain),
-    update: vi.fn(() => chain),
-    delete: vi.fn(() => chain)
-  };
+// PGlite replays every migration in packages/db/drizzle, so this suite needs
+// the ${names.pluralSnake} migration: run \`pnpm db:generate\` once the columns are final.
+let database: TestDatabase;
+let scope: AuthenticatedOrganizationScope;
+let ${names.pluralCamel}: ${names.pluralPascal};
+let foreign${names.pluralPascal}: ${names.pluralPascal};
+let events: [keyof PubSubEventMap, ...unknown[]][];
 
-  return { chain, mockDb };
-});
-
-vi.mock("@repo/db", () => ({
-  db: mockDb,
-  ${names.pluralCamel}Table: {
-    id: "id",
-    userId: "userId",
-    organizationId: "orgId",
-    createdAt: "createdAt"
-  }
-}));
-
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...args: unknown[]) => args),
-  desc: vi.fn((col: unknown) => col),
-  eq: vi.fn((a: unknown, b: unknown) => [a, b])
-}));
-
-import {
-  create${names.singularPascal},
-  delete${names.singularPascal},
-  get${names.singularPascal}ById,
-  list${names.pluralPascal}ByScope,
-  update${names.singularPascal}
-} from "./${names.pluralKebab}.adapter";
-
-describe("${names.pluralKebab}.adapter", () => {
-  const scope = {
-    organizationId: "org-1",
-    user: {
-      email: "u1@example.com",
-      emailVerified: false,
-      id: "user-1",
-      name: "User One"
-    },
-    userId: "user-1"
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-    chain.returning.mockResolvedValue([]);
-  });
-
-  it("list${names.pluralPascal}ByScope filters by Organization only", async () => {
-    await list${names.pluralPascal}ByScope(scope, { limit: 20, offset: 0 });
-
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalledWith([["orgId", "org-1"]]);
-    expect(chain.limit).toHaveBeenCalledWith(20);
-    expect(chain.offset).toHaveBeenCalledWith(0);
-  });
-
-  it("get${names.singularPascal}ById scopes the lookup to the Organization", async () => {
-    await get${names.singularPascal}ById(scope, "${names.singularKebab}-1");
-
-    expect(chain.where).toHaveBeenCalledWith([
-      ["id", "${names.singularKebab}-1"],
-      ["orgId", "org-1"]
-    ]);
-    expect(chain.limit).toHaveBeenCalledWith(1);
-  });
-
-  it("create${names.singularPascal} stamps the Organization and returns the row", async () => {
-    const ${names.singularCamel} = {
-      id: "${names.singularKebab}-1",
-      title: "Test",
-      body: null,
-      userId: "user-1",
-      organizationId: "org-1",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    chain.returning.mockResolvedValueOnce([${names.singularCamel}]);
-
-    const result = await create${names.singularPascal}(scope, { title: "Test", body: null });
-
-    expect(chain.values).toHaveBeenCalledWith({
-      userId: "user-1",
-      organizationId: "org-1",
-      title: "Test",
-      body: null
-    });
-    expect(result).toEqual(${names.singularCamel});
-  });
-
-  it("update${names.singularPascal} scopes the write to the Organization", async () => {
-    chain.returning.mockResolvedValueOnce([{ id: "${names.singularKebab}-1" }]);
-
-    await update${names.singularPascal}(scope, "${names.singularKebab}-1", { title: "Edited" });
-
-    expect(chain.where).toHaveBeenCalledWith([
-      ["id", "${names.singularKebab}-1"],
-      ["orgId", "org-1"]
-    ]);
-  });
-
-  it("update${names.singularPascal} throws when the row is outside the Organization", async () => {
-    chain.returning.mockResolvedValueOnce([]);
-
-    await expect(
-      update${names.singularPascal}(scope, "${names.singularKebab}-1", { title: "Edited" })
-    ).rejects.toThrowError("${names.singularWords} not found");
-  });
-
-  it("delete${names.singularPascal} reports whether a scoped row was removed", async () => {
-    chain.returning.mockResolvedValueOnce([{ id: "${names.singularKebab}-1" }]);
-    await expect(delete${names.singularPascal}(scope, "${names.singularKebab}-1")).resolves.toBe(true);
-
-    chain.returning.mockResolvedValueOnce([]);
-    await expect(delete${names.singularPascal}(scope, "${names.singularKebab}-1")).resolves.toBe(false);
-  });
-});
-`;
-
-const apiWorkflowTestFile = (
-  names: FeatureNames
-): string => `import { describe, expect, it, vi } from "vitest";
-
-import {
-  create${names.singularPascal}Workflow,
-  type ${names.singularPascal}WorkflowAdapter
-} from "./${names.pluralKebab}.workflow";
-
-const scope = {
-  organizationId: "org-1",
-  user: {
-    email: "user@example.com",
-    emailVerified: false,
-    id: "user-1",
-    name: "User"
-  },
-  userId: "user-1"
-};
-
-const ${names.singularCamel} = {
-  id: "${names.singularKebab}-1",
-  title: "Title",
-  body: "Body",
-  organizationId: "org-1",
-  createdAt: new Date("2026-01-01"),
-  updatedAt: new Date("2026-01-01")
-};
-
-function createAdapter(
-  overrides: Partial<${names.singularPascal}WorkflowAdapter> = {}
-): ${names.singularPascal}WorkflowAdapter {
+async function seedScope(slug: string): Promise<AuthenticatedOrganizationScope> {
+  const [user] = await database.db
+    .insert(usersTable)
+    .values({ email: \`\${slug}@example.test\`, name: slug })
+    .returning();
+  if (!user) throw new Error("failed to seed user");
+  const [organization] = await database.db
+    .insert(organizationsTable)
+    .values({ name: slug, slug, userId: user.id })
+    .returning();
+  if (!organization) throw new Error("failed to seed organization");
   return {
-    create${names.singularPascal}: vi.fn(async () => ${names.singularCamel}),
-    delete${names.singularPascal}: vi.fn(async () => true),
-    publish${names.singularPascal}Event: vi.fn(),
-    update${names.singularPascal}: vi.fn(async () => ${names.singularCamel}),
-    ...overrides
+    membership: { id: \`membership-\${slug}\`, role: "owner", userId: user.id },
+    organizationId: organization.id,
+    user: { email: user.email, emailVerified: true, id: user.id, name: user.name },
+    userId: user.id
   };
 }
 
-describe("create${names.singularPascal}Workflow", () => {
-  it("normalizes input, then publishes ${names.singularCamel}:created", async () => {
-    const adapter = createAdapter();
-
-    const result = await create${names.singularPascal}Workflow(adapter).create${names.singularPascal}(scope, {
-      title: "  Title  ",
-      body: "  Body  "
-    });
-
-    expect(adapter.create${names.singularPascal}).toHaveBeenCalledWith(scope, {
-      title: "Title",
-      body: "Body"
-    });
-    expect(adapter.publish${names.singularPascal}Event).toHaveBeenCalledWith(
-      "${names.singularCamel}:created",
-      ${names.singularCamel}
-    );
-    expect(result).toBe(${names.singularCamel});
-  });
-
-  it("rejects a blank title", async () => {
-    const adapter = createAdapter();
-
-    await expect(
-      create${names.singularPascal}Workflow(adapter).create${names.singularPascal}(scope, { title: "   " })
-    ).rejects.toThrowError("${names.singularWords} title is required");
-    expect(adapter.publish${names.singularPascal}Event).not.toHaveBeenCalled();
-  });
-
-  it("patches only the provided fields, then publishes ${names.singularCamel}:updated", async () => {
-    const adapter = createAdapter();
-
-    await create${names.singularPascal}Workflow(adapter).update${names.singularPascal}(
-      scope,
-      "${names.singularKebab}-1",
-      { title: "  New title  " }
-    );
-
-    expect(adapter.update${names.singularPascal}).toHaveBeenCalledWith(scope, "${names.singularKebab}-1", {
-      title: "New title"
-    });
-    expect(adapter.publish${names.singularPascal}Event).toHaveBeenCalledWith(
-      "${names.singularCamel}:updated",
-      ${names.singularCamel}
-    );
-  });
-
-  it("publishes ${names.singularCamel}:deleted with the Organization when a row was removed", async () => {
-    const adapter = createAdapter();
-
-    await expect(
-      create${names.singularPascal}Workflow(adapter).delete${names.singularPascal}(scope, "${names.singularKebab}-1")
-    ).resolves.toBe(true);
-    expect(adapter.publish${names.singularPascal}Event).toHaveBeenCalledWith(
-      "${names.singularCamel}:deleted",
-      { id: "${names.singularKebab}-1", organizationId: "org-1" }
-    );
-  });
-
-  it("does not publish when nothing was deleted", async () => {
-    const adapter = createAdapter({ delete${names.singularPascal}: vi.fn(async () => false) });
-
-    await expect(
-      create${names.singularPascal}Workflow(adapter).delete${names.singularPascal}(scope, "${names.singularKebab}-1")
-    ).resolves.toBe(false);
-    expect(adapter.publish${names.singularPascal}Event).not.toHaveBeenCalled();
-  });
-});
-`;
-
-const apiRouterTestFile = (
-  names: FeatureNames
-): string => `import { createPubSub } from "graphql-yoga";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("./${names.pluralKebab}.adapter", () => ({
-  create${names.singularPascal}: vi.fn(),
-  delete${names.singularPascal}: vi.fn(),
-  get${names.singularPascal}ById: vi.fn(),
-  list${names.pluralPascal}ByScope: vi.fn(),
-  update${names.singularPascal}: vi.fn()
-}));
-
-import * as ${names.pluralCamel}Adapter from "./${names.pluralKebab}.adapter";
-import { ${names.pluralCamel}Resolvers } from "./${names.pluralKebab}.router";
-import type { PubSubEventMap } from "../../pubsub";
-
-describe("${names.pluralKebab}.router", () => {
-  const testPubsub = createPubSub<PubSubEventMap>();
-  const authenticatedScope = {
-    organizationId: "org-1",
-    user: {
-      email: "u1@example.com",
-      id: "user-1",
-      name: "User One"
-    },
-    userId: "user-1"
-  };
-  const ctx = {
-    pubsub: testPubsub,
-    requireOrganizationScope: vi.fn(() => authenticatedScope)
-  };
-  const ${names.singularCamel} = {
-    id: "${names.singularKebab}-1",
-    title: "Title",
-    body: null,
-    organizationId: "org-1",
-    userId: "user-1",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    ctx.requireOrganizationScope.mockReturnValue(authenticatedScope);
-  });
-
-  it("lists ${names.pluralWords} with clamped pagination", async () => {
-    vi.mocked(${names.pluralCamel}Adapter.list${names.pluralPascal}ByScope).mockResolvedValue([]);
-
-    await ${names.pluralCamel}Resolvers.Query.${names.pluralCamel}(
-      {},
-      { limit: 9_999, offset: -12 },
-      ctx as never
-    );
-
-    expect(ctx.requireOrganizationScope).toHaveBeenCalled();
-    expect(${names.pluralCamel}Adapter.list${names.pluralPascal}ByScope).toHaveBeenCalledWith(
-      authenticatedScope,
-      { limit: 100, offset: 0 }
-    );
-  });
-
-  it("reads one ${names.singularWords} through the Organization scope", async () => {
-    vi.mocked(${names.pluralCamel}Adapter.get${names.singularPascal}ById).mockResolvedValue(${names.singularCamel});
-
-    await ${names.pluralCamel}Resolvers.Query.${names.singularCamel}(
-      {},
-      { id: "${names.singularKebab}-1" },
-      ctx as never
-    );
-
-    expect(${names.pluralCamel}Adapter.get${names.singularPascal}ById).toHaveBeenCalledWith(
-      authenticatedScope,
-      "${names.singularKebab}-1"
-    );
-  });
-
-  it("creates a ${names.singularWords} from normalized input", async () => {
-    vi.mocked(${names.pluralCamel}Adapter.create${names.singularPascal}).mockResolvedValue(${names.singularCamel});
-
-    await ${names.pluralCamel}Resolvers.Mutation.create${names.singularPascal}(
-      {},
-      { input: { title: "  Title  ", body: "   " } },
-      ctx as never
-    );
-
-    expect(${names.pluralCamel}Adapter.create${names.singularPascal}).toHaveBeenCalledWith(
-      authenticatedScope,
-      { title: "Title", body: null }
-    );
-  });
-
-  it("updates a ${names.singularWords} with a filtered patch", async () => {
-    vi.mocked(${names.pluralCamel}Adapter.update${names.singularPascal}).mockResolvedValue(${names.singularCamel});
-
-    await ${names.pluralCamel}Resolvers.Mutation.update${names.singularPascal}(
-      {},
-      { id: "${names.singularKebab}-1", input: { title: "  Edited  " } },
-      ctx as never
-    );
-
-    expect(${names.pluralCamel}Adapter.update${names.singularPascal}).toHaveBeenCalledWith(
-      authenticatedScope,
-      "${names.singularKebab}-1",
-      { title: "Edited" }
-    );
-  });
-
-  it("deletes a ${names.singularWords} through the Organization scope", async () => {
-    vi.mocked(${names.pluralCamel}Adapter.delete${names.singularPascal}).mockResolvedValue(true);
-
-    await expect(
-      ${names.pluralCamel}Resolvers.Mutation.delete${names.singularPascal}(
-        {},
-        { id: "${names.singularKebab}-1" },
-        ctx as never
-      )
-    ).resolves.toBe(true);
-    expect(${names.pluralCamel}Adapter.delete${names.singularPascal}).toHaveBeenCalledWith(
-      authenticatedScope,
-      "${names.singularKebab}-1"
-    );
-  });
-
-  it("requires an Organization scope for every subscription", () => {
-    for (const field of [
-      ${names.pluralCamel}Resolvers.Subscription.${names.singularCamel}Created,
-      ${names.pluralCamel}Resolvers.Subscription.${names.singularCamel}Updated,
-      ${names.pluralCamel}Resolvers.Subscription.${names.singularCamel}Deleted
-    ]) {
-      vi.clearAllMocks();
-      ctx.requireOrganizationScope.mockReturnValue(authenticatedScope);
-      field.subscribe({}, {}, ctx as never);
-      expect(ctx.requireOrganizationScope).toHaveBeenCalled();
+function ${names.pluralCamel}For(owner: AuthenticatedOrganizationScope): ${names.pluralPascal} {
+  return create${names.pluralPascal}({
+    data: createScopedData({ db: database.db, requireOrganizationScope: () => owner }),
+    publish: (eventName, ...payload) => {
+      events.push([eventName, ...payload]);
     }
+  });
+}
+
+beforeAll(async () => {
+  database = await createTestDatabase();
+  scope = await seedScope("own");
+  ${names.pluralCamel} = ${names.pluralCamel}For(scope);
+  foreign${names.pluralPascal} = ${names.pluralCamel}For(await seedScope("foreign"));
+}, 30_000);
+
+afterAll(async () => {
+  await database.close();
+});
+
+beforeEach(() => {
+  events = [];
+});
+
+describe("create${names.pluralPascal}", () => {
+  it("creates a ${names.singularPascal} from normalized input and publishes ${names.singularCamel}:created once", async () => {
+    const ${names.singularCamel} = await ${names.pluralCamel}.create({ title: "  Plan  ", body: "   " });
+
+    expect(${names.singularCamel}).toMatchObject({
+      title: "Plan",
+      body: null,
+      organizationId: scope.organizationId,
+      userId: scope.userId
+    });
+    expect(events).toEqual([["${names.singularCamel}:created", ${names.singularCamel}]]);
+  });
+
+  it("rejects a blank title on create and update, and writes nothing", async () => {
+    const ${names.singularCamel} = await ${names.pluralCamel}.create({ title: "Keep" });
+    events = [];
+    const before = await database.db.select().from(${names.pluralCamel}Table);
+
+    await expect(${names.pluralCamel}.create({ title: "   " })).rejects.toThrow(
+      "${names.singularWords} title is required"
+    );
+    await expect(${names.pluralCamel}.update(${names.singularCamel}.id, { title: " " })).rejects.toThrow(
+      "${names.singularWords} title is required"
+    );
+    expect(await database.db.select().from(${names.pluralCamel}Table)).toEqual(before);
+    expect(events).toEqual([]);
+  });
+
+  it("updates only the given fields and publishes ${names.singularCamel}:updated", async () => {
+    const ${names.singularCamel} = await ${names.pluralCamel}.create({ title: "Draft", body: "body" });
+    events = [];
+
+    const updated = await ${names.pluralCamel}.update(${names.singularCamel}.id, { body: "  edited  " });
+
+    expect(updated).toMatchObject({ title: "Draft", body: "edited" });
+    expect(events).toEqual([["${names.singularCamel}:updated", updated]]);
+  });
+
+  it("publishes ${names.singularCamel}:deleted with the Active Organization only when a row was deleted", async () => {
+    const ${names.singularCamel} = await ${names.pluralCamel}.create({ title: "Gone" });
+    events = [];
+
+    await expect(${names.pluralCamel}.delete(${names.singularCamel}.id)).resolves.toBe(true);
+    await expect(${names.pluralCamel}.delete(${names.singularCamel}.id)).resolves.toBe(false);
+
+    expect(events).toEqual([
+      ["${names.singularCamel}:deleted", { id: ${names.singularCamel}.id, organizationId: scope.organizationId }]
+    ]);
+    expect(await ${names.pluralCamel}.get(${names.singularCamel}.id)).toBeNull();
+  });
+
+  it("never reads, changes, or deletes another Organization's ${names.pluralPascal}", async () => {
+    const own = await ${names.pluralCamel}.create({ title: "Own" });
+    const foreign = await foreign${names.pluralPascal}.create({ title: "Foreign" });
+    const [before] = await database.db
+      .select()
+      .from(${names.pluralCamel}Table)
+      .where(eq(${names.pluralCamel}Table.id, foreign.id));
+    events = [];
+
+    expect((await ${names.pluralCamel}.list({ limit: 100 })).map((row) => row.id)).toContain(own.id);
+    expect((await ${names.pluralCamel}.list({ limit: 100 })).map((row) => row.id)).not.toContain(
+      foreign.id
+    );
+    expect(await ${names.pluralCamel}.get(foreign.id)).toBeNull();
+    await expect(${names.pluralCamel}.update(foreign.id, { title: "Taken" })).rejects.toThrow(
+      "${names.singularWords} not found"
+    );
+    await expect(${names.pluralCamel}.delete(foreign.id)).resolves.toBe(false);
+
+    const [after] = await database.db
+      .select()
+      .from(${names.pluralCamel}Table)
+      .where(eq(${names.pluralCamel}Table.id, foreign.id));
+    expect(after).toEqual(before);
+    expect(events).toEqual([]);
+  });
+
+  it("clamps the requested page", async () => {
+    expect(await ${names.pluralCamel}.list({ limit: 0 })).toHaveLength(1);
+    expect(await ${names.pluralCamel}.list({ limit: 1, offset: -5 })).toHaveLength(1);
   });
 });
 `;
@@ -1005,13 +589,10 @@ export const buildFeatureFiles = (names: FeatureNames): Map<string, string> => {
     [`${apiDir}/${feature}.config.ts`, apiConfigFile(names)],
     [`${apiDir}/${feature}.type.ts`, apiTypeFile(names)],
     [`${apiDir}/${feature}.util.ts`, apiUtilFile(names)],
-    [`${apiDir}/${feature}.adapter.ts`, apiAdapterFile(names)],
-    [`${apiDir}/${feature}.adapter.test.ts`, apiAdapterTestFile(names)],
-    [`${apiDir}/${feature}.workflow.ts`, apiWorkflowFile(names)],
-    [`${apiDir}/${feature}.workflow.test.ts`, apiWorkflowTestFile(names)],
+    [`${apiDir}/${feature}.module.ts`, apiModuleFile(names)],
+    [`${apiDir}/${feature}.module.test.ts`, apiModuleTestFile(names)],
     [`${apiDir}/${feature}.schema.ts`, apiSdlFile(names)],
     [`${apiDir}/${feature}.router.ts`, apiRouterFile(names)],
-    [`${apiDir}/${feature}.router.test.ts`, apiRouterTestFile(names)],
     [`packages/translation/src/locales/en/${feature}.json`, localeFile(names)],
     [`packages/translation/src/locales/de/${feature}.json`, localeFile(names)],
     [`packages/translation/src/locales/sr/${feature}.json`, localeFile(names)],
@@ -1038,6 +619,7 @@ export const wiringTargets = [
   "packages/db/src/schema/index.ts",
   "packages/db/src/types/index.ts",
   "apps/api/src/pubsub.ts",
+  "apps/api/src/context.ts",
   "apps/api/src/schema/features.ts",
   "apps/api/src/schema/features.test.ts",
   "packages/translation/src/translation.definition.ts",
@@ -1045,6 +627,7 @@ export const wiringTargets = [
   "packages/translation/src/locales/en/navigation.json",
   "packages/translation/src/locales/de/navigation.json",
   "packages/translation/src/locales/sr/navigation.json",
+  "apps/web/src/hooks/use-live-list.ts",
   "apps/web/src/router.tsx"
 ] as const;
 
@@ -1157,7 +740,7 @@ export interface ${names.singularPascal}DeletedPayload {
   const mapAnchor = anchorIndex(path, source, "export type PubSubEventMap = {");
   const withPayloads = `${source.slice(0, mapAnchor)}${payloads}${source.slice(mapAnchor)}`;
 
-  return insertBeforeClose(
+  const withEvents = insertBeforeClose(
     path,
     withPayloads,
     "export type PubSubEventMap = {",
@@ -1166,6 +749,78 @@ export interface ${names.singularPascal}DeletedPayload {
       `\n  "${names.singularCamel}:updated": [${names.singularPascal}SubscriptionPayload];` +
       `\n  "${names.singularCamel}:deleted": [${names.singularPascal}DeletedPayload];`
   );
+
+  return insertBeforeClose(
+    path,
+    withEvents,
+    "export const ORGANIZATION_SUBSCRIPTIONS = {",
+    "\n} as const",
+    `,\n  ${names.singularCamel}Created: "${names.singularCamel}:created",` +
+      `\n  ${names.singularCamel}Updated: "${names.singularCamel}:updated",` +
+      `\n  ${names.singularCamel}Deleted: "${names.singularCamel}:deleted"`
+  );
+};
+
+// The module joins the request context next to ctx.todos and ctx.notes, built
+// from the same scoped data and publisher.
+const wireApiContext = (source: string, names: FeatureNames): string => {
+  const path = "apps/api/src/context.ts";
+  if (source.includes(`\n  ${names.pluralCamel}: `)) {
+    throw new CreateFeatureError(
+      path,
+      `${path}: ApiContext already has a '${names.pluralCamel}' field`
+    );
+  }
+
+  const withImport = insertSortedLine(
+    path,
+    source,
+    /^import \{ create\w+, type \w+ \} from "\.\/features\//,
+    `import { create${names.pluralPascal}, type ${names.pluralPascal} } from "./features/${names.pluralKebab}/${names.pluralKebab}.module";`
+  );
+  const withField = insertBefore(
+    path,
+    withImport,
+    "  loaders: ApiLoaders;",
+    `  ${names.pluralCamel}: ${names.pluralPascal};\n`
+  );
+
+  return insertBefore(
+    path,
+    withField,
+    "    loaders: createApiLoaders(",
+    `    ${names.pluralCamel}: create${names.pluralPascal}({ data, publish }),\n`
+  );
+};
+
+const wireLiveList = (source: string, names: FeatureNames): string => {
+  const path = "apps/web/src/hooks/use-live-list.ts";
+  anchorIndex(path, source, "interface LiveListOptions {");
+
+  let next = source;
+  for (const event of ["Created", "Updated", "Deleted"]) {
+    next = insertObjectEntry(
+      path,
+      next,
+      /^ {2}On\w+Document,?$/,
+      `  On${names.singularPascal}${event}Document`
+    );
+  }
+
+  return `${next.trimEnd()}
+
+/** Keeps ${names.singularPascal} queries fresh: refetches on every ${names.singularPascal} event of the Active Organization. */
+export function useLive${names.pluralPascal}({ enabled, invalidateKeys, onDeleted }: LiveListOptions): void {
+  useSubscription({ query: On${names.singularPascal}CreatedDocument, enabled, invalidateKeys });
+  useSubscription({ query: On${names.singularPascal}UpdatedDocument, enabled, invalidateKeys });
+  useSubscription({
+    query: On${names.singularPascal}DeletedDocument,
+    enabled,
+    invalidateKeys,
+    onData: ({ ${names.singularCamel}Deleted }) => onDeleted?.(${names.singularCamel}Deleted.id)
+  });
+}
+`;
 };
 
 const wireApiFeatures = (source: string, names: FeatureNames): string => {
@@ -1193,25 +848,16 @@ const wireApiFeatures = (source: string, names: FeatureNames): string => {
   );
 };
 
-const wireApiFeaturesTest = (source: string, names: FeatureNames): string => {
-  const path = "apps/api/src/schema/features.test.ts";
-  // Without this mock the registry test imports the real adapter, which reaches
-  // @repo/db and throws on a missing DATABASE_URL at import time.
-  const withMock = insertSortedLine(
-    path,
+// The generated router reaches data only through ctx, so the registry test
+// needs no module mock for it.
+const wireApiFeaturesTest = (source: string, names: FeatureNames): string =>
+  insertBeforeClose(
+    "apps/api/src/schema/features.test.ts",
     source,
-    /^vi\.mock\("\.\.\/features\//,
-    `vi.mock("../features/${names.pluralKebab}/${names.pluralKebab}.adapter", () => ({}));`
-  );
-
-  return insertBeforeClose(
-    path,
-    withMock,
     "expect(apiFeatures.map((feature) => feature.name)).toEqual([",
     "\n    ]);",
     `,\n      "${names.pluralKebab}"`
   );
-};
 
 const wireTranslationDefinition = (source: string, names: FeatureNames): string =>
   insertBeforeClose(
@@ -1269,6 +915,9 @@ const wireTarget = (path: string, source: string, names: FeatureNames): string =
   if (path === "apps/api/src/pubsub.ts") {
     return wirePubSub(source, names);
   }
+  if (path === "apps/api/src/context.ts") {
+    return wireApiContext(source, names);
+  }
   if (path === "apps/api/src/schema/features.ts") {
     return wireApiFeatures(source, names);
   }
@@ -1283,6 +932,9 @@ const wireTarget = (path: string, source: string, names: FeatureNames): string =
   }
   if (path.startsWith("packages/translation/src/locales/") && path.endsWith("/navigation.json")) {
     return appendJsonEntry(path, source, `navigation.${names.pluralKebab}`, names.label);
+  }
+  if (path === "apps/web/src/hooks/use-live-list.ts") {
+    return wireLiveList(source, names);
   }
   if (path === "apps/web/src/router.tsx") {
     return wireWebRouter(source, names);
@@ -1424,8 +1076,8 @@ import {
   useDelete${names.singularPascal}Mutation,
   useGet${names.pluralPascal}Query
 } from "../../graphql/generated/react-query";
+import { useLive${names.pluralPascal} } from "../../hooks/use-live-list";
 import { useOrganization } from "../../hooks/use-organization";
-import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
 import { queryRuntime } from "../../lib/query-runtime";
 
@@ -1460,23 +1112,7 @@ export function ${names.pluralPascal}Route() {
   const createMutation = useCreate${names.singularPascal}Mutation();
   const deleteMutation = useDelete${names.singularPascal}Mutation();
 
-  useSubscription({
-    query: "subscription { ${names.singularCamel}Created { id } }",
-    enabled: subscriptionEnabled,
-    invalidateKeys: [listQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { ${names.singularCamel}Updated { id } }",
-    enabled: subscriptionEnabled,
-    invalidateKeys: [listQueryKey]
-  });
-
-  useSubscription({
-    query: "subscription { ${names.singularCamel}Deleted { id } }",
-    enabled: subscriptionEnabled,
-    invalidateKeys: [listQueryKey]
-  });
+  useLive${names.pluralPascal}({ enabled: subscriptionEnabled, invalidateKeys: [listQueryKey] });
 
   const ${names.pluralCamel} = useMemo(() => listQuery.data?.${names.pluralCamel} ?? [], [listQuery.data]);
 
@@ -1601,8 +1237,8 @@ import {
   useGet${names.singularPascal}Query,
   useUpdate${names.singularPascal}Mutation
 } from "../../graphql/generated/react-query";
+import { useLive${names.pluralPascal} } from "../../hooks/use-live-list";
 import { useOrganization } from "../../hooks/use-organization";
-import { useSubscription } from "../../hooks/use-subscription";
 import { useTranslation } from "../../hooks/use-translation";
 
 export function ${names.singularPascal}DetailRoute() {
@@ -1644,8 +1280,7 @@ export function ${names.singularPascal}DetailRoute() {
     }
   }, [${names.singularCamel}]);
 
-  useSubscription({
-    query: "subscription { ${names.singularCamel}Updated { id } }",
+  useLive${names.pluralPascal}({
     enabled: Boolean(id) && subscriptionEnabled,
     invalidateKeys: [detailQueryKey]
   });

@@ -52,6 +52,22 @@ describe("nextSteps", () => {
     ]);
   });
 
+  it("names the approve command, not a ship confirmation, at a gate before an automatic ship", () => {
+    const flowSnapshot = {
+      ...DEFAULT_SNAPSHOT,
+      flow: {
+        ...DEFAULT_SNAPSHOT.flow,
+        steps: DEFAULT_SNAPSHOT.flow.steps.map((step) =>
+          step.kind === "ship" ? { ...step, auto: true } : step
+        )
+      }
+    };
+    expect(nextSteps(stateAt("pr-review", { flowSnapshot }))).toEqual([
+      "approve with: pnpm desk approve 12",
+      'or send feedback: pnpm desk feedback 12 --to build|review|plan "<text>"'
+    ]);
+  });
+
   it("names the draft PR at pr-open, says that the engineer merges, and names refresh", () => {
     expect(
       nextSteps(
