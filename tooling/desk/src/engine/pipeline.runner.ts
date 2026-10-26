@@ -81,14 +81,14 @@ import { renderStatusComment } from "../github/github.status-comment";
 import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
 import { resolveFlowSnapshot } from "../registry/registry.snapshot";
+import { shipAdmission, type ShipIntent } from "../ship/ship.admission";
 import { SHIP_RECORD_FILE } from "../ship/ship.contract";
 import {
   describeGateFailures,
   describeShipEvent,
   describeShipFailure
 } from "../ship/ship.describe";
-import type { ShipGateFailure } from "../ship/ship.gate";
-import { shipIssue, type ShipDeps } from "../ship/ship.run";
+import { prepareShip, runShip, type ShipDeps, type ShipTicket } from "../ship/ship.run";
 import { acquireLease } from "../store/store.lease";
 import { removeWorktree } from "../worktree";
 
@@ -570,18 +570,10 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       }
       if (positionKind(snapshot, stage) === "ship") {
         // An automatic ship, or a retry after `continue` of a ship the engineer confirmed before.
-        if (shipsAutomatically(snapshot)) {
-          const issue = session.state.issueNumber;
-          if (deps.noWriteback === true || noWriteback.has(issue)) {
-            await applyOutcome(session, stage, {
-              kind: "needs-you",
-              reason: `#${issue} writes nothing to GitHub (no write-back or a snapshot file), so it cannot ship. Nothing was changed.`
-            });
-            continue;
-          }
-          await record(session, stage, "ship-automatic", "no owner confirmation; a draft PR only");
-        }
-        await executeShip(session, { dryRun: false, retry: true });
+        await executeShip(session, {
+          dryRun: false,
+          intent: shipsAutomatically(snapshot) ? "automatic" : "retry"
+        });
         continue;
       }
       const handler = handlerFor(snapshot, stage);
@@ -1032,24 +1024,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
         }
-        const automatic = shipsAutomatically(snapshot);
-        if (
-          targetKind === "ship" &&
-          (session.state.resumeStage !== target ||
-            (session.state.shipConfirmed !== true && !automatic))
-        ) {
-          // Only a ship that failed is retried: one the engineer confirmed, or an automatic one.
-          // An automatic ship has no ship gate, so the owner continues the recorded stage instead.
-          const gate =
-            snapshot.flow.steps.find((step) => stepRoleOf(snapshot, step.id) === "ship-gate")?.id ??
-            "the gate before it";
-          return refused(
-            "ship-refused",
-            automatic
-              ? `'${target}' runs automatically after the step before it. Continue #${issue} from where it stopped: pnpm desk continue ${issue}. Nothing was changed.`
-              : `A ship starts only from '${gate}', with your confirmation: pnpm desk ship ${issue} --confirm. Nothing was changed.`,
-            session.state
-          );
+        if (targetKind === "ship") {
+          const admission = shipAdmission(session.state, "retry", { writeback: writesBack(issue) });
+          if (!admission.ok) return refused(admission.refusal, admission.reason, session.state);
         }
         if (targetKind === "pr-wait" && (session.state.prNumber ?? null) === null) {
           return refused(
@@ -1078,39 +1055,49 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
 
   type ShipExecution =
     | { readonly kind: "dry-run"; readonly result: Pick<ShipDryRunResult, "plan" | "files"> }
-    | { readonly kind: "refused"; readonly failures: readonly ShipGateFailure[] }
+    | {
+        readonly kind: "refused";
+        readonly refusal: "invalid-transition" | "ship-refused";
+        readonly reason: string;
+      }
     | { readonly kind: "settled" };
 
+  const writesBack = (issue: number): boolean =>
+    deps.noWriteback !== true && !noWriteback.has(issue);
+
   /**
-   * Run the ship executor for a session. A real run enters the `ship` stage
-   * only after the gate passed, so a refusal changes nothing. A retry starts
-   * inside `ship`. Success moves the issue to `pr-open`; any failure after
-   * the first change ends it at `needs-you` with `resumeStage: "ship"`.
+   * The one place an issue enters its ship stage, for an admitted ship and before its first
+   * change. A confirmed ship moves from its gate; an automatic one says that no owner confirmed.
+   */
+  const enterShip = async (session: Session, ticket: ShipTicket, shipStage: string) => {
+    if (session.state.stage !== shipStage) {
+      const gate = session.state.stage;
+      const moved = move(session, { type: "ship-confirm" }, { shipConfirmed: true });
+      if (!moved.ok) throw new Error(`Internal error: ${moved.reason}`);
+      await record(session, gate, "ship-confirmed");
+    } else if (ticket.intent === "automatic") {
+      await record(session, shipStage, "ship-automatic", "no owner confirmation; a draft PR only");
+    }
+    session.state = { ...session.state, status: "running", updatedAt: stamp() };
+    await record(session, shipStage, "stage-started");
+    await save(session);
+    await writeBack(session);
+  };
+
+  /**
+   * Ship for a session: the ship module admits it and evaluates the gate, then this applies
+   * the outcome. A ship refused at its gate changes nothing; one refused in the ship step (an
+   * automatic ship or a retry) stops at `needs-you`. Success moves the issue to `pr-open`; any
+   * failure after the first change ends it at `needs-you` with `resumeStage: "ship"`.
    */
   const executeShip = async (
     session: Session,
-    mode: { readonly dryRun: boolean; readonly retry: boolean }
+    mode: { readonly dryRun: boolean; readonly intent: ShipIntent }
   ): Promise<ShipExecution> => {
     const issue = session.state.issueNumber;
     const shipping = session.state.flowSnapshot.flow.steps.find((step) => step.kind === "ship");
     if (shipping === undefined) throw new Error("Internal error: the flow has no ship step.");
     const shipStage = shipping.id;
-    let began = false;
-    const begin = async (): Promise<void> => {
-      if (began) return;
-      began = true;
-      if (session.state.stage !== shipStage) {
-        const gate = session.state.stage;
-        const moved = move(session, { type: "ship-confirm" }, { shipConfirmed: true });
-        if (!moved.ok) throw new Error(`Internal error: ${moved.reason}`);
-        await record(session, gate, "ship-confirmed");
-      }
-      session.state = { ...session.state, status: "running", updatedAt: stamp() };
-      await record(session, shipStage, "stage-started");
-      await save(session);
-      await writeBack(session);
-    };
-    if (mode.retry) await begin();
 
     // The ship checks run where the loop checks ran. Never on the host for a Docker issue.
     const isolation = selectIsolation(deps, session.state);
@@ -1126,17 +1113,45 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       runChecks: (request) =>
         isolation.ok
           ? isolation.port.runChecks({ ...request, issue })
-          : Promise.reject(new Error(isolation.reason)),
-      beforeChange: mode.dryRun ? undefined : begin
+          : Promise.reject(new Error(isolation.reason))
     };
-    // A dry run asks the gate as if the engineer confirmed, so the plan lists only the real blockers.
-    const result = await shipIssue(shipDeps, { issue, confirm: true, dryRun: mode.dryRun });
+    const prepared = await prepareShip(shipDeps, {
+      state: session.state,
+      intent: mode.intent,
+      writeback: writesBack(issue),
+      dryRun: mode.dryRun
+    });
 
+    const notShipped = async (
+      refusal: "invalid-transition" | "ship-refused",
+      reason: string
+    ): Promise<ShipExecution> => {
+      if (session.state.stage !== shipStage) return { kind: "refused", refusal, reason };
+      await applyOutcome(session, shipStage, { kind: "needs-you", reason });
+      return { kind: "settled" };
+    };
+    switch (prepared.status) {
+      case "dry-run":
+        return { kind: "dry-run", result: prepared };
+      case "not-admitted":
+        return notShipped(prepared.refusal, prepared.reason);
+      case "refused":
+        return notShipped(
+          "ship-refused",
+          `The ship gate refused. Nothing was changed.\n${describeGateFailures(prepared.failures)}`
+        );
+      case "failed":
+        return notShipped("ship-refused", describeShipFailure(prepared.failure));
+      case "admitted":
+        break;
+    }
+
+    await enterShip(session, prepared.ticket, shipStage);
+    const result = await runShip(prepared.ticket);
     switch (result.status) {
       case "dry-run":
-        return { kind: "dry-run", result };
+        throw new Error("Internal error: an admitted ship came back as a dry run.");
       case "refused":
-        if (!began) return { kind: "refused", failures: result.failures };
         // The gate failed after the first change (after the checks or the rebase).
         await applyOutcome(session, shipStage, {
           kind: "needs-you",
@@ -1144,7 +1159,6 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         });
         return { kind: "settled" };
       case "failed": {
-        await begin();
         const progress = result.failure.progress;
         await applyOutcome(session, shipStage, {
           kind: "needs-you",
@@ -1156,7 +1170,6 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         return { kind: "settled" };
       }
       case "shipped":
-        await begin();
         await applyOutcome(session, shipStage, {
           kind: "complete",
           event: result.updated ? "pr-updated" : "pr-opened",
@@ -1178,31 +1191,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       issue,
       async (loaded): Promise<ShipActionResult> => {
         const session = requireSession(loaded);
-        const dryRun = options.dryRun === true;
-        const check = machine(session.state, { type: "ship-confirm" });
-        if (!check.ok) return refused("invalid-transition", check.reason, session.state);
-        if (!dryRun && !options.confirm) {
-          return refused(
-            "ship-refused",
-            "Shipping needs your explicit confirmation. Nothing was changed.",
-            session.state
-          );
-        }
-        // A push and a PR are writes too. A dry run writes nothing, so it stays available.
-        if (!dryRun && (deps.noWriteback === true || noWriteback.has(issue))) {
-          return refused(
-            "ship-refused",
-            `#${issue} writes nothing to GitHub (no write-back or a snapshot file), so it cannot ship. Nothing was changed.`,
-            session.state
-          );
-        }
-        const execution = await executeShip(session, { dryRun, retry: false });
+        const execution = await executeShip(session, {
+          dryRun: options.dryRun === true,
+          intent: "confirmed"
+        });
         if (execution.kind === "refused") {
-          return refused(
-            "ship-refused",
-            `The ship gate refused. Nothing was changed.\n${describeGateFailures(execution.failures)}`,
-            session.state
-          );
+          return refused(execution.refusal, execution.reason, session.state);
         }
         if (execution.kind === "dry-run") {
           const { plan, files } = execution.result;
