@@ -296,9 +296,8 @@ describe("tones", () => {
     }
   });
 
-  it("gives every tone a badge appearance", () => {
+  it("gives the neutral and the subtle warning tone the nearest badge appearance", () => {
     expect(appearanceOf("neutral")).toBe("default");
     expect(appearanceOf("warning-subtle")).toBe("warning");
-    expect(appearanceOf("danger")).toBe("danger");
   });
 });

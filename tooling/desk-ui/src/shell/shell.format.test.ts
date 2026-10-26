@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   firstLine,
@@ -66,15 +66,12 @@ describe("formatElapsed", () => {
 
 describe("formatClock", () => {
   it("shows the local time of day in the page language", () => {
-    const iso = "2026-03-01T10:04:05.000Z";
-    const local = new Date(iso);
-    const expected = new Intl.DateTimeFormat("de", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    }).format(local);
-    expect(formatClock(iso, "de")).toBe(expected);
-    expect(formatClock(iso, "de")).toMatch(/^\d\d:\d\d:\d\d$/);
+    vi.stubEnv("TZ", "Asia/Tokyo");
+    try {
+      expect(formatClock("2026-03-01T10:04:05.000Z", "de")).toBe("19:04:05");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns the raw text for a time it cannot read", () => {
