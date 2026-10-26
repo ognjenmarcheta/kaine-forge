@@ -144,56 +144,25 @@ describe("session-start hook", () => {
     }
   });
 
-  it("warns when the Codex AI install is missing", () => {
-    const repo = makeRepo();
-    try {
-      writeFile(repo, ".ai/guide.md");
-      writeFile(repo, "AGENTS.md");
-      writeFile(repo, "CLAUDE.md");
-      const result = runHook(repo, "codex");
+  it.each(["codex", "claude", "grok"] as const)(
+    "warns when the %s AI install is missing",
+    (agent) => {
+      const repo = makeRepo();
+      try {
+        writeFile(repo, ".ai/guide.md");
+        writeFile(repo, "AGENTS.md");
+        writeFile(repo, "CLAUDE.md");
+        const result = runHook(repo, agent);
 
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI installation: not-verified");
-      expect(result.stdout).toContain("not verified at startup");
-      expect(result.stdout).toContain("pnpm ai:install --agent codex");
-    } finally {
-      rmSync(repo, { recursive: true, force: true });
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain("AI installation: not-verified");
+        expect(result.stdout).toContain("not verified at startup");
+        expect(result.stdout).toContain(`pnpm ai:install --agent ${agent}`);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
     }
-  });
-
-  it("warns when the Claude AI install is missing", () => {
-    const repo = makeRepo();
-    try {
-      writeFile(repo, ".ai/guide.md");
-      writeFile(repo, "AGENTS.md");
-      writeFile(repo, "CLAUDE.md");
-      const result = runHook(repo, "claude");
-
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI installation: not-verified");
-      expect(result.stdout).toContain("not verified at startup");
-      expect(result.stdout).toContain("pnpm ai:install --agent claude");
-    } finally {
-      rmSync(repo, { recursive: true, force: true });
-    }
-  });
-
-  it("warns when the Grok AI install is missing", () => {
-    const repo = makeRepo();
-    try {
-      writeFile(repo, ".ai/guide.md");
-      writeFile(repo, "AGENTS.md");
-      writeFile(repo, "CLAUDE.md");
-      const result = runHook(repo, "grok");
-
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("AI installation: not-verified");
-      expect(result.stdout).toContain("not verified at startup");
-      expect(result.stdout).toContain("pnpm ai:install --agent grok");
-    } finally {
-      rmSync(repo, { recursive: true, force: true });
-    }
-  });
+  );
 
   it("prints healthy context for a complete Grok install", () => {
     const repo = makeRepo();

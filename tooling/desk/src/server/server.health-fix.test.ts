@@ -8,6 +8,7 @@ import {
   deferred,
   openEvents,
   raw,
+  WRITE_HEADERS,
   type Harness
 } from "./server.testing";
 
@@ -95,8 +96,12 @@ describe("POST /api/health/fix", () => {
     const api = await authenticated(harness);
     expect((await api.post("/api/health/fix", { fix: "docker-build" })).status).toBe(404);
     expect((await api.post("/api/health/fix", { fix: "rm -rf /" })).status).toBe(400);
-    expect((await raw(harness.desk, { method: "POST", path: "/api/health/fix" })).status).not.toBe(
-      202
-    );
+    const anonymous = await raw(harness.desk, {
+      method: "POST",
+      path: "/api/health/fix",
+      headers: WRITE_HEADERS(harness.desk),
+      body: JSON.stringify({ fix: "docker-build" })
+    });
+    expect(anonymous.status).toBe(401);
   });
 });

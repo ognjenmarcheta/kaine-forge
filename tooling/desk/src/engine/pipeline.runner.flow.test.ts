@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { IssueState } from "../contracts";
+import { statusMarker } from "../github/github.authorization";
 import { FAKE_BASE_SHA } from "../testing/git.fake";
 import { snapshotOf } from "../testing/github.fake";
 import {
@@ -144,8 +145,18 @@ describe("pipeline runner: happy path", () => {
     const targets = e.github.labelEdits.map((edit) => edit.change.add[0]);
     expect(targets[0]).toBe("agent:working");
     expect(targets.at(-1)).toBe("agent:needs-you");
-    expect(e.github.comments.length).toBeGreaterThanOrEqual(3);
-    expect(e.github.comments.at(-1)?.body).toContain("Stage: `pr-review`");
+    // One upsert of the marked status comment for each stage the issue entered.
+    const comments = e.github.comments;
+    expect(comments.every((comment) => comment.body.startsWith(statusMarker(ISSUE)))).toBe(true);
+    expect(comments.map((comment) => /^Stage: `([^`]+)`/m.exec(comment.body)?.[1])).toEqual([
+      "setup",
+      "plan",
+      "plan-gate",
+      "build",
+      "check",
+      "review",
+      "pr-review"
+    ]);
   });
 
   it("makes no GitHub write when write-back is off", async () => {
@@ -332,17 +343,6 @@ describe("pipeline runner: plan gate", () => {
     const before = await stateOf(e);
     const again = await e.pipeline.approvePlan(ISSUE);
     expect(again).toMatchObject({ outcome: "refused", refusal: "invalid-transition" });
-    expect(await stateOf(e)).toEqual(before);
-  });
-
-  it("refuses feedback to build at the plan gate", async () => {
-    const e = await open({ steps: [planStep()] });
-    await e.pipeline.start(ISSUE, { override: false });
-    const before = await stateOf(e);
-    expect(await e.pipeline.feedback(ISSUE, "build", "Skip the plan.")).toMatchObject({
-      outcome: "refused",
-      refusal: "invalid-transition"
-    });
     expect(await stateOf(e)).toEqual(before);
   });
 

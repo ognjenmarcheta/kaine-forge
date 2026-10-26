@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { deskConfigSchema } from "../contracts";
 import { renderTicket, runIntake, type IntakeOptions } from "./intake.run";
-import { statusMarker } from "../github/github.authorization";
+import { contentFingerprint, statusMarker } from "../github/github.authorization";
 import { createIssueStore } from "../store/store.issue";
 import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 import { OWNER, fakeGitHub, snapshotOf, type FakeGitHubOptions } from "../testing/github.fake";
@@ -85,8 +85,8 @@ describe("runIntake", () => {
     const { run, store } = setup();
     await run();
     const read = await store.read(7);
-    expect(read.status === "ok" && read.state.authorization?.contentFingerprint).toMatch(
-      /^[0-9a-f]{64}$/
+    expect(read.status === "ok" && read.state.authorization?.contentFingerprint).toBe(
+      contentFingerprint(snapshotOf(), OWNER)
     );
   });
 

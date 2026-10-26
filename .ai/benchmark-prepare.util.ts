@@ -45,6 +45,7 @@ export function prepareWorkflow(name: WorkflowCase, variant: string, harness: "c
   if (name === "generated-crud") {
     const source = readFileSync(path.join(REPO_ROOT, ".ai/fixtures/crud.verifier.test.txt"), "utf8")
       .replaceAll("__plural__", "memos")
+      .replaceAll("__Plural__", "Memos")
       .replaceAll("__Singular__", "Memo")
       .replaceAll("__singular__", "memo");
     writeFileSync(path.join(directory, "verifier/apps/api/src/benchmark.crud.test.ts"), source);

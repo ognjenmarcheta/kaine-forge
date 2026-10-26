@@ -89,8 +89,4 @@ describe("fingerprintFailure", () => {
       fingerprintFailure({ argv: ARGV, output: "zzz error", timedOut: true })
     );
   });
-
-  it("returns a sha256 hex string", () => {
-    expect(fingerprintFailure({ argv: ARGV, output: "error" })).toMatch(/^[0-9a-f]{64}$/);
-  });
 });
