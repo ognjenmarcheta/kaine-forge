@@ -450,6 +450,10 @@ jobs:
           server-port: "0"
 
       - name: Build API and Web with dependencies
+        env:
+          # Adds the dev-only Playwright fixture page to the web build that the
+          # e2e shards serve (apps/web/vite.config.ts). Images build without it.
+          E2E_FIXTURES: "true"
         run: pnpm run build:core
 
       # Share built package/app dist with e2e shards so they do not re-run
