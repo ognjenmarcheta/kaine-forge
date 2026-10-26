@@ -6,7 +6,9 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
+  AGENTS,
   renderClaudeSettings,
   renderCodexConfig,
   renderCursorHooks,
@@ -90,7 +92,7 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
     }).parse(JSON.parse(result.stdout));
   });
 
-  for (const agent of ["claude", "codex", "grok", "cursor"]) {
+  for (const agent of AGENTS.filter((name) => AGENT_REGISTRY[name].preToolUseHook)) {
     for (const [index, command] of commands.entries()) {
       check(`${agent} ${command}`, () => {
         const result = spawnSync(
