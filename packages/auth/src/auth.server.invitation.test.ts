@@ -48,7 +48,13 @@ const { listInvitationsForScope } = await import("./auth.server.invitation");
 
 const adminScope = {
   organizationId: "org-1",
-  user: { id: "user-1", email: "admin@example.com", emailVerified: false, name: "Admin" },
+  user: {
+    id: "user-1",
+    email: "admin@example.com",
+    emailVerified: false,
+    name: "Admin",
+    twoFactorEnabled: false
+  },
   userId: "user-1",
   membership: { id: "m-1", role: "admin", userId: "user-1" }
 };

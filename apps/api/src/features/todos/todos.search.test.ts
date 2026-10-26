@@ -12,7 +12,13 @@ import { listTodosByScope } from "./todos.adapter";
 const scope = {
   organizationId: "00000000-0000-0000-0000-000000000001",
   userId: "00000000-0000-0000-0000-000000000001",
-  user: { id: "u", email: "u@example.test", emailVerified: true, name: "User" }
+  user: {
+    id: "u",
+    email: "u@example.test",
+    emailVerified: true,
+    name: "User",
+    twoFactorEnabled: false
+  }
 };
 beforeAll(async () => {
   await client.exec(

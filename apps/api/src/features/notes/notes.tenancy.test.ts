@@ -63,6 +63,7 @@ vi.mock("@repo/auth/server", () => ({
         user: {
           email: "tenant@example.test",
           emailVerified: true,
+          twoFactorEnabled: false,
           id: fixture.userId,
           name: "Tenant User"
         }
@@ -385,6 +386,7 @@ describe("attachment deletion SQL", () => {
         id: fixture.userId,
         email: "tenant@example.test",
         emailVerified: true,
+        twoFactorEnabled: false,
         name: "Tenant User"
       }
     };

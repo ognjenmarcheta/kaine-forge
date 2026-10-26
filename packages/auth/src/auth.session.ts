@@ -17,6 +17,8 @@ export interface CreateClientSessionLifecycleInput {
 }
 
 export interface ClientSessionLifecycle {
+  /** Persists the session from a sign-in step other than password login (2FA, email code). */
+  completeSignIn(signIn: () => Promise<AuthSession>): Promise<AuthSession>;
   loginWithPassword(input: LoginInput): Promise<AuthSession>;
   logout(): Promise<void>;
   refreshSession(): Promise<AuthSession | null>;
@@ -59,6 +61,11 @@ export function createClientSessionLifecycle(
 
         throw refreshError;
       }
+    },
+    async completeSignIn(signIn) {
+      const session = await signIn();
+      await persistSession(input.persistence, session);
+      return session;
     },
     async loginWithPassword(loginInput) {
       const session = await input.auth.loginWithPassword(loginInput);

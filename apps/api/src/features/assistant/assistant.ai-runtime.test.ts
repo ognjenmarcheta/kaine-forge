@@ -85,7 +85,13 @@ import { createAssistantTools } from "./assistant.tools";
 
 const scope = {
   organizationId: "org-1",
-  user: { email: "u@example.test", emailVerified: true, id: "user-1", name: "User" },
+  user: {
+    email: "u@example.test",
+    emailVerified: true,
+    id: "user-1",
+    name: "User",
+    twoFactorEnabled: false
+  },
   userId: "user-1"
 };
 

@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/client";
-import { organizationClient } from "better-auth/client/plugins";
+import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
 
 import type {
   AuthOrganizationMember,
@@ -9,13 +9,19 @@ import type {
   ClientAuth,
   CreateOrganizationInput,
   LoginInput,
-  SignupInput
+  ResetPasswordWithEmailOtpInput,
+  SendEmailOtpInput,
+  SignInWithEmailOtpInput,
+  SignupInput,
+  TwoFactorEnrollment,
+  TwoFactorMethod,
+  VerifyTwoFactorInput
 } from "./auth.type";
 import { slugifyOrganizationName } from "./auth.util";
 
 // Re-exported so bundler consumers that only alias the transport entry can
 // reference the provider union without importing server-facing modules.
-export type { AuthSocialProvider } from "./auth.type";
+export type { AuthSocialProvider, TwoFactorEnrollment, TwoFactorMethod } from "./auth.type";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -32,6 +38,68 @@ const SOCIAL_PROVIDERS: readonly AuthSocialProvider[] = ["github", "google"];
 // created or refreshed a session; its value is the signed session token that
 // non-cookie clients replay as `Authorization: Bearer <token>`.
 const SESSION_TOKEN_HEADER = "set-auth-token";
+
+// Request header the better-auth captcha plugin reads the Turnstile token from.
+const CAPTCHA_RESPONSE_HEADER = "x-captcha-response";
+
+/** Code on the AuthRequestError thrown when password sign-in needs a second factor. */
+export const TWO_FACTOR_REQUIRED = "TWO_FACTOR_REQUIRED";
+
+/**
+ * A failed auth request. `code` is better-auth's machine-readable error code
+ * (e.g. PASSWORD_COMPROMISED), so clients can show a precise message.
+ */
+export class AuthRequestError extends Error {
+  readonly code: string | undefined;
+  readonly status: number;
+  readonly twoFactorMethods: readonly TwoFactorMethod[];
+
+  constructor(input: {
+    code?: string | undefined;
+    status: number;
+    twoFactorMethods?: readonly TwoFactorMethod[] | undefined;
+  }) {
+    super(`auth request failed (${String(input.status)})`);
+    this.name = "AuthRequestError";
+    this.code = input.code;
+    this.status = input.status;
+    this.twoFactorMethods = input.twoFactorMethods ?? [];
+  }
+}
+
+export function isTwoFactorRequiredError(error: unknown): error is AuthRequestError {
+  return error instanceof AuthRequestError && error.code === TWO_FACTOR_REQUIRED;
+}
+
+// i18n keys (packages/translation auth.json) for the better-auth error codes
+// a user can act on; anything else falls back to the generic message.
+const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
+  INVALID_EMAIL_OR_PASSWORD: "auth.error.invalidCredentials",
+  USER_ALREADY_EXISTS: "auth.error.userExists",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "auth.error.userExists",
+  PASSWORD_COMPROMISED: "auth.error.passwordCompromised",
+  INVALID_OTP: "auth.error.invalidCode",
+  INVALID_CODE: "auth.error.invalidCode",
+  INVALID_BACKUP_CODE: "auth.error.invalidCode",
+  OTP_EXPIRED: "auth.error.codeExpired",
+  OTP_HAS_EXPIRED: "auth.error.codeExpired",
+  TOO_MANY_ATTEMPTS: "auth.error.tooManyAttempts",
+  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "auth.error.tooManyAttempts",
+  ACCOUNT_TEMPORARILY_LOCKED: "auth.error.accountLocked",
+  INVALID_TWO_FACTOR_COOKIE: "auth.error.twoFactorExpired",
+  MISSING_RESPONSE: "auth.error.captcha",
+  VERIFICATION_FAILED: "auth.error.captcha"
+};
+
+export function getAuthErrorMessageKey(error: unknown): string {
+  const code = error instanceof AuthRequestError ? error.code : undefined;
+
+  return (code && AUTH_ERROR_MESSAGE_KEYS[code]) ?? "error.generic";
+}
+
+function captchaFetchOptions(captchaToken: string | undefined) {
+  return captchaToken ? { headers: { [CAPTCHA_RESPONSE_HEADER]: captchaToken } } : undefined;
+}
 
 export interface AuthTransportAdapter {
   baseUrl: string;
@@ -51,6 +119,19 @@ export interface AuthTransportAdapter {
 
 export interface AuthTransport extends ClientAuth {
   listOrganizationMembers(): Promise<AuthOrganizationMember[]>;
+  /** Completes a password sign-in that threw TWO_FACTOR_REQUIRED. */
+  verifyTwoFactor(input: VerifyTwoFactorInput): Promise<AuthSession>;
+  /** Emails a second-factor code during a pending two-factor sign-in. */
+  sendTwoFactorOtp(): Promise<void>;
+  /** Starts TOTP enrollment; 2FA turns on after verifyTotpEnrollment. */
+  enableTwoFactor(password: string): Promise<TwoFactorEnrollment>;
+  verifyTotpEnrollment(code: string): Promise<AuthSession>;
+  disableTwoFactor(password: string): Promise<AuthSession>;
+  regenerateBackupCodes(password: string): Promise<string[]>;
+  sendSignInOtp(input: SendEmailOtpInput): Promise<void>;
+  signInWithOtp(input: SignInWithEmailOtpInput): Promise<AuthSession>;
+  requestPasswordResetOtp(input: SendEmailOtpInput): Promise<void>;
+  resetPasswordWithOtp(input: ResetPasswordWithEmailOtpInput): Promise<void>;
 }
 
 interface CreateAuthTransportInput {
@@ -79,8 +160,28 @@ interface TransportRequestError {
   status: number;
 }
 
-function toAuthError(error: TransportRequestError): Error {
-  return new Error(`auth request failed (${String(error.status)})`);
+function toAuthError(error: TransportRequestError): AuthRequestError {
+  return new AuthRequestError({ code: error.code, status: error.status });
+}
+
+function isTwoFactorMethod(value: unknown): value is TwoFactorMethod {
+  return value === "totp" || value === "otp";
+}
+
+// better-auth answers a password sign-in that needs a second factor with
+// `{ twoFactorRedirect: true, twoFactorMethods }` and no session.
+function readTwoFactorMethods(data: unknown): TwoFactorMethod[] | null {
+  if (typeof data !== "object" || data === null || !("twoFactorRedirect" in data)) {
+    return null;
+  }
+
+  if (data.twoFactorRedirect !== true) {
+    return null;
+  }
+
+  const methods = "twoFactorMethods" in data ? data.twoFactorMethods : [];
+
+  return Array.isArray(methods) ? methods.filter(isTwoFactorMethod) : [];
 }
 
 function toIsoString(value: Date | string): string {
@@ -126,7 +227,12 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
   // Expo/React Native types, and `never[]` only re-widens it for `plugins`.
   const client = createAuthClient({
     baseURL: adapter.baseUrl || undefined,
-    plugins: [organizationClient(), ...((adapter.clientPlugins ?? []) as never[])],
+    plugins: [
+      organizationClient(),
+      twoFactorClient(),
+      emailOTPClient(),
+      ...((adapter.clientPlugins ?? []) as never[])
+    ],
     fetchOptions: {
       credentials: adapter.credentials,
       customFetchImpl: bearerFetch
@@ -155,7 +261,8 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         id: data.user.id,
         email: data.user.email,
         emailVerified: data.user.emailVerified,
-        name: data.user.name
+        name: data.user.name,
+        twoFactorEnabled: data.user.twoFactorEnabled === true
       }
     };
   }
@@ -175,9 +282,120 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
   return {
     getSession,
     async loginWithPassword(loginInput: LoginInput) {
-      const { error } = await client.signIn.email({
-        email: loginInput.email,
-        password: loginInput.password
+      const { data, error } = await client.signIn.email(
+        {
+          email: loginInput.email,
+          password: loginInput.password
+        },
+        captchaFetchOptions(loginInput.captchaToken)
+      );
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      const twoFactorMethods = readTwoFactorMethods(data);
+
+      if (twoFactorMethods) {
+        // No session exists yet; the caller collects a code and calls
+        // verifyTwoFactor (the pending state lives in a short-lived cookie).
+        throw new AuthRequestError({ code: TWO_FACTOR_REQUIRED, status: 200, twoFactorMethods });
+      }
+
+      return requireSession();
+    },
+    async signupWithPassword(signupInput: SignupInput) {
+      const { error } = await client.signUp.email(
+        {
+          email: signupInput.email,
+          name: signupInput.name,
+          password: signupInput.password
+        },
+        captchaFetchOptions(signupInput.captchaToken)
+      );
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async verifyTwoFactor(verifyInput: VerifyTwoFactorInput) {
+      const body = { code: verifyInput.code, trustDevice: verifyInput.trustDevice };
+      const { error } =
+        verifyInput.method === "totp"
+          ? await client.twoFactor.verifyTotp(body)
+          : verifyInput.method === "otp"
+            ? await client.twoFactor.verifyOtp(body)
+            : await client.twoFactor.verifyBackupCode(body);
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async sendTwoFactorOtp() {
+      const { error } = await client.twoFactor.sendOtp();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async enableTwoFactor(password: string) {
+      const { data, error } = await client.twoFactor.enable({ password });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      if (!data || !("totpURI" in data)) {
+        throw new Error("two-factor enrollment returned no TOTP URI");
+      }
+
+      return { backupCodes: data.backupCodes, totpUri: data.totpURI };
+    },
+    async verifyTotpEnrollment(code: string) {
+      const { error } = await client.twoFactor.verifyTotp({ code });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async disableTwoFactor(password: string) {
+      const { error } = await client.twoFactor.disable({ password });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async regenerateBackupCodes(password: string) {
+      const { data, error } = await client.twoFactor.generateBackupCodes({ password });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return data?.backupCodes ?? [];
+    },
+    async sendSignInOtp(otpInput: SendEmailOtpInput) {
+      const { error } = await client.emailOtp.sendVerificationOtp(
+        { email: otpInput.email, type: "sign-in" },
+        captchaFetchOptions(otpInput.captchaToken)
+      );
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async signInWithOtp(otpInput: SignInWithEmailOtpInput) {
+      const { error } = await client.signIn.emailOtp({
+        email: otpInput.email,
+        otp: otpInput.otp
       });
 
       if (error) {
@@ -186,18 +404,26 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
 
       return requireSession();
     },
-    async signupWithPassword(signupInput: SignupInput) {
-      const { error } = await client.signUp.email({
-        email: signupInput.email,
-        name: signupInput.name,
-        password: signupInput.password
+    async requestPasswordResetOtp(resetInput: SendEmailOtpInput) {
+      const { error } = await client.emailOtp.requestPasswordReset(
+        { email: resetInput.email },
+        captchaFetchOptions(resetInput.captchaToken)
+      );
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async resetPasswordWithOtp(resetInput: ResetPasswordWithEmailOtpInput) {
+      const { error } = await client.emailOtp.resetPassword({
+        email: resetInput.email,
+        otp: resetInput.otp,
+        password: resetInput.password
       });
 
       if (error) {
         throw toAuthError(error);
       }
-
-      return requireSession();
     },
     async signInWithSocial(provider: AuthSocialProvider) {
       // In browsers the vanilla client redirects to the provider via

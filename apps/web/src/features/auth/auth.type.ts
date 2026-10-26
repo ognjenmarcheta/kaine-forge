@@ -3,6 +3,7 @@ export interface AuthUser {
   emailVerified: boolean;
   id: string;
   name: string;
+  twoFactorEnabled: boolean;
 }
 
 export interface AuthSession {
@@ -12,9 +13,24 @@ export interface AuthSession {
 }
 
 export interface AuthContextValue {
+  /** Applies the session from a two-factor or email-code sign-in step. */
+  completeSignIn: (signIn: () => Promise<AuthSession>) => Promise<void>;
   isLoading: boolean;
-  login: (input: { email: string; password: string }) => Promise<void>;
+  // Throws an AuthRequestError with code TWO_FACTOR_REQUIRED when the account
+  // needs a second factor (isTwoFactorRequiredError from @repo/auth/transport).
+  login: (input: {
+    captchaToken?: string | undefined;
+    email: string;
+    password: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-reads the session, e.g. after two-factor settings change. */
+  refreshSession: () => Promise<void>;
   session: AuthSession | null;
-  signup: (input: { email: string; name: string; password: string }) => Promise<void>;
+  signup: (input: {
+    captchaToken?: string | undefined;
+    email: string;
+    name: string;
+    password: string;
+  }) => Promise<void>;
 }

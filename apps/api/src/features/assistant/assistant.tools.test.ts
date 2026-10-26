@@ -14,7 +14,13 @@ vi.mock("../todos/todos.adapter", () => ({ listTodosByScope: vi.fn() }));
 
 const scope = {
   organizationId: "org-1",
-  user: { email: "user@example.com", emailVerified: false, id: "user-1", name: "User" },
+  user: {
+    email: "user@example.com",
+    emailVerified: false,
+    id: "user-1",
+    name: "User",
+    twoFactorEnabled: false
+  },
   userId: "user-1"
 };
 

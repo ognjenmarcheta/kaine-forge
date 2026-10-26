@@ -53,6 +53,7 @@ Template defaults prioritize local DX. Before production multi-tenant traffic:
 3. Replace `EMAIL_PROVIDER=console` with a real adapter in `@repo/email` so password-reset and verification emails leave the process (console logs can include tokens).
 4. Soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, ADR 0007) does not block login. To hard-gate, check `session.user.emailVerified` in app routing or API policy for the surfaces you care about.
 5. Prefer private S3 buckets; never copy the local MinIO anonymous-download pattern to production.
+6. Set `TURNSTILE_SECRET_KEY` with matching `VITE_TURNSTILE_SITE_KEY` / `EXPO_PUBLIC_TURNSTILE_SITE_KEY` to turn on captcha, and keep `AUTH_PASSWORD_BREACH_CHECK` on (ADR 0015).
 
 Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.env.example`.
 

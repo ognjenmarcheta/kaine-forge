@@ -47,7 +47,13 @@ export async function seedEvalFixture(
   const scope: AuthenticatedOrganizationScope = {
     organizationId: own.id,
     userId: user.id,
-    user: { id: user.id, name: user.name, email: user.email, emailVerified: false }
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: false,
+      twoFactorEnabled: false
+    }
   };
   const [foreignTodo] = await database.db
     .insert(todosTable)

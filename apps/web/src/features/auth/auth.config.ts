@@ -8,5 +8,6 @@ export const AUTH_CONFIG = {
   baseUrl: "",
   // UI-only gate for social login buttons; the API's provider env vars stay
   // authoritative for which providers actually work.
-  socialProviders: parseSocialProviders(getWebEnv().VITE_AUTH_SOCIAL_PROVIDERS)
+  socialProviders: parseSocialProviders(getWebEnv().VITE_AUTH_SOCIAL_PROVIDERS),
+  captchaSiteKey: getWebEnv().VITE_TURNSTILE_SITE_KEY ?? null
 } as const;

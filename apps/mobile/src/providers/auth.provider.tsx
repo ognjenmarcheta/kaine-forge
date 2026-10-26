@@ -87,14 +87,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const login = useCallback(
-    async (input: { email: string; password: string }) => {
+    async (input: Parameters<AuthContextValue["login"]>[0]) => {
       await authTransition.login(input);
     },
     [authTransition]
   );
 
   const signup = useCallback(
-    async (input: { email: string; name: string; password: string }) => {
+    async (input: Parameters<AuthContextValue["signup"]>[0]) => {
       await authTransition.signup(input);
     },
     [authTransition]

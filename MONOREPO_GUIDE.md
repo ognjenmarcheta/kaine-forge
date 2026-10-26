@@ -196,6 +196,9 @@ Important runtime variables:
 | `BETTER_AUTH_URL`                                                  | public auth/API base URL                                                                                               |
 | `EMAIL_PROVIDER`                                                   | email adapter (`console` in dev; `resend` needs `RESEND_API_KEY`)                                                      |
 | `AUTH_REQUIRE_EMAIL_VERIFICATION`                                  | soft verification flag (does not gate login; see ADR 0007)                                                             |
+| `AUTH_PASSWORD_BREACH_CHECK`                                       | Have I Been Pwned check on new passwords; on unless `false` (fails closed when offline; ADR 0015)                      |
+| `TURNSTILE_SECRET_KEY` / `TURNSTILE_ALLOWED_HOSTNAMES`             | Cloudflare Turnstile captcha on sign-up, sign-in, reset, and email codes; off when the secret is blank (ADR 0015)      |
+| `VITE_TURNSTILE_SITE_KEY` / `EXPO_PUBLIC_TURNSTILE_*`              | captcha widget gates for web and mobile; mobile base URL hostname must be allowed for the site key                     |
 | `GITHUB_*` / `GOOGLE_*`                                            | optional OAuth; each provider needs both id and secret                                                                 |
 | `VITE_AUTH_SOCIAL_PROVIDERS` / `EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS` | UI button gates (comma-separated)                                                                                      |
 | `API_HOST`                                                         | optional API listen host, for example `0.0.0.0` for LAN testing                                                        |
@@ -223,6 +226,8 @@ Important runtime variables:
 | `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
+
+**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes) need no other change.
 
 Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases. Password reset uses better-auth routes (`/api/auth/request-password-reset`, `/api/auth/reset-password`). Production hardening checklist: `SECURITY.md`.
 

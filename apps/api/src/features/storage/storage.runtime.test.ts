@@ -7,6 +7,7 @@ const scope = {
   user: {
     email: "user@example.com",
     emailVerified: false,
+    twoFactorEnabled: false,
     id: "user-1",
     name: "User"
   },
