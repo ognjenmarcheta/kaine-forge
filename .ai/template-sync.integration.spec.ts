@@ -67,7 +67,7 @@ const commitAll = (root: string, message: string, time: number): string => {
 };
 
 /** An upstream with two commits and a project adopted from the first, with one local edit. */
-const createFixture = (localRuleThree: string) => {
+const createFixture = (localRuleThree: string, options: { record: boolean } = { record: true }) => {
   const root = mkdtempSync(join(tmpdir(), "kaine-sync-"));
   roots.push(root);
   const upstream = join(root, "upstream");
@@ -105,10 +105,13 @@ const createFixture = (localRuleThree: string) => {
   writeFiles(
     project,
     new Map([
-      [
-        TEMPLATE_CONFIG_PATH,
-        renderTemplateConfig({ ...record, upstream: { url: upstream, ref: "main" } })
-      ],
+      // Projects adopted before ai:sync existed have only their adoption config file.
+      options.record
+        ? [
+            TEMPLATE_CONFIG_PATH,
+            renderTemplateConfig({ ...record, upstream: { url: upstream, ref: "main" } })
+          ]
+        : ["template-adoption.json", JSON.stringify(adoption)],
       [
         ".ai/guide.md",
         guide("Rule one, Acme flavour.", localRuleThree).replace("Kaine Forge", "Acme Ops")
@@ -132,10 +135,10 @@ const createFixture = (localRuleThree: string) => {
   unlinkSync(join(upstream, ".ai/skills/kaine-old.md"));
   const latest = commitAll(upstream, "v2", 3_000);
 
-  const sync = () =>
+  const sync = (...args: string[]) =>
     spawnSync(
       join(REPO_ROOT, "node_modules", ".bin", "tsx"),
-      [".ai/template-sync.ts", "--skip-checks"],
+      [".ai/template-sync.ts", "--skip-checks", ...args],
       {
         cwd: project,
         encoding: "utf8"
@@ -143,7 +146,7 @@ const createFixture = (localRuleThree: string) => {
     );
   const read = (path: string): string => readFileSync(join(project, path), "utf8");
   const base = () => readTemplateConfig(join(project, TEMPLATE_CONFIG_PATH))?.base;
-  return { project, latest, sync, read, base };
+  return { project, upstream, latest, sync, read, base };
 };
 
 it("refuses a dirty tree, then merges upstream changes into an adopted project", () => {
@@ -181,4 +184,16 @@ it("writes conflict markers and still advances the base when edits overlap", () 
     "<<<<<<< local\nRule three, local.\n=======\nRule three, updated.\n>>>>>>> upstream\n"
   );
   expect(fixture.base()).toBe(fixture.latest);
+}, 60_000);
+
+it("records the adoption config of an older project with --init, then syncs it", () => {
+  const fixture = createFixture("Rule three.", { record: false });
+
+  const result = fixture.sync("--init", "template-adoption.json", "--upstream", fixture.upstream);
+  expect(result.status, result.stderr).toBe(0);
+  expect(fixture.read(".ai/guide.md")).toContain("Rule three, updated.");
+  expect(fixture.base()).toBe(fixture.latest);
+  expect(readTemplateConfig(join(fixture.project, TEMPLATE_CONFIG_PATH))?.adoption.repoSlug).toBe(
+    "acme-ops"
+  );
 }, 60_000);
