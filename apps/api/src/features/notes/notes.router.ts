@@ -42,13 +42,9 @@ export const notesResolvers = {
       return ctx.workflows.note.deleteNote(scope, args.id);
     },
     async addTodoToNote(_parent: unknown, args: AddTodoToNoteArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      // Through the workflow, so the title is normalized and the created event
-      // is published once, in one place (issue #393).
-      return ctx.workflows.todo.createTodo(scope, {
-        ...args.input,
-        noteId: args.noteId
-      });
+      // Through the Todo module, so the title is normalized and the created
+      // event is published once, in one place (issue #393).
+      return ctx.todos.create({ ...args.input, noteId: args.noteId });
     }
   },
   Subscription: {

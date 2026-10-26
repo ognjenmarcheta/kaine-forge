@@ -11,7 +11,6 @@ import { createAssistantTools } from "./assistant.tools";
 import { createScopedData } from "../../context.data";
 
 vi.mock("../notes/notes.adapter", () => ({ listNotesByScope: vi.fn() }));
-vi.mock("../todos/todos.adapter", () => ({ listTodosByScope: vi.fn() }));
 
 const scope = {
   membership: { id: "membership-1", role: "owner", userId: "user-1" },
@@ -26,11 +25,12 @@ const tools: ToolSet = createAssistantTools({
   data: createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope }),
   noteWorkflow: { createNote: vi.fn(), updateNote: vi.fn() },
   scope,
-  todoWorkflow: {
-    createTodo: vi.fn(),
-    deleteTodo: vi.fn(),
-    toggleTodo: vi.fn(),
-    updateTodo: vi.fn()
+  todos: {
+    create: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+    toggle: vi.fn(),
+    update: vi.fn()
   }
 });
 

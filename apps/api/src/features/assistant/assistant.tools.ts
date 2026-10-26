@@ -5,21 +5,18 @@ import { z } from "zod";
 import type { ScopedData } from "../../context.data";
 import type { ApiWorkflows } from "../../context.workflows";
 import { listNotesByScope } from "../notes/notes.adapter";
-import { listTodosByScope } from "../todos/todos.adapter";
+import type { Todos } from "../todos/todos.module";
 
-// Model-chosen writes go through the same workflows the GraphQL resolvers use,
+// Model-chosen writes go through the same modules the GraphQL resolvers use,
 // so they get attachment cleanup on delete and title normalization on create and
 // update. Calling todos.adapter directly here is what made a model-initiated
-// delete orphan its attachment rows (issue #393). Reads stay on the adapters,
-// over the request's scoped data: they have no guard to bypass.
+// delete orphan its attachment rows (issue #393). Note reads stay on the
+// adapter, over the request's scoped data: they have no guard to bypass.
 export interface AssistantToolDeps {
   data: ScopedData;
   noteWorkflow: Pick<ApiWorkflows["note"], "createNote" | "updateNote">;
   scope: AuthenticatedOrganizationScope;
-  todoWorkflow: Pick<
-    ApiWorkflows["todo"],
-    "createTodo" | "deleteTodo" | "toggleTodo" | "updateTodo"
-  >;
+  todos: Pick<Todos, "create" | "delete" | "list" | "toggle" | "update">;
 }
 
 // Trimmed before length is checked, so "   " is rejected at the tool boundary
@@ -32,7 +29,7 @@ export function createAssistantTools({
   data,
   noteWorkflow,
   scope,
-  todoWorkflow
+  todos
 }: AssistantToolDeps): ToolSet {
   return {
     createTodo: tool({
@@ -42,7 +39,7 @@ export function createAssistantTools({
         description: z.string().nullable()
       }),
       execute: async ({ title, description }) => {
-        const todo = await todoWorkflow.createTodo(scope, { title, description });
+        const todo = await todos.create({ title, description });
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -52,8 +49,8 @@ export function createAssistantTools({
         limit: z.number().int().min(1).max(50).default(20)
       }),
       execute: async ({ limit }) => {
-        const todos = await listTodosByScope(data, { limit, offset: 0 });
-        return todos.map((todo) => ({
+        const listed = await todos.list({ limit, offset: 0 });
+        return listed.map((todo) => ({
           id: todo.id,
           title: todo.title,
           completed: todo.completed
@@ -64,7 +61,7 @@ export function createAssistantTools({
       description: "Toggle a todo's completion state by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const todo = await todoWorkflow.toggleTodo(scope, id);
+        const todo = await todos.toggle(id);
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -76,7 +73,7 @@ export function createAssistantTools({
         description: z.string().nullable().optional()
       }),
       execute: async ({ id, title, description }) => {
-        const todo = await todoWorkflow.updateTodo(scope, id, {
+        const todo = await todos.update(id, {
           ...(title === undefined ? {} : { title }),
           ...(description === undefined ? {} : { description })
         });
@@ -87,7 +84,7 @@ export function createAssistantTools({
       description: "Delete a todo by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const deleted = await todoWorkflow.deleteTodo(scope, id);
+        const deleted = await todos.delete(id);
         return { id, deleted };
       }
     }),
@@ -103,7 +100,7 @@ export function createAssistantTools({
         const created: { id: string; title: string }[] = [];
 
         for (const todoTitle of todoTitles ?? []) {
-          const todo = await todoWorkflow.createTodo(scope, {
+          const todo = await todos.create({
             title: todoTitle,
             description: null,
             noteId: note.id
@@ -141,7 +138,7 @@ export function createAssistantTools({
       description: "Add a todo to an existing note by note id.",
       inputSchema: z.object({ noteId: z.string().uuid(), title: todoTitleSchema }),
       execute: async ({ noteId, title }) => {
-        const todo = await todoWorkflow.createTodo(scope, { title, description: null, noteId });
+        const todo = await todos.create({ title, description: null, noteId });
         return { id: todo.id, title: todo.title, noteId };
       }
     })

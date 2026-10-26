@@ -1,5 +1,4 @@
 import { createTestDatabase } from "@repo/db/testing";
-import { createLogger } from "@repo/logger";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -95,11 +94,8 @@ it("executes the explicitly requested synthetic evaluation run", async () => {
         };
         const runtime = createAssistantAiRuntime({
           data: fixture.data,
-          workflows: createApiWorkflows({
-            data: fixture.data,
-            logger: createLogger({ name: "assistant-eval", level: "silent" }),
-            publish: () => {}
-          }),
+          todos: fixture.todos,
+          workflows: createApiWorkflows({ data: fixture.data, publish: () => {} }),
           publishAssistantDelta: () => {},
           recordModelCall: (event) => {
             usage = {

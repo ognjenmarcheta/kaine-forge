@@ -7,11 +7,14 @@ import {
   membersTable
 } from "@repo/db/schema";
 import type { TestDatabase } from "@repo/db/testing";
+import { createLogger } from "@repo/logger";
 import { isDeepStrictEqual } from "node:util";
 
 import type { ExecutableEvalCase } from "./assistant.eval.data";
 import { substituteFixture } from "./assistant.eval.scoring";
 import { createScopedData } from "../../context.data";
+import { createTodoAttachments } from "../storage/attachment.lifecycle";
+import { createTodos } from "../todos/todos.module";
 
 export async function seedEvalFixture(database: TestDatabase, evaluation: ExecutableEvalCase) {
   const [user] = await database.db
@@ -81,8 +84,18 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
       .filter((row) => before.notes.some((original) => original.id === row.id))
       .sort((a, b) => a.id.localeCompare(b.id))
   });
+  const data = createScopedData({ db: database.db, requireOrganizationScope: () => scope });
+  // Object deletes are no-ops: an evaluation never reaches object storage.
+  const logger = createLogger({ name: "eval", level: "silent" });
+  const todos = createTodos({
+    attachments: createTodoAttachments({ data, deleteObject: async () => undefined, logger }),
+    data,
+    logger,
+    publish: () => {}
+  });
   return {
-    data: createScopedData({ db: database.db, requireOrganizationScope: () => scope }),
+    data,
+    todos,
     scope,
     ids,
     before,
