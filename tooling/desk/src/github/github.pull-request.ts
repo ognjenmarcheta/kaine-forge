@@ -78,7 +78,7 @@ export const findPullRequest = async (
   return match === undefined ? null : { number: match.number, url: match.url };
 };
 
-export const createPullRequestArgv = (request: CreatePullRequestRequest): string[] => [
+const createPullRequestArgv = (request: CreatePullRequestRequest): string[] => [
   "pr",
   "create",
   "--base",

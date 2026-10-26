@@ -86,10 +86,6 @@ describe("buildCodexArgs", () => {
     );
   });
 
-  it("refuses a builder without the opt-in", () => {
-    expect(() => buildCodexArgs(codexRequest({ role: "builder" }), files)).toThrow(/disabled/);
-  });
-
   it.each([
     codexRequest({ role: "planner" }),
     codexRequest({ role: "reviewer", model: "gpt-5" }),

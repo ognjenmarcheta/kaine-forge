@@ -3,6 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const isCI = Boolean(process.env.CI);
+// The CI PR e2e job sets this: it serves the API and web builds that Build Core
+// Apps already made (core-dist artifact), so a page loads a few bundled files,
+// not hundreds of dev-server modules. Not plain CI: Release builds web with an
+// absolute VITE_GRAPHQL_URL, which would bypass the proxy below.
+const serveBuild = process.env.E2E_SERVE_BUILD === "true";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 export default defineConfig({
@@ -36,7 +41,9 @@ export default defineConfig({
       command:
         // API_CORS_ORIGINS feeds better-auth's trustedOrigins; the browser hits
         // the API through the Vite proxy, so its Origin header is the web origin.
-        "pnpm --filter @repo/api exec node --import tsx src/index.ts",
+        serveBuild
+          ? "pnpm --filter @repo/api exec node dist/index.js"
+          : "pnpm --filter @repo/api exec node --import tsx src/index.ts",
       env: {
         API_PORT: "4010",
         // UI flows share one loopback IP. Rate-limit behavior has dedicated API tests.
@@ -58,7 +65,8 @@ export default defineConfig({
         // The repo .env pins VITE_GRAPHQL_URL to the dev API (port 4000), which
         // would bypass the Vite proxy in the browser. e2e must stay same-origin,
         // so force the relative /graphql endpoint; process env outranks .env.
-        "pnpm --filter @repo/web exec vite --host 127.0.0.1 --port 3010 --strictPort",
+        // `vite preview` reuses server.proxy, so the same-origin proxy holds.
+        `pnpm --filter @repo/web exec vite ${serveBuild ? "preview " : ""}--host 127.0.0.1 --port 3010 --strictPort`,
       env: {
         VITE_API_PROXY_TARGET: "http://127.0.0.1:4010",
         VITE_GRAPHQL_URL: "/graphql"

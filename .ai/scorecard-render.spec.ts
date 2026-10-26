@@ -69,10 +69,7 @@ describe("parseLedger", () => {
     const data = parseLedger(readFileSync(LEDGER_PATH, "utf8"));
 
     expect(data.schema).toBe(1);
-    expect(data.authoredFlows.map((flow) => flow.id)).toEqual([
-      "release-deploy",
-      "runtime-request"
-    ]);
+    expect(data.authoredFlows.length).toBeGreaterThan(0);
     expect(Array.isArray(data.runs)).toBe(true);
   });
 

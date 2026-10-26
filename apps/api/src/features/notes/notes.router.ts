@@ -1,8 +1,6 @@
-import { pipe } from "graphql-yoga";
-
 import type { CreateNoteInput, UpdateNoteInput } from "./notes.type";
 import type { ApiContext } from "../../context";
-import { filterByOrganization } from "../../pubsub";
+import { organizationSubscriptions } from "../../pubsub";
 import type { CreateTodoInput } from "../todos/todos.type";
 
 type ResolverContext = ApiContext;
@@ -43,33 +41,5 @@ export const notesResolvers = {
       return ctx.todos.create({ ...args.input, noteId: args.noteId });
     }
   },
-  Subscription: {
-    noteCreated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:created"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    noteUpdated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:updated"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    noteDeleted: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("note:deleted"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    }
-  }
+  Subscription: organizationSubscriptions(["noteCreated", "noteUpdated", "noteDeleted"])
 };

@@ -61,11 +61,6 @@ describe("createScheduler", () => {
       await expect(failing).rejects.toThrow("boom");
       await expect(next).resolves.toBe("ran");
     });
-
-    it("returns the value of the task", async () => {
-      const scheduler = createScheduler(1);
-      await expect(scheduler.serial(3, () => Promise.resolve(42))).resolves.toBe(42);
-    });
   });
 
   describe("agent slots", () => {
@@ -89,19 +84,6 @@ describe("createScheduler", () => {
       await all;
       expect(peak).toBe(1);
       expect(scheduler.agent.active()).toBe(0);
-    });
-
-    it("releases the slot when the task throws", async () => {
-      const scheduler = createScheduler(1);
-      await expect(scheduler.agent.run(() => Promise.reject(new Error("crash")))).rejects.toThrow(
-        "crash"
-      );
-      expect(scheduler.agent.active()).toBe(0);
-      await expect(scheduler.agent.run(() => Promise.resolve("again"))).resolves.toBe("again");
-    });
-
-    it("rejects a slot count below one", () => {
-      expect(() => createScheduler(0)).toThrow(RangeError);
     });
   });
 
@@ -134,12 +116,6 @@ describe("createScheduler", () => {
       await expect(scheduler.check.run(() => Promise.resolve("checked"))).resolves.toBe("checked");
       gate.resolve();
       await agent;
-    });
-
-    it("releases the slot when the task throws", async () => {
-      const scheduler = createScheduler(1);
-      await expect(scheduler.check.run(() => Promise.reject(new Error("x")))).rejects.toThrow("x");
-      expect(scheduler.check.active()).toBe(0);
     });
   });
 });

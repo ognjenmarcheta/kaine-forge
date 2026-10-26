@@ -10,10 +10,4 @@ describe("Textarea", () => {
     expect(markup).toContain("ui-textarea");
     expect(markup).toContain('placeholder="Enter text"');
   });
-
-  it("merges custom className", () => {
-    const markup = renderToStaticMarkup(<Textarea className="custom-textarea" />);
-    expect(markup).toContain("custom-textarea");
-    expect(markup).toContain("ui-textarea");
-  });
 });

@@ -105,7 +105,7 @@ describe("issue store", () => {
 
     it("reports valid JSON that is not an object", async () => {
       const store = await plant(6, "null");
-      expect(await store.read(6)).toMatchObject({ status: "unreadable" });
+      expect(await store.read(6)).toMatchObject({ status: "unreadable", reason: "invalid-schema" });
     });
 
     it("reports a state filed under the wrong issue number", async () => {

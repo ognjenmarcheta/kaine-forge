@@ -712,45 +712,6 @@ describe("monorepo alignment", () => {
     expect(globalsCss).not.toContain(':root[data-theme="dark-high-contrast"]');
   });
 
-  it("documents implemented theme modes consistently across guides", () => {
-    const monorepoGuide = readText("MONOREPO_GUIDE.md");
-    const designSystem = readText("DESIGN_SYSTEM.md");
-
-    expect(monorepoGuide).toContain("token-only design system");
-    expect(monorepoGuide).not.toContain("light-high-contrast");
-    expect(monorepoGuide).not.toContain("dark-high-contrast");
-
-    expect(designSystem).not.toContain("light-high-contrast");
-    expect(designSystem).not.toContain("dark-high-contrast");
-  });
-
-  it("keeps GraphQL SDL naming guidance consistent", () => {
-    const monorepoGuide = readText("MONOREPO_GUIDE.md");
-
-    expect(monorepoGuide).toContain(
-      "API feature SDL lives in `apps/api/src/features/{feature}/{feature}.schema.ts`"
-    );
-    expect(monorepoGuide).toContain("`.schema.ts`");
-    expect(monorepoGuide).not.toContain(
-      "- [ ] Create `{feature}.type.ts` — GraphQL type definitions."
-    );
-  });
-
-  it("documents platform-specific styling stack accurately", () => {
-    const monorepoGuide = readText("MONOREPO_GUIDE.md");
-
-    expect(monorepoGuide).toContain("Tailwind CSS v4 for web/UI");
-    expect(monorepoGuide).toContain("NativeWind with Tailwind CSS v3 pipeline for mobile");
-  });
-
-  it("uses feature-flags naming as the canonical package convention", () => {
-    const monorepoGuide = readText("MONOREPO_GUIDE.md");
-
-    expect(monorepoGuide).toContain("config-driven feature flags");
-    expect(monorepoGuide).toContain("@repo/feature-flags");
-    expect(monorepoGuide).not.toContain("packages/feature-flags/src/flags.config.ts");
-  });
-
   it("does not expose legacy flags alias exports in feature-flags package", () => {
     const packageJson = readJson("packages/feature-flags/package.json") as {
       exports?: Record<string, unknown>;
@@ -1034,23 +995,6 @@ describe("monorepo alignment", () => {
     expect(uncovered, "workspaces whose tests never run on a pull request").toEqual([]);
   });
 
-  it("documents web vs mobile React version policy", () => {
-    const monorepoGuide = readText("MONOREPO_GUIDE.md");
-
-    expect(monorepoGuide).toContain("catalog:mobile");
-    expect(monorepoGuide).toContain("Dependency catalogs (pnpm)");
-    expect(monorepoGuide).toContain("web React");
-  });
-
-  it("restricts deep package source imports and cross-platform UI packages", () => {
-    const eslintBase = readText("packages/config/eslint/base.js");
-
-    expect(eslintBase).toContain("@repo/*/src");
-    expect(eslintBase).toContain("@repo/mobile-ui");
-    expect(eslintBase).toContain("@repo/ui");
-    expect(eslintBase).toContain("no-restricted-imports");
-  });
-
   it("keeps server-only package entries out of client bundles (issue #305)", () => {
     // The storage root barrel re-exported the S3 client, which pulled
     // @aws-sdk/client-s3 into the Expo bundle. Both client blocks (web/desktop/ui
@@ -1118,11 +1062,15 @@ describe("monorepo alignment", () => {
     );
     domWorkspaces.forEach((workspace, index) => {
       const options = domOptions[index] ?? "";
+      expect(options, `${workspace} must block deep package source imports`).toContain(
+        '"@repo/*/src"'
+      );
       expect(options, `${workspace} must block server-only entries`).toContain(serverOnlyGate);
       expect(options, `${workspace} must block React Native primitives`).toContain(
         '"@repo/mobile-ui"'
       );
     });
+    expect(mobile, "mobile must block deep package source imports").toContain('"@repo/*/src"');
     expect(mobile, "mobile must block server-only entries").toContain(serverOnlyGate);
     expect(mobile, "mobile must block DOM primitives, not itself").not.toContain(
       '"@repo/mobile-ui"'
@@ -1249,8 +1197,6 @@ describe("monorepo alignment", () => {
     const configInputs = readTestInputs("packages/config/turbo.json");
     for (const input of [
       "$TURBO_DEFAULT$",
-      "$TURBO_ROOT$/MONOREPO_GUIDE.md",
-      "$TURBO_ROOT$/DESIGN_SYSTEM.md",
       "$TURBO_ROOT$/.github/rulesets/main.json",
       "$TURBO_ROOT$/.github/workflows/*.yml",
       "$TURBO_ROOT$/Dockerfile.*",

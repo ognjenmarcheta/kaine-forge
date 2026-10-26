@@ -29,7 +29,7 @@ const COMMANDS = [
   "resume",
   "labels sync",
   "doctor",
-  "docker",
+  "docker build|login|doctor|status|prune",
   "serve"
 ];
 
