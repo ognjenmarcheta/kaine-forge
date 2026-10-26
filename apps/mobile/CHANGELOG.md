@@ -1,5 +1,12 @@
 # @repo/mobile
 
+## 1.9.2
+
+### Patch Changes
+
+- Updated dependencies [6d93644]
+  - @repo/storage@1.5.0
+
 ## 1.9.1
 
 ### Patch Changes
