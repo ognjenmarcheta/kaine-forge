@@ -1,0 +1,2 @@
+ALTER TABLE "files" ADD COLUMN "purged_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "files_unpurged_updated_at_idx" ON "files" USING btree ("updated_at") WHERE "files"."purged_at" is null;
