@@ -372,7 +372,10 @@ describe("createClaudeRunner", () => {
 
   it("reports a program that cannot start", async () => {
     const result = await run([], { code: null, spawnError: "spawn claude ENOENT" }).outcome;
-    expect(result).toMatchObject({ ok: false, failure: { kind: "process-error" } });
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { kind: "process-error", message: expect.stringMatching(/Cannot start .*ENOENT/) }
+    });
   });
 
   it("refuses a request for the other provider and an oversized prompt", async () => {
