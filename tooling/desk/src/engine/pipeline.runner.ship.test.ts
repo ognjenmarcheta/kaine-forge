@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 
 import { runChecks } from "../check";
-import type { FlowSnapshot, FlowStep, IssueState } from "../contracts";
+import type { FlowStep, IssueState } from "../contracts";
 import { createPipelineRunner, type PipelineRunner } from "./pipeline.runner";
 import type { IsolatedCheckRequest, IsolationPort } from "../isolation/isolation.port";
 import { createLogSink } from "../log/log.writer";
@@ -227,7 +227,7 @@ describe("the refs baseline", () => {
     // Without a baseline the gate fails closed. Nothing changes.
     await rm(baselineFile);
     const before = await readFile(h.env.store.statePath(ISSUE), "utf8");
-    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+    const result = await h.pipeline.ship(ISSUE, {});
     expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
     expect(result.outcome === "refused" && result.reason).toContain("refs-baseline-missing");
     expect(await readFile(h.env.store.statePath(ISSUE), "utf8")).toBe(before);
@@ -255,7 +255,7 @@ describe("ship, end to end with real git", () => {
 
     // A dry run writes the plan and the PR body. It changes no state, commit, branch, or PR.
     const before = await readFile(stateFile, "utf8");
-    const dry = await h.pipeline.ship(ISSUE, { confirm: false, dryRun: true });
+    const dry = await h.pipeline.ship(ISSUE, { dryRun: true });
     expect(dry).toMatchObject({ outcome: "dry-run" });
     if (dry.outcome !== "dry-run") return;
     expect(dry.plan.gate).toEqual({ ok: true, failures: [] });
@@ -269,15 +269,8 @@ describe("ship, end to end with real git", () => {
     expect(h.env.github.createdPullRequests).toEqual([]);
     expect(await h.hookLog()).toEqual([]);
 
-    // No yes, no ship. Nothing changes.
-    expect(await h.pipeline.ship(ISSUE, { confirm: false })).toMatchObject({
-      outcome: "refused",
-      refusal: "ship-refused"
-    });
-    expect(await readFile(stateFile, "utf8")).toBe(before);
-
     // The ship. The issue then waits at `pr-open` until the owner merges on GitHub.
-    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+    const result = await h.pipeline.ship(ISSUE, {});
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
     const shipped = await h.state();
     expect(shipped).toMatchObject({
@@ -362,9 +355,33 @@ describe("ship, end to end with real git", () => {
     expect(h.env.github.pullRequestViews).toEqual([101, 101]);
 
     // A shipped issue accepts no more ship.
-    expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
+    expect(await h.pipeline.ship(ISSUE, {})).toMatchObject({
       outcome: "refused",
       refusal: "invalid-transition"
+    });
+  });
+
+  it("enters the ship stage before the first commit", async () => {
+    const h = await open();
+    await toPrReview(h);
+    const { clone, scratch } = h.env;
+    if (clone === null) throw new Error("the ship tests need a real git clone");
+    // The pre-commit hook copies the state file as it is when git starts the first commit.
+    const seen = path.join(scratch.root, "state-at-commit.json");
+    await writeFile(
+      path.join(clone.dir, ".git", "hooks", "pre-commit"),
+      `#!/bin/sh\ncp "${h.env.store.statePath(ISSUE)}" "${seen}"\nexit 0\n`
+    );
+
+    expect(await h.pipeline.ship(ISSUE, {})).toMatchObject({ outcome: "stopped", stop: "gate" });
+
+    const atCommit: unknown = JSON.parse(await readFile(seen, "utf8"));
+    expect(atCommit).toMatchObject({ stage: "ship", status: "running", shipConfirmed: true });
+    expect(atCommit).toMatchObject({
+      history: expect.arrayContaining([
+        expect.objectContaining({ stage: "pr-review", event: "ship-confirmed" }),
+        expect.objectContaining({ stage: "ship", event: "stage-started" })
+      ])
     });
   });
 
@@ -375,7 +392,7 @@ describe("ship, end to end with real git", () => {
     if (worktree === null || branch === null) throw new Error("setup recorded no worktree");
 
     await h.failHook("pre-push", `token=${SECRET}`);
-    const failed = await h.pipeline.ship(ISSUE, { confirm: true });
+    const failed = await h.pipeline.ship(ISSUE, {});
     expect(failed).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     const stopped = await h.state();
     expect(stopped).toMatchObject({
@@ -408,7 +425,7 @@ describe("ship, end to end with real git", () => {
     expect(everything).toContain("[redacted]");
 
     // `ship` itself starts only at pr-review. The way back is `continue`.
-    expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
+    expect(await h.pipeline.ship(ISSUE, {})).toMatchObject({
       outcome: "refused",
       refusal: "invalid-transition"
     });
@@ -440,7 +457,7 @@ describe("ship in Docker mode", () => {
     holder.env = h.env;
     await toPrReview(h, "docker");
 
-    expect(await h.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({
+    expect(await h.pipeline.ship(ISSUE, {})).toMatchObject({
       outcome: "stopped",
       stop: "gate",
       state: { stage: "pr-open" }
@@ -457,7 +474,7 @@ describe("ship in Docker mode", () => {
     // The issue was started with Docker by another process.
     await h.env.store.write({ ...state, isolation: "docker" });
 
-    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+    const result = await h.pipeline.ship(ISSUE, {});
     expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     expect(result.outcome === "stopped" ? result.message : "").toContain(
       "Docker isolation is requested"
@@ -519,40 +536,11 @@ describe("refresh at pr-open", () => {
       noWriteback: true
     });
     const before = await readFile(e.store.statePath(ISSUE), "utf8");
-    const result = await e.pipeline.ship(ISSUE, { confirm: true });
+    const result = await e.pipeline.ship(ISSUE, {});
     expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
     if (result.outcome === "refused") expect(result.reason).toContain("writes nothing to GitHub");
     expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
     expect(e.github.createdPullRequests).toEqual([]);
-  });
-
-  it("tells the owner to continue, not to confirm, when an automatic ship cannot be retried", async () => {
-    // An automatic ship has no ship gate: `ship --confirm` would be refused there too.
-    const automatic: FlowSnapshot = {
-      ...DEFAULT_SNAPSHOT,
-      flow: {
-        ...DEFAULT_SNAPSHOT.flow,
-        steps: DEFAULT_SNAPSHOT.flow.steps.map((step) =>
-          step.kind === "ship" ? { ...step, auto: true } : step
-        )
-      }
-    };
-    const e = await seeded(
-      prOpen({
-        flowSnapshot: automatic,
-        stage: "needs-you",
-        resumeStage: "build",
-        prNumber: null,
-        prUrl: null
-      })
-    );
-    const before = await readFile(e.store.statePath(ISSUE), "utf8");
-    const result = await e.pipeline.continueFrom(ISSUE, "ship");
-    expect(result).toMatchObject({ outcome: "refused", refusal: "ship-refused" });
-    const reason = result.outcome === "refused" ? result.reason : "";
-    expect(reason).toContain(`pnpm desk continue ${ISSUE}`);
-    expect(reason).not.toContain("--confirm");
-    expect(await readFile(e.store.statePath(ISSUE), "utf8")).toBe(before);
   });
 
   it("does not let continue park an issue without a PR at pr-open", async () => {
@@ -615,7 +603,7 @@ describe("ship in a flow of the repository's own", () => {
     expect(await h.pipeline.approvePlan(ISSUE)).toMatchObject({ stop: "gate" });
     expect((await h.state()).stage).toBe("pr-review");
 
-    const result = await h.pipeline.ship(ISSUE, { confirm: true });
+    const result = await h.pipeline.ship(ISSUE, {});
 
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
     const shipped = await h.state();
@@ -680,7 +668,8 @@ describe("ship in a flow of the repository's own", () => {
     expect(result.outcome === "stopped" && result.message).toContain("- checks-stale:");
     const stopped = await h.state();
     expect(stopped).toMatchObject({ stage: "needs-you", resumeStage: "ship" });
-    expect(eventsOf(stopped)).toContain("ship:ship-automatic");
+    // The gate refused before the ship was admitted, so it never started.
+    expect(eventsOf(stopped)).not.toContain("ship:ship-automatic");
     expect(await commitCount(h, stopped)).toBe(0);
     expect(await remoteBranches(h)).toEqual(["main"]);
     expect(h.env.github.createdPullRequests).toEqual([]);
