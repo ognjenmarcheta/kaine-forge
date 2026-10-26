@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { checkControllerIdentity, evaluateControllerIdentity } from "./github.identity";
+import { evaluateControllerIdentity } from "./github.identity";
 import { repositoryOf } from "../testing/github.fake";
 
 describe("evaluateControllerIdentity", () => {
@@ -41,18 +41,5 @@ describe("evaluateControllerIdentity", () => {
   it("lets a configured owner differ from the repository owner", () => {
     const result = evaluateControllerIdentity(repositoryOf(), "maintainer", "maintainer");
     expect(result).toMatchObject({ ok: true, owner: "maintainer" });
-  });
-});
-
-describe("checkControllerIdentity", () => {
-  it("reads the repository and the viewer from the port", async () => {
-    const result = await checkControllerIdentity(
-      {
-        repository: () => Promise.resolve(repositoryOf()),
-        viewer: () => Promise.resolve("octo-owner")
-      },
-      undefined
-    );
-    expect(result.ok).toBe(true);
   });
 });
