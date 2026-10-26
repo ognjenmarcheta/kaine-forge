@@ -515,7 +515,9 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
           tags: local/${{ matrix.app }}:ci
-          load: true
+          # A tarball, not `load: true`: Trivy reads it directly, so the job skips
+          # importing the image into the Docker daemon (40-85 s on api).
+          outputs: type=docker,dest=${{ runner.temp }}/${{ matrix.app }}.tar
           cache-from: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,scope={0}', matrix.app) || '' }}
           cache-to: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,mode=max,scope={0}', matrix.app) || '' }}
 
@@ -525,7 +527,7 @@ jobs:
       - name: Scan ${{ matrix.app }} image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: local/${{ matrix.app }}:ci
+          input: ${{ runner.temp }}/${{ matrix.app }}.tar
           format: sarif
           output: trivy-${{ matrix.app }}.sarif
           severity: CRITICAL,HIGH
@@ -552,7 +554,7 @@ jobs:
       - name: Fail on fixable CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: local/${{ matrix.app }}:ci
+          input: ${{ runner.temp }}/${{ matrix.app }}.tar
           format: table
           severity: CRITICAL
           ignore-unfixed: true
@@ -560,13 +562,23 @@ jobs:
           skip-setup-trivy: true
           cache: false
 
+      # Third pass, same cache: Trivy writes the SBOM from the image analysis it
+      # already holds. A separate SBOM tool re-read the whole image (about 30 s).
       - name: Generate SBOM for ${{ matrix.app }}
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image: local/${{ matrix.app }}:ci
+          input: ${{ runner.temp }}/${{ matrix.app }}.tar
           format: spdx-json
-          artifact-name: sbom-${{ matrix.app }}.spdx.json
-          output-file: sbom-${{ matrix.app }}.spdx.json
+          output: sbom-${{ matrix.app }}.spdx.json
+          skip-setup-trivy: true
+          cache: false
+
+      - name: Upload SBOM for ${{ matrix.app }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ matrix.app }}.spdx.json
+          path: sbom-${{ matrix.app }}.spdx.json
+          if-no-files-found: error
 
   e2e-web-api:
     name: E2E Web/API (shard ${{ matrix.shard }}/2)
