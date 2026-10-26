@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 import { REPO_ROOT } from "./ai.util";
+import { ledgerDocument } from "./ledger-document.util";
 import { discoverWorkspacePackages, type WorkspacePackage } from "./release.util";
 
 export const LEDGER_PATH = join(REPO_ROOT, "docs", "agents", "monorepo-scorecard.md");
@@ -106,27 +107,6 @@ const requireArray = (value: unknown, path: string): unknown[] => {
   return value;
 };
 
-const markerRegion = (marker: string): RegExp =>
-  new RegExp(`(<!--\\s*${marker}:start\\s*-->)([\\s\\S]*?)(<!--\\s*${marker}:end\\s*-->)`);
-
-export const extractRegion = (raw: string, marker: string): string => {
-  const match = markerRegion(marker).exec(raw);
-  if (!match) {
-    throw new Error(`Ledger is missing the ${marker} marker pair`);
-  }
-  return match[2] ?? "";
-};
-
-export const replaceRegion = (raw: string, marker: string, body: string): string => {
-  const pattern = markerRegion(marker);
-  if (!pattern.test(raw)) {
-    throw new Error(`Ledger is missing the ${marker} marker pair`);
-  }
-  return raw.replace(pattern, (_full, start: string, _body: string, end: string) =>
-    [start, "", body.trim(), "", end].join("\n")
-  );
-};
-
 const parseFlow = (value: unknown, path: string): Flow => {
   if (!isRecord(value)) {
     throw new Error(`${path}: expected an object`);
@@ -220,33 +200,27 @@ const parseRun = (value: unknown, path: string): ScorecardRun => {
   };
 };
 
-export const parseLedger = (raw: string): LedgerData => {
-  const region = extractRegion(raw, DATA_MARKER);
-  const fence = /```json\s*([\s\S]*?)```/.exec(region);
-  if (!fence) {
-    throw new Error(`Ledger ${DATA_MARKER} region has no \`\`\`json block`);
-  }
+const ledger = ledgerDocument<LedgerData>({
+  dataMarker: DATA_MARKER,
+  generatedMarker: GENERATED_MARKER,
+  parseData: (parsed) => {
+    if (!isRecord(parsed)) {
+      throw new Error(`Ledger ${DATA_MARKER} JSON must be an object`);
+    }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(fence[1] ?? "");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Ledger ${DATA_MARKER} JSON is invalid: ${message}`);
-  }
+    return {
+      schema: requireNumber(parsed.schema, "schema"),
+      runs: requireArray(parsed.runs, "runs").map((run, index) => parseRun(run, `runs[${index}]`)),
+      authoredFlows: requireArray(parsed.authoredFlows, "authoredFlows").map((flow, index) =>
+        parseFlow(flow, `authoredFlows[${index}]`)
+      )
+    };
+  },
+  render: (data) => renderLedgerMarkdown(data)
+});
 
-  if (!isRecord(parsed)) {
-    throw new Error(`Ledger ${DATA_MARKER} JSON must be an object`);
-  }
-
-  return {
-    schema: requireNumber(parsed.schema, "schema"),
-    runs: requireArray(parsed.runs, "runs").map((run, index) => parseRun(run, `runs[${index}]`)),
-    authoredFlows: requireArray(parsed.authoredFlows, "authoredFlows").map((flow, index) =>
-      parseFlow(flow, `authoredFlows[${index}]`)
-    )
-  };
-};
+export const parseLedger = ledger.parse;
+export const rewriteLedger = ledger.rewrite;
 
 export const deriveWorkspaceFlow = (packages: WorkspacePackage[]): Flow => {
   const known = new Set(packages.map((entry) => entry.name));

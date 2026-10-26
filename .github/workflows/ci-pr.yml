@@ -380,15 +380,30 @@ jobs:
             exit 1
           fi
 
+      # The owner accepts an intended break with the graphql:breaking-approved
+      # label, then re-runs this job. Labels are read live, like the changeset
+      # gate: a re-run replays the original event payload, which lacks the label.
       - name: Diff schema against pull request base
         env:
           BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           git fetch origin "$BASE_REF" --depth=1
           git show "origin/${BASE_REF}:apps/api/schema.graphql" > /tmp/base-schema.graphql
           # Fails the job on breaking changes; additive non-breaking changes pass.
-          pnpm exec graphql-inspector diff /tmp/base-schema.graphql apps/api/schema.graphql
+          if pnpm exec graphql-inspector diff /tmp/base-schema.graphql apps/api/schema.graphql; then
+            exit 0
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' \
+            | grep -x 'graphql:breaking-approved' >/dev/null; then
+            echo "Label 'graphql:breaking-approved' present; the breaking changes above are accepted."
+            exit 0
+          fi
+          echo "Breaking GraphQL schema changes need the owner's approval:"
+          echo "add label 'graphql:breaking-approved' and re-run this job."
+          exit 1
 
   build-core:
     name: Build Core Apps

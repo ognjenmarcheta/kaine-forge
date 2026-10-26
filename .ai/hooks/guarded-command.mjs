@@ -21,18 +21,34 @@ const isGuardedCommandRule = (rule) =>
   isOptionalString(rule.instead);
 
 /**
- * Reads the policy and keeps every well-formed rule. A malformed rule is
- * dropped on its own, so one bad entry cannot disable the others. An unreadable
- * file or a missing `rules` array throws; callers decide how to fail open.
+ * Reads the policy and splits it into the well-formed rules and the indexes of
+ * the malformed ones. A malformed rule is dropped on its own, so one bad entry
+ * cannot disable the others; pnpm ai:doctor reports every dropped index. An
+ * unreadable file or a missing `rules` array throws; callers decide how to fail
+ * open.
  * @param {string} path Absolute path to permissions.json.
- * @returns {Array<{ id: string, decision: string, command: string, flag?: string, reason: string, instead?: string }>}
+ * @returns {{ rules: Array<{ id: string, decision: "deny" | "ask", command: string, flag?: string, reason: string, instead?: string }>, dropped: number[] }}
  */
-export function loadGuardedCommandRules(path) {
+export function readGuardedCommandPolicy(path) {
   const source = JSON.parse(readFileSync(path, "utf8"));
   if (!Array.isArray(source?.rules)) {
     throw new Error("permissions.json: rules must be an array");
   }
-  return source.rules.filter(isGuardedCommandRule);
+  const rules = [];
+  const dropped = [];
+  source.rules.forEach((rule, index) => {
+    if (isGuardedCommandRule(rule)) rules.push(rule);
+    else dropped.push(index);
+  });
+  return { rules, dropped };
+}
+
+/**
+ * The well-formed rules of the policy. Throws like readGuardedCommandPolicy.
+ * @param {string} path Absolute path to permissions.json.
+ */
+export function loadGuardedCommandRules(path) {
+  return readGuardedCommandPolicy(path).rules;
 }
 
 const HEREDOC_START = /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/;
