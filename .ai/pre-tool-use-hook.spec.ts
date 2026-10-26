@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -12,9 +13,7 @@ import {
 
 const hookScript = join(process.cwd(), ".ai", "hooks", "pre-tool-use.mjs");
 
-// Reading through readPermissionsSource rather than parsing the file here means
-// the canonical GuardRule type flows into matchGuardedCommand, so the .mjs
-// declarations cannot drift from it without failing typecheck.
+// The committed policy, read through the same loader as the hook.
 const rules: GuardRule[] = readPermissionsSource();
 
 const runHook = (command: string, agent = "claude", toolName = "Bash") =>
@@ -31,20 +30,6 @@ const runHook = (command: string, agent = "claude", toolName = "Bash") =>
   });
 
 describe("permissions policy", () => {
-  it("loses no committed rule to the boundary filter", () => {
-    const raw: unknown = JSON.parse(
-      readFileSync(join(process.cwd(), ".ai", "permissions.json"), "utf8")
-    );
-    const declared =
-      raw !== null && typeof raw === "object" && Array.isArray((raw as { rules?: unknown[] }).rules)
-        ? ((raw as { rules: unknown[] }).rules ?? []).length
-        : 0;
-
-    // readPermissionsSource drops malformed entries silently, which is right at
-    // a trust boundary and wrong if it quietly disarms the committed policy.
-    expect(rules).toHaveLength(declared);
-  });
-
   it("gives every rule a unique id, a reason, and a known decision", () => {
     const ids = rules.map((rule) => rule.id);
 
@@ -248,6 +233,32 @@ describe("matchGuardedCommand", () => {
 });
 
 describe("pre-tool-use hook", () => {
+  it("keeps every valid rule when the policy holds one malformed rule", () => {
+    const root = mkdtempSync(join(tmpdir(), "kaine-hook-policy-"));
+    try {
+      mkdirSync(join(root, ".ai", "hooks"), { recursive: true });
+      for (const file of ["pre-tool-use.mjs", "guarded-command.mjs"]) {
+        copyFileSync(join(process.cwd(), ".ai", "hooks", file), join(root, ".ai", "hooks", file));
+      }
+      const policy = JSON.parse(
+        readFileSync(join(process.cwd(), ".ai", "permissions.json"), "utf8")
+      );
+      // A deny rule with no command used to throw inside the matcher, so the
+      // hook skipped and every rule after it was lost.
+      policy.rules.unshift({ id: "broken", decision: "deny", reason: "no command" });
+      writeFileSync(join(root, ".ai", "permissions.json"), JSON.stringify(policy));
+
+      const result = spawnSync("node", [join(root, ".ai", "hooks", "pre-tool-use.mjs")], {
+        input: JSON.stringify({ tool_input: { command: "pnpm db:push" }, tool_name: "Bash" }),
+        encoding: "utf8"
+      });
+
+      expect(result.status).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("denies documented Claude PowerShell events", () => {
     const result = runHook("pnpm --dir . db:push", "claude", "PowerShell");
     expect(result.status).toBe(2);

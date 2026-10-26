@@ -82,6 +82,15 @@ export const validateFlow = (
       if (output === "intake")
         add(step.id, `Agent '${step.agent}' is an intake agent and cannot run in a flow`);
     }
+    if (step.kind === "gate") {
+      // The plan approval and the ship confirmation are two decisions: one gate cannot hold both.
+      const previous = flow.steps[index - 1];
+      const next = flow.steps[index + 1];
+      const afterPlan = previous?.kind === "agent" && outputOf.get(previous.agent) === "plan";
+      if (afterPlan && next?.kind === "ship" && !next.auto) {
+        add(step.id, "A gate cannot both approve a plan and confirm a ship");
+      }
+    }
     if (step.kind === "pr-wait" && flow.steps[index - 1]?.kind !== "ship") {
       add(step.id, "A pr-wait step must come directly after the ship step");
     }

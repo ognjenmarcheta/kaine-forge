@@ -55,6 +55,12 @@ describe("parseLedger", () => {
     expect(Array.isArray(data.runs)).toBe(true);
   });
 
+  it("reads a blank data region as an empty ledger", () => {
+    const blank = wrap("").replace(/```json\s*```/, "");
+
+    expect(parseLedger(blank)).toEqual({ runs: [], calibrations: [] });
+  });
+
   it("treats an empty runs array as no runs", () => {
     expect(parseLedger(wrap('{ "schema": 1, "runs": [] }')).runs).toEqual([]);
   });

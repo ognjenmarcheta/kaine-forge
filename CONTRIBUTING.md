@@ -202,6 +202,7 @@ When review rejects a change for domain or template reasons, use `kaine-encode-k
 - Describe the behavior change, risk, and validation.
 - Include tests for new behavior.
 - Include a changeset for source changes in `apps/**`, `packages/**`, or `tooling/**`, unless the PR is intentionally non-releasable and labeled `release:skip-changeset`.
+- A breaking GraphQL schema change fails **GraphQL Schema Compatibility** until the owner adds the label `graphql:breaking-approved` and re-runs the job.
 - Keep Jira, CodeRabbit, company-specific MCP servers, and other org-specific automation out of the template by default.
 
 Create release metadata:

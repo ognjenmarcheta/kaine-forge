@@ -43,51 +43,10 @@ export const TICKET_NODE = "ticket";
 /** The digits of a flow hash the page shows: enough to tell two snapshots apart. */
 export const shortHash = (hash: string): string => hash.slice(0, 7);
 
-/**
- * What a step does on the page. A gate right after a plan agent approves the plan; a gate right
- * before a ship the owner confirms reviews the change and ships; any other gate approves or
- * sends back. An agent is known by what it produces.
- */
-export type StepRole =
-  | "plan"
-  | "change"
-  | "review"
-  | "report"
-  | "plan-gate"
-  | "ship-gate"
-  | "gate"
-  | "check"
-  | "ship"
-  | "pr-wait";
-
 export const flowStepOf = (
   flow: IssueFlow,
   id: string | null | undefined
 ): FlowStepView | undefined => flow.steps.find((step) => step.id === id);
-
-export function stepRoleOf(flow: IssueFlow, id: string | null | undefined): StepRole | null {
-  const index = flow.steps.findIndex((step) => step.id === id);
-  const step = flow.steps[index];
-  if (step === undefined) return null;
-  switch (step.kind) {
-    case "agent": {
-      const output = step.agent?.output;
-      return output === "plan" || output === "change" || output === "review" ? output : "report";
-    }
-    case "gate": {
-      // The same order as the engine: the plan approval first, then the ship confirmation.
-      if (flow.steps[index - 1]?.agent?.output === "plan") return "plan-gate";
-      const next = flow.steps[index + 1];
-      return next?.kind === "ship" && !next.auto ? "ship-gate" : "gate";
-    }
-    case "check":
-      return "check";
-    case "ship":
-      return "ship";
-    case "pr-wait":
-      return "pr-wait";
-  }
-}
 
 /** A built-in step id of a built-in flow: the page has translated words for it. */
 const hasBuiltinWords = (flow: IssueFlow | null, id: string): boolean =>

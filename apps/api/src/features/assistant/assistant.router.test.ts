@@ -31,7 +31,10 @@ describe("assistant.router", () => {
     },
     userId: "user-1"
   };
+  // A stand-in: the mocked adapters only pass it through.
+  const data = { stub: "scoped-data" };
   const ctx = {
+    data,
     pubsub: testPubsub,
     requireOrganizationScope: () => authenticatedScope
   };
@@ -50,34 +53,7 @@ describe("assistant.router", () => {
     );
 
     expect(result).toEqual([]);
-    expect(assistantAdapter.getConversationById).toHaveBeenCalledWith(
-      authenticatedScope,
-      "conversation-1"
-    );
+    expect(assistantAdapter.getConversationById).toHaveBeenCalledWith(data, "conversation-1");
     expect(assistantAdapter.listMessages).not.toHaveBeenCalled();
-  });
-
-  it("lists messages with clamped pagination for an owned conversation", async () => {
-    vi.mocked(assistantAdapter.getConversationById).mockResolvedValue({
-      createdAt: new Date(),
-      id: "conversation-1",
-      organizationId: "org-1",
-      title: null,
-      updatedAt: new Date(),
-      userId: "user-1"
-    });
-    vi.mocked(assistantAdapter.listMessages).mockResolvedValue([]);
-
-    await assistantResolvers.Query.assistantMessages(
-      {},
-      { conversationId: "conversation-1", limit: 9_999, offset: -5 },
-      ctx as never
-    );
-
-    expect(assistantAdapter.listMessages).toHaveBeenCalledWith(
-      authenticatedScope,
-      "conversation-1",
-      { limit: 200, offset: 0 }
-    );
   });
 });

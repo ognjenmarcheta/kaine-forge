@@ -183,13 +183,10 @@ describe("buildFeatureFiles", () => {
       `${apiDir}/purchase-orders.config.ts`,
       `${apiDir}/purchase-orders.type.ts`,
       `${apiDir}/purchase-orders.util.ts`,
-      `${apiDir}/purchase-orders.adapter.ts`,
-      `${apiDir}/purchase-orders.adapter.test.ts`,
-      `${apiDir}/purchase-orders.workflow.ts`,
-      `${apiDir}/purchase-orders.workflow.test.ts`,
+      `${apiDir}/purchase-orders.module.ts`,
+      `${apiDir}/purchase-orders.module.test.ts`,
       `${apiDir}/purchase-orders.schema.ts`,
       `${apiDir}/purchase-orders.router.ts`,
-      `${apiDir}/purchase-orders.router.test.ts`,
       "packages/translation/src/locales/en/purchase-orders.json",
       "packages/translation/src/locales/de/purchase-orders.json",
       "packages/translation/src/locales/sr/purchase-orders.json",
@@ -210,28 +207,42 @@ describe("buildFeatureFiles", () => {
     expect(schema).toContain("export const purchaseOrdersTable");
   });
 
-  it("scopes every adapter function to the Authenticated Organization Scope", () => {
-    const adapter = read(`${apiDir}/purchase-orders.adapter.ts`);
-    const exported = adapter.match(/export async function (\w+)\(/g) ?? [];
+  it("reads and writes only through the request's scoped data, never the db singleton", () => {
+    const module = read(`${apiDir}/purchase-orders.module.ts`);
 
-    expect(exported).toHaveLength(5);
-    for (const declaration of exported) {
-      const body = adapter.slice(adapter.indexOf(declaration));
-      const nextExport = body.indexOf("export async function", 1);
-      const fn = nextExport === -1 ? body : body.slice(0, nextExport);
-      expect(fn).toContain("scope: AuthenticatedOrganizationScope");
-      expect(fn).toContain("scope.organizationId");
+    for (const call of ["selectFrom", "insert", "update", "delete"]) {
+      expect(module).toMatch(new RegExp(`\\bdata\\s*\\.${call}\\(`));
+    }
+    expect(module).toContain('...data.stamp("userId")');
+    for (const [path, content] of files) {
+      expect(content, path).not.toMatch(/import \{[^}]*\bdb\b[^}]*\} from "@repo\/db"/);
+      expect(content, path).not.toContain('vi.mock("@repo/db"');
     }
   });
 
-  it("opens every resolver with requireOrganizationScope and filters subscriptions", () => {
+  it("routes every resolver through ctx.purchaseOrders and derives its subscriptions", () => {
     const router = read(`${apiDir}/purchase-orders.router.ts`);
-    const resolvers =
-      router.match(/async (?:purchaseOrders|purchaseOrder|create|update|delete)\w*\(/g) ?? [];
 
-    expect(resolvers.length).toBeGreaterThanOrEqual(5);
-    expect(router.match(/ctx\.requireOrganizationScope\(\)/g)).toHaveLength(8);
-    expect(router.match(/filterByOrganization\(organizationId\)/g)).toHaveLength(3);
+    expect(router.match(/ctx\.purchaseOrders\.(?:list|get|create|update|delete)\(/g)).toHaveLength(
+      5
+    );
+    expect(router).toContain(
+      'organizationSubscriptions([\n    "purchaseOrderCreated",\n    "purchaseOrderUpdated",\n    "purchaseOrderDeleted"\n  ])'
+    );
+    expect(router).not.toContain("pubsub.subscribe");
+  });
+
+  it("subscribes the web routes through generated documents, not strings", () => {
+    for (const path of [
+      `${webDir}/purchase-orders.route.tsx`,
+      `${webDir}/purchase-order-detail.route.tsx`
+    ]) {
+      expect(read(path)).toContain("useLivePurchaseOrders({");
+      expect(read(path)).not.toContain("useSubscription");
+    }
+    expect(read("apps/web/src/graphql/operations/purchase-orders.graphql")).toContain(
+      "subscription OnPurchaseOrderDeleted {"
+    );
   });
 
   it("never lets a client supply the organization id", () => {
@@ -255,12 +266,13 @@ describe("buildFeatureFiles", () => {
     }
   });
 
-  it("keeps the emitted tests aligned with the emitted event names", () => {
-    expect(read(`${apiDir}/purchase-orders.workflow.ts`)).toContain('"purchaseOrder:created"');
-    expect(read(`${apiDir}/purchase-orders.workflow.test.ts`)).toContain('"purchaseOrder:created"');
-    expect(read(`${apiDir}/purchase-orders.router.test.ts`)).toContain(
-      'vi.mock("./purchase-orders.adapter"'
-    );
+  it("tests the module on PGlite with the emitted event names", () => {
+    const test = read(`${apiDir}/purchase-orders.module.test.ts`);
+
+    expect(read(`${apiDir}/purchase-orders.module.ts`)).toContain('"purchaseOrder:created"');
+    expect(test).toContain('"purchaseOrder:created"');
+    expect(test).toContain('from "@repo/db/testing"');
+    expect(test).toContain("await createTestDatabase()");
   });
 });
 
@@ -318,9 +330,19 @@ describe("applyCreateFeature", () => {
     expect(read("apps/api/src/pubsub.ts")).toContain(
       '"scaffoldfixture:deleted": [ScaffoldfixtureDeletedPayload];'
     );
+    expect(read("apps/api/src/pubsub.ts")).toContain(
+      'scaffoldfixtureDeleted: "scaffoldfixture:deleted"'
+    );
+    expect(read("apps/api/src/context.ts")).toContain("  scaffoldfixtures: Scaffoldfixtures;");
+    expect(read("apps/api/src/context.ts")).toContain(
+      "    scaffoldfixtures: createScaffoldfixtures({ data, publish }),"
+    );
     expect(read("apps/api/src/schema/features.ts")).toContain('name: "scaffoldfixtures"');
-    expect(read("apps/api/src/schema/features.test.ts")).toContain(
-      'vi.mock("../features/scaffoldfixtures/scaffoldfixtures.adapter", () => ({}));'
+    expect(read("apps/web/src/hooks/use-live-list.ts")).toContain(
+      "  OnScaffoldfixtureDeletedDocument"
+    );
+    expect(read("apps/web/src/hooks/use-live-list.ts")).toContain(
+      "export function useLiveScaffoldfixtures("
     );
     expect(read("packages/translation/src/translation.definition.ts")).toContain(
       '"scaffoldfixtures"'
@@ -388,15 +410,28 @@ describe("applyCreateFeature", () => {
     );
   });
 
+  it("throws when the plural would shadow an ApiContext field", () => {
+    const data = deriveFeatureNames({
+      name: "datum",
+      plural: "data",
+      write: false,
+      generate: true
+    });
+
+    expect(() => applyCreateFeature(readWiringTargets(), data)).toThrowError(
+      /ApiContext already has a 'data' field/
+    );
+  });
+
   it("throws when a scaffold path already exists", () => {
     const files = readWiringTargets();
     files.set(
-      "apps/api/src/features/scaffoldfixtures/scaffoldfixtures.adapter.ts",
+      "apps/api/src/features/scaffoldfixtures/scaffoldfixtures.module.ts",
       "// already here\n"
     );
 
     expect(() => applyCreateFeature(files, names)).toThrowError(
-      /scaffoldfixtures\.adapter\.ts: already exists/
+      /scaffoldfixtures\.module\.ts: already exists/
     );
   });
 });

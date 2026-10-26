@@ -19,6 +19,8 @@ export default defineConfig({
       "@repo/auth/server": path.join(workspaceRoot, "packages/auth/src/auth.server.ts"),
       "@repo/db/client": path.join(workspaceRoot, "packages/db/src/client.ts"),
       "@repo/db/schema": path.join(workspaceRoot, "packages/db/src/schema/index.ts"),
+      "@repo/db/testing": path.join(workspaceRoot, "packages/db/src/testing.ts"),
+      "@repo/db/types": path.join(workspaceRoot, "packages/db/src/types/index.ts"),
       "@repo/db": path.join(workspaceRoot, "packages/db/src/index.ts"),
       "@repo/email": path.join(workspaceRoot, "packages/email/src/index.ts"),
       "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),

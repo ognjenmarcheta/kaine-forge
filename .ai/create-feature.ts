@@ -88,9 +88,10 @@ const hasDatabaseUrl = (): boolean => {
 const nextSteps = (names: FeatureNames): string => `Next steps:
   1. Edit packages/db/src/schema/${names.pluralKebab}.schema.ts - replace the placeholder
      title and body columns with the real ones.
-  2. Match apps/api/src/features/${names.pluralKebab}/${names.pluralKebab}.{schema,type,util}.ts and
+  2. Match apps/api/src/features/${names.pluralKebab}/${names.pluralKebab}.{schema,type,util,module}.ts and
      apps/web/src/graphql/operations/${names.pluralKebab}.graphql to those columns, then: pnpm generate
-  3. pnpm db:generate   # writes a new packages/db/drizzle/*.sql - review it before committing
+  3. pnpm db:generate   # writes a new packages/db/drizzle/*.sql - review it before committing;
+                        # ${names.pluralKebab}.module.test.ts replays it on PGlite
   4. pnpm db:push:local # requires ALLOW_LOCAL_DB_PUSH=true and local PostgreSQL
   5. Translate packages/translation/src/locales/{de,sr}/${names.pluralKebab}.json and the
      navigation.${names.pluralKebab} keys - English-identical values fail pnpm check.

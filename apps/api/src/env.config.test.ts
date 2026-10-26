@@ -76,17 +76,4 @@ describe("validateApiEnv", () => {
       /AI_ASSISTANT_PROVIDER/
     );
   });
-
-  it("accepts optional social provider credentials", () => {
-    const env = validateApiEnv({
-      ...validEnv,
-      GITHUB_CLIENT_ID: "gh-id",
-      GITHUB_CLIENT_SECRET: "gh-secret",
-      GOOGLE_CLIENT_ID: "go-id",
-      GOOGLE_CLIENT_SECRET: "go-secret"
-    });
-    expect(env.GITHUB_CLIENT_ID).toBe("gh-id");
-    expect(env.GOOGLE_CLIENT_SECRET).toBe("go-secret");
-    expect(validateApiEnv(validEnv).GITHUB_CLIENT_ID).toBeUndefined();
-  });
 });

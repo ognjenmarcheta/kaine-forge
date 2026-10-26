@@ -62,7 +62,7 @@ export const createCliEnv = async (options: CliEnvOptions = {}): Promise<CliEnv>
   await writeFiles(repo, INSTALLED_FILES);
   // A worktree installs what the main checkout does.
   const git = createFakeGit({ repoRoot: repo, files: { ...REPO_FILES, ...INSTALLED_FILES } });
-  const pnpm = createFakePnpm(git.exec);
+  const pnpm = createFakePnpm();
   const github = fakeGitHub({ snapshot: snapshotOf({ number: ISSUE }), ...options.github });
   const runner = createScriptedRunner(options.steps ?? []);
   const extraCalls: ExecRequest[] = [];

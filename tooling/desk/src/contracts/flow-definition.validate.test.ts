@@ -154,6 +154,25 @@ describe("validateFlow", () => {
       ],
       step: "ship-again",
       message: "only one ship step"
+    },
+    {
+      rule: "a gate does not both approve a plan and confirm a ship",
+      edit: (steps) =>
+        replaceStep("pr-review", {
+          id: "pr-review",
+          kind: "gate",
+          label: "Approve",
+          sendBack: ["plan", "build"]
+        })(
+          replaceStep("review", {
+            id: "review",
+            kind: "agent",
+            label: "Re-plan",
+            agent: "planner"
+          })(steps)
+        ),
+      step: "pr-review",
+      message: "A gate cannot both approve a plan and confirm a ship"
     }
   ];
 
