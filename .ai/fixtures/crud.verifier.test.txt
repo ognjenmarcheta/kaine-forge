@@ -24,7 +24,7 @@ vi.mock("pg", () => {
 import { assistantEvalCases } from "./features/assistant/assistant.eval.data";
 import { seedEvalFixture } from "./features/assistant/assistant.eval.fixture";
 import { createScopedData } from "./context.data";
-import { createNotes } from "./features/notes/notes.module";
+import { create__Plural__ } from "./features/__plural__/__plural__.module";
 import { __plural__Resolvers } from "./features/__plural__/__plural__.router";
 import { __plural__TypeDefs } from "./features/__plural__/__plural__.schema";
 
@@ -80,7 +80,7 @@ it("replays migrations and proves API CRUD, validation and unchanged foreign row
       context: {
         requireOrganizationScope: () => scope,
         data,
-        notes: createNotes({ data, publish: () => {} }),
+        __plural__: create__Plural__({ data, publish: () => {} }),
         pubsub: createPubSub()
       }
     });
