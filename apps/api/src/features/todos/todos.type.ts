@@ -1,13 +1,3 @@
-export interface PaginationInput {
-  limit?: number;
-  offset?: number;
-}
-
-export interface Pagination {
-  limit: number;
-  offset: number;
-}
-
 export interface CreateTodoInput {
   title: string;
   description?: string | null;

@@ -89,15 +89,6 @@ export const nextStepOf = (snapshot: FlowSnapshot, stage: string): FlowStep | un
   return index < 0 ? undefined : steps[index + 1];
 };
 
-/**
- * The gate directly before a ship step that is not automatic: the owner confirms the ship there.
- * A gate before an automatic ship is an ordinary approval.
- */
-export const isShipGate = (snapshot: FlowSnapshot, stage: string): boolean => {
-  const next = nextStepOf(snapshot, stage);
-  return stepOf(snapshot, stage)?.kind === "gate" && next?.kind === "ship" && !next.auto;
-};
-
 /** Steps with an automatic loop-back, in flow order. Their ids key the loop counters. */
 export const loopSteps = (snapshot: FlowSnapshot): (FlowStep & { readonly loopBack: LoopBack })[] =>
   snapshot.flow.steps.flatMap((step) =>

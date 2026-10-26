@@ -12,8 +12,8 @@ import {
 } from "./assistant.adapter";
 import { createAssistantAiWorkflow } from "./assistant.ai";
 import { createAssistantAiRuntime } from "./assistant.ai-runtime";
+import { ASSISTANT_CONFIG } from "./assistant.config";
 import type { AssistantToolAction, SendMessageInput } from "./assistant.type";
-import { coerceMessagesPagination } from "./assistant.util";
 import type { ApiContext } from "../../context";
 import { errorReporter, formatLoggableError } from "../../observability";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
@@ -30,19 +30,20 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     recordModelCall: (telemetry) => {
       ctx.logger.info(telemetry, "assistant model call");
     },
-    workflows: ctx.workflows
+    notes: ctx.notes,
+    todos: ctx.todos
   });
 
   return createAssistantAiWorkflow({
-    appendMessage,
-    createConversation,
-    getConversationById,
+    appendMessage: (_scope, input) => appendMessage(ctx.data, input),
+    createConversation: (_scope, input) => createConversation(ctx.data, input),
+    getConversationById: (_scope, id) => getConversationById(ctx.data, id),
     isConfigured: aiRuntime.isConfigured,
-    listMessages: async (scope, conversationId) => {
+    listMessages: async (_scope, conversationId) => {
       const messages = await listRecentMessages(
-        scope,
+        ctx.data,
         conversationId,
-        coerceMessagesPagination({}).limit
+        ASSISTANT_CONFIG.messages.defaultLimit
       );
 
       return messages.map((message) => ({
@@ -60,7 +61,7 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
       errorReporter.captureException(err, { conversationId, feature: "assistant" });
     },
     runAgent: aiRuntime.runAgent,
-    touchConversation
+    touchConversation: (_scope, id) => touchConversation(ctx.data, id)
   });
 }
 
@@ -88,22 +89,20 @@ export const assistantResolvers = {
   },
   Query: {
     async assistantMessages(_parent: unknown, args: AssistantMessagesArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      const conversation = await getConversationById(scope, args.conversationId);
+      const conversation = await getConversationById(ctx.data, args.conversationId);
 
       if (!conversation) {
         return [];
       }
 
-      return listMessages(scope, args.conversationId, coerceMessagesPagination(args));
+      return listMessages(ctx.data, args.conversationId, args);
     },
     async conversations(
       _parent: unknown,
       args: { limit?: number; offset?: number },
       ctx: ResolverContext
     ) {
-      const scope = ctx.requireOrganizationScope();
-      return listConversations(scope, coerceMessagesPagination(args));
+      return listConversations(ctx.data, args);
     }
   },
   Mutation: {
@@ -112,8 +111,7 @@ export const assistantResolvers = {
       return createAssistantAiWorkflowForContext(ctx).sendMessage(scope, args.input);
     },
     async deleteConversation(_parent: unknown, args: { id: string }, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return deleteConversation(scope, args.id);
+      return deleteConversation(ctx.data, args.id);
     }
   },
   Subscription: {

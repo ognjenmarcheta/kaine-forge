@@ -4,9 +4,9 @@ import path from "node:path";
 import {
   actionTargetProblem,
   definitionIdSchema,
-  isShipGate,
   isolationSchema,
   stageIdSchema,
+  stepRoleOf,
   type ActionRequest
 } from "../contracts";
 import { parse, parseIssueNumber, requireIssue } from "./cli.args";
@@ -187,14 +187,16 @@ export const commandShip: CliCommand = (args, deps, io) => {
     io,
     { issue, json: values.json === true, noWriteback: values["no-writeback"] === true },
     async (runner) => {
-      if (dryRun) return runner.ship(issue, { confirm: false, dryRun: true });
-      if (values.confirm === true) return runner.ship(issue, { confirm: true });
+      // The CLI is the edge that asks: the runner ships whenever it is called.
+      if (dryRun) return runner.ship(issue, { dryRun: true });
+      if (values.confirm === true) return runner.ship(issue, {});
 
-      // No flag. Ask only where the ship can start. Elsewhere the runner gives its own refusal.
+      // No flag. Ask only where the ship can start. Elsewhere the runner refuses: only the
+      // ship gate admits a confirmed ship.
       const [entry] = await runner.status(issue);
       const state = entry?.result.status === "ok" ? entry.result.state : null;
-      if (state === null || !isShipGate(state.flowSnapshot, state.stage)) {
-        return runner.ship(issue, { confirm: false });
+      if (state === null || stepRoleOf(state.flowSnapshot, state.stage) !== "ship-gate") {
+        return runner.ship(issue, {});
       }
       const decline = (reason: string): ShipActionResult => ({
         outcome: "refused",
@@ -208,7 +210,7 @@ export const commandShip: CliCommand = (args, deps, io) => {
         );
       }
       const yes = await deps.ask(`Ship #${issue} as a draft PR? [y/N] `);
-      return yes ? runner.ship(issue, { confirm: true }) : decline("You did not confirm.");
+      return yes ? runner.ship(issue, {}) : decline("You did not confirm.");
     }
   );
 };

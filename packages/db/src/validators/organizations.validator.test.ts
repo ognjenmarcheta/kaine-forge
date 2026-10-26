@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   insertInvitationSchema,
   insertMemberSchema,
-  insertOrganizationSchema,
-  selectOrganizationSchema
+  insertOrganizationSchema
 } from "./organizations.validator";
 
 describe("organizations.validator", () => {
@@ -40,19 +39,5 @@ describe("organizations.validator", () => {
     });
 
     expect(parsed.status).toBe("pending");
-  });
-
-  it("accepts selected organization rows", () => {
-    const parsed = selectOrganizationSchema.parse({
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      id: "550e8400-e29b-41d4-a716-446655440010",
-      logo: null,
-      metadata: null,
-      name: "Personal",
-      slug: "personal",
-      userId: "550e8400-e29b-41d4-a716-446655440000"
-    });
-
-    expect(parsed.name).toBe("Personal");
   });
 });

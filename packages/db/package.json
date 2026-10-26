@@ -29,6 +29,10 @@
     "./migrate": {
       "types": "./dist/migrate.d.ts",
       "default": "./dist/migrate.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
     }
   },
   "scripts": {
@@ -59,9 +63,18 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
   }
 }

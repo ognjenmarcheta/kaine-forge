@@ -128,7 +128,8 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
       case "remove":
         return runner.remove(issueNumber, { force: request.force });
       case "ship":
-        return runner.ship(issueNumber, { confirm: request.confirm, dryRun: request.dryRun });
+        // The contract refuses a real ship without `confirm: true`.
+        return runner.ship(issueNumber, { dryRun: request.dryRun });
       case "refresh-pr":
         return runner.refreshPr(issueNumber);
       case "pr-feedback":

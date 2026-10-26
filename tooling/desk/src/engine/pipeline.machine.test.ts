@@ -455,7 +455,7 @@ describe("pipeline machine: a flow of its own", () => {
     expect(done).toMatchObject({ ok: true, nextStage: "pr-review" });
   });
 
-  it("enters a manual ship only on the owner's confirmation, and an automatic one by moving forward", () => {
+  it("enters a manual ship only on the owner's confirmation, and an automatic one only by moving forward", () => {
     const manual = { id: "ship", kind: "ship", label: "Ship", auto: false } as const;
     const automatic = { ...manual, auto: true } as const;
     const pass = { type: "check-result", result: "pass" } as const;
@@ -474,6 +474,10 @@ describe("pipeline machine: a flow of its own", () => {
     const autoAfterGate = flowOf([...stepsOf("plan", "build", "check", "pr-review"), automatic]);
     expect(transition(stateAt("pr-review"), { type: "gate-approve" }, autoAfterGate)).toMatchObject(
       intoShip
+    );
+    // An automatic ship takes no confirmation: the gate before it is an ordinary gate.
+    expect(transition(stateAt("pr-review"), { type: "ship-confirm" }, autoAfterGate).ok).toBe(
+      false
     );
   });
 

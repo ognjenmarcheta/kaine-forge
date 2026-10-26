@@ -97,7 +97,8 @@ describe("shipsWithoutReview", () => {
     kind,
     agent: null,
     sendBack: [],
-    auto
+    auto,
+    role: kind === "agent" ? "report" : kind
   });
   const flowOf = (...steps: FlowStepView[]): IssueFlow => ({ source: "local", steps });
 

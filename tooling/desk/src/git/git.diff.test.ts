@@ -4,7 +4,6 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createExec } from "../ports";
-import { diffAgainstBase } from "./git.diff";
 import { createGitPort } from "./git.real";
 import { createScratch, hermeticExec, type TestRepo, type TestScratch } from "../testing/git.repo";
 
@@ -14,7 +13,7 @@ let scratch: TestScratch;
 let repo: TestRepo;
 let base: string;
 
-const diff = () => diffAgainstBase(hermeticExec, repo.dir, base);
+const diff = () => createGitPort(hermeticExec).diffAgainstBase(repo.dir, base);
 
 beforeEach(async () => {
   scratch = await createScratch();
@@ -34,7 +33,7 @@ afterEach(async () => {
   await scratch.cleanup();
 });
 
-describe("diffAgainstBase", () => {
+describe("GitPort.diffAgainstBase", () => {
   it("returns an empty diff with a stable hash when nothing changed", async () => {
     const result = await diff();
     expect(result.patch).toBe("");
@@ -174,7 +173,7 @@ describe("diffAgainstBase", () => {
       base: "main"
     });
     await writeFile(path.join(dir, "wt-only.txt"), "w\n");
-    const result = await diffAgainstBase(hermeticExec, dir, base);
+    const result = await createGitPort(hermeticExec).diffAgainstBase(dir, base);
     expect(result.files).toEqual([{ path: "wt-only.txt", status: "added" }]);
     expect(await repo.git(["status", "--porcelain=v1"], dir)).toBe("?? wt-only.txt");
   });
@@ -187,13 +186,19 @@ describe("diffAgainstBase", () => {
   });
 
   it("rejects a base that is not a full commit hash", async () => {
-    await expect(diffAgainstBase(hermeticExec, repo.dir, "main")).rejects.toThrow(RangeError);
-    await expect(diffAgainstBase(hermeticExec, repo.dir, "--output=x")).rejects.toThrow(RangeError);
+    await expect(createGitPort(hermeticExec).diffAgainstBase(repo.dir, "main")).rejects.toThrow(
+      RangeError
+    );
+    await expect(
+      createGitPort(hermeticExec).diffAgainstBase(repo.dir, "--output=x")
+    ).rejects.toThrow(RangeError);
   });
 
   it("fails when the capture limit cuts the patch", async () => {
     const tiny = createExec({ maxOutputBytes: 50 });
     await repo.write("big.txt", "x".repeat(2000));
-    await expect(diffAgainstBase(tiny, repo.dir, base)).rejects.toThrow(/capture limit/);
+    await expect(createGitPort(tiny).diffAgainstBase(repo.dir, base)).rejects.toThrow(
+      /capture limit/
+    );
   });
 });

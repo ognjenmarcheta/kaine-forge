@@ -294,14 +294,7 @@ const buildRunner = (
           files: { plan: "", prBody: "", commitMessage: "" }
         };
       }
-      if (!shipOptions.confirm) {
-        return {
-          outcome: "refused",
-          refusal: "ship-refused",
-          reason: "Shipping needs your explicit confirmation.",
-          state
-        };
-      }
+      // The server contract refuses a real ship without `confirm: true`, so a call here is a yes.
       // A real ship takes a while (hooks, push), so the page sees `accepted` and then the event.
       await new Promise((resolve) => setTimeout(resolve, 700));
       const opened = await change(
