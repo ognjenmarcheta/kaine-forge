@@ -618,8 +618,15 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
+      # Hosted Ubuntu images ship Chromium's system libraries; only self-hosted
+      # runners need --with-deps. Its apt-get step took 7-15 min in 7 of 21
+      # recent shards on a slow mirror, against about 20 s without it. The e2e
+      # screenshots are artifacts, not compared, so the extra fonts it installs
+      # change no result.
       - name: Install Playwright browser
-        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+        env:
+          WITH_DEPS: ${{ runner.environment == 'self-hosted' && '--with-deps' || '' }}
+        run: pnpm --filter @repo/e2e exec playwright install $WITH_DEPS chromium
 
       - name: Prepare environment
         run: |
