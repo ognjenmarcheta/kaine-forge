@@ -1,11 +1,9 @@
-import { pipe } from "graphql-yoga";
-
 import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
 import { createTodoAiRuntime } from "./todos.ai-runtime";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
 import type { ApiContext } from "../../context";
 import { errorReporter, formatLoggableError } from "../../observability";
-import { filterByOrganization } from "../../pubsub";
+import { organizationSubscriptions } from "../../pubsub";
 
 type TodosQueryArgs = {
   limit?: number;
@@ -78,42 +76,10 @@ export const todosResolvers = {
       return ctx.todos.toggle(args.id);
     }
   },
-  Subscription: {
-    todoCreated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("todo:created"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    todoUpdated: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("todo:updated"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    todoDeleted: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("todo:deleted"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    },
-    todoToggled: {
-      subscribe(_parent: unknown, _args: unknown, ctx: ResolverContext) {
-        const { organizationId } = ctx.requireOrganizationScope();
-        return pipe(ctx.pubsub.subscribe("todo:toggled"), filterByOrganization(organizationId));
-      },
-      resolve(payload: unknown) {
-        return payload;
-      }
-    }
-  }
+  Subscription: organizationSubscriptions([
+    "todoCreated",
+    "todoUpdated",
+    "todoDeleted",
+    "todoToggled"
+  ])
 };
