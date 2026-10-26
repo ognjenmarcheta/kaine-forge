@@ -116,7 +116,11 @@ interface GraphqlResponse {
   errors?: Array<{ message: string }>;
 }
 
-async function runAs(organizationId: string | null, query: string): Promise<GraphqlResponse> {
+async function runAs(
+  organizationId: string | null,
+  query: string,
+  variables?: Record<string, unknown>
+): Promise<GraphqlResponse> {
   const response = await fetch(`${baseUrl}/graphql`, {
     method: "POST",
     headers: {
@@ -124,7 +128,7 @@ async function runAs(organizationId: string | null, query: string): Promise<Grap
       "content-type": "application/json",
       ...(organizationId ? { [TEST_ORGANIZATION_HEADER]: organizationId } : {})
     },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query, variables })
   });
   return response.json() as Promise<GraphqlResponse>;
 }
@@ -361,7 +365,7 @@ describe("attachment deletion SQL", () => {
       sizeBytes: 1,
       uploadedBy: fixture.userId,
       organizationId: fixture.orgA,
-      entityType: "todo",
+      entityType: "todo" as const,
       entityId: fixture.todoA,
       updatedAt: oldTimestamp
     };
@@ -373,7 +377,7 @@ describe("attachment deletion SQL", () => {
         // Same entity identifiers are needed to exercise the organization predicate itself.
         { ...common, key: "other-organization", status: "uploaded", organizationId: fixture.orgB },
         { ...common, key: "other-entity", status: "uploaded", entityId: fixture.noteA },
-        { ...common, key: "other-type", status: "uploaded", entityType: "note" },
+        { ...common, key: "other-type", status: "uploaded", entityType: "general" },
         { ...common, key: "already-deleted", status: "deleted" }
       ])
       .returning();
@@ -404,5 +408,55 @@ describe("attachment deletion SQL", () => {
     }
     expect(await deleteFilesByEntity(scope, "todo", fixture.todoA)).toEqual([]);
     expect(await testDb.select().from(filesTable)).toEqual(after);
+  });
+});
+
+describe("attachment entity type", () => {
+  it("rejects an unknown entity type at the GraphQL boundary and accepts todo from a variable", async () => {
+    const { eq } = await import("drizzle-orm");
+    const before = await testDb.select().from(filesTable);
+
+    const rejected = await runAs(
+      fixture.orgA,
+      `mutation Request($input: RequestUploadInput!) { requestUploadUrl(input: $input) { fileId } }`,
+      {
+        input: {
+          entityId: fixture.todoA,
+          entityType: "note",
+          mimeType: "text/plain",
+          originalName: "a.txt",
+          sizeBytes: 1
+        }
+      }
+    );
+    expect(rejected.errors?.[0]?.message).toMatch(/"AttachmentEntityType"/);
+    expect(await testDb.select().from(filesTable)).toEqual(before);
+
+    const [file] = await testDb
+      .insert(filesTable)
+      .values({
+        bucket: "test-attachments",
+        entityId: fixture.todoA,
+        entityType: "todo",
+        key: "entity-type-variable",
+        mimeType: "text/plain",
+        organizationId: fixture.orgA,
+        originalName: "a.txt",
+        sizeBytes: 1,
+        status: "uploaded",
+        uploadedBy: fixture.userId
+      })
+      .returning();
+    try {
+      const listed = await runAs(
+        fixture.orgA,
+        `query Files($type: AttachmentEntityType) { files(filter: { entityType: $type, entityId: "${fixture.todoA}", status: uploaded }) { id entityType } }`,
+        { type: "todo" }
+      );
+      expect(listed.errors).toBeUndefined();
+      expect(listed.data?.["files"]).toEqual([{ id: file?.id, entityType: "todo" }]);
+    } finally {
+      if (file) await testDb.delete(filesTable).where(eq(filesTable.id, file.id));
+    }
   });
 });

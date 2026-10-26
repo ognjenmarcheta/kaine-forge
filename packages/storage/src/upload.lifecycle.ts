@@ -1,3 +1,5 @@
+import type { AttachmentEntityType } from "./storage.type";
+
 export type UploadStatus = "idle" | "requesting" | "uploading" | "confirming" | "done" | "error";
 
 export interface UploadState {
@@ -9,12 +11,12 @@ export interface UploadState {
 
 export interface UploadContext {
   entityId?: string | undefined;
-  entityType?: string | undefined;
+  entityType?: AttachmentEntityType | undefined;
 }
 
 export interface UploadRequestInput {
   entityId?: string | undefined;
-  entityType?: string | undefined;
+  entityType?: AttachmentEntityType | undefined;
   mimeType: string;
   originalName: string;
   sizeBytes: number;

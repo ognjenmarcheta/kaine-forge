@@ -1,5 +1,5 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { db, filesTable, type File } from "@repo/db";
+import { db, filesTable, type AttachmentEntityType, type File } from "@repo/db";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
@@ -15,7 +15,7 @@ export async function createFileRecord(
     originalName: string;
     mimeType: string;
     sizeBytes: number;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
   }
 ): Promise<File> {
@@ -88,7 +88,7 @@ export async function listFiles(
 
 export async function listFilesByEntityIds(
   scope: AuthenticatedOrganizationScope,
-  entityType: string,
+  entityType: AttachmentEntityType,
   entityIds: string[],
   status: "pending" | "uploaded" | "deleted"
 ): Promise<File[]> {
@@ -132,7 +132,7 @@ export async function updateFileStatus(
 
 export async function deleteFilesByEntity(
   scope: AuthenticatedOrganizationScope,
-  entityType: string,
+  entityType: AttachmentEntityType,
   entityId: string
 ): Promise<File[]> {
   return db

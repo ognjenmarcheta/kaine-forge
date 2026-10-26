@@ -1,4 +1,5 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import type { AttachmentEntityType } from "@repo/db";
 import { buildStorageKey, STORAGE_DEFAULTS, validateFile } from "@repo/storage";
 
 import { ATTACHMENT_ENTITY_TYPES } from "./attachment.lifecycle";
@@ -40,7 +41,7 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
       originalName: string;
       mimeType: string;
       sizeBytes: number;
-      entityType: string | null;
+      entityType: AttachmentEntityType | null;
       entityId: string | null;
     }
   ) => Promise<TFile>;
@@ -51,7 +52,7 @@ export interface StorageLifecycleAdapter<TFile extends StoredFile> {
     expiresIn: number
   ) => Promise<PresignedUpload>;
   createDownloadUrl: (bucket: string, key: string, expiresIn: number) => Promise<PresignedDownload>;
-  defaultEntityType: string;
+  defaultEntityType: AttachmentEntityType;
   deleteObject: (bucket: string, key: string) => Promise<void>;
   fileExists: (bucket: string, key: string) => Promise<boolean>;
   /** Optional HEAD of the object to re-check size/content-type on confirm. */
@@ -234,7 +235,7 @@ export function createStorageLifecycleAdapter(
     StorageLifecycleAdapter<StoredFile>,
     "defaultEntityType" | "presignedUrlExpirySeconds"
   > & {
-    defaultEntityType?: string;
+    defaultEntityType?: AttachmentEntityType;
     presignedUrlExpirySeconds?: number;
   }
 ): StorageLifecycleAdapter<StoredFile> {

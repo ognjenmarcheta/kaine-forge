@@ -1,13 +1,14 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import type { AttachmentEntityType } from "@repo/db";
 
 export const ATTACHMENT_ENTITY_TYPES = {
   todo: "todo"
-} as const;
+} as const satisfies Record<string, AttachmentEntityType>;
 
 interface AttachmentLifecycleAdapter<TAttachment> {
   deleteFilesByEntity: (
     scope: AuthenticatedOrganizationScope,
-    entityType: string,
+    entityType: AttachmentEntityType,
     entityId: string
   ) => Promise<TAttachment[]>;
 }

@@ -6,6 +6,8 @@ export type Incremental<T> =
 import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
 import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
+export type AttachmentEntityType = "general" | "todo";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -20,7 +22,7 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   limit?: number | null | undefined;
   offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
@@ -34,7 +36,7 @@ export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   mimeType: string;
   originalName: string;
   sizeBytes: number;
@@ -197,7 +199,7 @@ export type GetFileQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: string;
@@ -217,7 +219,7 @@ export type GetFilesQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: string;

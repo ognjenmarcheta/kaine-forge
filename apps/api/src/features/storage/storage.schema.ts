@@ -5,6 +5,11 @@ export const storageTypeDefs = /* GraphQL */ `
     deleted
   }
 
+  enum AttachmentEntityType {
+    general
+    todo
+  }
+
   type FileInfo {
     id: ID!
     key: String!
@@ -13,7 +18,7 @@ export const storageTypeDefs = /* GraphQL */ `
     mimeType: String!
     sizeBytes: Int!
     status: FileStatus!
-    entityType: String
+    entityType: AttachmentEntityType
     entityId: ID
     downloadUrl: String
     createdAt: DateTime!
@@ -31,12 +36,12 @@ export const storageTypeDefs = /* GraphQL */ `
     originalName: String!
     mimeType: String!
     sizeBytes: Int!
-    entityType: String
+    entityType: AttachmentEntityType
     entityId: ID
   }
 
   input FilesFilterInput {
-    entityType: String
+    entityType: AttachmentEntityType
     entityId: ID
     status: FileStatus
     limit: Int
