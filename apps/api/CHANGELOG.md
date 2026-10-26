@@ -1,5 +1,20 @@
 # @repo/api
 
+## 1.11.0
+
+### Minor Changes
+
+- 0d5959c: The API now sweeps storage objects of deleted and abandoned Attachments on an interval (`STORAGE_SWEEP_INTERVAL_MS`, default 15 minutes; `STORAGE_SWEEP_ENABLED=false` turns it off). A Postgres advisory lock keeps it to one replica, and a new `files.purged_at` column records each removed object. A failed delete is retried on the next run, and the sweep never deletes a key outside the row's organization prefix.
+
+### Patch Changes
+
+- 9a5f4f3: Harden Attachment uploads. The presigned PUT signs `Content-Length` and no longer carries a checksum of an empty body, so S3 accepts the upload and rejects any other size. Upload and download URLs get separate, shorter expiries (`S3_UPLOAD_URL_EXPIRY`, `S3_DOWNLOAD_URL_EXPIRY`). Confirm checks the object's leading bytes against its MIME type and deletes a rejected object. A file name whose extension does not match its MIME type is rejected, and non-image downloads carry `Content-Disposition: attachment`.
+- Updated dependencies [9a5f4f3]
+- Updated dependencies [0d5959c]
+  - @repo/storage@1.4.0
+  - @repo/db@1.8.0
+  - @repo/auth@3.0.1
+
 ## 1.10.0
 
 ### Minor Changes

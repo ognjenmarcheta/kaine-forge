@@ -1,5 +1,13 @@
 # @repo/web
 
+## 1.9.1
+
+### Patch Changes
+
+- Updated dependencies [9a5f4f3]
+  - @repo/storage@1.4.0
+  - @repo/auth@3.0.1
+
 ## 1.9.0
 
 ### Minor Changes
