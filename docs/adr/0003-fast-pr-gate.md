@@ -38,4 +38,5 @@ Use a two-tier CI strategy:
 
 - Build Core Apps, and so e2e, no longer waits for Check Fast. Both start after Detect Changed Paths. The PR Quality Gate still needs every job, so a Check Fast failure still blocks the merge.
 - The root `.ai/` checks and the `scripts/*.test.mjs` tests moved from Check Fast to their own job, AI and Script Checks.
+- Coverage, core build and e2e, each Docker image, and the mobile jobs run only when the Turbo package graph (`turbo ls --affected`, `scripts/ci-affected.mjs`) says the PR affects them. Files outside the graph and non-PR events run every job.
 - The Turbo cache moved from one `actions/cache` blob per job to a per-task cache in the GitHub Actions cache (`rharkor/caching-for-turbo`). ADR 0017 records the measurements.
