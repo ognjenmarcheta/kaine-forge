@@ -651,6 +651,9 @@ jobs:
       # --shard flag reaches playwright. The root script also re-runs
       # db:ensure/db:push/db:seed, which the previous step already did.
       - name: Run Playwright e2e
+        env:
+          # Serve the downloaded core-dist builds (apps/e2e/playwright.config.ts).
+          E2E_SERVE_BUILD: "true"
         run: |
           pnpm --filter @repo/e2e exec playwright test \
             --shard=${{ matrix.shard }}/2 \
