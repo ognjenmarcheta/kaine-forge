@@ -1,3 +1,5 @@
+import type { DiffResult } from "./git.diff";
+
 /**
  * Everything the engine needs from git. The real implementation shells out
  * through `Exec` (`createGitPort`). Methods take the directory to run in, so
@@ -82,4 +84,9 @@ export interface GitPort {
   /** True when `ancestor` is reachable from `descendant`. */
   readonly isAncestor: (cwd: string, ancestor: string, descendant: string) => Promise<boolean>;
   readonly refsSnapshot: (cwd: string) => Promise<RefsSnapshot>;
+  /**
+   * The worktree (tracked and untracked, not ignored) against `baseSha`, a full commit hash.
+   * The real index, the refs and the working files stay as they are.
+   */
+  readonly diffAgainstBase: (worktree: string, baseSha: string) => Promise<DiffResult>;
 }

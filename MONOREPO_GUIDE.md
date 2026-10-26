@@ -181,7 +181,7 @@ Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs 
 pnpm generate
 ```
 
-CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit.
+CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit. It also fails on a breaking schema change against the PR base. The owner accepts an intended break with the label `graphql:breaking-approved`, then re-runs the **GraphQL Schema Compatibility** job.
 
 ## 9. Runtime and Environment Rules
 
@@ -452,7 +452,7 @@ Pick the reference feature that matches your scope: clone `notes` for a plain or
 pnpm create:feature <singular> --plural <plural> --write
 ```
 
-That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 13 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
 
 Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 

@@ -3,10 +3,8 @@ import path from "node:path";
 import { z } from "zod";
 
 import { builderOutputSchema, type PlannerOutput } from "../contracts";
-import { ROLE_FOR_OUTPUT, runAgentStage } from "./pipeline.agent";
+import { agentStep } from "./pipeline.agent";
 import { ARTIFACTS, readPlan, writeArtifactJson } from "./pipeline.artifacts";
-import { withSession } from "./pipeline.stage.plan";
-import type { AgentStepHandler } from "./pipeline.types";
 
 const WORKSPACE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 const packageNameSchema = z.object({ name: z.string() });
@@ -57,61 +55,50 @@ export const workspacesForPlan = async (
 };
 
 /** Build: the builder implements the plan in the worktree. Then the flow goes on to its check. */
-export const buildStage: AgentStepHandler = async (context, step, agent) => {
-  const state = context.state();
-  const plan = await readPlan(context.artifactsDir);
-  if (plan.status !== "ok") {
+export const buildStage = agentStep({
+  schema: builderOutputSchema,
+  prepare: async (context) => {
+    const state = context.state();
+    const plan = await readPlan(context.artifactsDir);
+    if (plan.status !== "ok") {
+      return {
+        kind: "needs-you",
+        reason: `Build cannot start: ${plan.status === "missing" ? "plan.json is missing" : plan.detail}. Continue from plan.`
+      };
+    }
+    const worktree = state.worktreePath;
+    if (worktree === null) {
+      return {
+        kind: "needs-you",
+        reason: "Build cannot start: there is no worktree. Continue from setup."
+      };
+    }
     return {
-      kind: "needs-you",
-      reason: `Build cannot start: ${plan.status === "missing" ? "plan.json is missing" : plan.detail}. Continue from plan.`
+      ownerNote: state.approveNote ?? undefined,
+      plan: plan.value,
+      workspaces: await workspacesForPlan(worktree, plan.value)
     };
-  }
-  const worktree = state.worktreePath;
-  if (worktree === null) {
-    return {
-      kind: "needs-you",
-      reason: "Build cannot start: there is no worktree. Continue from setup."
-    };
-  }
-  const pending = state.pendingFeedback?.target === step.id ? state.pendingFeedback : null;
+  },
+  finish: async (context, step, agent, run) => {
+    const build = run.result.structured;
+    await writeArtifactJson(context.artifactsDir, ARTIFACTS.build, build);
 
-  const run = await runAgentStage(context, {
-    role: ROLE_FOR_OUTPUT[agent.output],
-    agent,
-    schema: builderOutputSchema,
-    readOnly: false,
-    resumeSessionId: state.sessions[agent.id],
-    feedback: pending?.text,
-    ownerNote: state.approveNote ?? undefined,
-    plan: plan.value,
-    workspaces: await workspacesForPlan(worktree, plan.value)
-  });
-  if (!run.ok) {
-    return run.aborted ? { kind: "aborted" } : { kind: "needs-you", reason: run.reason };
-  }
-
-  const build = run.result.structured;
-  await writeArtifactJson(context.artifactsDir, ARTIFACTS.build, build);
-  const sessions = withSession(state, agent.id, run.result.sessionId);
-
-  if (build.blockers.length > 0) {
+    if (build.blockers.length > 0) {
+      return {
+        kind: "needs-you",
+        reason: `${agent.name} is blocked:\n${build.blockers.map((blocker) => `- ${blocker}`).join("\n")}\nAnswer with feedback to ${step.id}, or continue.`
+      };
+    }
+    if (run.diff.files.length === 0) {
+      return {
+        kind: "needs-you",
+        reason: `${agent.name} finished but changed no file. Check the plan, give feedback, or continue.`
+      };
+    }
     return {
-      kind: "needs-you",
-      reason: `${agent.name} is blocked:\n${build.blockers.map((blocker) => `- ${blocker}`).join("\n")}\nAnswer with feedback to ${step.id}, or continue.`,
-      patch: { sessions }
+      kind: "complete",
+      event: "build-complete",
+      note: `${run.diff.files.length} changed file(s)`
     };
   }
-  if (run.diff.files.length === 0) {
-    return {
-      kind: "needs-you",
-      reason: `${agent.name} finished but changed no file. Check the plan, give feedback, or continue.`,
-      patch: { sessions }
-    };
-  }
-  return {
-    kind: "complete",
-    event: "build-complete",
-    note: `${run.diff.files.length} changed file(s)`,
-    patch: { sessions, pendingFeedback: null }
-  };
-};
+});

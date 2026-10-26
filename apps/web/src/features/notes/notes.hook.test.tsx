@@ -46,16 +46,11 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
     return ({ id }: { id: string }) => Promise.resolve({ note: api.notes.get(id) ?? null });
   }
 }));
-vi.mock("../../hooks/use-subscription", () => ({
-  useSubscription: ({
-    query,
-    onData
-  }: {
-    query: string;
-    onData: (data: { noteDeleted: { id: string } }) => void;
-  }) => {
-    if (query.includes("noteDeleted")) api.deleted.current = onData;
-  }
+vi.mock("../../hooks/use-live-list", () => ({
+  useLiveNotes: ({ onDeleted }: { onDeleted: (id: string) => void }) => {
+    api.deleted.current = ({ noteDeleted }) => onDeleted(noteDeleted.id);
+  },
+  useLiveTodos: () => {}
 }));
 
 let current: ReturnType<typeof useNotes>;

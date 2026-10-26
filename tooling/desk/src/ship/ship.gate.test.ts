@@ -17,7 +17,6 @@ const HASH = sha256("code");
 const BRANCH = "KAINE-7-feat-export-reports";
 
 const passing = (): ShipGateInput => ({
-  confirm: true,
   checks: { report: checkReportOf({ diffHash: HASH }), accept: ["ship"] },
   diffHash: HASH,
   changedPaths: ["src/feature.ts", "src/feature.test.ts"],
@@ -63,7 +62,6 @@ describe("evaluateShipGate", () => {
     ShipGateFailureKind,
     (input: ShipGateInput) => ShipGateInput
   ])[] = [
-    ["not-confirmed", (input) => ({ ...input, confirm: false })],
     ["checks-missing", (input) => ({ ...input, checks: { ...input.checks, report: null } })],
     [
       "checks-wrong-kind",
@@ -157,14 +155,13 @@ describe("evaluateShipGate", () => {
   });
 
   it("reports every failed rule, not only the first", () => {
-    const input = { ...passing(), confirm: false, ownerApproved: false, changedPaths: [] };
-    expect(kindsOf(input)).toEqual(["not-confirmed", "no-changes", "owner-not-approved"]);
-  });
-
-  it("treats only the literal true as a confirmation", () => {
-    // A caller that passes a truthy non-boolean through a loose boundary must not ship.
-    // @ts-expect-error The test passes a string where a boolean is required.
-    expect(kindsOf({ ...passing(), confirm: "yes" })).toEqual(["not-confirmed"]);
+    const input: ShipGateInput = {
+      ...passing(),
+      identity: { ok: false, reason: "signed out" },
+      ownerApproved: false,
+      changedPaths: []
+    };
+    expect(kindsOf(input)).toEqual(["identity", "no-changes", "owner-not-approved"]);
   });
 
   it("accepts a loop report before the ship checks, when the caller allows it", () => {

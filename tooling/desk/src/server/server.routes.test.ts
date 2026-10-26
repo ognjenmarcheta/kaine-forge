@@ -671,14 +671,12 @@ describe("POST /api/issues/:n/actions", () => {
     {
       name: "ship",
       body: { action: "ship", confirm: true, dryRun: false },
-      check: (h: Harness) =>
-        expect(h.runner.ship).toHaveBeenCalledWith(3, { confirm: true, dryRun: false })
+      check: (h: Harness) => expect(h.runner.ship).toHaveBeenCalledWith(3, { dryRun: false })
     },
     {
       name: "ship dry run",
       body: { action: "ship", confirm: false, dryRun: true },
-      check: (h: Harness) =>
-        expect(h.runner.ship).toHaveBeenCalledWith(3, { confirm: false, dryRun: true })
+      check: (h: Harness) => expect(h.runner.ship).toHaveBeenCalledWith(3, { dryRun: true })
     },
     {
       name: "refresh-pr",

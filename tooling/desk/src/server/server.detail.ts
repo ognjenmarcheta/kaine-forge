@@ -8,9 +8,9 @@ import {
   DEFAULT_LOOP_LIMITS,
   flowStepViewsOf,
   buildFlowModel,
-  isShipGate,
   builderOutputSchema,
   providerSchema,
+  stepRoleOf,
   type AgentSession,
   type FlowDefinitionView,
   type CheckSummary,
@@ -274,7 +274,7 @@ const shipReadiness = async (
   check: CheckSummary | null,
   review: ReviewSummary | null
 ): Promise<ShipReadiness> => {
-  const atGate = isShipGate(state.flowSnapshot, state.stage);
+  const atGate = stepRoleOf(state.flowSnapshot, state.stage) === "ship-gate";
   const checkPassed = check === null ? null : check.passed;
   const reviewApproved =
     review === null ? null : review.verdict === "approve" && review.blocking === 0;
