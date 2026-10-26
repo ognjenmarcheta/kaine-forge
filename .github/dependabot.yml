@@ -176,7 +176,7 @@ updates:
       - dependency-name: "tauri-*"
         update-types: ["version-update:semver-major"]
 
-  # docker-compose.yml pins the local postgres and MinIO images by tag; the
+  # docker-compose.yml pins the local postgres, RustFS, and aws-cli images by tag; the
   # docker ecosystem above reads only Dockerfiles (#357). Grouped: one PR per week.
   - package-ecosystem: docker-compose
     directory: "/"
