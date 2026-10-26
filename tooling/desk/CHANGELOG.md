@@ -1,5 +1,14 @@
 # @repo/desk
 
+## 0.5.1
+
+### Patch Changes
+
+- 40cca08: Derive an agent step's run input (permission role, read-only rule, resumed session, pending feedback) in the agent module, so the plan, build, review, and report handlers keep only their schema, artifact, and event.
+- ccdac99: Run every desk git command through the git module, with one git environment (no prompt, no optional locks, no editor) and one branch-name rule. Worktree setup now creates the worktree through `GitPort`.
+- 40cca08: The ship module owns ship admission: `shipAdmission(state, intent)`, a side-effect-free `prepareShip`, and `runShip(ticket)`. A ship refused at its gate changes nothing, and an admitted ship enters the ship stage before its first change.
+- 22dd10f: Derive a flow step's role in one contract function and send it on `FlowStepView.role`. Only a ship gate accepts a ship confirmation, so the CLI no longer suggests `ship --confirm` before an automatic ship.
+
 ## 0.5.0
 
 ### Minor Changes
