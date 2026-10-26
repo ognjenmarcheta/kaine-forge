@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import chalk from "chalk";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { AGENT_REGISTRY } from "./agent-registry.util";
@@ -36,6 +36,28 @@ import {
 } from "./installation.util";
 import { validateMcpPins } from "./mcp-probe.util";
 import { runReadinessCommand } from "./readiness";
+import {
+  findConflictMarkers,
+  listLocalSyncedFiles,
+  parseSyncManifest,
+  readLocalFiles,
+  SYNC_MANIFEST_PATH
+} from "./template-sync.util";
+
+// Conflict markers that pnpm ai:sync left in synced files block the doctor until resolved.
+const lintSyncConflicts = (): LintIssue[] => {
+  const manifestFile = join(REPO_ROOT, SYNC_MANIFEST_PATH);
+  if (!existsSync(manifestFile)) return [];
+  const { paths } = parseSyncManifest(JSON.parse(readFileSync(manifestFile, "utf8")));
+  return findConflictMarkers(readLocalFiles(REPO_ROOT, listLocalSyncedFiles(REPO_ROOT, paths))).map(
+    (path) => ({
+      file: join(REPO_ROOT, path),
+      level: "error",
+      message: "unresolved pnpm ai:sync conflict markers"
+    })
+  );
+};
+
 const printLintIssue = (issue: LintIssue): void => {
   const icon = issue.level === "error" ? chalk.red("✗") : chalk.yellow("⚠");
   console.log(`  ${icon}  ${chalk.gray(relative(REPO_ROOT, issue.file))}: ${issue.message}`);
@@ -44,7 +66,7 @@ const printLintIssue = (issue: LintIssue): void => {
 const main = (): void => {
   const strict = process.argv.includes("--strict");
   const guardErrors = [...checkGuardContracts(), ...validateMcpPins(readMcpSource())];
-  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
+  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir(), ...lintSyncConflicts()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
   const agentDefinitions = lintErrors.length === 0 ? discoverAgentDefinitions() : [];
