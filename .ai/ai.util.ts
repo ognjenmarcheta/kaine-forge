@@ -66,11 +66,11 @@ export const REQUIRED_SERENA_MEMORIES = [
 
 export const DAY_ONE_CONTRIBUTING_MARKER = "Day-one agent ramp";
 
-const ALL_AGENTS = ["claude", "codex", "cursor", "opencode", "grok"] as const;
+export const AGENTS = ["claude", "codex", "cursor", "opencode", "grok"] as const;
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
 const DESCRIPTION_SOFT_LIMIT = 1500;
 
-export type Agent = (typeof ALL_AGENTS)[number];
+export type Agent = (typeof AGENTS)[number];
 /** Serena's `--agent-interface`: one MCP tool per operation, or Python through `serena_repl`. */
 export const SERENA_INTERFACES = ["tools", "REPL"] as const;
 export type SerenaInterface = (typeof SERENA_INTERFACES)[number];
@@ -167,7 +167,7 @@ export interface WriteResult {
 }
 
 const isAgent = (value: unknown): value is Agent =>
-  typeof value === "string" && ALL_AGENTS.some((agent) => agent === value);
+  typeof value === "string" && AGENTS.some((agent) => agent === value);
 
 const isEffort = (value: unknown): value is Effort =>
   typeof value === "string" && EFFORT_LEVELS.some((effort) => effort === value);
@@ -177,7 +177,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
   if (value === undefined || value === null) {
-    return [...ALL_AGENTS];
+    return [...AGENTS];
   }
   if (!Array.isArray(value)) {
     throw new Error(`${skillName}: 'agents' must be a list`);
@@ -187,7 +187,7 @@ const parseAgentsField = (skillName: string, value: unknown): Agent[] => {
   for (const agent of value) {
     if (!isAgent(agent)) {
       throw new Error(
-        `${skillName}: unknown agent '${String(agent)}'. Allowed: ${ALL_AGENTS.join(", ")}.`
+        `${skillName}: unknown agent '${String(agent)}'. Allowed: ${AGENTS.join(", ")}.`
       );
     }
     agents.push(agent);
@@ -1195,7 +1195,7 @@ export const resolveInstallMcpSource = (
   const skipped: string[] = [];
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
-    const agents = server.agents ?? [...ALL_AGENTS];
+    const agents = server.agents ?? [...AGENTS];
     const isPersonal = options.personalNames.has(name);
     if (!agents.includes(options.agent)) {
       continue;
