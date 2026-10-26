@@ -3,7 +3,9 @@ import type { ObjectRef, ObjectStore } from "./attachment.store";
 interface StoredObject {
   contentType: string;
   sizeBytes: number;
-  /** The object's leading bytes, as far as a test needs them. */
+  cacheControl?: string;
+  lastModified?: Date;
+  /** The object's bytes, as far as a test needs them. */
   bytes?: Uint8Array;
 }
 
@@ -24,6 +26,26 @@ export function createMemoryObjectStore(bucket = "memory") {
       const stored = objects.get(id(ref));
       return stored ? { contentType: stored.contentType, sizeBytes: stored.sizeBytes } : null;
     },
+    get: async (ref) => objects.get(id(ref))?.bytes ?? null,
+    put: async (ref, body, contentType, cacheControl) => {
+      objects.set(id(ref), {
+        contentType,
+        sizeBytes: body.byteLength,
+        bytes: body,
+        key: ref.key,
+        lastModified: new Date(),
+        ...(cacheControl ? { cacheControl } : {})
+      });
+    },
+    listBefore: async (prefix, before, limit) =>
+      [...objects.entries()]
+        .filter(
+          ([objectId, stored]) =>
+            objectId.startsWith(`${bucket}/${prefix}`) &&
+            (stored.lastModified ?? new Date(0)) < before
+        )
+        .slice(0, limit)
+        .map(([, stored]) => ({ bucket, key: stored.key })),
     readPrefix: async (ref, bytes) => {
       const stored = objects.get(id(ref));
       return stored ? (stored.bytes ?? new Uint8Array()).slice(0, bytes) : null;
@@ -38,6 +60,8 @@ export function createMemoryObjectStore(bucket = "memory") {
     upload: (ref: ObjectRef, object: StoredObject) => {
       objects.set(id(ref), { ...object, key: ref.key });
     },
-    keys: () => [...objects.values()].map((stored) => stored.key).sort()
+    keys: () => [...objects.values()].map((stored) => stored.key).sort(),
+    /** What is stored at `ref`, for assertions on content type and cache headers. */
+    stat: (ref: ObjectRef) => objects.get(id(ref)) ?? null
   };
 }

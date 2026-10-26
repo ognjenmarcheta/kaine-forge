@@ -10,8 +10,12 @@ import type { IncomingHttpHeaders } from "node:http";
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createNotes, type Notes } from "./features/notes/notes.module";
+import {
+  createPublicAssets,
+  type PublicAssets
+} from "./features/public-assets/public-assets.module";
 import { createAttachments, type Attachments } from "./features/storage/attachment.module";
-import { s3ObjectStore } from "./features/storage/attachment.store";
+import { publicAssetStorage, s3ObjectStore } from "./features/storage/attachment.store";
 import { createTodos, type Todos } from "./features/todos/todos.module";
 import { pubsub, type PubSubEventMap } from "./pubsub";
 
@@ -27,6 +31,7 @@ export interface ApiContext {
   todos: Todos;
   notes: Notes;
   attachments: Attachments;
+  publicAssets: PublicAssets;
   loaders: ApiLoaders;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
@@ -72,6 +77,13 @@ export async function createContextFromHeaders(
     todos,
     notes: createNotes({ data, publish }),
     attachments,
+    publicAssets: createPublicAssets({
+      db,
+      logger: contextLogger,
+      publicStorage: publicAssetStorage(),
+      requireOrganizationScope,
+      store: s3ObjectStore
+    }),
     loaders: createApiLoaders(todos, attachments),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,

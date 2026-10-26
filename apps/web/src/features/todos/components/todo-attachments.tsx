@@ -47,6 +47,14 @@ export function TodoAttachments({
         <ul>
           {item.attachments.map((file) => (
             <li key={file.id}>
+              {file.thumbnailUrl ? (
+                <img
+                  alt=""
+                  className="ui-todos__thumbnail"
+                  loading="lazy"
+                  src={file.thumbnailUrl}
+                />
+              ) : null}
               <span className="ui-todos__filename">
                 {file.originalName} <small>{formatAttachmentSize(file.sizeBytes)}</small>
               </span>

@@ -8,7 +8,10 @@ export const STORAGE_ENV_KEYS = {
   /** Fallback for both expiries below when they are unset. */
   presignedUrlExpiry: "S3_PRESIGNED_URL_EXPIRY",
   uploadUrlExpiry: "S3_UPLOAD_URL_EXPIRY",
-  downloadUrlExpiry: "S3_DOWNLOAD_URL_EXPIRY"
+  downloadUrlExpiry: "S3_DOWNLOAD_URL_EXPIRY",
+  /** Public Assets: a separate, publicly readable bucket and the CDN URL that serves it. */
+  publicBucket: "S3_PUBLIC_BUCKET",
+  publicBaseUrl: "S3_PUBLIC_BASE_URL"
 } as const;
 
 export const STORAGE_DEFAULTS = {

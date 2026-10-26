@@ -223,6 +223,7 @@ Important runtime variables:
 | `EXPO_PUBLIC_API_URL`                                              | mobile API base URL                                                                                                    |
 | `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                                                                     |
 | `S3_*`                                                             | S3-compatible storage settings; `S3_UPLOAD_URL_EXPIRY` / `S3_DOWNLOAD_URL_EXPIRY` set presigned URL lifetimes          |
+| `S3_PUBLIC_BUCKET` / `S3_PUBLIC_BASE_URL`                          | Public Asset bucket and its CDN URL; both set turns avatar and organization-logo uploads on                            |
 | `STORAGE_SWEEP_ENABLED` / `STORAGE_SWEEP_INTERVAL_MS`              | storage sweep of deleted and abandoned Attachment objects; on by default when S3 is set, one replica at a time         |
 | `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 

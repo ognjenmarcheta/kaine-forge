@@ -1,5 +1,5 @@
 import { STORAGE_DEFAULTS, STORAGE_ENV_KEYS } from "./storage.definition";
-import type { StorageConfig } from "./storage.type";
+import type { PublicAssetConfig, StorageConfig } from "./storage.type";
 
 export function resolveStorageConfig(env?: Record<string, string | undefined>): StorageConfig {
   const source = env ?? process.env;
@@ -57,4 +57,15 @@ export function resolveStorageConfig(env?: Record<string, string | undefined>): 
 
 function parseSeconds(raw: string | undefined, fallback: number): number {
   return raw ? parseInt(raw, 10) : fallback;
+}
+
+/** Public Asset storage, or null when either variable is unset (the feature is off). */
+export function resolvePublicAssetConfig(
+  env?: Record<string, string | undefined>
+): PublicAssetConfig | null {
+  const source = env ?? process.env;
+  const bucket = source[STORAGE_ENV_KEYS.publicBucket];
+  const baseUrl = source[STORAGE_ENV_KEYS.publicBaseUrl];
+
+  return bucket && baseUrl ? { bucket, baseUrl: baseUrl.replace(/\/+$/, "") } : null;
 }

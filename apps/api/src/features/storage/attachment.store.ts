@@ -3,9 +3,14 @@ import {
   deleteObject,
   generatePresignedDownloadUrl,
   generatePresignedUploadUrl,
+  getObjectBytes,
   headObjectMetadata,
+  listObjectKeysBefore,
+  putObject,
   readObjectPrefix,
+  resolvePublicAssetConfig,
   resolveStorageConfig,
+  type PublicAssetConfig,
   type StorageConfig
 } from "@repo/storage";
 
@@ -15,6 +20,17 @@ import { STORAGE_CONFIG } from "./storage.definition";
 export interface ObjectRef {
   bucket: string;
   key: string;
+}
+
+/** Where an image Attachment's WebP thumbnail lives, next to its object. */
+export function thumbnailRef({ bucket, key }: ObjectRef): ObjectRef {
+  return { bucket, key: `${key}${STORAGE_CONFIG.image.thumbnailKeySuffix}` };
+}
+
+/** Every object an Attachment owns: its own, plus its thumbnail when it is an image. */
+export function objectRefsOf(file: ObjectRef & { mimeType: string }): ObjectRef[] {
+  const ref = { bucket: file.bucket, key: file.key };
+  return file.mimeType.startsWith("image/") ? [ref, thumbnailRef(ref)] : [ref];
 }
 
 /** The object store behind Attachments: S3 in production, in memory in tests. */
@@ -33,6 +49,16 @@ export interface ObjectStore {
   ) => Promise<{ contentType?: string | undefined; sizeBytes?: number | undefined } | null>;
   /** The object's first `bytes` bytes, or null when there is no readable object. */
   readPrefix: (ref: ObjectRef, bytes: number) => Promise<Uint8Array | null>;
+  /** The whole object, or null when there is no readable object. */
+  get: (ref: ObjectRef) => Promise<Uint8Array | null>;
+  put: (
+    ref: ObjectRef,
+    body: Uint8Array,
+    contentType: string,
+    cacheControl?: string
+  ) => Promise<void>;
+  /** Up to `limit` objects of the private bucket under `prefix`, last modified before `before`. */
+  listBefore: (prefix: string, before: Date, limit: number) => Promise<ObjectRef[]>;
   /** Settles in bounded time; rejects when the delete fails. */
   delete: (ref: ObjectRef) => Promise<void>;
 }
@@ -45,6 +71,17 @@ let s3Client: ReturnType<typeof createStorageClient> | null = null;
 function config(): StorageConfig {
   storageConfig ??= resolveStorageConfig();
   return storageConfig;
+}
+
+let publicConfig: PublicAssetConfig | null | undefined;
+
+/** The public bucket and its CDN URL, or null when Public Assets are off. */
+export function publicAssetStorage(): PublicAssetConfig | null {
+  if (publicConfig === undefined) {
+    publicConfig = resolvePublicAssetConfig();
+  }
+
+  return publicConfig;
 }
 
 function client(): ReturnType<typeof createStorageClient> {
@@ -77,6 +114,14 @@ export const s3ObjectStore: ObjectStore = {
   },
   head: ({ bucket, key }) => headObjectMetadata(client(), bucket, key),
   readPrefix: ({ bucket, key }, bytes) => readObjectPrefix(client(), bucket, key, bytes),
+  get: ({ bucket, key }) => getObjectBytes(client(), bucket, key),
+  put: ({ bucket, key }, body, contentType, cacheControl) =>
+    putObject(client(), bucket, key, body, { contentType, cacheControl }),
+  async listBefore(prefix, before, limit) {
+    const { bucket } = config();
+    const keys = await listObjectKeysBefore(client(), bucket, prefix, before, limit);
+    return keys.map((key) => ({ bucket, key }));
+  },
   delete: ({ bucket, key }) =>
     deleteObject(client(), bucket, key, {
       abortSignal: AbortSignal.timeout(STORAGE_CONFIG.objectDeleteTimeoutMs)

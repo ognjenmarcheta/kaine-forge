@@ -11,7 +11,8 @@ import {
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import type { ObjectStore } from "./attachment.store";
+import { sanitizeImage } from "./attachment.image";
+import { objectRefsOf, thumbnailRef, type ObjectStore } from "./attachment.store";
 import {
   createFileRecord,
   deleteFilesByEntity,
@@ -53,6 +54,10 @@ export interface Attachments extends TodoAttachments {
   downloadUrl: (
     file: Pick<File, "bucket" | "key" | "status" | "mimeType" | "originalName">
   ) => Promise<string | null>;
+  /** A presigned GET for an uploaded image Attachment's WebP thumbnail; null otherwise. */
+  thumbnailUrl: (
+    file: Pick<File, "bucket" | "key" | "status" | "mimeType">
+  ) => Promise<string | null>;
   /**
    * Validates the file, checks that a `todo` target is a Todo in the Active
    * Organization (`attachment target not found`), records a pending row, and
@@ -63,8 +68,10 @@ export interface Attachments extends TodoAttachments {
   ) => Promise<{ fileId: string; uploadUrl: string; key: string; expiresIn: number }>;
   /**
    * Marks a pending Attachment uploaded once its object exists and its size,
-   * type, and leading bytes match the claim. An object that does not match is
-   * deleted and its row marked deleted, so a rejected upload leaves nothing.
+   * type, and leading bytes match the claim. An image is re-encoded without
+   * metadata and gets a thumbnail. An object that does not match, or an image
+   * that cannot be processed, is deleted and its row marked deleted, so a
+   * rejected upload leaves nothing.
    */
   confirm: (id: string) => Promise<File>;
   /** Deletes the object, logging a failure, then marks the row deleted. */
@@ -91,12 +98,26 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
 
   async function removeObject(file: File, message: string): Promise<void> {
     try {
-      await store.delete(file);
+      await Promise.all(objectRefsOf(file).map((ref) => store.delete(ref)));
     } catch (err) {
       // `error`, not `err`: pino's default serializer would copy every
       // enumerable property of the error onto the record. See observability.ts.
       logger.warn({ error: formatLoggableError(err), key: file.key }, message);
     }
+  }
+
+  /** Replaces an uploaded image with its sanitized copy and writes its thumbnail; returns the new size. */
+  async function processImage(file: File): Promise<number> {
+    const original = await store.get(file);
+
+    if (!original) {
+      throw new Error("object could not be read");
+    }
+
+    const { image, thumbnail } = await sanitizeImage(original, file.mimeType);
+    await store.put(file, image, file.mimeType);
+    await store.put(thumbnailRef(file), thumbnail, "image/webp");
+    return image.byteLength;
   }
 
   /** Why an uploaded object does not match its pending row, or null when it does. */
@@ -147,6 +168,11 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
     list: (filter) => listFiles(data, filter),
     listByTodoIds: (todoIds) =>
       listFilesByEntityIds(data, ATTACHMENT_ENTITY_TYPES.todo, [...todoIds], "uploaded"),
+    async thumbnailUrl(file) {
+      return file.status === "uploaded" && file.mimeType.startsWith("image/")
+        ? store.presignDownload(thumbnailRef(file), "inline")
+        : null;
+    },
     async downloadUrl(file) {
       return file.status === "uploaded"
         ? store.presignDownload(file, contentDisposition(file.mimeType, file.originalName))
@@ -214,7 +240,16 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
         throw new Error("file has not been uploaded to storage");
       }
 
-      const rejection = await rejectionOf(file, metadata);
+      let rejection = await rejectionOf(file, metadata);
+      let sizeBytes = file.sizeBytes;
+
+      if (!rejection && file.mimeType.startsWith("image/")) {
+        try {
+          sizeBytes = await processImage(file);
+        } catch (err) {
+          rejection = `image could not be processed: ${err instanceof Error ? err.message : "unknown error"}`;
+        }
+      }
 
       if (rejection) {
         await removeObject(file, "failed to delete rejected upload from S3");
@@ -222,7 +257,7 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
         throw new Error(rejection);
       }
 
-      return updateFileStatus(data, file.id, "uploaded");
+      return updateFileStatus(data, file.id, "uploaded", { sizeBytes });
     },
     async delete(id) {
       const file = await requireFile(id);
@@ -237,9 +272,9 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
       return {
         purge: async () => {
           await Promise.all(
-            files.map(async (file) => {
+            files.flatMap(objectRefsOf).map(async (ref) => {
               try {
-                await store.delete(file);
+                await store.delete(ref);
               } catch (err) {
                 // A failure leaves an orphaned object (issue #602).
                 logger.warn(

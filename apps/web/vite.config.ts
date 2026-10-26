@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
         "@repo/auth/form": path.join(workspaceRoot, "packages/auth/src/auth.form.ts"),
         "@repo/auth/transport": path.join(workspaceRoot, "packages/auth/src/auth.transport.ts"),
         "@repo/auth/session": path.join(workspaceRoot, "packages/auth/src/auth.session.ts"),
+        "@repo/auth/permissions": path.join(workspaceRoot, "packages/auth/src/auth.permissions.ts"),
         "@repo/auth": path.join(workspaceRoot, "packages/auth/src/index.ts"),
         "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),
         "@repo/persistence": path.join(workspaceRoot, "packages/persistence/src/index.ts"),

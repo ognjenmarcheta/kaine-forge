@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client
 } from "@aws-sdk/client-s3";
@@ -131,6 +132,70 @@ export async function readObjectPrefix(
   } catch {
     return null;
   }
+}
+
+/** The whole object, or null when there is no readable object. Callers bound its size first. */
+export async function getObjectBytes(
+  client: S3Client,
+  bucket: string,
+  key: string
+): Promise<Uint8Array | null> {
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    return (await result.Body?.transformToByteArray()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function putObject(
+  client: S3Client,
+  bucket: string,
+  key: string,
+  body: Uint8Array,
+  options: { contentType: string; cacheControl?: string | undefined }
+): Promise<void> {
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: options.contentType,
+      CacheControl: options.cacheControl
+    })
+  );
+}
+
+/** Keys under `prefix` last modified before `before`, at most `limit` of them. */
+export async function listObjectKeysBefore(
+  client: S3Client,
+  bucket: string,
+  prefix: string,
+  before: Date,
+  limit: number
+): Promise<string[]> {
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken
+      })
+    );
+
+    for (const object of page.Contents ?? []) {
+      if (object.Key && object.LastModified && object.LastModified < before) {
+        keys.push(object.Key);
+      }
+    }
+
+    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (continuationToken && keys.length < limit);
+
+  return keys.slice(0, limit);
 }
 
 export async function deleteObject(

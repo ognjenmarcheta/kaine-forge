@@ -1,18 +1,22 @@
+import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
 import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
 import { Button } from "@repo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 
 import { LoadingRows } from "../../components/loading-rows";
+import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { listOrganizationMembersRequest } from "../../lib/auth-api";
+import { PublicAssetUpload } from "../public-assets/components/public-asset-upload";
 
 export function OrganizationsRoute() {
   const { t } = useTranslation();
   const {
     activeOrganizationId,
     isLoading: isOrganizationLoading,
+    organizations,
     organizationsVisible
   } = useOrganization();
   const membersQuery = useQuery({
@@ -25,6 +29,13 @@ export function OrganizationsRoute() {
   });
 
   const members = membersQuery.data?.members ?? [];
+  const { session } = useAuth();
+  const ownRole = members.find((member) => member.userId === session?.user.id)?.role;
+  // SAFETY: member roles come from the better-auth organization plugin's
+  // ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails closed for any other
+  // string. The API enforces the same rule; this only hides a control.
+  const canEditLogo =
+    ownRole !== undefined && hasRoleAtLeast(ownRole as OrganizationRole, ORGANIZATION_ROLES.ADMIN);
   if (!organizationsVisible) return <Navigate replace to="/dashboard" />;
 
   return (
@@ -37,6 +48,16 @@ export function OrganizationsRoute() {
           {t("organizations.members.description")}
         </p>
       </header>
+
+      {canEditLogo ? (
+        <PublicAssetUpload
+          kind="organization_logo"
+          ownerName={
+            organizations.find((organization) => organization.id === activeOrganizationId)?.name ??
+            ""
+          }
+        />
+      ) : null}
 
       {membersQuery.status === "pending" || isOrganizationLoading ? (
         <LoadingRows label={t("organizations.members.loading")} />

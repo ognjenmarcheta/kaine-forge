@@ -13,6 +13,7 @@ describe("api schema feature registry", () => {
       "todos",
       "notes",
       "storage",
+      "public-assets",
       "assistant"
     ]);
     expect(apiTypeDefs.join("\n")).toContain("type Query");

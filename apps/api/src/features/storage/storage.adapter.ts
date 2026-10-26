@@ -87,10 +87,11 @@ export async function listFilesByEntityIds(
 export async function updateFileStatus(
   data: ScopedData,
   id: string,
-  status: "pending" | "uploaded" | "deleted"
+  status: "pending" | "uploaded" | "deleted",
+  fields: { sizeBytes?: number } = {}
 ): Promise<File> {
   const files = await data
-    .update(filesTable, { status, updatedAt: new Date() }, eq(filesTable.id, id))
+    .update(filesTable, { ...fields, status, updatedAt: new Date() }, eq(filesTable.id, id))
     .returning();
 
   const file = files[0];
