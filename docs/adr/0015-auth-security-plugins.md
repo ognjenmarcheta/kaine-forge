@@ -15,7 +15,7 @@ Sign-in was email and password (plus optional GitHub/Google) with no second fact
 - **Email OTP (`emailOTP`)**: sign-in and password reset with a 6-digit code (5 minutes, 3 attempts, stored hashed). `disableSignUp: true` keeps account creation on the sign-up form, which collects a name and is captcha-protected. Email verification stays link-based (ADR 0007 unchanged). Codes are sent without awaiting delivery so response timing does not reveal whether an account exists.
 - **Captcha (`captcha`, Cloudflare Turnstile)**: active only when `TURNSTILE_SECRET_KEY` is set (`resolveCaptchaOptions`). It protects sign-up, password sign-in, both password-reset requests, and email-code requests. Web renders the Turnstile widget; mobile renders it in a WebView (`react-native-webview`). When the API enforces captcha, a client without a site key cannot sign in.
 - **Have I Been Pwned (`haveIBeenPwned`)**: rejects breached passwords on sign-up, change, and both reset flows. It wraps our scrypt hash hook, so custom hashing (ADR 0005) is unaffected. It **fails closed** when `api.pwnedpasswords.com` is unreachable; `AUTH_PASSWORD_BREACH_CHECK=false` turns it off for offline development and e2e.
-- **Session cookie cache**: `session.cookieCache` with a 5-minute window, plus indexes from the better-auth performance guide (migration `0010`). The instance imports `better-auth/minimal`, since the drizzle adapter and drizzle-kit own database access and migrations.
+- **Session cookie cache**: `session.cookieCache` with a 5-minute window, plus indexes from the better-auth performance guide (migration `0011`). The instance imports `better-auth/minimal`, since the drizzle adapter and drizzle-kit own database access and migrations.
 
 ## Alternatives Considered
 
