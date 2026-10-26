@@ -11,6 +11,7 @@ function session(activeOrganizationId = "org-1"): AuthSession {
       id: "user-1",
       email: "user@example.com",
       emailVerified: false,
+      twoFactorEnabled: false,
       name: "User"
     }
   };
@@ -97,7 +98,7 @@ describe("createClientSessionLifecycle", () => {
     expect(onRefreshError).toHaveBeenCalledWith(new Error("network unavailable"));
   });
 
-  it("persists login/signup results and clears Session storage on logout", async () => {
+  it("persists login, signup, and two-factor results and clears Session storage on logout", async () => {
     const setStoredSession = vi.fn(async () => undefined);
     const clearSessionToken = vi.fn(async () => undefined);
     const auth = clientAuth();
@@ -121,10 +122,12 @@ describe("createClientSessionLifecycle", () => {
       name: "New User",
       password: "secret"
     });
+    await lifecycle.completeSignIn(async () => session());
     await lifecycle.logout();
 
     expect(setStoredSession).toHaveBeenNthCalledWith(1, session());
     expect(setStoredSession).toHaveBeenNthCalledWith(2, session());
+    expect(setStoredSession).toHaveBeenNthCalledWith(3, session());
     expect(setStoredSession).toHaveBeenLastCalledWith(null);
     expect(clearSessionToken).toHaveBeenCalledOnce();
   });

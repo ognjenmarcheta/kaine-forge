@@ -41,7 +41,13 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
     membership: { id: member.id, role: member.role, userId: member.userId },
     organizationId: own.id,
     userId: user.id,
-    user: { id: user.id, name: user.name, email: user.email, emailVerified: false }
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: false,
+      twoFactorEnabled: false
+    }
   };
   const [foreignTodo] = await database.db
     .insert(todosTable)

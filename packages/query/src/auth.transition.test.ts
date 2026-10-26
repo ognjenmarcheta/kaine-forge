@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createClientAuthTransition, createQueryRuntime, queryKeys } from "./index";
 
 describe("createClientAuthTransition", () => {
-  it("writes login and signup Sessions then invalidates Organizations", async () => {
+  it("writes login, signup, and two-factor Sessions then invalidates Organizations", async () => {
     const queryClient = {
       invalidateQueries: vi.fn(async () => undefined),
       removeQueries: vi.fn(),
@@ -21,12 +21,16 @@ describe("createClientAuthTransition", () => {
 
     await transition.login({ email: "user@example.com", password: "secret" });
     await transition.signup({ email: "new@example.com", name: "New User", password: "secret" });
+    await transition.authenticate(async () => ({ activeOrganizationId: "org-3" }));
 
     expect(queryClient.setQueryData).toHaveBeenNthCalledWith(1, queryKeys.session(), {
       activeOrganizationId: "org-1"
     });
     expect(queryClient.setQueryData).toHaveBeenNthCalledWith(2, queryKeys.session(), {
       activeOrganizationId: "org-2"
+    });
+    expect(queryClient.setQueryData).toHaveBeenNthCalledWith(3, queryKeys.session(), {
+      activeOrganizationId: "org-3"
     });
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.organizations()

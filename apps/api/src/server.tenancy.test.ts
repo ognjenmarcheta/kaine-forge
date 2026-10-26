@@ -53,6 +53,7 @@ vi.mock("@repo/auth/server", () => ({
         user: {
           email: "tenant@example.test",
           emailVerified: true,
+          twoFactorEnabled: false,
           id: "00000000-0000-4000-8000-0000000000a1",
           name: "Tenant User"
         }

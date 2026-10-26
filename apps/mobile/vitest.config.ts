@@ -18,7 +18,10 @@ export default defineConfig({
       "@repo/storage/client": path.join(workspaceRoot, "packages/storage/src/client.ts"),
       "@repo/storage": path.join(workspaceRoot, "packages/storage/src/index.ts"),
       "@repo/todos": path.join(workspaceRoot, "packages/todos/src/index.ts"),
-      "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts")
+      "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts"),
+      "react-native-webview": fileURLToPath(
+        new URL("./src/test/react-native-webview.stub.tsx", import.meta.url)
+      )
     }
   },
   test: {

@@ -22,7 +22,8 @@ export const NAV_LABELS = {
   notes: /^(Notes|navigation\.notes)$/,
   // Named by its visible text: "<organization name> Organization" (#545).
   organization: /(Organization|navigation\.organization)$/,
-  organizationCreate: /^(Create organization|navigation\.organizationCreate)$/
+  organizationCreate: /^(Create organization|navigation\.organizationCreate)$/,
+  security: /^(Security|navigation\.security)$/
 } as const;
 
 export async function signIn(
