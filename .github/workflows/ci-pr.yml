@@ -15,45 +15,52 @@ permissions:
 
 env:
   PNPM_VERSION: "10.29.3"
-  # Optional remote Turbo cache — no-ops when secrets/vars are unset.
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   detect-paths:
     name: Detect Changed Paths
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
+    # Heavy jobs run only for the apps a PR can affect. Turbo's package graph
+    # decides, not hand-kept globs: `turbo boundaries` in Check Fast fails on an
+    # import that is not a declared dependency, so the graph matches the real
+    # imports, Metro's tsconfig-path resolution in apps/mobile included. Non-PR
+    # events force every job. scripts/pr-quality-gate.mjs re-derives the allowed
+    # skips from these outputs.
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-      docker: ${{ steps.filter.outputs.docker }}
+      unit: ${{ steps.affected.outputs.unit }}
+      web_api: ${{ steps.affected.outputs.web_api }}
+      mobile: ${{ steps.affected.outputs.mobile }}
+      docker_matrix: ${{ steps.affected.outputs.docker_matrix }}
       graphql: ${{ steps.filter.outputs.graphql }}
-      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # turbo ls --affected diffs against the base branch.
+          fetch-depth: 0
 
       - name: Path filters
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3
         with:
           filters: |
-            code:
-              - "apps/**"
-              - "packages/**"
-              - "tooling/**"
-              - "package.json"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "turbo.json"
-              - "tsconfig.base.json"
+            # Files outside the package graph that change what the app jobs
+            # build or test. Any of them runs every job. Root package.json,
+            # pnpm-lock.yaml, pnpm-workspace.yaml, turbo.json, and
+            # tsconfig.base.json need no entry: Turbo marks the affected
+            # workspaces itself.
+            force:
+              - ".github/workflows/ci-pr.yml"
+              - ".github/actions/**"
+              - "Dockerfile.*"
+              - ".npmrc"
+              - ".nvmrc"
               - "vitest*.ts"
-              - "eslint.config.mjs"
               - "scripts/**"
               # Doc contracts live in vitest: monorepo-alignment.test.ts reads
               # MONOREPO_GUIDE.md and design-system.contract.test.ts reads
-              # DESIGN_SYSTEM.md. Doc-only PRs must still run the coverage job
-              # or the exact tests policing these files are skipped.
+              # DESIGN_SYSTEM.md.
               - "MONOREPO_GUIDE.md"
               - "DESIGN_SYSTEM.md"
             docker:
@@ -76,18 +83,23 @@ jobs:
               - "apps/web/src/graphql/**"
               - "apps/mobile/src/graphql/**"
               - "tooling/graphql-codegen/**"
-            mobile:
-              - "apps/mobile/**"
-              - "packages/mobile-ui/**"
-              - "packages/config/tailwind/**"
-              - "scripts/sync-mobile-design-tokens.mjs"
-              # Metro resolves @repo/* to package source through tsconfig paths, so
-              # any shared package or dependency change can break the mobile
-              # bundle (issue #305: a storage barrel pulled @aws-sdk into Expo).
-              - "packages/**"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "tsconfig.base.json"
+
+      # turbo is a standalone binary: npx runs the root devDependency version
+      # without a pnpm install, which would delay every job by about 20 s.
+      - name: Affected workspaces
+        id: affected
+        env:
+          FORCE: ${{ github.event_name != 'pull_request' || steps.filter.outputs.force == 'true' }}
+          DOCKER: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docker == 'true' }}
+          TURBO_SCM_BASE: origin/${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          AFFECTED="$RUNNER_TEMP/affected.json"
+          if [ "$FORCE" != "true" ]; then
+            TURBO_VERSION="$(node -p 'require("./package.json").devDependencies.turbo.replace(/^\D+/, "")')"
+            npx --yes "turbo@${TURBO_VERSION}" ls --affected --output=json > "$AFFECTED"
+          fi
+          node scripts/ci-affected.mjs "$AFFECTED"
 
   changeset-required:
     name: Changeset Required
@@ -171,20 +183,16 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Turbo cache entries are content-addressed by task hash (<hash>.tar.zst), so
-      # every job can safely share one restore pool. The save key stays unique per
-      # job and commit — GitHub cache entries are immutable, so a shared save key
-      # would make every job after the first fail to save. The shared
-      # `turbo-${{ runner.os }}-` restore prefix is the point: check-fast now reuses
-      # artifacts built by build-core and vice versa. Two namespaces stored the same
-      # artifacts twice and halved the hit rate against the repo's 10 GB cache cap.
-      - name: Restore Turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Turbo remote cache backed by the GitHub Actions cache: one cache entry per
+      # task hash, so any job reuses any task another job or main already ran. The
+      # former single .turbo/cache blob per job restored whichever job saved last
+      # and hit 0 of 29 lint/typecheck tasks. The action sets TURBO_API,
+      # TURBO_TOKEN, and TURBO_TEAM for later steps; port 0 avoids a clash on
+      # shared self-hosted hosts.
+      - name: Turbo remote cache
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-check-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+          server-port: "0"
 
       - name: AI tooling doctor
         # --strict fails on drift in committed AI docs (AGENTS.md, CLAUDE.md,
@@ -225,25 +233,44 @@ jobs:
             # so their tests run here, affected-scoped (issue #489). The exclusions keep
             # apps and packages tests in the coverage job only.
             pnpm exec turbo run test --filter="$FILTER" --filter='!./apps/*' --filter='!./packages/*' --continue
-            # Root AI package checks are not turbo workspace packages.
-            pnpm run ai:lint
-            pnpm run ai:typecheck
-            pnpm run ai:test
-            # scripts/* tests are not under vitest.coverage.config.ts projects.
-            # scripts/pr-quality-gate.test.mjs fails when this list differs from the
-            # root "test" script or from the tracked scripts/*.test.mjs files.
-            node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs
+            # Root AI package checks and scripts/* tests run in the AI and Script
+            # Checks job, beside this one.
           else
-            echo "Non-PR event: running full quality gates (includes ai:*)"
-            pnpm run format:check
-            pnpm run lint
-            pnpm run typecheck
-            pnpm run test
+            echo "Non-PR event: running full workspace quality gates"
+            pnpm exec turbo run format:check lint typecheck test --continue
           fi
           # Whole-graph contract checks: not affected-scopable; previously only
           # ran on Release after merge (see issue #142).
           pnpm run boundaries
           pnpm run knip
+
+  ai-checks:
+    name: AI and Script Checks
+    # Root .ai/ package and scripts/* tests are not Turbo workspaces, so Turbo
+    # cannot scope or cache them. They ran serially inside Check Fast (about 45 s);
+    # a job of their own runs them in parallel. No path filter: .ai tests read
+    # files outside .ai/ (Dockerfiles, apps/api), so a filter can skip a real failure.
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: AI tooling and script tests
+        run: |
+          set -euo pipefail
+          pnpm run ai:lint
+          pnpm run ai:typecheck
+          pnpm run ai:test
+          # scripts/* tests are not under vitest.coverage.config.ts projects.
+          # scripts/pr-quality-gate.test.mjs fails when this list differs from the
+          # root "test" script or from the tracked scripts/*.test.mjs files.
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs
 
   coverage:
     name: Coverage Threshold
@@ -252,9 +279,7 @@ jobs:
     # a turbo --filter task. Build first: most packages resolve siblings through
     # exports → dist (turbo test dependsOn ^build); coverage previously had no
     # build step and only worked when dist happened to exist or tests stayed local.
-    if: |
-      always() &&
-      (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
+    if: needs.detect-paths.outputs.unit == 'true'
     needs: detect-paths
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 25
@@ -267,13 +292,11 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore Turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Same per-task Turbo cache as Check Fast.
+      - name: Turbo remote cache
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-coverage-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+          server-port: "0"
 
       # Only packages emit the dist that vitest resolves via package exports.
       # Do not build desktop/mobile apps here — desktop runs Tauri/Rust and is
@@ -296,9 +319,7 @@ jobs:
   mobile-typecheck:
     name: Mobile Typecheck
     # Independent of check-fast: no shared artifact/cache; parallelize (issue #144).
-    if: |
-      always() &&
-      (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
+    if: needs.detect-paths.outputs.mobile == 'true'
     needs: [detect-paths]
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
@@ -321,9 +342,7 @@ jobs:
     # Typecheck cannot see what Metro bundles: a package barrel that re-exports a
     # Node-only module typechecks green and fails at `expo export` (issue #305).
     # Deep Checks runs the same export twice a week; this catches it on the PR.
-    if: |
-      always() &&
-      (github.event_name != 'pull_request' || needs.detect-paths.outputs.mobile == 'true')
+    if: needs.detect-paths.outputs.mobile == 'true'
     needs: [detect-paths]
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
@@ -407,14 +426,14 @@ jobs:
 
   build-core:
     name: Build Core Apps
-    # Skip pure docs/AI PRs; always run outside pull_request (merge queue / dispatch).
-    if: |
-      always() &&
-      needs.check-fast.result == 'success' &&
-      (github.event_name != 'pull_request' || needs.detect-paths.outputs.code == 'true')
+    # Runs when the PR can affect the API, web app, or e2e suite (detect-paths).
+    # Runs beside Check Fast, not after it: e2e only needs this build, and waiting
+    # for lint and typecheck delayed e2e by 2.5-4.5 min. The PR Quality Gate still
+    # needs every job, so a Check Fast failure still blocks the merge.
+    if: needs.detect-paths.outputs.web_api == 'true'
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
-    needs: [check-fast, detect-paths]
+    needs: [detect-paths]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -424,15 +443,17 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore Turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Same per-task Turbo cache as Check Fast.
+      - name: Turbo remote cache
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-build-core-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+          server-port: "0"
 
       - name: Build API and Web with dependencies
+        env:
+          # Adds the dev-only Playwright fixture page to the web build that the
+          # e2e shards serve (apps/web/vite.config.ts). Images build without it.
+          E2E_FIXTURES: "true"
         run: pnpm run build:core
 
       # Share built package/app dist with e2e shards so they do not re-run
@@ -452,9 +473,8 @@ jobs:
   docker-images:
     name: Docker Image (${{ matrix.app }})
     # Independent of check-fast: Buildx-only, own layer cache (issue #144).
-    if: |
-      always() &&
-      (github.event_name != 'pull_request' || needs.detect-paths.outputs.docker == 'true')
+    # One leg per app whose workspace the PR affects (detect-paths).
+    if: needs.detect-paths.outputs.docker_matrix != '[]'
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     needs: [detect-paths]
@@ -465,11 +485,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - app: api
-            dockerfile: Dockerfile.api
-          - app: web
-            dockerfile: Dockerfile.web
+        include: ${{ fromJSON(needs.detect-paths.outputs.docker_matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -602,14 +618,27 @@ jobs:
           name: core-dist
           path: .
 
+      # tsc emits extensionless relative imports; Node ESM needs the .js that
+      # Dockerfile.api adds with the same script. Without it `node dist/index.js`
+      # fails with ERR_MODULE_NOT_FOUND.
+      - name: Add ESM extensions to the API build
+        run: node scripts/fix-esm-extensions.mjs apps/api/dist packages/*/dist
+
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
+      # Hosted Ubuntu images ship Chromium's system libraries; only self-hosted
+      # runners need --with-deps. Its apt-get step took 7-15 min in 7 of 21
+      # recent shards on a slow mirror, against about 20 s without it. The e2e
+      # screenshots are artifacts, not compared, so the extra fonts it installs
+      # change no result.
       - name: Install Playwright browser
-        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+        env:
+          WITH_DEPS: ${{ runner.environment == 'self-hosted' && '--with-deps' || '' }}
+        run: pnpm --filter @repo/e2e exec playwright install $WITH_DEPS chromium
 
       - name: Prepare environment
         run: |
@@ -634,6 +663,9 @@ jobs:
       # --shard flag reaches playwright. The root script also re-runs
       # db:ensure/db:push/db:seed, which the previous step already did.
       - name: Run Playwright e2e
+        env:
+          # Serve the downloaded core-dist builds (apps/e2e/playwright.config.ts).
+          E2E_SERVE_BUILD: "true"
         run: |
           pnpm --filter @repo/e2e exec playwright test \
             --shard=${{ matrix.shard }}/2 \
@@ -705,6 +737,7 @@ jobs:
       - changeset-required
       - dependency-review
       - check-fast
+      - ai-checks
       - coverage
       - mobile-typecheck
       - mobile-export

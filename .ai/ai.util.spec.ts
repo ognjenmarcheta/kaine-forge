@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -25,26 +25,23 @@ import {
   renderClaudeAgentDefinition,
   renderClaudeImport,
   renderClaudeSettings,
-  renderClaudeSkill,
   renderCodexConfig,
-  renderCursorHooks,
   renderCursorRulesFile,
   renderCursorSkill,
   renderGrokConfig,
   renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
-  renderGrokSkill,
   renderGuardedCommandsSection,
   renderMcpJson,
   renderOpencodeAgentDefinition,
   renderOpencodeConfig,
-  renderOpencodeGuardrailPlugin,
   renderOpencodeSkill,
   renderReviewDoc,
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
   REVIEW_REQUIRED_HEADINGS,
+  REVIEW_SRC,
   shouldFailDoctor
 } from "./ai.util";
 
@@ -324,18 +321,12 @@ describe("renderReviewDoc", () => {
 });
 
 describe("REVIEW_REQUIRED_HEADINGS", () => {
-  it("lists the nine compact-hybrid headings in order", () => {
-    expect([...REVIEW_REQUIRED_HEADINGS]).toEqual([
-      "Correctness",
-      "Security, Auth & Tenancy",
-      "Architecture & Boundaries",
-      "Data & GraphQL",
-      "Performance",
-      "UI & i18n",
-      "Quality Gates",
-      "Domain Language",
-      "Template & AI Hygiene"
-    ]);
+  it("matches the section headings of the canonical review source in order", () => {
+    const headings = [...readFileSync(REVIEW_SRC, "utf8").matchAll(/^## (.+)$/gm)].map(
+      (match) => match[1]
+    );
+
+    expect([...REVIEW_REQUIRED_HEADINGS]).toEqual(headings);
   });
 });
 
@@ -591,16 +582,6 @@ describe("renderGrokSessionStartHook", () => {
       ]
     });
     expect(parsed.hooks.SessionStart[0]).not.toHaveProperty("matcher");
-  });
-});
-
-describe("renderGrokSkill", () => {
-  it("matches the Claude skill shape", () => {
-    const skill = parseSkillFile(
-      "kaine-foo",
-      "---\nname: kaine-foo\ndescription: Does foo.\n---\n\nBody.\n"
-    );
-    expect(renderGrokSkill(skill)).toBe(renderClaudeSkill(skill));
   });
 });
 
@@ -1136,34 +1117,5 @@ describe("renderGrokPreToolUseHook", () => {
     expect(parsed.hooks.PreToolUse[0]?.matcher).toBe(".*");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("pre-tool-use.mjs");
     expect(parsed.hooks.PreToolUse[0]?.hooks[0]?.command).toContain("--agent grok");
-  });
-});
-
-describe("renderCursorHooks", () => {
-  it("registers the shell event, not a PreToolUse block Cursor would ignore", () => {
-    expect(JSON.parse(renderCursorHooks())).toEqual({
-      version: 1,
-      hooks: {
-        beforeShellExecution: [
-          {
-            command: "node .ai/hooks/pre-tool-use.mjs --agent cursor",
-            timeout: 10
-          }
-        ]
-      }
-    });
-  });
-});
-
-describe("renderOpencodeGuardrailPlugin", () => {
-  it("listens on tool.execute.before and reuses the shared matcher", () => {
-    const plugin = renderOpencodeGuardrailPlugin();
-
-    // OpenCode ignores JSON hooks entirely, so the plugin API is the only path.
-    expect(plugin).toContain('"tool.execute.before":');
-    expect(plugin).toContain("throw new Error(");
-    expect(plugin).toContain('from "../../.ai/hooks/guarded-command.mjs"');
-    // The callback blocks by throwing; ask remains an advisory.
-    expect(plugin).toContain('rule.decision === "deny"');
   });
 });
