@@ -100,6 +100,7 @@ function createClientStub() {
     getSession: vi.fn(async () => sessionPayload()),
     signIn: {
       email: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      emailOtp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       social: vi.fn(async () => stubResult({ url: "https://provider.example.test" }))
     },
     signUp: {
@@ -107,9 +108,25 @@ function createClientStub() {
     },
     signOut: vi.fn(async () => stubResult({ success: true })),
     twoFactor: {
+      disable: vi.fn(async () => stubResult<Record<string, unknown>>({ status: true })),
+      enable: vi.fn(async () =>
+        stubResult<Record<string, unknown>>({
+          backupCodes: ["code-1", "code-2"],
+          totpURI: "otpauth://totp/Kaine%20Forge:user?secret=ABC"
+        })
+      ),
+      generateBackupCodes: vi.fn(async () =>
+        stubResult<{ backupCodes: string[] }>({ backupCodes: ["new-1"] })
+      ),
+      sendOtp: vi.fn(async () => stubResult<Record<string, unknown>>({ status: true })),
       verifyTotp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       verifyOtp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       verifyBackupCode: vi.fn(async () => stubResult<Record<string, unknown>>({}))
+    },
+    emailOtp: {
+      requestPasswordReset: vi.fn(async () => stubResult({ success: true })),
+      resetPassword: vi.fn(async () => stubResult({ success: true })),
+      sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
     },
     organization: {
       list: vi.fn(async () =>
@@ -294,6 +311,120 @@ describe("createAuthTransport", () => {
     ).resolves.toEqual(expectedSession());
     expect(client.twoFactor[call]).toHaveBeenCalledWith({ code: "123456", trustDevice: true });
   });
+
+  it("starts TOTP enrollment with the password and returns the URI and backup codes", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.enableTwoFactor("secret")).resolves.toEqual({
+      backupCodes: ["code-1", "code-2"],
+      totpUri: "otpauth://totp/Kaine%20Forge:user?secret=ABC"
+    });
+    expect(client.twoFactor.enable).toHaveBeenCalledWith({ password: "secret" });
+  });
+
+  it("returns the regenerated backup codes", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.regenerateBackupCodes("secret")).resolves.toEqual(["new-1"]);
+    expect(client.twoFactor.generateBackupCodes).toHaveBeenCalledWith({ password: "secret" });
+  });
+
+  type Client = ReturnType<typeof createClientStub>;
+  type Transport = ReturnType<typeof createAuthTransport>;
+
+  // Each step sends the body the better-auth endpoint expects; email-code
+  // requests also carry the captcha token. `call` names the client method.
+  const authSteps: {
+    name: string;
+    run: (transport: Transport) => Promise<unknown>;
+    call: (client: Client) => (...args: never[]) => unknown;
+    args: unknown[];
+  }[] = [
+    {
+      name: "sends a sign-in code with the captcha token",
+      run: (transport) =>
+        transport.sendSignInOtp({ email: "user@example.com", captchaToken: "turnstile-token" }),
+      call: (client) => client.emailOtp.sendVerificationOtp,
+      args: [
+        { email: "user@example.com", type: "sign-in" },
+        { headers: { "x-captcha-response": "turnstile-token" } }
+      ]
+    },
+    {
+      name: "signs in with an email code",
+      run: (transport) => transport.signInWithOtp({ email: "user@example.com", otp: "123456" }),
+      call: (client) => client.signIn.emailOtp,
+      args: [{ email: "user@example.com", otp: "123456" }]
+    },
+    {
+      name: "requests a password reset code",
+      run: (transport) => transport.requestPasswordResetOtp({ email: "user@example.com" }),
+      call: (client) => client.emailOtp.requestPasswordReset,
+      args: [{ email: "user@example.com" }, undefined]
+    },
+    {
+      name: "resets the password with an email code",
+      run: (transport) =>
+        transport.resetPasswordWithOtp({
+          email: "user@example.com",
+          otp: "123456",
+          password: "new-password"
+        }),
+      call: (client) => client.emailOtp.resetPassword,
+      args: [{ email: "user@example.com", otp: "123456", password: "new-password" }]
+    },
+    {
+      name: "emails a second-factor code",
+      run: (transport) => transport.sendTwoFactorOtp(),
+      call: (client) => client.twoFactor.sendOtp,
+      args: []
+    },
+    {
+      name: "verifies TOTP enrollment",
+      run: (transport) => transport.verifyTotpEnrollment("654321"),
+      call: (client) => client.twoFactor.verifyTotp,
+      args: [{ code: "654321" }]
+    },
+    {
+      name: "turns two-factor off with the password",
+      run: (transport) => transport.disableTwoFactor("secret"),
+      call: (client) => client.twoFactor.disable,
+      args: [{ password: "secret" }]
+    }
+  ];
+
+  it.each(authSteps)("$name", async ({ run, call, args }) => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await run(createAuthTransport({ adapter: createAdapter() }));
+
+    expect(call(client)).toHaveBeenCalledWith(...args);
+  });
+
+  it.each(authSteps)(
+    "fails with the server error code instead of reporting success: $name",
+    async ({ run, call }) => {
+      const client = createClientStub();
+      const method = call(client);
+      // SAFETY: every client stub method is a vi.fn mock created in createClientStub.
+      vi.mocked(method as () => Promise<unknown>).mockResolvedValue({
+        data: null,
+        error: { status: 400, code: "INVALID_OTP" }
+      });
+      createAuthClientMock.mockReturnValue(client);
+
+      await expect(run(createAuthTransport({ adapter: createAdapter() }))).rejects.toMatchObject({
+        code: "INVALID_OTP"
+      });
+    }
+  );
 
   it("keeps the better-auth error code so clients can show a precise message", async () => {
     const client = createClientStub();
