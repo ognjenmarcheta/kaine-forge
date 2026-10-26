@@ -5,6 +5,7 @@ import { resolveOrganizationScope, type OrganizationMembershipProof } from "./au
 const user = {
   email: "u1@example.com",
   emailVerified: false,
+  twoFactorEnabled: false,
   id: "user-1",
   name: "User One"
 };

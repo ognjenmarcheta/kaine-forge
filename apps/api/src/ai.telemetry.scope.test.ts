@@ -35,7 +35,13 @@ const auth = {
   getSessionFromHeaders: vi.fn(async () => ({
     activeOrganizationId: "org-1",
     expiresAt: "2026-01-01T00:00:00.000Z",
-    user: { email: "user@example.com", emailVerified: true, id: "user-1", name: "User" }
+    user: {
+      email: "user@example.com",
+      emailVerified: true,
+      id: "user-1",
+      name: "User",
+      twoFactorEnabled: false
+    }
   })),
   listInvitationsByScope: vi.fn(async () => []),
   listOrganizationMembersByScope: vi.fn(async () => []),

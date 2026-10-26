@@ -3,6 +3,7 @@ export interface AuthUser {
   emailVerified: boolean;
   id: string;
   name: string;
+  twoFactorEnabled: boolean;
 }
 
 export interface AuthSession {
@@ -13,8 +14,17 @@ export interface AuthSession {
 
 export interface AuthContextValue {
   isLoading: boolean;
-  login: (input: { email: string; password: string }) => Promise<void>;
+  login: (input: {
+    captchaToken?: string | undefined;
+    email: string;
+    password: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   session: AuthSession | null;
-  signup: (input: { email: string; name: string; password: string }) => Promise<void>;
+  signup: (input: {
+    captchaToken?: string | undefined;
+    email: string;
+    name: string;
+    password: string;
+  }) => Promise<void>;
 }

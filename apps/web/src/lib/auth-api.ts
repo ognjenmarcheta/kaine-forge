@@ -46,6 +46,28 @@ export async function signupRequest(input: {
   return authTransport.signupWithPassword(input);
 }
 
+// Two-factor and email one-time-code requests go straight to the transport;
+// steps that create a session run through useAuth().completeSignIn.
+export const twoFactorApi = {
+  disable: (password: string) => authTransport.disableTwoFactor(password),
+  enable: (password: string) => authTransport.enableTwoFactor(password),
+  regenerateBackupCodes: (password: string) => authTransport.regenerateBackupCodes(password),
+  sendOtp: () => authTransport.sendTwoFactorOtp(),
+  verify: (input: Parameters<typeof authTransport.verifyTwoFactor>[0]) =>
+    authTransport.verifyTwoFactor(input),
+  verifyEnrollment: (code: string) => authTransport.verifyTotpEnrollment(code)
+};
+
+export const emailOtpApi = {
+  requestPasswordReset: (input: { captchaToken?: string; email: string }) =>
+    authTransport.requestPasswordResetOtp(input),
+  resetPassword: (input: { email: string; otp: string; password: string }) =>
+    authTransport.resetPasswordWithOtp(input),
+  sendSignInCode: (input: { captchaToken?: string; email: string }) =>
+    authTransport.sendSignInOtp(input),
+  signIn: (input: { email: string; otp: string }) => authTransport.signInWithOtp(input)
+};
+
 export async function fetchSession(session: AuthSession | null): Promise<AuthSession | null> {
   void session;
   return authTransport.getSession();

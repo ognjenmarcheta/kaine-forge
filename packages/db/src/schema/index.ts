@@ -7,5 +7,6 @@ export * from "./notes.schema";
 export * from "./organizations.schema";
 export * from "./sessions.schema";
 export * from "./todos.schema";
+export * from "./two-factors.schema";
 export * from "./users.schema";
 export * from "./verifications.schema";
