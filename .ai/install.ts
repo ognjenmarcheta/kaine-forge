@@ -14,7 +14,7 @@ import {
   discoverAgentDefinitions,
   discoverSkills,
   ensureLocalMcpEnv,
-  KAINE_PREFIX,
+  managedNamePredicate,
   LOCAL_MCP_SRC,
   MCP_JSON_EXAMPLE_SRC,
   missingEnvVarsForMcpServers,
@@ -34,6 +34,7 @@ import {
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
+  validateMcpServers,
   REVIEW_OUT,
   REVIEW_SRC,
   SERENA_INTERFACES,
@@ -68,6 +69,8 @@ interface InstallOptions {
 }
 
 let localMcpEnv: Record<string, string> = {};
+// Template `kaine-*` and project `<repoSlug>-*` outputs; stale ones are removed on install.
+const isManagedName = managedNamePredicate();
 
 const usage = `Usage:
   pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena] [--serena-interface tools|REPL]
@@ -398,11 +401,7 @@ const installAgent = (
   const dirAbs = join(REPO_ROOT, skillsDir);
   if (existsSync(dirAbs)) {
     for (const entry of readdirSync(dirAbs, { withFileTypes: true })) {
-      if (
-        !entry.isDirectory() ||
-        !entry.name.startsWith(KAINE_PREFIX) ||
-        expected.has(entry.name)
-      ) {
+      if (!entry.isDirectory() || !isManagedName(entry.name) || expected.has(entry.name)) {
         continue;
       }
 
@@ -449,7 +448,7 @@ const installAgent = (
         if (
           !entry.isFile() ||
           !entry.name.endsWith(".md") ||
-          !entry.name.startsWith(KAINE_PREFIX) ||
+          !isManagedName(entry.name.replace(/\.md$/, "")) ||
           expectedAgentDefs.has(entry.name.replace(/\.md$/, ""))
         ) {
           continue;
@@ -520,6 +519,10 @@ const main = async (): Promise<void> => {
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
+  const invalidMcps = validateMcpServers(merged.source);
+  if (invalidMcps.length > 0) {
+    throw new Error(`Invalid MCP server(s):\n${invalidMcps.join("\n")}`);
+  }
 
   const mcpSelection = new Set(options.mcps);
   const knownMcps = new Set(Object.keys(merged.source.mcpServers));
@@ -566,7 +569,7 @@ const main = async (): Promise<void> => {
           .filter(
             (entry) =>
               entry.isDirectory() &&
-              entry.name.startsWith(KAINE_PREFIX) &&
+              isManagedName(entry.name) &&
               allSkills.some((skill) => skill.name === entry.name)
           )
           .map((entry) => entry.name)

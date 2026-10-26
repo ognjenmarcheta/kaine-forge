@@ -7,7 +7,8 @@ import {
   AGENTS,
   generatedTextEqual,
   checkSerenaProjectSemantics,
-  KAINE_PREFIX,
+  managedNamePredicate,
+  projectNamePrefix,
   mcpEnvValue,
   type McpServer,
   readGuideSource,
@@ -26,6 +27,7 @@ import {
 } from "./ai.util";
 import { managedConfigMatches } from "./install-config.util";
 import { newDefaultSkills, readInstallSelection } from "./install-state.util";
+import { TEMPLATE_CONFIG_PATH } from "./template-sync.util";
 
 interface EnvRequirement {
   name: string;
@@ -97,6 +99,7 @@ export const computeSkillDrift = (
   onlyAgent?: Agent
 ): AgentDrift[] => {
   const drift: AgentDrift[] = [];
+  const isManagedName = managedNamePredicate(projectNamePrefix(join(root, TEMPLATE_CONFIG_PATH)));
 
   for (const agent of AGENTS) {
     if (onlyAgent && onlyAgent !== agent) continue;
@@ -138,11 +141,7 @@ export const computeSkillDrift = (
 
     const orphan: string[] = [];
     for (const entry of readdirSync(dirAbs, { withFileTypes: true })) {
-      if (
-        !entry.isDirectory() ||
-        !entry.name.startsWith(KAINE_PREFIX) ||
-        expectedNames.has(entry.name)
-      ) {
+      if (!entry.isDirectory() || !isManagedName(entry.name) || expectedNames.has(entry.name)) {
         continue;
       }
       const skillFile = join(dirAbs, entry.name, "SKILL.md");

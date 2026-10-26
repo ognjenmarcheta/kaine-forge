@@ -9,6 +9,9 @@
       "command": "npx",
       "args": ["--prefix=.ai", "-y", "@upstash/context7-mcp@4.1.1"]
     },
+    "better-auth": {
+      "url": "https://mcp.better-auth.com/mcp"
+    },
     "playwright": {
       "command": "npx",
       "args": [

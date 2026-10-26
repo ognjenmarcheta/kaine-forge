@@ -4,9 +4,11 @@ import {
   validateAuthName,
   validateAuthPasswordForSignup
 } from "@repo/auth/form";
+import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import { Button, Field, FieldError, FieldLabel, Input, useUiForm } from "@repo/ui";
 import { useState } from "react";
 
+import { CaptchaWidget, isCaptchaPending } from "./captcha-widget";
 import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
 
@@ -25,21 +27,33 @@ export function SignupForm({ onDone }: SignupFormProps) {
   const { signup } = useAuth();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const form = useUiForm({
+    // No prefilled password: the seed password appears in known breaches, so
+    // the Have I Been Pwned check would reject it on sign-up.
     defaultValues: {
-      confirmPassword: "ChangeMe123!",
+      confirmPassword: "",
       email: "test@test.test",
       name: "Test User",
-      password: "ChangeMe123!"
+      password: ""
     } satisfies SignupFormValues,
     onSubmit: async ({ value }) => {
       try {
         setError(null);
-        await signup({ email: value.email, name: value.name, password: value.password });
+        await signup({
+          email: value.email,
+          name: value.name,
+          password: value.password,
+          ...(captchaToken ? { captchaToken } : {})
+        });
         onDone();
-      } catch {
-        setError(t("error.generic"));
+      } catch (signupError) {
+        setError(t(getAuthErrorMessageKey(signupError)));
+      } finally {
+        setCaptchaToken(null);
+        setCaptchaResetKey((key) => key + 1);
       }
     }
   });
@@ -165,9 +179,11 @@ export function SignupForm({ onDone }: SignupFormProps) {
         )}
       </form.Field>
 
+      <CaptchaWidget resetKey={captchaResetKey} onTokenChange={setCaptchaToken} />
+
       {error ? <FieldError>{error}</FieldError> : null}
 
-      <Button disabled={isSubmitting} type="submit">
+      <Button disabled={isSubmitting || isCaptchaPending(captchaToken)} type="submit">
         {isSubmitting ? t("common.loadingShort") : t("auth.signup.title")}
       </Button>
     </form>

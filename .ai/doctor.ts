@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import chalk from "chalk";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { AGENT_REGISTRY } from "./agent-registry.util";
@@ -21,6 +21,7 @@ import {
   readGuideSource,
   readLocalMcpEnv,
   readMcpSource,
+  validateMcpServers,
   readPersonalMcpSource,
   REPO_ROOT,
   shouldFailDoctor
@@ -36,6 +37,28 @@ import {
 } from "./installation.util";
 import { validateMcpPins } from "./mcp-probe.util";
 import { runReadinessCommand } from "./readiness";
+import {
+  findConflictMarkers,
+  listLocalSyncedFiles,
+  parseSyncManifest,
+  readLocalFiles,
+  SYNC_MANIFEST_PATH
+} from "./template-sync.util";
+
+// Conflict markers that pnpm ai:sync left in synced files block the doctor until resolved.
+const lintSyncConflicts = (): LintIssue[] => {
+  const manifestFile = join(REPO_ROOT, SYNC_MANIFEST_PATH);
+  if (!existsSync(manifestFile)) return [];
+  const { paths } = parseSyncManifest(JSON.parse(readFileSync(manifestFile, "utf8")));
+  return findConflictMarkers(readLocalFiles(REPO_ROOT, listLocalSyncedFiles(REPO_ROOT, paths))).map(
+    (path) => ({
+      file: join(REPO_ROOT, path),
+      level: "error",
+      message: "unresolved pnpm ai:sync conflict markers"
+    })
+  );
+};
+
 const printLintIssue = (issue: LintIssue): void => {
   const icon = issue.level === "error" ? chalk.red("✗") : chalk.yellow("⚠");
   console.log(`  ${icon}  ${chalk.gray(relative(REPO_ROOT, issue.file))}: ${issue.message}`);
@@ -43,8 +66,12 @@ const printLintIssue = (issue: LintIssue): void => {
 
 const main = (): void => {
   const strict = process.argv.includes("--strict");
-  const guardErrors = [...checkGuardContracts(), ...validateMcpPins(readMcpSource())];
-  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir()];
+  const guardErrors = [
+    ...checkGuardContracts(),
+    ...validateMcpServers(readMcpSource()),
+    ...validateMcpPins(readMcpSource())
+  ];
+  const lintIssues = [...lintSkillsDir(), ...lintAgentDefinitionsDir(), ...lintSyncConflicts()];
   let lintErrors = lintIssues.filter((issue) => issue.level === "error");
   const skills = lintErrors.length === 0 ? discoverSkills() : [];
   const agentDefinitions = lintErrors.length === 0 ? discoverAgentDefinitions() : [];
@@ -124,7 +151,7 @@ const main = (): void => {
     const missing = requirements.filter(
       (requirement) => !requirement.isSet && !requirement.hasFallback
     );
-    const commandOk = commandExists(server.command);
+    const commandOk = Boolean(server.url) || commandExists(server.command);
     const envOk = missing.length === 0;
     const allOk = commandOk && envOk;
     const icon = allOk ? chalk.green("✓") : chalk.yellow("⚠");
@@ -133,7 +160,7 @@ const main = (): void => {
       ? chalk.red(`missing command: ${server.command ?? "unknown"}`)
       : !envOk
         ? chalk.yellow(`missing env: ${missing.map((item) => item.name).join(", ")}`)
-        : chalk.gray("ok");
+        : chalk.gray(server.url ? "ok (remote)" : "ok");
     console.log(`  ${icon}  ${name.padEnd(18)}  ${status}${tag}`);
   }
   if (merged.collisions.length > 0) {

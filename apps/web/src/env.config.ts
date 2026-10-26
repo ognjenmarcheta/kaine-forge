@@ -17,7 +17,10 @@ const webEnvSchema = z.object({
       )
       .default("/graphql")
   ),
-  VITE_AUTH_SOCIAL_PROVIDERS: z.preprocess(blankAsUnset, z.string().optional())
+  VITE_AUTH_SOCIAL_PROVIDERS: z.preprocess(blankAsUnset, z.string().optional()),
+  // Cloudflare Turnstile site key; the auth forms render the captcha only when
+  // it is set (the API enforces captcha only when TURNSTILE_SECRET_KEY is set).
+  VITE_TURNSTILE_SITE_KEY: z.preprocess(blankAsUnset, z.string().optional())
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

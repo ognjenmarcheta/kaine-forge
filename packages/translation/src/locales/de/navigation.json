@@ -21,5 +21,6 @@
   "navigation.toggleSidebar": "Seitenleiste umschalten",
   "navigation.todos": "Aufgaben",
   "navigation.notes": "Notizen",
-  "navigation.assistant": "Assistent"
+  "navigation.assistant": "Assistent",
+  "navigation.security": "Sicherheit"
 }

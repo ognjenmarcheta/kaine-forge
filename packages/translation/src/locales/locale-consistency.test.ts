@@ -20,6 +20,8 @@ const namespaceFiles = readdirSync(join(localesDir, "en"))
 // is scoped to a locale and a key, so it cannot exempt newly scaffolded copy.
 const identicalValues: Readonly<Record<string, readonly string[]>> = {
   de: [
+    // Auth: "Code" is the German word for a one-time code.
+    "auth.json:auth.otp.codeLabel",
     // Agent desk: brand, autonyms, issue numbers, and technical terms that German developers use as they are.
     "desk.json:desk.flow.metrics",
     "desk.json:desk.stats.column.issue",
