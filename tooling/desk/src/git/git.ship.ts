@@ -1,8 +1,8 @@
 import type { Exec } from "../ports";
-import { boundedTail } from "../process/process.output";
+import { tryGit, type GitOutcome, type RunGitOptions } from "./git.run";
 
 /**
- * The git commands the ship step runs through `Exec`. Each is one argv array,
+ * The git commands the ship step runs. Each is one argv array,
  * built here and nowhere else, so the safety rules can be read in one place:
  *
  * - no `--no-verify`: hooks run for `commit` and `push`;
@@ -11,50 +11,13 @@ import { boundedTail } from "../process/process.output";
  * - pathspecs are literal and arrive on stdin, never as a shell string.
  */
 
-const GIT_ENV = {
-  GIT_TERMINAL_PROMPT: "0",
-  // Rebase and commit must never wait for an editor.
-  GIT_EDITOR: "true",
-  GIT_SEQUENCE_EDITOR: "true"
-} as const;
-
-export interface GitOutcome {
-  readonly ok: boolean;
-  readonly code: number | null;
-  readonly stdout: string;
-  /** stdout and stderr together, colour removed, bounded. For logs and failure reports. */
-  readonly log: string;
-  readonly timedOut: boolean;
-}
-
-export interface GitCallOptions {
-  readonly input?: string;
-  readonly timeoutMs?: number;
-  readonly env?: Readonly<Record<string, string>>;
-}
-
-export const runGitSafely = async (
+/** A ship command may run its hooks: it gets two minutes unless the caller gives more. */
+const runGitSafely = (
   exec: Exec,
   cwd: string,
   args: readonly string[],
-  options: GitCallOptions = {}
-): Promise<GitOutcome> => {
-  const result = await exec({
-    argv: ["git", ...args],
-    cwd,
-    env: { ...GIT_ENV, ...options.env },
-    timeoutMs: options.timeoutMs ?? 120_000,
-    input: options.input
-  });
-  const combined = [result.stdout, result.stderr].filter((part) => part !== "").join("\n");
-  return {
-    ok: result.code === 0,
-    code: result.code,
-    stdout: result.stdout,
-    log: boundedTail(combined, 120, 8000),
-    timedOut: result.timedOut
-  };
-};
+  options: RunGitOptions = {}
+): Promise<GitOutcome> => tryGit(exec, cwd, args, { timeoutMs: 120_000, ...options });
 
 export interface GitIdentity {
   readonly name: string;

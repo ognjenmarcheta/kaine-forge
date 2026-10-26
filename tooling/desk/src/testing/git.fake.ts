@@ -2,8 +2,13 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { GitPort, RefsSnapshot, WorktreeEntry } from "../git";
-import type { Exec, ExecRequest, ExecResult } from "../ports";
+import {
+  isGitBranchName,
+  type DiffResult,
+  type GitPort,
+  type RefsSnapshot,
+  type WorktreeEntry
+} from "../git";
 
 /**
  * A git that lives in memory plus plain directories. Process starts are slow
@@ -94,7 +99,7 @@ const patchOf = (changes: readonly Change[]): string =>
     .join("\n")
     .concat(changes.length === 0 ? "" : "\n");
 
-const BRANCH_FORMAT = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+const STATUS = { A: "added", M: "modified", D: "deleted" } as const;
 
 const hash = (text: string): string => createHash("sha1").update(text).digest("hex");
 
@@ -107,8 +112,6 @@ export interface FakeGitOptions {
 
 export interface FakeGit {
   readonly port: GitPort;
-  /** Answers every `git ...` argv the engine runs. Anything else is for the caller. */
-  readonly exec: Exec;
   /** Commit in the worktree: HEAD moves, as an agent that ran `git commit` would cause. */
   readonly commit: (worktree: string) => void;
   readonly addRef: (worktree: string, ref: string) => void;
@@ -118,21 +121,6 @@ export interface FakeGit {
   readonly branchOf: (worktree: string) => string | null;
   readonly trees: () => string[];
 }
-
-const ok = (stdout = ""): ExecResult => ({
-  code: 0,
-  stdout,
-  stderr: "",
-  timedOut: false,
-  truncated: false
-});
-const fail = (stderr: string, code = 1): ExecResult => ({
-  code,
-  stdout: "",
-  stderr,
-  timedOut: false,
-  truncated: false
-});
 
 export const createFakeGit = (options: FakeGitOptions): FakeGit => {
   const trees = new Map<string, Tree>();
@@ -165,46 +153,6 @@ export const createFakeGit = (options: FakeGitOptions): FakeGit => {
     ...extraBranches
   ];
 
-  const exec: Exec = async (request: ExecRequest) => {
-    const [, ...args] = request.argv;
-    const [first, second] = args;
-    if (first === "check-ref-format") {
-      return BRANCH_FORMAT.test(args.at(-1) ?? "") ? ok() : fail("bad ref", 1);
-    }
-    if (first === "fetch") return ok();
-    if (first === "worktree" && second === "add") {
-      const rest = args.slice(2);
-      if (rest[0] === "-b") {
-        const [, branch, dir] = rest;
-        if (branch === undefined || dir === undefined) return fail("bad argv", 128);
-        await createTree(dir, branch);
-      } else {
-        const [dir, branch] = rest;
-        if (dir === undefined || branch === undefined) return fail("bad argv", 128);
-        await createTree(dir, branch);
-      }
-      return ok();
-    }
-    if (first === "worktree" && second === "prune") return ok();
-    if (first === "status") {
-      const tree = treeAt(request.cwd);
-      return ok((await changesOf(tree)).map((change) => `?? ${change.path}\n`).join(""));
-    }
-    if (first === "rev-parse" && second === "HEAD") return ok(`${treeAt(request.cwd).head}\n`);
-    if (first === "rev-parse" && args.includes("--git-path")) {
-      return ok(`${path.join(treeAt(request.cwd).dir, ".fake-index")}\n`);
-    }
-    if (first === "add") return ok();
-    if (first === "diff") {
-      const changes = await changesOf(treeAt(request.cwd));
-      if (args.includes("--name-status")) {
-        return ok(changes.map((change) => `${change.status}\0${change.path}\0`).join(""));
-      }
-      return ok(patchOf(changes));
-    }
-    return fail(`fake git: unsupported command: git ${args.join(" ")}`, 127);
-  };
-
   const port: GitPort = {
     fetch: () => Promise.resolve(),
     worktreeAdd: async (_repo, request) => createTree(request.dir, request.branch),
@@ -233,7 +181,8 @@ export const createFakeGit = (options: FakeGitOptions): FakeGit => {
           head: tree.head
         }))
       ]),
-    headSha: (cwd) => Promise.resolve(treeAt(cwd).head),
+    // The main checkout is not a tree of the fake: it stays at the base.
+    headSha: (cwd) => Promise.resolve(cwd === options.repoRoot ? FAKE_BASE_SHA : treeAt(cwd).head),
     currentBranch: (cwd) => Promise.resolve(treeAt(cwd).branch),
     branchExists: (_repo, branch) => Promise.resolve(branches().includes(branch)),
     statusPorcelain: async (cwd) =>
@@ -245,7 +194,7 @@ export const createFakeGit = (options: FakeGitOptions): FakeGit => {
       tree.branch = to;
       return Promise.resolve();
     },
-    checkRefFormat: (_cwd, branch) => Promise.resolve(BRANCH_FORMAT.test(branch)),
+    checkRefFormat: (_cwd, branch) => Promise.resolve(isGitBranchName(branch)),
     mergeBase: () => Promise.resolve(FAKE_BASE_SHA),
     isAncestor: () => Promise.resolve(true),
     refsSnapshot: (cwd) => {
@@ -262,12 +211,20 @@ export const createFakeGit = (options: FakeGitOptions): FakeGit => {
         stash: [...tree.stash]
       };
       return Promise.resolve(snapshot);
+    },
+    diffAgainstBase: async (worktree): Promise<DiffResult> => {
+      const changes = await changesOf(treeAt(worktree));
+      const patch = patchOf(changes);
+      return {
+        patch,
+        files: changes.map((change) => ({ status: STATUS[change.status], path: change.path })),
+        diffHash: createHash("sha256").update(patch).digest("hex")
+      };
     }
   };
 
   return {
     port,
-    exec,
     commit: (worktree) => {
       const tree = treeAt(worktree);
       tree.head = hash(`${tree.head}:commit`);

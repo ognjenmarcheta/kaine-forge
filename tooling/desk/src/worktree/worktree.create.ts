@@ -43,15 +43,10 @@ export type CreateWorktreeResult =
 
 /** Generous because `install` may fetch packages. A step that hangs longer is stuck. */
 const DEFAULT_TIMEOUTS_MS: Readonly<Record<string, number>> = {
-  "check-branch": 15_000,
-  "fetch-base": 120_000,
-  "worktree-add": 60_000,
   install: 15 * 60_000,
   "env-ensure": 5 * 60_000,
   "ai-install": 5 * 60_000,
-  "ai-doctor": 3 * 60_000,
-  "baseline-status": 30_000,
-  "base-head": 15_000
+  "ai-doctor": 3 * 60_000
 };
 const FALLBACK_TIMEOUT_MS = 5 * 60_000;
 
@@ -83,13 +78,6 @@ const exists = async (target: string): Promise<boolean> => {
 };
 
 type Mode = "fresh" | "attach" | "reuse";
-
-/** Steps the mode does not need. A reused tree may hold work, so it skips the clean-tree check. */
-const SKIPPED: Readonly<Record<Mode, ReadonlySet<string>>> = {
-  fresh: new Set(),
-  attach: new Set(["base-head"]),
-  reuse: new Set(["check-branch", "fetch-base", "worktree-add", "baseline-status", "base-head"])
-};
 
 const failure = (
   step: string,
@@ -147,14 +135,41 @@ export const createWorktree = async (
   }
   log(`worktree ${mode}: ${worktreeDir}`);
 
-  const plan = bootstrapPlan({ ...input, worktreeDir, existingBranch: mode === "attach" });
-  let recordedBase: string | null = null;
+  /** One git step through the port. A `GitError` fails the step with its exit code. */
+  const gitStep = async <T>(
+    id: string,
+    run: () => Promise<T>
+  ): Promise<{ readonly value: T } | { readonly failed: CreateWorktreeResult }> => {
+    try {
+      return { value: await run() };
+    } catch (error) {
+      if (!(error instanceof GitError)) throw error;
+      return { failed: failure(id, error.code, `${id} failed`, error.message) };
+    }
+  };
+
+  if (mode !== "reuse") {
+    const format = await gitStep("check-branch", () => git.checkRefFormat(repoDir, branch));
+    if ("failed" in format) return format.failed;
+    if (!format.value) return failure("check-branch", 1, `git rejects the branch name ${branch}`);
+    const fetched = await gitStep("fetch-base", () => git.fetch(repoDir, "origin", input.base));
+    if ("failed" in fetched) return fetched.failed;
+    const added = await gitStep("worktree-add", () =>
+      git.worktreeAdd(repoDir, {
+        branch,
+        dir: worktreeDir,
+        base: baseRef,
+        existingBranch: mode === "attach"
+      })
+    );
+    if ("failed" in added) return added.failed;
+  }
+
+  const plan = bootstrapPlan({ ...input, worktreeDir });
   for (const step of plan.steps) {
-    if (SKIPPED[mode].has(step.id)) continue;
-    const dir = step.cwd === "repo" ? repoDir : worktreeDir;
     const result = await exec({
       argv: step.argv,
-      cwd: dir,
+      cwd: worktreeDir,
       env: { NO_COLOR: "1" },
       timeoutMs: timeoutFor(deps, step.id)
     });
@@ -169,11 +184,29 @@ export const createWorktree = async (
         boundedTail(output, 60, 4000)
       );
     }
-    if (verdict.recorded) recordedBase = verdict.recorded.baseHead;
   }
 
-  let baseSha = recordedBase;
-  if (mode !== "fresh" || baseSha === null) {
+  // A reused tree may hold work, so only a new one must be clean after setup.
+  if (mode !== "reuse") {
+    const status = await gitStep("baseline-status", () => git.statusPorcelain(worktreeDir));
+    if ("failed" in status) return status.failed;
+    if (status.value.trim() !== "") {
+      return failure(
+        "baseline-status",
+        0,
+        "baseline-status: the fresh worktree is not clean",
+        boundedTail(status.value, 60, 4000)
+      );
+    }
+  }
+
+  // A new branch starts at the base. Any other branch forks from it somewhere earlier.
+  let baseSha: string | null = null;
+  if (mode === "fresh") {
+    const head = await gitStep("base-head", () => git.headSha(worktreeDir));
+    if ("failed" in head) return head.failed;
+    baseSha = head.value;
+  } else {
     try {
       baseSha = await git.mergeBase(worktreeDir, "HEAD", baseRef);
     } catch (error) {

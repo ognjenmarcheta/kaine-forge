@@ -50,22 +50,6 @@ import {
   type ShipGateInput,
   type ShipGatePullRequest
 } from "./ship.gate";
-import {
-  commitStaged,
-  conflictedFiles,
-  existsInHead,
-  looksLikeGitError,
-  looksRejected,
-  pushBranch,
-  readGitIdentity,
-  rebaseAbort,
-  rebaseOnto,
-  revParse,
-  stageFiles,
-  stagedPaths,
-  unstageAll,
-  type GitOutcome
-} from "./ship.git";
 import { buildCommitMessage, commitInputFor } from "./ship.message";
 import { buildPrBody } from "./ship.pr-body";
 import { baselineAfterCommit, readRefsBaseline, shipRefViolations } from "./ship.refs";
@@ -77,8 +61,21 @@ import {
 } from "../engine/pipeline.artifacts";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
 import {
-  diffAgainstBase,
+  commitStaged,
+  conflictedFiles,
+  existsInHead,
   fileModeIgnored,
+  looksLikeGitError,
+  looksRejected,
+  pushBranch,
+  readGitIdentity,
+  rebaseAbort,
+  rebaseOnto,
+  revParse,
+  stageFiles,
+  stagedPaths,
+  unstageAll,
+  type GitOutcome,
   indexExecBits,
   setIndexExecBits,
   type DiffResult,
@@ -353,7 +350,7 @@ const runShip = async (
       : null;
   const resumed = resumedFrom !== null;
   const base = resumedFrom === null ? stateBase : resumedFrom.baseSha;
-  let diff = await diffAgainstBase(exec, worktree, base);
+  let diff = await git.diffAgainstBase(worktree, base);
   holder.progress = {
     baseSha: base,
     commitSha: resumed ? headBefore : null,
@@ -708,6 +705,7 @@ const runShip = async (
         kind: "ship",
         config,
         exec,
+        git,
         baseSha,
         artifactsDir: shipDir,
         clock
@@ -732,7 +730,7 @@ const runShip = async (
     } else {
       report = await shipChecks(base);
       shipReport = report;
-      diff = await diffAgainstBase(exec, worktree, base);
+      diff = await git.diffAgainstBase(worktree, base);
       if (!report.passed) {
         return stop({
           kind: "checks-failed",
@@ -788,7 +786,7 @@ const runShip = async (
     await mkdir(path.join(worktree, CHANGESET_DIR), { recursive: true });
     await writeFile(path.join(worktree, outcome.path), changesetText, "utf8");
     rollbackFile = { path: outcome.path, content: changesetText };
-    finalDiff = await diffAgainstBase(exec, worktree, base);
+    finalDiff = await git.diffAgainstBase(worktree, base);
     step("changeset", "done");
   } else {
     step("changeset", "skipped", outcome.kind);
@@ -904,7 +902,7 @@ const runShip = async (
       commitSha = await git.headSha(worktree);
       step("commit", "done", commitSha.slice(0, 12));
     }
-    const committed = await diffAgainstBase(exec, worktree, base);
+    const committed = await git.diffAgainstBase(worktree, base);
     await persist({
       branch,
       baseSha: base,
@@ -973,7 +971,7 @@ const runShip = async (
     step("checks", "start", "after rebase");
     const rebasedReport = await shipChecks(baseNow);
     shipReport = rebasedReport;
-    const rebasedDiff = await diffAgainstBase(exec, worktree, baseNow);
+    const rebasedDiff = await git.diffAgainstBase(worktree, baseNow);
     await persist({
       baseSha: baseNow,
       commitSha,
