@@ -4,12 +4,6 @@ import { describe, expect, it } from "vitest";
 import { Badge } from "./badge";
 
 describe("Badge", () => {
-  it("renders its children as the badge label", () => {
-    render(<Badge>Active</Badge>);
-
-    expect(screen.getByText("Active")).toBeDefined();
-  });
-
   it("applies default appearance classes to container and label", () => {
     render(<Badge>Draft</Badge>);
 

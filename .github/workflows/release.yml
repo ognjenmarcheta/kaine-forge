@@ -18,9 +18,6 @@ permissions:
 
 env:
   PNPM_VERSION: "10.29.3"
-  # Optional remote Turbo cache — no-ops when secrets/vars are unset.
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   release:
@@ -52,15 +49,13 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      # Restore before any .env write: turbo hashes .env* as build inputs.
-      # Shared turbo-${{ runner.os }}- prefix reuses entries saved by PR jobs.
-      - name: Restore Turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Per-task Turbo cache in the GitHub Actions cache, as in ci-pr.yml. GitHub
+      # lets a PR branch read caches saved on main, so the tasks this job runs seed
+      # the cache that every PR reuses.
+      - name: Turbo remote cache
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-release-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+          server-port: "0"
 
       - name: Prepare environment
         run: |
@@ -79,8 +74,12 @@ jobs:
 
       # pretest:e2e downloads only the browser. Hosted images ship Chromium's
       # system libraries; self-hosted runners need them installed, as in CI PR.
+      # On hosted runners --with-deps only re-runs apt-get, which took 7-15 min
+      # on a slow mirror.
       - name: Install Playwright Chromium
-        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+        env:
+          WITH_DEPS: ${{ runner.environment == 'self-hosted' && '--with-deps' || '' }}
+        run: pnpm --filter @repo/e2e exec playwright install $WITH_DEPS chromium
 
       - name: Run quality gates
         run: |

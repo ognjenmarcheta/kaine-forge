@@ -6,6 +6,8 @@ export type Incremental<T> =
 import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
 import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
+export type AttachmentEntityType = "general" | "todo";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -20,7 +22,7 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   limit?: number | null | undefined;
   offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
@@ -34,7 +36,7 @@ export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   mimeType: string;
   originalName: string;
   sizeBytes: number;
@@ -197,7 +199,7 @@ export type GetFileQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: string;
@@ -217,7 +219,7 @@ export type GetFilesQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: string;
@@ -395,67 +397,19 @@ export type ToggleTodoMutation = {
 
 export type OnTodoCreatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoCreatedSubscription = {
-  todoCreated: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: string;
-    updatedAt: string;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoCreatedSubscription = { todoCreated: { id: string } };
 
 export type OnTodoUpdatedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoUpdatedSubscription = {
-  todoUpdated: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: string;
-    updatedAt: string;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoUpdatedSubscription = { todoUpdated: { id: string } };
 
 export type OnTodoDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoDeletedSubscription = { todoDeleted: { id: string; organizationId: string } };
+export type OnTodoDeletedSubscription = { todoDeleted: { id: string } };
 
 export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>;
 
-export type OnTodoToggledSubscription = {
-  todoToggled: {
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: string;
-    updatedAt: string;
-    attachments: Array<{
-      id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-    }>;
-  };
-};
+export type OnTodoToggledSubscription = { todoToggled: { id: string } };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -1220,18 +1174,6 @@ export const OnTodoCreatedDocument = new TypedDocumentString(`
     subscription OnTodoCreated {
   todoCreated {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }
     `);
@@ -1239,18 +1181,6 @@ export const OnTodoUpdatedDocument = new TypedDocumentString(`
     subscription OnTodoUpdated {
   todoUpdated {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }
     `);
@@ -1258,7 +1188,6 @@ export const OnTodoDeletedDocument = new TypedDocumentString(`
     subscription OnTodoDeleted {
   todoDeleted {
     id
-    organizationId
   }
 }
     `);
@@ -1266,18 +1195,6 @@ export const OnTodoToggledDocument = new TypedDocumentString(`
     subscription OnTodoToggled {
   todoToggled {
     id
-    title
-    description
-    completed
-    attachments {
-      id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-    }
-    createdAt
-    updatedAt
   }
 }
     `);

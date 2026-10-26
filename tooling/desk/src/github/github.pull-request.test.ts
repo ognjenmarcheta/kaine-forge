@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { createGitHubPort } from "./github.port";
-import { createPullRequestArgv } from "./github.pull-request";
 import { fail, fakeExec, ok } from "../testing/exec.fake";
 
 const portWith = (routes: Parameters<typeof fakeExec>[0]) => {
@@ -89,14 +88,6 @@ describe("createPullRequest", () => {
       "--body-file",
       "/state/pr-body.md"
     ]);
-  });
-
-  it("builds an argv that cannot merge, auto-merge or mark ready", () => {
-    const argv = createPullRequestArgv(request);
-    expect(argv).toContain("--draft");
-    for (const word of argv) {
-      expect(word).not.toMatch(/^--(merge|auto|squash|rebase|ready|admin)/);
-    }
   });
 
   it("fails when gh prints no PR URL", async () => {

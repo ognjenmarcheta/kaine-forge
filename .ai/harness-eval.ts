@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { format as formatWithPrettier, resolveConfig } from "prettier";
 
 import { REPO_ROOT } from "./ai.util";
-import { extractRegion, replaceRegion } from "./scorecard.util";
+import { ledgerDocument } from "./ledger-document.util";
 
 export const LEDGER_PATH = join(REPO_ROOT, "docs", "agents", "harness-evals.md");
 export const DATA_MARKER = "harness-eval:data";
@@ -248,32 +248,32 @@ const checkConclusion = (
   }
 };
 
-export const parseLedger = (raw: string): LedgerData => {
-  // The region arrives with its blank-line padding, so trim before unwrapping
-  // the fence rather than after.
-  const body = extractRegion(raw, DATA_MARKER)
-    .trim()
-    .replace(/^```json/, "")
-    .replace(/```$/, "")
-    .trim();
-  const parsed: unknown = JSON.parse(body === "" ? "{}" : body);
+const ledger = ledgerDocument<LedgerData>({
+  dataMarker: DATA_MARKER,
+  generatedMarker: GENERATED_MARKER,
+  // An empty ledger is valid: no rule has been measured yet.
+  allowEmpty: true,
+  parseData: (parsed) => {
+    if (!isRecord(parsed) || parsed["runs"] === undefined) {
+      return { runs: [], calibrations: [] };
+    }
+    if (!Array.isArray(parsed["runs"])) {
+      throw new Error("harness-eval:data: runs must be an array");
+    }
+    const rawCalibrations = parsed["calibrations"] ?? [];
+    if (!Array.isArray(rawCalibrations)) {
+      throw new Error("harness-eval:data: calibrations must be an array");
+    }
 
-  if (!isRecord(parsed) || parsed["runs"] === undefined) {
-    return { runs: [], calibrations: [] };
-  }
-  if (!Array.isArray(parsed["runs"])) {
-    throw new Error("harness-eval:data: runs must be an array");
-  }
-  const rawCalibrations = parsed["calibrations"] ?? [];
-  if (!Array.isArray(rawCalibrations)) {
-    throw new Error("harness-eval:data: calibrations must be an array");
-  }
+    const calibrations = rawCalibrations.map(parseCalibration);
+    const runs = parsed["runs"].map(parseRun);
+    runs.forEach((run, index) => checkConclusion(run, calibrations, index));
+    return { runs, calibrations };
+  },
+  render: (data) => renderLedgerMarkdown(data)
+});
 
-  const calibrations = rawCalibrations.map(parseCalibration);
-  const runs = parsed["runs"].map(parseRun);
-  runs.forEach((run, index) => checkConclusion(run, calibrations, index));
-  return { runs, calibrations };
-};
+export const parseLedger = ledger.parse;
 
 const mean = (values: number[]): number =>
   values.length === 0 ? 0 : values.reduce((total, value) => total + value, 0) / values.length;
@@ -290,7 +290,7 @@ export const noiseFloor = (calibration: Calibration): number => {
 
 const signed = (value: number): string => (value > 0 ? `+${format(value)}` : format(value));
 
-export const armVerdicts = (run: EvalRun, arm: Arm): number[] =>
+const armVerdicts = (run: EvalRun, arm: Arm): number[] =>
   run.trials.filter((trial) => trial.arm === arm).map((trial) => trial.verdict);
 
 /** Mean verdict with the rule minus mean verdict without it. */
@@ -298,10 +298,10 @@ export const verdictDelta = (run: EvalRun): number =>
   mean(armVerdicts(run, "with")) - mean(armVerdicts(run, "without"));
 
 /** Metric names appearing in either arm, so a missing metric reads as absent. */
-export const metricNames = (run: EvalRun): string[] =>
+const metricNames = (run: EvalRun): string[] =>
   [...new Set(run.trials.flatMap((trial) => Object.keys(trial.metrics)))].sort();
 
-export const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
+const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
   mean(
     run.trials
       .filter((trial) => trial.arm === arm)
@@ -392,13 +392,10 @@ const main = async (): Promise<void> => {
   const data = parseLedger(raw);
   // Formatted as the committed file is, or prettier's table alignment alone
   // would read as drift.
-  const updated = await formatWithPrettier(
-    replaceRegion(raw, GENERATED_MARKER, renderLedgerMarkdown(data)),
-    {
-      ...(await resolveConfig(LEDGER_PATH)),
-      filepath: LEDGER_PATH
-    }
-  );
+  const updated = await formatWithPrettier(ledger.rewrite(raw, data), {
+    ...(await resolveConfig(LEDGER_PATH)),
+    filepath: LEDGER_PATH
+  });
 
   if (process.argv.includes("--check")) {
     if (updated !== raw) {

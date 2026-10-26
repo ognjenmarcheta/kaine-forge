@@ -4,7 +4,6 @@ import {
   collectAffectedApps,
   deployableAppsFromEntries,
   originSyncState,
-  releaseBranchName,
   resolveSelectedApps,
   type WorkspacePackage
 } from "./release.util";
@@ -68,13 +67,6 @@ describe("deployableAppsFromEntries", () => {
     expect(() =>
       deployableAppsFromEntries(["Dockerfile.api", "Dockerfile.worker"], workspaces)
     ).toThrow(/apps\/worker/);
-  });
-});
-
-describe("releaseBranchName", () => {
-  it("uses stable release branches per app", () => {
-    expect(releaseBranchName("api")).toBe("release/api");
-    expect(releaseBranchName("web")).toBe("release/web");
   });
 });
 

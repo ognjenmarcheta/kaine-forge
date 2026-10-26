@@ -1,26 +1,18 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import {
-  assistantConversationsTable,
-  assistantMessagesTable,
-  db,
-  type AssistantConversation,
-  type AssistantMessage
-} from "@repo/db";
-import { and, asc, desc, eq } from "drizzle-orm";
+import type { AssistantConversation, AssistantMessage } from "@repo/db";
+import { assistantConversationsTable, assistantMessagesTable } from "@repo/db/schema";
+import { asc, desc, eq } from "drizzle-orm";
 
-import type { AssistantToolAction, MessagesPagination } from "./assistant.type";
+import { ASSISTANT_CONFIG } from "./assistant.config";
+import type { AssistantToolAction } from "./assistant.type";
+import { clampPagination, type PaginationInput, type ScopedData } from "../../context.data";
 
 export async function createConversation(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   input: { title?: string | null } = {}
 ): Promise<AssistantConversation> {
-  const conversations = await db
+  const conversations = await data
     .insert(assistantConversationsTable)
-    .values({
-      userId: scope.userId,
-      organizationId: scope.organizationId,
-      title: input.title ?? null
-    })
+    .values({ ...data.stamp("userId"), title: input.title ?? null })
     .returning();
 
   const conversation = conversations[0];
@@ -33,18 +25,14 @@ export async function createConversation(
 }
 
 export async function getConversationById(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   id: string
 ): Promise<AssistantConversation | null> {
-  const conversations = await db
-    .select()
-    .from(assistantConversationsTable)
-    .where(
-      and(
-        eq(assistantConversationsTable.id, id),
-        eq(assistantConversationsTable.organizationId, scope.organizationId),
-        eq(assistantConversationsTable.userId, scope.userId)
-      )
+  const conversations = await data
+    .selectFrom(
+      assistantConversationsTable,
+      eq(assistantConversationsTable.id, id),
+      data.mine(assistantConversationsTable)
     )
     .limit(1);
 
@@ -52,38 +40,25 @@ export async function getConversationById(
 }
 
 export async function listMessages(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   conversationId: string,
-  pagination: MessagesPagination
+  page: PaginationInput
 ): Promise<AssistantMessage[]> {
-  return db
-    .select()
-    .from(assistantMessagesTable)
-    .where(
-      and(
-        eq(assistantMessagesTable.conversationId, conversationId),
-        eq(assistantMessagesTable.organizationId, scope.organizationId)
-      )
-    )
+  const { limit, offset } = clampPagination(page, ASSISTANT_CONFIG.messages);
+  return data
+    .selectFrom(assistantMessagesTable, eq(assistantMessagesTable.conversationId, conversationId))
     .orderBy(asc(assistantMessagesTable.createdAt))
-    .limit(pagination.limit)
-    .offset(pagination.offset);
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function listRecentMessages(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   conversationId: string,
   limit: number
 ): Promise<AssistantMessage[]> {
-  const messages = await db
-    .select()
-    .from(assistantMessagesTable)
-    .where(
-      and(
-        eq(assistantMessagesTable.conversationId, conversationId),
-        eq(assistantMessagesTable.organizationId, scope.organizationId)
-      )
-    )
+  const messages = await data
+    .selectFrom(assistantMessagesTable, eq(assistantMessagesTable.conversationId, conversationId))
     .orderBy(desc(assistantMessagesTable.createdAt))
     .limit(limit);
 
@@ -91,7 +66,7 @@ export async function listRecentMessages(
 }
 
 export async function appendMessage(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   input: {
     content: string;
     conversationId: string;
@@ -99,11 +74,11 @@ export async function appendMessage(
     toolActions?: AssistantToolAction[] | null;
   }
 ): Promise<AssistantMessage> {
-  const messages = await db
+  const messages = await data
     .insert(assistantMessagesTable)
     .values({
+      ...data.stamp(),
       conversationId: input.conversationId,
-      organizationId: scope.organizationId,
       role: input.role,
       content: input.content,
       toolActions: input.toolActions ?? null
@@ -119,51 +94,32 @@ export async function appendMessage(
   return message;
 }
 
-export async function touchConversation(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<void> {
-  await db
-    .update(assistantConversationsTable)
-    .set({ updatedAt: new Date() })
-    .where(
-      and(
-        eq(assistantConversationsTable.id, id),
-        eq(assistantConversationsTable.organizationId, scope.organizationId)
-      )
-    );
+export async function touchConversation(data: ScopedData, id: string): Promise<void> {
+  await data.update(
+    assistantConversationsTable,
+    { updatedAt: new Date() },
+    eq(assistantConversationsTable.id, id)
+  );
 }
 
 export async function listConversations(
-  scope: AuthenticatedOrganizationScope,
-  pagination: MessagesPagination
+  data: ScopedData,
+  page: PaginationInput
 ): Promise<AssistantConversation[]> {
-  return db
-    .select()
-    .from(assistantConversationsTable)
-    .where(
-      and(
-        eq(assistantConversationsTable.organizationId, scope.organizationId),
-        eq(assistantConversationsTable.userId, scope.userId)
-      )
-    )
+  const { limit, offset } = clampPagination(page, ASSISTANT_CONFIG.messages);
+  return data
+    .selectFrom(assistantConversationsTable, data.mine(assistantConversationsTable))
     .orderBy(desc(assistantConversationsTable.updatedAt))
-    .limit(pagination.limit)
-    .offset(pagination.offset);
+    .limit(limit)
+    .offset(offset);
 }
 
-export async function deleteConversation(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<boolean> {
-  const rows = await db
-    .delete(assistantConversationsTable)
-    .where(
-      and(
-        eq(assistantConversationsTable.id, id),
-        eq(assistantConversationsTable.organizationId, scope.organizationId),
-        eq(assistantConversationsTable.userId, scope.userId)
-      )
+export async function deleteConversation(data: ScopedData, id: string): Promise<boolean> {
+  const rows = await data
+    .delete(
+      assistantConversationsTable,
+      eq(assistantConversationsTable.id, id),
+      data.mine(assistantConversationsTable)
     )
     .returning({ id: assistantConversationsTable.id });
   return rows.length > 0;

@@ -33,7 +33,7 @@ describe("desk.styles.css is token-only", () => {
     expect([...new Set(unknown)]).toEqual([]);
   });
 
-  it("has no pixel size except hairlines", () => {
+  it("has no pixel size", () => {
     expect(body.match(/\b\d+px\b/g) ?? []).toEqual([]);
   });
 

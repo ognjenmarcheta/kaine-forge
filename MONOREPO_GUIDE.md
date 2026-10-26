@@ -181,7 +181,7 @@ Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs 
 pnpm generate
 ```
 
-CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit.
+CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit. It also fails on a breaking schema change against the PR base. The owner accepts an intended break with the label `graphql:breaking-approved`, then re-runs the **GraphQL Schema Compatibility** job.
 
 ## 9. Runtime and Environment Rules
 
@@ -383,8 +383,8 @@ pnpm --filter @repo/mobile-ui typecheck
 - Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/archive/publication-readiness.md` records the 2026-09-13 verification of those settings.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
-- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`), coverage, core build, and e2e. Mobile typecheck and Mobile Export Validation run when mobile paths change; Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
-- Optional remote Turbo cache: repository secret `TURBO_TOKEN` and variable `TURBO_TEAM` (Vercel Remote Cache or compatible).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`). Coverage, core build and e2e, Docker images, and the mobile jobs run only when the Turbo package graph says the PR affects them (`scripts/ci-affected.mjs`); Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
+- CI caches each Turbo task in the GitHub Actions cache (`rharkor/caching-for-turbo`), with no secrets. A local remote cache is optional: `TURBO_TOKEN` and `TURBO_TEAM` in your shell.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.
 
@@ -452,7 +452,7 @@ Pick the reference feature that matches your scope: clone `notes` for a plain or
 pnpm create:feature <singular> --plural <plural> --write
 ```
 
-That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 11 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
+That emits the whole `notes`-shaped slice — Drizzle table, API feature, web list and detail routes, all three locale files, an e2e spec, and a changeset — wires the 13 registration points, then runs `pnpm generate`. Preview it without `--write` first. Columns start as placeholder `title` and `body`; edit them, then run `pnpm db:generate`. Translate the generated German and Serbian copy, including navigation labels, before `pnpm check`: locale tests reject values identical to English unless the locale/key has an explicit shared-term exception. The generator never writes `pnpm db:push:local` or a migration for you.
 
 Do the steps below by hand only when the generator does not fit — a feature that is not organization-scoped CRUD, or one that needs mobile.
 
