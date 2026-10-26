@@ -52,6 +52,7 @@ import {
   renderSerenaMemory,
   renderSerenaProject,
   resolveInstallMcpSource,
+  validateMcpServers,
   REVIEW_OUT,
   REVIEW_SRC,
   SERENA_INTERFACES,
@@ -539,7 +540,7 @@ const installAgent = (
     }
   };
   if (agent === "claude") {
-    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source), results);
+    writeConfig(join(REPO_ROOT, ".mcp.json"), renderMcpJson(resolved.source, "claude"), results);
     writeConfig(join(REPO_ROOT, ".claude", "settings.json"), renderClaudeSettings(), results);
     installAgentDefinitions(join(REPO_ROOT, ".claude", "agents"), renderClaudeAgentDefinition);
   }
@@ -551,7 +552,11 @@ const installAgent = (
     );
   }
   if (agent === "cursor") {
-    writeConfig(join(REPO_ROOT, ".cursor", "mcp.json"), renderMcpJson(resolved.source), results);
+    writeConfig(
+      join(REPO_ROOT, ".cursor", "mcp.json"),
+      renderMcpJson(resolved.source, "cursor"),
+      results
+    );
     writeConfig(join(REPO_ROOT, ".cursor", "hooks.json"), renderCursorHooks(), results);
     if (existsSync(CURSOR_RULES_SRC)) {
       writeConfig(
@@ -633,6 +638,10 @@ const main = async (): Promise<void> => {
   const teamMcp = readMcpSource();
   const personalMcp = readPersonalMcpSource();
   const merged = mergeMcpSources(teamMcp, personalMcp);
+  const invalidMcps = validateMcpServers(merged.source);
+  if (invalidMcps.length > 0) {
+    throw new Error(`Invalid MCP server(s):\n${invalidMcps.join("\n")}`);
+  }
 
   const mcpSelection = new Set(options.mcps);
   const knownMcps = new Set(Object.keys(merged.source.mcpServers));

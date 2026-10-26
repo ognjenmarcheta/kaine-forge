@@ -207,10 +207,12 @@ Shared tracked outputs include `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.claude/s
 Claude Code does not start the project MCP servers in `.mcp.json` until you approve them. `claude mcp list` shows an unapproved server as "Pending approval". Approve them once per checkout: run `/mcp` in a Claude Code session, or name them in the untracked `.claude/settings.local.json`:
 
 ```json
-{ "enabledMcpjsonServers": ["context7", "playwright", "serena", "gitbutler"] }
+{ "enabledMcpjsonServers": ["context7", "better-auth", "playwright", "serena", "gitbutler"] }
 ```
 
 Name each server instead of setting `enableAllProjectMcpServers`, so a server added to `.mcp.json` later still needs your approval. A running session loads MCP servers only at start; open a new session after you approve.
+
+`better-auth` is a remote server (`https://mcp.better-auth.com/mcp`). It has only read-only documentation tools and needs no credentials. For auth work, also install the Better Auth agent skills for your agents: `npx skills add better-auth/skills`. The template does not vendor them, because team skills in `.ai/skills/` must use the `kaine-` prefix.
 
 When `.ai/` sources change, the canonical skill list in `AGENTS.md` should pick up the new or renamed skills after `pnpm ai:install`.
 

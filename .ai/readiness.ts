@@ -34,6 +34,7 @@ import { inspectSerenaPrompt } from "./serena-prompt.util";
 
 const serverSchema = z.object({
   command: z.string().optional(),
+  url: z.string().optional(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string(), z.string()).optional(),
   enabled: z.boolean().optional(),
@@ -47,6 +48,7 @@ const configSchema = z.object({
       z.string(),
       z.object({
         command: z.array(z.string()).optional(),
+        url: z.string().optional(),
         environment: z.record(z.string(), z.string()).optional(),
         enabled: z.boolean().optional()
       })
@@ -78,6 +80,7 @@ export function installedServers(agent: Agent, root = REPO_ROOT, includeDisabled
         {
           command: server.command?.[0],
           args: server.command?.slice(1),
+          url: server.url,
           env: server.environment,
           enabled: server.enabled
         }
@@ -156,7 +159,7 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
       problems.push(`${name}: removed team MCP remains installed; rerun ai:install`);
   }
   for (const [name, server] of Object.entries(servers)) {
-    if (!commandExists(server.command)) problems.push(`${name}: missing executable`);
+    if (!server.url && !commandExists(server.command)) problems.push(`${name}: missing executable`);
     const definition = source.mcpServers[name];
     const canonical = definition
       ? resolveMcpServerForAgent(
@@ -176,6 +179,7 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
         problems.push(`${name}: missing ${missing.map((item) => item.name).join(", ")}`);
       if (
         canonical.command !== server.command ||
+        canonical.url !== server.url ||
         JSON.stringify(canonical.args ?? []) !== JSON.stringify(server.args ?? [])
       )
         problems.push(`${name}: stale launch configuration`);
@@ -219,14 +223,22 @@ export async function runReadinessCommand() {
     const probes = [];
     if (values["probe-mcp"]) {
       for (const [name, server] of Object.entries(installedServers(agent)))
-        probes.push({ name, ...(await probeMcp(server)) });
+        probes.push(
+          server.url
+            ? { name, status: "not-probed", reason: "remote, not probed", cleanup: "not-started" }
+            : { name, ...(await probeMcp(server)) }
+        );
     }
-    const failed = report.problems.length > 0 || probes.some((probe) => probe.status !== "passed");
+    const failed = report.problems.length > 0 || probes.some((probe) => probe.status === "failed");
     const output = {
       ...report,
       runtime: {
         ...report.runtime,
-        mcp: probes.length ? (failed ? "failed" : "passed") : "not-verified"
+        mcp: probes.some((probe) => probe.status !== "not-probed")
+          ? failed
+            ? "failed"
+            : "passed"
+          : "not-verified"
       },
       probes
     };

@@ -1,9 +1,21 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { parse } from "smol-toml";
 import { expect, it } from "vitest";
 
-import { discoverSkills, renderCodexSkill, renderOpencodeConfig, REPO_ROOT } from "./ai.util";
+import {
+  type Agent,
+  discoverSkills,
+  type McpSource,
+  renderCodexConfig,
+  renderCodexSkill,
+  renderGrokConfig,
+  renderMcpJson,
+  renderOpencodeConfig,
+  REPO_ROOT,
+  validateMcpServers
+} from "./ai.util";
 import { managedConfigMatches, mergeInstalledConfig } from "./install-config.util";
 import {
   type InstallSelection,
@@ -12,7 +24,7 @@ import {
 } from "./install-state.util";
 import { computeSkillDrift } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
-import { installedServers } from "./readiness";
+import { agentConfigPaths, installedServers } from "./readiness";
 
 it("respects selected skills and detects content drift independently of timestamps", () => {
   const root = mkdtempSync(path.join(tmpdir(), "kaine-readiness-"));
@@ -97,6 +109,51 @@ it("rejects malformed installed configuration and ignores disabled servers", () 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+it("renders a remote MCP server as the native remote entry each agent loads", () => {
+  const url = "https://docs.example.test/mcp";
+  const source: McpSource = { mcpServers: { docs: { url } } };
+  const cases: Array<[Agent, string, string[], Record<string, unknown>]> = [
+    ["claude", renderMcpJson(source, "claude"), ["mcpServers"], { type: "http", url }],
+    ["cursor", renderMcpJson(source, "cursor"), ["mcpServers"], { url }],
+    ["codex", renderCodexConfig(source), ["mcp_servers"], { url }],
+    ["grok", renderGrokConfig(source), ["mcp_servers"], { url }],
+    ["opencode", renderOpencodeConfig(source), ["mcp"], { type: "remote", url, enabled: true }]
+  ];
+  const root = mkdtempSync(path.join(tmpdir(), "kaine-remote-mcp-"));
+  try {
+    for (const [agent, content, [key], entry] of cases) {
+      const file = path.join(root, agentConfigPaths[agent]);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, content);
+      const parsed: unknown = file.endsWith(".toml") ? parse(content) : JSON.parse(content);
+      expect(parsed, agent).toMatchObject({ [key!]: { docs: entry } });
+      // Readiness reads the URL back, so the server is not reported as a missing executable.
+      expect(installedServers(agent, root).docs?.url, agent).toBe(url);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it("accepts the team MCP source and rejects ambiguous or plaintext server shapes", () => {
+  expect(
+    validateMcpServers(JSON.parse(readFileSync(path.join(REPO_ROOT, ".ai/mcp.json"), "utf8")))
+  ).toEqual([]);
+  expect(
+    validateMcpServers({
+      mcpServers: {
+        both: { command: "node", url: "https://docs.example.test/mcp" },
+        neither: { args: ["x"] },
+        plaintext: { url: "http://docs.example.test/mcp" }
+      }
+    })
+  ).toEqual([
+    "both: set exactly one of command or url",
+    "neither: set exactly one of command or url",
+    "plaintext: use an https:// url"
+  ]);
 });
 
 it("requires exact repository npm, Git, and PyPI pins and a workspace-free npx start", () => {

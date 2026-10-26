@@ -27,6 +27,8 @@
     "allow": [
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
+      "mcp__better-auth__search_docs",
+      "mcp__better-auth__get_doc",
       "mcp__gitbutler__gitbutler_workspace",
       "mcp__gitbutler__gitbutler_branch_details",
       "mcp__gitbutler__gitbutler_commit_details",
