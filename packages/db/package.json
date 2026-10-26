@@ -59,6 +59,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",

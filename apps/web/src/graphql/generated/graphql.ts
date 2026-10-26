@@ -5,6 +5,8 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> =
   T | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
 import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
+export type AttachmentEntityType = "general" | "todo";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -19,7 +21,7 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   limit?: number | null | undefined;
   offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
@@ -33,7 +35,7 @@ export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
 export type RequestUploadInput = {
   entityId?: string | number | null | undefined;
-  entityType?: string | null | undefined;
+  entityType?: AttachmentEntityType | null | undefined;
   mimeType: string;
   originalName: string;
   sizeBytes: number;
@@ -196,7 +198,7 @@ export type GetFileQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: unknown;
@@ -216,7 +218,7 @@ export type GetFilesQuery = {
     mimeType: string;
     sizeBytes: number;
     status: FileStatus;
-    entityType: string | null;
+    entityType: AttachmentEntityType | null;
     entityId: string | null;
     downloadUrl: string | null;
     createdAt: unknown;

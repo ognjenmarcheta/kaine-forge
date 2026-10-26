@@ -49,7 +49,7 @@ const attachment = {
   bucket: "files",
   createdAt: new Date("2026-01-01"),
   entityId: todo.id,
-  entityType: "todo",
+  entityType: "todo" as const,
   id: "22222222-2222-2222-2222-222222222222",
   key: "org-1/todo/a.png",
   mimeType: "image/png",
