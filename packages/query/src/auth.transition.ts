@@ -19,6 +19,8 @@ export interface ClientAuthTransitionInput<TLoginInput, TSignupInput, TSession> 
 }
 
 export interface ClientAuthTransition<TLoginInput, TSignupInput, TSession> {
+  /** Applies a session from any other sign-in step (2FA, email code) like login does. */
+  authenticate: (signIn: () => Promise<TSession>) => Promise<TSession>;
   login: (input: TLoginInput) => Promise<TSession>;
   logout: () => Promise<void>;
   signup: (input: TSignupInput) => Promise<TSession>;
@@ -36,6 +38,9 @@ export function createClientAuthTransition<TLoginInput, TSignupInput, TSession>(
   }
 
   return {
+    async authenticate(signIn) {
+      return applyAuthenticatedSession(await signIn());
+    },
     async login(loginInput) {
       return applyAuthenticatedSession(await input.loginWithPassword(loginInput));
     },

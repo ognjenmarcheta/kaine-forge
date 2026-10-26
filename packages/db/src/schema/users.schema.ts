@@ -8,6 +8,8 @@ export const usersTable = pgTable("users", {
   role: varchar("role", { length: 32 }).notNull().default("user"),
   isActive: boolean("is_active").notNull().default(true),
   emailVerified: boolean("email_verified").notNull().default(false),
+  // Set by the better-auth twoFactor plugin once 2FA enrollment is verified.
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

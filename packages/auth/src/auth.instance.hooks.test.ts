@@ -26,6 +26,7 @@ describe("auth.instance database hooks", () => {
       id: "user-1",
       email: "user@example.com",
       emailVerified: false,
+      twoFactorEnabled: false,
       name: "User",
       createdAt: new Date(),
       updatedAt: new Date()

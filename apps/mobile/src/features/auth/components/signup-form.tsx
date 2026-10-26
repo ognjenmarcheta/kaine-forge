@@ -1,4 +1,5 @@
 import { validateAuthSignupForm } from "@repo/auth/form";
+import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
   Card,
@@ -13,6 +14,7 @@ import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 
+import { CaptchaWidget, isCaptchaPending } from "./captcha-widget";
 import { ScreenContainer } from "../../../components/screen-container";
 import { ThemeOptions } from "../../../components/theme-options";
 import { useAuth } from "../../../hooks/use-auth";
@@ -25,9 +27,13 @@ export function SignupForm() {
 
   const [name, setName] = useState("Test User");
   const [email, setEmail] = useState("test@test.test");
-  const [password, setPassword] = useState("ChangeMe123!");
+  // No prefilled password: the seed password appears in known breaches, so
+  // the Have I Been Pwned check would reject it on sign-up.
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   async function onSubmit() {
     // Mobile signup UI has no confirm field; reuse password for shared confirm rule.
@@ -45,11 +51,13 @@ export function SignupForm() {
     try {
       setIsSubmitting(true);
       setError(null);
-      await signup({ email, name, password });
+      await signup({ email, name, password, ...(captchaToken ? { captchaToken } : {}) });
       router.replace("/dashboard");
-    } catch {
-      setError(t("error.generic"));
+    } catch (signupError) {
+      setError(t(getAuthErrorMessageKey(signupError)));
     } finally {
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
       setIsSubmitting(false);
     }
   }
@@ -95,9 +103,10 @@ export function SignupForm() {
                 value={password}
                 onChangeText={setPassword}
               />
+              <CaptchaWidget resetKey={captchaResetKey} onTokenChange={setCaptchaToken} />
               {error ? <Text className="text-sm text-ds-text-danger">{error}</Text> : null}
               <Button
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCaptchaPending(captchaToken)}
                 onPress={() => {
                   void onSubmit();
                 }}
