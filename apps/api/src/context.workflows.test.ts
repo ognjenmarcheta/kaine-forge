@@ -8,8 +8,7 @@ vi.mock("./features/notes/notes.adapter", () => ({
 }));
 
 vi.mock("./features/storage/storage.adapter", () => ({
-  deleteFilesByEntity: vi.fn(),
-  listFiles: vi.fn()
+  deleteFilesByEntity: vi.fn()
 }));
 
 vi.mock("./features/todos/todos.adapter", () => ({

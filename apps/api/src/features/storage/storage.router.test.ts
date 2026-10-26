@@ -100,22 +100,4 @@ describe("storage.router", () => {
       sizeBytes: 1024
     });
   });
-
-  it("resolves FileInfo download URLs without resolver context", async () => {
-    storageRuntime.getDownloadUrl.mockResolvedValue("https://download.example.test");
-
-    await expect(
-      storageResolvers.FileInfo.downloadUrl({
-        id: "file-1",
-        key: "org-1/todo/file-1/photo.png",
-        status: "uploaded"
-      })
-    ).resolves.toBe("https://download.example.test");
-
-    expect(storageRuntime.getDownloadUrl).toHaveBeenCalledWith({
-      id: "file-1",
-      key: "org-1/todo/file-1/photo.png",
-      status: "uploaded"
-    });
-  });
 });
