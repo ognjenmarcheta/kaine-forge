@@ -290,7 +290,7 @@ export const noiseFloor = (calibration: Calibration): number => {
 
 const signed = (value: number): string => (value > 0 ? `+${format(value)}` : format(value));
 
-export const armVerdicts = (run: EvalRun, arm: Arm): number[] =>
+const armVerdicts = (run: EvalRun, arm: Arm): number[] =>
   run.trials.filter((trial) => trial.arm === arm).map((trial) => trial.verdict);
 
 /** Mean verdict with the rule minus mean verdict without it. */
@@ -298,10 +298,10 @@ export const verdictDelta = (run: EvalRun): number =>
   mean(armVerdicts(run, "with")) - mean(armVerdicts(run, "without"));
 
 /** Metric names appearing in either arm, so a missing metric reads as absent. */
-export const metricNames = (run: EvalRun): string[] =>
+const metricNames = (run: EvalRun): string[] =>
   [...new Set(run.trials.flatMap((trial) => Object.keys(trial.metrics)))].sort();
 
-export const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
+const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
   mean(
     run.trials
       .filter((trial) => trial.arm === arm)
