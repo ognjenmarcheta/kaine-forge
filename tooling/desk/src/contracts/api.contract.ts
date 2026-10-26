@@ -25,6 +25,7 @@ import {
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
 import { runRecordSchema } from "./run-metrics.contract";
+import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
 
 /**
  * Wire contract between the desk server and a browser UI. Browser-safe: this
@@ -148,7 +149,8 @@ const timestampSchema = z.string().min(1);
 /**
  * One step of the issue's flow as the UI names it. `agent`: the agent of an agent step.
  * `sendBack`: where a gate's feedback may go (empty for other kinds). `auto`: a ship step that
- * opens the PR without the owner (false for other kinds).
+ * opens the PR without the owner (false for other kinds). `role`: what the step does, from
+ * `stepRoleOf`; the page reads it and never derives it.
  */
 export const flowStepViewSchema = z
   .object({
@@ -160,7 +162,8 @@ export const flowStepViewSchema = z
       .strict()
       .nullable(),
     sendBack: z.array(definitionIdSchema),
-    auto: z.boolean()
+    auto: z.boolean(),
+    role: stepRoleSchema
   })
   .strict();
 export type FlowStepView = z.infer<typeof flowStepViewSchema>;
@@ -175,7 +178,9 @@ export const flowStepViewsOf = (snapshot: FlowSnapshot): FlowStepView[] =>
       kind: step.kind,
       agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output },
       sendBack: step.kind === "gate" ? [...step.sendBack] : [],
-      auto: step.kind === "ship" && step.auto
+      auto: step.kind === "ship" && step.auto,
+      // Never `null`: the step is in the snapshot.
+      role: stepRoleOf(snapshot, step.id) ?? "report"
     };
   });
 
