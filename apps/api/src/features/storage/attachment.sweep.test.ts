@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createMemoryObjectStore } from "./attachment.store.memory";
-import { sweepAttachmentObjects, withSweepLock } from "./attachment.sweep";
+import { sweepAttachmentObjects, sweepStaleObjects, withSweepLock } from "./attachment.sweep";
 import { resolveAttachmentSweepConfig } from "./storage.config";
 
 let database: TestDatabase;
@@ -89,6 +89,10 @@ describe("sweepAttachmentObjects", () => {
     for (const row of [deleted, abandoned, inFlight, live, failing, foreignKey]) {
       memory.upload(row, { contentType: "image/png", sizeBytes: 8 });
     }
+    memory.upload(
+      { bucket: "uploads", key: `${deleted.key}.thumb.webp` },
+      { contentType: "image/webp", sizeBytes: 4 }
+    );
     const store = {
       delete: async (ref: { bucket: string; key: string }) => {
         if (ref.key === failing.key) throw new Error("s3 unreachable");
@@ -138,6 +142,42 @@ describe("sweepAttachmentObjects", () => {
       })
     ).resolves.toBe(true);
     expect(ran).toBe(true);
+  });
+});
+
+describe("sweepStaleObjects", () => {
+  it("deletes only objects under the prefix written before the cutoff", async () => {
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload(
+      { bucket: "uploads", key: "staging/avatar/u/old" },
+      {
+        contentType: "image/png",
+        sizeBytes: 8,
+        lastModified: before
+      }
+    );
+    memory.upload(
+      { bucket: "uploads", key: "staging/avatar/u/new" },
+      {
+        contentType: "image/png",
+        sizeBytes: 8,
+        lastModified: after
+      }
+    );
+    memory.upload(
+      { bucket: "uploads", key: `${orgId}/todo/f/old.png` },
+      {
+        contentType: "image/png",
+        sizeBytes: 8,
+        lastModified: before
+      }
+    );
+
+    await expect(
+      sweepStaleObjects({ logger, store: memory, prefix: "staging/", before: cutoff })
+    ).resolves.toBe(1);
+
+    expect(memory.keys()).toEqual([`${orgId}/todo/f/old.png`, "staging/avatar/u/new"].sort());
   });
 });
 

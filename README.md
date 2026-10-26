@@ -35,7 +35,7 @@ Use it when you want a reusable starter with strong defaults instead of a blank 
 The template ships working, organization-scoped feature slices. Use them as reference code, and remove the ones your product does not need.
 
 - **Organizations**: sign-up, sign-in, password reset, email verification, invitations, members, and an Organization switcher.
-- **Todos**: Todos with Attachments in S3-compatible storage (MinIO locally) and optional AI help (OpenAI or DeepSeek).
+- **Todos**: Todos with Attachments in S3-compatible storage (RustFS locally) and optional AI help (OpenAI or DeepSeek).
 - **Notes**: Notes that group Todos. The two-organization tenancy proof in `pnpm smoke` uses them.
 - **Assistant**: an AI chat that acts on the Active Organization's data through tools, with an evaluation ledger.
 
@@ -82,7 +82,7 @@ Other templates fit other shapes better:
 
 - Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
 - pnpm `10.29.3`
-- Docker Desktop or a compatible Docker runtime for Postgres, MinIO, and image builds
+- Docker Desktop or a compatible Docker runtime for Postgres, S3-compatible storage (RustFS), and image builds
 - [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`): the default Serena MCP server starts through `uvx`
 - For the agent desk: the [GitHub CLI](https://cli.github.com/) (`gh`), signed in, and the Claude Code or Codex CLI
 - For desktop work: the Rust toolchain
@@ -119,7 +119,7 @@ pnpm quick-setup
 
 `quick-setup` does these steps in order:
 
-1. Starts Postgres and MinIO with Docker Compose.
+1. Starts Postgres and RustFS storage with Docker Compose.
 2. Runs `bootstrap`: preflight, env, install, AI assistant files, a build of every workspace except `@repo/desktop`, and `db:prepare:local` (schema push and seed).
 3. Starts `pnpm dev`: the web app and the API.
 

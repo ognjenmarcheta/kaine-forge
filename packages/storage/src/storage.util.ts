@@ -130,3 +130,14 @@ export function contentDisposition(mimeType: string, originalName: string): stri
     ? "inline"
     : `attachment; filename="${sanitizeFilename(originalName) || "download"}"`;
 }
+
+/** The public URL of a Public Asset key. */
+export function buildPublicAssetUrl(baseUrl: string, key: string): string {
+  return `${baseUrl}/${key}`;
+}
+
+/** The key behind a Public Asset URL, or null when the URL is not served from `baseUrl`. */
+export function publicAssetKeyFromUrl(baseUrl: string, url: string): string | null {
+  const prefix = `${baseUrl}/`;
+  return url.startsWith(prefix) && url.length > prefix.length ? url.slice(prefix.length) : null;
+}

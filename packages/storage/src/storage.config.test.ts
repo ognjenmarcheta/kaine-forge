@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveStorageConfig } from "./storage.config";
+import { resolvePublicAssetConfig, resolveStorageConfig } from "./storage.config";
 
 const required = {
   S3_ENDPOINT: "http://localhost:9000",
@@ -25,5 +25,18 @@ describe("resolveStorageConfig", () => {
         S3_DOWNLOAD_URL_EXPIRY: "60"
       })
     ).toMatchObject({ uploadUrlExpirySeconds: 120, downloadUrlExpirySeconds: 60 });
+  });
+});
+
+describe("resolvePublicAssetConfig", () => {
+  it("is off unless both the public bucket and its base URL are set", () => {
+    expect(resolvePublicAssetConfig({ S3_PUBLIC_BUCKET: "public" })).toBeNull();
+    expect(resolvePublicAssetConfig({ S3_PUBLIC_BASE_URL: "https://cdn.example.com" })).toBeNull();
+    expect(
+      resolvePublicAssetConfig({
+        S3_PUBLIC_BUCKET: "public",
+        S3_PUBLIC_BASE_URL: "https://cdn.example.com/"
+      })
+    ).toEqual({ bucket: "public", baseUrl: "https://cdn.example.com" });
   });
 });

@@ -5,6 +5,8 @@ import { notesResolvers } from "../features/notes/notes.router";
 import { notesTypeDefs } from "../features/notes/notes.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
+import { publicAssetsResolvers } from "../features/public-assets/public-assets.router";
+import { publicAssetsTypeDefs } from "../features/public-assets/public-assets.schema";
 import { storageResolvers } from "../features/storage/storage.router";
 import { storageTypeDefs } from "../features/storage/storage.schema";
 import { todosResolvers } from "../features/todos/todos.router";
@@ -92,6 +94,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "storage",
     typeDefs: storageTypeDefs,
     resolvers: storageResolvers
+  },
+  {
+    name: "public-assets",
+    typeDefs: publicAssetsTypeDefs,
+    resolvers: publicAssetsResolvers
   },
   {
     name: "assistant",

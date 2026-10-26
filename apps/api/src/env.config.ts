@@ -66,6 +66,8 @@ const apiEnvSchema = z.object({
   ),
   S3_UPLOAD_URL_EXPIRY: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
   S3_DOWNLOAD_URL_EXPIRY: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
+  S3_PUBLIC_BUCKET: z.string().optional(),
+  S3_PUBLIC_BASE_URL: z.preprocess(blankAsUnset, z.url().optional()),
   STORAGE_SWEEP_ENABLED: z.preprocess(blankAsUnset, z.enum(["true", "false"]).optional()),
   STORAGE_SWEEP_INTERVAL_MS: z.preprocess(
     blankAsUnset,

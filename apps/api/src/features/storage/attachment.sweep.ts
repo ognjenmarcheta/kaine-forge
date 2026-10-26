@@ -3,7 +3,7 @@ import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
-import type { ObjectStore } from "./attachment.store";
+import { objectRefsOf, type ObjectStore } from "./attachment.store";
 import { STORAGE_CONFIG } from "./storage.definition";
 import { formatLoggableError } from "../../observability";
 
@@ -40,7 +40,8 @@ export async function sweepAttachmentObjects({
         id: filesTable.id,
         organizationId: filesTable.organizationId,
         bucket: filesTable.bucket,
-        key: filesTable.key
+        key: filesTable.key,
+        mimeType: filesTable.mimeType
       })
       .from(filesTable)
       .where(
@@ -64,7 +65,7 @@ export async function sweepAttachmentObjects({
             throw new Error("object key is outside its organization prefix");
           }
 
-          await store.delete(row);
+          await Promise.all(objectRefsOf(row).map((ref) => store.delete(ref)));
         } catch (err) {
           logger.warn(
             { error: formatLoggableError(err), fileId: row.id },
@@ -90,6 +91,42 @@ export async function sweepAttachmentObjects({
       return totals;
     }
   }
+}
+
+/**
+ * Deletes objects under `prefix` that were last written before `before`: staged
+ * uploads that were never confirmed. Returns how many it deleted.
+ */
+export async function sweepStaleObjects({
+  logger,
+  store,
+  prefix,
+  before,
+  limit = STORAGE_CONFIG.sweep.batchSize
+}: {
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete" | "listBefore">;
+  prefix: string;
+  before: Date;
+  limit?: number;
+}): Promise<number> {
+  const refs = await store.listBefore(prefix, before, limit);
+  const outcomes = await Promise.all(
+    refs.map(async (ref) => {
+      try {
+        await store.delete(ref);
+        return true;
+      } catch (err) {
+        logger.warn(
+          { error: formatLoggableError(err), key: ref.key },
+          "failed to sweep stale object"
+        );
+        return false;
+      }
+    })
+  );
+
+  return outcomes.filter(Boolean).length;
 }
 
 /**

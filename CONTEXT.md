@@ -28,6 +28,10 @@ _Avoid_: global task
 A stored file associated with organization-scoped user-created data, such as a **Todo**.
 _Avoid_: raw upload, blob
 
+**Public Asset**:
+An image that anyone with its URL may see, served from a separate public bucket through a CDN: a **User**'s avatar or an **Organization**'s logo. It is not an **Attachment** and has no table; its URL lives on the user or organization record.
+_Avoid_: public attachment, public file
+
 **Invitation**:
 A pending offer for an email address to join an **Organization** with a role (admin or member). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked by admins.
 _Avoid_: invite link, access request
@@ -45,6 +49,7 @@ _Avoid_: account activation
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
 - A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
+- A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only an admin or owner changes an Organization's logo.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
 
 ## Example dialogue

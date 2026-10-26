@@ -42,6 +42,18 @@ export const storageResolvers = {
       ctx: ResolverContext
     ) {
       return ctx.attachments.downloadUrl(parent);
+    },
+    async thumbnailUrl(
+      parent: {
+        bucket: string;
+        key: string;
+        mimeType: string;
+        status: "pending" | "uploaded" | "deleted";
+      },
+      _args: unknown,
+      ctx: ResolverContext
+    ) {
+      return ctx.attachments.thumbnailUrl(parent);
     }
   }
 };

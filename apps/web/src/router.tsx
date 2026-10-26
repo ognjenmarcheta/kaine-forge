@@ -31,6 +31,7 @@ import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
+import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { SecurityRoute } from "./features/security/security.route";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useAuth } from "./hooks/use-auth";
@@ -80,6 +81,7 @@ function ShellContent() {
   } = useOrganization();
   const { language, setLanguage, t } = useTranslation();
   const { setThemeMode, themeMode } = useTheme();
+  const { assets: publicAssets } = usePublicAssets();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
 
   if (isLoading) {
@@ -266,7 +268,8 @@ function ShellContent() {
               onLogout={() => requestLeave(() => void logout())}
               user={{
                 email: currentSession.user.email,
-                name: currentSession.user.name
+                name: currentSession.user.name,
+                ...(publicAssets?.avatarUrl ? { avatar: publicAssets.avatarUrl } : {})
               }}
             />
           }

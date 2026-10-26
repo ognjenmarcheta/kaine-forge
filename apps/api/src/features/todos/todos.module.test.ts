@@ -214,7 +214,10 @@ describe("createTodos", () => {
       .from(filesTable)
       .where(eq(filesTable.entityId, todo.id));
     expect(rows.map((row) => row.status)).toEqual(["deleted", "deleted"]);
-    await vi.waitFor(() => expect(purged.sort()).toEqual(["a.png", "b.png"]));
+    // Each image Attachment owns its object and its thumbnail.
+    await vi.waitFor(() =>
+      expect(purged.sort()).toEqual(["a.png", "a.png.thumb.webp", "b.png", "b.png.thumb.webp"])
+    );
   });
 
   it("answers the delete without waiting for a stalled object store", async () => {
@@ -241,7 +244,9 @@ describe("createTodos", () => {
 
     await expect(todosWith().delete(todo.id)).resolves.toBe(true);
 
-    await vi.waitFor(() => expect(purged).toEqual(["good.png"]));
+    await vi.waitFor(() =>
+      expect(purged.sort()).toEqual(["bad.png.thumb.webp", "good.png", "good.png.thumb.webp"])
+    );
     await vi.waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
     const [record, message] = warn.mock.calls[0] ?? [];
     expect(message).toBe("failed to clean up todo attachments");

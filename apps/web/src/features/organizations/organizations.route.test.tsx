@@ -12,8 +12,12 @@ vi.mock("../../hooks/use-organization", () => ({
   useOrganization: () => ({
     activeOrganizationId: "test-organization",
     isLoading: false,
+    organizations: [],
     organizationsVisible: false
   })
+}));
+vi.mock("../../hooks/use-auth", () => ({
+  useAuth: () => ({ session: { user: { id: "user-1" } } })
 }));
 vi.mock("../../hooks/use-translation", () => ({
   useTranslation: () => ({ t: (key: string) => key })

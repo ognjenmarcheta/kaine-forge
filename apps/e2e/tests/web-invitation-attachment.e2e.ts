@@ -11,7 +11,7 @@ import { isRecord, selectOrganization } from "./helpers/organizations";
  * may accept before verifying it). Recipient binding (a different signed-in
  * email is refused) stays with the packages/auth invitation security tests.
  *
- * Todo attachment upload requires S3/MinIO (CI only provides Postgres).
+ * Todo attachment upload requires S3-compatible storage (CI only provides Postgres).
  * Set E2E_STORAGE_ENABLED=1 to run the real storage flow below.
  */
 test("an invited user becomes a member and sees the organization after accepting", async ({
@@ -72,7 +72,10 @@ test("an invited user becomes a member and sees the organization after accepting
 });
 
 test("uploads, downloads, and removes a Todo attachment", async ({ page }) => {
-  test.skip(process.env.E2E_STORAGE_ENABLED !== "1", "Requires a configured local S3/MinIO bucket");
+  test.skip(
+    process.env.E2E_STORAGE_ENABLED !== "1",
+    "Requires a configured local S3-compatible bucket"
+  );
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
   const title = `Attachment ${Date.now()}`;

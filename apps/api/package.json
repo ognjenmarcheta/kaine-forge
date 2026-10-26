@@ -36,6 +36,7 @@
     "graphql": "catalog:",
     "graphql-ws": "catalog:",
     "graphql-yoga": "^6.0.1",
+    "sharp": "^0.35.5",
     "ws": "^8.22.0",
     "zod": "catalog:"
   },

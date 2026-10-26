@@ -2,6 +2,7 @@ import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { filesTable, organizationsTable, todosTable, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { createLogger, type Logger } from "@repo/logger";
+import sharp from "sharp";
 import {
   afterAll,
   beforeAll,
@@ -28,8 +29,9 @@ let logger: Logger;
 let warn: MockInstance<Logger["warn"]>;
 
 const upload = { mimeType: "image/png", originalName: "photo.png", sizeBytes: 1024 };
-const PNG_BYTES = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const pngObject = { contentType: "image/png", sizeBytes: 1024, bytes: PNG_BYTES };
+const PNG_HEADER = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+// A real 4x4 PNG, set in beforeAll: confirm decodes every image.
+let pngObject = { contentType: "image/png", sizeBytes: 1024, bytes: PNG_HEADER };
 
 function attachmentsWith(store: ObjectStore = memory): Attachments {
   return createAttachments({ data, logger, store });
@@ -40,6 +42,10 @@ async function rows() {
 }
 
 beforeAll(async () => {
+  const png = await sharp({ create: { width: 4, height: 4, channels: 3, background: "#fff" } })
+    .png()
+    .toBuffer();
+  pngObject = { ...pngObject, bytes: new Uint8Array(png) };
   database = await createTestDatabase();
   const { db } = database;
   const [user] = await db
@@ -155,7 +161,13 @@ describe("createAttachments", () => {
 
     await expect(attachments.confirm(missing.fileId)).rejects.toThrow("has not been uploaded");
     expect(await attachments.get(missing.fileId)).toMatchObject({ status: "pending" });
-    await expect(attachments.confirm(good.fileId)).resolves.toMatchObject({ status: "uploaded" });
+    const confirmed = await attachments.confirm(good.fileId);
+    expect(confirmed.status).toBe("uploaded");
+    // The image was re-encoded, so the row records the stored size, and a thumbnail exists.
+    expect(confirmed.sizeBytes).toBe(
+      (await memory.get({ bucket: "uploads", key: good.key }))?.byteLength
+    );
+    expect(memory.keys()).toContain(`${good.key}.thumb.webp`);
     await expect(attachments.confirm(good.fileId)).rejects.toThrow("expected pending");
     await expect(attachments.confirm("00000000-0000-4000-8000-00000000ffff")).rejects.toThrow(
       "file not found"
@@ -169,6 +181,11 @@ describe("createAttachments", () => {
       "whose bytes are not the claimed type",
       { ...pngObject, bytes: new TextEncoder().encode("<html><script>") },
       /uploaded content does not match claimed type image\/png/
+    ],
+    [
+      "that has a PNG header but no decodable image",
+      { ...pngObject, bytes: PNG_HEADER },
+      /image could not be processed/
     ]
   ])("deletes an object %s and marks its row deleted", async (_case, object, message) => {
     const attachments = attachmentsWith();
@@ -199,6 +216,10 @@ describe("createAttachments", () => {
     expect(await attachments.downloadUrl(doneFile)).toBe(
       `memory://uploads/${done.key}?disposition=inline`
     );
+    expect(await attachments.thumbnailUrl(pendingFile)).toBeNull();
+    expect(await attachments.thumbnailUrl(doneFile)).toBe(
+      `memory://uploads/${done.key}.thumb.webp?disposition=inline`
+    );
     const listed = (await attachments.listByTodoIds([ownTodoId])).map((file) => file.id);
     expect(listed).toContain(done.fileId);
     expect(listed).not.toContain(pending.fileId);
@@ -208,9 +229,10 @@ describe("createAttachments", () => {
     const attachments = attachmentsWith();
     const requested = await uploaded(attachments);
 
+    await attachments.confirm(requested.fileId);
     await expect(attachments.delete(requested.fileId)).resolves.toBe(true);
 
-    expect(memory.keys()).not.toContain(requested.key);
+    expect(memory.keys()).toEqual([]);
     expect(await attachments.get(requested.fileId)).toMatchObject({ status: "deleted" });
   });
 
@@ -249,7 +271,7 @@ describe("createAttachments", () => {
       memory.upload({ bucket: "uploads", key: requested.key }, pngObject);
       await attachments.confirm(requested.fileId);
     }
-    expect(memory.keys()).toHaveLength(2);
+    expect(memory.keys()).toHaveLength(4);
 
     await expect(todos.delete(todo.id)).resolves.toBe(true);
 

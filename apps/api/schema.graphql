@@ -10,6 +10,7 @@ type Query {
   note(id: ID!): Note
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput): [FileInfo!]!
+  publicAssets: PublicAssets!
   assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
   conversations(limit: Int, offset: Int): [AssistantConversation!]!
 }
@@ -28,6 +29,8 @@ type Mutation {
   requestUploadUrl(input: RequestUploadInput!): PresignedUploadResponse!
   confirmUpload(fileId: ID!): FileInfo!
   deleteFile(fileId: ID!): Boolean!
+  requestPublicAssetUpload(input: RequestPublicAssetUploadInput!): PublicAssetUploadTicket!
+  confirmPublicAssetUpload(kind: PublicAssetKind!, stagingKey: String!): PublicAssets!
   sendMessage(input: SendMessageInput!): SendMessagePayload!
   deleteConversation(id: ID!): Boolean!
 }
@@ -159,6 +162,7 @@ type FileInfo {
   entityType: AttachmentEntityType
   entityId: ID
   downloadUrl: String
+  thumbnailUrl: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -184,6 +188,28 @@ input FilesFilterInput {
   status: FileStatus
   limit: Int
   offset: Int
+}
+
+enum PublicAssetKind {
+  avatar
+  organization_logo
+}
+
+type PublicAssets {
+  avatarUrl: String
+  organizationLogoUrl: String
+}
+
+type PublicAssetUploadTicket {
+  uploadUrl: String!
+  stagingKey: String!
+  expiresIn: Int!
+}
+
+input RequestPublicAssetUploadInput {
+  kind: PublicAssetKind!
+  mimeType: String!
+  sizeBytes: Int!
 }
 
 type AssistantMessage {

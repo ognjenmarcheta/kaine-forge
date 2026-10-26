@@ -21,6 +21,7 @@ export const storageTypeDefs = /* GraphQL */ `
     entityType: AttachmentEntityType
     entityId: ID
     downloadUrl: String
+    thumbnailUrl: String
     createdAt: DateTime!
     updatedAt: DateTime!
   }

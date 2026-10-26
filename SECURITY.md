@@ -39,6 +39,7 @@ Use GitHub private vulnerability reporting: the repository's **Security** tab â†
 - Rotate secrets immediately if exposure is suspected.
 - Validate inputs at API boundaries.
 - Template uploads use a default MIME allowlist (images/docs/spreadsheets; no SVG) and reject a file name whose extension does not belong to its MIME type. The presigned PUT signs `Content-Type` and `Content-Length`, so the store rejects any other type or size. Confirm re-checks the object's size, type, and leading bytes, and deletes an object that does not match.
+- Uploaded images are re-encoded without metadata (EXIF, GPS) and get a WebP thumbnail; processing rejects images above about 24 megapixels.
 - Upload URLs expire after 600 s and download URLs after 300 s by default (`S3_UPLOAD_URL_EXPIRY`, `S3_DOWNLOAD_URL_EXPIRY`). Downloads of non-image Attachments carry `Content-Disposition: attachment`.
 - Use Drizzle parameterized queries instead of handwritten SQL interpolation.
 - Keep cookies primary for browser auth and bearer-token fallback limited to session-token transport.
@@ -53,7 +54,7 @@ Template defaults prioritize local DX. Before production multi-tenant traffic:
 2. Set `API_CORS_ORIGINS` to the exact browser origins you serve (required in production; dual-purpose CORS + better-auth `trustedOrigins`).
 3. Replace `EMAIL_PROVIDER=console` with a real adapter in `@repo/email` so password-reset and verification emails leave the process (console logs can include tokens).
 4. Soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, ADR 0007) does not block login. To hard-gate, check `session.user.emailVerified` in app routing or API policy for the surfaces you care about.
-5. Keep the Attachment bucket private. Every read goes through a presigned URL, and the local MinIO bucket is private too.
+5. Keep the Attachment bucket private. Every read goes through a presigned URL, and the local storage bucket is private too. Public Assets (`S3_PUBLIC_BUCKET`) use a separate bucket that holds only images the API re-encoded; never make the Attachment bucket or a prefix of it public.
 6. Set `TURNSTILE_SECRET_KEY` with matching `VITE_TURNSTILE_SITE_KEY` / `EXPO_PUBLIC_TURNSTILE_SITE_KEY` to turn on captcha, and keep `AUTH_PASSWORD_BREACH_CHECK` on (ADR 0015).
 
 Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.env.example`.
