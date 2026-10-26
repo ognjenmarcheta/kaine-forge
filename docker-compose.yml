@@ -15,33 +15,45 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9001"
+  # RustFS: an S3-compatible server on MinIO's ports. MinIO's public images no
+  # longer pull (#685). The credentials match S3_ACCESS_KEY / S3_SECRET_KEY in .env.example.
+  storage:
+    image: rustfs/rustfs:1.0.1
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - storage_data:/data
 
-  minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+  # Creates the buckets through the S3 API: the private Attachment bucket, with
+  # CORS for the browser's direct PUT, and the public-read Public Asset bucket.
+  storage-init:
+    image: amazon/aws-cli:2.37.13
     depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 minioadmin minioadmin; do
-        echo 'waiting for minio...'; sleep 1;
-      done;
-      mc mb --ignore-existing local/kaine-forge-dev;
-      mc mb --ignore-existing local/kaine-forge-dev-public;
-      mc anonymous set download local/kaine-forge-dev-public;
-      exit 0;
-      "
+      - storage
+    environment:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://storage:9000
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until aws s3api list-buckets > /dev/null 2>&1; do
+          echo 'waiting for storage...'; sleep 1
+        done
+        aws s3api head-bucket --bucket kaine-forge-dev 2>/dev/null ||
+          aws s3api create-bucket --bucket kaine-forge-dev
+        aws s3api put-bucket-cors --bucket kaine-forge-dev --cors-configuration \
+          '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT"],"AllowedHeaders":["*"],"MaxAgeSeconds":3000}]}'
+        aws s3api head-bucket --bucket kaine-forge-dev-public 2>/dev/null ||
+          aws s3api create-bucket --bucket kaine-forge-dev-public
+        aws s3api put-bucket-policy --bucket kaine-forge-dev-public --policy \
+          '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::kaine-forge-dev-public/*"]}]}'
 
 volumes:
   pgdata:
-  minio_data:
+  storage_data:

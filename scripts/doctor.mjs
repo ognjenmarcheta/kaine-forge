@@ -91,8 +91,8 @@ export function missingEnvKeys(envContents, keys = REQUIRED_ENV_KEYS) {
 /** Default host ports used by compose + local web/api. */
 export const CHECK_PORTS = [
   { port: 5432, label: "Postgres", section: "Native Postgres on port 5432 shadows Compose" },
-  { port: 9000, label: "MinIO API", section: "MinIO ports 9000/9001 already in use" },
-  { port: 9001, label: "MinIO console", section: "MinIO ports 9000/9001 already in use" },
+  { port: 9000, label: "Storage API", section: "Storage ports 9000/9001 already in use" },
+  { port: 9001, label: "Storage console", section: "Storage ports 9000/9001 already in use" },
   { port: 3000, label: "Web (Vite)", section: "Ports reference (defaults)" },
   { port: 4000, label: "API", section: "Ports reference (defaults)" }
 ];

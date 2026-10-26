@@ -33,11 +33,11 @@ pnpm db:push
 pnpm db:seed
 ```
 
-### MinIO ports 9000/9001 already in use
+### Storage ports 9000/9001 already in use
 
-**Symptom:** Compose MinIO fails to bind, or storage uploads hit a different MinIO.
+**Symptom:** The Compose `storage` service (RustFS) fails to bind, or storage uploads hit a different S3 server.
 
-**Cause:** Another MinIO (or service) holds `9000`/`9001`.
+**Cause:** Another S3 server (an old MinIO container, for example) or service holds `9000`/`9001`.
 
 **Fix:** Stop the other service or remap Compose ports and update storage env vars to match.
 
@@ -162,7 +162,7 @@ Edit only canonical sources under `.ai/`, never generated agent outputs by hand.
 | Postgres | 5432              | Shadow risk with native PG     |
 | API      | 4000              | `API_PORT` / `BETTER_AUTH_URL` |
 | Web Vite | 3000 (dev)        | E2e may use 3010               |
-| MinIO    | 9000 / 9001       | API + console                  |
+| Storage  | 9000 / 9001       | RustFS S3 API + console        |
 
 ## Still stuck
 
