@@ -612,6 +612,12 @@ jobs:
           name: core-dist
           path: .
 
+      # tsc emits extensionless relative imports; Node ESM needs the .js that
+      # Dockerfile.api adds with the same script. Without it `node dist/index.js`
+      # fails with ERR_MODULE_NOT_FOUND.
+      - name: Add ESM extensions to the API build
+        run: node scripts/fix-esm-extensions.mjs apps/api/dist packages/*/dist
+
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
