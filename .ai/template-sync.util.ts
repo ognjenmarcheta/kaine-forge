@@ -272,6 +272,9 @@ export const readLocalFiles = (root: string, paths: Iterable<string>): Map<strin
   return files;
 };
 
+export const isTracked = (root: string, path: string): boolean =>
+  tryGit(root, ["ls-files", "--error-unmatch", "--", path]) !== null;
+
 /** Uncommitted or untracked paths among the given ones. */
 export const dirtyPaths = (root: string, paths: readonly string[]): string[] =>
   paths.length === 0

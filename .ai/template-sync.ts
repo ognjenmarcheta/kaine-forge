@@ -2,14 +2,17 @@
 
 // A `self` file of the sync manifest: imports only the other self files, node, and zod.
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseTemplateAdoptionConfig } from "./template-adoption.util";
 import {
   dirtyPaths,
   fetchUpstream,
+  isTracked,
   mergeWithGit,
+  nextTemplateConfig,
   planSync,
   readCommitFiles,
   readLocalFiles,
@@ -31,6 +34,8 @@ interface CliOptions {
   dryRun: boolean;
   skipChecks: boolean;
   afterSelfUpdate: boolean;
+  init?: string;
+  upstream?: string;
   ref?: string;
   base?: string;
   target?: string;
@@ -39,6 +44,9 @@ interface CliOptions {
 const usage = `Usage:
   pnpm ai:sync [--ref <branch|tag|sha>] [--base <sha>] [--dry-run] [--skip-checks]
   pnpm ai:sync --check
+  pnpm ai:sync --init <template-adoption.json> [--upstream <url>] [--base <sha>]
+
+--init records the adoption config of a project adopted before ai:sync existed.
 
 Merges upstream template changes to the files listed in ${SYNC_MANIFEST_PATH}.
 Project-owned files in .ai/project/ are never written.
@@ -66,6 +74,8 @@ const parseArgs = (args: string[]): CliOptions => {
     else if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--skip-checks") options.skipChecks = true;
     else if (arg === "--after-self-update") options.afterSelfUpdate = true;
+    else if (arg === "--init") options.init = value(index++, arg);
+    else if (arg === "--upstream") options.upstream = value(index++, arg);
     else if (arg === "--ref") options.ref = value(index++, arg);
     else if (arg === "--base") options.base = value(index++, arg);
     else if (arg === "--target") options.target = value(index++, arg);
@@ -112,9 +122,24 @@ const runPostSyncChecks = (): boolean =>
 const main = (): number => {
   const options = parseArgs(process.argv.slice(2));
   const configFile = join(ROOT, TEMPLATE_CONFIG_PATH);
+  if (options.init) {
+    // An untracked record is a retry of an --init that stopped early.
+    if (isTracked(ROOT, TEMPLATE_CONFIG_PATH)) {
+      throw new Error(`${TEMPLATE_CONFIG_PATH} already exists. Run pnpm ai:sync without --init.`);
+    }
+    const adoptionFile = isAbsolute(options.init) ? options.init : join(ROOT, options.init);
+    const adoption = parseTemplateAdoptionConfig(JSON.parse(readFileSync(adoptionFile, "utf8")));
+    mkdirSync(dirname(configFile), { recursive: true });
+    const record = nextTemplateConfig(adoption, null);
+    if (options.upstream) record.upstream.url = options.upstream;
+    writeFileSync(configFile, renderTemplateConfig(record));
+    console.log(`Recorded ${TEMPLATE_CONFIG_PATH}. Commit it with the synced changes.`);
+  }
   const config = readTemplateConfig(configFile);
   if (!config) {
-    throw new Error(`Missing ${TEMPLATE_CONFIG_PATH}. Run pnpm template:adopt --write first.`);
+    throw new Error(
+      `Missing ${TEMPLATE_CONFIG_PATH}. Run pnpm template:adopt --write, or pnpm ai:sync --init <template-adoption.json>.`
+    );
   }
 
   const target =
@@ -162,7 +187,10 @@ const main = (): number => {
     });
 
   if (!options.afterSelfUpdate && !options.dryRun) {
-    const dirty = dirtyPaths(ROOT, [...candidates, TEMPLATE_CONFIG_PATH]);
+    const dirty = dirtyPaths(
+      ROOT,
+      options.init ? candidates : [...candidates, TEMPLATE_CONFIG_PATH]
+    );
     if (dirty.length > 0) {
       throw new Error(
         `Commit or stash these files first, so sync can be undone:\n  ${dirty.join("\n  ")}`

@@ -443,7 +443,7 @@ Local gitignored outputs:
 - `.grok/config.toml`
 - `opencode.json`
 
-MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects can add tool-specific skills or MCP servers in their own `.ai/` sources.
+MCP config must use placeholders only. Do not commit secrets, `.ai.local/`, or org-specific services in the template. Downstream projects add tool-specific skills, agents, guide rules, and review checks in `.ai/project/`, and MCP servers in their own `.ai/` sources. `pnpm ai:sync` pulls upstream template AI changes and never writes `.ai/project/` (ADR 0014).
 
 Graphify is optional per-developer tooling: `pnpm graph` writes a queryable codebase knowledge graph to `graphify-out/`, which is local, gitignored, and dockerignored. The `kaine-graph` skill documents install, build, and query workflows, and the shared MCP catalog carries an opt-in `graphify` server. Keep Graphify out of `pnpm initialize`, husky hooks, and CI, and never run Graphify's per-project installers, which write into generated files such as `AGENTS.md` and `CLAUDE.md`.
 
@@ -485,7 +485,7 @@ Organization-scoped client query keys come from `createActiveOrganizationQueryKe
 | Editing assistant guidance or skills                  | Edit `.ai/` and run `pnpm ai:install` + `pnpm ai:doctor` |
 | Using raw colors or spacing in UI                     | Use design-system tokens                                 |
 | Importing web UI into mobile                          | Use `@repo/mobile-ui`                                    |
-| Adding org-specific tools to the template             | Keep them downstream in project-specific `.ai/` sources  |
+| Adding org-specific tools to the template             | Keep them downstream in `.ai/project/`                   |
 
 ## 21. Reference Docs
 

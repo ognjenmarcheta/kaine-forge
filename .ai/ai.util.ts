@@ -351,7 +351,7 @@ const markdownFileNames = (dir: string): string[] =>
     : [];
 
 const missingProjectPrefix = (dir: string): string =>
-  `${relative(REPO_ROOT, dir)}: project sources need ${TEMPLATE_CONFIG_PATH} (run pnpm template:adopt --write) to set their name prefix`;
+  `${relative(REPO_ROOT, dir)}: project sources need ${TEMPLATE_CONFIG_PATH} (run pnpm template:adopt --write or pnpm ai:sync --init) to set their name prefix`;
 
 export const discoverSkills = (
   sources: readonly CanonicalSourceDir[] = skillSourceDirs()
