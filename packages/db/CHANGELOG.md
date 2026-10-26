@@ -1,5 +1,17 @@
 # @repo/db
 
+## 1.7.0
+
+### Minor Changes
+
+- 9cbf84c: Type the Attachment entity type as the `AttachmentEntityType` GraphQL enum (`general`, `todo`) and a `files.entity_type` pgEnum. Migration `0010` maps any other stored value to `general` first; the API now rejects unknown entity types at the GraphQL boundary.
+- a1c0431: Adds two-factor sign-in (authenticator app, email code, backup codes), email one-time-code sign-in and password reset, optional Cloudflare Turnstile captcha, and a Have I Been Pwned check on new passwords; caches sessions in a signed cookie for five minutes and adds the better-auth performance indexes (ADR 0015).
+- 67f4516: Add `@repo/db/testing` (`createTestDatabase()`: PGlite with every migration applied) and the `Database` type. The API builds one scoped data-access module per request (`context.data.ts`) that alone writes the organization predicate, stamps inserts, clamps pagination, and escapes search phrases; feature adapters no longer import the `db` singleton.
+
+### Patch Changes
+
+- 519408c: Give the `files.entity_type` migration test the 30 s timeout that other PGlite migration tests use, so it no longer times out on a loaded CI runner and blocks the Release workflow.
+
 ## 1.6.3
 
 ### Patch Changes

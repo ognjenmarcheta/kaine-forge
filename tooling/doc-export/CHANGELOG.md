@@ -1,5 +1,15 @@
 # @repo/doc-export
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [40cca08]
+- Updated dependencies [ccdac99]
+- Updated dependencies [40cca08]
+- Updated dependencies [22dd10f]
+  - @repo/desk@0.5.1
+
 ## 0.1.0
 
 ### Minor Changes

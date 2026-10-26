@@ -1,5 +1,23 @@
 # @repo/auth
 
+## 3.0.0
+
+### Major Changes
+
+- 68fc597: `@repo/auth/scope` now has one producer of `AuthenticatedOrganizationScope`: `resolveOrganizationScope`, which proves Organization Membership and returns the optional scope plus `requireOrganizationScope`. `membership` is required, and the unchecked `requireAuthenticatedOrganizationScope` and the old `resolveAuthenticatedOrganizationScope` exports are removed.
+
+### Minor Changes
+
+- a1c0431: Adds two-factor sign-in (authenticator app, email code, backup codes), email one-time-code sign-in and password reset, optional Cloudflare Turnstile captcha, and a Have I Been Pwned check on new passwords; caches sessions in a signed cookie for five minutes and adds the better-auth performance indexes (ADR 0015).
+
+### Patch Changes
+
+- Updated dependencies [9cbf84c]
+- Updated dependencies [a1c0431]
+- Updated dependencies [519408c]
+- Updated dependencies [67f4516]
+  - @repo/db@1.7.0
+
 ## 2.0.0
 
 ### Major Changes
