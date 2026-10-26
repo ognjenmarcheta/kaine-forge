@@ -8,8 +8,9 @@ import { trimEndWhile } from "../text/text.trim";
  * The PR body. The shape comes from `.github/pull_request_template.md`, read
  * from the worktree at run time, so the template can change without a code
  * change here. Every template heading is kept, in order. A heading this module
- * has no filler for gets `n/a` and is reported in `unfilled`; the drift test in
- * `ship.pr-body.test.ts` fails when the real template gains such a heading.
+ * has no filler for gets `n/a` and is reported in `unfilled`; the test "keeps
+ * every template heading, in order, and fills each one" in `ship.pr-body.test.ts`
+ * fails when the real template gains such a heading.
  *
  * The body states only what the desk can prove: the checks come from check
  * report receipts, and a checklist box is ticked only when a passed step has
@@ -238,9 +239,6 @@ const FILLERS: Readonly<Record<string, Filler>> = {
     return lines;
   }
 };
-
-/** Normalized names of the headings this module can fill. */
-export const FILLED_HEADINGS: readonly string[] = Object.keys(FILLERS);
 
 export const buildPrBody = (input: PrBodyInput): PrBody => {
   const template = parseTemplate(input.template);

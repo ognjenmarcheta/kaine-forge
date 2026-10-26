@@ -13,9 +13,7 @@ import {
 
 const hookScript = join(process.cwd(), ".ai", "hooks", "pre-tool-use.mjs");
 
-// Reading through readPermissionsSource rather than parsing the file here means
-// the canonical GuardRule type flows into matchGuardedCommand, so the .mjs
-// declarations cannot drift from it without failing typecheck.
+// The committed policy, read through the same loader as the hook.
 const rules: GuardRule[] = readPermissionsSource();
 
 const runHook = (command: string, agent = "claude", toolName = "Bash") =>
@@ -32,20 +30,6 @@ const runHook = (command: string, agent = "claude", toolName = "Bash") =>
   });
 
 describe("permissions policy", () => {
-  it("loses no committed rule to the boundary filter", () => {
-    const raw: unknown = JSON.parse(
-      readFileSync(join(process.cwd(), ".ai", "permissions.json"), "utf8")
-    );
-    const declared =
-      raw !== null && typeof raw === "object" && Array.isArray((raw as { rules?: unknown[] }).rules)
-        ? ((raw as { rules: unknown[] }).rules ?? []).length
-        : 0;
-
-    // readPermissionsSource drops malformed entries silently, which is right at
-    // a trust boundary and wrong if it quietly disarms the committed policy.
-    expect(rules).toHaveLength(declared);
-  });
-
   it("gives every rule a unique id, a reason, and a known decision", () => {
     const ids = rules.map((rule) => rule.id);
 

@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../features/assistant/assistant.adapter", () => ({}));
 vi.mock("../features/notes/notes.adapter", () => ({}));
 vi.mock("../features/storage/storage.adapter", () => ({}));
-vi.mock("../features/todos/todos.adapter", () => ({}));
 
 import { apiFeatures, apiResolvers, apiTypeDefs, composeApiFeatures } from "./features";
 

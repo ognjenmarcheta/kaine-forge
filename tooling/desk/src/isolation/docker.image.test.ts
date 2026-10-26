@@ -60,19 +60,11 @@ describe("image hash and tag", () => {
 describe("readImageContext", () => {
   it("reads the real Dockerfile and scripts with the repository's pnpm version", async () => {
     const context = await readImageContext(repoRoot);
-    expect([...context.files.keys()].sort()).toEqual(
-      [
-        "desk-auth.mjs",
-        "desk-bridge.mjs",
-        "desk-entry.mjs",
-        "desk-fetch.mjs",
-        "desk-probe.mjs",
-        "desk-proxy.mjs",
-        "desk-workspace.mjs",
-        "desk.Dockerfile",
-        "receipt.mjs"
-      ].sort()
-    );
+    // The staged context must hold exactly what the image copies, plus the Dockerfile itself.
+    const dockerfile = await readFile(path.join(dockerDir, "desk.Dockerfile"), "utf8");
+    const copied = /^COPY (.+) \/opt\/desk\/$/m.exec(dockerfile)?.[1]?.split(" ") ?? [];
+    expect(copied.length).toBeGreaterThan(0);
+    expect([...context.files.keys()].sort()).toEqual([...copied, "desk.Dockerfile"].sort());
     expect(context.buildArgs).toEqual({
       NODE_IMAGE: PINNED.nodeImage,
       PNPM_VERSION: expect.stringMatching(/^\d+\.\d+\.\d+$/),

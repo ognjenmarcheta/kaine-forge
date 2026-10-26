@@ -1,4 +1,4 @@
-import { createPubSub, filter } from "graphql-yoga";
+import { createPubSub, filter, pipe } from "graphql-yoga";
 
 export interface TodoSubscriptionPayload {
   id: string;
@@ -48,6 +48,57 @@ export type PubSubEventMap = {
 };
 
 export const pubsub = createPubSub<PubSubEventMap>();
+
+type OrganizationEventName = Exclude<keyof PubSubEventMap, "assistant:delta">;
+
+/**
+ * Each organization-scoped GraphQL subscription field and the event it
+ * streams. `organizationSubscriptions` builds the resolvers from this map, so a
+ * field cannot subscribe to another field's event or skip the organization
+ * filter.
+ */
+export const ORGANIZATION_SUBSCRIPTIONS = {
+  todoCreated: "todo:created",
+  todoUpdated: "todo:updated",
+  todoDeleted: "todo:deleted",
+  todoToggled: "todo:toggled",
+  noteCreated: "note:created",
+  noteUpdated: "note:updated",
+  noteDeleted: "note:deleted"
+} as const satisfies Record<string, OrganizationEventName>;
+
+type OrganizationSubscriptionField = keyof typeof ORGANIZATION_SUBSCRIPTIONS;
+
+export interface SubscriptionContext {
+  pubsub: typeof pubsub;
+  requireOrganizationScope: () => { organizationId: string };
+}
+
+export interface OrganizationSubscriptionResolver {
+  subscribe: (parent: unknown, args: unknown, ctx: SubscriptionContext) => AsyncIterable<unknown>;
+  resolve: (payload: unknown) => unknown;
+}
+
+/** Subscription resolvers that stream each field's event to its own Active Organization only. */
+export function organizationSubscriptions(
+  fields: readonly OrganizationSubscriptionField[]
+): Record<string, OrganizationSubscriptionResolver> {
+  return Object.fromEntries(
+    fields.map((field): [string, OrganizationSubscriptionResolver] => [
+      field,
+      {
+        subscribe(_parent, _args, ctx) {
+          const { organizationId } = ctx.requireOrganizationScope();
+          return pipe(
+            ctx.pubsub.subscribe(ORGANIZATION_SUBSCRIPTIONS[field]),
+            filterByOrganization(organizationId)
+          );
+        },
+        resolve: (payload) => payload
+      }
+    ])
+  );
+}
 
 export function filterByOrganization<TPayload extends { organizationId: string }>(
   organizationId: string

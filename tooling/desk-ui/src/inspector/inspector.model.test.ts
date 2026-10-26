@@ -82,11 +82,9 @@ describe("stageKpis", () => {
   it("always shows four tiles: runs, duration, loops, and one of the stage's own", () => {
     const detail = detailOf(102);
     for (const node of detail.flow.nodes) {
-      expect(
-        stageKpis(node, detail, detail.flow)
-          .map((kpi) => kpi.id)
-          .slice(0, 3)
-      ).toEqual(["runs", "duration", "loops"]);
+      const ids = stageKpis(node, detail, detail.flow).map((kpi) => kpi.id);
+      expect(ids, node.id).toHaveLength(4);
+      expect(ids.slice(0, 3)).toEqual(["runs", "duration", "loops"]);
     }
   });
 

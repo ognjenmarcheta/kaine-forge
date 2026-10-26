@@ -14,6 +14,9 @@ import { usersTable } from "./users.schema";
 
 export const fileStatusEnum = pgEnum("file_status", ["pending", "uploaded", "deleted"]);
 
+/** What an Attachment is attached to. Mirrors the GraphQL `AttachmentEntityType` enum. */
+export const attachmentEntityTypeEnum = pgEnum("attachment_entity_type", ["general", "todo"]);
+
 export const filesTable = pgTable(
   "files",
   {
@@ -30,7 +33,7 @@ export const filesTable = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizationsTable.id, { onDelete: "cascade" }),
-    entityType: varchar("entity_type", { length: 127 }),
+    entityType: attachmentEntityTypeEnum("entity_type"),
     entityId: uuid("entity_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
