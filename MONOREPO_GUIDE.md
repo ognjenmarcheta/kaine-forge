@@ -181,7 +181,7 @@ Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs 
 pnpm generate
 ```
 
-CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit.
+CI regenerates and fails if `schema.graphql` or `apps/*/src/graphql/generated/` drift from the commit. It also fails on a breaking schema change against the PR base. The owner accepts an intended break with the label `graphql:breaking-approved`, then re-runs the **GraphQL Schema Compatibility** job.
 
 ## 9. Runtime and Environment Rules
 
