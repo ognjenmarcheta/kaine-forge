@@ -51,7 +51,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
 - Pull upstream template AI setup changes into an adopted project: `pnpm ai:sync` (`--check` reports only)
-- Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
+- Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`; check its freshness: `pnpm graph:status`
 - Run the local agent desk (UI): `pnpm desk:run`; check its setup: `pnpm desk doctor`
 
 ## Agent Desk
@@ -231,6 +231,7 @@ In the final response for substantive work, state what you actually verified, no
 ### MCP tool routing
 
 - Pick the tool by question: repo symbols and callers → Serena; blast radius across layers → Graphify (`kaine-graph`); third-party library APIs → the installed package, then Context7; better-auth config, plugins, and flows → Better Auth MCP first, then the installed package's types for the exact version, Context7 last; live UI behavior → Playwright; performance traces, network, and console → Chrome DevTools (opt-in); GitButler workspace stacks, branches, and review status → GitButler MCP (opt-in, read-only tools); GitHub → the `gh` CLI with `--json <fields>`; files → the agent's native tools. If a server is unavailable, state that limit and use ordinary tools.
+- Graphify is required for impact work when its CLI is installed. Before a cross-package refactor, a plan, or a review that changes shared code, run `graphify affected "<symbol>"` or `graphify query "<question>"`. The `Knowledge graph:` startup line gives the graph state; agents without a SessionStart hook run `pnpm graph:status`. When the state is stale, run `pnpm graph:update` first; when it is absent, run `pnpm graph`. Treat results as leads and verify them with Serena or a direct read. For other work the graph is optional. When the CLI is missing, say so and use Serena and direct reading.
 - Before writing code against a version-sensitive third-party API (better-auth, Drizzle, GraphQL Yoga, TanStack, Vite, Tauri, Expo), take the exact version from the `pnpm-workspace.yaml` catalog and read the installed package's types or source: that is the exact version. Use Context7 for packages that are not installed and for guides or examples. Context7 snapshots can lag the catalog, so check the version in its library ID, resolve each ID once per session, and query a narrow topic. Do not use either for repo code. Better Auth MCP documentation guides the approach; the installed better-auth types decide the API when the two differ.
 - Use Playwright to check a UI change against `pnpm dev:web` (`http://localhost:3000`) as the seed user in `packages/db/src/seed/users.seed.ts`. Prefer accessibility snapshots to screenshots, and close the browser when done. Lasting proof belongs in an `apps/e2e/tests/*.e2e.ts` spec, not the transcript.
 - `docs/agents/agent-engineering.md` records why GitHub, Sequential Thinking, and default filesystem MCP servers are not adopted, and why GitButler MCP is opt-in. Add a server only with that record.
