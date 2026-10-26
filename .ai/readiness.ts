@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { parse } from "smol-toml";
 import { z } from "zod";
 
+import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
   type Agent,
   computeAgentDefinitionDrift,
@@ -15,8 +16,6 @@ import {
   readMcpSource,
   readPersonalMcpSource,
   readLocalMcpEnv,
-  renderClaudeAgentDefinition,
-  renderOpencodeAgentDefinition,
   resolveMcpServerForAgent,
   REPO_ROOT
 } from "./ai.util";
@@ -26,8 +25,7 @@ import {
   computeSharedDrift,
   computeSkillDrift,
   computeHookDrift,
-  envRequirements,
-  SKILL_DIRS
+  envRequirements
 } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
 import { inspectSerenaPrompt } from "./serena-prompt.util";
@@ -53,20 +51,13 @@ const configSchema = z.object({
     )
     .optional()
 });
-export const agentConfigPaths = {
-  claude: ".mcp.json",
-  codex: ".codex/config.toml",
-  cursor: ".cursor/mcp.json",
-  opencode: "opencode.json",
-  grok: ".grok/config.toml"
-} satisfies Record<Agent, string>;
-
 export function installedServers(agent: Agent, root = REPO_ROOT, includeDisabled = false) {
-  const file = path.join(root, agentConfigPaths[agent]);
+  const config = AGENT_REGISTRY[agent].mcpConfig;
+  const file = path.join(root, config.path);
   if (!existsSync(file)) throw new Error(`Missing ${agent} configuration`);
   const content = readFileSync(file, "utf8");
   const result = configSchema.safeParse(
-    file.endsWith(".toml") ? parse(content) : JSON.parse(content)
+    config.format === "toml" ? parse(content) : JSON.parse(content)
   );
   if (!result.success) throw new Error(`Invalid ${agent} configuration`);
   const servers =
@@ -102,10 +93,10 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
       )
       .map((entry) => `${entry.label}: ${entry.status}`)
   );
-  const dir = SKILL_DIRS.find((entry) => entry.agent === agent);
+  const facts = AGENT_REGISTRY[agent];
   if (
     (!selection || selection.skills.length > 0) &&
-    (!dir || !existsSync(path.join(REPO_ROOT, dir.dir)))
+    !existsSync(path.join(REPO_ROOT, facts.skillDir))
   )
     problems.push(`Missing ${agent} skills`);
   for (const drift of computeSkillDrift(skills, REPO_ROOT, agent).filter(
@@ -115,23 +106,16 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
     for (const name of drift.stale) problems.push(`Stale skill: ${name}`);
     for (const name of drift.orphan) problems.push(`Orphan skill: ${name}`);
   }
-  const prefixes = {
-    codex: ".codex/",
-    claude: ".claude/",
-    grok: ".grok/",
-    cursor: ".cursor/",
-    opencode: ".opencode/"
-  } satisfies Record<Agent, string>;
   problems.push(
     ...computeHookDrift()
-      .filter((entry) => entry.label.startsWith(prefixes[agent]))
+      .filter((entry) => entry.agent === agent)
       .map((entry) => `${entry.label}: ${entry.status}`)
   );
-  if (agent === "claude" || agent === "grok" || agent === "opencode") {
+  if (facts.agentDefinitions) {
     const drift = computeAgentDefinitionDrift(
       discoverAgentDefinitions(),
-      path.join(REPO_ROOT, `.${agent}`, "agents"),
-      agent === "opencode" ? renderOpencodeAgentDefinition : renderClaudeAgentDefinition
+      path.join(REPO_ROOT, facts.agentDefinitions.dir),
+      facts.agentDefinitions.render
     );
     problems.push(
       ...drift.missing.map((name) => `Missing agent definition: ${name}`),
