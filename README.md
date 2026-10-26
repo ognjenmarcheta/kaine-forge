@@ -87,7 +87,7 @@ Other templates fit other shapes better:
 - For the agent desk: the [GitHub CLI](https://cli.github.com/) (`gh`), signed in, and the Claude Code or Codex CLI
 - For desktop work: the Rust toolchain
 - Recommended: [GitButler](https://docs.gitbutler.com/) desktop app and `but` CLI (`curl -fsSL https://gitbutler.com/install.sh | sh`) for parallel branches in one checkout. See [CONTRIBUTING.md](CONTRIBUTING.md#recommended-gitbutler)
-- Optional: [Graphify](https://github.com/Graphify-Labs/graphify) CLI (`uv tool install "graphifyy[sql,mcp]"`) for the `pnpm graph` codebase knowledge graph
+- Optional: [Graphify](https://github.com/Graphify-Labs/graphify) CLI for the `pnpm graph` codebase knowledge graph. `pnpm graph:status` prints the pinned install command (`uv tool install "graphifyy[sql,mcp]==<version>"`)
 - Optional: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) for the `pnpm scan:secrets` full-history secret scan
 
 `pnpm preflight` checks the local prerequisites.

@@ -10,6 +10,7 @@ import { createConnection } from "node:net";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
+import { formatStatusLine, graphStatus, probeCliVersion } from "../.ai/hooks/graph-status.mjs";
 import { pnpmInvocation } from "./pnpm.util.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,9 +139,6 @@ export function fileAgeDays(mtimeMs, nowMs) {
 
 /** Coverage evidence older than this is flagged as stale (informational). */
 export const COVERAGE_MAX_AGE_DAYS = 14;
-
-/** Knowledge-graph artifacts older than this are flagged as stale (informational). */
-export const GRAPHIFY_MAX_AGE_DAYS = 14;
 
 /**
  * Rust is only needed for desktop/Tauri work (README prerequisites), so a
@@ -487,28 +485,13 @@ function checkCoverageFreshness() {
 
 /**
  * A stale knowledge graph answers architecture questions confidently and
- * wrongly, and nothing else in the repo signals its age. Informational only,
- * like coverage above — never a bootstrap failure.
+ * wrongly. Informational only, like coverage above — never a bootstrap failure.
+ * Shares the SessionStart hook's commits-since-build measure.
  * @returns {CheckResult}
  */
 function checkGraphifyFreshness() {
-  const graphPath = join(repoRoot, "graphify-out", "graph.json");
-  if (!existsSync(graphPath)) {
-    return {
-      ok: true,
-      name: "Knowledge graph",
-      detail: "absent (run `pnpm graph` when you need it)"
-    };
-  }
-  const ageDays = fileAgeDays(statSync(graphPath).mtimeMs, Date.now());
-  if (ageDays > GRAPHIFY_MAX_AGE_DAYS) {
-    return {
-      ok: true,
-      name: "Knowledge graph",
-      detail: `${ageDays} days old (> ${GRAPHIFY_MAX_AGE_DAYS}) — run \`pnpm graph:update\` before trusting graph answers`
-    };
-  }
-  return { ok: true, name: "Knowledge graph", detail: `${ageDays} days old` };
+  const line = formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot)));
+  return { ok: true, name: "Knowledge graph", detail: line.replace("- Knowledge graph: ", "") };
 }
 
 function printResult(result) {
