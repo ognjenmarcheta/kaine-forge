@@ -6,6 +6,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
+import { formatStatusLine, graphStatus, probeCliVersion } from "./graph-status.mjs";
+
 const args = process.argv.slice(2);
 const agentIndex = args.indexOf("--agent");
 const agent = agentIndex >= 0 ? args[agentIndex + 1] : "codex";
@@ -160,7 +162,8 @@ const main = async () => {
     `- Branch: ${currentBranch(repoRoot)}`,
     `- Worktree: ${worktreeSummary(repoRoot)}`,
     `- AI installation: ${health.installation}`,
-    "- Runtime verification: MCP and sandbox not verified at startup"
+    "- Runtime verification: MCP and sandbox not verified at startup",
+    formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot)))
   ];
 
   if (
