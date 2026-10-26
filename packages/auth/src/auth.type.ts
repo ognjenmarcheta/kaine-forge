@@ -17,6 +17,7 @@ export interface AuthSessionUser {
   email: string;
   emailVerified: boolean;
   name: string;
+  twoFactorEnabled: boolean;
 }
 
 export interface AuthSession {
@@ -25,15 +26,50 @@ export interface AuthSession {
   activeOrganizationId: string | null;
 }
 
-export interface LoginInput {
+// Turnstile token for captcha-protected endpoints; omitted when the client
+// renders no captcha (server captcha off).
+interface CaptchaInput {
+  captchaToken?: string | undefined;
+}
+
+export interface LoginInput extends CaptchaInput {
   email: string;
   password: string;
 }
 
-export interface SignupInput {
+export interface SignupInput extends CaptchaInput {
   email: string;
   name: string;
   password: string;
+}
+
+export type TwoFactorMethod = "totp" | "otp";
+
+export interface VerifyTwoFactorInput {
+  // "backup" verifies a one-time backup code instead of a TOTP or email code.
+  method: TwoFactorMethod | "backup";
+  code: string;
+  trustDevice: boolean;
+}
+
+export interface SendEmailOtpInput extends CaptchaInput {
+  email: string;
+}
+
+export interface SignInWithEmailOtpInput {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordWithEmailOtpInput {
+  email: string;
+  otp: string;
+  password: string;
+}
+
+export interface TwoFactorEnrollment {
+  backupCodes: string[];
+  totpUri: string;
 }
 
 export interface CreateOrganizationInput {

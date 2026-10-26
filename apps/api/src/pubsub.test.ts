@@ -1,59 +1,63 @@
-import { filter, pipe } from "graphql-yoga";
+import { buildSchema, isObjectType } from "graphql";
+import { createPubSub } from "graphql-yoga";
 import { describe, expect, it } from "vitest";
 
-import { pubsub } from "./pubsub";
+import {
+  ORGANIZATION_SUBSCRIPTIONS,
+  type NoteSubscriptionPayload,
+  type OrganizationSubscriptionResolver,
+  type PubSubEventMap,
+  type TodoSubscriptionPayload
+} from "./pubsub";
+import { apiResolvers, apiTypeDefs } from "./schema/features";
 
-describe("pubsub", () => {
-  it("publishes and receives events", async () => {
-    const iterator = pubsub.subscribe("todo:created");
-    const payload = {
-      id: "todo-1",
-      title: "Test",
-      description: null,
-      completed: false,
-      organizationId: "org-1",
-      createdAt: new Date("2026-01-01"),
-      updatedAt: new Date("2026-01-01")
-    };
+// One payload that fits every organization event, so each one can be published.
+function payloadFor(organizationId: string): TodoSubscriptionPayload & NoteSubscriptionPayload {
+  return {
+    body: null,
+    completed: false,
+    createdAt: new Date("2026-01-01"),
+    description: null,
+    id: `row-of-${organizationId}`,
+    organizationId,
+    title: "Row",
+    updatedAt: new Date("2026-01-01")
+  };
+}
 
-    const resultPromise = iterator.next();
-    pubsub.publish("todo:created", payload);
+const subscriptionType = buildSchema(apiTypeDefs.join("\n")).getType("Subscription");
+const subscriptionFields = isObjectType(subscriptionType) ? subscriptionType.getFields() : {};
+const registered = new Map<string, unknown>(Object.entries(apiResolvers.Subscription ?? {}));
 
-    const result = await resultPromise;
-    expect(result.value).toEqual(payload);
-  });
+function isSubscriptionResolver(value: unknown): value is OrganizationSubscriptionResolver {
+  return typeof value === "object" && value !== null && "subscribe" in value;
+}
 
-  it("filters events by organization via pipe and filter", async () => {
-    const orgId = "org-1";
-    const iterator = pipe(
-      pubsub.subscribe("todo:created"),
-      filter((payload) => payload.organizationId === orgId)
-    );
+describe("organization subscriptions", () => {
+  it.each(Object.entries(ORGANIZATION_SUBSCRIPTIONS))(
+    "%s is a schema field that streams %s for its own Active Organization only",
+    async (field, eventName) => {
+      const resolver = registered.get(field);
+      expect(subscriptionFields[field]).toBeDefined();
+      if (!isSubscriptionResolver(resolver)) throw new Error(`no resolver for ${field}`);
 
-    const resultPromise = iterator.next();
+      const testPubsub = createPubSub<PubSubEventMap>();
+      const stream = resolver.subscribe(
+        undefined,
+        {},
+        {
+          pubsub: testPubsub,
+          requireOrganizationScope: () => ({ organizationId: "org-1" })
+        }
+      );
+      const iterator = stream[Symbol.asyncIterator]();
+      const next = iterator.next();
 
-    pubsub.publish("todo:created", {
-      id: "t2",
-      title: "Other org",
-      description: null,
-      completed: false,
-      organizationId: "org-2",
-      createdAt: new Date("2026-01-01"),
-      updatedAt: new Date("2026-01-01")
-    });
+      testPubsub.publish(eventName, payloadFor("org-2"));
+      testPubsub.publish(eventName, payloadFor("org-1"));
 
-    const expected = {
-      id: "t3",
-      title: "Same org",
-      description: null,
-      completed: false,
-      organizationId: "org-1",
-      createdAt: new Date("2026-01-01"),
-      updatedAt: new Date("2026-01-01")
-    };
-    pubsub.publish("todo:created", expected);
-
-    const result = await resultPromise;
-    expect(result.value).toEqual(expected);
-  });
+      await expect(next).resolves.toEqual({ done: false, value: payloadFor("org-1") });
+      await iterator.return?.();
+    }
+  );
 });

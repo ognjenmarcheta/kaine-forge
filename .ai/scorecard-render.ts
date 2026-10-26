@@ -6,13 +6,11 @@ import { join } from "node:path";
 
 import {
   derivedFlows,
-  GENERATED_MARKER,
   LEDGER_PATH,
   OUT_DIR,
   parseLedger,
   renderDashboardHtml,
-  renderLedgerMarkdown,
-  replaceRegion
+  rewriteLedger
 } from "./scorecard.util";
 
 const main = (): void => {
@@ -20,7 +18,7 @@ const main = (): void => {
   const data = parseLedger(raw);
   const flows = [...derivedFlows(), ...data.authoredFlows];
 
-  const updated = replaceRegion(raw, GENERATED_MARKER, renderLedgerMarkdown(data));
+  const updated = rewriteLedger(raw, data);
   if (updated !== raw) {
     writeFileSync(LEDGER_PATH, updated);
   }

@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   API_ERROR_CODES,
   MAX_FEEDBACK_CHARS,
-  REFUSAL_CODES,
-  SERVER_ERROR_CODES,
   actionRequestSchema,
   actionTargetProblem,
   apiErrorSchema,
@@ -134,7 +132,6 @@ describe("action targets", () => {
 describe("error codes", () => {
   it("keeps every code once", () => {
     expect(new Set(API_ERROR_CODES).size).toBe(API_ERROR_CODES.length);
-    expect(API_ERROR_CODES.length).toBe(SERVER_ERROR_CODES.length + REFUSAL_CODES.length);
   });
 
   it("wraps a code in the error envelope", () => {

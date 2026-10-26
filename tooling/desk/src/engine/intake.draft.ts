@@ -36,12 +36,14 @@ export const draftIssueFormat = async (
   const { snapshot } = input;
   const fail = (reason: string): DraftOutcome => ({ ok: false, reason, aborted: false });
 
-  const head = await deps.exec({
-    argv: ["git", "rev-parse", "HEAD"],
-    cwd: deps.location.repoRoot,
-    timeoutMs: 15_000
-  });
-  if (head.code !== 0) return fail(`Cannot read HEAD of the checkout: ${head.stderr.trim()}`);
+  let head: string;
+  try {
+    head = await deps.git.headSha(deps.location.repoRoot);
+  } catch (error) {
+    return fail(
+      `Cannot read HEAD of the checkout: ${error instanceof Error ? error.message : "unknown error"}`
+    );
+  }
 
   await writeArtifactText(
     context.artifactsDir,
@@ -52,7 +54,7 @@ export const draftIssueFormat = async (
     role: "intake",
     schema: intakeOutputSchema,
     readOnly: true,
-    checkout: { path: deps.location.repoRoot, base: head.stdout.trim() }
+    checkout: { path: deps.location.repoRoot, base: head }
   });
   if (!run.ok) return run;
 

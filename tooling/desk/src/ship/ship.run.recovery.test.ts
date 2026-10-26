@@ -3,7 +3,6 @@ import path from "node:path";
 import { describe, expect, vi } from "vitest";
 
 import { SHIP_RECORD_FILE, shipRecordSchema, type ShipResult } from "./ship.contract";
-import { shipIssue } from "./ship.run";
 import {
   expectSafeCalls,
   fileExists,
@@ -16,7 +15,6 @@ import {
   type ShipEnv
 } from "./ship.testing";
 import type { GitHubPort } from "../ports";
-import { ISSUE } from "../testing/pipeline.testing";
 
 // Real git, a local bare "origin", real hooks. Every git call is slow on a busy machine.
 vi.setConfig({ testTimeout: 180_000 });
@@ -225,8 +223,7 @@ describe("a failure after the commit keeps the commit and the next run continues
           ? Promise.reject(new Error("gh pr create failed (exit 1): HTTP 502"))
           : env.github.createPullRequest(request)
     };
-    const deps = { ...env.deps, github: flaky };
-    const first = await shipIssue(deps, { issue: ISSUE, confirm: true });
+    const first = await env.ship({}, { github: flaky });
     expect(failureOf(first)).toMatchObject({
       kind: "pull-request-failed",
       message: expect.stringContaining("HTTP 502")
@@ -234,7 +231,7 @@ describe("a failure after the commit keeps the commit and the next run continues
     expect(await remoteHasBranch(env)).toBe(true);
 
     broken = false;
-    const second = await shipIssue(deps, { issue: ISSUE, confirm: true });
+    const second = await env.ship({}, { github: flaky });
     expect(second).toMatchObject({ status: "shipped", prNumber: 101 });
     expect(await env.commitCount()).toBe(1);
     expect(env.github.createdPullRequests).toHaveLength(1);

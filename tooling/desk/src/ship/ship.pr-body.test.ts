@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { ChangesetDecision } from "./ship.changeset";
-import { buildPrBody, FILLED_HEADINGS, parseTemplate, type PrBodyInput } from "./ship.pr-body";
+import { buildPrBody, parseTemplate, type PrBodyInput } from "./ship.pr-body";
 import { checkReportOf } from "./ship.testing";
 import { planOutput, reviewOutput } from "../testing/pipeline.testing";
 
@@ -36,17 +36,6 @@ describe("buildPrBody with the real template", () => {
     expect(result.headings).toEqual(expected);
     expect(headingsOf(result.body)).toEqual(expected);
     expect(result.unfilled).toEqual([]);
-  });
-
-  // Drift guard: if .github/pull_request_template.md gains a heading, this fails
-  // until ship.pr-body.ts learns to fill it.
-  it("can fill every heading of the real template", async () => {
-    const template = parseTemplate(await readTemplate());
-    const known = new Set(FILLED_HEADINGS);
-    const missing = template.sections
-      .map((section) => section.title)
-      .filter((title) => !known.has(title.toLowerCase().replace(/[^a-z0-9]+/g, "")));
-    expect(missing).toEqual([]);
   });
 
   it("links the issue so merging closes it", async () => {

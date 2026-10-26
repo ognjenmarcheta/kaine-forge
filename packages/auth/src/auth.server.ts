@@ -46,7 +46,8 @@ export function createServerAuth(): ServerAuth {
           id: result.user.id,
           email: result.user.email,
           emailVerified: result.user.emailVerified,
-          name: result.user.name
+          name: result.user.name,
+          twoFactorEnabled: result.user.twoFactorEnabled === true
         },
         expiresAt: new Date(result.session.expiresAt).toISOString(),
         activeOrganizationId: result.session.activeOrganizationId ?? null

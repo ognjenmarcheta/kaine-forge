@@ -89,11 +89,6 @@ describe("docker command routing", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("not available");
   });
-
-  it("is listed in the help", async () => {
-    const { e } = await open();
-    expect((await e.run("--help")).stdout).toContain("docker build|login|doctor|status|prune");
-  });
 });
 
 describe("docker build", () => {

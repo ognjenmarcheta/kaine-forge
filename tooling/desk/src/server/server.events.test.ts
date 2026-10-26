@@ -347,5 +347,7 @@ describe("log buffer", () => {
       }
     });
     expect(entry?.text).not.toContain("sk-abcdefghijklmnop");
+    expect(entry?.text).toContain("[redacted]");
+    expect(entry?.text).toContain("Bash curl -H");
   });
 });

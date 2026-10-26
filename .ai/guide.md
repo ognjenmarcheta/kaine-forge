@@ -50,6 +50,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Deployable app release branches: the Release workflow updates them; manual `pnpm release:apps` is a human operation.
 - Install local AI assistant files: `pnpm ai:install`
 - Check AI assistant setup and drift: `pnpm ai:doctor`
+- Pull upstream template AI setup changes into an adopted project: `pnpm ai:sync` (`--check` reports only)
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`
 - Run the local agent desk (UI): `pnpm desk:run`; check its setup: `pnpm desk doctor`
 
@@ -229,8 +230,8 @@ In the final response for substantive work, state what you actually verified, no
 
 ### MCP tool routing
 
-- Pick the tool by question: repo symbols and callers → Serena; blast radius across layers → Graphify (`kaine-graph`); third-party library APIs → the installed package, then Context7; live UI behavior → Playwright; performance traces, network, and console → Chrome DevTools (opt-in); GitButler workspace stacks, branches, and review status → GitButler MCP (opt-in, read-only tools); GitHub → the `gh` CLI with `--json <fields>`; files → the agent's native tools. If a server is unavailable, state that limit and use ordinary tools.
-- Before writing code against a version-sensitive third-party API (better-auth, Drizzle, GraphQL Yoga, TanStack, Vite, Tauri, Expo), take the exact version from the `pnpm-workspace.yaml` catalog and read the installed package's types or source: that is the exact version. Use Context7 for packages that are not installed and for guides or examples. Context7 snapshots can lag the catalog, so check the version in its library ID, resolve each ID once per session, and query a narrow topic. Do not use either for repo code.
+- Pick the tool by question: repo symbols and callers → Serena; blast radius across layers → Graphify (`kaine-graph`); third-party library APIs → the installed package, then Context7; better-auth config, plugins, and flows → Better Auth MCP first, then the installed package's types for the exact version, Context7 last; live UI behavior → Playwright; performance traces, network, and console → Chrome DevTools (opt-in); GitButler workspace stacks, branches, and review status → GitButler MCP (opt-in, read-only tools); GitHub → the `gh` CLI with `--json <fields>`; files → the agent's native tools. If a server is unavailable, state that limit and use ordinary tools.
+- Before writing code against a version-sensitive third-party API (better-auth, Drizzle, GraphQL Yoga, TanStack, Vite, Tauri, Expo), take the exact version from the `pnpm-workspace.yaml` catalog and read the installed package's types or source: that is the exact version. Use Context7 for packages that are not installed and for guides or examples. Context7 snapshots can lag the catalog, so check the version in its library ID, resolve each ID once per session, and query a narrow topic. Do not use either for repo code. Better Auth MCP documentation guides the approach; the installed better-auth types decide the API when the two differ.
 - Use Playwright to check a UI change against `pnpm dev:web` (`http://localhost:3000`) as the seed user in `packages/db/src/seed/users.seed.ts`. Prefer accessibility snapshots to screenshots, and close the browser when done. Lasting proof belongs in an `apps/e2e/tests/*.e2e.ts` spec, not the transcript.
 - `docs/agents/agent-engineering.md` records why GitHub, Sequential Thinking, and default filesystem MCP servers are not adopted, and why GitButler MCP is opt-in. Add a server only with that record.
 
@@ -238,7 +239,7 @@ Reusable AI workflows live in `.ai/skills/`. `.ai/` is the canonical source of t
 
 Codex, Claude, and Grok Build `SessionStart` hooks inject compact repo context at startup: repository name, branch, worktree status, and AI setup health. Hooks warn when local generated AI files look missing or stale, but they do not block work; run `pnpm ai:install --agent <agent>` and `pnpm ai:doctor` when they warn. Grok project MCP lives in `.grok/config.toml` (requires folder trust in Grok Build).
 
-Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and leaves your personal copies alone.
+Team-managed skills must use the `kaine-` prefix. To customize a team skill, copy it to a non-prefixed name in your local agent skill directory and edit the copy. The installer updates only `kaine-*` skills and project `<repoSlug>-*` skills, and leaves your personal copies alone; personal copies must not use either prefix.
 
 ### Skill selection for each request
 
@@ -265,7 +266,7 @@ The `kaine-graph` skill layers an optional generated knowledge graph over the ha
 
 The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
-Downstream products can add more skills in `.ai/skills/` without changing this generator.
+Downstream products keep their own guide rules, review checks, skills, and agents in `.ai/project/` (`guide.md`, `review.md`, `skills/`, `agents/`). Project skill and agent names start with the `repoSlug` from `.ai/project/template.json`. `pnpm ai:sync` merges upstream changes into the other `.ai/` sources and never writes `.ai/project/` (ADR 0014).
 
 Canonical AI sources are `.ai/guide.md`, `.ai/skills/*.md`, `.ai/agents/*.md`, `.ai/hooks/*`, `.ai/permissions.json`, `.ai/mcp.json`, `.ai/cursor-rules.md`, `.ai/review.md`, `.ai/serena-project.yml`, and `.ai/serena-memories/*.md`. Personal MCP values and overrides live in `.ai.local/`, which is gitignored.
 

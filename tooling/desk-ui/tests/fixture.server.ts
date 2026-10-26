@@ -56,7 +56,7 @@ interface Call {
 
 interface ResetOptions {
   /** `research`: only #107, a research flow that finished with two reports. */
-  readonly scenario?: "board" | "empty" | "research";
+  readonly scenario?: "board" | "research";
   /** The ship dry run reports a failing gate rule. */
   readonly failShipGate?: boolean;
 }
@@ -294,14 +294,7 @@ const buildRunner = (
           files: { plan: "", prBody: "", commitMessage: "" }
         };
       }
-      if (!shipOptions.confirm) {
-        return {
-          outcome: "refused",
-          refusal: "ship-refused",
-          reason: "Shipping needs your explicit confirmation.",
-          state
-        };
-      }
+      // The server contract refuses a real ship without `confirm: true`, so a call here is a yes.
       // A real ship takes a while (hooks, push), so the page sees `accepted` and then the event.
       await new Promise((resolve) => setTimeout(resolve, 700));
       const opened = await change(
@@ -421,11 +414,9 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
   calls = [];
   const store = createIssueStore(path.join(root, "state"));
   const seeds =
-    options.scenario === "empty"
-      ? []
-      : options.scenario === "research"
-        ? [finishedResearchIssue(107, "Find the pages that describe a fixed pipeline")]
-        : scenarioBoard();
+    options.scenario === "research"
+      ? [finishedResearchIssue(107, "Find the pages that describe a fixed pipeline")]
+      : scenarioBoard();
   for (const issue of seeds) {
     await writeSeed(store, issue);
   }
@@ -440,18 +431,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
       const registry = createFixtureRegistry();
       // The fixture's Docker image: missing until the page runs the repair.
       let imageBuilt = false;
-      const lessons = lessonDesk(
-        options.scenario === "empty"
-          ? {
-              candidates: [],
-              belowThreshold: 0,
-              minIssues: 2,
-              currentRepo: null,
-              promoted: [],
-              invalidLines: 0
-            }
-          : scenarioLessons()
-      );
+      const lessons = lessonDesk(scenarioLessons());
       const log = (issue: number, message: string): void =>
         onEvent({ type: "log", issue, message });
       return Promise.resolve({
@@ -463,7 +443,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
         flowFor: (labels) => (labels.includes("flow:quick") ? "quick-fix" : "kaine-default"),
         readRuns: () =>
           Promise.resolve({
-            records: options.scenario === "empty" ? [] : scenarioRuns(),
+            records: scenarioRuns(),
             invalidLines: 0
           }),
         lessons: lessons.report,
@@ -602,9 +582,7 @@ createServer((request, response) => {
           response,
           200,
           await reset({
-            ...(body["scenario"] === "empty" || body["scenario"] === "research"
-              ? { scenario: body["scenario"] }
-              : {}),
+            ...(body["scenario"] === "research" ? { scenario: body["scenario"] } : {}),
             ...(body["failShipGate"] === true ? { failShipGate: true } : {})
           })
         );

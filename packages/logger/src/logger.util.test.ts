@@ -6,7 +6,8 @@ describe("logger", () => {
   it("creates a logger with the given name", () => {
     const logger = createLogger({ name: "test-app", level: "silent" });
 
-    expect(logger).toBeDefined();
+    // pino serializes these bindings into every log line, so the name reaches output.
+    expect(logger.bindings()["name"]).toBe("test-app");
   });
 
   it("respects an explicit log level", () => {

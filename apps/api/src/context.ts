@@ -1,5 +1,5 @@
 import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import { resolveFeatureFlags } from "@repo/feature-flags";
@@ -7,10 +7,13 @@ import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
-import { resolveApiAuthIdentity } from "./context.auth-scope";
+import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
-import { createApiWorkflows, type ApiWorkflows } from "./context.workflows";
-import { pubsub } from "./pubsub";
+import { createNotes, type Notes } from "./features/notes/notes.module";
+import { createAttachments, type Attachments } from "./features/storage/attachment.module";
+import { s3ObjectStore } from "./features/storage/attachment.store";
+import { createTodos, type Todos } from "./features/todos/todos.module";
+import { pubsub, type PubSubEventMap } from "./pubsub";
 
 export interface ApiContext {
   auth: ServerAuth;
@@ -19,8 +22,12 @@ export interface ApiContext {
   session: AuthSession | null;
   organizationScope: AuthenticatedOrganizationScope | null;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
+  /** Organization-scoped data access for this request; see context.data.ts. */
+  data: ScopedData;
+  todos: Todos;
+  notes: Notes;
+  attachments: Attachments;
   loaders: ApiLoaders;
-  workflows: ApiWorkflows;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
   pubsub: typeof pubsub;
@@ -34,27 +41,38 @@ export async function createContextFromHeaders(
   auth: ServerAuth = createServerAuth()
 ): Promise<ApiContext> {
   const session = await auth.getSessionFromHeaders(headers);
-  const identity = await resolveApiAuthIdentity(session, auth);
+  const { organizationScope, requireOrganizationScope } = await resolveOrganizationScope({
+    getMembership: auth.getOrganizationMembershipProof,
+    session
+  });
 
   const contextLogger = createChildLogger(logger, {
     userId: session?.user?.id ?? null,
-    organizationId: identity.organizationScope?.organizationId ?? null
+    organizationId: organizationScope?.organizationId ?? null
   });
+
+  const data = createScopedData({ db, requireOrganizationScope });
+  const publish = <TEventName extends keyof PubSubEventMap>(
+    eventName: TEventName,
+    ...payload: PubSubEventMap[TEventName]
+  ): void => {
+    pubsub.publish(eventName, ...payload);
+  };
+  const attachments = createAttachments({ data, logger: contextLogger, store: s3ObjectStore });
+  const todos = createTodos({ attachments, data, logger: contextLogger, publish });
 
   return {
     auth,
     db,
     t,
-    session: identity.session,
-    organizationScope: identity.organizationScope,
-    requireOrganizationScope: identity.requireOrganizationScope,
-    loaders: createApiLoaders(identity.requireOrganizationScope),
-    workflows: createApiWorkflows({
-      logger: contextLogger,
-      publish: (eventName, ...payload) => {
-        pubsub.publish(eventName, ...payload);
-      }
-    }),
+    session,
+    organizationScope,
+    requireOrganizationScope,
+    data,
+    todos,
+    notes: createNotes({ data, publish }),
+    attachments,
+    loaders: createApiLoaders(todos, attachments),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub

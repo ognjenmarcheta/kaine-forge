@@ -3,7 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 
 import type { DeskConfig } from "../contracts";
-import { diffAgainstBase, type DiffResult } from "../git";
+import type { DiffResult, GitPort } from "../git";
 import { systemClock, type Clock, type Exec } from "../ports";
 import {
   checkReportSchema,
@@ -45,6 +45,8 @@ export interface RunChecksRequest {
   readonly kind: CheckKind;
   readonly config: Pick<DeskConfig, "checks">;
   readonly exec: Exec;
+  /** Takes the diff of a check on the host. */
+  readonly git: Pick<GitPort, "diffAgainstBase">;
   /** Full commit hash the diff is taken against. */
   readonly baseSha: string;
   /** Directory that receives `check-report.json`. */
@@ -110,7 +112,7 @@ const driftedPaths = (before: DiffResult, after: DiffResult): string[] => {
  * hashing the diff does throw.
  */
 export const runChecks = async (request: RunChecksRequest): Promise<CheckReport> => {
-  const { worktree, kind, exec, baseSha } = request;
+  const { worktree, kind, exec, git, baseSha } = request;
   const clock = request.clock ?? systemClock;
   const startedAt = clock.now();
   const roots =
@@ -121,7 +123,7 @@ export const runChecks = async (request: RunChecksRequest): Promise<CheckReport>
   const stepExec = request.executor?.exec ?? exec;
   const currentDiff = (): Promise<DiffResult> =>
     request.executor === undefined
-      ? diffAgainstBase(exec, worktree, baseSha)
+      ? git.diffAgainstBase(worktree, baseSha)
       : request.executor.diff();
 
   const runStep = async (argv: readonly string[], timeoutMs: number): Promise<StepOutcome> => {

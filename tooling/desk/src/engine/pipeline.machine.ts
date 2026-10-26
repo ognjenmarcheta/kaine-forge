@@ -3,9 +3,9 @@ import {
   isActiveStage,
   isTerminalStage,
   nextStepOf,
-  outputOf,
   positionKind,
   stepOf,
+  stepRoleOf,
   type FlowSnapshot,
   type FlowStep,
   type LoopCounters,
@@ -123,6 +123,7 @@ export const transition = (
   const wrongPlace = (what: string, needs: string): TransitionResult =>
     reject(`'${what}' is not valid in '${here}'; it needs ${needs}`);
   const step = stepOf(snapshot, here);
+  const role = stepRoleOf(snapshot, here);
 
   /**
    * Forward to the next step. Only an automatic ship is entered this way: the owner confirms the
@@ -164,7 +165,7 @@ export const transition = (
       if (!isActiveStage(snapshot, here)) return wrongPlace(trigger.type, "a running step");
       if (trigger.outcome === "blocked") return needsYou("blocked");
       // A check and a review agent finish with their result, which picks the edge.
-      if (kind === "check" || (step !== undefined && outputOf(snapshot, step) === "review")) {
+      if (role === "check" || role === "review") {
         return reject(`'${here}' has no completion edge: it finishes with its result`);
       }
       if (kind === "ship") {
@@ -188,7 +189,7 @@ export const transition = (
     }
 
     case "review-result": {
-      if (step === undefined || outputOf(snapshot, step) !== "review") {
+      if (step === undefined || role !== "review") {
         return wrongPlace(trigger.type, "a review step");
       }
       return trigger.verdict === "approve" ? forward() : loopBack(step);
@@ -196,10 +197,8 @@ export const transition = (
 
     case "gate-approve": {
       if (kind !== "gate") return wrongPlace(trigger.type, "a gate");
-      const next = nextStepOf(snapshot, here);
-      if (next?.kind === "ship" && !next.auto) {
+      if (role === "ship-gate")
         return reject(`'${here}' leads to a ship: confirm the ship instead`);
-      }
       return forward(fresh);
     }
 
@@ -217,8 +216,8 @@ export const transition = (
 
     case "ship-confirm": {
       const next = nextStepOf(snapshot, here);
-      if (kind !== "gate" || next?.kind !== "ship") {
-        return wrongPlace(trigger.type, "the gate before the ship step");
+      if (role !== "ship-gate" || next === undefined) {
+        return wrongPlace(trigger.type, "the gate before a ship the owner confirms");
       }
       return move(next.id);
     }

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { AuthRequestError, TWO_FACTOR_REQUIRED } from "@repo/auth/transport";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +21,7 @@ vi.mock("../../../hooks/use-translation", () => ({
 vi.mock("../../../lib/auth-api", () => ({ signInWithSocialRequest: signInWithSocial }));
 
 const onDone = vi.fn();
+const onTwoFactorRequired = vi.fn();
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 
@@ -49,10 +51,13 @@ beforeEach(async () => {
   signInWithSocial.mockReset();
   signInWithSocial.mockResolvedValue(undefined);
   onDone.mockClear();
+  onTwoFactorRequired.mockClear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root.render(<LoginForm onDone={onDone} />));
+  await act(async () =>
+    root.render(<LoginForm onDone={onDone} onTwoFactorRequired={onTwoFactorRequired} />)
+  );
 });
 
 afterEach(async () => {
@@ -80,6 +85,28 @@ describe("LoginForm", () => {
 
     expect(login).toHaveBeenCalledWith({ email: "test@test.test", password: "ChangeMe123!" });
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands off to the two-factor step instead of failing when a second factor is required", async () => {
+    login.mockRejectedValue(
+      new AuthRequestError({ code: TWO_FACTOR_REQUIRED, status: 200, twoFactorMethods: ["totp"] })
+    );
+
+    await submit();
+
+    expect(onTwoFactorRequired).toHaveBeenCalledWith(["totp"]);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("error.generic");
+  });
+
+  it("shows the message for the server error code", async () => {
+    login.mockRejectedValue(
+      new AuthRequestError({ code: "INVALID_EMAIL_OR_PASSWORD", status: 401 })
+    );
+
+    await submit();
+
+    expect(container.textContent).toContain("auth.error.invalidCredentials");
   });
 
   it("shows the generic error and stays open when login fails", async () => {

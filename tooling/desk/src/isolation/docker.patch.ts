@@ -1,4 +1,4 @@
-import { fileModeIgnored, GitError, patchExecBits, setIndexExecBits } from "../git";
+import { fileModeIgnored, GitError, patchExecBits, setIndexExecBits, tryGit } from "../git";
 import { protectedPathReason } from "../policy";
 import type { Exec } from "../ports";
 
@@ -90,14 +90,8 @@ export const guardPatch = async (
   if (patch.includes("\0")) return reject("The patch holds a NUL byte.");
 
   const ask = async (flags: readonly string[]): Promise<string> => {
-    const result = await exec({
-      argv: ["git", "apply", ...flags],
-      cwd,
-      input: patch,
-      env: { GIT_TERMINAL_PROMPT: "0" },
-      timeoutMs: 60_000
-    });
-    if (result.code !== 0) {
+    const result = await tryGit(exec, cwd, ["apply", ...flags], { input: patch });
+    if (!result.ok) {
       throw new GitError(
         `git apply ${flags[0] ?? ""} could not read the patch: ${result.stderr.trim().slice(-300)}`,
         ["git", "apply", ...flags],
@@ -143,14 +137,11 @@ export const applyPatch = async (exec: Exec, worktree: string, patch: string): P
   const bits = (await fileModeIgnored(exec, worktree))
     ? await patchExecBits(exec, worktree, patch)
     : null;
-  const result = await exec({
-    argv: ["git", "apply", "--binary", "--whitespace=nowarn"],
-    cwd: worktree,
+  const result = await tryGit(exec, worktree, ["apply", "--binary", "--whitespace=nowarn"], {
     input: patch,
-    env: { GIT_TERMINAL_PROMPT: "0" },
     timeoutMs: 120_000
   });
-  if (result.code !== 0) {
+  if (!result.ok) {
     throw new GitError(
       `The container patch does not apply to the worktree: ${result.stderr.trim().slice(-300)}`,
       ["git", "apply"],

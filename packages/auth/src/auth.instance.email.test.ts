@@ -26,10 +26,17 @@ const user = {
   id: "user-1",
   email: "user@example.com",
   emailVerified: false,
+  twoFactorEnabled: false,
   name: "User",
   createdAt: new Date(),
   updatedAt: new Date()
 };
+
+interface EmailOtpData {
+  email: string;
+  otp: string;
+  type: "sign-in" | "email-verification" | "forget-password" | "change-email";
+}
 
 interface OrganizationPluginOptions {
   invitationExpiresIn?: number;
@@ -168,6 +175,47 @@ describe("auth.instance email hooks", () => {
       { requireEmailVerification?: boolean } | undefined;
 
     expect(emailAndPassword?.requireEmailVerification).toBeUndefined();
+  });
+
+  it.each(["sign-in", "forget-password"] as const)(
+    "emails the %s one-time code to the requested address",
+    async (type) => {
+      const plugin = (auth.options.plugins ?? []).find((entry) => entry.id === "email-otp") as
+        { options?: { sendVerificationOTP?: (data: EmailOtpData) => Promise<void> } } | undefined;
+
+      await plugin?.options?.sendVerificationOTP?.({
+        email: "user@example.com",
+        otp: "482913",
+        type
+      });
+
+      await vi.waitFor(() => {
+        expect(emailMocks.send).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: "user@example.com",
+            text: expect.stringContaining("482913")
+          })
+        );
+      });
+    }
+  );
+
+  it("emails the two-factor code to the signed-in user", async () => {
+    const plugin = (auth.options.plugins ?? []).find((entry) => entry.id === "two-factor") as
+      | {
+          options?: {
+            otpOptions?: { sendOTP?: (data: { user: typeof user; otp: string }) => void };
+          };
+        }
+      | undefined;
+
+    plugin?.options?.otpOptions?.sendOTP?.({ user, otp: "731045" });
+
+    await vi.waitFor(() => {
+      expect(emailMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "user@example.com", text: expect.stringContaining("731045") })
+      );
+    });
   });
 
   it("emails the invited address with the organization name and invitation id", async () => {

@@ -40,7 +40,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.10",
+    "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
     "@types/ws": "^8.18.2",
     "vitest": "catalog:"

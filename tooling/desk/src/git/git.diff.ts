@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { Exec } from "../ports";
-import { GitError, runGit } from "./git.real";
+import { GitError, runGit } from "./git.run";
 
 export const DIFF_STATUSES = [
   "added",

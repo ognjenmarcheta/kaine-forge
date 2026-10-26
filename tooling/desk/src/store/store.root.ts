@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { tryGit } from "../git";
 import type { Exec } from "../ports";
 
 export const STATE_DIR_NAME = "kaine-desk";
@@ -14,8 +15,8 @@ export interface RepoLocation {
 }
 
 const git = async (exec: Exec, cwd: string, args: readonly string[]): Promise<string> => {
-  const result = await exec({ argv: ["git", ...args], cwd, timeoutMs: 15_000 });
-  if (result.code !== 0) {
+  const result = await tryGit(exec, cwd, args, { timeoutMs: 15_000 });
+  if (!result.ok) {
     throw new Error(
       `git ${args[0] ?? ""} failed in ${cwd}: ${result.stderr.trim() || "not a git repository"}`
     );

@@ -51,7 +51,8 @@ describe("auth.util session storage", () => {
         id: "user_1",
         email: "a@example.com",
         name: "A",
-        emailVerified: false
+        emailVerified: false,
+        twoFactorEnabled: false
       }
     };
 
