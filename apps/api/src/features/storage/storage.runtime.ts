@@ -14,6 +14,7 @@ import { STORAGE_CONFIG } from "./storage.definition";
 import { createStorageLifecycle } from "./storage.lifecycle";
 import type { StorageLifecycleAdapter } from "./storage.lifecycle";
 import type { ScopedData } from "../../context.data";
+import type { Todos } from "../todos/todos.module";
 
 export interface StorageRuntimeFile {
   id: string;
@@ -78,6 +79,7 @@ export function createStorageRuntime<TFile extends StorageRuntimeFile>(
 
 export function createApiStorageRuntime(
   data: ScopedData,
+  todos: Pick<Todos, "get">,
   logger?: StorageRuntimeLogger
 ): StorageRuntime {
   return createStorageRuntime({
@@ -105,10 +107,7 @@ export function createApiStorageRuntime(
     },
     logger,
     presignedUrlExpirySeconds: () => getStorageConfig().presignedUrlExpirySeconds,
-    todoExists: async (_scope, todoId) => {
-      const { getTodoById } = await import("../todos/todos.adapter");
-      return (await getTodoById(data, todoId)) !== null;
-    },
+    todoExists: async (_scope, todoId) => (await todos.get(todoId)) !== null,
     updateFileStatus: async (_scope, fileId, status) => {
       const adapter = await import("./storage.adapter");
       return adapter.updateFileStatus(data, fileId, status);

@@ -1,9 +1,5 @@
 import { pipe } from "graphql-yoga";
 
-// createTodo here feeds createTodoAiWorkflow, which normalizes through the
-// same todos.util helpers the workflow uses, so the AI path is not a guard
-// bypass. Every other write goes through ctx.workflows.todo.
-import { createTodo, getTodoById, listTodosByScope } from "./todos.adapter";
 import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
 import { createTodoAiRuntime } from "./todos.ai-runtime";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
@@ -31,13 +27,10 @@ function createTodoAiWorkflowForContext(ctx: ResolverContext) {
   });
 
   return createTodoAiWorkflow({
-    createTodo: (_scope, input) => createTodo(ctx.data, input),
+    createTodo: ctx.todos.create,
     generateTodoDrafts: aiRuntime.generateTodoDrafts,
     isConfigured: aiRuntime.isConfigured,
     maxGeneratedTodos: aiRuntime.maxGeneratedTodos,
-    publishTodoEvent: (eventName, ...payload) => {
-      ctx.pubsub.publish(eventName, ...payload);
-    },
     reportGenerationFailure: ({ err }) => {
       // `error`, not `err`: see observability.ts — the AI SDK's error carries
       // the outgoing request body.
@@ -60,32 +53,29 @@ export const todosResolvers = {
   },
   Query: {
     async todos(_parent: unknown, args: TodosQueryArgs, ctx: ResolverContext) {
-      return listTodosByScope(ctx.data, args, args);
+      return ctx.todos.list(args);
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      return getTodoById(ctx.data, args.id);
+      return ctx.todos.get(args.id);
     }
   },
   Mutation: {
     async createTodo(_parent: unknown, args: CreateTodoArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.todo.createTodo(scope, args.input);
+      return ctx.todos.create(args.input);
     },
     async generateTodos(_parent: unknown, args: GenerateTodosArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createTodoAiWorkflowForContext(ctx).generateTodos(scope, args.input);
+      // Scope first: a request without one must fail before any model call.
+      ctx.requireOrganizationScope();
+      return createTodoAiWorkflowForContext(ctx).generateTodos(args.input);
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.todo.updateTodo(scope, args.id, args.input);
+      return ctx.todos.update(args.id, args.input);
     },
     async deleteTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.todo.deleteTodo(scope, args.id);
+      return ctx.todos.delete(args.id);
     },
     async toggleTodo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return ctx.workflows.todo.toggleTodo(scope, args.id);
+      return ctx.todos.toggle(args.id);
     }
   },
   Subscription: {

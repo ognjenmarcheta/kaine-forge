@@ -7,7 +7,6 @@ import { createApiLoaders } from "./context.loaders";
 // These unit tests inject their adapters. Do not initialize the production DB
 // through the default adapters when the test module is imported.
 vi.mock("./features/storage/storage.adapter", () => ({ listFilesByEntityIds: vi.fn() }));
-vi.mock("./features/todos/todos.adapter", () => ({ listTodosByNoteIds: vi.fn() }));
 
 describe("context.loaders", () => {
   const scope = {
@@ -24,16 +23,18 @@ describe("context.loaders", () => {
   // Opaque here: the injected adapters never query it.
   const data = createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope });
 
-  it("noteTodos batches all requested notes into one adapter call", async () => {
+  it("noteTodos batches all requested notes into one Todo module call", async () => {
     const todoA = { id: "todo-1", noteId: "note-1" };
     const todoB = { id: "todo-2", noteId: "note-2" };
     const todoC = { id: "todo-3", noteId: "note-1" };
-    const listTodosByNoteIds = vi.fn().mockResolvedValue([todoA, todoB, todoC]);
-    const listFilesByEntityIds = vi.fn();
-    const loaders = createApiLoaders(data, {
-      listFilesByEntityIds,
-      listTodosByNoteIds
-    } as never);
+    const listByNoteIds = vi.fn().mockResolvedValue([todoA, todoB, todoC]);
+    const loaders = createApiLoaders(
+      data,
+      { listByNoteIds },
+      {
+        listFilesByEntityIds: vi.fn()
+      }
+    );
 
     const [note1Todos, note2Todos, note3Todos] = await Promise.all([
       loaders.noteTodos.load("note-1"),
@@ -41,8 +42,8 @@ describe("context.loaders", () => {
       loaders.noteTodos.load("note-3")
     ]);
 
-    expect(listTodosByNoteIds).toHaveBeenCalledTimes(1);
-    expect(listTodosByNoteIds).toHaveBeenCalledWith(data, ["note-1", "note-2", "note-3"]);
+    expect(listByNoteIds).toHaveBeenCalledTimes(1);
+    expect(listByNoteIds).toHaveBeenCalledWith(["note-1", "note-2", "note-3"]);
     expect(note1Todos).toEqual([todoA, todoC]);
     expect(note2Todos).toEqual([todoB]);
     expect(note3Todos).toEqual([]);
@@ -52,11 +53,7 @@ describe("context.loaders", () => {
     const fileA = { id: "file-1", entityId: "todo-1" };
     const fileB = { id: "file-2", entityId: "todo-2" };
     const listFilesByEntityIds = vi.fn().mockResolvedValue([fileA, fileB]);
-    const listTodosByNoteIds = vi.fn();
-    const loaders = createApiLoaders(data, {
-      listFilesByEntityIds,
-      listTodosByNoteIds
-    } as never);
+    const loaders = createApiLoaders(data, { listByNoteIds: vi.fn() }, { listFilesByEntityIds });
 
     const [todo1Files, todo2Files, todo3Files] = await Promise.all([
       loaders.todoAttachments.load("todo-1"),

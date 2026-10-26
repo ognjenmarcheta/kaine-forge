@@ -1,5 +1,4 @@
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
-import { createLogger } from "@repo/logger";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@repo/db/client", () => {
@@ -47,16 +46,8 @@ describe("evaluation fixture with production tools and workflows", () => {
     const tools = createAssistantTools({
       data: fixture.data,
       scope: fixture.scope,
-      todoWorkflow: createApiWorkflows({
-        data: fixture.data,
-        logger: createLogger({ name: "eval", level: "silent" }),
-        publish: () => {}
-      }).todo,
-      noteWorkflow: createApiWorkflows({
-        data: fixture.data,
-        logger: createLogger({ name: "eval", level: "silent" }),
-        publish: () => {}
-      }).note
+      todos: fixture.todos,
+      noteWorkflow: createApiWorkflows({ data: fixture.data, publish: () => {} }).note
     });
     const execute = tools["createTodo"]?.execute;
     if (!execute) throw new Error("Missing create tool");
@@ -72,16 +63,11 @@ describe("evaluation fixture with production tools and workflows", () => {
     const evaluation = assistantEvalCases.find((entry) => entry.id === "foreign-todo-delete");
     if (!evaluation) throw new Error("Missing case");
     const fixture = await seedEvalFixture(database, evaluation);
-    const workflows = createApiWorkflows({
-      data: fixture.data,
-      logger: createLogger({ name: "eval", level: "silent" }),
-      publish: () => {}
-    });
     const tools = createAssistantTools({
       data: fixture.data,
       scope: fixture.scope,
-      todoWorkflow: workflows.todo,
-      noteWorkflow: workflows.note
+      todos: fixture.todos,
+      noteWorkflow: createApiWorkflows({ data: fixture.data, publish: () => {} }).note
     });
     const remove = tools["deleteTodo"]?.execute;
     const rename = tools["updateNote"]?.execute;

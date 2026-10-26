@@ -11,7 +11,7 @@ import {
   type ToolExecutionEndEvent
 } from "ai";
 
-import { createAssistantTools } from "./assistant.tools";
+import { createAssistantTools, type AssistantToolDeps } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
 import { modelFailureCategory, startModelRun, type ModelRunTelemetry } from "../../ai.telemetry";
 import type { ScopedData } from "../../context.data";
@@ -73,9 +73,10 @@ export interface AssistantAiRuntimeDeps {
   data: ScopedData;
   publishAssistantDelta: (payload: AssistantMessageDeltaPayload) => void;
   recordModelCall: (telemetry: AssistantModelCallTelemetry) => void;
-  // The workflows publish their own events, so the runtime no longer forwards
-  // publishers for todos and notes (issue #393).
-  workflows: Pick<ApiWorkflows, "note" | "todo">;
+  // The Todo module and the Note workflow publish their own events, so the
+  // runtime no longer forwards publishers for them (issue #393).
+  todos: AssistantToolDeps["todos"];
+  workflows: Pick<ApiWorkflows, "note">;
   /** Synthetic evaluation observer. Production logging must not receive these payloads. */
   observeStep?: (step: StepResult<ToolSet>) => void;
   observeToolStart?: (event: ToolExecutionStartEvent<ToolSet>) => void;
@@ -160,6 +161,7 @@ export function createAssistantAiRuntime({
   data,
   publishAssistantDelta,
   recordModelCall,
+  todos,
   workflows,
   observeStep,
   observeToolStart,
@@ -195,7 +197,7 @@ export function createAssistantAiRuntime({
             data,
             noteWorkflow: workflows.note,
             scope,
-            todoWorkflow: workflows.todo
+            todos
           }),
           stopWhen: isStepCount(MAX_ASSISTANT_STEPS),
           ...execution,
