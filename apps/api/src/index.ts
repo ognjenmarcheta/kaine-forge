@@ -16,11 +16,15 @@ try {
   process.exit(1);
 }
 
-const { pool } = await import("@repo/db/client");
+const { db, pool } = await import("@repo/db/client");
 const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
 const { createApiServer } = await import("./server");
 const { resolveApiStartupConfig } = await import("./startup.config");
+const { startAttachmentSweep, sweepAttachmentObjects, withSweepLock } =
+  await import("./features/storage/attachment.sweep");
+const { s3ObjectStore } = await import("./features/storage/attachment.store");
+const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
 
 await startApiRuntime({
   createServer: createApiServer,
@@ -37,3 +41,26 @@ await startApiRuntime({
     client.release();
   }
 });
+
+const sweep = resolveAttachmentSweepConfig(process.env);
+
+if (sweep) {
+  startAttachmentSweep({
+    intervalMs: sweep.intervalMs,
+    logger,
+    sweep: async () => {
+      await withSweepLock(db, async (tx) => {
+        const result = await sweepAttachmentObjects({
+          db: tx,
+          logger,
+          store: s3ObjectStore,
+          pendingCutoff: new Date(Date.now() - sweep.pendingTtlMs)
+        });
+
+        if (result.purged > 0 || result.failed > 0) {
+          logger.info(result, "attachment sweep finished");
+        }
+      });
+    }
+  });
+}
