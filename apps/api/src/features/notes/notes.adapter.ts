@@ -1,84 +1,59 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { db, notesTable, type Note } from "@repo/db";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import type { Note } from "@repo/db";
+import { notesTable } from "@repo/db/schema";
+import { desc, eq } from "drizzle-orm";
 
-import type { NotePatch, Pagination } from "./notes.type";
+import { NOTES_CONFIG } from "./notes.config";
+import type { NotePatch } from "./notes.type";
+import {
+  clampPagination,
+  containsPhrase,
+  type PaginationInput,
+  type ScopedData
+} from "../../context.data";
 
 export async function listNotesByScope(
-  scope: AuthenticatedOrganizationScope,
-  pagination: Pagination,
-  search?: string
+  data: ScopedData,
+  page: PaginationInput,
+  search?: string | null
 ): Promise<Note[]> {
-  const phrase = search?.trim();
-  const pattern = phrase ? `%${phrase.replace(/[\\%_]/g, "\\$&")}%` : undefined;
-  return db
-    .select()
-    .from(notesTable)
-    .where(
-      and(
-        eq(notesTable.organizationId, scope.organizationId),
-        pattern === undefined
-          ? undefined
-          : or(ilike(notesTable.title, pattern), ilike(notesTable.body, pattern))
-      )
-    )
+  const { limit, offset } = clampPagination(page, NOTES_CONFIG.pagination);
+  return data
+    .selectFrom(notesTable, containsPhrase(search, [notesTable.title, notesTable.body]))
     .orderBy(desc(notesTable.createdAt), desc(notesTable.id))
-    .limit(pagination.limit)
-    .offset(pagination.offset);
+    .limit(limit)
+    .offset(offset);
 }
 
-export async function getNoteById(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<Note | null> {
-  const rows = await db
-    .select()
-    .from(notesTable)
-    .where(and(eq(notesTable.id, id), eq(notesTable.organizationId, scope.organizationId)))
-    .limit(1);
+export async function getNoteById(data: ScopedData, id: string): Promise<Note | null> {
+  const rows = await data.selectFrom(notesTable, eq(notesTable.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function createNote(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   input: { title: string; body: string | null }
 ): Promise<Note> {
-  const rows = await db
+  const rows = await data
     .insert(notesTable)
-    .values({
-      userId: scope.userId,
-      organizationId: scope.organizationId,
-      title: input.title,
-      body: input.body
-    })
+    .values({ ...data.stamp("userId"), title: input.title, body: input.body })
     .returning();
   const note = rows[0];
   if (!note) throw new Error("failed to create note");
   return note;
 }
 
-export async function updateNote(
-  scope: AuthenticatedOrganizationScope,
-  id: string,
-  patch: NotePatch
-): Promise<Note> {
-  const rows = await db
-    .update(notesTable)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(and(eq(notesTable.id, id), eq(notesTable.organizationId, scope.organizationId)))
+export async function updateNote(data: ScopedData, id: string, patch: NotePatch): Promise<Note> {
+  const rows = await data
+    .update(notesTable, { ...patch, updatedAt: new Date() }, eq(notesTable.id, id))
     .returning();
   const note = rows[0];
   if (!note) throw new Error("note not found");
   return note;
 }
 
-export async function deleteNote(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<boolean> {
-  const rows = await db
-    .delete(notesTable)
-    .where(and(eq(notesTable.id, id), eq(notesTable.organizationId, scope.organizationId)))
+export async function deleteNote(data: ScopedData, id: string): Promise<boolean> {
+  const rows = await data
+    .delete(notesTable, eq(notesTable.id, id))
     .returning({ id: notesTable.id });
   return rows.length > 0;
 }

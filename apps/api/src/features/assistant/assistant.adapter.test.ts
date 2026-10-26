@@ -1,127 +1,96 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { chain, mockDb } = vi.hoisted(() => {
-  const chain = {
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    offset: vi.fn(),
-    returning: vi.fn(),
-    set: vi.fn(),
-    values: vi.fn(),
-    onConflictDoNothing: vi.fn()
-  };
-  Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-  chain.returning.mockResolvedValue([]);
-
-  const mockDb = {
-    select: vi.fn(() => chain),
-    insert: vi.fn(() => chain),
-    update: vi.fn(() => chain),
-    delete: vi.fn(() => chain)
-  };
-
-  return { chain, mockDb };
-});
-
-vi.mock("@repo/db", () => ({
-  db: mockDb,
-  assistantConversationsTable: {
-    id: "id",
-    userId: "userId",
-    organizationId: "orgId",
-    updatedAt: "updatedAt"
-  },
-  assistantMessagesTable: {
-    id: "id",
-    conversationId: "conversationId",
-    organizationId: "orgId",
-    createdAt: "createdAt"
-  }
-}));
-
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...args: unknown[]) => args),
-  asc: vi.fn((col: unknown) => col),
-  desc: vi.fn((col: unknown) => col),
-  eq: vi.fn((a: unknown, b: unknown) => [a, b])
-}));
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import {
+  assistantMessagesTable,
+  membersTable,
+  organizationsTable,
+  usersTable
+} from "@repo/db/schema";
+import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  createConversation,
   deleteConversation,
   getConversationById,
   listConversations,
   listRecentMessages
 } from "./assistant.adapter";
+import { createScopedData, type ScopedData } from "../../context.data";
+
+let database: TestDatabase;
+let mine: ScopedData;
+let colleague: ScopedData;
+
+function scopeFor(organizationId: string, userId: string): AuthenticatedOrganizationScope {
+  return {
+    membership: { id: `membership-${userId}`, role: "member", userId },
+    organizationId,
+    user: { email: `${userId}@example.test`, emailVerified: true, id: userId, name: "User" },
+    userId
+  };
+}
+
+beforeAll(async () => {
+  database = await createTestDatabase();
+  const { db } = database;
+  const [owner, other] = await db
+    .insert(usersTable)
+    .values([
+      { email: "owner@example.test", name: "Owner" },
+      { email: "other@example.test", name: "Other" }
+    ])
+    .returning();
+  if (!owner || !other) throw new Error("failed to seed users");
+  const [organization] = await db
+    .insert(organizationsTable)
+    .values({ name: "Org", slug: "org", userId: owner.id })
+    .returning();
+  if (!organization) throw new Error("failed to seed organization");
+  await db.insert(membersTable).values([
+    { organizationId: organization.id, role: "owner", userId: owner.id },
+    { organizationId: organization.id, role: "member", userId: other.id }
+  ]);
+  mine = createScopedData({
+    db,
+    requireOrganizationScope: () => scopeFor(organization.id, owner.id)
+  });
+  colleague = createScopedData({
+    db,
+    requireOrganizationScope: () => scopeFor(organization.id, other.id)
+  });
+}, 30_000);
+
+afterAll(async () => {
+  await database.close();
+});
 
 describe("assistant.adapter", () => {
-  const scope = {
-    membership: { id: "membership-1", role: "owner", userId: "user-1" },
-    organizationId: "org-1",
-    user: {
-      email: "u1@example.com",
-      emailVerified: false,
-      id: "user-1",
-      name: "User One"
-    },
-    userId: "user-1"
-  };
+  it("keeps a Conversation private to its user within the Organization", async () => {
+    const conversation = await createConversation(mine, { title: "Private" });
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-    chain.returning.mockResolvedValue([]);
+    expect(await getConversationById(colleague, conversation.id)).toBeNull();
+    expect(await listConversations(colleague, {})).toEqual([]);
+    expect(await deleteConversation(colleague, conversation.id)).toBe(false);
+
+    expect(await getConversationById(mine, conversation.id)).toEqual(conversation);
+    expect((await listConversations(mine, {})).map((row) => row.id)).toEqual([conversation.id]);
+    expect(await deleteConversation(mine, conversation.id)).toBe(true);
   });
 
-  it("listConversations scopes the listing to the requesting user", async () => {
-    await listConversations(scope, { limit: 20, offset: 0 });
-    expect(chain.where).toHaveBeenCalledWith([
-      ["orgId", "org-1"],
-      ["userId", "user-1"]
-    ]);
-    expect(chain.limit).toHaveBeenCalledWith(20);
-    expect(chain.offset).toHaveBeenCalledWith(0);
-  });
+  it("returns the newest messages in chronological order", async () => {
+    const conversation = await createConversation(mine, { title: "History" });
+    await database.db.insert(assistantMessagesTable).values(
+      ["third", "first", "second"].map((content) => ({
+        content,
+        conversationId: conversation.id,
+        createdAt: new Date(`2026-01-01T00:00:0${["first", "second", "third"].indexOf(content)}Z`),
+        organizationId: conversation.organizationId,
+        role: "user"
+      }))
+    );
 
-  it("deleteConversation returns true when a row is returned", async () => {
-    chain.returning.mockResolvedValueOnce([{ id: "conversation-1" }]);
-    const result = await deleteConversation(scope, "conversation-1");
-    expect(mockDb.delete).toHaveBeenCalled();
-    expect(result).toBe(true);
-  });
+    const recent = await listRecentMessages(mine, conversation.id, 2);
 
-  it("deleteConversation returns false when no row is returned", async () => {
-    chain.returning.mockResolvedValueOnce([]);
-    const result = await deleteConversation(scope, "conversation-1");
-    expect(mockDb.delete).toHaveBeenCalled();
-    expect(result).toBe(false);
-  });
-
-  it("getConversationById scopes the lookup to the requesting user", async () => {
-    chain.limit.mockResolvedValueOnce([]);
-
-    const result = await getConversationById(scope, "conversation-1");
-
-    expect(result).toBeNull();
-    expect(chain.where).toHaveBeenCalledWith([
-      ["id", "conversation-1"],
-      ["orgId", "org-1"],
-      ["userId", "user-1"]
-    ]);
-  });
-
-  it("listRecentMessages returns the newest messages in chronological order", async () => {
-    chain.limit.mockResolvedValueOnce([
-      { content: "third", id: "m3" },
-      { content: "second", id: "m2" },
-      { content: "first", id: "m1" }
-    ]);
-
-    const result = await listRecentMessages(scope, "conversation-1", 3);
-
-    expect(chain.orderBy).toHaveBeenCalledWith("createdAt");
-    expect(chain.limit).toHaveBeenCalledWith(3);
-    expect(result.map((message) => message.id)).toEqual(["m1", "m2", "m3"]);
+    expect(recent.map((message) => message.content)).toEqual(["second", "third"]);
   });
 });

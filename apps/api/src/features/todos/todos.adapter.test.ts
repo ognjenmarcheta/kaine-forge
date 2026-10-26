@@ -1,132 +1,91 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import { notesTable, organizationsTable, todosTable, usersTable } from "@repo/db/schema";
+import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const { chain, mockDb } = vi.hoisted(() => {
-  const chain = {
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    offset: vi.fn(),
-    returning: vi.fn(),
-    set: vi.fn(),
-    values: vi.fn(),
-    onConflictDoNothing: vi.fn()
+import { createTodo, listTodosByScope } from "./todos.adapter";
+import { createScopedData, type ScopedData } from "../../context.data";
+
+let database: TestDatabase;
+let data: ScopedData;
+let foreignNoteId: string;
+
+beforeAll(async () => {
+  database = await createTestDatabase();
+  const { db } = database;
+  const [user] = await db
+    .insert(usersTable)
+    .values({ email: "u@example.test", name: "User" })
+    .returning();
+  if (!user) throw new Error("failed to seed user");
+  const [own, foreign] = await db
+    .insert(organizationsTable)
+    .values([
+      { name: "Own", slug: "own", userId: user.id },
+      { name: "Foreign", slug: "foreign", userId: user.id }
+    ])
+    .returning();
+  if (!own || !foreign) throw new Error("failed to seed organizations");
+  const createdAt = new Date("2026-09-13T12:00:00Z");
+  await db.insert(todosTable).values(
+    Array.from({ length: 61 }, (_, index) => ({
+      // Same timestamp for every row: order falls back to id, so it is stable.
+      id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      title: index === 0 ? "Needle TITLE" : `Todo ${index + 1}`,
+      description: index === 2 ? "Needle DESCRIPTION" : null,
+      completed: index % 2 === 1,
+      organizationId: own.id,
+      userId: user.id,
+      createdAt,
+      updatedAt: createdAt
+    }))
+  );
+  const [foreignNote] = await db
+    .insert(notesTable)
+    .values({ organizationId: foreign.id, title: "Foreign note", userId: user.id })
+    .returning();
+  if (!foreignNote) throw new Error("failed to seed note");
+  foreignNoteId = foreignNote.id;
+
+  const scope: AuthenticatedOrganizationScope = {
+    membership: { id: "membership-1", role: "owner", userId: user.id },
+    organizationId: own.id,
+    user: { email: user.email, emailVerified: true, id: user.id, name: user.name },
+    userId: user.id
   };
-  Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-  chain.returning.mockResolvedValue([]);
+  data = createScopedData({ db, requireOrganizationScope: () => scope });
+}, 30_000);
 
-  const mockDb = {
-    select: vi.fn(() => chain),
-    insert: vi.fn(() => chain),
-    update: vi.fn(() => chain),
-    delete: vi.fn(() => chain)
-  };
-
-  return { chain, mockDb };
+afterAll(async () => {
+  await database.close();
 });
 
-vi.mock("@repo/db", () => ({
-  db: mockDb,
-  todosTable: {
-    id: "id",
-    userId: "userId",
-    organizationId: "orgId",
-    createdAt: "createdAt",
-    completed: "completed",
-    noteId: "noteId"
-  },
-  notesTable: {
-    id: "note.id",
-    organizationId: "note.orgId"
-  }
-}));
-
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...args: unknown[]) => args.filter((arg) => arg !== undefined)),
-  desc: vi.fn((col: unknown) => col),
-  eq: vi.fn((a: unknown, b: unknown) => [a, b]),
-  inArray: vi.fn((a: unknown, b: unknown) => [a, b])
-}));
-
-import {
-  createTodo,
-  deleteTodo,
-  getTodoById,
-  listTodosByNoteIds,
-  listTodosByScope
-} from "./todos.adapter";
-
 describe("todos.adapter", () => {
-  const scope = {
-    membership: { id: "membership-1", role: "owner", userId: "user-1" },
-    organizationId: "org-1",
-    user: {
-      email: "u1@example.com",
-      emailVerified: false,
-      id: "user-1",
-      name: "User One"
-    },
-    userId: "user-1"
-  };
+  it("searches title and description before pagination, combined with the completed filter", async () => {
+    const titles = async (filters: { search?: string; completed?: boolean }) =>
+      (await listTodosByScope(data, { limit: 50 }, filters)).map((todo) => todo.title);
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
-    chain.returning.mockResolvedValue([]);
+    expect(await titles({ search: " nEeDlE " })).toEqual(["Todo 3", "Needle TITLE"]);
+    expect(await titles({ search: "needle", completed: true })).toEqual([]);
+    expect(await titles({ search: "needle", completed: false })).toHaveLength(2);
   });
 
-  it("listTodosByScope filters by Organization only", async () => {
-    await listTodosByScope(scope, { limit: 20, offset: 0 });
+  it("pages deterministically and clamps the requested page", async () => {
+    const first = await listTodosByScope(data, { limit: 50 });
+    const second = await listTodosByScope(data, { limit: 50, offset: 50 });
 
-    expect(chain.where).toHaveBeenCalledWith([["orgId", "org-1"]]);
+    expect(first).toHaveLength(50);
+    expect(second).toHaveLength(11);
+    expect(new Set([...first, ...second].map((todo) => todo.id)).size).toBe(61);
+    expect(await listTodosByScope(data, { limit: 500, offset: -5 })).toHaveLength(61);
   });
 
-  it("getTodoById scopes the point read to the Active Organization", async () => {
-    await getTodoById(scope, "todo-1");
-    expect(chain.where).toHaveBeenCalledWith([
-      ["id", "todo-1"],
-      ["orgId", "org-1"]
-    ]);
-  });
-
-  it("deleteTodo calls db.delete and returns boolean", async () => {
-    chain.returning.mockResolvedValueOnce([{ id: "todo-1" }]);
-    const result = await deleteTodo(scope, "todo-1");
-    expect(mockDb.delete).toHaveBeenCalled();
-    expect(result).toBe(true);
-  });
-
-  it("listTodosByNoteIds returns [] without querying for empty input", async () => {
-    const result = await listTodosByNoteIds(scope, []);
-    expect(result).toEqual([]);
-    expect(mockDb.select).not.toHaveBeenCalled();
-  });
-
-  it("createTodo with a noteId owned by the organization returns the created todo", async () => {
-    const todo = {
-      id: "todo-1",
-      title: "Test",
-      description: null,
-      completed: false,
-      userId: "user-1",
-      organizationId: "org-1",
-      noteId: "note-1",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    chain.limit.mockReturnValueOnce([{ id: "note-1" }]);
-    chain.returning.mockResolvedValueOnce([todo]);
-
-    const result = await createTodo(scope, { title: "Test", description: null, noteId: "note-1" });
-    expect(result).toEqual(todo);
-  });
-
-  it("createTodo rejects a noteId that is not in the organization", async () => {
-    chain.limit.mockReturnValueOnce([]);
+  it("rejects a Note from another organization and creates no Todo", async () => {
+    const before = await database.db.select().from(todosTable);
 
     await expect(
-      createTodo(scope, { title: "Test", description: null, noteId: "other-org-note" })
+      createTodo(data, { title: "Linked", description: null, noteId: foreignNoteId })
     ).rejects.toThrow("note not found");
-    expect(mockDb.insert).not.toHaveBeenCalled();
+    expect(await database.db.select().from(todosTable)).toEqual(before);
   });
 });

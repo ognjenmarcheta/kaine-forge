@@ -1,3 +1,4 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { createPubSub } from "graphql-yoga";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,7 +6,6 @@ vi.mock("./todos.adapter", () => ({
   createTodo: vi.fn(),
   deleteTodo: vi.fn(),
   getTodoById: vi.fn(),
-  listTodosByScope: vi.fn(),
   toggleTodo: vi.fn(),
   updateTodo: vi.fn()
 }));
@@ -18,6 +18,7 @@ vi.mock("../storage/storage.adapter", () => ({
 import * as todosAdapter from "./todos.adapter";
 import { todosResolvers } from "./todos.router";
 import { createTodoWorkflow } from "./todos.workflow";
+import { createScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
 
 describe("todos.router", () => {
@@ -36,6 +37,13 @@ describe("todos.router", () => {
     user: session.user,
     userId: "user-1"
   };
+  // Opaque here: the mocked adapters never query it.
+  const data = createScopedData({
+    db: drizzle.mock(),
+    requireOrganizationScope: () => {
+      throw new Error("unused");
+    }
+  });
   // A real workflow over the mocked adapters, matching what context.ts now
   // builds. The resolvers delegate to it, so the normalization assertions below
   // still reach todosAdapter and still mean what they meant before.
@@ -44,15 +52,15 @@ describe("todos.router", () => {
     requireOrganizationScope: () => authenticatedScope,
     workflows: {
       todo: createTodoWorkflow({
-        createTodo: todosAdapter.createTodo,
+        createTodo: (_scope, input) => todosAdapter.createTodo(data, input),
         deleteAttachmentObject: async () => undefined,
-        deleteTodo: todosAdapter.deleteTodo,
+        deleteTodo: (_scope, id) => todosAdapter.deleteTodo(data, id),
         deleteTodoAttachments: vi.fn(async () => []),
         publishTodoEvent: (eventName, ...payload) => {
           testPubsub.publish(eventName, ...payload);
         },
-        toggleTodo: todosAdapter.toggleTodo,
-        updateTodo: todosAdapter.updateTodo,
+        toggleTodo: (_scope, id) => todosAdapter.toggleTodo(data, id),
+        updateTodo: (_scope, id, patch) => todosAdapter.updateTodo(data, id, patch),
         warnTodoAttachmentCleanupFailed: vi.fn()
       })
     }
@@ -60,21 +68,6 @@ describe("todos.router", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("lists todos with clamped pagination for authenticated user", async () => {
-    vi.mocked(todosAdapter.listTodosByScope).mockResolvedValue([]);
-
-    await todosResolvers.Query.todos({}, { limit: 9_999, offset: -12 }, ctx as never);
-
-    expect(todosAdapter.listTodosByScope).toHaveBeenCalledWith(
-      authenticatedScope,
-      {
-        limit: 100,
-        offset: 0
-      },
-      { limit: 9_999, offset: -12 }
-    );
   });
 
   it("creates todo using normalized input", async () => {
@@ -101,7 +94,7 @@ describe("todos.router", () => {
       ctx as never
     );
 
-    expect(todosAdapter.createTodo).toHaveBeenCalledWith(authenticatedScope, {
+    expect(todosAdapter.createTodo).toHaveBeenCalledWith(data, {
       description: "new description",
       noteId: null,
       title: "New Todo"
@@ -134,7 +127,7 @@ describe("todos.router", () => {
       ctx as never
     );
 
-    expect(todosAdapter.updateTodo).toHaveBeenCalledWith(authenticatedScope, "todo-1", {
+    expect(todosAdapter.updateTodo).toHaveBeenCalledWith(data, "todo-1", {
       completed: true,
       description: null,
       title: "Edited title"

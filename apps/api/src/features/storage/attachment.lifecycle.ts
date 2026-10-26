@@ -1,5 +1,6 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import type { AttachmentEntityType } from "@repo/db";
+
+import type { ScopedData } from "../../context.data";
 
 export const ATTACHMENT_ENTITY_TYPES = {
   todo: "todo"
@@ -7,7 +8,7 @@ export const ATTACHMENT_ENTITY_TYPES = {
 
 interface AttachmentLifecycleAdapter<TAttachment> {
   deleteFilesByEntity: (
-    scope: AuthenticatedOrganizationScope,
+    data: ScopedData,
     entityType: AttachmentEntityType,
     entityId: string
   ) => Promise<TAttachment[]>;
@@ -17,8 +18,8 @@ export function createAttachmentLifecycle<TAttachment>(
   adapter: AttachmentLifecycleAdapter<TAttachment>
 ) {
   return {
-    deleteTodoAttachments(scope: AuthenticatedOrganizationScope, todoId: string) {
-      return adapter.deleteFilesByEntity(scope, ATTACHMENT_ENTITY_TYPES.todo, todoId);
+    deleteTodoAttachments(data: ScopedData, todoId: string) {
+      return adapter.deleteFilesByEntity(data, ATTACHMENT_ENTITY_TYPES.todo, todoId);
     }
   };
 }

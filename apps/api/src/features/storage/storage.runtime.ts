@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { STORAGE_CONFIG } from "./storage.definition";
 import { createStorageLifecycle } from "./storage.lifecycle";
 import type { StorageLifecycleAdapter } from "./storage.lifecycle";
+import type { ScopedData } from "../../context.data";
 
 export interface StorageRuntimeFile {
   id: string;
@@ -75,13 +76,16 @@ export function createStorageRuntime<TFile extends StorageRuntimeFile>(
   });
 }
 
-export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageRuntime {
+export function createApiStorageRuntime(
+  data: ScopedData,
+  logger?: StorageRuntimeLogger
+): StorageRuntime {
   return createStorageRuntime({
     bucket: () => getStorageConfig().bucket,
     createFileId: randomUUID,
-    createFileRecord: async (scope, input) => {
+    createFileRecord: async (_scope, input) => {
       const adapter = await import("./storage.adapter");
-      return adapter.createFileRecord(scope, input);
+      return adapter.createFileRecord(data, input);
     },
     createDownloadUrl: async (bucket, key, expiresIn) =>
       generatePresignedDownloadUrl(getS3Client(), bucket, key, expiresIn),
@@ -91,23 +95,23 @@ export function createApiStorageRuntime(logger?: StorageRuntimeLogger): StorageR
     deleteObject: deleteStorageObject,
     fileExists: async (bucket, key) => objectExists(getS3Client(), bucket, key),
     getObjectMetadata: async (bucket, key) => headObjectMetadata(getS3Client(), bucket, key),
-    getFileById: async (scope, fileId) => {
+    getFileById: async (_scope, fileId) => {
       const adapter = await import("./storage.adapter");
-      return adapter.getFileById(scope, fileId);
+      return adapter.getFileById(data, fileId);
     },
-    listFiles: async (scope, filter) => {
+    listFiles: async (_scope, filter) => {
       const adapter = await import("./storage.adapter");
-      return adapter.listFiles(scope, filter);
+      return adapter.listFiles(data, filter);
     },
     logger,
     presignedUrlExpirySeconds: () => getStorageConfig().presignedUrlExpirySeconds,
-    todoExists: async (scope, todoId) => {
+    todoExists: async (_scope, todoId) => {
       const { getTodoById } = await import("../todos/todos.adapter");
-      return (await getTodoById(scope, todoId)) !== null;
+      return (await getTodoById(data, todoId)) !== null;
     },
-    updateFileStatus: async (scope, fileId, status) => {
+    updateFileStatus: async (_scope, fileId, status) => {
       const adapter = await import("./storage.adapter");
-      return adapter.updateFileStatus(scope, fileId, status);
+      return adapter.updateFileStatus(data, fileId, status);
     }
   });
 }
