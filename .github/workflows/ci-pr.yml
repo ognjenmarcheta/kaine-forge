@@ -316,27 +316,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monorepo_dev
         run: pnpm run coverage
 
-  mobile-typecheck:
-    name: Mobile Typecheck
-    # Independent of check-fast: no shared artifact/cache; parallelize (issue #144).
-    if: needs.detect-paths.outputs.mobile == 'true'
-    needs: [detect-paths]
-    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-node-pnpm
-        with:
-          pnpm-version: ${{ env.PNPM_VERSION }}
-
-      - name: Typecheck mobile and mobile-ui
-        run: |
-          pnpm --filter @repo/mobile-ui typecheck
-          pnpm --filter @repo/mobile typecheck
-
+  # No separate mobile typecheck job: Check Fast's affected Turbo typecheck
+  # already runs @repo/mobile and @repo/mobile-ui `tsc --noEmit`.
   mobile-export:
     name: Mobile Export Validation
     # Typecheck cannot see what Metro bundles: a package barrel that re-exports a
@@ -751,7 +732,6 @@ jobs:
       - check-fast
       - ai-checks
       - coverage
-      - mobile-typecheck
       - mobile-export
       - graphql-schema
       - build-core

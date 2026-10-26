@@ -40,3 +40,4 @@ Use a two-tier CI strategy:
 - The root `.ai/` checks and the `scripts/*.test.mjs` tests moved from Check Fast to their own job, AI and Script Checks.
 - Coverage, core build and e2e, each Docker image, and the mobile jobs run only when the Turbo package graph (`turbo ls --affected`, `scripts/ci-affected.mjs`) says the PR affects them. Files outside the graph and non-PR events run every job.
 - The Turbo cache moved from one `actions/cache` blob per job to a per-task cache in the GitHub Actions cache (`rharkor/caching-for-turbo`). ADR 0017 records the measurements.
+- The separate Mobile Typecheck job was removed. Check Fast's affected Turbo typecheck already runs `tsc --noEmit` for `@repo/mobile` and `@repo/mobile-ui`, so the job repeated that work and held a runner slot.
