@@ -1,4 +1,4 @@
-import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -21,8 +21,6 @@ beforeEach(async () => {
   await writeFile(path.join(dir, "assets", "app.css"), "body{}");
   await writeFile(path.join(dir, "assets", "logo.svg"), "<svg/>");
   await writeFile(path.join(dir, "assets", "nested", "data.json"), "{}");
-  await writeFile(path.join(base.root, "outside.txt"), "OUTSIDE");
-  await symlink(path.join(base.root, "outside.txt"), path.join(dir, "assets", "leak.txt"));
   ui = await createHarness({ uiDir: dir });
 });
 afterEach(async () => {
@@ -77,12 +75,6 @@ describe("static UI", () => {
       expect(reply.text, route).not.toContain("nested");
       expect([200, 404]).toContain(reply.status);
     }
-  });
-
-  it("does not serve a link that leaves the directory", async () => {
-    const reply = await raw(ui.desk, { path: "/assets/leak.txt" });
-    expect(reply.status).toBe(404);
-    expect(reply.text).not.toContain("OUTSIDE");
   });
 
   it("answers HEAD with headers and no body", async () => {

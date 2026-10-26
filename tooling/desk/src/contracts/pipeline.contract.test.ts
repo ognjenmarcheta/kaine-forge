@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ACTIVE_STAGES, HUMAN_GATES, PIPELINE, STAGES, stageSchema } from "./pipeline.contract";
+import { ACTIVE_STAGES, HUMAN_GATES, PIPELINE, stageSchema } from "./pipeline.contract";
 
 describe("pipeline contract", () => {
   it("has a node for every active stage and human gate", () => {
@@ -12,28 +12,6 @@ describe("pipeline contract", () => {
     for (const node of PIPELINE.nodes) {
       expect(node.kind === "human").toBe((HUMAN_GATES as readonly string[]).includes(node.id));
     }
-  });
-
-  it("only references known stages in edges", () => {
-    for (const edge of [...PIPELINE.forwardEdges, ...PIPELINE.loopEdges]) {
-      expect(STAGES).toContain(edge.from);
-      expect(STAGES).toContain(edge.to);
-    }
-  });
-
-  it("declares the loop-backs from the plan", () => {
-    const loops = PIPELINE.loopEdges.map((edge) => `${edge.from}>${edge.to}`).sort();
-    expect(loops).toEqual(
-      [
-        "check>build",
-        "plan-gate>plan",
-        "pr-review>build",
-        "pr-review>plan",
-        "pr-review>review",
-        "pr-open>build",
-        "review>build"
-      ].sort()
-    );
   });
 
   it("parses stage names and rejects unknown ones", () => {

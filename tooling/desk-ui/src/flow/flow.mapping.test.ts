@@ -134,6 +134,7 @@ describe("framedNodes", () => {
 
   it("shows everything when the width is not known yet or nothing is current", () => {
     expect(framedNodes(modelOf(102), 0)).toBeUndefined();
+    expect(framedNodes({ ...modelOf(102), current: null }, 700)).toBeUndefined();
   });
 });
 
