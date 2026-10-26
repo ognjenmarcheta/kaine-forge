@@ -1,9 +1,7 @@
 import type { File, Todo } from "@repo/db";
 import DataLoader from "dataloader";
 
-import type { ScopedData } from "./context.data";
-import { ATTACHMENT_ENTITY_TYPES } from "./features/storage/attachment.lifecycle";
-import { listFilesByEntityIds } from "./features/storage/storage.adapter";
+import type { Attachments } from "./features/storage/attachment.module";
 import type { Todos } from "./features/todos/todos.module";
 
 export interface ApiLoaders {
@@ -11,20 +9,11 @@ export interface ApiLoaders {
   todoAttachments: DataLoader<string, File[]>;
 }
 
-interface LoaderAdapter {
-  listFilesByEntityIds: typeof listFilesByEntityIds;
-}
-
-const defaultAdapter: LoaderAdapter = {
-  listFilesByEntityIds
-};
-
 // Loaders are created per request so field resolvers batch their fan-out into
 // one organization-scoped query instead of one query per parent row.
 export function createApiLoaders(
-  data: ScopedData,
   todos: Pick<Todos, "listByNoteIds">,
-  adapter: LoaderAdapter = defaultAdapter
+  attachments: Pick<Attachments, "listByTodoIds">
 ): ApiLoaders {
   return {
     noteTodos: new DataLoader(async (noteIds) => {
@@ -45,12 +34,7 @@ export function createApiLoaders(
       return noteIds.map((noteId) => byNoteId.get(noteId) ?? []);
     }),
     todoAttachments: new DataLoader(async (todoIds) => {
-      const files = await adapter.listFilesByEntityIds(
-        data,
-        ATTACHMENT_ENTITY_TYPES.todo,
-        [...todoIds],
-        "uploaded"
-      );
+      const files = await attachments.listByTodoIds(todoIds);
       const byTodoId = new Map<string, File[]>();
 
       for (const file of files) {

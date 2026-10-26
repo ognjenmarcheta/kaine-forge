@@ -14,7 +14,8 @@ import type { ExecutableEvalCase } from "./assistant.eval.data";
 import { substituteFixture } from "./assistant.eval.scoring";
 import { createScopedData } from "../../context.data";
 import { createNotes } from "../notes/notes.module";
-import { createTodoAttachments } from "../storage/attachment.lifecycle";
+import { createAttachments } from "../storage/attachment.module";
+import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 import { createTodos } from "../todos/todos.module";
 
 export async function seedEvalFixture(database: TestDatabase, evaluation: ExecutableEvalCase) {
@@ -92,10 +93,10 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
       .sort((a, b) => a.id.localeCompare(b.id))
   });
   const data = createScopedData({ db: database.db, requireOrganizationScope: () => scope });
-  // Object deletes are no-ops: an evaluation never reaches object storage.
+  // An in-memory object store: an evaluation never reaches object storage.
   const logger = createLogger({ name: "eval", level: "silent" });
   const todos = createTodos({
-    attachments: createTodoAttachments({ data, deleteObject: async () => undefined, logger }),
+    attachments: createAttachments({ data, logger, store: createMemoryObjectStore() }),
     data,
     logger,
     publish: () => {}

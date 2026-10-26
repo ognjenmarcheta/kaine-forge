@@ -10,8 +10,8 @@ import type { IncomingHttpHeaders } from "node:http";
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createNotes, type Notes } from "./features/notes/notes.module";
-import { createTodoAttachments } from "./features/storage/attachment.lifecycle";
-import { deleteStorageObject } from "./features/storage/storage.runtime";
+import { createAttachments, type Attachments } from "./features/storage/attachment.module";
+import { s3ObjectStore } from "./features/storage/attachment.store";
 import { createTodos, type Todos } from "./features/todos/todos.module";
 import { pubsub, type PubSubEventMap } from "./pubsub";
 
@@ -26,6 +26,7 @@ export interface ApiContext {
   data: ScopedData;
   todos: Todos;
   notes: Notes;
+  attachments: Attachments;
   loaders: ApiLoaders;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
   logger: Logger;
@@ -57,16 +58,8 @@ export async function createContextFromHeaders(
   ): void => {
     pubsub.publish(eventName, ...payload);
   };
-  const todos = createTodos({
-    attachments: createTodoAttachments({
-      data,
-      deleteObject: ({ bucket, key }) => deleteStorageObject(bucket, key),
-      logger: contextLogger
-    }),
-    data,
-    logger: contextLogger,
-    publish
-  });
+  const attachments = createAttachments({ data, logger: contextLogger, store: s3ObjectStore });
+  const todos = createTodos({ attachments, data, logger: contextLogger, publish });
 
   return {
     auth,
@@ -78,7 +71,8 @@ export async function createContextFromHeaders(
     data,
     todos,
     notes: createNotes({ data, publish }),
-    loaders: createApiLoaders(data, todos),
+    attachments,
+    loaders: createApiLoaders(todos, attachments),
     featureFlags: resolveFeatureFlags(),
     logger: contextLogger,
     pubsub
