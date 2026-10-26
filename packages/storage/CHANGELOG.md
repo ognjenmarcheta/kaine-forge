@@ -1,5 +1,15 @@
 # @repo/storage
 
+## 1.3.0
+
+### Minor Changes
+
+- 9cbf84c: Type the Attachment entity type as the `AttachmentEntityType` GraphQL enum (`general`, `todo`) and a `files.entity_type` pgEnum. Migration `0010` maps any other stored value to `general` first; the API now rejects unknown entity types at the GraphQL boundary.
+
+### Patch Changes
+
+- 56c7d80: Deleting a Todo now removes its Attachment objects from storage in the background, with each delete bounded by a timeout, so a slow object store no longer delays the delete or its event. An upload linked to a Todo outside the Active Organization is rejected, and file listing clamps a negative offset. `deleteObject` accepts an optional `abortSignal`.
+
 ## 1.2.2
 
 ### Patch Changes

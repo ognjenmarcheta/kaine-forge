@@ -1,5 +1,23 @@
 # @repo/mobile
 
+## 1.9.0
+
+### Minor Changes
+
+- a1c0431: Adds two-factor sign-in (authenticator app, email code, backup codes), email one-time-code sign-in and password reset, optional Cloudflare Turnstile captcha, and a Have I Been Pwned check on new passwords; caches sessions in a signed cookie for five minutes and adds the better-auth performance indexes (ADR 0015).
+
+### Patch Changes
+
+- 9cbf84c: Type the Attachment entity type as the `AttachmentEntityType` GraphQL enum (`general`, `todo`) and a `files.entity_type` pgEnum. Migration `0010` maps any other stored value to `general` first; the API now rejects unknown entity types at the GraphQL boundary.
+- Updated dependencies [9cbf84c]
+- Updated dependencies [56c7d80]
+- Updated dependencies [a1c0431]
+- Updated dependencies [68fc597]
+  - @repo/storage@1.3.0
+  - @repo/auth@3.0.0
+  - @repo/query@1.3.7
+  - @repo/translation@1.9.1
+
 ## 1.8.0
 
 ### Minor Changes

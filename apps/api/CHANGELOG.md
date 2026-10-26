@@ -1,5 +1,32 @@
 # @repo/api
 
+## 1.10.0
+
+### Minor Changes
+
+- 9cbf84c: Type the Attachment entity type as the `AttachmentEntityType` GraphQL enum (`general`, `todo`) and a `files.entity_type` pgEnum. Migration `0010` maps any other stored value to `general` first; the API now rejects unknown entity types at the GraphQL boundary.
+- a1c0431: Adds two-factor sign-in (authenticator app, email code, backup codes), email one-time-code sign-in and password reset, optional Cloudflare Turnstile captcha, and a Have I Been Pwned check on new passwords; caches sessions in a signed cookie for five minutes and adds the better-auth performance indexes (ADR 0015).
+
+### Patch Changes
+
+- 3c0f36e: One Attachment module (`features/storage/attachment.module.ts`, `ctx.attachments`) owns an Attachment's row and its stored object together: request, confirm, delete, and the Todo cleanup the Todo module uses. The object store is a port with an S3 adapter and an in-memory adapter, and every object call uses the bucket and key its row records. The storage lifecycle, runtime, and attachment lifecycle modules are gone.
+- 56c7d80: Deleting a Todo now removes its Attachment objects from storage in the background, with each delete bounded by a timeout, so a slow object store no longer delays the delete or its event. An upload linked to a Todo outside the Active Organization is rejected, and file listing clamps a negative offset. `deleteObject` accepts an optional `abortSignal`.
+- 98e5dcc: One Note module (`features/notes/notes.module.ts`, `ctx.notes`) owns Note reads, writes, input normalization, and `note:*` events. The Note resolvers and the assistant tools go through it; `ctx.workflows` and the Note workflow adapter are gone, and the assistant tools no longer take a scope.
+- 68fc597: `@repo/auth/scope` now has one producer of `AuthenticatedOrganizationScope`: `resolveOrganizationScope`, which proves Organization Membership and returns the optional scope plus `requireOrganizationScope`. `membership` is required, and the unchecked `requireAuthenticatedOrganizationScope` and the old `resolveAuthenticatedOrganizationScope` exports are removed.
+- 7b8bd4d: The API builds its organization-filtered subscription resolvers from one map of fields to `PubSubEventMap` events. The web uses the generated subscription documents through `useLiveTodos` and `useLiveNotes`, so the hand-written subscription strings are gone, and the Todo subscriptions select only `id`.
+- 67f4516: Add `@repo/db/testing` (`createTestDatabase()`: PGlite with every migration applied) and the `Database` type. The API builds one scoped data-access module per request (`context.data.ts`) that alone writes the organization predicate, stamps inserts, clamps pagination, and escapes search phrases; feature adapters no longer import the `db` singleton.
+- 272259f: One Todo module (`features/todos/todos.module.ts`, `ctx.todos`) owns Todo reads, writes, input normalization, `todo:*` events, and Attachment cleanup on delete. AI generation, `addTodoToNote`, the assistant tools, the batch loader, and the Attachment target check all go through it; `TodoWorkflowAdapter` and the second create path are gone.
+- Updated dependencies [9cbf84c]
+- Updated dependencies [56c7d80]
+- Updated dependencies [a1c0431]
+- Updated dependencies [519408c]
+- Updated dependencies [68fc597]
+- Updated dependencies [67f4516]
+  - @repo/db@1.7.0
+  - @repo/storage@1.3.0
+  - @repo/auth@3.0.0
+  - @repo/translation@1.9.1
+
 ## 1.9.4
 
 ### Patch Changes

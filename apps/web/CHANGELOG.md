@@ -1,5 +1,26 @@
 # @repo/web
 
+## 1.9.0
+
+### Minor Changes
+
+- a1c0431: Adds two-factor sign-in (authenticator app, email code, backup codes), email one-time-code sign-in and password reset, optional Cloudflare Turnstile captcha, and a Have I Been Pwned check on new passwords; caches sessions in a signed cookie for five minutes and adds the better-auth performance indexes (ADR 0015).
+
+### Patch Changes
+
+- 9cbf84c: Type the Attachment entity type as the `AttachmentEntityType` GraphQL enum (`general`, `todo`) and a `files.entity_type` pgEnum. Migration `0010` maps any other stored value to `general` first; the API now rejects unknown entity types at the GraphQL boundary.
+- f3caf78: Serve the built API and web app in the CI PR e2e job when `E2E_SERVE_BUILD=true`, instead of the tsx API and the Vite dev server. Local runs and Release keep the dev servers. The web build adds the Playwright fixture page only with `E2E_FIXTURES=true`; the shipped build is unchanged.
+- 7b8bd4d: The API builds its organization-filtered subscription resolvers from one map of fields to `PubSubEventMap` events. The web uses the generated subscription documents through `useLiveTodos` and `useLiveNotes`, so the hand-written subscription strings are gone, and the Todo subscriptions select only `id`.
+- Updated dependencies [9cbf84c]
+- Updated dependencies [56c7d80]
+- Updated dependencies [a1c0431]
+- Updated dependencies [68fc597]
+  - @repo/storage@1.3.0
+  - @repo/auth@3.0.0
+  - @repo/query@1.3.7
+  - @repo/ui@1.7.1
+  - @repo/translation@1.9.1
+
 ## 1.8.2
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @repo/desk-ui
 
+## 0.5.1
+
+### Patch Changes
+
+- 22dd10f: Derive a flow step's role in one contract function and send it on `FlowStepView.role`. Only a ship gate accepts a ship confirmation, so the CLI no longer suggests `ship --confirm` before an automatic ship.
+- Updated dependencies [a1c0431]
+- Updated dependencies [40cca08]
+- Updated dependencies [ccdac99]
+- Updated dependencies [40cca08]
+- Updated dependencies [22dd10f]
+  - @repo/ui@1.7.1
+  - @repo/translation@1.9.1
+  - @repo/desk@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
