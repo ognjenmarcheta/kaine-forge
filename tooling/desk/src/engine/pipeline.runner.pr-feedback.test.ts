@@ -129,7 +129,7 @@ describe("feedback from the PR, end to end with real git", () => {
 
     expect(await e.pipeline.start(ISSUE, { override: false })).toMatchObject({ stop: "gate" });
     expect(await e.pipeline.approvePlan(ISSUE)).toMatchObject({ stop: "gate" });
-    expect(await e.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({ stop: "gate" });
+    expect(await e.pipeline.ship(ISSUE, {})).toMatchObject({ stop: "gate" });
     const opened = await stateOf(e);
     const worktree = opened.worktreePath ?? "";
     const firstHead = await e.deps.git.headSha(worktree);
@@ -178,7 +178,7 @@ describe("feedback from the PR, end to end with real git", () => {
     expect(await readFile(path.join(artifacts, "feedback.md"), "utf8")).toContain("PR #101");
 
     // The ship of the round commits on the pushed head and pushes to the same PR.
-    expect(await e.pipeline.ship(ISSUE, { confirm: true })).toMatchObject({ stop: "gate" });
+    expect(await e.pipeline.ship(ISSUE, {})).toMatchObject({ stop: "gate" });
     const updated = await stateOf(e);
     const secondHead = await e.deps.git.headSha(worktree);
     expect(updated).toMatchObject({

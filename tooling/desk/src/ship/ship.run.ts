@@ -15,6 +15,7 @@ import {
   type IssueState,
   type PlannerOutput
 } from "../contracts";
+import { shipAdmission, type ShipAdmission, type ShipIntent } from "./ship.admission";
 import { findAttributionViolations, isAiIdentity } from "./ship.attribution";
 import {
   changesetDecision,
@@ -142,26 +143,21 @@ export interface ShipDeps {
   readonly github: GitHubPort;
   readonly clock: Clock;
   readonly config: DeskConfig;
-  /** Only `read` and `artifactsDir` are used. */
-  readonly store: Pick<IssueStore, "read" | "artifactsDir">;
+  readonly store: Pick<IssueStore, "artifactsDir">;
   readonly onEvent?: ((event: ShipEvent) => void) | undefined;
   /** Runs a check inside the scheduler's one check slot. Default: run it at once. */
   readonly checkSlot?: (<T>(task: () => Promise<T>) => Promise<T>) | undefined;
   /** Runs the ship checks. The pipeline passes the Docker port in Docker mode. Default: on the host. */
   readonly runChecks?: ((request: RunChecksRequest) => Promise<CheckReport>) | undefined;
   readonly timeouts?: Partial<ShipTimeouts> | undefined;
-  /**
-   * Awaited once, after the gate passed and before the first change (not in a
-   * dry run). The pipeline uses it to enter the `ship` stage only for a run
-   * that is allowed to change things, so a refusal leaves the state as it was.
-   */
-  readonly beforeChange?: (() => Promise<void>) | undefined;
 }
 
 export interface ShipRequest {
-  readonly issue: number;
-  /** The engineer's explicit confirmation. Without `true` the gate refuses. */
-  readonly confirm: boolean;
+  /** The live state of the issue. The ship never reads it from the store. */
+  readonly state: IssueState;
+  readonly intent: ShipIntent;
+  /** The issue may write to GitHub (no `--no-writeback`, no snapshot file). */
+  readonly writeback: boolean;
   /**
    * Evaluate the gate and write `ship-plan.json`, `pr-body.md` and
    * `commit-message.txt` to the artifacts directory. Nothing is written to the
@@ -170,12 +166,47 @@ export interface ShipRequest {
   readonly dryRun?: boolean | undefined;
 }
 
-/** A step that ends the run. Thrown inside `runShip`, turned into a result by `shipIssue`. */
+type ShipFailed = Extract<ShipResult, { readonly status: "failed" }>;
+
+/** A step that ends the run. Thrown inside the ship, turned into a result at its entry. */
 class ShipStop extends Error {
-  constructor(readonly result: ShipResult) {
+  constructor(readonly result: ShipFailed) {
     super("ship stopped");
   }
 }
+
+/**
+ * An admitted ship: the gate passed and nothing has changed yet. Only `runShip` can use it,
+ * and only once. `intent` says how the ship was admitted, so the caller records it.
+ */
+export interface ShipTicket {
+  readonly intent: ShipIntent;
+  readonly issue: number;
+}
+
+const TICKETS = new WeakMap<ShipTicket, () => Promise<ShipResult>>();
+
+const ticketFor = (request: ShipRequest, proceed: () => Promise<ShipResult>): ShipTicket => {
+  const ticket: ShipTicket = Object.freeze({
+    intent: request.intent,
+    issue: request.state.issueNumber
+  });
+  TICKETS.set(ticket, proceed);
+  return ticket;
+};
+
+/** What `prepareShip` answers. Every answer but `admitted` leaves everything as it was. */
+export type ShipPreparation =
+  | {
+      /** `shipAdmission` refused: the issue is not where this ship may start. */
+      readonly status: "not-admitted";
+      readonly refusal: ShipAdmissionRefusal;
+      readonly reason: string;
+    }
+  | Extract<ShipResult, { readonly status: "refused" | "dry-run" | "failed" }>
+  | { readonly status: "admitted"; readonly ticket: ShipTicket };
+
+type ShipAdmissionRefusal = Extract<ShipAdmission, { readonly ok: false }>["refusal"];
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
@@ -201,18 +232,51 @@ const exists = async (file: string): Promise<boolean> => {
   }
 };
 
-/** Run the ship step. It never throws: every outcome is a `ShipResult`. */
-export const shipIssue = async (deps: ShipDeps, request: ShipRequest): Promise<ShipResult> => {
+/**
+ * Phase one of a ship. It decides admission (`shipAdmission`), reads the state of the worktree,
+ * the review, the checks and GitHub, and evaluates the gate. It changes nothing: no state, no
+ * git, no GitHub. A dry run only writes its plan to the artifacts directory. It never throws.
+ */
+export const prepareShip = async (
+  deps: ShipDeps,
+  request: ShipRequest
+): Promise<ShipPreparation> => {
+  const admission = shipAdmission(request.state, request.intent, {
+    writeback: request.writeback,
+    dryRun: request.dryRun
+  });
+  if (!admission.ok) {
+    return { status: "not-admitted", refusal: admission.refusal, reason: admission.reason };
+  }
   const holder: { progress: ShipProgress | null } = { progress: null };
+  return guarded(holder, () => prepare(deps, request, holder));
+};
+
+/**
+ * Phase two: the admitted ship. The caller enters its ship stage first, so a crash after this
+ * point leaves the issue in the ship stage. The ticket is spent: a second call throws.
+ */
+export const runShip = (ticket: ShipTicket): Promise<ShipResult> => {
+  const proceed = TICKETS.get(ticket);
+  if (proceed === undefined)
+    throw new Error(`Ship ticket of #${ticket.issue} is spent or unknown.`);
+  TICKETS.delete(ticket);
+  return proceed();
+};
+
+const guarded = async <T>(
+  holder: { progress: ShipProgress | null },
+  run: () => Promise<T>
+): Promise<T | ShipFailed> => {
   try {
-    return await runShip(deps, request, holder);
+    return await run();
   } catch (error) {
     if (error instanceof ShipStop) return error.result;
     return failed({ kind: "error", message: errorMessage(error), progress: holder.progress });
   }
 };
 
-const failed = (failure: ShipFailure): ShipResult => ({ status: "failed", failure });
+const failed = (failure: ShipFailure): ShipFailed => ({ status: "failed", failure });
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 type FailureInput = DistributiveOmit<ShipFailure, "progress"> & {
@@ -254,11 +318,11 @@ const stepOf = (failure: ShipFailure): ShipStep => {
   }
 };
 
-const runShip = async (
+const prepare = async (
   deps: ShipDeps,
   request: ShipRequest,
   holder: { progress: ShipProgress | null }
-): Promise<ShipResult> => {
+): Promise<ShipPreparation> => {
   const { exec, git, github, config, clock } = deps;
   const dryRun = request.dryRun === true;
   const timeouts: ShipTimeouts = { ...DEFAULT_TIMEOUTS, ...deps.timeouts };
@@ -273,21 +337,12 @@ const runShip = async (
   };
 
   // --- state ---------------------------------------------------------------
-  const loaded = await deps.store.read(request.issue);
-  if (loaded.status !== "ok") {
-    return stop({
-      kind: "state",
-      message:
-        loaded.status === "missing"
-          ? `Issue #${request.issue} has no state. Start it first.`
-          : `The state of issue #${request.issue} is unreadable: ${loaded.detail}`
-    });
-  }
-  const state: IssueState = loaded.state;
+  const { state } = request;
+  const issue = state.issueNumber;
   // The base recorded at setup, so a config change after setup cannot retarget the PR.
   const baseBranch = state.baseBranch ?? DEFAULT_BASE_BRANCH;
   if (isTerminalStage(state.stage)) {
-    return stop({ kind: "state", message: `Issue #${request.issue} is '${state.stage}'.` });
+    return stop({ kind: "state", message: `Issue #${issue} is '${state.stage}'.` });
   }
   const { worktreePath: worktree, baseSha: stateBase } = state;
   if (worktree === null || stateBase === null || stateBase === undefined) {
@@ -302,7 +357,7 @@ const runShip = async (
           round: Math.max(1, state.prRounds ?? 0),
           pushedHead: state.prHeadSha ?? null
         };
-  const artifactsDir = deps.store.artifactsDir(request.issue);
+  const artifactsDir = deps.store.artifactsDir(issue);
   const shipDir = path.join(artifactsDir, SHIP_CHECK_DIR);
   const recordFile = path.join(artifactsDir, SHIP_RECORD_FILE);
 
@@ -326,18 +381,33 @@ const runShip = async (
   };
 
   const headBefore = await git.headSha(worktree);
-  let record: ShipRecord | null = savedRecord.status === "ok" ? savedRecord.value : null;
-  if (record !== null && record.pendingChangeset !== null && request.confirm && !dryRun) {
-    // A crash left a changeset file that no commit holds. Return to the pristine tree.
+  const record: ShipRecord | null = savedRecord.status === "ok" ? savedRecord.value : null;
+  if (record !== null && record.pendingChangeset !== null && !dryRun) {
+    // A crash left a changeset file that no commit holds. The gate must see the pristine tree,
+    // and phase one changes nothing: the ship cleans up first, then prepares again.
     const pending = record.pendingChangeset;
-    if (!(await existsInHead(exec, worktree, pending.path))) {
-      await unstageAll(exec, worktree);
-      const file = path.join(worktree, pending.path);
-      const current = await readFile(file, "utf8").catch(() => null);
-      if (current === pending.content) await rm(file, { force: true });
-      log(`removed the unfinished changeset ${pending.path} from an earlier run`);
-    }
-    record = await saveRecord({ ...record, pendingChangeset: null });
+    const withPending = record;
+    return {
+      status: "admitted",
+      ticket: ticketFor(request, () =>
+        guarded(holder, async (): Promise<ShipResult> => {
+          if (!(await existsInHead(exec, worktree, pending.path))) {
+            await unstageAll(exec, worktree);
+            const file = path.join(worktree, pending.path);
+            const current = await readFile(file, "utf8").catch(() => null);
+            if (current === pending.content) await rm(file, { force: true });
+            log(`removed the unfinished changeset ${pending.path} from an earlier run`);
+          }
+          await saveRecord({ ...withPending, pendingChangeset: null });
+          const again = await prepare(deps, request, holder);
+          if (again.status === "admitted") return runShip(again.ticket);
+          if (again.status === "not-admitted" || again.status === "dry-run") {
+            throw new Error(`Internal error: a prepared ship came back '${again.status}'.`);
+          }
+          return again;
+        })
+      )
+    };
   }
 
   // --- facts ---------------------------------------------------------------
@@ -379,7 +449,7 @@ const runShip = async (
   } else {
     try {
       authorization = recheckAuthorization(
-        await github.fetchIssue(request.issue),
+        await github.fetchIssue(issue),
         state.authorization,
         identity.owner
       );
@@ -441,7 +511,6 @@ const runShip = async (
     reviewHash: string | null;
     refs?: string[] | null;
   }): Promise<ShipGateInput> => ({
-    confirm: request.confirm,
     checks: { report: over.report, accept: over.accept },
     diffHash: over.codeHash,
     changedPaths: filesOf(over.diff),
@@ -484,7 +553,6 @@ const runShip = async (
     return { status: "refused", failures: gate.failures };
   }
   step("gate", gate.ok ? "done" : "failed", gate.ok ? undefined : "dry run: gate would refuse");
-  if (!dryRun) await deps.beforeChange?.();
 
   // --- changeset decision --------------------------------------------------
   const workspaces = await discoverWorkspaces(worktree);
@@ -549,18 +617,18 @@ const runShip = async (
       ? commitInputFor({
           plan: planned,
           reviewTitle: reviewArtifact?.review.prDraft.title,
-          issue: request.issue
+          issue: issue
         })
       : {
           type: "fix",
           subject: `address PR feedback (round ${update.round})`,
-          issue: request.issue
+          issue: issue
         }
   );
   const render = (reports: readonly CheckReport[]) =>
     buildPrBody({
       template,
-      issue: request.issue,
+      issue: issue,
       plan: planned,
       reports,
       review: reviewArtifact?.review ?? null,
@@ -619,7 +687,7 @@ const runShip = async (
     ]);
     const shipPlan: ShipPlan = shipPlanSchema.parse({
       version: 1,
-      issue: request.issue,
+      issue: issue,
       dryRun: true,
       generatedAt: clock.now().toISOString(),
       branch: branchNow,
@@ -653,488 +721,507 @@ const runShip = async (
     };
   }
 
-  // From here on the run changes things.
-  if (outcome === null) {
-    return stop({
-      kind: "changeset-invalid",
-      message: decided.kind === "invalid" ? decided.reason : "The changeset cannot be decided."
-    });
-  }
-  const branch = branchNow;
-  if (branch === null) return stop({ kind: "state", message: "HEAD is detached." });
-
-  step("identity", "start");
-  const problem = await identityProblem();
-  if (problem !== null) return stop({ kind: "git-identity", message: problem });
-  step("identity", "done");
-
-  let currentRecord: ShipRecord = resumedFrom ?? {
-    version: 1,
-    branch,
-    baseSha: base,
-    changeset: outcome,
-    pendingChangeset: null,
-    checkedDiffHash: null,
-    committedDiffHash: null,
-    commitSha: null,
-    rebased: false,
-    pullRequest: null
-  };
-  const persist = async (patch: Partial<ShipRecord>): Promise<void> => {
-    currentRecord = await saveRecord({ ...currentRecord, ...patch });
-  };
-  let rollbackFile: { path: string; content: string } | null = null;
-
-  /** Undo what a failed step before the commit changed: the index and the changeset file. */
-  const rollback = async (): Promise<void> => {
-    await unstageAll(exec, worktree);
-    if (rollbackFile !== null) {
-      const file = path.join(worktree, rollbackFile.path);
-      const current = await readFile(file, "utf8").catch(() => null);
-      if (current === rollbackFile.content) await rm(file, { force: true });
-      rollbackFile = null;
-    }
-    await persist({ pendingChangeset: null });
-  };
-  const runCheckJob = <T>(task: () => Promise<T>): Promise<T> =>
-    deps.checkSlot === undefined ? task() : deps.checkSlot(task);
-  const shipChecks = (baseSha: string): Promise<CheckReport> =>
-    runCheckJob(() =>
-      (deps.runChecks ?? runChecks)({
-        worktree,
-        kind: "ship",
-        config,
-        exec,
-        git,
-        baseSha,
-        artifactsDir: shipDir,
-        clock
-      })
-    );
-
-  // --- ship checks ------------------------------------------------------------
-  let commitSha: string = headBefore;
-  if (resumed) {
-    step("checks", "skipped", "the commit exists; its checks are on record");
-  } else {
-    step("checks", "start");
-    let report: CheckReport;
-    if (
-      shipReport !== null &&
-      shipReport.passed &&
-      shipReport.kind === "ship" &&
-      shipReport.diffHash === diff.diffHash
-    ) {
-      report = shipReport;
-      step("checks", "skipped", "a passed ship report matches the code");
-    } else {
-      report = await shipChecks(base);
-      shipReport = report;
-      diff = await git.diffAgainstBase(worktree, base);
-      if (!report.passed) {
-        return stop({
-          kind: "checks-failed",
-          message: `The ship checks failed (${
-            report.steps
-              .filter((entry) => entry.code !== 0)
-              .map((entry) => entry.argv.join(" "))
-              .join(", ") || "no step"
-          }).`,
-          report
-        });
-      }
-      step("checks", "done");
-    }
-    codeHash = diff.diffHash;
-    const afterChecks = evaluateShipGate(
-      await gateInput({
-        report,
-        accept: ["ship"],
-        diff,
-        codeHash,
-        reviewHash: currentRecord.rebased ? null : codeHash
-      })
-    );
-    if (!afterChecks.ok) {
-      step("gate", "failed", afterChecks.failures.map((failure) => failure.kind).join(", "));
-      return { status: "refused", failures: afterChecks.failures };
-    }
-  }
-
-  // --- changeset file ------------------------------------------------------------
-  let finalDiff = diff;
-  if (!resumed && outcome.kind === "file" && changesetText !== null) {
-    step("changeset", "start", outcome.path);
-    const violations = findAttributionViolations({
-      "commit-message": null,
-      "pr-title": null,
-      "pr-body": null,
-      changeset: changesetText
-    });
-    if (violations.length > 0) {
-      return stop({
-        kind: "attribution",
-        message: `The changeset text carries AI attribution: ${violations[0]?.message ?? ""}`,
-        violations
-      });
-    }
-    // Write the intent first. A crash between here and the commit leaves a record the next run can undo.
-    await persist({
-      pendingChangeset: { path: outcome.path, content: changesetText },
-      changeset: outcome
-    });
-    await mkdir(path.join(worktree, CHANGESET_DIR), { recursive: true });
-    await writeFile(path.join(worktree, outcome.path), changesetText, "utf8");
-    rollbackFile = { path: outcome.path, content: changesetText };
-    finalDiff = await git.diffAgainstBase(worktree, base);
-    step("changeset", "done");
-  } else {
-    step("changeset", "skipped", outcome.kind);
-  }
-
-  // --- message and body -------------------------------------------------------------
-  step("message", "start");
-  const body = render(reportsFor(codeHash));
-  const violations = attributionOf(body.body);
-  if (violations.length > 0) {
-    await rollback();
-    return stop({
-      kind: "attribution",
-      message: `AI attribution found in the ${violations.map((entry) => entry.source).join(", ")}: ${violations[0]?.message ?? ""}`,
-      violations
-    });
-  }
-  await writeTextArtifacts(body.body);
-  if (!resumed) {
-    const lint = await commitlint();
-    if (!lint.ok) {
-      await rollback();
-      return stop({
-        kind: "commit-message-invalid",
-        message: "commitlint rejects the commit message.",
-        output: lint.output
-      });
-    }
-  }
-  step("message", "done");
-
-  // --- stage and commit ----------------------------------------------------------------
-  if (resumed) {
-    step("stage", "skipped");
-    step("commit", "skipped", "already committed");
-  } else {
-    step("stage", "start");
-    const files = filesOf(finalDiff);
-    const forbidden = files.filter((file) => isProtectedPath(file));
-    if (forbidden.length > 0) {
-      await rollback();
-      return stop({
-        kind: "stage-mismatch",
-        message: `Protected paths are in the diff: ${forbidden.join(", ")}.`,
-        unexpected: forbidden,
-        missing: []
-      });
-    }
-    // `git reset` drops an exec bit that only the index holds (core.fileMode=false). Keep it.
-    let added: GitOutcome;
-    try {
-      const bits = (await fileModeIgnored(exec, worktree))
-        ? await indexExecBits(exec, worktree, files)
-        : null;
-      await unstageAll(exec, worktree);
-      added = await stageFiles(exec, worktree, files);
-      if (added.ok && bits !== null) {
-        const now = await indexExecBits(exec, worktree, files);
-        await setIndexExecBits(
-          exec,
-          worktree,
-          new Map([...bits].filter(([file, bit]) => now.get(file) !== bit))
-        );
-      }
-    } catch (error) {
-      await rollback();
-      return stop({ kind: "error", message: `git add failed: ${errorMessage(error)}` });
-    }
-    const staged = added.ok ? await stagedPaths(exec, worktree) : null;
-    if (staged === null) {
-      await rollback();
-      return stop({ kind: "error", message: `git add failed: ${added.log}` });
-    }
-    const expected = new Set(files);
-    const unexpected = staged.filter((file) => !expected.has(file));
-    const stagedSet = new Set(staged);
-    // At the base commit the index must hold every listed file. Later it holds only what is new.
-    const missing = headBefore === base ? files.filter((file) => !stagedSet.has(file)) : [];
-    if (unexpected.length > 0 || missing.length > 0) {
-      await rollback();
-      return stop({
-        kind: "stage-mismatch",
-        message: `The staged files differ from the diff (unexpected: ${unexpected.join(", ") || "none"}; missing: ${missing.join(", ") || "none"}).`,
-        unexpected,
-        missing
-      });
-    }
-    step("stage", "done", `${staged.length} file(s)`);
-
-    if (staged.length === 0) {
-      commitSha = headBefore;
-      step("commit", "skipped", "everything is already committed");
-    } else {
-      step("commit", "start");
-      const made = await commitStaged(
-        exec,
-        worktree,
-        path.join(artifactsDir, COMMIT_MESSAGE_FILE),
-        timeouts.commitMs
-      );
-      if (!made.ok) {
-        await rollback();
-        const hook = !made.timedOut && !looksLikeGitError(made.log);
-        return hook
-          ? stop({
-              kind: "hook-failed",
-              hook: "commit",
-              message: "A commit hook refused the commit.",
-              log: made.log
-            })
-          : stop({ kind: "commit-failed", message: "git commit failed.", log: made.log });
-      }
-      commitSha = await git.headSha(worktree);
-      step("commit", "done", commitSha.slice(0, 12));
-    }
-    const committed = await git.diffAgainstBase(worktree, base);
-    await persist({
-      branch,
-      baseSha: base,
-      changeset: outcome,
-      pendingChangeset: null,
-      checkedDiffHash: codeHash,
-      committedDiffHash: committed.diffHash,
-      commitSha,
-      rebased: false
-    });
-    rollbackFile = null;
-    holder.progress = { baseSha: base, commitSha, rebased: false };
-    if ((await git.statusPorcelain(worktree)).trim() !== "") {
-      return stop({
-        kind: "commit-failed",
-        message: "The worktree is not clean after the commit. Look at it before shipping again.",
-        log: await git.statusPorcelain(worktree)
-      });
-    }
-  }
-  // --- fetch and rebase ---------------------------------------------------------------------
-  let baseNow = base;
-  let rebased = currentRecord.rebased;
-  if (update === null) {
-    step("fetch", "start");
-    try {
-      await git.fetch(worktree, "origin", baseBranch);
-    } catch (error) {
-      return stop({ kind: "fetch-failed", message: errorMessage(error) });
-    }
-    step("fetch", "done");
-  } else {
-    // The reviewers read the pushed head. A rebase would rewrite it and need a forced push.
-    step("fetch", "skipped", "an update commits on the pushed head");
-  }
-
-  if (update !== null) {
-    step("rebase", "skipped", "an update never rebases");
-  } else if (await git.isAncestor(worktree, `origin/${baseBranch}`, "HEAD")) {
-    step("rebase", "skipped", "the branch is up to date");
-  } else {
-    step("rebase", "start");
-    const result = await rebaseOnto(exec, worktree, `origin/${baseBranch}`, timeouts.rebaseMs);
-    if (!result.ok) {
-      const files = await conflictedFiles(exec, worktree);
-      await rebaseAbort(exec, worktree);
-      return stop({
-        kind: "rebase-conflict",
-        message:
-          files.length > 0
-            ? `Rebase onto origin/${baseBranch} conflicts in ${files.join(", ")}. The rebase was aborted.`
-            : `Rebase onto origin/${baseBranch} failed. The rebase was aborted.`,
-        files,
-        log: result.log
-      });
-    }
-    const newBase = await revParse(exec, worktree, `origin/${baseBranch}`);
-    if (newBase === null) throw new Error(`cannot resolve origin/${baseBranch} after the rebase`);
-    baseNow = newBase;
-    rebased = true;
-    commitSha = await git.headSha(worktree);
-    holder.progress = { baseSha: baseNow, commitSha, rebased };
-    step("rebase", "done", `onto ${newBase.slice(0, 12)}`);
-
-    // The code changed under the checks: run them again, then ask the gate again.
-    step("checks", "start", "after rebase");
-    const rebasedReport = await shipChecks(baseNow);
-    shipReport = rebasedReport;
-    const rebasedDiff = await git.diffAgainstBase(worktree, baseNow);
-    await persist({
-      baseSha: baseNow,
-      commitSha,
-      rebased: true,
-      checkedDiffHash: rebasedReport.diffHash,
-      committedDiffHash: rebasedDiff.diffHash
-    });
-    if (!rebasedReport.passed) {
-      return stop({
-        kind: "checks-failed",
-        message: "The ship checks failed after the rebase.",
-        report: rebasedReport
-      });
-    }
-    step("checks", "done", "after rebase");
-    const again = evaluateShipGate(
-      await gateInput({
-        report: rebasedReport,
-        accept: ["ship"],
-        diff: rebasedDiff,
-        codeHash: rebasedDiff.diffHash,
-        // The reviewed diff text differs after a rebase. The code is the same plus upstream.
-        reviewHash: null,
-        // The rebase moved HEAD and the branch ref on purpose.
-        refs: []
-      })
-    );
-    if (!again.ok) return { status: "refused", failures: again.failures };
-    const rebasedBody = render(reportsFor(rebasedDiff.diffHash));
-    const rebasedViolations = attributionOf(rebasedBody.body);
-    if (rebasedViolations.length > 0) {
-      return stop({
-        kind: "attribution",
-        message: `AI attribution found in the ${rebasedViolations.map((entry) => entry.source).join(", ")}.`,
-        violations: rebasedViolations
-      });
-    }
-    await writeTextArtifacts(rebasedBody.body);
-  }
-
-  // --- push ------------------------------------------------------------------------------------
-  let alreadyPushed = false;
-  if (update !== null) {
-    // Read the PR again: it may have closed, or someone may have pushed, since the gate.
-    const before = await readPullRequest(commitSha);
-    const changed = before === null ? [] : pullRequestFailures(before);
-    if (changed.length > 0) {
-      return stop({
-        kind: "pr-changed",
-        message: `PR #${update.number} changed before the push. Nothing was pushed.`,
-        failures: changed
-      });
-    }
-    alreadyPushed =
-      before !== null && !("error" in before.view) && before.view.headRefOid === commitSha;
-  }
-  step(
-    "push",
-    alreadyPushed ? "skipped" : "start",
-    alreadyPushed ? "the PR head is this commit" : undefined
-  );
-  const pushed = alreadyPushed
-    ? { ok: true, log: "" }
-    : await pushBranch(exec, worktree, branch, timeouts.pushMs);
-  if (!pushed.ok) {
-    if (looksRejected(pushed.log)) {
-      return stop({
-        kind: "push-rejected",
-        message: "The remote rejected the push. Nothing was forced.",
-        log: pushed.log
-      });
-    }
-    return /husky|hook|pre-push/i.test(pushed.log)
-      ? stop({
-          kind: "hook-failed",
-          hook: "push",
-          message: "A pre-push hook refused the push.",
-          log: pushed.log
-        })
-      : stop({ kind: "push-failed", message: "git push failed.", log: pushed.log });
-  }
-  if (!alreadyPushed) step("push", "done");
-
-  // --- draft pull request --------------------------------------------------------------------------
-  step("pull-request", "start");
-  let pullRequest: { number: number; url: string };
-  let reused = false;
-  if (update !== null) {
-    // An update never opens a PR. The branch must still belong to the PR on record.
-    let found: PullRequestInfo | null;
-    try {
-      found = await github.findPullRequest(branch);
-    } catch (error) {
-      return stop({ kind: "pull-request-failed", message: errorMessage(error) });
-    }
-    if (found?.number !== update.number) {
-      return stop({
-        kind: "pr-changed",
-        message: `The open PR for '${branch}' is not PR #${update.number}. No PR was opened.`,
-        failures: [
-          {
-            kind: "pr-mismatch",
-            message:
-              found === null
-                ? `No open PR has the head '${branch}'.`
-                : `PR #${found.number} has the head '${branch}'.`
-          }
-        ]
-      });
-    }
-    pullRequest = found;
-    reused = true;
-  } else {
-    try {
-      const existing = await github.findPullRequest(branch);
-      if (existing === null) {
-        pullRequest = await github.createPullRequest({
-          base: baseBranch,
-          head: branch,
-          title: commit.header,
-          bodyFile: path.join(artifactsDir, PR_BODY_FILE),
-          draft: true
-        });
-      } else {
-        pullRequest = existing;
-        reused = true;
-      }
-    } catch (error) {
-      return stop({ kind: "pull-request-failed", message: errorMessage(error) });
-    }
-  }
-  await persist({ pullRequest });
-  step("pull-request", "done", reused ? `reused #${pullRequest.number}` : `#${pullRequest.number}`);
-
-  let changesetResult: ShipChangesetResult;
-  if (outcome.kind === "skip-label") {
-    step("label", "start", outcome.label);
-    let applied = true;
-    let note: string | null = null;
-    try {
-      await github.addPullRequestLabel(pullRequest.number, outcome.label);
-    } catch (error) {
-      applied = false;
-      note = errorMessage(error);
-      log(`could not add '${outcome.label}': ${note}`);
-    }
-    step("label", applied ? "done" : "failed", note ?? undefined);
-    changesetResult = { ...outcome, applied, labelNote: note };
-  } else {
-    step("label", "skipped");
-    changesetResult = outcome;
-  }
-
+  // From here on the run changes things. The caller enters its ship stage before it runs them.
   return {
-    status: "shipped",
-    prUrl: pullRequest.url,
-    prNumber: pullRequest.number,
-    reusedPullRequest: reused,
-    updated: update !== null,
-    commitSha,
-    branch,
-    baseSha: baseNow,
-    rebased,
-    changeset: changesetResult
+    status: "admitted",
+    ticket: ticketFor(request, () =>
+      guarded(holder, async (): Promise<ShipResult> => {
+        if (outcome === null) {
+          return stop({
+            kind: "changeset-invalid",
+            message:
+              decided.kind === "invalid" ? decided.reason : "The changeset cannot be decided."
+          });
+        }
+        const branch = branchNow;
+        if (branch === null) return stop({ kind: "state", message: "HEAD is detached." });
+
+        step("identity", "start");
+        const problem = await identityProblem();
+        if (problem !== null) return stop({ kind: "git-identity", message: problem });
+        step("identity", "done");
+
+        let currentRecord: ShipRecord = resumedFrom ?? {
+          version: 1,
+          branch,
+          baseSha: base,
+          changeset: outcome,
+          pendingChangeset: null,
+          checkedDiffHash: null,
+          committedDiffHash: null,
+          commitSha: null,
+          rebased: false,
+          pullRequest: null
+        };
+        const persist = async (patch: Partial<ShipRecord>): Promise<void> => {
+          currentRecord = await saveRecord({ ...currentRecord, ...patch });
+        };
+        let rollbackFile: { path: string; content: string } | null = null;
+
+        /** Undo what a failed step before the commit changed: the index and the changeset file. */
+        const rollback = async (): Promise<void> => {
+          await unstageAll(exec, worktree);
+          if (rollbackFile !== null) {
+            const file = path.join(worktree, rollbackFile.path);
+            const current = await readFile(file, "utf8").catch(() => null);
+            if (current === rollbackFile.content) await rm(file, { force: true });
+            rollbackFile = null;
+          }
+          await persist({ pendingChangeset: null });
+        };
+        const runCheckJob = <T>(task: () => Promise<T>): Promise<T> =>
+          deps.checkSlot === undefined ? task() : deps.checkSlot(task);
+        const shipChecks = (baseSha: string): Promise<CheckReport> =>
+          runCheckJob(() =>
+            (deps.runChecks ?? runChecks)({
+              worktree,
+              kind: "ship",
+              config,
+              exec,
+              git,
+              baseSha,
+              artifactsDir: shipDir,
+              clock
+            })
+          );
+
+        // --- ship checks ------------------------------------------------------------
+        let commitSha: string = headBefore;
+        if (resumed) {
+          step("checks", "skipped", "the commit exists; its checks are on record");
+        } else {
+          step("checks", "start");
+          let report: CheckReport;
+          if (
+            shipReport !== null &&
+            shipReport.passed &&
+            shipReport.kind === "ship" &&
+            shipReport.diffHash === diff.diffHash
+          ) {
+            report = shipReport;
+            step("checks", "skipped", "a passed ship report matches the code");
+          } else {
+            report = await shipChecks(base);
+            shipReport = report;
+            diff = await git.diffAgainstBase(worktree, base);
+            if (!report.passed) {
+              return stop({
+                kind: "checks-failed",
+                message: `The ship checks failed (${
+                  report.steps
+                    .filter((entry) => entry.code !== 0)
+                    .map((entry) => entry.argv.join(" "))
+                    .join(", ") || "no step"
+                }).`,
+                report
+              });
+            }
+            step("checks", "done");
+          }
+          codeHash = diff.diffHash;
+          const afterChecks = evaluateShipGate(
+            await gateInput({
+              report,
+              accept: ["ship"],
+              diff,
+              codeHash,
+              reviewHash: currentRecord.rebased ? null : codeHash
+            })
+          );
+          if (!afterChecks.ok) {
+            step("gate", "failed", afterChecks.failures.map((failure) => failure.kind).join(", "));
+            return { status: "refused", failures: afterChecks.failures };
+          }
+        }
+
+        // --- changeset file ------------------------------------------------------------
+        let finalDiff = diff;
+        if (!resumed && outcome.kind === "file" && changesetText !== null) {
+          step("changeset", "start", outcome.path);
+          const violations = findAttributionViolations({
+            "commit-message": null,
+            "pr-title": null,
+            "pr-body": null,
+            changeset: changesetText
+          });
+          if (violations.length > 0) {
+            return stop({
+              kind: "attribution",
+              message: `The changeset text carries AI attribution: ${violations[0]?.message ?? ""}`,
+              violations
+            });
+          }
+          // Write the intent first. A crash between here and the commit leaves a record the next run can undo.
+          await persist({
+            pendingChangeset: { path: outcome.path, content: changesetText },
+            changeset: outcome
+          });
+          await mkdir(path.join(worktree, CHANGESET_DIR), { recursive: true });
+          await writeFile(path.join(worktree, outcome.path), changesetText, "utf8");
+          rollbackFile = { path: outcome.path, content: changesetText };
+          finalDiff = await git.diffAgainstBase(worktree, base);
+          step("changeset", "done");
+        } else {
+          step("changeset", "skipped", outcome.kind);
+        }
+
+        // --- message and body -------------------------------------------------------------
+        step("message", "start");
+        const body = render(reportsFor(codeHash));
+        const violations = attributionOf(body.body);
+        if (violations.length > 0) {
+          await rollback();
+          return stop({
+            kind: "attribution",
+            message: `AI attribution found in the ${violations.map((entry) => entry.source).join(", ")}: ${violations[0]?.message ?? ""}`,
+            violations
+          });
+        }
+        await writeTextArtifacts(body.body);
+        if (!resumed) {
+          const lint = await commitlint();
+          if (!lint.ok) {
+            await rollback();
+            return stop({
+              kind: "commit-message-invalid",
+              message: "commitlint rejects the commit message.",
+              output: lint.output
+            });
+          }
+        }
+        step("message", "done");
+
+        // --- stage and commit ----------------------------------------------------------------
+        if (resumed) {
+          step("stage", "skipped");
+          step("commit", "skipped", "already committed");
+        } else {
+          step("stage", "start");
+          const files = filesOf(finalDiff);
+          const forbidden = files.filter((file) => isProtectedPath(file));
+          if (forbidden.length > 0) {
+            await rollback();
+            return stop({
+              kind: "stage-mismatch",
+              message: `Protected paths are in the diff: ${forbidden.join(", ")}.`,
+              unexpected: forbidden,
+              missing: []
+            });
+          }
+          // `git reset` drops an exec bit that only the index holds (core.fileMode=false). Keep it.
+          let added: GitOutcome;
+          try {
+            const bits = (await fileModeIgnored(exec, worktree))
+              ? await indexExecBits(exec, worktree, files)
+              : null;
+            await unstageAll(exec, worktree);
+            added = await stageFiles(exec, worktree, files);
+            if (added.ok && bits !== null) {
+              const now = await indexExecBits(exec, worktree, files);
+              await setIndexExecBits(
+                exec,
+                worktree,
+                new Map([...bits].filter(([file, bit]) => now.get(file) !== bit))
+              );
+            }
+          } catch (error) {
+            await rollback();
+            return stop({ kind: "error", message: `git add failed: ${errorMessage(error)}` });
+          }
+          const staged = added.ok ? await stagedPaths(exec, worktree) : null;
+          if (staged === null) {
+            await rollback();
+            return stop({ kind: "error", message: `git add failed: ${added.log}` });
+          }
+          const expected = new Set(files);
+          const unexpected = staged.filter((file) => !expected.has(file));
+          const stagedSet = new Set(staged);
+          // At the base commit the index must hold every listed file. Later it holds only what is new.
+          const missing = headBefore === base ? files.filter((file) => !stagedSet.has(file)) : [];
+          if (unexpected.length > 0 || missing.length > 0) {
+            await rollback();
+            return stop({
+              kind: "stage-mismatch",
+              message: `The staged files differ from the diff (unexpected: ${unexpected.join(", ") || "none"}; missing: ${missing.join(", ") || "none"}).`,
+              unexpected,
+              missing
+            });
+          }
+          step("stage", "done", `${staged.length} file(s)`);
+
+          if (staged.length === 0) {
+            commitSha = headBefore;
+            step("commit", "skipped", "everything is already committed");
+          } else {
+            step("commit", "start");
+            const made = await commitStaged(
+              exec,
+              worktree,
+              path.join(artifactsDir, COMMIT_MESSAGE_FILE),
+              timeouts.commitMs
+            );
+            if (!made.ok) {
+              await rollback();
+              const hook = !made.timedOut && !looksLikeGitError(made.log);
+              return hook
+                ? stop({
+                    kind: "hook-failed",
+                    hook: "commit",
+                    message: "A commit hook refused the commit.",
+                    log: made.log
+                  })
+                : stop({ kind: "commit-failed", message: "git commit failed.", log: made.log });
+            }
+            commitSha = await git.headSha(worktree);
+            step("commit", "done", commitSha.slice(0, 12));
+          }
+          const committed = await git.diffAgainstBase(worktree, base);
+          await persist({
+            branch,
+            baseSha: base,
+            changeset: outcome,
+            pendingChangeset: null,
+            checkedDiffHash: codeHash,
+            committedDiffHash: committed.diffHash,
+            commitSha,
+            rebased: false
+          });
+          rollbackFile = null;
+          holder.progress = { baseSha: base, commitSha, rebased: false };
+          if ((await git.statusPorcelain(worktree)).trim() !== "") {
+            return stop({
+              kind: "commit-failed",
+              message:
+                "The worktree is not clean after the commit. Look at it before shipping again.",
+              log: await git.statusPorcelain(worktree)
+            });
+          }
+        }
+        // --- fetch and rebase ---------------------------------------------------------------------
+        let baseNow = base;
+        let rebased = currentRecord.rebased;
+        if (update === null) {
+          step("fetch", "start");
+          try {
+            await git.fetch(worktree, "origin", baseBranch);
+          } catch (error) {
+            return stop({ kind: "fetch-failed", message: errorMessage(error) });
+          }
+          step("fetch", "done");
+        } else {
+          // The reviewers read the pushed head. A rebase would rewrite it and need a forced push.
+          step("fetch", "skipped", "an update commits on the pushed head");
+        }
+
+        if (update !== null) {
+          step("rebase", "skipped", "an update never rebases");
+        } else if (await git.isAncestor(worktree, `origin/${baseBranch}`, "HEAD")) {
+          step("rebase", "skipped", "the branch is up to date");
+        } else {
+          step("rebase", "start");
+          const result = await rebaseOnto(
+            exec,
+            worktree,
+            `origin/${baseBranch}`,
+            timeouts.rebaseMs
+          );
+          if (!result.ok) {
+            const files = await conflictedFiles(exec, worktree);
+            await rebaseAbort(exec, worktree);
+            return stop({
+              kind: "rebase-conflict",
+              message:
+                files.length > 0
+                  ? `Rebase onto origin/${baseBranch} conflicts in ${files.join(", ")}. The rebase was aborted.`
+                  : `Rebase onto origin/${baseBranch} failed. The rebase was aborted.`,
+              files,
+              log: result.log
+            });
+          }
+          const newBase = await revParse(exec, worktree, `origin/${baseBranch}`);
+          if (newBase === null)
+            throw new Error(`cannot resolve origin/${baseBranch} after the rebase`);
+          baseNow = newBase;
+          rebased = true;
+          commitSha = await git.headSha(worktree);
+          holder.progress = { baseSha: baseNow, commitSha, rebased };
+          step("rebase", "done", `onto ${newBase.slice(0, 12)}`);
+
+          // The code changed under the checks: run them again, then ask the gate again.
+          step("checks", "start", "after rebase");
+          const rebasedReport = await shipChecks(baseNow);
+          shipReport = rebasedReport;
+          const rebasedDiff = await git.diffAgainstBase(worktree, baseNow);
+          await persist({
+            baseSha: baseNow,
+            commitSha,
+            rebased: true,
+            checkedDiffHash: rebasedReport.diffHash,
+            committedDiffHash: rebasedDiff.diffHash
+          });
+          if (!rebasedReport.passed) {
+            return stop({
+              kind: "checks-failed",
+              message: "The ship checks failed after the rebase.",
+              report: rebasedReport
+            });
+          }
+          step("checks", "done", "after rebase");
+          const again = evaluateShipGate(
+            await gateInput({
+              report: rebasedReport,
+              accept: ["ship"],
+              diff: rebasedDiff,
+              codeHash: rebasedDiff.diffHash,
+              // The reviewed diff text differs after a rebase. The code is the same plus upstream.
+              reviewHash: null,
+              // The rebase moved HEAD and the branch ref on purpose.
+              refs: []
+            })
+          );
+          if (!again.ok) return { status: "refused", failures: again.failures };
+          const rebasedBody = render(reportsFor(rebasedDiff.diffHash));
+          const rebasedViolations = attributionOf(rebasedBody.body);
+          if (rebasedViolations.length > 0) {
+            return stop({
+              kind: "attribution",
+              message: `AI attribution found in the ${rebasedViolations.map((entry) => entry.source).join(", ")}.`,
+              violations: rebasedViolations
+            });
+          }
+          await writeTextArtifacts(rebasedBody.body);
+        }
+
+        // --- push ------------------------------------------------------------------------------------
+        let alreadyPushed = false;
+        if (update !== null) {
+          // Read the PR again: it may have closed, or someone may have pushed, since the gate.
+          const before = await readPullRequest(commitSha);
+          const changed = before === null ? [] : pullRequestFailures(before);
+          if (changed.length > 0) {
+            return stop({
+              kind: "pr-changed",
+              message: `PR #${update.number} changed before the push. Nothing was pushed.`,
+              failures: changed
+            });
+          }
+          alreadyPushed =
+            before !== null && !("error" in before.view) && before.view.headRefOid === commitSha;
+        }
+        step(
+          "push",
+          alreadyPushed ? "skipped" : "start",
+          alreadyPushed ? "the PR head is this commit" : undefined
+        );
+        const pushed = alreadyPushed
+          ? { ok: true, log: "" }
+          : await pushBranch(exec, worktree, branch, timeouts.pushMs);
+        if (!pushed.ok) {
+          if (looksRejected(pushed.log)) {
+            return stop({
+              kind: "push-rejected",
+              message: "The remote rejected the push. Nothing was forced.",
+              log: pushed.log
+            });
+          }
+          return /husky|hook|pre-push/i.test(pushed.log)
+            ? stop({
+                kind: "hook-failed",
+                hook: "push",
+                message: "A pre-push hook refused the push.",
+                log: pushed.log
+              })
+            : stop({ kind: "push-failed", message: "git push failed.", log: pushed.log });
+        }
+        if (!alreadyPushed) step("push", "done");
+
+        // --- draft pull request --------------------------------------------------------------------------
+        step("pull-request", "start");
+        let pullRequest: { number: number; url: string };
+        let reused = false;
+        if (update !== null) {
+          // An update never opens a PR. The branch must still belong to the PR on record.
+          let found: PullRequestInfo | null;
+          try {
+            found = await github.findPullRequest(branch);
+          } catch (error) {
+            return stop({ kind: "pull-request-failed", message: errorMessage(error) });
+          }
+          if (found?.number !== update.number) {
+            return stop({
+              kind: "pr-changed",
+              message: `The open PR for '${branch}' is not PR #${update.number}. No PR was opened.`,
+              failures: [
+                {
+                  kind: "pr-mismatch",
+                  message:
+                    found === null
+                      ? `No open PR has the head '${branch}'.`
+                      : `PR #${found.number} has the head '${branch}'.`
+                }
+              ]
+            });
+          }
+          pullRequest = found;
+          reused = true;
+        } else {
+          try {
+            const existing = await github.findPullRequest(branch);
+            if (existing === null) {
+              pullRequest = await github.createPullRequest({
+                base: baseBranch,
+                head: branch,
+                title: commit.header,
+                bodyFile: path.join(artifactsDir, PR_BODY_FILE),
+                draft: true
+              });
+            } else {
+              pullRequest = existing;
+              reused = true;
+            }
+          } catch (error) {
+            return stop({ kind: "pull-request-failed", message: errorMessage(error) });
+          }
+        }
+        await persist({ pullRequest });
+        step(
+          "pull-request",
+          "done",
+          reused ? `reused #${pullRequest.number}` : `#${pullRequest.number}`
+        );
+
+        let changesetResult: ShipChangesetResult;
+        if (outcome.kind === "skip-label") {
+          step("label", "start", outcome.label);
+          let applied = true;
+          let note: string | null = null;
+          try {
+            await github.addPullRequestLabel(pullRequest.number, outcome.label);
+          } catch (error) {
+            applied = false;
+            note = errorMessage(error);
+            log(`could not add '${outcome.label}': ${note}`);
+          }
+          step("label", applied ? "done" : "failed", note ?? undefined);
+          changesetResult = { ...outcome, applied, labelNote: note };
+        } else {
+          step("label", "skipped");
+          changesetResult = outcome;
+        }
+
+        return {
+          status: "shipped",
+          prUrl: pullRequest.url,
+          prNumber: pullRequest.number,
+          reusedPullRequest: reused,
+          updated: update !== null,
+          commitSha,
+          branch,
+          baseSha: baseNow,
+          rebased,
+          changeset: changesetResult
+        };
+      })
+    )
   };
 };

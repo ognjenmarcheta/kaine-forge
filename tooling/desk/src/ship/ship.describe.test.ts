@@ -74,10 +74,10 @@ describe("describeGateFailures and describeShipEvent", () => {
   it("lists each failed rule on its own line", () => {
     expect(
       describeGateFailures([
-        { kind: "not-confirmed", message: "No confirmation." },
+        { kind: "checks-missing", message: "No check report." },
         { kind: "refs-baseline-missing", message: "No baseline." }
       ])
-    ).toBe("- not-confirmed: No confirmation.\n- refs-baseline-missing: No baseline.");
+    ).toBe("- checks-missing: No check report.\n- refs-baseline-missing: No baseline.");
   });
 
   it("writes one short line for a step and for a log message", () => {

@@ -127,10 +127,12 @@ export type PipelineResult =
       readonly state: IssueState | null;
     };
 
-/** What the ship action takes. A real ship needs `confirm`; a dry run changes nothing. */
+/**
+ * What the ship action takes. Calling it is the owner's confirmation: the CLI asks for
+ * `--confirm` or a yes at the prompt, and the server contract needs `confirm: true`. A dry run
+ * changes nothing.
+ */
 export interface ShipOptions {
-  /** The engineer's explicit yes. A real ship refuses without it. */
-  readonly confirm: boolean;
   /** Write the ship plan and the PR body to the artifacts folder. Nothing else changes. */
   readonly dryRun?: boolean | undefined;
 }
