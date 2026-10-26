@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { isScalar, isSeq, parse as parseYaml, parseDocument } from "yaml";
 
+import {
+  guardedCommandMessage,
+  loadGuardedCommandRules,
+  type GuardedCommandRule
+} from "./hooks/guarded-command.mjs";
+
 export const generatedTextEqual = (actual: string, expected: string): boolean =>
   actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
 
@@ -99,14 +105,7 @@ export interface AgentDefinitionDrift {
   orphan: string[];
 }
 
-export interface GuardRule {
-  id: string;
-  decision: "deny" | "ask";
-  command: string;
-  flag?: string;
-  reason: string;
-  instead?: string;
-}
+export type GuardRule = GuardedCommandRule;
 
 export interface McpServer {
   command?: string;
@@ -688,31 +687,11 @@ export const readGuideSource = (): string => readFileSync(GUIDE_SRC, "utf8");
 export const readMcpSource = (): McpSource =>
   JSON.parse(readFileSync(MCP_SRC, "utf8")) as McpSource;
 
-const isGuardRule = (value: unknown): value is GuardRule =>
-  isRecord(value) &&
-  typeof value["id"] === "string" &&
-  (value["decision"] === "deny" || value["decision"] === "ask") &&
-  typeof value["command"] === "string" &&
-  value["command"].trim() !== "" &&
-  typeof value["reason"] === "string" &&
-  (value["flag"] === undefined || typeof value["flag"] === "string") &&
-  (value["instead"] === undefined || typeof value["instead"] === "string");
-
 /**
- * Parses the guarded-command policy at the trust boundary and drops anything
- * that does not satisfy GuardRule, so a malformed entry weakens the guard
- * rather than reaching a consumer as an unchecked shape. `pnpm ai:test`
- * asserts the committed file loses no rules to this filter.
+ * The well-formed rules of the guarded-command policy, through the loader the
+ * hook uses. pnpm ai:doctor reports any rule this drops.
  */
-export const readPermissionsSource = (): GuardRule[] => {
-  const parsed: unknown = JSON.parse(readFileSync(PERMISSIONS_SRC, "utf8"));
-
-  if (!isRecord(parsed) || !Array.isArray(parsed["rules"])) {
-    return [];
-  }
-
-  return parsed["rules"].filter(isGuardRule);
-};
+export const readPermissionsSource = (): GuardRule[] => loadGuardedCommandRules(PERMISSIONS_SRC);
 
 /**
  * Claude permission strings for the rules its matcher can express. Rules
@@ -760,8 +739,7 @@ export const renderGuardedCommandsSection = (rules: GuardRule[]): string => {
   // Generated Skills Index above uses bullets for the same reason.
   const rows = rules.map((rule) => {
     const target = rule.flag ? `${rule.command} ... ${rule.flag}` : rule.command;
-    const guidance = rule.instead ? `${rule.reason} Use \`${rule.instead}\` instead.` : rule.reason;
-    return `- **${rule.decision}** \`${target}\` — ${guidance}`;
+    return `- **${rule.decision}** \`${target}\` — ${guardedCommandMessage(rule)}`;
   });
 
   return [
@@ -1411,30 +1389,20 @@ export const renderCursorHooks = (): string =>
  */
 export const renderOpencodeGuardrailPlugin = (): string =>
   `// ${GEN_NOTICE}
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { guardedCommandMessage, matchGuardedCommand } from "../../.ai/hooks/guarded-command.mjs";
-import type { GuardedCommandRule } from "../../.ai/hooks/guarded-command.mjs";
+import {
+  guardedCommandMessage,
+  loadGuardedCommandRules,
+  matchGuardedCommand
+} from "../../.ai/hooks/guarded-command.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const readRules = () => {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(join(repoRoot, ".ai", "permissions.json"), "utf8"));
-    if (!parsed || typeof parsed !== "object" || !("rules" in parsed) || !Array.isArray(parsed.rules)) {
-      return [];
-    }
-    return parsed.rules.filter((rule: unknown): rule is GuardedCommandRule =>
-      rule !== null && typeof rule === "object" &&
-      "id" in rule && typeof rule.id === "string" &&
-      "decision" in rule && (rule.decision === "deny" || rule.decision === "ask") &&
-      "command" in rule && typeof rule.command === "string" &&
-      "reason" in rule && typeof rule.reason === "string" &&
-      (!("flag" in rule) || typeof rule.flag === "string") &&
-      (!("instead" in rule) || typeof rule.instead === "string")
-    );
+    return loadGuardedCommandRules(join(repoRoot, ".ai", "permissions.json"));
   } catch {
     // Fail open, like the hook: a broken policy must not block every command.
     return [];

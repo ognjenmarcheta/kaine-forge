@@ -15,6 +15,7 @@ import {
   renderOpencodeGuardrailPlugin,
   REPO_ROOT
 } from "./ai.util";
+import { readGuardedCommandPolicy } from "./hooks/guarded-command.mjs";
 import { validateHookPins } from "./mcp-probe.util";
 
 // These are hook inputs only. No proposed shell command is ever executed.
@@ -41,6 +42,11 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
       errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
+
+  check(".ai/permissions.json", () => {
+    for (const index of readGuardedCommandPolicy(join(repoRoot, ".ai/permissions.json")).dropped)
+      errors.push(`.ai/permissions.json: rules[${index}] is malformed, so no agent enforces it`);
+  });
 
   check("cursor configuration", () => {
     assert.deepEqual(JSON.parse(renderCursorHooks()), {
