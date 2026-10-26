@@ -150,6 +150,32 @@ describe("createTodoWorkflow", () => {
     });
   });
 
+  it("answers and publishes the delete without waiting for object storage", async () => {
+    const publishTodoEvent = vi.fn();
+    const workflow = createTodoWorkflow({
+      createTodo: async () => todo,
+      // A stalled object store: the delete never settles.
+      deleteAttachmentObject: () => new Promise<void>(() => undefined),
+      deleteTodo: async () => true,
+      deleteTodoAttachments: async () => [{ bucket: "files", key: "org-1/todo/a.png" }],
+      publishTodoEvent,
+      toggleTodo: async () => todo,
+      updateTodo: async () => todo,
+      warnTodoAttachmentCleanupFailed: () => undefined
+    });
+
+    const outcome = await Promise.race([
+      workflow.deleteTodo(scope, "todo-1"),
+      new Promise((resolve) => setTimeout(() => resolve("still waiting"), 50))
+    ]);
+
+    expect(outcome).toBe(true);
+    expect(publishTodoEvent).toHaveBeenCalledWith("todo:deleted", {
+      id: "todo-1",
+      organizationId: "org-1"
+    });
+  });
+
   it("warns, keeps deleting objects, and still deletes the Todo when an object delete fails", async () => {
     const error = new Error("s3 unreachable");
     const deleted: string[] = [];
@@ -173,7 +199,7 @@ describe("createTodoWorkflow", () => {
 
     await expect(workflow.deleteTodo(scope, "todo-1")).resolves.toBe(true);
 
-    expect(deleted).toEqual(["org-1/todo/b.pdf"]);
+    await vi.waitFor(() => expect(deleted).toEqual(["org-1/todo/b.pdf"]));
     expect(warnTodoAttachmentCleanupFailed).toHaveBeenCalledWith({
       err: error,
       todoId: "todo-1"

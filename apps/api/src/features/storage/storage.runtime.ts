@@ -53,7 +53,9 @@ function getS3Client(): ReturnType<typeof createStorageClient> {
 }
 
 export async function deleteStorageObject(bucket: string, key: string): Promise<void> {
-  await deleteObject(getS3Client(), bucket, key);
+  await deleteObject(getS3Client(), bucket, key, {
+    abortSignal: AbortSignal.timeout(STORAGE_CONFIG.objectDeleteTimeoutMs)
+  });
 }
 
 export function createStorageRuntime<TFile extends StorageRuntimeFile>(
