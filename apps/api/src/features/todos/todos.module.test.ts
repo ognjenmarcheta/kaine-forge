@@ -23,7 +23,8 @@ import {
 import { createTodos, type TodoAttachments, type Todos } from "./todos.module";
 import { createScopedData, type ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
-import { createTodoAttachments } from "../storage/attachment.lifecycle";
+import { createAttachments } from "../storage/attachment.module";
+import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 
 let database: TestDatabase;
 let data: ScopedData;
@@ -38,7 +39,13 @@ let deleteObject: (object: { bucket: string; key: string }) => Promise<void>;
 function todosWith(attachments?: TodoAttachments): Todos {
   return createTodos({
     attachments:
-      attachments ?? createTodoAttachments({ data, deleteObject: (o) => deleteObject(o), logger }),
+      attachments ??
+      createAttachments({
+        data,
+        logger,
+        // The real Attachment module; only the object delete is the test's to control.
+        store: { ...createMemoryObjectStore(), delete: (ref) => deleteObject(ref) }
+      }),
     data,
     logger,
     publish: (eventName, ...payload) => {
