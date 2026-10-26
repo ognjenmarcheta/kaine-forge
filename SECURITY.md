@@ -38,7 +38,8 @@ Use GitHub private vulnerability reporting: the repository's **Security** tab â†
 - Prefer least-privilege defaults for external integrations.
 - Rotate secrets immediately if exposure is suspected.
 - Validate inputs at API boundaries.
-- Template uploads use a default MIME allowlist (images/docs/spreadsheets; no SVG) and re-check object size/type on confirm when HEAD metadata is available.
+- Template uploads use a default MIME allowlist (images/docs/spreadsheets; no SVG) and reject a file name whose extension does not belong to its MIME type. The presigned PUT signs `Content-Type` and `Content-Length`, so the store rejects any other type or size. Confirm re-checks the object's size, type, and leading bytes, and deletes an object that does not match.
+- Upload URLs expire after 600 s and download URLs after 300 s by default (`S3_UPLOAD_URL_EXPIRY`, `S3_DOWNLOAD_URL_EXPIRY`). Downloads of non-image Attachments carry `Content-Disposition: attachment`.
 - Use Drizzle parameterized queries instead of handwritten SQL interpolation.
 - Keep cookies primary for browser auth and bearer-token fallback limited to session-token transport.
 - Web SPA must not store a durable session bearer in `localStorage` (cookie credentials only); mobile/desktop may use SecureStore or equivalent bearer transport.
@@ -52,7 +53,7 @@ Template defaults prioritize local DX. Before production multi-tenant traffic:
 2. Set `API_CORS_ORIGINS` to the exact browser origins you serve (required in production; dual-purpose CORS + better-auth `trustedOrigins`).
 3. Replace `EMAIL_PROVIDER=console` with a real adapter in `@repo/email` so password-reset and verification emails leave the process (console logs can include tokens).
 4. Soft email verification (`AUTH_REQUIRE_EMAIL_VERIFICATION`, ADR 0007) does not block login. To hard-gate, check `session.user.emailVerified` in app routing or API policy for the surfaces you care about.
-5. Prefer private S3 buckets; never copy the local MinIO anonymous-download pattern to production.
+5. Keep the Attachment bucket private. Every read goes through a presigned URL, and the local MinIO bucket is private too.
 6. Set `TURNSTILE_SECRET_KEY` with matching `VITE_TURNSTILE_SITE_KEY` / `EXPO_PUBLIC_TURNSTILE_SITE_KEY` to turn on captcha, and keep `AUTH_PASSWORD_BREACH_CHECK` on (ADR 0015).
 
 Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.env.example`.

@@ -31,7 +31,13 @@ export const storageResolvers = {
   },
   FileInfo: {
     async downloadUrl(
-      parent: { bucket: string; key: string; status: "pending" | "uploaded" | "deleted" },
+      parent: {
+        bucket: string;
+        key: string;
+        mimeType: string;
+        originalName: string;
+        status: "pending" | "uploaded" | "deleted";
+      },
       _args: unknown,
       ctx: ResolverContext
     ) {

@@ -3,6 +3,8 @@ import type { ObjectRef, ObjectStore } from "./attachment.store";
 interface StoredObject {
   contentType: string;
   sizeBytes: number;
+  /** The object's leading bytes, as far as a test needs them. */
+  bytes?: Uint8Array;
 }
 
 /**
@@ -16,10 +18,15 @@ export function createMemoryObjectStore(bucket = "memory") {
   const store: ObjectStore = {
     place: (key) => ({ bucket, key }),
     presignUpload: async (ref) => ({ url: `memory://${id(ref)}?upload`, expiresIn: 900 }),
-    presignDownload: async (ref) => `memory://${id(ref)}`,
+    presignDownload: async (ref, contentDisposition) =>
+      `memory://${id(ref)}?disposition=${encodeURIComponent(contentDisposition)}`,
     head: async (ref) => {
       const stored = objects.get(id(ref));
       return stored ? { contentType: stored.contentType, sizeBytes: stored.sizeBytes } : null;
+    },
+    readPrefix: async (ref, bytes) => {
+      const stored = objects.get(id(ref));
+      return stored ? (stored.bytes ?? new Uint8Array()).slice(0, bytes) : null;
     },
     delete: async (ref) => {
       objects.delete(id(ref));

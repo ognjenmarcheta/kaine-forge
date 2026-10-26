@@ -4,6 +4,7 @@ import {
   generatePresignedDownloadUrl,
   generatePresignedUploadUrl,
   headObjectMetadata,
+  readObjectPrefix,
   resolveStorageConfig,
   type StorageConfig
 } from "@repo/storage";
@@ -20,12 +21,18 @@ export interface ObjectRef {
 export interface ObjectStore {
   /** Where a new object with this key goes. */
   place: (key: string) => ObjectRef;
-  presignUpload: (ref: ObjectRef, mimeType: string) => Promise<{ url: string; expiresIn: number }>;
-  presignDownload: (ref: ObjectRef) => Promise<string>;
+  /** A PUT URL that only accepts a body of exactly this type and size. */
+  presignUpload: (
+    ref: ObjectRef,
+    object: { mimeType: string; sizeBytes: number }
+  ) => Promise<{ url: string; expiresIn: number }>;
+  presignDownload: (ref: ObjectRef, contentDisposition: string) => Promise<string>;
   /** The stored object's metadata, or null when there is no readable object. */
   head: (
     ref: ObjectRef
   ) => Promise<{ contentType?: string | undefined; sizeBytes?: number | undefined } | null>;
+  /** The object's first `bytes` bytes, or null when there is no readable object. */
+  readPrefix: (ref: ObjectRef, bytes: number) => Promise<Uint8Array | null>;
   /** Settles in bounded time; rejects when the delete fails. */
   delete: (ref: ObjectRef) => Promise<void>;
 }
@@ -47,26 +54,29 @@ function client(): ReturnType<typeof createStorageClient> {
 
 export const s3ObjectStore: ObjectStore = {
   place: (key) => ({ bucket: config().bucket, key }),
-  async presignUpload({ bucket, key }, mimeType) {
+  async presignUpload({ bucket, key }, { mimeType, sizeBytes }) {
     const { url, expiresIn } = await generatePresignedUploadUrl(
       client(),
       bucket,
       key,
       mimeType,
-      config().presignedUrlExpirySeconds
+      sizeBytes,
+      config().uploadUrlExpirySeconds
     );
     return { url, expiresIn };
   },
-  async presignDownload({ bucket, key }) {
+  async presignDownload({ bucket, key }, contentDisposition) {
     const { url } = await generatePresignedDownloadUrl(
       client(),
       bucket,
       key,
-      config().presignedUrlExpirySeconds
+      config().downloadUrlExpirySeconds,
+      { contentDisposition }
     );
     return url;
   },
   head: ({ bucket, key }) => headObjectMetadata(client(), bucket, key),
+  readPrefix: ({ bucket, key }, bytes) => readObjectPrefix(client(), bucket, key, bytes),
   delete: ({ bucket, key }) =>
     deleteObject(client(), bucket, key, {
       abortSignal: AbortSignal.timeout(STORAGE_CONFIG.objectDeleteTimeoutMs)

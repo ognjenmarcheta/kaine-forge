@@ -1,7 +1,13 @@
 import type { AttachmentEntityType, File } from "@repo/db";
 import { todosTable } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { buildStorageKey, STORAGE_DEFAULTS, validateFile } from "@repo/storage";
+import {
+  buildStorageKey,
+  contentDisposition,
+  matchesFileSignature,
+  STORAGE_DEFAULTS,
+  validateFile
+} from "@repo/storage";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
@@ -40,8 +46,13 @@ export interface Attachments extends TodoAttachments {
   list: (filter: FilesFilterInput) => Promise<File[]>;
   /** The uploaded Attachments of the given Todos, unpaginated (for the batch loader). */
   listByTodoIds: (todoIds: readonly string[]) => Promise<File[]>;
-  /** A presigned GET for an uploaded Attachment; null for any other status. */
-  downloadUrl: (file: Pick<File, "bucket" | "key" | "status">) => Promise<string | null>;
+  /**
+   * A presigned GET for an uploaded Attachment, null for any other status.
+   * Images open inline; every other type downloads as a file.
+   */
+  downloadUrl: (
+    file: Pick<File, "bucket" | "key" | "status" | "mimeType" | "originalName">
+  ) => Promise<string | null>;
   /**
    * Validates the file, checks that a `todo` target is a Todo in the Active
    * Organization (`attachment target not found`), records a pending row, and
@@ -50,7 +61,11 @@ export interface Attachments extends TodoAttachments {
   request: (
     input: RequestUploadInput
   ) => Promise<{ fileId: string; uploadUrl: string; key: string; expiresIn: number }>;
-  /** Marks a pending Attachment uploaded once its object exists and matches the claim. */
+  /**
+   * Marks a pending Attachment uploaded once its object exists and its size,
+   * type, and leading bytes match the claim. An object that does not match is
+   * deleted and its row marked deleted, so a rejected upload leaves nothing.
+   */
   confirm: (id: string) => Promise<File>;
   /** Deletes the object, logging a failure, then marks the row deleted. */
   delete: (id: string) => Promise<boolean>;
@@ -74,18 +89,77 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
     return todos.length > 0;
   }
 
+  async function removeObject(file: File, message: string): Promise<void> {
+    try {
+      await store.delete(file);
+    } catch (err) {
+      // `error`, not `err`: pino's default serializer would copy every
+      // enumerable property of the error onto the record. See observability.ts.
+      logger.warn({ error: formatLoggableError(err), key: file.key }, message);
+    }
+  }
+
+  /** Why an uploaded object does not match its pending row, or null when it does. */
+  async function rejectionOf(
+    file: File,
+    metadata: { contentType?: string | undefined; sizeBytes?: number | undefined }
+  ): Promise<string | null> {
+    // Re-apply default policy to claimed metadata (size + MIME allowlist + extension).
+    const validation = validateFile({
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      originalName: file.originalName
+    });
+
+    if (!validation.valid) {
+      return `file validation failed: ${validation.errors.join(", ")}`;
+    }
+
+    if (
+      typeof metadata.sizeBytes === "number" &&
+      metadata.sizeBytes > STORAGE_DEFAULTS.maxFileSizeBytes
+    ) {
+      return `uploaded object size ${metadata.sizeBytes} exceeds maximum ${STORAGE_DEFAULTS.maxFileSizeBytes} bytes`;
+    }
+
+    if (typeof metadata.sizeBytes === "number" && metadata.sizeBytes > file.sizeBytes) {
+      return `uploaded object size ${metadata.sizeBytes} exceeds claimed size ${file.sizeBytes} bytes`;
+    }
+
+    if (
+      metadata.contentType &&
+      metadata.contentType.split(";")[0]?.trim().toLowerCase() !== file.mimeType.toLowerCase()
+    ) {
+      return `uploaded content type ${metadata.contentType} does not match claimed type ${file.mimeType}`;
+    }
+
+    const prefix = await store.readPrefix(file, STORAGE_DEFAULTS.signatureSampleBytes);
+
+    if (!prefix || !matchesFileSignature(file.mimeType, prefix)) {
+      return `uploaded content does not match claimed type ${file.mimeType}`;
+    }
+
+    return null;
+  }
+
   return {
     get: (id) => getFileById(data, id),
     list: (filter) => listFiles(data, filter),
     listByTodoIds: (todoIds) =>
       listFilesByEntityIds(data, ATTACHMENT_ENTITY_TYPES.todo, [...todoIds], "uploaded"),
     async downloadUrl(file) {
-      return file.status === "uploaded" ? store.presignDownload(file) : null;
+      return file.status === "uploaded"
+        ? store.presignDownload(file, contentDisposition(file.mimeType, file.originalName))
+        : null;
     },
     async request(input) {
       // Scope first, so a request without one fails on scope, not on input.
       const { organizationId } = data.stamp();
-      const validation = validateFile({ mimeType: input.mimeType, sizeBytes: input.sizeBytes }, {});
+      const validation = validateFile({
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        originalName: input.originalName
+      });
 
       if (!validation.valid) {
         throw new Error(`file validation failed: ${validation.errors.join(", ")}`);
@@ -119,7 +193,10 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null
       });
-      const upload = await store.presignUpload(ref, input.mimeType);
+      const upload = await store.presignUpload(ref, {
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes
+      });
 
       return { fileId: file.id, uploadUrl: upload.url, key: ref.key, expiresIn: upload.expiresIn };
     },
@@ -130,41 +207,19 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
         throw new Error(`file status is ${file.status}, expected pending`);
       }
 
-      // Re-apply default policy to claimed metadata (size + MIME allowlist).
-      const validation = validateFile({ mimeType: file.mimeType, sizeBytes: file.sizeBytes });
-
-      if (!validation.valid) {
-        throw new Error(`file validation failed: ${validation.errors.join(", ")}`);
-      }
-
       const metadata = await store.head(file);
 
       if (!metadata) {
+        // Not terminal: the client may still be uploading, so it can confirm again.
         throw new Error("file has not been uploaded to storage");
       }
 
-      if (
-        typeof metadata.sizeBytes === "number" &&
-        metadata.sizeBytes > STORAGE_DEFAULTS.maxFileSizeBytes
-      ) {
-        throw new Error(
-          `uploaded object size ${metadata.sizeBytes} exceeds maximum ${STORAGE_DEFAULTS.maxFileSizeBytes} bytes`
-        );
-      }
+      const rejection = await rejectionOf(file, metadata);
 
-      if (typeof metadata.sizeBytes === "number" && metadata.sizeBytes > file.sizeBytes) {
-        throw new Error(
-          `uploaded object size ${metadata.sizeBytes} exceeds claimed size ${file.sizeBytes} bytes`
-        );
-      }
-
-      if (
-        metadata.contentType &&
-        metadata.contentType.split(";")[0]?.trim().toLowerCase() !== file.mimeType.toLowerCase()
-      ) {
-        throw new Error(
-          `uploaded content type ${metadata.contentType} does not match claimed type ${file.mimeType}`
-        );
+      if (rejection) {
+        await removeObject(file, "failed to delete rejected upload from S3");
+        await updateFileStatus(data, file.id, "deleted");
+        throw new Error(rejection);
       }
 
       return updateFileStatus(data, file.id, "uploaded");
@@ -172,17 +227,7 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
     async delete(id) {
       const file = await requireFile(id);
 
-      try {
-        await store.delete(file);
-      } catch (err) {
-        // `error`, not `err`: pino's default serializer would copy every
-        // enumerable property of the error onto the record. See observability.ts.
-        logger.warn(
-          { error: formatLoggableError(err), key: file.key },
-          "failed to delete object from S3"
-        );
-      }
-
+      await removeObject(file, "failed to delete object from S3");
       await updateFileStatus(data, file.id, "deleted");
       return true;
     },

@@ -28,6 +28,8 @@ let logger: Logger;
 let warn: MockInstance<Logger["warn"]>;
 
 const upload = { mimeType: "image/png", originalName: "photo.png", sizeBytes: 1024 };
+const PNG_BYTES = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const pngObject = { contentType: "image/png", sizeBytes: 1024, bytes: PNG_BYTES };
 
 function attachmentsWith(store: ObjectStore = memory): Attachments {
   return createAttachments({ data, logger, store });
@@ -91,7 +93,7 @@ beforeEach(() => {
 /** request + the client's PUT, as the web upload hook does it. */
 async function uploaded(
   attachments: Attachments,
-  object = { contentType: "image/png", sizeBytes: 1024 }
+  object: Parameters<typeof memory.upload>[1] = pngObject
 ) {
   const requested = await attachments.request({
     ...upload,
@@ -133,6 +135,9 @@ describe("createAttachments", () => {
     await expect(attachmentsWith().request({ ...upload, entityType: "todo" })).rejects.toThrow(
       "attachment target not found"
     );
+    await expect(
+      attachmentsWith().request({ ...upload, originalName: "photo.png.exe" })
+    ).rejects.toThrow('file extension "exe" does not match');
     expect(await rows()).toEqual(before);
   });
 
@@ -143,26 +148,36 @@ describe("createAttachments", () => {
       entityId: ownTodoId,
       entityType: "todo"
     });
-    const tooLarge = await uploaded(attachments, { contentType: "image/png", sizeBytes: 5000 });
-    const wrongType = await uploaded(attachments, {
-      contentType: "application/pdf",
-      sizeBytes: 1024
-    });
     const good = await uploaded(attachments, {
-      contentType: "image/png; charset=binary",
-      sizeBytes: 1024
+      ...pngObject,
+      contentType: "image/png; charset=binary"
     });
 
     await expect(attachments.confirm(missing.fileId)).rejects.toThrow("has not been uploaded");
-    await expect(attachments.confirm(tooLarge.fileId)).rejects.toThrow(/exceeds claimed size/);
-    await expect(attachments.confirm(wrongType.fileId)).rejects.toThrow(
-      /does not match claimed type/
-    );
+    expect(await attachments.get(missing.fileId)).toMatchObject({ status: "pending" });
     await expect(attachments.confirm(good.fileId)).resolves.toMatchObject({ status: "uploaded" });
     await expect(attachments.confirm(good.fileId)).rejects.toThrow("expected pending");
     await expect(attachments.confirm("00000000-0000-4000-8000-00000000ffff")).rejects.toThrow(
       "file not found"
     );
+  });
+
+  it.each([
+    ["larger than claimed", { ...pngObject, sizeBytes: 5000 }, /exceeds claimed size/],
+    ["of another stored type", { ...pngObject, contentType: "application/pdf" }, /does not match/],
+    [
+      "whose bytes are not the claimed type",
+      { ...pngObject, bytes: new TextEncoder().encode("<html><script>") },
+      /uploaded content does not match claimed type image\/png/
+    ]
+  ])("deletes an object %s and marks its row deleted", async (_case, object, message) => {
+    const attachments = attachmentsWith();
+    const requested = await uploaded(attachments, object);
+
+    await expect(attachments.confirm(requested.fileId)).rejects.toThrow(message);
+
+    expect(memory.keys()).not.toContain(requested.key);
+    expect(await attachments.get(requested.fileId)).toMatchObject({ status: "deleted" });
   });
 
   it("presigns downloads for uploaded Attachments only, and lists them per Todo", async () => {
@@ -181,7 +196,9 @@ describe("createAttachments", () => {
     if (!pendingFile || !doneFile) throw new Error("missing files");
 
     expect(await attachments.downloadUrl(pendingFile)).toBeNull();
-    expect(await attachments.downloadUrl(doneFile)).toBe(`memory://uploads/${done.key}`);
+    expect(await attachments.downloadUrl(doneFile)).toBe(
+      `memory://uploads/${done.key}?disposition=inline`
+    );
     const listed = (await attachments.listByTodoIds([ownTodoId])).map((file) => file.id);
     expect(listed).toContain(done.fileId);
     expect(listed).not.toContain(pending.fileId);
@@ -229,10 +246,7 @@ describe("createAttachments", () => {
         entityId: todo.id,
         entityType: "todo"
       });
-      memory.upload(
-        { bucket: "uploads", key: requested.key },
-        { contentType: "image/png", sizeBytes: 1024 }
-      );
+      memory.upload({ bucket: "uploads", key: requested.key }, pngObject);
       await attachments.confirm(requested.fileId);
     }
     expect(memory.keys()).toHaveLength(2);

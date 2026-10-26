@@ -17,7 +17,10 @@ export function createStorageClient(config: StorageConfig): S3Client {
       accessKeyId: config.accessKey,
       secretAccessKey: config.secretKey
     },
-    forcePathStyle: config.forcePathStyle
+    forcePathStyle: config.forcePathStyle,
+    // The default adds a checksum of the (empty) presign-time body to every
+    // presigned PUT, so S3 rejects the real upload as a checksum mismatch.
+    requestChecksumCalculation: "WHEN_REQUIRED"
   });
 }
 
@@ -26,15 +29,21 @@ export async function generatePresignedUploadUrl(
   bucket: string,
   key: string,
   contentType: string,
+  contentLength: number,
   expiresIn: number
 ): Promise<PresignedUploadResult> {
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
-    ContentType: contentType
+    ContentType: contentType,
+    ContentLength: contentLength
   });
 
-  const url = await getSignedUrl(client, command, { expiresIn });
+  // Signing both headers makes the store reject a body of any other type or size.
+  const url = await getSignedUrl(client, command, {
+    expiresIn,
+    signableHeaders: new Set(["content-type", "content-length"])
+  });
 
   return { url, key, expiresIn };
 }
@@ -43,11 +52,13 @@ export async function generatePresignedDownloadUrl(
   client: S3Client,
   bucket: string,
   key: string,
-  expiresIn: number
+  expiresIn: number,
+  options: { contentDisposition?: string } = {}
 ): Promise<PresignedDownloadResult> {
   const command = new GetObjectCommand({
     Bucket: bucket,
-    Key: key
+    Key: key,
+    ResponseContentDisposition: options.contentDisposition
   });
 
   const url = await getSignedUrl(client, command, { expiresIn });
@@ -95,6 +106,28 @@ export async function headObjectMetadata(
       contentType: result.ContentType,
       sizeBytes: typeof result.ContentLength === "number" ? result.ContentLength : undefined
     };
+  } catch {
+    return null;
+  }
+}
+
+/** The first `bytes` bytes of an object, or null when there is no readable object. */
+export async function readObjectPrefix(
+  client: S3Client,
+  bucket: string,
+  key: string,
+  bytes: number
+): Promise<Uint8Array | null> {
+  try {
+    const result = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=0-${bytes - 1}`
+      })
+    );
+
+    return (await result.Body?.transformToByteArray()) ?? null;
   } catch {
     return null;
   }
