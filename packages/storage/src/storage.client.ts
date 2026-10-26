@@ -100,11 +100,17 @@ export async function headObjectMetadata(
   }
 }
 
-export async function deleteObject(client: S3Client, bucket: string, key: string): Promise<void> {
+export async function deleteObject(
+  client: S3Client,
+  bucket: string,
+  key: string,
+  options: { abortSignal?: AbortSignal } = {}
+): Promise<void> {
   await client.send(
     new DeleteObjectCommand({
       Bucket: bucket,
       Key: key
-    })
+    }),
+    options
   );
 }

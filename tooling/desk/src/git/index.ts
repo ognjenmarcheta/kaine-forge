@@ -1,3 +1,4 @@
+export { isGitBranchName, isValidBranchName, type BranchName } from "./git.branch";
 export {
   diffAgainstBase,
   DIFF_STATUSES,
@@ -14,12 +15,22 @@ export {
   type WorktreeAddRequest,
   type WorktreeEntry
 } from "./git.port";
+export { compareRefs, createGitPort, isOtherIssueRef } from "./git.real";
+export { GitError, runGit, tryGit, type GitOutcome, type RunGitOptions } from "./git.run";
 export {
-  compareRefs,
-  createGitPort,
-  GitError,
-  isOtherIssueRef,
-  runGit,
-  type RunGitOptions
-} from "./git.real";
+  commitStaged,
+  conflictedFiles,
+  existsInHead,
+  looksLikeGitError,
+  looksRejected,
+  pushBranch,
+  readGitIdentity,
+  rebaseAbort,
+  rebaseOnto,
+  revParse,
+  stageFiles,
+  stagedPaths,
+  unstageAll,
+  type GitIdentity
+} from "./git.ship";
 export { fileModeIgnored, indexExecBits, patchExecBits, setIndexExecBits } from "./git.modes";

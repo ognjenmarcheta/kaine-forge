@@ -31,8 +31,9 @@ describe("createTodoWorkflow", () => {
     const publishTodoEvent = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: async () => false,
-      deleteTodoAttachments: async () => undefined,
+      deleteTodoAttachments: async () => [],
       publishTodoEvent,
       toggleTodo: async () => todo,
       updateTodo: async () => todo,
@@ -64,8 +65,9 @@ describe("createTodoWorkflow", () => {
     const publishTodoEvent = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo: async () => todo,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: async () => false,
-      deleteTodoAttachments: async () => undefined,
+      deleteTodoAttachments: async () => [],
       publishTodoEvent,
       toggleTodo: async () => todo,
       updateTodo,
@@ -95,8 +97,9 @@ describe("createTodoWorkflow", () => {
     const publishTodoEvent = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo: async () => todo,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: async () => false,
-      deleteTodoAttachments: async () => undefined,
+      deleteTodoAttachments: async () => [],
       publishTodoEvent,
       toggleTodo,
       updateTodo: async () => todo,
@@ -109,18 +112,25 @@ describe("createTodoWorkflow", () => {
     expect(publishTodoEvent).toHaveBeenCalledWith("todo:toggled", toggledTodo);
   });
 
-  it("deletes Todo attachments before deleting the Todo", async () => {
+  it("soft-deletes Attachments, deletes the Todo, then deletes each Attachment object", async () => {
     const calls: string[] = [];
     const publishTodoEvent = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo: async () => todo,
+      deleteAttachmentObject: async (object) => {
+        calls.push(`object:${object.key}`);
+      },
       deleteTodo: async () => {
         calls.push("todo");
         return true;
       },
-      deleteTodoAttachments: vi.fn(async () => {
+      deleteTodoAttachments: async () => {
         calls.push("attachments");
-      }),
+        return [
+          { bucket: "files", key: "org-1/todo/a.png" },
+          { bucket: "files", key: "org-1/todo/b.pdf" }
+        ];
+      },
       publishTodoEvent,
       toggleTodo: async () => todo,
       updateTodo: async () => todo,
@@ -129,10 +139,71 @@ describe("createTodoWorkflow", () => {
 
     await workflow.deleteTodo(scope, "todo-1");
 
-    expect(calls).toEqual(["attachments", "todo"]);
+    expect(calls).toEqual([
+      "attachments",
+      "todo",
+      "object:org-1/todo/a.png",
+      "object:org-1/todo/b.pdf"
+    ]);
     expect(publishTodoEvent).toHaveBeenCalledWith("todo:deleted", {
       id: "todo-1",
       organizationId: "org-1"
+    });
+  });
+
+  it("answers and publishes the delete without waiting for object storage", async () => {
+    const publishTodoEvent = vi.fn();
+    const workflow = createTodoWorkflow({
+      createTodo: async () => todo,
+      // A stalled object store: the delete never settles.
+      deleteAttachmentObject: () => new Promise<void>(() => undefined),
+      deleteTodo: async () => true,
+      deleteTodoAttachments: async () => [{ bucket: "files", key: "org-1/todo/a.png" }],
+      publishTodoEvent,
+      toggleTodo: async () => todo,
+      updateTodo: async () => todo,
+      warnTodoAttachmentCleanupFailed: () => undefined
+    });
+
+    const outcome = await Promise.race([
+      workflow.deleteTodo(scope, "todo-1"),
+      new Promise((resolve) => setTimeout(() => resolve("still waiting"), 50))
+    ]);
+
+    expect(outcome).toBe(true);
+    expect(publishTodoEvent).toHaveBeenCalledWith("todo:deleted", {
+      id: "todo-1",
+      organizationId: "org-1"
+    });
+  });
+
+  it("warns, keeps deleting objects, and still deletes the Todo when an object delete fails", async () => {
+    const error = new Error("s3 unreachable");
+    const deleted: string[] = [];
+    const warnTodoAttachmentCleanupFailed = vi.fn();
+    const workflow = createTodoWorkflow({
+      createTodo: async () => todo,
+      deleteAttachmentObject: async (object) => {
+        if (object.key === "org-1/todo/a.png") throw error;
+        deleted.push(object.key);
+      },
+      deleteTodo: async () => true,
+      deleteTodoAttachments: async () => [
+        { bucket: "files", key: "org-1/todo/a.png" },
+        { bucket: "files", key: "org-1/todo/b.pdf" }
+      ],
+      publishTodoEvent: () => undefined,
+      toggleTodo: async () => todo,
+      updateTodo: async () => todo,
+      warnTodoAttachmentCleanupFailed
+    });
+
+    await expect(workflow.deleteTodo(scope, "todo-1")).resolves.toBe(true);
+
+    await vi.waitFor(() => expect(deleted).toEqual(["org-1/todo/b.pdf"]));
+    expect(warnTodoAttachmentCleanupFailed).toHaveBeenCalledWith({
+      err: error,
+      todoId: "todo-1"
     });
   });
 
@@ -142,6 +213,7 @@ describe("createTodoWorkflow", () => {
     const warnTodoAttachmentCleanupFailed = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo: async () => todo,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo,
       deleteTodoAttachments: async () => {
         throw error;
@@ -165,8 +237,9 @@ describe("createTodoWorkflow", () => {
     const publishTodoEvent = vi.fn();
     const workflow = createTodoWorkflow({
       createTodo: async () => todo,
+      deleteAttachmentObject: async () => undefined,
       deleteTodo: async () => false,
-      deleteTodoAttachments: async () => undefined,
+      deleteTodoAttachments: async () => [],
       publishTodoEvent,
       toggleTodo: async () => todo,
       updateTodo: async () => todo,

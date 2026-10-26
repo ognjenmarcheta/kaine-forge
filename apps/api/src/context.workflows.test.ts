@@ -8,8 +8,11 @@ vi.mock("./features/notes/notes.adapter", () => ({
 }));
 
 vi.mock("./features/storage/storage.adapter", () => ({
-  deleteFilesByEntity: vi.fn(),
-  listFiles: vi.fn()
+  deleteFilesByEntity: vi.fn()
+}));
+
+vi.mock("./features/storage/storage.runtime", () => ({
+  deleteStorageObject: vi.fn()
 }));
 
 vi.mock("./features/todos/todos.adapter", () => ({
@@ -21,6 +24,7 @@ vi.mock("./features/todos/todos.adapter", () => ({
 
 import { createApiWorkflows } from "./context.workflows";
 import * as storageAdapter from "./features/storage/storage.adapter";
+import * as storageRuntime from "./features/storage/storage.runtime";
 import * as todosAdapter from "./features/todos/todos.adapter";
 
 const scope = {
@@ -47,6 +51,22 @@ const todo = {
   userId: "user-1"
 };
 
+const attachment = {
+  bucket: "files",
+  createdAt: new Date("2026-01-01"),
+  entityId: todo.id,
+  entityType: "todo",
+  id: "22222222-2222-2222-2222-222222222222",
+  key: "org-1/todo/a.png",
+  mimeType: "image/png",
+  organizationId: "org-1",
+  originalName: "a.png",
+  sizeBytes: 1,
+  status: "deleted" as const,
+  updatedAt: new Date("2026-01-01"),
+  uploadedBy: "user-1"
+};
+
 // A real logger, silenced, so no type assertion is needed and the call shape is
 // the one production uses.
 const logger = createLogger({ level: "silent", name: "context-workflows-test" });
@@ -59,8 +79,8 @@ describe("createApiWorkflows", () => {
     vi.clearAllMocks();
   });
 
-  it("soft-deletes a todo's attachments before deleting the row", async () => {
-    vi.mocked(storageAdapter.deleteFilesByEntity).mockResolvedValue([]);
+  it("soft-deletes a todo's attachments, deletes the row, then deletes their objects", async () => {
+    vi.mocked(storageAdapter.deleteFilesByEntity).mockResolvedValue([attachment]);
     vi.mocked(todosAdapter.deleteTodo).mockResolvedValue(true);
 
     await createApiWorkflows(deps()).todo.deleteTodo(scope, todo.id);
@@ -69,6 +89,8 @@ describe("createApiWorkflows", () => {
     // lifecycle, which is the only thing that marks files deleted.
     expect(storageAdapter.deleteFilesByEntity).toHaveBeenCalledWith(scope, "todo", todo.id);
     expect(todosAdapter.deleteTodo).toHaveBeenCalledWith(scope, todo.id);
+    // #601: the soft-deleted rows' objects must leave storage too.
+    expect(storageRuntime.deleteStorageObject).toHaveBeenCalledWith("files", "org-1/todo/a.png");
   });
 
   it("normalizes a todo title on create and publishes once", async () => {

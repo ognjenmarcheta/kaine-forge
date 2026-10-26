@@ -14,3 +14,4 @@ export * from "./issue-state.contract";
 export * from "./lesson.contract";
 export * from "./pipeline.contract";
 export * from "./run-metrics.contract";
+export * from "./step-role.contract";

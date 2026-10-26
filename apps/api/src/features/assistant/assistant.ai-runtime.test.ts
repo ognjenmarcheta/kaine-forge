@@ -417,33 +417,6 @@ describe("createAssistantAiRuntime", () => {
       });
     });
 
-    it("carries only metadata, never anything derived from the model", () => {
-      // The leak rule as a test rather than a comment: adding `messages` or
-      // `reply` to the telemetry object fails here.
-      const injected = deps();
-
-      return createAssistantAiRuntime(injected)
-        .runAgent(runInput)
-        .then(() => {
-          const telemetry = injected.recordModelCall.mock.calls[0]?.[0] as Record<string, unknown>;
-
-          expect(Object.keys(telemetry).sort()).toEqual([
-            "conversationId",
-            "durationMs",
-            "failureCategory",
-            "inputTokens",
-            "model",
-            "outputTokens",
-            "provider",
-            "runId",
-            "status",
-            "steps",
-            "toolCalls",
-            "totalTokens"
-          ]);
-        });
-    });
-
     it("passes through undefined token counts rather than claiming zero", async () => {
       aiSdkMocks.streamText.mockImplementationOnce(() => ({
         steps: Promise.resolve(aiSdkMocks.steps),

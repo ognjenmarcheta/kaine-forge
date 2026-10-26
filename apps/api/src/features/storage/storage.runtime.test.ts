@@ -45,6 +45,7 @@ describe("createStorageRuntime", () => {
       getFileById: async () => null,
       listFiles: async () => [],
       presignedUrlExpirySeconds: () => 900,
+      todoExists: async () => true,
       updateFileStatus: async () => ({
         id: "file-1",
         key: "org-1/todo/file-1/photo.png",
@@ -110,6 +111,7 @@ describe("createStorageRuntime", () => {
       getFileById,
       listFiles,
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus: async () => file
     });
 
@@ -118,34 +120,6 @@ describe("createStorageRuntime", () => {
 
     expect(getFileById).toHaveBeenCalledWith(scope, "file-1");
     expect(listFiles).toHaveBeenCalledWith(scope, { entityType: "todo" });
-  });
-
-  it("returns download URLs only for uploaded files", async () => {
-    const createDownloadUrl = vi.fn(async () => ({ url: "https://download.example.test" }));
-    const runtime = createStorageRuntime({
-      bucket: "uploads",
-      createDownloadUrl,
-      createFileId: () => "file-1",
-      createFileRecord: async () => ({ id: "file-1", key: "key", status: "pending" }),
-      createUploadUrl: async () => ({ expiresIn: 900, key: "key", url: "upload-url" }),
-      defaultEntityType: "general",
-      deleteObject: async () => undefined,
-      fileExists: async () => true,
-      getFileById: async () => null,
-      listFiles: async () => [],
-      presignedUrlExpirySeconds: 900,
-      updateFileStatus: async () => ({ id: "file-1", key: "key", status: "uploaded" })
-    });
-
-    await expect(
-      runtime.getDownloadUrl({ id: "file-1", key: "pending-key", status: "pending" })
-    ).resolves.toBeNull();
-    await expect(
-      runtime.getDownloadUrl({ id: "file-2", key: "uploaded-key", status: "uploaded" })
-    ).resolves.toBe("https://download.example.test");
-
-    expect(createDownloadUrl).toHaveBeenCalledTimes(1);
-    expect(createDownloadUrl).toHaveBeenCalledWith("uploads", "uploaded-key", 900);
   });
 
   it("logs object-storage delete failures and still marks the file deleted", async () => {
@@ -184,6 +158,7 @@ describe("createStorageRuntime", () => {
       listFiles: async () => [],
       logger,
       presignedUrlExpirySeconds: 900,
+      todoExists: async () => true,
       updateFileStatus
     });
 

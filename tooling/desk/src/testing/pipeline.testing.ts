@@ -247,14 +247,22 @@ export interface FakePnpm {
   readonly scriptReplies: Map<string, PnpmReply>;
 }
 
-/** `git` goes to `gitExec` (real or fake), `pnpm` is scripted. Every call is recorded. */
-export const createFakePnpm = (gitExec: Exec): FakePnpm => {
+/**
+ * `git` goes to `gitExec` (real git), `pnpm` is scripted. Every call is recorded. Without
+ * `gitExec` (the in-memory `FakeGit`), a git argv fails the test: git goes through `GitPort`.
+ */
+export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
   const calls: ExecRequest[] = [];
   const checkReplies: PnpmReply[] = [];
   const scriptReplies = new Map<string, PnpmReply>();
   const exec: Exec = async (request) => {
     calls.push(request);
-    if (request.argv[0] === "git") return gitExec(request);
+    if (request.argv[0] === "git") {
+      if (gitExec === undefined) {
+        throw new Error(`git ran outside GitPort: ${request.argv.join(" ")}`);
+      }
+      return gitExec(request);
+    }
     const script = request.argv[1] ?? "";
     const reply: PnpmReply =
       script === "check:affected"
@@ -351,7 +359,7 @@ export const createPipelineEnv = async (options: EnvOptions = {}): Promise<Pipel
   const config = deskConfigSchema.parse({ worktreesDir, ...options.config });
   const store = createIssueStore(stateRoot);
   const github = fakeGitHub({ snapshot: snapshotOf({ number: ISSUE }), ...options.github });
-  const pnpm = createFakePnpm(fake === null ? hermeticExec : fake.exec);
+  const pnpm = createFakePnpm(fake === null ? hermeticExec : undefined);
   const runner = createScriptedRunner(options.steps ?? []);
   const events: PipelineEvent[] = [];
   const notifications: PipelineNotification[] = [];

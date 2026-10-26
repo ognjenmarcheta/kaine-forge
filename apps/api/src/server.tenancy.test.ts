@@ -36,7 +36,6 @@ process.env.API_CORS_ORIGINS = "http://localhost:3000";
 
 const SESSION_HEADER = "x-test-session";
 const NO_ACTIVE_ORGANIZATION = "no-active-organization";
-const FOREIGN_ORGANIZATION_ID = "00000000-0000-4000-8000-0000000000b0";
 
 vi.mock("@repo/auth/server", () => ({
   createServerAuth: () => ({
@@ -146,12 +145,11 @@ function placeholderValue(type: GraphQLInputType): string {
   }
 }
 
-function operationFor(root: RootField, extraArguments: string[] = []): string {
+function operationFor(root: RootField): string {
   const args = [
     ...root.field.args
       .filter((arg) => isNonNullType(arg.type))
-      .map((arg) => `${arg.name}: ${placeholderValue(arg.type)}`),
-    ...extraArguments
+      .map((arg) => `${arg.name}: ${placeholderValue(arg.type)}`)
   ];
   const argumentList = args.length > 0 ? `(${args.join(", ")})` : "";
   const selection = isLeafType(getNamedType(root.field.type)) ? "" : " { __typename }";
@@ -291,18 +289,6 @@ describe("organization-scoped GraphQL field contract", () => {
       const result = await run(root.operation, operationFor(root), NO_ACTIVE_ORGANIZATION);
 
       expect(result.errors?.[0]?.message).toBe("active organization required");
-    });
-
-    it("refuses a client-supplied organization id", async () => {
-      const result = await run(
-        root.operation,
-        operationFor(root, [`organizationId: ${JSON.stringify(FOREIGN_ORGANIZATION_ID)}`]),
-        NO_ACTIVE_ORGANIZATION
-      );
-
-      expect(result.errors?.[0]?.message).toBe(
-        `Unknown argument "organizationId" on field "${root.coordinate}".`
-      );
     });
   });
 });

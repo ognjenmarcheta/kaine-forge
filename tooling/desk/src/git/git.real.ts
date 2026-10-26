@@ -1,71 +1,11 @@
 import path from "node:path";
 
-import type { Exec, ExecResult } from "../ports";
+import type { Exec } from "../ports";
+import { diffAgainstBase } from "./git.diff";
 import { type GitPort, type RefsSnapshot, type RefViolation, type WorktreeEntry } from "./git.port";
+import { runGit, type RunGitOptions } from "./git.run";
 
-const GIT_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 120_000;
-
-/** Git must never prompt and must not take optional locks on read-only calls. */
-const GIT_ENV = { GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" } as const;
-
-/** A failed git call. The message holds a short stderr tail, never stdout. */
-export class GitError extends Error {
-  override readonly name = "GitError";
-  constructor(
-    message: string,
-    readonly argv: readonly string[],
-    /** `null` for a timeout or a process that never started. */
-    readonly code: number | null
-  ) {
-    super(message);
-  }
-}
-
-const stderrTail = (text: string, max = 300): string => {
-  const flat = text.trim().replace(/\s+/g, " ");
-  return flat.length > max ? `...${flat.slice(-max)}` : flat;
-};
-
-export interface RunGitOptions {
-  readonly env?: Readonly<Record<string, string>>;
-  readonly timeoutMs?: number;
-  /** Exit codes besides 0 that are an answer, not a failure. */
-  readonly okCodes?: readonly number[];
-  /** Text for git's stdin. */
-  readonly input?: string;
-}
-
-/**
- * Run `git <args>` in `cwd`. Returns the result for exit code 0 or a code in
- * `okCodes`; throws `GitError` for anything else, including a timeout.
- */
-export const runGit = async (
-  exec: Exec,
-  cwd: string,
-  args: readonly string[],
-  options: RunGitOptions = {}
-): Promise<ExecResult> => {
-  const argv = ["git", ...args];
-  const result = await exec({
-    argv,
-    cwd,
-    env: { ...GIT_ENV, ...options.env },
-    timeoutMs: options.timeoutMs ?? GIT_TIMEOUT_MS,
-    ...(options.input === undefined ? {} : { input: options.input })
-  });
-  if (result.timedOut) throw new GitError(`git ${args[0] ?? ""} timed out`, argv, null);
-  if (result.code === 0 || (result.code !== null && options.okCodes?.includes(result.code))) {
-    return result;
-  }
-  throw new GitError(
-    `git ${args.slice(0, 2).join(" ")} failed (exit ${result.code ?? "none"}): ${
-      stderrTail(result.stderr) || "no stderr"
-    }`,
-    argv,
-    result.code
-  );
-};
 
 /** A value placed in argv must never be read by git as an option. */
 const assertNotFlag = (what: string, value: string): void => {
@@ -218,7 +158,9 @@ export const createGitPort = (exec: Exec): GitPort => {
         remotes: parseConfig(remotes.stdout),
         stash: lines(stash.stdout)
       };
-    }
+    },
+
+    diffAgainstBase: (worktree, baseSha) => diffAgainstBase(exec, worktree, baseSha)
   };
 };
 

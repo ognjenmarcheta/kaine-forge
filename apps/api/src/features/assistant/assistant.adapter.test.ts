@@ -74,12 +74,12 @@ describe("assistant.adapter", () => {
     chain.returning.mockResolvedValue([]);
   });
 
-  it("listConversations calls db.select with correct chain", async () => {
+  it("listConversations scopes the listing to the requesting user", async () => {
     await listConversations(scope, { limit: 20, offset: 0 });
-    expect(mockDb.select).toHaveBeenCalled();
-    expect(chain.from).toHaveBeenCalled();
-    expect(chain.where).toHaveBeenCalled();
-    expect(chain.orderBy).toHaveBeenCalled();
+    expect(chain.where).toHaveBeenCalledWith([
+      ["orgId", "org-1"],
+      ["userId", "user-1"]
+    ]);
     expect(chain.limit).toHaveBeenCalledWith(20);
     expect(chain.offset).toHaveBeenCalledWith(0);
   });
