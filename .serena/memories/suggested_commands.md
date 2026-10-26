@@ -25,6 +25,7 @@
 - Check AI setup and drift: `pnpm ai:doctor`
 - Build knowledge graph (optional Graphify CLI): `pnpm graph`
 - Refresh knowledge graph incrementally: `pnpm graph:update`
+- Show knowledge-graph state (fresh, stale, absent, CLI missing): `pnpm graph:status`
 - Agent desk (issue to draft PR): `pnpm desk:run` (UI), `pnpm desk doctor`, `pnpm desk start <n>`; manual in `docs/agents/agent-desk.md`
 - Adopt template identity: `pnpm template:adopt`
 - Docker API build: `docker build -f Dockerfile.api -t kaine-forge-api .`

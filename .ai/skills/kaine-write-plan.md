@@ -24,6 +24,8 @@ Plan mode do not trigger this workflow.
 1. Reuse the conversation's decisions. Inspect relevant code, repository guidance and
    existing tests before choosing an approach. Follow the required reading rules;
    do not ask the user for facts you can discover.
+   When the plan changes shared code and the Graphify CLI is installed, size the
+   blast radius with `graphify affected` (`kaine-graph`) and verify each lead.
 2. Establish the intended outcome, scope, constraints and acceptance criteria. Ask
    only questions whose answers materially change the plan. Ask one at a time and
    attach your best guess so the user can confirm or correct it. Resolve consequential
