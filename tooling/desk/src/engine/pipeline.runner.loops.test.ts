@@ -336,12 +336,23 @@ describe("builder blockers and continue", () => {
   });
 
   it("continues from a stage the engineer names", async () => {
-    const e = await open({ steps: [planStep(), planStep()] });
-    e.pnpm.scriptReplies.set("env:ensure", { code: 1, stderr: "boom" });
-    await e.pipeline.start(ISSUE, { override: false });
-    e.pnpm.scriptReplies.clear();
-    const result = await e.pipeline.continueFrom(ISSUE, "setup");
+    const e = await open({
+      steps: [planStep(), buildStep(), buildStep(), reviewStep()],
+      config: { maxTestLoops: 0 }
+    });
+    e.pnpm.checkReplies.push(FAIL_A);
+    await toBuild(e);
+    expect(await stateOf(e)).toMatchObject({ stage: "needs-you", resumeStage: "check" });
+
+    // The recorded stage is check; the engineer names build, so the builder runs again.
+    const result = await e.pipeline.continueFrom(ISSUE, "build");
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    expect(e.runner.requests.map((request) => request.role)).toEqual([
+      "planner",
+      "builder",
+      "builder",
+      "reviewer"
+    ]);
   });
 
   it("refuses to continue outside needs-you and changes nothing", async () => {

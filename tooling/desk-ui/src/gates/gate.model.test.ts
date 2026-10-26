@@ -78,6 +78,14 @@ describe("resumeCommandOf", () => {
       ]
     };
     expect(resumeCommandOf({ ...detail, resume })).toBe("plan");
+    const both = {
+      worktreePath: "/w",
+      sessions: [
+        { role: "planner" as const, sessionId: "p", provider: "claude" as const, command: "plan" },
+        { role: "builder" as const, sessionId: "b", provider: "claude" as const, command: "build" }
+      ]
+    };
+    expect(resumeCommandOf({ ...detail, resume: both })).toBe("build");
     expect(resumeCommandOf({ ...detail, resume: { worktreePath: null, sessions: [] } })).toBeNull();
   });
 });

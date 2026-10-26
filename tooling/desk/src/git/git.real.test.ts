@@ -84,8 +84,15 @@ describe("GitPort", () => {
   });
 
   it("throws GitError with the stderr tail when git fails", async () => {
-    await expect(git.fetch(repo.dir, "nowhere", "main")).rejects.toBeInstanceOf(GitError);
-    await expect(git.headSha(`${scratch.root}/missing`)).rejects.toBeInstanceOf(GitError);
+    // "nowhere" is not in the argv prefix of the message, so it can come only from stderr.
+    const fetchError = await git
+      .fetch(repo.dir, "nowhere", "main")
+      .catch((error: unknown) => error);
+    expect(fetchError).toBeInstanceOf(GitError);
+    expect(String(fetchError)).toMatch(/'nowhere' does not appear to be a git repository/);
+    const headError = await git.headSha(`${scratch.root}/missing`).catch((error: unknown) => error);
+    expect(headError).toBeInstanceOf(GitError);
+    expect(String(headError)).toMatch(/ENOENT/);
   });
 
   it("never lets a value become a git option", async () => {

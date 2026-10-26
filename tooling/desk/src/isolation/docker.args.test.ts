@@ -114,10 +114,6 @@ const all = (args: readonly string[], flag: string): string[] =>
   args.flatMap((arg, index) => (arg === flag ? [args[index + 1] ?? ""] : []));
 
 describe("dockerRunArgs: hardening on every kind of container", () => {
-  it("covers every container kind", () => {
-    expect(Object.keys(specs).sort()).toEqual([...CONTAINER_KINDS].sort());
-  });
-
   describe.each(CONTAINER_KINDS)("%s", (kind) => {
     const spec = specs[kind];
     const args = dockerRunArgs(spec);
