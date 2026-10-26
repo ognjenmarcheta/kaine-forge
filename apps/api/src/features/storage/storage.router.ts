@@ -14,30 +14,34 @@ export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.logger).getFile(scope, args.id);
+      return createApiStorageRuntime(ctx.data, ctx.logger).getFile(scope, args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.logger).listFiles(scope, args.filter ?? {});
+      return createApiStorageRuntime(ctx.data, ctx.logger).listFiles(scope, args.filter ?? {});
     }
   },
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.logger).requestUploadUrl(scope, args.input);
+      return createApiStorageRuntime(ctx.data, ctx.logger).requestUploadUrl(scope, args.input);
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.logger).confirmUpload(scope, args.fileId);
+      return createApiStorageRuntime(ctx.data, ctx.logger).confirmUpload(scope, args.fileId);
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.logger).deleteFile(scope, args.fileId);
+      return createApiStorageRuntime(ctx.data, ctx.logger).deleteFile(scope, args.fileId);
     }
   },
   FileInfo: {
-    async downloadUrl(parent: { id: string; status?: string; key: string }) {
-      return createApiStorageRuntime().getDownloadUrl(parent);
+    async downloadUrl(
+      parent: { id: string; status?: string; key: string },
+      _args: unknown,
+      ctx: ResolverContext
+    ) {
+      return createApiStorageRuntime(ctx.data).getDownloadUrl(parent);
     }
   }
 };

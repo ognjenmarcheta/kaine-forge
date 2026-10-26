@@ -1,5 +1,7 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it, vi } from "vitest";
 
+import { createScopedData } from "./context.data";
 import { createApiLoaders } from "./context.loaders";
 
 // These unit tests inject their adapters. Do not initialize the production DB
@@ -19,6 +21,8 @@ describe("context.loaders", () => {
     },
     userId: "user-1"
   };
+  // Opaque here: the injected adapters never query it.
+  const data = createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope });
 
   it("noteTodos batches all requested notes into one adapter call", async () => {
     const todoA = { id: "todo-1", noteId: "note-1" };
@@ -26,7 +30,7 @@ describe("context.loaders", () => {
     const todoC = { id: "todo-3", noteId: "note-1" };
     const listTodosByNoteIds = vi.fn().mockResolvedValue([todoA, todoB, todoC]);
     const listFilesByEntityIds = vi.fn();
-    const loaders = createApiLoaders(() => scope, {
+    const loaders = createApiLoaders(data, {
       listFilesByEntityIds,
       listTodosByNoteIds
     } as never);
@@ -38,7 +42,7 @@ describe("context.loaders", () => {
     ]);
 
     expect(listTodosByNoteIds).toHaveBeenCalledTimes(1);
-    expect(listTodosByNoteIds).toHaveBeenCalledWith(scope, ["note-1", "note-2", "note-3"]);
+    expect(listTodosByNoteIds).toHaveBeenCalledWith(data, ["note-1", "note-2", "note-3"]);
     expect(note1Todos).toEqual([todoA, todoC]);
     expect(note2Todos).toEqual([todoB]);
     expect(note3Todos).toEqual([]);
@@ -49,7 +53,7 @@ describe("context.loaders", () => {
     const fileB = { id: "file-2", entityId: "todo-2" };
     const listFilesByEntityIds = vi.fn().mockResolvedValue([fileA, fileB]);
     const listTodosByNoteIds = vi.fn();
-    const loaders = createApiLoaders(() => scope, {
+    const loaders = createApiLoaders(data, {
       listFilesByEntityIds,
       listTodosByNoteIds
     } as never);
@@ -62,7 +66,7 @@ describe("context.loaders", () => {
 
     expect(listFilesByEntityIds).toHaveBeenCalledTimes(1);
     expect(listFilesByEntityIds).toHaveBeenCalledWith(
-      scope,
+      data,
       "todo",
       ["todo-1", "todo-2", "todo-3"],
       "uploaded"
@@ -70,17 +74,5 @@ describe("context.loaders", () => {
     expect(todo1Files).toEqual([fileA]);
     expect(todo2Files).toEqual([fileB]);
     expect(todo3Files).toEqual([]);
-  });
-
-  it("propagates a missing organization scope as a load rejection", async () => {
-    const requireOrganizationScope = () => {
-      throw new Error("organization scope required");
-    };
-    const loaders = createApiLoaders(requireOrganizationScope, {
-      listFilesByEntityIds: vi.fn(),
-      listTodosByNoteIds: vi.fn()
-    } as never);
-
-    await expect(loaders.noteTodos.load("note-1")).rejects.toThrow("organization scope required");
   });
 });

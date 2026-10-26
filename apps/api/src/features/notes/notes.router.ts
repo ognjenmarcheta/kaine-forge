@@ -2,7 +2,6 @@ import { pipe } from "graphql-yoga";
 
 import { getNoteById, listNotesByScope } from "./notes.adapter";
 import type { CreateNoteInput, UpdateNoteInput } from "./notes.type";
-import { coercePagination } from "./notes.util";
 import type { ApiContext } from "../../context";
 import { filterByOrganization } from "../../pubsub";
 import type { CreateTodoInput } from "../todos/todos.type";
@@ -23,12 +22,10 @@ export const notesResolvers = {
   },
   Query: {
     async notes(_parent: unknown, args: NotesQueryArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return listNotesByScope(scope, coercePagination(args), args.search ?? undefined);
+      return listNotesByScope(ctx.data, args, args.search);
     },
     async note(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return getNoteById(scope, args.id);
+      return getNoteById(ctx.data, args.id);
     }
   },
   Mutation: {

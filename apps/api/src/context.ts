@@ -7,6 +7,7 @@ import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
+import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createApiWorkflows, type ApiWorkflows } from "./context.workflows";
 import { pubsub } from "./pubsub";
@@ -18,6 +19,8 @@ export interface ApiContext {
   session: AuthSession | null;
   organizationScope: AuthenticatedOrganizationScope | null;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
+  /** Organization-scoped data access for this request; see context.data.ts. */
+  data: ScopedData;
   loaders: ApiLoaders;
   workflows: ApiWorkflows;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
@@ -43,6 +46,8 @@ export async function createContextFromHeaders(
     organizationId: organizationScope?.organizationId ?? null
   });
 
+  const data = createScopedData({ db, requireOrganizationScope });
+
   return {
     auth,
     db,
@@ -50,8 +55,10 @@ export async function createContextFromHeaders(
     session,
     organizationScope,
     requireOrganizationScope,
-    loaders: createApiLoaders(requireOrganizationScope),
+    data,
+    loaders: createApiLoaders(data),
     workflows: createApiWorkflows({
+      data,
       logger: contextLogger,
       publish: (eventName, ...payload) => {
         pubsub.publish(eventName, ...payload);

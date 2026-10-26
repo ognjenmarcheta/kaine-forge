@@ -2,6 +2,7 @@ import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 
+import type { ScopedData } from "../../context.data";
 import type { ApiWorkflows } from "../../context.workflows";
 import { listNotesByScope } from "../notes/notes.adapter";
 import { listTodosByScope } from "../todos/todos.adapter";
@@ -9,10 +10,10 @@ import { listTodosByScope } from "../todos/todos.adapter";
 // Model-chosen writes go through the same workflows the GraphQL resolvers use,
 // so they get attachment cleanup on delete and title normalization on create and
 // update. Calling todos.adapter directly here is what made a model-initiated
-// delete orphan its attachment rows (issue #393). Reads stay on the adapters:
-// they have no guard to bypass, and routing them through the context would drag
-// @repo/db into assistant.router.test.ts, which deliberately loads none.
+// delete orphan its attachment rows (issue #393). Reads stay on the adapters,
+// over the request's scoped data: they have no guard to bypass.
 export interface AssistantToolDeps {
+  data: ScopedData;
   noteWorkflow: Pick<ApiWorkflows["note"], "createNote" | "updateNote">;
   scope: AuthenticatedOrganizationScope;
   todoWorkflow: Pick<
@@ -28,6 +29,7 @@ const todoTitleSchema = z.string().trim().min(1).max(255);
 const noteTitleSchema = z.string().trim().min(1).max(255);
 
 export function createAssistantTools({
+  data,
   noteWorkflow,
   scope,
   todoWorkflow
@@ -50,7 +52,7 @@ export function createAssistantTools({
         limit: z.number().int().min(1).max(50).default(20)
       }),
       execute: async ({ limit }) => {
-        const todos = await listTodosByScope(scope, { limit, offset: 0 });
+        const todos = await listTodosByScope(data, { limit, offset: 0 });
         return todos.map((todo) => ({
           id: todo.id,
           title: todo.title,
@@ -116,7 +118,7 @@ export function createAssistantTools({
       description: "List the user's notes to find a note id.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
       execute: async ({ limit }) => {
-        const notes = await listNotesByScope(scope, { limit, offset: 0 });
+        const notes = await listNotesByScope(data, { limit, offset: 0 });
         return notes.map((note) => ({ id: note.id, title: note.title }));
       }
     }),

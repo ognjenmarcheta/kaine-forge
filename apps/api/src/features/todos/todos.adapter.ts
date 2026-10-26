@@ -1,71 +1,57 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { db, notesTable, todosTable, type Todo } from "@repo/db";
-import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import type { Todo } from "@repo/db";
+import { notesTable, todosTable } from "@repo/db/schema";
+import { desc, eq, inArray } from "drizzle-orm";
 
-import type { Pagination, TodoPatch } from "./todos.type";
+import { TODOS_CONFIG } from "./todos.config";
+import type { TodoPatch } from "./todos.type";
+import {
+  clampPagination,
+  containsPhrase,
+  type PaginationInput,
+  type ScopedData
+} from "../../context.data";
 
 export async function listTodosByScope(
-  scope: AuthenticatedOrganizationScope,
-  pagination: Pagination,
+  data: ScopedData,
+  page: PaginationInput,
   filters: { search?: string | null; completed?: boolean | null } = {}
 ): Promise<Todo[]> {
-  const phrase = filters.search?.trim();
-  const pattern = phrase ? `%${phrase.replace(/[\\%_]/g, "\\$&")}%` : undefined;
-  return db
-    .select()
-    .from(todosTable)
-    .where(
-      and(
-        eq(todosTable.organizationId, scope.organizationId),
-        pattern === undefined
-          ? undefined
-          : or(ilike(todosTable.title, pattern), ilike(todosTable.description, pattern)),
-        typeof filters.completed === "boolean"
-          ? eq(todosTable.completed, filters.completed)
-          : undefined
-      )
+  const { limit, offset } = clampPagination(page, TODOS_CONFIG.pagination);
+  return data
+    .selectFrom(
+      todosTable,
+      containsPhrase(filters.search, [todosTable.title, todosTable.description]),
+      typeof filters.completed === "boolean"
+        ? eq(todosTable.completed, filters.completed)
+        : undefined
     )
     .orderBy(desc(todosTable.createdAt), desc(todosTable.id))
-    .limit(pagination.limit)
-    .offset(pagination.offset);
+    .limit(limit)
+    .offset(offset);
 }
 
-export async function getTodoById(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<Todo | null> {
-  const todos = await db
-    .select()
-    .from(todosTable)
-    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
-    .limit(1);
+export async function getTodoById(data: ScopedData, id: string): Promise<Todo | null> {
+  const todos = await data.selectFrom(todosTable, eq(todosTable.id, id)).limit(1);
 
   return todos[0] ?? null;
 }
 
 export async function createTodo(
-  scope: AuthenticatedOrganizationScope,
+  data: ScopedData,
   input: { title: string; description: string | null; noteId?: string | null }
 ): Promise<Todo> {
   if (input.noteId) {
-    const notes = await db
-      .select({ id: notesTable.id })
-      .from(notesTable)
-      .where(
-        and(eq(notesTable.id, input.noteId), eq(notesTable.organizationId, scope.organizationId))
-      )
-      .limit(1);
+    const notes = await data.selectFrom(notesTable, eq(notesTable.id, input.noteId)).limit(1);
 
     if (!notes[0]) {
       throw new Error("note not found");
     }
   }
 
-  const todos = await db
+  const todos = await data
     .insert(todosTable)
     .values({
-      userId: scope.userId,
-      organizationId: scope.organizationId,
+      ...data.stamp("userId"),
       title: input.title,
       description: input.description,
       completed: false,
@@ -82,18 +68,9 @@ export async function createTodo(
   return todo;
 }
 
-export async function updateTodo(
-  scope: AuthenticatedOrganizationScope,
-  id: string,
-  patch: TodoPatch
-): Promise<Todo> {
-  const todos = await db
-    .update(todosTable)
-    .set({
-      ...patch,
-      updatedAt: new Date()
-    })
-    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
+export async function updateTodo(data: ScopedData, id: string, patch: TodoPatch): Promise<Todo> {
+  const todos = await data
+    .update(todosTable, { ...patch, updatedAt: new Date() }, eq(todosTable.id, id))
     .returning();
 
   const todo = todos[0];
@@ -105,43 +82,32 @@ export async function updateTodo(
   return todo;
 }
 
-export async function deleteTodo(
-  scope: AuthenticatedOrganizationScope,
-  id: string
-): Promise<boolean> {
-  const deleted = await db
-    .delete(todosTable)
-    .where(and(eq(todosTable.id, id), eq(todosTable.organizationId, scope.organizationId)))
+export async function deleteTodo(data: ScopedData, id: string): Promise<boolean> {
+  const deleted = await data
+    .delete(todosTable, eq(todosTable.id, id))
     .returning({ id: todosTable.id });
 
   return deleted.length > 0;
 }
 
-export async function listTodosByNoteIds(
-  scope: AuthenticatedOrganizationScope,
-  noteIds: string[]
-): Promise<Todo[]> {
+export async function listTodosByNoteIds(data: ScopedData, noteIds: string[]): Promise<Todo[]> {
   if (noteIds.length === 0) {
     return [];
   }
 
-  return db
-    .select()
-    .from(todosTable)
-    .where(
-      and(inArray(todosTable.noteId, noteIds), eq(todosTable.organizationId, scope.organizationId))
-    )
+  return data
+    .selectFrom(todosTable, inArray(todosTable.noteId, noteIds))
     .orderBy(desc(todosTable.createdAt));
 }
 
-export async function toggleTodo(scope: AuthenticatedOrganizationScope, id: string): Promise<Todo> {
-  const current = await getTodoById(scope, id);
+export async function toggleTodo(data: ScopedData, id: string): Promise<Todo> {
+  const current = await getTodoById(data, id);
 
   if (!current) {
     throw new Error("todo not found");
   }
 
-  return updateTodo(scope, id, {
+  return updateTodo(data, id, {
     completed: !current.completed
   });
 }

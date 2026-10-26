@@ -1,4 +1,5 @@
 import { createLogger } from "@repo/logger";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./features/notes/notes.adapter", () => ({
@@ -22,6 +23,7 @@ vi.mock("./features/todos/todos.adapter", () => ({
   updateTodo: vi.fn()
 }));
 
+import { createScopedData } from "./context.data";
 import { createApiWorkflows } from "./context.workflows";
 import * as storageAdapter from "./features/storage/storage.adapter";
 import * as storageRuntime from "./features/storage/storage.runtime";
@@ -67,7 +69,9 @@ const attachment = {
 const logger = createLogger({ level: "silent", name: "context-workflows-test" });
 const warn = vi.spyOn(logger, "warn");
 
-const deps = () => ({ logger, publish: vi.fn() });
+// Opaque here: the mocked adapters never query it.
+const data = createScopedData({ db: drizzle.mock(), requireOrganizationScope: () => scope });
+const deps = () => ({ data, logger, publish: vi.fn() });
 
 describe("createApiWorkflows", () => {
   beforeEach(() => {
@@ -82,8 +86,8 @@ describe("createApiWorkflows", () => {
 
     // The chain that #393 bypassed: the workflow must reach the attachment
     // lifecycle, which is the only thing that marks files deleted.
-    expect(storageAdapter.deleteFilesByEntity).toHaveBeenCalledWith(scope, "todo", todo.id);
-    expect(todosAdapter.deleteTodo).toHaveBeenCalledWith(scope, todo.id);
+    expect(storageAdapter.deleteFilesByEntity).toHaveBeenCalledWith(data, "todo", todo.id);
+    expect(todosAdapter.deleteTodo).toHaveBeenCalledWith(data, todo.id);
     // #601: the soft-deleted rows' objects must leave storage too.
     expect(storageRuntime.deleteStorageObject).toHaveBeenCalledWith("files", "org-1/todo/a.png");
   });
@@ -94,7 +98,7 @@ describe("createApiWorkflows", () => {
 
     await createApiWorkflows(injected).todo.createTodo(scope, { title: "  Buy milk  " });
 
-    expect(todosAdapter.createTodo).toHaveBeenCalledWith(scope, {
+    expect(todosAdapter.createTodo).toHaveBeenCalledWith(data, {
       description: null,
       noteId: null,
       title: "Buy milk"
