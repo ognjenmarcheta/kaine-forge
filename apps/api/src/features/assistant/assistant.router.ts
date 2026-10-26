@@ -30,9 +30,8 @@ function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
     recordModelCall: (telemetry) => {
       ctx.logger.info(telemetry, "assistant model call");
     },
-    data: ctx.data,
-    todos: ctx.todos,
-    workflows: ctx.workflows
+    notes: ctx.notes,
+    todos: ctx.todos
   });
 
   return createAssistantAiWorkflow({

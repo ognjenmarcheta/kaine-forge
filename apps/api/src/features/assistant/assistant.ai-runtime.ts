@@ -14,8 +14,6 @@ import {
 import { createAssistantTools, type AssistantToolDeps } from "./assistant.tools";
 import type { AssistantToolAction, ConversationMessage } from "./assistant.type";
 import { modelFailureCategory, startModelRun, type ModelRunTelemetry } from "../../ai.telemetry";
-import type { ScopedData } from "../../context.data";
-import type { ApiWorkflows } from "../../context.workflows";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
 const DEFAULT_AI_ASSISTANT_MODELS = {
@@ -69,14 +67,12 @@ export interface RunAgentResult {
 }
 
 export interface AssistantAiRuntimeDeps {
-  /** Scoped reads for the tools (listTodos, listNotes). */
-  data: ScopedData;
+  notes: AssistantToolDeps["notes"];
   publishAssistantDelta: (payload: AssistantMessageDeltaPayload) => void;
   recordModelCall: (telemetry: AssistantModelCallTelemetry) => void;
-  // The Todo module and the Note workflow publish their own events, so the
-  // runtime no longer forwards publishers for them (issue #393).
+  // The Todo and Note modules publish their own events, so the runtime no
+  // longer forwards publishers for them (issue #393).
   todos: AssistantToolDeps["todos"];
-  workflows: Pick<ApiWorkflows, "note">;
   /** Synthetic evaluation observer. Production logging must not receive these payloads. */
   observeStep?: (step: StepResult<ToolSet>) => void;
   observeToolStart?: (event: ToolExecutionStartEvent<ToolSet>) => void;
@@ -158,11 +154,10 @@ function flattenSteps<TTools extends ToolSet>(
 }
 
 export function createAssistantAiRuntime({
-  data,
+  notes,
   publishAssistantDelta,
   recordModelCall,
   todos,
-  workflows,
   observeStep,
   observeToolStart,
   observeToolEnd
@@ -193,12 +188,7 @@ export function createAssistantAiRuntime({
           model,
           instructions: ASSISTANT_SYSTEM_PROMPT,
           messages: toModelMessages(messages),
-          tools: createAssistantTools({
-            data,
-            noteWorkflow: workflows.note,
-            scope,
-            todos
-          }),
+          tools: createAssistantTools({ notes, todos }),
           stopWhen: isStepCount(MAX_ASSISTANT_STEPS),
           ...execution,
           onError: () => {
