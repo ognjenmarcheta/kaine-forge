@@ -138,6 +138,7 @@ describe("session-start hook", () => {
       expect(result.stdout).toContain("Kaine Forge AI context");
       expect(result.stdout).toContain("Branch: main");
       expect(result.stdout).toContain("AI installation: ready");
+      expect(result.stdout).toContain("- Knowledge graph:");
       expect(result.stdout).not.toContain("pnpm ai:install");
     } finally {
       rmSync(repo, { recursive: true, force: true });
