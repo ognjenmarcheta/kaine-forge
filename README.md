@@ -138,9 +138,9 @@ Common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 Use `pnpm db:prepare:local` for local setup and `pnpm db:push:local` for local schema changes. Both need the explicit `ALLOW_LOCAL_DB_PUSH=true` opt-in and refuse a database that is not on your machine. Shared and deployed databases use reviewed migrations. See [local database rules](MONOREPO_GUIDE.md#22-local-database-and-release-commands).
 
-### Optional: remote Turbo cache
+### Turbo cache
 
-For faster CI and local rebuilds, set the repository secret `TURBO_TOKEN` and the variable `TURBO_TEAM` (Vercel Remote Cache or compatible). See [CONTRIBUTING.md](CONTRIBUTING.md#ci-speed-maintainers).
+CI caches each Turbo task in the GitHub Actions cache with no setup. For a local remote cache, set `TURBO_TOKEN` and `TURBO_TEAM` in your shell (Vercel Remote Cache or compatible). See [CONTRIBUTING.md](CONTRIBUTING.md#ci-speed-maintainers).
 
 ## Build a feature
 

@@ -38,7 +38,7 @@ describe("PR Quality Gate", () => {
       graphql: "false",
       mobile: "false"
     };
-    for (const job of QUALITY_JOBS.slice(4)) input.needs[job].result = "skipped";
+    for (const job of QUALITY_JOBS.slice(5)) input.needs[job].result = "skipped";
     assert.deepEqual(qualityGateFailures(input), []);
     input.needs["docker-images"].result = "failure";
     assert.deepEqual(qualityGateFailures(input), ["docker-images: failure"]);
@@ -417,8 +417,8 @@ describe("Hand-kept alignments", () => {
 
   it("runs every scripts/*.test.mjs in both the PR job and the root test script", () => {
     const nodeTestFiles = (script) => /node --test ([^\n&]+)/.exec(script)[1].trim().split(/\s+/);
-    const qualityStep = ciPr.jobs["check-fast"].steps.find(
-      (step) => step.name === "Quality gates (affected packages)"
+    const qualityStep = ciPr.jobs["ai-checks"].steps.find(
+      (step) => step.name === "AI tooling and script tests"
     );
     const tracked = spawnSync("git", ["ls-files", "scripts/*.test.mjs"], { encoding: "utf8" })
       .stdout.trim()
