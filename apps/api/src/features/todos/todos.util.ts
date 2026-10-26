@@ -1,18 +1,5 @@
 import { TODOS_DEFINITIONS } from "./todos.definition";
-import type { Pagination, PaginationInput, TodoPatch, UpdateTodoInput } from "./todos.type";
-
-export function coercePagination(
-  input: PaginationInput,
-  config: { defaultLimit: number; maxLimit: number }
-): Pagination {
-  const rawLimit = input.limit ?? config.defaultLimit;
-  const rawOffset = input.offset ?? 0;
-
-  const limit = Math.min(config.maxLimit, Math.max(1, Math.floor(rawLimit)));
-  const offset = Math.max(0, Math.floor(rawOffset));
-
-  return { limit, offset };
-}
+import type { TodoPatch, UpdateTodoInput } from "./todos.type";
 
 export function ensureTodoTitle(title: string): string {
   const trimmed = title.trim();

@@ -8,25 +8,16 @@ import {
 } from "./assistant.eval.data";
 import { createAssistantTools } from "./assistant.tools";
 
-vi.mock("../notes/notes.adapter", () => ({ listNotesByScope: vi.fn() }));
-vi.mock("../todos/todos.adapter", () => ({ listTodosByScope: vi.fn() }));
-
-const scope = {
-  organizationId: "org-1",
-  user: { email: "u@example.test", emailVerified: true, id: "user-1", name: "User" },
-  userId: "user-1"
-};
-
 // No model, no database, no network: the tool set is a pure function of its
 // deps, so the contract tier runs in CI at zero cost.
 const tools: ToolSet = createAssistantTools({
-  noteWorkflow: { createNote: vi.fn(), updateNote: vi.fn() },
-  scope,
-  todoWorkflow: {
-    createTodo: vi.fn(),
-    deleteTodo: vi.fn(),
-    toggleTodo: vi.fn(),
-    updateTodo: vi.fn()
+  notes: { create: vi.fn(), list: vi.fn(), update: vi.fn() },
+  todos: {
+    create: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+    toggle: vi.fn(),
+    update: vi.fn()
   }
 });
 

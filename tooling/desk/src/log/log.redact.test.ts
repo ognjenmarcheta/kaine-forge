@@ -45,9 +45,10 @@ describe("redact", () => {
 
 describe("redactAndBound", () => {
   it("redacts before it cuts, so a secret at the cut line does not survive", () => {
-    const text = `${"a".repeat(10)} sk-ant-api03-AbCdEfGhIjKl ${"b".repeat(50)}`;
-    const bounded = redactAndBound(text, 20);
-    expect(bounded).not.toContain("sk-");
+    // The limit falls inside the password, before the '@' the URL pattern needs.
+    const text = `x https://user:hunter2hunter2@h ${"b".repeat(50)}`;
+    const bounded = redactAndBound(text, 25);
+    expect(bounded).not.toContain("hunter2");
     expect(bounded.endsWith("...[truncated]")).toBe(true);
   });
 

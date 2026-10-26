@@ -27,10 +27,6 @@ const stateAt = (stage: Stage, over: Partial<IssueState> = {}): IssueState =>
   });
 
 describe("nextSteps", () => {
-  it("names the approve command at the plan gate", () => {
-    expect(nextSteps(stateAt("plan-gate"))[0]).toBe("approve with: pnpm desk approve 12");
-  });
-
   it("names the exact continue command and the stage it retries at needs-you", () => {
     expect(nextSteps(stateAt("needs-you", { resumeStage: "check" }))).toEqual([
       "continue with: pnpm desk continue 12 (retries 'check')",

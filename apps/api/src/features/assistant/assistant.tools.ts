@@ -1,24 +1,16 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 
-import type { ApiWorkflows } from "../../context.workflows";
-import { listNotesByScope } from "../notes/notes.adapter";
-import { listTodosByScope } from "../todos/todos.adapter";
+import type { Notes } from "../notes/notes.module";
+import type { Todos } from "../todos/todos.module";
 
-// Model-chosen writes go through the same workflows the GraphQL resolvers use,
-// so they get attachment cleanup on delete and title normalization on create and
-// update. Calling todos.adapter directly here is what made a model-initiated
-// delete orphan its attachment rows (issue #393). Reads stay on the adapters:
-// they have no guard to bypass, and routing them through the context would drag
-// @repo/db into assistant.router.test.ts, which deliberately loads none.
+// Model-chosen reads and writes go through the same modules the GraphQL
+// resolvers use, so they get attachment cleanup on delete and title
+// normalization on create and update. Calling todos.adapter directly here is
+// what made a model-initiated delete orphan its attachment rows (issue #393).
 export interface AssistantToolDeps {
-  noteWorkflow: Pick<ApiWorkflows["note"], "createNote" | "updateNote">;
-  scope: AuthenticatedOrganizationScope;
-  todoWorkflow: Pick<
-    ApiWorkflows["todo"],
-    "createTodo" | "deleteTodo" | "toggleTodo" | "updateTodo"
-  >;
+  notes: Pick<Notes, "create" | "list" | "update">;
+  todos: Pick<Todos, "create" | "delete" | "list" | "toggle" | "update">;
 }
 
 // Trimmed before length is checked, so "   " is rejected at the tool boundary
@@ -27,11 +19,7 @@ export interface AssistantToolDeps {
 const todoTitleSchema = z.string().trim().min(1).max(255);
 const noteTitleSchema = z.string().trim().min(1).max(255);
 
-export function createAssistantTools({
-  noteWorkflow,
-  scope,
-  todoWorkflow
-}: AssistantToolDeps): ToolSet {
+export function createAssistantTools({ notes, todos }: AssistantToolDeps): ToolSet {
   return {
     createTodo: tool({
       description: "Create a new todo for the user.",
@@ -40,7 +28,7 @@ export function createAssistantTools({
         description: z.string().nullable()
       }),
       execute: async ({ title, description }) => {
-        const todo = await todoWorkflow.createTodo(scope, { title, description });
+        const todo = await todos.create({ title, description });
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -50,8 +38,8 @@ export function createAssistantTools({
         limit: z.number().int().min(1).max(50).default(20)
       }),
       execute: async ({ limit }) => {
-        const todos = await listTodosByScope(scope, { limit, offset: 0 });
-        return todos.map((todo) => ({
+        const listed = await todos.list({ limit, offset: 0 });
+        return listed.map((todo) => ({
           id: todo.id,
           title: todo.title,
           completed: todo.completed
@@ -62,7 +50,7 @@ export function createAssistantTools({
       description: "Toggle a todo's completion state by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const todo = await todoWorkflow.toggleTodo(scope, id);
+        const todo = await todos.toggle(id);
         return { id: todo.id, title: todo.title, completed: todo.completed };
       }
     }),
@@ -74,7 +62,7 @@ export function createAssistantTools({
         description: z.string().nullable().optional()
       }),
       execute: async ({ id, title, description }) => {
-        const todo = await todoWorkflow.updateTodo(scope, id, {
+        const todo = await todos.update(id, {
           ...(title === undefined ? {} : { title }),
           ...(description === undefined ? {} : { description })
         });
@@ -85,7 +73,7 @@ export function createAssistantTools({
       description: "Delete a todo by id.",
       inputSchema: z.object({ id: z.string().uuid() }),
       execute: async ({ id }) => {
-        const deleted = await todoWorkflow.deleteTodo(scope, id);
+        const deleted = await todos.delete(id);
         return { id, deleted };
       }
     }),
@@ -97,11 +85,11 @@ export function createAssistantTools({
         todoTitles: z.array(todoTitleSchema).optional()
       }),
       execute: async ({ title, body, todoTitles }) => {
-        const note = await noteWorkflow.createNote(scope, { title, body: body ?? null });
+        const note = await notes.create({ title, body: body ?? null });
         const created: { id: string; title: string }[] = [];
 
         for (const todoTitle of todoTitles ?? []) {
-          const todo = await todoWorkflow.createTodo(scope, {
+          const todo = await todos.create({
             title: todoTitle,
             description: null,
             noteId: note.id
@@ -116,8 +104,8 @@ export function createAssistantTools({
       description: "List the user's notes to find a note id.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
       execute: async ({ limit }) => {
-        const notes = await listNotesByScope(scope, { limit, offset: 0 });
-        return notes.map((note) => ({ id: note.id, title: note.title }));
+        const listed = await notes.list({ limit, offset: 0 });
+        return listed.map((note) => ({ id: note.id, title: note.title }));
       }
     }),
     updateNote: tool({
@@ -128,7 +116,7 @@ export function createAssistantTools({
         body: z.string().nullable().optional()
       }),
       execute: async ({ id, title, body }) => {
-        const note = await noteWorkflow.updateNote(scope, id, {
+        const note = await notes.update(id, {
           ...(title === undefined ? {} : { title }),
           ...(body === undefined ? {} : { body })
         });
@@ -139,7 +127,7 @@ export function createAssistantTools({
       description: "Add a todo to an existing note by note id.",
       inputSchema: z.object({ noteId: z.string().uuid(), title: todoTitleSchema }),
       execute: async ({ noteId, title }) => {
-        const todo = await todoWorkflow.createTodo(scope, { title, description: null, noteId });
+        const todo = await todos.create({ title, description: null, noteId });
         return { id: todo.id, title: todo.title, noteId };
       }
     })
