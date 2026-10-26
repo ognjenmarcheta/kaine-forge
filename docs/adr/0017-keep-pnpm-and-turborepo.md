@@ -32,7 +32,8 @@ Fix the measured causes instead:
 
 - `ci-pr.yml`: Build Core Apps runs beside Check Fast; the root AI and script tests run in their own job.
 - `ci-pr.yml`, `release.yml`: a per-task Turbo cache in the GitHub Actions cache (`rharkor/caching-for-turbo`).
-- Upgrade pnpm to 12 in its own change.
+- Do not upgrade to pnpm 12 yet. pnpm 11 and 12 write a two-document `pnpm-lock.yaml` that GitHub's dependency graph reads as zero dependencies ([dependabot-core#15904](https://github.com/dependabot/dependabot-core/issues/15904)), which would blind Dependency Review and security alerts. In CI, `pnpm install` itself takes 5.5 s; the 8.6 s store-cache restore stays. Issue #673 tracks the upgrade.
+- Skip `playwright install --with-deps` on hosted runners: its apt step took 7–15 min in 7 of 21 recent e2e shards.
 
 ## Alternatives Considered
 
@@ -51,4 +52,4 @@ Fix the measured causes instead:
   - Revisit when one trigger holds:
     - `vp run` ships remote caching and a package boundary check.
     - Bun supports pnpm catalogs, a release-age gate, and Expo under isolated installs.
-    - Install time becomes a measured CI bottleneck after the pnpm 12 upgrade.
+    - Install time becomes a measured CI bottleneck.
