@@ -22,27 +22,34 @@ describe("api runtime", () => {
       callback();
     }) as ListenFake;
     const log = logger();
+    const createServer = vi.fn(() => ({
+      server: {
+        listen
+      }
+    }));
+    const runMigrations = vi.fn(async () => undefined);
+    const verifyDatabase = vi.fn(async () => undefined);
 
     await startApiRuntime({
-      createServer: () => ({
-        server: {
-          listen
-        }
-      }),
+      createServer,
       exit: (code) => {
         throw new Error(`exit ${String(code)}`);
       },
       logger: log,
       migrations: {
-        run: vi.fn(async () => undefined)
+        run: runMigrations
       },
       port: 4000,
       startupConfig: {
         runMigrations: true
       },
-      verifyDatabase: vi.fn(async () => undefined)
+      verifyDatabase
     });
 
+    expect(verifyDatabase).toHaveBeenCalledOnce();
+    expect(runMigrations).toHaveBeenCalledOnce();
+    expect(verifyDatabase).toHaveBeenCalledBefore(runMigrations);
+    expect(runMigrations).toHaveBeenCalledBefore(createServer);
     expect(listen).toHaveBeenCalledWith(4000, expect.any(Function));
     expect(log.info).toHaveBeenCalledWith({ port: 4000 }, "api server started");
   });

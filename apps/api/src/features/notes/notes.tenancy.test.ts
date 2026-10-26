@@ -1,11 +1,11 @@
 // Proves organization scoping by driving real GraphQL operations over real HTTP
-// against a real Postgres, with no Docker and no browser. Every other API
-// feature test mocks the adapter and stubs requireOrganizationScope, so the
-// tenancy predicate that keeps one organization's rows away from another is
-// never actually executed outside the Playwright suite.
+// against a real Postgres, with no Docker and no browser. context.data.test.ts
+// proves the organization predicate table by table; this suite proves the
+// request path end to end: session, membership gate, resolvers, and loaders.
 //
 // Two seams, both at the test-runner level rather than in production code:
-//   - vi.mock("@repo/db") swaps the pg-backed singleton for PGlite. A module
+//   - vi.mock("@repo/db") swaps the pg-backed singleton for PGlite from
+//     createTestDatabase(), which context.ts passes to the scoped data. A module
 //     reaching the client through a different specifier (health.router.ts
 //     imports `pool` from "@repo/db/client") would escape it, so every
 //     assertion below carries a positive control — the owning organization's
@@ -20,7 +20,6 @@
 // nothing here covers the pg pool, concurrency, or resolveSslConfig.
 import { createLogger } from "@repo/logger";
 import type { Server } from "node:http";
-import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // The db client and better-auth both assert DATABASE_URL at import time. No
@@ -31,11 +30,10 @@ process.env.API_CORS_ORIGINS = "http://localhost:3000";
 
 const TEST_ORGANIZATION_HEADER = "x-test-organization";
 
-const { client, testDb } = await vi.hoisted(async () => {
-  const { PGlite } = await import("@electric-sql/pglite");
-  const { drizzle } = await import("drizzle-orm/pglite");
-  const pglite = new PGlite();
-  return { client: pglite, testDb: drizzle(pglite) };
+const { testDatabase, testDb } = await vi.hoisted(async () => {
+  const { createTestDatabase } = await import("@repo/db/testing");
+  const testDatabase = await createTestDatabase();
+  return { testDatabase, testDb: testDatabase.db };
 });
 
 // Spreading @repo/db/schema rather than importOriginal() keeps
@@ -68,7 +66,7 @@ vi.mock("@repo/auth/server", () => ({
         }
       });
     },
-    // A real query, so the real resolveAuthenticatedOrganizationScope
+    // A real query, so the real resolveOrganizationScope
     // membership gate runs against real rows.
     getOrganizationMembershipProof: async (input: { organizationId: string; userId: string }) => {
       const { and, eq } = await import("drizzle-orm");
@@ -116,7 +114,11 @@ interface GraphqlResponse {
   errors?: Array<{ message: string }>;
 }
 
-async function runAs(organizationId: string | null, query: string): Promise<GraphqlResponse> {
+async function runAs(
+  organizationId: string | null,
+  query: string,
+  variables?: Record<string, unknown>
+): Promise<GraphqlResponse> {
   const response = await fetch(`${baseUrl}/graphql`, {
     method: "POST",
     headers: {
@@ -124,7 +126,7 @@ async function runAs(organizationId: string | null, query: string): Promise<Grap
       "content-type": "application/json",
       ...(organizationId ? { [TEST_ORGANIZATION_HEADER]: organizationId } : {})
     },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query, variables })
   });
   return response.json() as Promise<GraphqlResponse>;
 }
@@ -135,13 +137,6 @@ function notesOf(response: GraphqlResponse): Array<{ id: string; todos?: Array<{
 }
 
 beforeAll(async () => {
-  await client.waitReady;
-
-  const { migrate } = await import("drizzle-orm/pglite/migrator");
-  await migrate(testDb, {
-    migrationsFolder: path.join(import.meta.dirname, "../../../../../packages/db/drizzle")
-  });
-
   const [user] = await testDb
     .insert(usersTable)
     .values({ email: "tenant@example.test", name: "Tenant User" })
@@ -219,7 +214,7 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
-  await client.close();
+  await testDatabase.close();
 });
 
 describe("notes tenancy", () => {
@@ -353,6 +348,7 @@ describe("notes tenancy", () => {
 describe("attachment deletion SQL", () => {
   it("soft-deletes only live files of the requested entity in the active organization", async () => {
     const { deleteFilesByEntity } = await import("../storage/storage.adapter");
+    const { createScopedData } = await import("../../context.data");
     const oldTimestamp = new Date("2020-01-01T00:00:00.000Z");
     const common = {
       bucket: "test-attachments",
@@ -361,7 +357,7 @@ describe("attachment deletion SQL", () => {
       sizeBytes: 1,
       uploadedBy: fixture.userId,
       organizationId: fixture.orgA,
-      entityType: "todo",
+      entityType: "todo" as const,
       entityId: fixture.todoA,
       updatedAt: oldTimestamp
     };
@@ -373,12 +369,13 @@ describe("attachment deletion SQL", () => {
         // Same entity identifiers are needed to exercise the organization predicate itself.
         { ...common, key: "other-organization", status: "uploaded", organizationId: fixture.orgB },
         { ...common, key: "other-entity", status: "uploaded", entityId: fixture.noteA },
-        { ...common, key: "other-type", status: "uploaded", entityType: "note" },
+        { ...common, key: "other-type", status: "uploaded", entityType: "general" },
         { ...common, key: "already-deleted", status: "deleted" }
       ])
       .returning();
 
     const scope = {
+      membership: { id: "membership-1", role: "owner", userId: fixture.userId },
       organizationId: fixture.orgA,
       userId: fixture.userId,
       user: {
@@ -388,7 +385,8 @@ describe("attachment deletion SQL", () => {
         name: "Tenant User"
       }
     };
-    const deleted = await deleteFilesByEntity(scope, "todo", fixture.todoA);
+    const data = createScopedData({ db: testDb, requireOrganizationScope: () => scope });
+    const deleted = await deleteFilesByEntity(data, "todo", fixture.todoA);
     expect(deleted.map((file) => file.key).sort()).toEqual(["target-pending", "target-uploaded"]);
 
     const after = await testDb.select().from(filesTable);
@@ -402,7 +400,57 @@ describe("attachment deletion SQL", () => {
         expect(row).toEqual(before);
       }
     }
-    expect(await deleteFilesByEntity(scope, "todo", fixture.todoA)).toEqual([]);
+    expect(await deleteFilesByEntity(data, "todo", fixture.todoA)).toEqual([]);
     expect(await testDb.select().from(filesTable)).toEqual(after);
+  });
+});
+
+describe("attachment entity type", () => {
+  it("rejects an unknown entity type at the GraphQL boundary and accepts todo from a variable", async () => {
+    const { eq } = await import("drizzle-orm");
+    const before = await testDb.select().from(filesTable);
+
+    const rejected = await runAs(
+      fixture.orgA,
+      `mutation Request($input: RequestUploadInput!) { requestUploadUrl(input: $input) { fileId } }`,
+      {
+        input: {
+          entityId: fixture.todoA,
+          entityType: "note",
+          mimeType: "text/plain",
+          originalName: "a.txt",
+          sizeBytes: 1
+        }
+      }
+    );
+    expect(rejected.errors?.[0]?.message).toMatch(/"AttachmentEntityType"/);
+    expect(await testDb.select().from(filesTable)).toEqual(before);
+
+    const [file] = await testDb
+      .insert(filesTable)
+      .values({
+        bucket: "test-attachments",
+        entityId: fixture.todoA,
+        entityType: "todo",
+        key: "entity-type-variable",
+        mimeType: "text/plain",
+        organizationId: fixture.orgA,
+        originalName: "a.txt",
+        sizeBytes: 1,
+        status: "uploaded",
+        uploadedBy: fixture.userId
+      })
+      .returning();
+    try {
+      const listed = await runAs(
+        fixture.orgA,
+        `query Files($type: AttachmentEntityType) { files(filter: { entityType: $type, entityId: "${fixture.todoA}", status: uploaded }) { id entityType } }`,
+        { type: "todo" }
+      );
+      expect(listed.errors).toBeUndefined();
+      expect(listed.data?.["files"]).toEqual([{ id: file?.id, entityType: "todo" }]);
+    } finally {
+      if (file) await testDb.delete(filesTable).where(eq(filesTable.id, file.id));
+    }
   });
 });

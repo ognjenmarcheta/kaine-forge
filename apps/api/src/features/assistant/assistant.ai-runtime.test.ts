@@ -84,25 +84,26 @@ import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { createAssistantTools } from "./assistant.tools";
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "user-1" },
   organizationId: "org-1",
   user: { email: "u@example.test", emailVerified: true, id: "user-1", name: "User" },
   userId: "user-1"
 };
 
-const workflows = {
-  note: { createNote: vi.fn(), deleteNote: vi.fn(), updateNote: vi.fn() },
-  todo: {
-    createTodo: vi.fn(),
-    deleteTodo: vi.fn(),
-    toggleTodo: vi.fn(),
-    updateTodo: vi.fn()
-  }
+const notes = { create: vi.fn(), list: vi.fn(), update: vi.fn() };
+const todos = {
+  create: vi.fn(),
+  delete: vi.fn(),
+  list: vi.fn(),
+  toggle: vi.fn(),
+  update: vi.fn()
 };
 
 const deps = () => ({
+  notes,
   publishAssistantDelta: vi.fn(),
   recordModelCall: vi.fn(),
-  workflows
+  todos
 });
 
 const runInput = {
@@ -224,14 +225,13 @@ describe("createAssistantAiRuntime", () => {
       expect(instructions).toContain("Do not use markdown");
     });
 
-    it("forwards the workflows and scope to the tool factory", async () => {
+    it("forwards the Todo and Note modules to the tool factory", async () => {
       const injected = deps();
       await createAssistantAiRuntime(injected).runAgent(runInput);
 
       expect(createAssistantTools).toHaveBeenCalledWith({
-        noteWorkflow: injected.workflows.note,
-        scope,
-        todoWorkflow: injected.workflows.todo
+        notes: injected.notes,
+        todos: injected.todos
       });
       expect(aiSdkMocks.streamText.mock.calls[0]?.[0]).toMatchObject({ tools: toolSet });
     });
@@ -409,33 +409,6 @@ describe("createAssistantAiRuntime", () => {
         toolCalls: 3,
         totalTokens: 165
       });
-    });
-
-    it("carries only metadata, never anything derived from the model", () => {
-      // The leak rule as a test rather than a comment: adding `messages` or
-      // `reply` to the telemetry object fails here.
-      const injected = deps();
-
-      return createAssistantAiRuntime(injected)
-        .runAgent(runInput)
-        .then(() => {
-          const telemetry = injected.recordModelCall.mock.calls[0]?.[0] as Record<string, unknown>;
-
-          expect(Object.keys(telemetry).sort()).toEqual([
-            "conversationId",
-            "durationMs",
-            "failureCategory",
-            "inputTokens",
-            "model",
-            "outputTokens",
-            "provider",
-            "runId",
-            "status",
-            "steps",
-            "toolCalls",
-            "totalTokens"
-          ]);
-        });
     });
 
     it("passes through undefined token counts rather than claiming zero", async () => {

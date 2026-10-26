@@ -60,6 +60,7 @@ export const checkStage = async (context: StageContext, step: CheckStep): Promis
         kind: "loop",
         config,
         exec: deps.exec,
+        git: deps.git,
         baseSha,
         artifactsDir: context.artifactsDir,
         clock: deps.clock

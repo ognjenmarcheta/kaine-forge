@@ -18,10 +18,10 @@ catalog:
   zustand: "^5.0.15"
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
-  "@tanstack/react-query": "^5.104.3"
+  "@tanstack/react-query": "^5.104.5"
   # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
   # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify.
-  docx: "9.9.0"
+  docx: "9.13.0"
   pptxgenjs: "4.0.1"
   jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
@@ -40,6 +40,8 @@ catalog:
   tailwindcss: "^4.3.3"
   # Tooling
   "@playwright/test": "^1.64.1"
+  # In-process Postgres for migration and tenancy tests (packages/db, apps/api).
+  "@electric-sql/pglite": "^0.5.10"
   "@tailwindcss/vite": "^4.3.3"
   "@vitejs/plugin-react": "^6.1.2"
   vite: "^8.3.4"
@@ -111,10 +113,14 @@ overrides:
   # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
   minimatch: "^10.2.3"
   shell-quote: "^1.11.0" # GHSA-pqg4-j6r4-53mv via @changesets/cli>launch-editor
+  launch-editor: "^2.14.2" # GHSA-587h-7wmj-h5pm via @changesets/cli (3.0.3 is the latest release)
   # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
   solid-js: "^1.9.17"
   source-map-js: "^1.2.2" # GHSA-68fv-2mgg-jv7q via @vitest/coverage-v8>magicast
   compression: "^1.8.2" # GHSA-vc2v-76pw-4v95 via expo>@expo/cli
+  # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but
+  # uses only APIs that zod 4 keeps (DevToolsPlugin schemas). Remove when @expo/cli moves to zod 4.
+  "@expo/cli>zod": "^4.6.7"
   # No tar override: nothing in pnpm-lock.yaml resolves tar. The image's tar copies
   # come from the npm/corepack toolchains that Dockerfile.api deletes at runtime.
   # esbuild: caret floor — the old exact pin (0.27.3) became the vulnerable version

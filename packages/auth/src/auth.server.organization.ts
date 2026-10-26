@@ -199,17 +199,6 @@ export async function getOrganizationMembershipProof(params: {
 export async function listOrganizationMembersForScope(
   scope: AuthenticatedOrganizationScope
 ): Promise<AuthOrganizationMember[]> {
-  const membership =
-    scope.membership ??
-    (await getOrganizationMembershipProof({
-      organizationId: scope.organizationId,
-      userId: scope.userId
-    }));
-
-  if (!membership) {
-    throw new Error("organization not accessible");
-  }
-
   return db
     .select({
       id: membersTable.id,
