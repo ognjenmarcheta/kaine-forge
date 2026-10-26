@@ -1,4 +1,3 @@
-import { createApiStorageRuntime } from "./storage.runtime";
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 import type { ApiContext } from "../../context";
 
@@ -13,47 +12,30 @@ type DeleteFileArgs = { fileId: string };
 export const storageResolvers = {
   Query: {
     async file(_parent: unknown, args: FileByIdArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).getFile(scope, args.id);
+      return ctx.attachments.get(args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).listFiles(
-        scope,
-        args.filter ?? {}
-      );
+      return ctx.attachments.list(args.filter ?? {});
     }
   },
   Mutation: {
     async requestUploadUrl(_parent: unknown, args: RequestUploadArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).requestUploadUrl(
-        scope,
-        args.input
-      );
+      return ctx.attachments.request(args.input);
     },
     async confirmUpload(_parent: unknown, args: ConfirmUploadArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).confirmUpload(
-        scope,
-        args.fileId
-      );
+      return ctx.attachments.confirm(args.fileId);
     },
     async deleteFile(_parent: unknown, args: DeleteFileArgs, ctx: ResolverContext) {
-      const scope = ctx.requireOrganizationScope();
-      return createApiStorageRuntime(ctx.data, ctx.todos, ctx.logger).deleteFile(
-        scope,
-        args.fileId
-      );
+      return ctx.attachments.delete(args.fileId);
     }
   },
   FileInfo: {
     async downloadUrl(
-      parent: { id: string; status?: string; key: string },
+      parent: { bucket: string; key: string; status: "pending" | "uploaded" | "deleted" },
       _args: unknown,
       ctx: ResolverContext
     ) {
-      return createApiStorageRuntime(ctx.data, ctx.todos).getDownloadUrl(parent);
+      return ctx.attachments.downloadUrl(parent);
     }
   }
 };
