@@ -8,7 +8,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 ## Correctness
 
-- [ ] Behavior matches the request; no unrelated refactors or speculative features (`MONOREPO_GUIDE.md`, `.ai/guide.md` Working Rules).
+- [ ] Behavior matches the request; every changed line traces to it, with no unrelated refactors or speculative features (`MONOREPO_GUIDE.md`, `.ai/guide.md` Working Rules).
 - [ ] Edge cases for auth, empty states, and error paths are handled where the change touches them.
 - [ ] No silent swallowing of errors that should surface to the user or logs.
 
