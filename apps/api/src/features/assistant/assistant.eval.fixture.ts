@@ -41,10 +41,13 @@ export async function seedEvalFixture(
     ])
     .returning();
   if (!own || !foreign) throw new Error("Missing fixture Organizations");
-  await database.db
+  const [member] = await database.db
     .insert(membersTable)
-    .values({ organizationId: own.id, userId: user.id, role: "owner" });
+    .values({ organizationId: own.id, userId: user.id, role: "owner" })
+    .returning();
+  if (!member) throw new Error("Missing fixture Organization Membership");
   const scope: AuthenticatedOrganizationScope = {
+    membership: { id: member.id, role: member.role, userId: member.userId },
     organizationId: own.id,
     userId: user.id,
     user: { id: user.id, name: user.name, email: user.email, emailVerified: false }

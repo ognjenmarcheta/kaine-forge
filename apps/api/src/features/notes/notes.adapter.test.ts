@@ -45,6 +45,7 @@ import { listNotesByScope } from "./notes.adapter";
 
 describe("notes.adapter", () => {
   const scope = {
+    membership: { id: "membership-1", role: "owner", userId: "user-1" },
     organizationId: "org-1",
     user: {
       email: "u1@example.com",

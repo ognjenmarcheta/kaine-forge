@@ -12,6 +12,7 @@ vi.mock("../notes/notes.adapter", () => ({ listNotesByScope: vi.fn() }));
 vi.mock("../todos/todos.adapter", () => ({ listTodosByScope: vi.fn() }));
 
 const scope = {
+  membership: { id: "membership-1", role: "owner", userId: "user-1" },
   organizationId: "org-1",
   user: { email: "u@example.test", emailVerified: true, id: "user-1", name: "User" },
   userId: "user-1"
