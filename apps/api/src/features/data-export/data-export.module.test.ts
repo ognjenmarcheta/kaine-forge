@@ -1,3 +1,4 @@
+import type { AuditEventInput } from "@repo/auth/audit";
 import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
@@ -29,6 +30,7 @@ import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 let database: TestDatabase;
 const ids = { alice: "", bob: "", acme: "", globex: "" };
 const sentEmails: Array<{ to: string; email: EmailTemplate }> = [];
+const audited: AuditEventInput[] = [];
 const store = createMemoryObjectStore();
 const day = 24 * 60 * 60 * 1000;
 const now = new Date("2026-06-01T00:00:00Z");
@@ -112,6 +114,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await database.db.delete(dataExportsTable);
   sentEmails.length = 0;
+  audited.length = 0;
 });
 
 afterAll(async () => {
@@ -139,15 +142,16 @@ function exportsFor(userId: string, organizationId: string, role: string) {
     requireUserId: () => userId,
     requireOrganizationScope: () => scopeOf(userId, organizationId, role),
     enqueue: () => Promise.resolve(),
-    recordAuditEvent: () => Promise.resolve()
+    recordAuditEvent: async (event) => void audited.push(event)
   });
 }
 
-function runJob(exportId: string): Promise<void> {
+function runJob(exportId: string, maxArchiveBytes?: number): Promise<void> {
   return createDataExportJobHandler({
     db: database.db,
     store,
     archiveTtlMs: 7 * day,
+    ...(maxArchiveBytes === undefined ? {} : { maxArchiveBytes }),
     webAppUrl: "https://app.example.test",
     sendEmail: async (to, email) => void sentEmails.push({ to, email }),
     logger: { error: () => undefined, warn: () => undefined },
@@ -323,5 +327,62 @@ describe("data exports", () => {
     await expect(exportsFor(ids.alice, ids.globex, "owner").downloadUrl(ready.id)).rejects.toThrow(
       "data export not found"
     );
+    // The requester was demoted after the export was ready.
+    await expect(exportsFor(ids.alice, ids.acme, "admin").downloadUrl(ready.id)).rejects.toThrow(
+      "permission required: organization:export"
+    );
+    expect(
+      audited.map(({ action, actorUserId, organizationId }) => ({
+        action,
+        actorUserId,
+        organizationId
+      }))
+    ).toEqual([
+      { action: "organization_exported", actorUserId: ids.alice, organizationId: ids.acme },
+      { action: "organization_export_downloaded", actorUserId: ids.alice, organizationId: ids.acme }
+    ]);
+  });
+
+  it("fails an export over the size cap with a reason and stores no archive", async () => {
+    const requested = await exportsFor(ids.alice, ids.acme, "owner").request("user");
+    const before = store.keys();
+
+    await runJob(requested.id, 64);
+
+    const [row] = await database.db
+      .select()
+      .from(dataExportsTable)
+      .where(eq(dataExportsTable.id, requested.id));
+    expect(row).toMatchObject({ status: "failed", failureReason: "too_large", key: null });
+    expect(store.keys()).toEqual(before);
+    expect(sentEmails).toEqual([]);
+  });
+
+  it("deletes a stored archive when the export cannot be marked ready", async () => {
+    const requested = await exportsFor(ids.alice, ids.acme, "owner").request("user");
+    const before = store.keys();
+    // The archive is stored, then the ready update fails, as a lost
+    // connection would make it.
+    await database.client.exec(`
+      create function refuse_ready() returns trigger language plpgsql as
+        'begin raise exception ''ready refused''; end';
+      create trigger refuse_ready before update on data_exports
+        for each row when (new.status = 'ready') execute function refuse_ready();
+    `);
+
+    try {
+      await runJob(requested.id);
+    } finally {
+      await database.client.exec(
+        "drop trigger refuse_ready on data_exports; drop function refuse_ready();"
+      );
+    }
+
+    const [row] = await database.db
+      .select()
+      .from(dataExportsTable)
+      .where(eq(dataExportsTable.id, requested.id));
+    expect(row).toMatchObject({ status: "failed", failureReason: "error", key: null });
+    expect(store.keys()).toEqual(before);
   });
 });

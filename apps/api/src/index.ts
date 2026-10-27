@@ -164,7 +164,8 @@ if (housekeeping) {
           db,
           store: s3ObjectStore,
           now,
-          windows: housekeeping.retention
+          windows: housekeeping.retention,
+          logger
         }))
       })
     })

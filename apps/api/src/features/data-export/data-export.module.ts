@@ -19,6 +19,7 @@ export interface DataExportView {
   kind: DataExportKind;
   status: (typeof dataExportsTable.$inferSelect)["status"];
   sizeBytes: number | null;
+  failureReason: (typeof dataExportsTable.$inferSelect)["failureReason"];
   createdAt: Date;
   completedAt: Date | null;
   expiresAt: Date | null;
@@ -56,6 +57,7 @@ function toView(row: DataExportRow): DataExportView {
     kind: row.kind,
     status: row.status,
     sizeBytes: row.sizeBytes,
+    failureReason: row.failureReason,
     createdAt: row.createdAt,
     completedAt: row.completedAt,
     expiresAt: row.expiresAt
@@ -167,8 +169,20 @@ export function createDataExports({
       }
 
       // An Organization archive needs the Permission again, in the Organization it holds.
-      if (owner(row.kind).organizationId !== row.organizationId) {
+      const { organizationId } = owner(row.kind);
+
+      if (organizationId !== row.organizationId) {
         throw new Error("data export not found");
+      }
+
+      if (organizationId) {
+        await recordAuditEvent({
+          action: "organization_export_downloaded",
+          actorUserId: userId,
+          organizationId,
+          targetId: organizationId,
+          metadata: {}
+        });
       }
 
       return store.presignDownload(

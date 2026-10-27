@@ -91,6 +91,11 @@ export function DataExportSection({ kind, organizationId }: DataExportSectionPro
                       </span>
                     </span>
                   ) : null}
+                  {item.status === "failed" ? (
+                    <span className="text-body-sm text-[color:var(--ds-text-danger)]">
+                      {t(`dataExport.failure.${item.failureReason ?? "error"}`)}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="flex items-center gap-[var(--ds-space-100)]">
                   <Badge>{t(`dataExport.status.${item.status}`)}</Badge>

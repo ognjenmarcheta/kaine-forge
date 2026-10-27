@@ -315,6 +315,7 @@ enum AuditAction {
   organization_renamed
   organization_deleted
   organization_exported
+  organization_export_downloaded
   invitation_revoked
   two_factor_enabled
   two_factor_disabled
@@ -418,11 +419,17 @@ enum DataExportStatus {
   expired
 }
 
+enum DataExportFailureReason {
+  too_large
+  error
+}
+
 type DataExport {
   id: ID!
   kind: DataExportKind!
   status: DataExportStatus!
   sizeBytes: Int
+  failureReason: DataExportFailureReason
   createdAt: DateTime!
   completedAt: DateTime
   expiresAt: DateTime

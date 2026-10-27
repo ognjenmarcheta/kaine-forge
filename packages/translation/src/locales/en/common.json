@@ -49,5 +49,7 @@
   "dataExport.error.inProgress": "An export is already in progress. Wait until it is ready.",
   "dataExport.error.request": "The export could not be requested. Try again.",
   "dataExport.error.download": "The download link could not be created. Try again.",
-  "dataExport.error.list": "Exports could not be loaded."
+  "dataExport.error.list": "Exports could not be loaded.",
+  "dataExport.failure.too_large": "This export is larger than the archive limit. Remove old data or contact support.",
+  "dataExport.failure.error": "This export failed. Request a new one."
 }

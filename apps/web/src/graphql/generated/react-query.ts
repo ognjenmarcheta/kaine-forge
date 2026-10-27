@@ -18,6 +18,7 @@ export type AuditAction =
   | "member_removed"
   | "member_role_changed"
   | "organization_deleted"
+  | "organization_export_downloaded"
   | "organization_exported"
   | "organization_renamed"
   | "ownership_transferred"
@@ -37,6 +38,8 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type DataExportFailureReason = "error" | "too_large";
 
 export type DataExportKind = "organization" | "user";
 
@@ -194,6 +197,7 @@ export type DataExportsQuery = {
       kind: DataExportKind;
       status: DataExportStatus;
       sizeBytes: number | null;
+      failureReason: DataExportFailureReason | null;
       createdAt: string;
       completedAt: string | null;
       expiresAt: string | null;
@@ -939,6 +943,7 @@ export const DataExportsDocument = new TypedDocumentString(`
       kind
       status
       sizeBytes
+      failureReason
       createdAt
       completedAt
       expiresAt

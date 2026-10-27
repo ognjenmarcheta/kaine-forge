@@ -5,10 +5,10 @@ import {
   notificationsTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
-import { and, asc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 
 import { HOUSEKEEPING_CONFIG } from "./housekeeping.definition";
-import { runBatchPurges, type BatchPurge } from "./housekeeping.sweep";
+import { runBatchPurges, withHousekeepingLock, type BatchPurge } from "./housekeeping.sweep";
 import type { ObjectStore } from "../storage/attachment.store";
 
 /** How long each kind of row stays; see `.env.example` for the variables and defaults. */
@@ -35,11 +35,9 @@ type RetentionCounts = Record<
 
 const cutoff = (now: Date, windowMs: number) => new Date(now.getTime() - windowMs);
 
-function retentionPurges(
-  now: Date,
-  windows: RetentionWindows,
-  store: Pick<ObjectStore, "delete">
-): Array<[keyof RetentionCounts, BatchPurge]> {
+type RowPurgeName = Exclude<keyof RetentionCounts, "exportArchives" | "dataExports">;
+
+function retentionPurges(now: Date, windows: RetentionWindows): Array<[RowPurgeName, BatchPurge]> {
   return [
     [
       "purgedFiles",
@@ -115,53 +113,15 @@ function retentionPurges(
           .returning({ id: dataExportsTable.id });
         return rows.length;
       }
-    ],
-    [
-      "exportArchives",
-      // The archive goes first; a failed object delete throws and keeps the
-      // row ready for the next run.
-      async (tx, limit) => {
-        const due = await tx
-          .select({
-            id: dataExportsTable.id,
-            bucket: dataExportsTable.bucket,
-            key: dataExportsTable.key
-          })
-          .from(dataExportsTable)
-          .where(
-            and(
-              eq(dataExportsTable.status, "ready"),
-              or(
-                lt(dataExportsTable.expiresAt, now),
-                // The requester deleted their account: their own data goes now.
-                and(eq(dataExportsTable.kind, "user"), isNull(dataExportsTable.userId))
-              )
-            )
-          )
-          .orderBy(asc(dataExportsTable.expiresAt))
-          .limit(limit);
+    ]
+  ];
+}
 
-        for (const row of due) {
-          if (row.bucket && row.key) {
-            await store.delete({ bucket: row.bucket, key: row.key });
-          }
-        }
-
-        if (due.length > 0) {
-          await tx
-            .update(dataExportsTable)
-            .set({ status: "expired", bucket: null, key: null, updatedAt: now })
-            .where(
-              inArray(
-                dataExportsTable.id,
-                due.map((row) => row.id)
-              )
-            );
-        }
-
-        return due.length;
-      }
-    ],
+function dataExportPurges(
+  now: Date,
+  windows: RetentionWindows
+): Array<["dataExports", BatchPurge]> {
+  return [
     [
       "dataExports",
       // Only finished rows: a ready row still names its archive.
@@ -186,24 +146,129 @@ function retentionPurges(
   ];
 }
 
+const archiveDue = (now: Date) =>
+  and(
+    eq(dataExportsTable.status, "ready"),
+    or(
+      lt(dataExportsTable.expiresAt, now),
+      // The requester deleted their account: their own data goes now.
+      and(eq(dataExportsTable.kind, "user"), isNull(dataExportsTable.userId))
+    )
+  );
+
+/** What retention logs: an archive it could not delete. */
+interface RetentionLogger {
+  warn: (fields: { exportId: string }, message: string) => void;
+}
+
+interface ArchiveRow {
+  id: string;
+  bucket: string | null;
+  key: string | null;
+}
+
+/**
+ * Deletes the archives of exports past their expiry and marks those exports
+ * expired. Rows are read and marked under the housekeeping lock; the object
+ * deletes run outside any transaction. A delete that fails is logged and its
+ * row stays ready for the next run, without blocking the rows after it.
+ * Resolves null when another replica holds the lock.
+ */
+async function expireExportArchives({
+  db,
+  store,
+  now,
+  batchSize,
+  logger
+}: {
+  db: Database;
+  store: Pick<ObjectStore, "delete">;
+  now: Date;
+  batchSize: number;
+  logger: RetentionLogger;
+}): Promise<number | null> {
+  let expired = 0;
+  let after: string | null = null;
+
+  for (;;) {
+    const lastId: string | null = after;
+    const due: ArchiveRow[] | null = await withHousekeepingLock(db, (tx) =>
+      tx
+        .select({
+          id: dataExportsTable.id,
+          bucket: dataExportsTable.bucket,
+          key: dataExportsTable.key
+        })
+        .from(dataExportsTable)
+        .where(and(archiveDue(now), lastId === null ? undefined : gt(dataExportsTable.id, lastId)))
+        .orderBy(asc(dataExportsTable.id))
+        .limit(batchSize)
+    );
+
+    if (due === null) {
+      return expired > 0 ? expired : null;
+    }
+
+    const deleted: string[] = [];
+
+    for (const row of due) {
+      try {
+        if (row.bucket && row.key) {
+          await store.delete({ bucket: row.bucket, key: row.key });
+        }
+        deleted.push(row.id);
+      } catch {
+        logger.warn({ exportId: row.id }, "expired data export archive not deleted");
+      }
+    }
+
+    if (deleted.length > 0) {
+      // At most one batch of ids.
+      const marked = await withHousekeepingLock(db, (tx) =>
+        tx
+          .update(dataExportsTable)
+          .set({ status: "expired", bucket: null, key: null, updatedAt: now })
+          .where(and(inArray(dataExportsTable.id, deleted), eq(dataExportsTable.status, "ready")))
+          .returning({ id: dataExportsTable.id })
+      );
+      expired += marked?.length ?? 0;
+    }
+
+    const last = due.at(-1);
+
+    if (!last || due.length < batchSize) {
+      return expired;
+    }
+
+    after = last.id;
+  }
+}
+
 /**
  * Deletes rows older than their retention window, and export archives past
- * their expiry. A system job: it takes no client input. It runs in batches
- * under the housekeeping advisory lock, so on several replicas only one
- * deletes at a time; when another holds the lock, the run stops.
+ * their expiry. A system job: it takes no client input. Database work runs in
+ * batches under the housekeeping advisory lock, so on several replicas only
+ * one deletes at a time; a step that cannot take the lock deletes nothing.
  */
-export function applyRetention({
+export async function applyRetention({
   db,
   store,
   now,
   windows,
+  logger,
   batchSize = HOUSEKEEPING_CONFIG.batchSize
 }: {
   db: Database;
   store: Pick<ObjectStore, "delete">;
   now: Date;
   windows: RetentionWindows;
+  logger: RetentionLogger;
   batchSize?: number;
 }): Promise<RetentionCounts> {
-  return runBatchPurges(db, retentionPurges(now, windows, store), batchSize);
+  const rows = await runBatchPurges(db, retentionPurges(now, windows), batchSize);
+  // Archives expire before the export purge, which removes their rows later.
+  const exportArchives = (await expireExportArchives({ db, store, now, batchSize, logger })) ?? 0;
+  const exports = await runBatchPurges(db, dataExportPurges(now, windows), batchSize);
+
+  return { ...rows, exportArchives, ...exports };
 }

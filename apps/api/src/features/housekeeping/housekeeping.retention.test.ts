@@ -20,6 +20,10 @@ let orgId: string;
 const now = new Date("2026-06-01T00:00:00Z");
 const day = 24 * 60 * 60 * 1000;
 const at = (offsetMs: number) => new Date(now.getTime() + offsetMs);
+const warnings: string[] = [];
+const logger = {
+  warn: (_fields: { exportId: string }, message: string) => void warnings.push(message)
+};
 const windows: RetentionWindows = {
   auditEventsMs: 365 * day,
   dataExportsMs: 30 * day,
@@ -48,6 +52,7 @@ beforeEach(async () => {
   await database.db.delete(auditEventsTable);
   await database.db.delete(notificationsTable);
   await database.db.delete(dataExportsTable);
+  warnings.length = 0;
 });
 
 afterAll(async () => {
@@ -182,7 +187,7 @@ describe("applyRetention", () => {
     });
 
     await expect(
-      applyRetention({ db: database.db, store, now, windows, batchSize: 1 })
+      applyRetention({ db: database.db, store, now, windows, batchSize: 1, logger })
     ).resolves.toEqual({
       purgedFiles: 1,
       auditEvents: 1,
@@ -228,7 +233,9 @@ describe("applyRetention", () => {
     `);
 
     try {
-      await expect(applyRetention({ db: database.db, store, now, windows })).resolves.toEqual({
+      await expect(
+        applyRetention({ db: database.db, store, now, windows, logger })
+      ).resolves.toEqual({
         purgedFiles: 0,
         auditEvents: 0,
         notifications: 0,
@@ -246,5 +253,49 @@ describe("applyRetention", () => {
       exports: [{ key: "exports/users/expired.zip", status: "ready" }]
     });
     expect(store.keys()).toEqual(["exports/users/expired.zip"]);
+  });
+
+  it("skips an archive whose delete keeps failing and still expires and purges the rest", async () => {
+    const memory = createMemoryObjectStore();
+    const store = {
+      ...memory,
+      delete: async (ref: { bucket: string; key: string }) => {
+        if (ref.key.endsWith("stuck-archive.zip")) throw new Error("storage unavailable");
+        await memory.delete(ref);
+      }
+    };
+    for (const name of ["stuck-archive", "other-archive"]) {
+      await memory.put(
+        { bucket: "memory", key: `exports/users/${name}.zip` },
+        new Uint8Array(1),
+        "application/zip"
+      );
+    }
+    await seedExport("stuck-archive", {
+      status: "ready",
+      expiresAt: at(-2),
+      createdAt: at(-9 * day)
+    });
+    await seedExport("other-archive", {
+      status: "ready",
+      expiresAt: at(-1),
+      createdAt: at(-8 * day)
+    });
+    await seedExport("old-failed", {
+      status: "failed",
+      updatedAt: at(-31 * day),
+      createdAt: at(-32 * day)
+    });
+
+    await expect(
+      applyRetention({ db: database.db, store, now, windows, batchSize: 1, logger })
+    ).resolves.toMatchObject({ exportArchives: 1, dataExports: 1 });
+
+    expect((await remaining()).exports).toEqual([
+      { key: "exports/users/stuck-archive.zip", status: "ready" },
+      { key: null, status: "expired" }
+    ]);
+    expect(memory.keys()).toEqual(["exports/users/stuck-archive.zip"]);
+    expect(warnings).toEqual(["expired data export archive not deleted"]);
   });
 });

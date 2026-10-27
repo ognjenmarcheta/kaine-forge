@@ -120,7 +120,7 @@ export async function runBatchPurges<TName extends string>(
  * advisory lock. Resolves null without running `task` when another replica
  * holds the lock.
  */
-async function withHousekeepingLock<T>(
+export async function withHousekeepingLock<T>(
   db: Database,
   task: (tx: Database) => Promise<T>
 ): Promise<T | null> {

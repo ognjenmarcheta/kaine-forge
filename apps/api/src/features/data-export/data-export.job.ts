@@ -8,6 +8,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import {
   collectOrganizationExport,
   collectUserExport,
+  DataExportTooLargeError,
   zipArchive,
   type ArchiveFiles
 } from "./data-export.archive";
@@ -18,9 +19,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface DataExportJobDeps {
   db: Database;
-  store: Pick<ObjectStore, "place" | "put">;
+  store: Pick<ObjectStore, "delete" | "place" | "put">;
   /** How long a ready archive stays downloadable. */
   archiveTtlMs: number;
+  /** Cap on the archive's JSON before compression. */
+  maxArchiveBytes?: number;
   /** Web app origin for the email's link to the export section. */
   webAppUrl: string;
   /** Queues one email through the job runner (#703 templates). */
@@ -65,6 +68,7 @@ export function createDataExportJobHandler({
   db,
   store,
   archiveTtlMs,
+  maxArchiveBytes = DATA_EXPORT_CONFIG.maxArchiveBytes,
   webAppUrl,
   sendEmail,
   logger,
@@ -86,10 +90,13 @@ export function createDataExportJobHandler({
       return;
     }
 
+    const ref = store.place(archiveKey(row));
+    let stored = false;
+
     try {
-      const archive = await zipArchive(await collect(db, row));
-      const ref = store.place(archiveKey(row));
+      const archive = await zipArchive(await collect(db, row), maxArchiveBytes);
       await store.put(ref, archive, DATA_EXPORT_CONFIG.archiveContentType);
+      stored = true;
       const completedAt = now();
       const expiresAt = new Date(completedAt.getTime() + archiveTtlMs);
       await db
@@ -110,10 +117,22 @@ export function createDataExportJobHandler({
         { exportId, error: error instanceof Error ? error.name : "UnknownError" },
         "data export failed"
       );
+      // A stored archive whose row never became ready would never be swept.
+      if (stored) {
+        await store.delete(ref).catch(() => {
+          logger.warn({ exportId }, "failed data export archive not deleted");
+        });
+      }
+
       const failedAt = now();
       await db
         .update(dataExportsTable)
-        .set({ status: "failed", completedAt: failedAt, updatedAt: failedAt })
+        .set({
+          status: "failed",
+          failureReason: error instanceof DataExportTooLargeError ? "too_large" : "error",
+          completedAt: failedAt,
+          updatedAt: failedAt
+        })
         .where(eq(dataExportsTable.id, row.id));
       return;
     }

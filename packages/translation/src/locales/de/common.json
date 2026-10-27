@@ -49,5 +49,7 @@
   "dataExport.error.inProgress": "Ein Export läuft bereits. Warte, bis er bereit ist.",
   "dataExport.error.request": "Der Export konnte nicht angefordert werden. Versuche es erneut.",
   "dataExport.error.download": "Der Download-Link konnte nicht erstellt werden. Versuche es erneut.",
-  "dataExport.error.list": "Exporte konnten nicht geladen werden."
+  "dataExport.error.list": "Exporte konnten nicht geladen werden.",
+  "dataExport.failure.too_large": "Dieser Export ist größer als die Archivgrenze. Entferne alte Daten oder wende dich an den Support.",
+  "dataExport.failure.error": "Dieser Export ist fehlgeschlagen. Fordere einen neuen an."
 }

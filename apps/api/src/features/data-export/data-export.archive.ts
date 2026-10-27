@@ -119,21 +119,21 @@ async function assistantFiles(db: Database, userId: string): Promise<ArchiveFile
     .from(assistantConversationsTable)
     .where(eq(assistantConversationsTable.userId, userId))
     .orderBy(asc(assistantConversationsTable.createdAt));
-  // Messages follow their conversations, so an export never holds a message
-  // of a conversation it does not hold.
-  const messages =
-    conversations.length > 0
-      ? await db
-          .select(messageColumns)
-          .from(assistantMessagesTable)
-          .where(
-            inArray(
-              assistantMessagesTable.conversationId,
-              conversations.map((conversation) => conversation.id)
-            )
-          )
-          .orderBy(asc(assistantMessagesTable.createdAt))
-      : [];
+  // Messages follow the same conversations, by subquery: a bound id list
+  // would pass Postgres' 65,535 parameter limit for a large export.
+  const messages = await db
+    .select(messageColumns)
+    .from(assistantMessagesTable)
+    .where(
+      inArray(
+        assistantMessagesTable.conversationId,
+        db
+          .select({ id: assistantConversationsTable.id })
+          .from(assistantConversationsTable)
+          .where(eq(assistantConversationsTable.userId, userId))
+      )
+    )
+    .orderBy(asc(assistantMessagesTable.createdAt));
 
   return {
     "assistant-conversations.json": conversations,
@@ -272,12 +272,28 @@ export async function collectOrganizationExport(
   };
 }
 
-/** One zip archive with a pretty-printed JSON file per entry. */
-export async function zipArchive(files: ArchiveFiles): Promise<Uint8Array> {
+/** The export's JSON is over the archive cap; the export fails with reason too_large. */
+export class DataExportTooLargeError extends Error {
+  override name = "DataExportTooLargeError";
+}
+
+/**
+ * One zip archive with a pretty-printed JSON file per entry. Throws
+ * DataExportTooLargeError once the JSON passes `maxBytes`, before compressing.
+ */
+export async function zipArchive(files: ArchiveFiles, maxBytes: number): Promise<Uint8Array> {
   const zip = new JSZip();
+  let total = 0;
 
   for (const [name, value] of Object.entries(files)) {
-    zip.file(name, `${JSON.stringify(value, null, 2)}\n`);
+    const json = `${JSON.stringify(value, null, 2)}\n`;
+    total += Buffer.byteLength(json);
+
+    if (total > maxBytes) {
+      throw new DataExportTooLargeError("data export is over the archive size cap");
+    }
+
+    zip.file(name, json);
   }
 
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });

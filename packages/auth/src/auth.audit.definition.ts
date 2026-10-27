@@ -13,6 +13,8 @@ export interface AuditEventMetadataByAction {
   organization_deleted: { name: string };
   /** An owner requested an archive of the Organization's data. */
   organization_exported: Record<string, never>;
+  /** An owner fetched a download link of an Organization export. */
+  organization_export_downloaded: Record<string, never>;
   invitation_revoked: { email: string };
   two_factor_enabled: Record<string, never>;
   two_factor_disabled: Record<string, never>;
@@ -45,6 +47,7 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   organization_renamed: "organization",
   organization_deleted: "organization",
   organization_exported: "organization",
+  organization_export_downloaded: "organization",
   invitation_revoked: "invitation",
   two_factor_enabled: "user",
   two_factor_disabled: "user",

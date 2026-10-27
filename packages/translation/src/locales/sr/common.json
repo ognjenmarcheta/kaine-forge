@@ -49,5 +49,7 @@
   "dataExport.error.inProgress": "Izvoz je već u toku. Sačekajte da bude spreman.",
   "dataExport.error.request": "Izvoz nije mogao da se zatraži. Pokušajte ponovo.",
   "dataExport.error.download": "Link za preuzimanje nije mogao da se napravi. Pokušajte ponovo.",
-  "dataExport.error.list": "Izvozi nisu mogli da se učitaju."
+  "dataExport.error.list": "Izvozi nisu mogli da se učitaju.",
+  "dataExport.failure.too_large": "Ovaj izvoz je veći od ograničenja arhive. Uklonite stare podatke ili kontaktirajte podršku.",
+  "dataExport.failure.error": "Ovaj izvoz nije uspeo. Zatražite novi."
 }

@@ -1,3 +1,4 @@
+CREATE TYPE "public"."data_export_failure_reason" AS ENUM('too_large', 'error');--> statement-breakpoint
 CREATE TYPE "public"."data_export_kind" AS ENUM('user', 'organization');--> statement-breakpoint
 CREATE TYPE "public"."data_export_status" AS ENUM('pending', 'running', 'ready', 'failed', 'expired');--> statement-breakpoint
 CREATE TABLE "data_exports" (
@@ -8,7 +9,8 @@ CREATE TABLE "data_exports" (
 	"organization_id" uuid,
 	"bucket" text,
 	"key" text,
-	"size_bytes" integer,
+	"size_bytes" bigint,
+	"failure_reason" "data_export_failure_reason",
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone,

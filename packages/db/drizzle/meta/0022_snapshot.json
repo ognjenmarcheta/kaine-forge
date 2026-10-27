@@ -1,5 +1,5 @@
 {
-  "id": "6e48429f-dd49-455f-b71e-ce27f95193aa",
+  "id": "4df2d155-5d44-45b8-9320-af966c74487d",
   "prevId": "4d1aeb4f-981c-4dc2-aeb1-e3ee0902b8ad",
   "version": "7",
   "dialect": "postgresql",
@@ -498,7 +498,14 @@
         },
         "size_bytes": {
           "name": "size_bytes",
-          "type": "integer",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "data_export_failure_reason",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -2058,6 +2065,11 @@
     }
   },
   "enums": {
+    "public.data_export_failure_reason": {
+      "name": "data_export_failure_reason",
+      "schema": "public",
+      "values": ["too_large", "error"]
+    },
     "public.data_export_kind": {
       "name": "data_export_kind",
       "schema": "public",

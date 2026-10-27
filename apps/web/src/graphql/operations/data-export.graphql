@@ -5,6 +5,7 @@ query DataExports($kind: DataExportKind!, $first: Int) {
       kind
       status
       sizeBytes
+      failureReason
       createdAt
       completedAt
       expiresAt

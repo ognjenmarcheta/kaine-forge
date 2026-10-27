@@ -7,6 +7,12 @@ export const DATA_EXPORT_CONFIG = {
   defaultArchiveTtlMs: 7 * 24 * 60 * 60 * 1000,
   archiveContentType: "application/zip",
   /**
+   * Cap on an archive's JSON before compression. The job builds the whole
+   * archive in memory, so a larger export fails with reason too_large instead
+   * of exhausting the process (streaming is the upgrade: issue #753).
+   */
+  maxArchiveBytes: 256 * 1024 * 1024,
+  /**
    * Private-bucket prefix of user export archives. An Organization export
    * lives under the Organization's own `<organizationId>/` prefix instead, so
    * the storage sweep removes it with a deleted Organization.

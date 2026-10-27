@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   index,
-  integer,
   pgEnum,
   pgTable,
   text,
@@ -22,6 +22,12 @@ export const dataExportStatusEnum = pgEnum("data_export_status", [
   "ready",
   "failed",
   "expired"
+]);
+
+/** Why an export failed: its data is over the archive size cap, or anything else. */
+export const dataExportFailureReasonEnum = pgEnum("data_export_failure_reason", [
+  "too_large",
+  "error"
 ]);
 
 /**
@@ -47,7 +53,9 @@ export const dataExportsTable = pgTable(
     /** The archive object; set while the export is ready. */
     bucket: text("bucket"),
     key: text("key"),
-    sizeBytes: integer("size_bytes"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    /** Set when the export failed. */
+    failureReason: dataExportFailureReasonEnum("failure_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),

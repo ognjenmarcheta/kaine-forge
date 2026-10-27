@@ -14,12 +14,20 @@ export const dataExportTypeDefs = /* GraphQL */ `
     expired
   }
 
+  enum DataExportFailureReason {
+    # The export's data is over the archive size cap.
+    too_large
+    error
+  }
+
   type DataExport {
     id: ID!
     kind: DataExportKind!
     status: DataExportStatus!
     # Archive size; set while the export is ready.
     sizeBytes: Int
+    # Set when the export failed.
+    failureReason: DataExportFailureReason
     createdAt: DateTime!
     completedAt: DateTime
     # When the archive is deleted; set once the export is ready.

@@ -19,6 +19,7 @@ const READY = {
   kind: "user",
   status: "ready",
   sizeBytes: 2048,
+  failureReason: null,
   createdAt: "2026-10-20T10:00:00.000Z",
   completedAt: "2026-10-20T10:01:00.000Z",
   expiresAt: "2026-10-27T10:01:00.000Z"
@@ -107,6 +108,16 @@ it("downloads a ready export through its presigned URL", async () => {
   await settle();
 
   expect(assign).toHaveBeenCalledWith(api.downloadUrl);
+});
+
+it("explains why a failed export failed", async () => {
+  api.items = [
+    { ...READY, status: "failed", failureReason: "too_large", expiresAt: null, sizeBytes: null }
+  ];
+  await render();
+
+  expect(container.querySelector("li")?.textContent).toContain("dataExport.failure.too_large");
+  expect(container.textContent).not.toContain("dataExport.download");
 });
 
 it("offers no new request while an export is in progress", async () => {

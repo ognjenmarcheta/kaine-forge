@@ -17,6 +17,7 @@ export type AuditAction =
   | "member_removed"
   | "member_role_changed"
   | "organization_deleted"
+  | "organization_export_downloaded"
   | "organization_exported"
   | "organization_renamed"
   | "ownership_transferred"
@@ -36,6 +37,8 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type DataExportFailureReason = "error" | "too_large";
 
 export type DataExportKind = "organization" | "user";
 
@@ -193,6 +196,7 @@ export type DataExportsQuery = {
       kind: DataExportKind;
       status: DataExportStatus;
       sizeBytes: number | null;
+      failureReason: DataExportFailureReason | null;
       createdAt: unknown;
       completedAt: unknown;
       expiresAt: unknown;
@@ -1138,6 +1142,7 @@ export const DataExportsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "kind" } },
                       { kind: "Field", name: { kind: "Name", value: "status" } },
                       { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                      { kind: "Field", name: { kind: "Name", value: "failureReason" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "completedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "expiresAt" } }
