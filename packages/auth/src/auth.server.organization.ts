@@ -1,5 +1,6 @@
 import { db, membersTable, organizationsTable, usersTable } from "@repo/db";
 import { and, asc, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import { ORGANIZATION_ROLES } from "./auth.permissions";
 import type { AuthenticatedOrganizationScope } from "./auth.scope";
@@ -42,15 +43,29 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
       )
       .limit(1);
 
-    if (!existingMembership[0]) {
-      await db.insert(membersTable).values({
-        userId,
-        organizationId: currentOrganization.id,
-        role: ORGANIZATION_ROLES.OWNER
-      });
+    if (existingMembership[0]) {
+      return currentOrganization;
     }
 
-    return currentOrganization;
+    // The user created this organization but no longer belongs to it: an owner
+    // removed them, or they left. Never restore that membership. Start a new
+    // personal organization; its slug must differ from the original one.
+    const [replacement] = await db
+      .insert(organizationsTable)
+      .values({ userId, name: "Personal", slug: `personal-${randomUUID()}` })
+      .returning();
+
+    if (!replacement) {
+      throw new Error("failed to create personal organization");
+    }
+
+    await db.insert(membersTable).values({
+      userId,
+      organizationId: replacement.id,
+      role: ORGANIZATION_ROLES.OWNER
+    });
+
+    return replacement;
   }
 
   const createdOrganizations = await db
