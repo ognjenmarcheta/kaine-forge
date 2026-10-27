@@ -235,7 +235,19 @@ describe("named permission checks", () => {
       "logo:update",
       { logo: ["update"] }
     ],
-    ["auditEvents", `query { auditEvents { items { id } } }`, "audit:read", { audit: ["read"] }]
+    ["auditEvents", `query { auditEvents { items { id } } }`, "audit:read", { audit: ["read"] }],
+    [
+      "setFeatureFlagOverride",
+      `mutation { setFeatureFlagOverride(key: organizations_visible, enabled: false) { key } }`,
+      "featureFlag:update",
+      { featureFlag: ["update"] }
+    ],
+    [
+      "clearFeatureFlagOverride",
+      `mutation { clearFeatureFlagOverride(key: organizations_visible) { key } }`,
+      "featureFlag:update",
+      { featureFlag: ["update"] }
+    ]
   ])(
     "%s refuses a Custom Role without its permission and passes it with it",
     async (_name, query, permission, grant) => {

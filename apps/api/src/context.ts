@@ -3,7 +3,7 @@ import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
 import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
-import { resolveFeatureFlags } from "@repo/feature-flags";
+import type { FeatureFlags } from "@repo/feature-flags";
 import { createChildLogger, createLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
@@ -12,6 +12,11 @@ import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createApiKeys, type ApiKeys } from "./features/api-keys/api-keys.module";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
+import {
+  createFeatureFlagOverrides,
+  resolveRequestFeatureFlags,
+  type FeatureFlagOverrides
+} from "./features/feature-flags/feature-flags.module";
 import { createNotes, type Notes } from "./features/notes/notes.module";
 import {
   createNotifications,
@@ -52,7 +57,9 @@ export interface ApiContext {
   notifications: Notifications;
   publicAssets: PublicAssets;
   loaders: ApiLoaders;
-  featureFlags: ReturnType<typeof resolveFeatureFlags>;
+  /** Resolved once per request: default < environment < Active Organization override. */
+  featureFlags: FeatureFlags;
+  featureFlagOverrides: FeatureFlagOverrides;
   logger: Logger;
   pubsub: typeof pubsub;
 }
@@ -166,7 +173,12 @@ export async function createContextFromHeaders(
       store: s3ObjectStore
     }),
     loaders: createApiLoaders(todos, attachments),
-    featureFlags: resolveFeatureFlags(),
+    featureFlags: await resolveRequestFeatureFlags(data, organizationScope),
+    featureFlagOverrides: createFeatureFlagOverrides({
+      data,
+      recordAuditEvent,
+      requireOrganizationScope
+    }),
     logger: contextLogger,
     pubsub
   };

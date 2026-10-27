@@ -16,6 +16,8 @@ export interface AuditEventMetadataByAction {
   two_factor_disabled: Record<string, never>;
   password_changed: Record<string, never>;
   attachment_deleted: { originalName: string };
+  /** `enabled` is null when the override was cleared. */
+  feature_flag_override_changed: { flag: string; enabled: boolean | null };
   /** `permissions` lists the granted Permissions, comma-separated, in catalog order. */
   role_created: { name: string; permissions: string };
   role_updated: { name: string; permissions: string };
@@ -57,6 +59,7 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   two_factor_disabled: "user",
   password_changed: "user",
   attachment_deleted: "attachment",
+  feature_flag_override_changed: "organization",
   role_created: "role",
   role_updated: "role",
   role_deleted: "role",

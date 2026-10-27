@@ -24,6 +24,7 @@ export const PERMISSION_STATEMENTS = {
   attachment: ["create", "delete"],
   logo: ["update"],
   audit: ["read"],
+  featureFlag: ["update"],
   // The api-key plugin checks `apiKey:create` itself before it stores a key.
   apiKey: ["create", "read", "delete"],
   webhook: ["create", "read", "update", "delete"]
@@ -63,6 +64,7 @@ export const BUILT_IN_ROLES = {
     ...CONTENT_STATEMENTS,
     logo: ["update"],
     audit: ["read"],
+    featureFlag: ["update"],
     ...INTEGRATION_STATEMENTS
   }),
   admin: accessControl.newRole({
@@ -74,6 +76,7 @@ export const BUILT_IN_ROLES = {
     ...CONTENT_STATEMENTS,
     logo: ["update"],
     audit: ["read"],
+    featureFlag: ["update"],
     ...INTEGRATION_STATEMENTS
   }),
   member: accessControl.newRole({
