@@ -23,6 +23,7 @@ describe("createResendEmailSender", () => {
     await sender.send({
       to: "user@example.com",
       subject: "Hello",
+      html: "<p>Body</p>",
       text: "Body"
     });
 
@@ -33,6 +34,7 @@ describe("createResendEmailSender", () => {
       from: "noreply@example.com",
       to: ["user@example.com"],
       subject: "Hello",
+      html: "<p>Body</p>",
       text: "Body"
     });
   });
@@ -47,7 +49,7 @@ describe("createResendEmailSender", () => {
     });
 
     await expect(
-      sender.send({ to: "user@example.com", subject: "Hello", text: "Body" })
+      sender.send({ to: "user@example.com", subject: "Hello", html: "<p>Body</p>", text: "Body" })
     ).rejects.toThrow(/401/);
   });
 });

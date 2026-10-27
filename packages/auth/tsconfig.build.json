@@ -22,10 +22,13 @@
       "path": "../email/tsconfig.build.json"
     },
     {
+      "path": "../logger/tsconfig.build.json"
+    },
+    {
       "path": "../jobs/tsconfig.build.json"
     },
     {
-      "path": "../logger/tsconfig.build.json"
+      "path": "../translation/tsconfig.build.json"
     }
   ]
 }

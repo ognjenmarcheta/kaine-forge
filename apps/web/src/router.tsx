@@ -53,6 +53,7 @@ import { useOrganization } from "./hooks/use-organization";
 import { useRouteTitle } from "./hooks/use-route-title";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
+import { saveEmailLanguageRequest } from "./lib/auth-api";
 
 const THEME_OPTIONS = [
   { labelKey: "navigation.themeSystem", value: "system" },
@@ -252,6 +253,8 @@ function ShellContent() {
                 label: t("navigation.language"),
                 onValueChange: (value) => {
                   void setLanguage(value);
+                  // A failed write keeps the old email language; the UI still switches.
+                  saveEmailLanguageRequest(value).catch(() => undefined);
                 },
                 options: SUPPORTED_LANGUAGES.map((value) => ({
                   label: t(`navigation.languageName.${value}`),

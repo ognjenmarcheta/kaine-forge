@@ -17,6 +17,9 @@
   "references": [
     {
       "path": "../logger/tsconfig.build.json"
+    },
+    {
+      "path": "../translation/tsconfig.build.json"
     }
   ]
 }

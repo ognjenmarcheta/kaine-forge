@@ -78,6 +78,16 @@ afterEach(async () => {
 
 const DASHBOARD = "dashboard";
 
+// The role query and then the events query resolve on later ticks; wait for
+// what the test needs instead of a fixed delay that a loaded machine misses.
+async function settleUntil(done: () => boolean) {
+  for (let attempt = 0; attempt < 100 && !done(); attempt += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+}
+
 async function renderRoute() {
   await act(async () =>
     root.render(
@@ -91,9 +101,7 @@ async function renderRoute() {
       </QueryClientProvider>
     )
   );
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15));
-  });
+  await settleUntil(() => rowTexts().length > 0 || container.textContent === DASHBOARD);
 }
 
 function rowTexts(): string[] {
@@ -113,9 +121,7 @@ it("lists each event's translated action, actor, target, and IP, then loads the 
     (button) => button.textContent === "organizations.audit.loadMore"
   );
   await act(async () => loadMore?.click());
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15));
-  });
+  await settleUntil(() => rowTexts().length > 1);
 
   expect(api.pages).toHaveBeenLastCalledWith({ after: "cursor-1", first: 20 });
   expect(rowTexts()[1]).toMatch(

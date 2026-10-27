@@ -5,6 +5,7 @@ import authDe from "./locales/de/auth.json";
 import commonDe from "./locales/de/common.json";
 import dashboardDe from "./locales/de/dashboard.json";
 import deskDe from "./locales/de/desk.json";
+import emailDe from "./locales/de/email.json";
 import navigationDe from "./locales/de/navigation.json";
 import notesDe from "./locales/de/notes.json";
 import organizationsDe from "./locales/de/organizations.json";
@@ -15,6 +16,7 @@ import authEn from "./locales/en/auth.json";
 import commonEn from "./locales/en/common.json";
 import dashboardEn from "./locales/en/dashboard.json";
 import deskEn from "./locales/en/desk.json";
+import emailEn from "./locales/en/email.json";
 import navigationEn from "./locales/en/navigation.json";
 import notesEn from "./locales/en/notes.json";
 import organizationsEn from "./locales/en/organizations.json";
@@ -25,6 +27,7 @@ import authSr from "./locales/sr/auth.json";
 import commonSr from "./locales/sr/common.json";
 import dashboardSr from "./locales/sr/dashboard.json";
 import deskSr from "./locales/sr/desk.json";
+import emailSr from "./locales/sr/email.json";
 import navigationSr from "./locales/sr/navigation.json";
 import notesSr from "./locales/sr/notes.json";
 import organizationsSr from "./locales/sr/organizations.json";
@@ -45,6 +48,7 @@ void translationInstance.init({
   resources: {
     de: {
       desk: deskDe,
+      email: emailDe,
       assistant: assistantDe,
       auth: authDe,
       common: commonDe,
@@ -57,6 +61,7 @@ void translationInstance.init({
     },
     en: {
       desk: deskEn,
+      email: emailEn,
       assistant: assistantEn,
       auth: authEn,
       common: commonEn,
@@ -69,6 +74,7 @@ void translationInstance.init({
     },
     sr: {
       desk: deskSr,
+      email: emailSr,
       assistant: assistantSr,
       auth: authSr,
       common: commonSr,
