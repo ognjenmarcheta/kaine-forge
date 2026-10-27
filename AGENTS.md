@@ -75,7 +75,7 @@ GitButler is the recommended local version-control client. It runs several branc
 - Update from `main` with `but pull`. Resolve conflicts with `but resolve`.
 - Open pull requests with `but pr new <branch> --draft -F <message-file>`. It pushes the branch and its stack ancestors and sets the stack bases. Never run `but land` or `but pr auto-merge`: only the owner merges.
 - `but commit` does not run the `commit-msg` hook. The `pre-push` hook runs commitlint, including the no-AI-co-author rule, on every pushed commit, but GitButler runs `.husky` hooks only when the project setting "Enable Husky hooks" is on. It is off by default. Before `but push` or `but pr new`, run `pnpm exec commitlint --from origin/main --to <branch>` yourself. Wrap commit body lines at 100 characters.
-- Each contributor installs GitButler's own agent skill: `but skill install --detect`. `but skill check` shows whether it matches the CLI version. Do not vendor it into `.ai/skills/`.
+- Each contributor installs GitButler's own agent skill: `but skill install --global` the first time, then `but skill install --detect` after a CLI update (`--detect` only updates existing installs). `but skill check` shows whether it matches the CLI version. Do not vendor it into `.ai/skills/`.
 - Use a separate worktree only when an agent needs its own runtime state, such as ports, build output, or a database. The Agent Desk keeps its plain-git worktrees.
 
 ## AI Behavioral Guidelines

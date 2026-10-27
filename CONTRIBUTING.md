@@ -37,7 +37,7 @@ This standard is enforced through contributor and agent guidance; there is no br
 1. Install the desktop app or the CLI: `curl -fsSL https://gitbutler.com/install.sh | sh`.
 2. In the repository root, run `but setup`. It switches the checkout to `gitbutler/workspace` and sets `origin/main` as the target.
 3. In the desktop app, open the project settings. Under Git hooks, turn on "Run Git hooks" and "Enable Husky hooks". Under Git, turn on "Force push protection". All three are per project, and the Husky and force-push settings are off by default. Without "Enable Husky hooks", `but push` and `but pr new` skip the `.husky` hooks, including the pre-push commitlint gate.
-4. Install GitButler's agent skill for your agents: `but skill install --detect`. Run `but skill check` after a CLI update.
+4. Install GitButler's agent skill for your agents: `but skill install --global`, or `but skill install --path <dir>` for each agent's skill folder. After a CLI update, run `but skill install --detect` to update the existing installs, then `but skill check`. `--detect` only updates; on a first install it fails.
 5. Optional: add the read-only GitButler MCP server for your agents: `pnpm ai:install --mcp gitbutler`.
 
 The branch-name rule above still applies. Pass the name to the first commit: `but commit -b KAINE-<n>-<type>-<description> -m "<message>"`. Open pull requests with `but pr new <branch> --draft`. `but commit` does not run the `commit-msg` hook, so the `pre-push` hook runs commitlint on every pushed commit when "Enable Husky hooks" is on. Agent rules are in `AGENTS.md` (Version Control with GitButler).
