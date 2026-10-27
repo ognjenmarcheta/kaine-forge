@@ -29,6 +29,7 @@
     "apps/api": {
       "entry": [
         "src/index.ts",
+        "src/worker.ts",
         "src/schema/generate-schema.ts",
         "**/*.test.ts",
         "src/features/assistant/assistant.eval.cli.ts",

@@ -23,7 +23,13 @@
       "path": "../../packages/db/tsconfig.build.json"
     },
     {
+      "path": "../../packages/email/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/feature-flags/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/jobs/tsconfig.build.json"
     },
     {
       "path": "../../packages/logger/tsconfig.build.json"

@@ -36,6 +36,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0009-domain-knowledge-as-agent-infra.md`](adr/0009-domain-knowledge-as-agent-infra.md): encode domain knowledge as agent/review infrastructure.
 - [`adr/0010-local-factory-dashboard.md`](adr/0010-local-factory-dashboard.md): local dashboard for the retired software factory (superseded by ADR 0011).
 - [`adr/0011-local-agent-desk.md`](adr/0011-local-agent-desk.md): local agent desk engine, GitHub authorization, and factory retirement.
+- [`adr/0018-postgres-job-runner.md`](adr/0018-postgres-job-runner.md): pg-boss background job runner on the app's Postgres.
 
 ## AI assistant docs
 

@@ -10,7 +10,8 @@ import {
   usersTable,
   verificationsTable
 } from "@repo/db";
-import { createEmailSender, type EmailMessage } from "@repo/email";
+import type { EmailMessage } from "@repo/email";
+import { jobQueue } from "@repo/jobs/client";
 import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 // The minimal entry leaves out Kysely; the drizzle adapter owns database
@@ -47,25 +48,13 @@ const AUTH_SCHEMA = {
   twoFactors: twoFactorsTable
 } as const;
 
-// One sender shared by every auth email hook below; adapters own delivery
-// logging and provider configuration.
-const emailSender = createEmailSender();
-
-// Auth endpoint responses must not vary on delivery outcome
-// (anti-enumeration), so hooks swallow send failures; the adapter behind
-// emailSender owns delivery logging and never leaks provider details.
-async function sendAuthEmail(message: EmailMessage): Promise<void> {
-  try {
-    await emailSender.send(message);
-  } catch {
-    // Swallowed on purpose; see above.
-  }
-}
-
-// Codes are short-lived secrets; the send is not awaited so response timing
-// does not reveal whether an account exists (better-auth email OTP guidance).
-function sendAuthEmailInBackground(message: EmailMessage): void {
-  void sendAuthEmail(message);
+// Every auth email goes through the job runner, which retries a failed send
+// (ADR 0018). Each hook enqueues on the same path and does not await it, so
+// the response never varies on enqueue or delivery outcome, and response
+// timing does not reveal whether an account exists (anti-enumeration,
+// better-auth email OTP guidance). The queue logs a failed enqueue.
+function enqueueAuthEmail(message: EmailMessage): void {
+  jobQueue.enqueue("email.send", message).catch(() => undefined);
 }
 
 type EmailOtpType = "sign-in" | "email-verification" | "forget-password" | "change-email";
@@ -236,7 +225,7 @@ export function createAuthInstance() {
       sendResetPassword: async ({ user, url, token }) => {
         // The raw token rides along for dev visibility with the console
         // adapter; real adapters simply deliver the message as-is.
-        await sendAuthEmail({
+        enqueueAuthEmail({
           to: user.email,
           subject: "Reset your password",
           text: `Reset your password: ${url}\n\nReset token: ${token}`
@@ -248,7 +237,7 @@ export function createAuthInstance() {
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url, token }) => {
-        await sendAuthEmail({
+        enqueueAuthEmail({
           to: user.email,
           subject: "Verify your email address",
           text: `Verify your email address: ${url}\n\nVerification token: ${token}`
@@ -334,7 +323,7 @@ export function createAuthInstance() {
         // user's email matches the invitation email unconditionally.
         requireEmailVerificationOnInvitation: false,
         sendInvitationEmail: async (data) => {
-          await sendAuthEmail({
+          enqueueAuthEmail({
             to: data.email,
             subject: `You have been invited to ${data.organization.name}`,
             text: `You were invited to join ${data.organization.name} as ${data.role}. Sign in with this email address and accept invitation ${data.id}.`
@@ -368,7 +357,7 @@ export function createAuthInstance() {
         issuer: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
         otpOptions: {
           sendOTP: ({ user, otp }) => {
-            sendAuthEmailInBackground({
+            enqueueAuthEmail({
               to: user.email,
               subject: "Your sign-in verification code",
               text: `Your verification code is ${otp}. If you did not try to sign in, change your password.`
@@ -385,7 +374,7 @@ export function createAuthInstance() {
         // form, which also collects the user's name.
         disableSignUp: true,
         sendVerificationOTP: async ({ email, otp, type }) => {
-          sendAuthEmailInBackground(buildEmailOtpMessage({ email, otp, type }));
+          enqueueAuthEmail(buildEmailOtpMessage({ email, otp, type }));
         }
       }),
       // Wraps our scrypt hash hook, so sign-up, change-password, and both

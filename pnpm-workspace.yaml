@@ -14,6 +14,8 @@ catalog:
   graphql: "^16.14.2"
   graphql-request: "^7.4.0"
   graphql-ws: "^6.4.1"
+  # Postgres job runner (packages/jobs, ADR 0018). Uses DATABASE_URL; no Redis.
+  pg-boss: "^12.38.0"
   zod: "^4.6.7"
   zustand: "^5.0.16"
   # Structured logging (packages/logger); apps/api tests capture its output.
