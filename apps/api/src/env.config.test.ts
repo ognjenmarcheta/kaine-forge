@@ -31,6 +31,12 @@ describe("validateApiEnv", () => {
     );
   });
 
+  it("rejects a feature flag variable other than true or false", () => {
+    expect(() =>
+      validateApiEnv({ ...validEnv, FEATURE_FLAG_ORGANIZATIONS_VISIBLE: "maybe" })
+    ).toThrow(/FEATURE_FLAG_ORGANIZATIONS_VISIBLE must be "true" or "false"/);
+  });
+
   it("treats blank coerced values as unset", () => {
     expect(validateApiEnv({ ...validEnv, API_PORT: "" }).API_PORT).toBe(4000);
     expect(

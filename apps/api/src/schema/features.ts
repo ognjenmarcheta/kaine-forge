@@ -3,6 +3,8 @@ import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
 import { auditResolvers } from "../features/audit/audit.router";
 import { auditTypeDefs } from "../features/audit/audit.schema";
+import { featureFlagsResolvers } from "../features/feature-flags/feature-flags.router";
+import { featureFlagsTypeDefs } from "../features/feature-flags/feature-flags.schema";
 import { notesResolvers } from "../features/notes/notes.router";
 import { notesTypeDefs } from "../features/notes/notes.schema";
 import { notificationsResolvers } from "../features/notifications/notifications.router";
@@ -113,6 +115,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "audit",
     typeDefs: auditTypeDefs,
     resolvers: auditResolvers
+  },
+  {
+    name: "feature-flags",
+    typeDefs: featureFlagsTypeDefs,
+    resolvers: featureFlagsResolvers
   },
   {
     name: "notifications",
