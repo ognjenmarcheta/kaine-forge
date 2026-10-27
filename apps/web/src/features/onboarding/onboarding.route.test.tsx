@@ -22,6 +22,7 @@ const { auth, organization, api } = vi.hoisted(() => ({
     complete: vi.fn(),
     inviteMember: vi.fn(),
     permissions: [] as string[],
+    permissionsFail: false,
     renameOrganization: vi.fn()
   }
 }));
@@ -47,7 +48,10 @@ vi.mock("../../hooks/use-translation", () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }));
 vi.mock("../../lib/graphql-codegen-fetcher", () => ({
-  useGraphqlFetcher: () => () => Promise.resolve({ organizationPermissions: api.permissions })
+  useGraphqlFetcher: () => () =>
+    api.permissionsFail
+      ? Promise.reject(new Error("Unavailable"))
+      : Promise.resolve({ organizationPermissions: api.permissions })
 }));
 vi.mock("../../lib/auth-api", () => ({
   onboardingApi: { complete: api.complete },
@@ -126,6 +130,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   api.permissions = [];
+  api.permissionsFail = false;
   organization.activeOrganizationId = "org-1";
   organization.organizations = [{ id: "org-1", name: "Personal", personal: true }];
 });
@@ -257,6 +262,32 @@ it("completes onboarding at once for an invited member without invitation:create
   try {
     await vi.waitFor(() => expect(container.textContent).toBe("/dashboard"));
     expect(api.complete).toHaveBeenCalledTimes(1);
+  } finally {
+    await cleanup();
+  }
+});
+
+it("keeps onboarding open after a failed Permissions read and offers the invite step after a retry", async () => {
+  auth.session = newUser();
+  completeOnboarding();
+  organization.activeOrganizationId = "org-2";
+  organization.organizations = [
+    { id: "org-1", name: "Personal", personal: true },
+    { id: "org-2", name: "Acme", personal: false }
+  ];
+  api.permissions = ["invitation:create"];
+  api.permissionsFail = true;
+  const { container, cleanup } = await renderOnboarding();
+  try {
+    await vi.waitFor(() => expect(container.textContent).toContain("auth.onboarding.loadError"));
+    expect(api.complete).not.toHaveBeenCalled();
+
+    api.permissionsFail = false;
+    await act(async () => button(container, "common.retry").click());
+
+    await vi.waitFor(() => expect(container.textContent).toContain("auth.onboarding.invite.title"));
+    expect(container.textContent).not.toContain("auth.onboarding.loadError");
+    expect(api.complete).not.toHaveBeenCalled();
   } finally {
     await cleanup();
   }

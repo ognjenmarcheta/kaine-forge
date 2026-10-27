@@ -15,6 +15,7 @@ vi.stubEnv("S3_ENDPOINT", "");
 const TEST_ORGANIZATION_HEADER = "x-test-organization";
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 const ORG_ID = "00000000-0000-4000-8000-00000000000a";
+const ORG_B_ID = "00000000-0000-4000-8000-00000000000b";
 const TODO_ID = "00000000-0000-4000-8000-0000000000e1";
 const NOTE_ID = "00000000-0000-4000-8000-0000000000e2";
 
@@ -90,7 +91,7 @@ const {
   todosTable,
   usersTable
 } = await import("@repo/db/schema");
-const { eq } = await import("drizzle-orm");
+const { and, eq } = await import("drizzle-orm");
 
 let baseUrl: string;
 let server: Server;
@@ -101,13 +102,13 @@ interface GraphqlResponse {
   errors?: Array<{ message: string }>;
 }
 
-async function run(query: string): Promise<GraphqlResponse> {
+async function run(query: string, organizationId = ORG_ID): Promise<GraphqlResponse> {
   const response = await fetch(`${baseUrl}/graphql`, {
     method: "POST",
     headers: {
       accept: "application/json",
       "content-type": "application/json",
-      [TEST_ORGANIZATION_HEADER]: ORG_ID
+      [TEST_ORGANIZATION_HEADER]: organizationId
     },
     body: JSON.stringify({ query })
   });
@@ -118,7 +119,12 @@ async function setEditorPermission(permission: Record<string, string[]>): Promis
   await testDb
     .update(organizationRolesTable)
     .set({ permission: JSON.stringify(permission) })
-    .where(eq(organizationRolesTable.role, "editor"));
+    .where(
+      and(
+        eq(organizationRolesTable.organizationId, ORG_ID),
+        eq(organizationRolesTable.role, "editor")
+      )
+    );
 }
 
 beforeAll(async () => {
@@ -134,6 +140,18 @@ beforeAll(async () => {
   await testDb
     .insert(membersTable)
     .values({ organizationId: ORG_ID, role: "editor", userId: USER_ID });
+  // Organization B gives the same user a Custom Role of the same name with other grants.
+  await testDb
+    .insert(organizationsTable)
+    .values({ id: ORG_B_ID, name: "Organization B", slug: "permissions-b", userId: USER_ID });
+  await testDb.insert(organizationRolesTable).values({
+    organizationId: ORG_B_ID,
+    permission: JSON.stringify({ todo: ["create"], audit: ["read"] }),
+    role: "editor"
+  });
+  await testDb
+    .insert(membersTable)
+    .values({ organizationId: ORG_B_ID, role: "editor", userId: USER_ID });
   await testDb
     .insert(todosTable)
     .values({ id: TODO_ID, organizationId: ORG_ID, title: "Seeded", userId: USER_ID });
@@ -248,6 +266,16 @@ describe("named permission checks", () => {
       organizationPermissions: ["note:create", "note:update", "logo:update"]
     });
     expect(after.data).toEqual({ organizationPermissions: ["note:create"] });
+  });
+
+  it("answers organizationPermissions from the Active Organization's grants only", async () => {
+    await setEditorPermission({ note: ["create"] });
+
+    const inA = await run(`query { organizationPermissions }`, ORG_ID);
+    const inB = await run(`query { organizationPermissions }`, ORG_B_ID);
+
+    expect(inA.data).toEqual({ organizationPermissions: ["note:create"] });
+    expect(inB.data).toEqual({ organizationPermissions: ["todo:create", "audit:read"] });
   });
 
   it("deletes a Todo and a Note only with their delete permissions", async () => {
