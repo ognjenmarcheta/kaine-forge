@@ -19,7 +19,9 @@ export const onboardingPlugin = {
       async (ctx) => {
         const { session, user } = ctx.context.session;
 
-        if (readCompletedAt(user) instanceof Date) {
+        // A Date from the database, but any set value counts: a cached
+        // session may carry it in another shape.
+        if (readCompletedAt(user) != null) {
           return ctx.json({ completed: true });
         }
 

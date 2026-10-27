@@ -17,7 +17,16 @@ async function readJournalTags(): Promise<string[]> {
   ) {
     throw new Error("unexpected drizzle journal shape");
   }
-  return journal.entries.map((entry: { tag: string }) => entry.tag);
+  const entries: unknown[] = journal.entries;
+  return entries.map((entry) => {
+    if (typeof entry !== "object" || entry === null || !("tag" in entry)) {
+      throw new Error("unexpected drizzle journal entry");
+    }
+    if (typeof entry.tag !== "string") {
+      throw new Error("unexpected drizzle journal tag");
+    }
+    return entry.tag;
+  });
 }
 
 async function readMigration(tag: string): Promise<string> {

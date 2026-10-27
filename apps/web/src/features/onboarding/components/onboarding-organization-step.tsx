@@ -1,3 +1,4 @@
+import { AUTH_DEFINITIONS } from "@repo/auth/auth.definition";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import { queryKeys } from "@repo/query";
 import { Button, Field, FieldError, FieldLabel, Input } from "@repo/ui";
@@ -54,6 +55,7 @@ export function OnboardingOrganizationStep({
         <Input
           id={nameId}
           autoComplete="organization"
+          maxLength={AUTH_DEFINITIONS.ORGANIZATION_NAME_MAX_LENGTH}
           required
           value={name}
           onChange={(event) => setName(event.target.value)}

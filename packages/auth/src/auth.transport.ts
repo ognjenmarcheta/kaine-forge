@@ -108,6 +108,7 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "organizations.error.personalDelete",
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "organizations.error.personalLeave",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
+  ORGANIZATION_NAME_TOO_LONG: "organizations.error.nameTooLong",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail",
   // Account settings.
   INVALID_PASSWORD: "auth.account.error.invalidPassword",

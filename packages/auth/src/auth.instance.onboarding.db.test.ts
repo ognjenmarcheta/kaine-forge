@@ -1,6 +1,6 @@
 import { usersTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 // The real auth instance on an in-process Postgres with every migration
@@ -104,6 +104,25 @@ describe("first-run onboarding", () => {
       [user.email]: true,
       [other.email]: false
     });
+  });
+
+  it("keeps the first completion time when the cached session already shows it", async () => {
+    const user = await signUp("onboarding-twice");
+    const first = await postAuth("/onboarding/complete", user.headers);
+    const cached = applyCookies(user.headers, first);
+    const firstCompletion = new Date("2026-01-01T00:00:00.000Z");
+    await testDatabase()
+      .db.update(usersTable)
+      .set({ onboardingCompletedAt: firstCompletion })
+      .where(eq(usersTable.id, user.userId));
+
+    expect((await postAuth("/onboarding/complete", cached)).status).toBe(200);
+
+    const [row] = await testDatabase()
+      .db.select({ completedAt: usersTable.onboardingCompletedAt })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.userId));
+    expect(row?.completedAt).toEqual(firstCompletion);
   });
 
   it("refuses a signed-out request and a client-set completion time", async () => {

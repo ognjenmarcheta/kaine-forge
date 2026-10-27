@@ -175,6 +175,35 @@ const userNameLimitPlugin = {
   }
 } satisfies BetterAuthPlugin;
 
+// The organization plugin has no name limit of its own. /organization/update
+// carries its fields under `data`.
+const organizationNameLimitPlugin = {
+  id: "organization-name-limit",
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) =>
+          ctx.path === "/organization/create" || ctx.path === "/organization/update",
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = readRecord(ctx.body);
+          const fields = ctx.path === "/organization/update" ? readRecord(body.data) : body;
+          const name = fields.name;
+
+          if (
+            typeof name === "string" &&
+            name.length > AUTH_DEFINITIONS.ORGANIZATION_NAME_MAX_LENGTH
+          ) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "ORGANIZATION_NAME_TOO_LONG",
+              message: `Organization name must be at most ${String(AUTH_DEFINITIONS.ORGANIZATION_NAME_MAX_LENGTH)} characters`
+            });
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
 // /change-password has no callback of its own; the alert reads the user from
 // a successful response. Resets alert through onPasswordReset.
 function createPasswordChangeAlertPlugin(webAppUrl: string) {
@@ -890,6 +919,7 @@ export function createAuthInstance() {
       onboardingPlugin,
       auditPlugin,
       userNameLimitPlugin,
+      organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
