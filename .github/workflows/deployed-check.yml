@@ -1,0 +1,39 @@
+name: Deployed Check
+
+# Manual check of a deployed stack (docs/deploy.md): runs `pnpm smoke:deployed`
+# against the given URLs. The script needs only Node, so the job skips pnpm install.
+
+on:
+  workflow_dispatch:
+    inputs:
+      web-url:
+        description: Web origin URL, for example https://app.example.com
+        required: true
+        type: string
+      api-url:
+        description: API base URL, for example https://api.example.com
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deployed-check:
+    name: Deployed Check
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check the deployed stack
+        env:
+          WEB_URL: ${{ inputs.web-url }}
+          API_URL: ${{ inputs.api-url }}
+        run: node scripts/smoke-deployed.mjs --web "$WEB_URL" --api "$API_URL"
