@@ -1,9 +1,15 @@
-import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
+import {
+  DEFAULT_FLAGS,
+  FEATURE_FLAGS,
+  featureFlagsFromValues,
+  isFeatureEnabled
+} from "@repo/feature-flags";
 import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   createActiveOrganizationMutationHandlers,
   createActiveOrganizationLifecycle,
   createActiveOrganizationProviderState,
+  createActiveOrganizationQueryKey,
   syncActiveOrganizationProvider,
   queryKeys
 } from "@repo/query";
@@ -12,6 +18,7 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 
 import type { AuthSession } from "../features/auth/auth.type";
 import type { OrganizationOption } from "../features/organizations/organizations.type";
+import { useFeatureFlagsQuery } from "../graphql/generated/react-query";
 import { useAuth } from "../hooks/use-auth";
 import {
   createOrganizationRequest,
@@ -60,7 +67,20 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const { isLoading: isSessionLoading, session } = useAuth();
   const queryClient = useQueryClient();
 
-  const featureFlags = useMemo(() => resolveFeatureFlags(), []);
+  const activeOrganizationId = session?.activeOrganizationId ?? null;
+  // The API resolves flags for the Active Organization; the registry defaults
+  // stand in while that loads or without an Active Organization.
+  const featureFlagsQuery = useFeatureFlagsQuery(undefined, {
+    enabled: Boolean(activeOrganizationId),
+    queryKey: createActiveOrganizationQueryKey(useFeatureFlagsQuery.getKey(), activeOrganizationId)
+  });
+  const featureFlags = useMemo(
+    () =>
+      featureFlagsQuery.data
+        ? featureFlagsFromValues(featureFlagsQuery.data.featureFlags)
+        : DEFAULT_FLAGS,
+    [featureFlagsQuery.data]
+  );
   const organizationsVisible = isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
 
   const organizationsQuery = useQuery({
@@ -112,7 +132,6 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     () => organizationsQuery.data?.organizations ?? [],
     [organizationsQuery.data?.organizations]
   );
-  const activeOrganizationId = session?.activeOrganizationId ?? null;
 
   const setActiveOrganization = useCallback(
     async (organizationId: string) => {

@@ -16,6 +16,8 @@ export interface AuditEventMetadataByAction {
   two_factor_disabled: Record<string, never>;
   password_changed: Record<string, never>;
   attachment_deleted: { originalName: string };
+  /** `enabled` is null when the override was cleared. */
+  feature_flag_override_changed: { flag: string; enabled: boolean | null };
 }
 
 export type AuditAction = keyof AuditEventMetadataByAction;
@@ -39,7 +41,8 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   two_factor_enabled: "user",
   two_factor_disabled: "user",
   password_changed: "user",
-  attachment_deleted: "attachment"
+  attachment_deleted: "attachment",
+  feature_flag_override_changed: "organization"
 };
 
 export function isAuditAction(value: string): value is AuditAction {

@@ -67,5 +67,6 @@
   "organizations.audit.action.two_factor_enabled": "Bestätigung in zwei Schritten aktiviert",
   "organizations.audit.action.two_factor_disabled": "Bestätigung in zwei Schritten deaktiviert",
   "organizations.audit.action.password_changed": "Passwort geändert",
-  "organizations.audit.action.attachment_deleted": "Anhang gelöscht"
+  "organizations.audit.action.attachment_deleted": "Anhang gelöscht",
+  "organizations.audit.action.feature_flag_override_changed": "Feature-Flag-Überschreibung geändert"
 }

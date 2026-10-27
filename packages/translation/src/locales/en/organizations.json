@@ -67,5 +67,6 @@
   "organizations.audit.action.two_factor_enabled": "Two-step verification turned on",
   "organizations.audit.action.two_factor_disabled": "Two-step verification turned off",
   "organizations.audit.action.password_changed": "Password changed",
-  "organizations.audit.action.attachment_deleted": "Attachment deleted"
+  "organizations.audit.action.attachment_deleted": "Attachment deleted",
+  "organizations.audit.action.feature_flag_override_changed": "Feature flag override changed"
 }

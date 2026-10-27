@@ -158,9 +158,17 @@ Migrations `0003` (backfill credential passwords) and `0005` (drop `users.passwo
 
 ## 7. Feature Flags
 
-Feature flags are config-driven in `@repo/feature-flags`. There is no remote flag service in the template.
+Feature flags live in `@repo/feature-flags`. No remote flag service is used: there is no flag vendor, no percentage rollout, and no user targeting.
 
-The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. Its value is set in `packages/feature-flags/src/feature-flags.config.ts` (default `true`); no environment variable changes it.
+The typed registry `FEATURE_FLAG_REGISTRY` in `packages/feature-flags/src/feature-flags.definition.ts` declares each flag with its key, its default value, and whether an Organization may override it. The API resolves every flag once per request into `ctx.featureFlags`, in three layers. A later layer wins:
+
+1. Default: the registry's `defaultValue`.
+2. Environment: `FEATURE_FLAG_<KEY>` (for example `FEATURE_FLAG_ORGANIZATIONS_VISIBLE`) set to `true` or `false` applies to the whole API process. Any other value fails API startup. `.env.example` lists the variables.
+3. Organization override: a row in `feature_flag_overrides` for the Active Organization. It applies only to a flag that the registry marks `organizationOverridable`; a row for any other key has no effect. A request with no Active Organization gets layers 1 and 2 only.
+
+The GraphQL query `featureFlags` returns the resolved flags for the Active Organization. Owners and admins set and clear an override with `setFeatureFlagOverride` and `clearFeatureFlagOverride`; each change records a `feature_flag_override_changed` Audit Event. The web `OrganizationProvider` reads the query, keyed by the Active Organization, and uses the registry defaults while it loads. Mobile keeps the registry defaults.
+
+The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. It defaults to `true`, and an Organization cannot override it, because it decides whether organization UI shows before an Active Organization is known.
 
 - When true: org switcher, members navigation, members route, and invite/member UI are visible.
 - When false: org UI is hidden, but the data model and default organization behavior still exist.

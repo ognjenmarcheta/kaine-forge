@@ -1,0 +1,6 @@
+query FeatureFlags {
+  featureFlags {
+    key
+    enabled
+  }
+}

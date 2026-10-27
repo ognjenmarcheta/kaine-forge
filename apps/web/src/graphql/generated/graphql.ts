@@ -9,6 +9,7 @@ export type AttachmentEntityType = "general" | "todo";
 
 export type AuditAction =
   | "attachment_deleted"
+  | "feature_flag_override_changed"
   | "invitation_revoked"
   | "member_invited"
   | "member_joined"
@@ -31,6 +32,8 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type FeatureFlagKey = "organizations_visible";
 
 export type FileStatus = "deleted" | "pending" | "uploaded";
 
@@ -167,6 +170,10 @@ export type CurrentOrganizationRoleQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type FeatureFlagsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type FeatureFlagsQuery = { featureFlags: Array<{ key: FeatureFlagKey; enabled: boolean }> };
 
 export type GetNotesQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -920,6 +927,32 @@ export const HealthDocument = {
     }
   ]
 } as unknown as DocumentNode<HealthQuery, HealthQueryVariables>;
+export const FeatureFlagsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "FeatureFlags" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "featureFlags" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "enabled" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<FeatureFlagsQuery, FeatureFlagsQueryVariables>;
 export const GetNotesDocument = {
   kind: "Document",
   definitions: [

@@ -67,5 +67,6 @@
   "organizations.audit.action.two_factor_enabled": "Verifikacija u dva koraka uključena",
   "organizations.audit.action.two_factor_disabled": "Verifikacija u dva koraka isključena",
   "organizations.audit.action.password_changed": "Lozinka promenjena",
-  "organizations.audit.action.attachment_deleted": "Prilog obrisan"
+  "organizations.audit.action.attachment_deleted": "Prilog obrisan",
+  "organizations.audit.action.feature_flag_override_changed": "Promenjeno podešavanje zastavice funkcije"
 }
