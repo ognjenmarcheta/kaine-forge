@@ -152,7 +152,7 @@ CI caches each Turbo task in the GitHub Actions cache with no setup. For a local
 
 ## Deploy
 
-Each top-level `Dockerfile.<app>` is a deployable app: `Dockerfile.api` and `Dockerfile.web`. After a merge to `main`, the Release workflow updates the `release/<app>` branch of each affected app, so only changed apps redeploy. Manual `pnpm release:apps` commands, including dry-runs, are human-only. See the Docker section of [`MONOREPO_GUIDE.md`](MONOREPO_GUIDE.md) and [`docs/release-checklist.md`](docs/release-checklist.md).
+Each top-level `Dockerfile.<app>` is a deployable app: `Dockerfile.api` and `Dockerfile.web`. After a merge to `main`, the Release workflow updates the `release/<app>` branch of each affected app, so only changed apps redeploy. When a release tags `@repo/api` or `@repo/web`, the same workflow also pushes that app's image to GitHub Container Registry. Manual `pnpm release:apps` commands, including dry-runs, are human-only. [`docs/deploy.md`](docs/deploy.md) explains images, runtime variables, migrations, and the deployed-stack check. See also the Docker section of [`MONOREPO_GUIDE.md`](MONOREPO_GUIDE.md) and [`docs/release-checklist.md`](docs/release-checklist.md).
 
 ## Where to go next
 
@@ -167,6 +167,7 @@ Each top-level `Dockerfile.<app>` is a deployable app: `Dockerfile.api` and `Doc
 | Agent day-one ramp                                            | [`docs/agents/day-one.md`](docs/agents/day-one.md)       |
 | Agent desk (software factory) manual                          | [`docs/agents/agent-desk.md`](docs/agents/agent-desk.md) |
 | Architecture decisions                                        | [`docs/adr/`](docs/adr/)                                 |
+| Deploy images, runtime variables, deployed-stack check        | [`docs/deploy.md`](docs/deploy.md)                       |
 | Release validation                                            | [`docs/release-checklist.md`](docs/release-checklist.md) |
 | Full documentation index                                      | [`docs/README.md`](docs/README.md)                       |
 

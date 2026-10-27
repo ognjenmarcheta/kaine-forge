@@ -222,7 +222,8 @@ describe("Self-hosted runner routing", () => {
     "release",
     "docker-cache",
     "deep-checks",
-    "labeler"
+    "labeler",
+    "deployed-check"
   ]) {
     const workflow = parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
     for (const [jobName, job] of Object.entries(workflow.jobs)) {
@@ -463,6 +464,7 @@ describe("Hand-kept alignments", () => {
       "CONTRIBUTING.md",
       "docs/agents/day-one.md",
       "docs/backup-and-restore.md",
+      "docs/deploy.md",
       "docs/incident-response.md",
       "AGENTS.md"
     ]) {
