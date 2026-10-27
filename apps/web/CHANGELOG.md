@@ -1,5 +1,20 @@
 # @repo/web
 
+## 1.11.0
+
+### Minor Changes
+
+- 12ad7c5: The web app now names each browser tab `<route title> · <app name>` and updates it when the language changes. `index.html` carries the product name, a meta description, and Open Graph tags that template adoption rewrites. The app serves a permissive `robots.txt` and adds public `/terms` and `/privacy` stub pages, linked from a new auth page footer. `AuthLayout` takes an optional `footer` slot.
+- 2ddc1a9: A web route that throws now shows a translated error page with "Try again" and "Go to dashboard" actions, and keeps the app shell when the failure is inside it. An unknown URL now shows a translated not-found page instead of a silent redirect to the dashboard.
+
+### Patch Changes
+
+- Updated dependencies [12ad7c5]
+- Updated dependencies [2ddc1a9]
+  - @repo/ui@1.8.0
+  - @repo/translation@1.10.0
+  - @repo/auth@3.0.3
+
 ## 1.10.1
 
 ### Patch Changes
