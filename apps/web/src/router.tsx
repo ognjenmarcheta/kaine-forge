@@ -63,7 +63,6 @@ const THEME_OPTIONS = [
 
 const ROUTE_TO_BREADCRUMB = {
   "/account": "navigation.account",
-  "/account/delete": "navigation.account",
   "/assistant": "navigation.assistant",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
@@ -369,11 +368,6 @@ export const appRoutes: RouteObject[] = [
                 path: "account"
               },
               {
-                element: <AccountDeleteRoute />,
-                handle: { titleKey: "auth.account.delete.confirmTitle" },
-                path: "account/delete"
-              },
-              {
                 element: <SecurityRoute />,
                 handle: { titleKey: "navigation.security" },
                 path: "security"
@@ -387,6 +381,14 @@ export const appRoutes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         handle: { titleKey: "auth.login.title" },
         path: "/auth"
+      },
+      {
+        // Outside the shell: a signed-out visitor goes to /auth and comes back
+        // with the emailed token.
+        element: <AccountDeleteRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "auth.account.delete.confirmTitle" },
+        path: "/account/delete"
       },
       {
         // Outside the shell: a signed-out visitor goes to /auth and comes back.

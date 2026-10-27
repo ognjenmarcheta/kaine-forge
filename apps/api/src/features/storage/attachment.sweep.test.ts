@@ -8,6 +8,7 @@ import {
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { createLogger } from "@repo/logger";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createMemoryObjectStore } from "./attachment.store.memory";
@@ -203,13 +204,15 @@ describe("sweepDeletedOrganizations", () => {
   }
 
   it("deletes a deleted organization's objects and logo, and keeps others", async () => {
+    const doomedId = randomUUID();
     const [doomed] = await database.db
       .insert(organizationsTable)
       .values({
+        id: doomedId,
         name: "Doomed",
         slug: "sweep-doomed",
         userId,
-        logo: "https://cdn.example.test/organization-logos/doomed.webp"
+        logo: `https://cdn.example.test/organization-logos/${doomedId}/doomed.webp`
       })
       .returning();
     if (!doomed) throw new Error("failed to seed organization");
@@ -218,7 +221,7 @@ describe("sweepDeletedOrganizations", () => {
     memory.upload({ bucket: "uploads", key: `${doomed.id}/todo/a/a.png` }, object);
     memory.upload({ bucket: "uploads", key: `${doomed.id}/todo/b/b.png` }, object);
     memory.upload({ bucket: "uploads", key: `${otherOrgId}/todo/c/c.png` }, object);
-    memory.upload({ bucket: "public", key: "organization-logos/doomed.webp" }, object);
+    memory.upload({ bucket: "public", key: `organization-logos/${doomedId}/doomed.webp` }, object);
 
     // The delete trigger queues the purge; the files rows cascade away.
     await database.db.delete(organizationsTable).where(eq(organizationsTable.id, doomed.id));
@@ -253,13 +256,15 @@ describe("sweepDeletedOrganizations", () => {
   });
 
   it("keeps the purge queued while the logo delete fails, and still clears the objects", async () => {
+    const withLogoId = randomUUID();
     const [withLogo] = await database.db
       .insert(organizationsTable)
       .values({
+        id: withLogoId,
         name: "Logo",
         slug: "sweep-logo",
         userId,
-        logo: "https://cdn.example.test/organization-logos/stuck.webp"
+        logo: `https://cdn.example.test/organization-logos/${withLogoId}/stuck.webp`
       })
       .returning();
     if (!withLogo) throw new Error("failed to seed organization");
@@ -294,14 +299,16 @@ describe("sweepDeletedOrganizations", () => {
   });
 
   it("does not let a row that keeps failing block a later organization's purge", async () => {
+    const stuckId = randomUUID();
     const [stuck, later] = await database.db
       .insert(organizationsTable)
       .values([
         {
+          id: stuckId,
           name: "Stuck",
           slug: "sweep-stuck",
           userId,
-          logo: "https://cdn.example.test/organization-logos/stuck-forever.webp"
+          logo: `https://cdn.example.test/organization-logos/${stuckId}/stuck-forever.webp`
         },
         { name: "Later", slug: "sweep-later", userId }
       ])
@@ -345,6 +352,36 @@ describe("sweepDeletedOrganizations", () => {
       .where(eq(organizationStoragePurgesTable.organizationId, stuck.id));
   });
 
+  it("never deletes a logo that belongs to another organization", async () => {
+    const [borrower] = await database.db
+      .insert(organizationsTable)
+      .values({
+        name: "Borrower",
+        slug: "sweep-borrower",
+        userId,
+        logo: `https://cdn.example.test/organization-logos/${otherOrgId}/logo.webp`
+      })
+      .returning();
+    if (!borrower) throw new Error("failed to seed organization");
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload(
+      { bucket: "public", key: `organization-logos/${otherOrgId}/logo.webp` },
+      { contentType: "image/webp", sizeBytes: 8, lastModified: before }
+    );
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, borrower.id));
+
+    await sweepDeletedOrganizations({
+      db: database.db,
+      logger,
+      store: memory,
+      publicStorage,
+      pendingCutoff: new Date(Date.now() + 60_000)
+    });
+
+    expect(memory.keys()).toEqual([`organization-logos/${otherOrgId}/logo.webp`]);
+    expect(await queuedPurges()).toEqual([]);
+  });
+
   it("keeps the purge queued while an object delete fails", async () => {
     const [failing] = await database.db
       .insert(organizationsTable)
@@ -380,36 +417,48 @@ describe("sweepDeletedPublicAssets", () => {
   const publicStorage = { bucket: "public", baseUrl: "https://cdn.example.test" };
   const object = { contentType: "image/webp", sizeBytes: 8, lastModified: before };
 
-  async function deleteUserWithAvatar(label: string, image: string) {
-    const [user] = await database.db
+  // The users delete trigger queues the avatar URL with the user id.
+  async function deleteUserWithAvatar(label: string, image: (id: string) => string) {
+    const id = randomUUID();
+    await database.db
       .insert(usersTable)
-      .values({ email: `${label}@example.test`, name: label, image })
-      .returning();
-    if (!user) throw new Error("failed to seed user");
-    // The users delete trigger queues the avatar URL.
-    await database.db.delete(usersTable).where(eq(usersTable.id, user.id));
+      .values({ id, email: `${label}@example.test`, name: label, image: image(id) });
+    await database.db.delete(usersTable).where(eq(usersTable.id, id));
+    return id;
   }
 
   async function queuedUrls() {
     return database.db.select({ url: publicAssetPurgesTable.url }).from(publicAssetPurgesTable);
   }
 
-  it("deletes a deleted user's avatar, keeps other objects, and drops foreign urls", async () => {
+  it("deletes a deleted user's own avatar only, and drops every other url", async () => {
+    const victimId = randomUUID();
     const memory = createMemoryObjectStore("uploads");
-    memory.upload({ bucket: "public", key: "avatars/gone.webp" }, object);
-    memory.upload({ bucket: "public", key: "avatars/kept.webp" }, object);
-    await deleteUserWithAvatar("avatar-gone", "https://cdn.example.test/avatars/gone.webp");
-    await deleteUserWithAvatar("avatar-social", "https://avatars.github.test/u/1");
+    memory.upload({ bucket: "public", key: `avatars/${victimId}/kept.webp` }, object);
+    const goneId = await deleteUserWithAvatar(
+      "avatar-gone",
+      (id) => `https://cdn.example.test/avatars/${id}/gone.webp`
+    );
+    memory.upload({ bucket: "public", key: `avatars/${goneId}/gone.webp` }, object);
+    await deleteUserWithAvatar("avatar-social", () => "https://avatars.github.test/u/1");
+    // Another user's avatar URL, as an attacker could have stored it.
+    await deleteUserWithAvatar(
+      "avatar-borrowed",
+      () => `https://cdn.example.test/avatars/${victimId}/kept.webp`
+    );
 
     await expect(
       sweepDeletedPublicAssets({ db: database.db, logger, store: memory, publicStorage })
     ).resolves.toEqual({ deleted: 1, failed: 0 });
-    expect(memory.keys()).toEqual(["avatars/kept.webp"]);
+    expect(memory.keys()).toEqual([`avatars/${victimId}/kept.webp`]);
     expect(await queuedUrls()).toEqual([]);
   });
 
   it("keeps a failed avatar delete queued for the next run", async () => {
-    await deleteUserWithAvatar("avatar-stuck", "https://cdn.example.test/avatars/stuck.webp");
+    const stuckId = await deleteUserWithAvatar(
+      "avatar-stuck",
+      (id) => `https://cdn.example.test/avatars/${id}/stuck.webp`
+    );
     const failing = {
       delete: async () => {
         throw new Error("cdn bucket unreachable");
@@ -419,7 +468,9 @@ describe("sweepDeletedPublicAssets", () => {
     await expect(
       sweepDeletedPublicAssets({ db: database.db, logger, store: failing, publicStorage })
     ).resolves.toEqual({ deleted: 0, failed: 1 });
-    expect(await queuedUrls()).toEqual([{ url: "https://cdn.example.test/avatars/stuck.webp" }]);
+    expect(await queuedUrls()).toEqual([
+      { url: `https://cdn.example.test/avatars/${stuckId}/stuck.webp` }
+    ]);
 
     const memory = createMemoryObjectStore("uploads");
     await expect(

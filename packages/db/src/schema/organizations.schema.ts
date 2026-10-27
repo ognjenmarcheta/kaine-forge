@@ -4,9 +4,9 @@ import { usersTable } from "./users.schema";
 
 export const organizationsTable = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
+  // The owner. Null once that user deleted their account and the Organization
+  // kept other members; the account delete removes the ones it was alone in.
+  userId: uuid("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull().unique(),
   logo: text("logo"),
@@ -19,7 +19,7 @@ export const organizationsTable = pgTable("organizations", {
 });
 
 // One row per deleted Organization, written by the organizations_storage_purge
-// trigger (also on a cascade from a deleted user). The API storage sweep
+// trigger (also when an account delete removes it). The API storage sweep
 // deletes the Organization's objects and logo, then this row. No foreign key:
 // the Organization is already gone.
 export const organizationStoragePurgesTable = pgTable("organization_storage_purges", {

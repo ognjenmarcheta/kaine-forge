@@ -7,7 +7,7 @@ import {
   usersTable
 } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The real auth instance on an in-process Postgres with every migration
@@ -32,6 +32,7 @@ vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: vi.fn().mockResolvedV
 
 const { jobQueue } = await import("@repo/jobs/client");
 const { createAuthInstance } = await import("./auth.instance");
+const { prepareAccountDeletion } = await import("./auth.server.account");
 
 const auth = createAuthInstance();
 const enqueue = vi.mocked(jobQueue.enqueue);
@@ -175,6 +176,52 @@ describe("email change", () => {
   });
 });
 
+describe("public asset urls", () => {
+  // Only the API's public-asset upload writes these URLs; a client that set
+  // one could point it at another owner's file and get it deleted.
+  const VICTIM_URL = "https://cdn.example.com/avatars/victim/victim.webp";
+
+  it("refuses an image on profile update and sign-up", async () => {
+    const user = await signUp("image-update");
+
+    await expect(
+      auth.api.updateUser({ body: { image: VICTIM_URL }, headers: user.headers })
+    ).rejects.toMatchObject({ body: { code: "PUBLIC_ASSET_URL_READ_ONLY" } });
+    const email = `image-signup-${crypto.randomUUID().slice(0, 8)}@example.com`;
+    await expect(
+      auth.api.signUpEmail({
+        body: { email, password: "Secret123!Secret", name: "Image", image: VICTIM_URL }
+      })
+    ).rejects.toMatchObject({ body: { code: "PUBLIC_ASSET_URL_READ_ONLY" } });
+
+    const rows = await testDatabase()
+      .db.select({ email: usersTable.email, image: usersTable.image })
+      .from(usersTable)
+      .where(inArray(usersTable.email, [user.email, email]));
+    expect(rows).toEqual([{ email: user.email, image: null }]);
+  });
+
+  it("refuses a logo on organization create and update", async () => {
+    const owner = await signUp("logo-owner");
+
+    await expect(
+      auth.api.createOrganization({
+        body: { name: "Logo", slug: `logo-${crypto.randomUUID().slice(0, 8)}`, logo: VICTIM_URL },
+        headers: owner.headers
+      })
+    ).rejects.toMatchObject({ body: { code: "PUBLIC_ASSET_URL_READ_ONLY" } });
+    await expect(
+      auth.api.updateOrganization({ body: { data: { logo: VICTIM_URL } }, headers: owner.headers })
+    ).rejects.toMatchObject({ body: { code: "PUBLIC_ASSET_URL_READ_ONLY" } });
+
+    const logos = await testDatabase()
+      .db.select({ logo: organizationsTable.logo })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.userId, owner.userId));
+    expect(logos).toEqual([{ logo: null }]);
+  });
+});
+
 describe("account deletion", () => {
   it("deletes the user only after the emailed link is used", async () => {
     const user = await signUp("delete-link");
@@ -278,9 +325,37 @@ describe("account deletion", () => {
     ).toEqual([{ organizationId: personalId }]);
     expect(
       await testDatabase()
-        .db.select({ url: publicAssetPurgesTable.url })
+        .db.select({ userId: publicAssetPurgesTable.userId, url: publicAssetPurgesTable.url })
         .from(publicAssetPurgesTable)
-        .where(eq(publicAssetPurgesTable.url, "https://cdn.example.com/avatar/leaver.webp"))
-    ).toEqual([{ url: "https://cdn.example.com/avatar/leaver.webp" }]);
+        .where(eq(publicAssetPurgesTable.userId, leaver.userId))
+    ).toEqual([{ userId: leaver.userId, url: "https://cdn.example.com/avatar/leaver.webp" }]);
+  });
+
+  it("keeps a personal organization with another owner, without handing it over", async () => {
+    const leaver = await signUp("delete-personal-leaver");
+    const coOwner = await signUp("delete-personal-co-owner");
+    const personalId = await personalOrganizationId(leaver.userId);
+    await addMember(personalId, coOwner.userId, "owner");
+
+    await deleteAccount(leaver.headers);
+
+    expect(await organizationRow(personalId)).toEqual({ userId: null });
+  });
+
+  it("keeps an organization handed to the user after the deletion was prepared", async () => {
+    const leaver = await signUp("delete-race-leaver");
+    const giver = await signUp("delete-race-giver");
+    const organizationId = await createOrganization(giver.headers, "Handed");
+    await addMember(organizationId, leaver.userId, "member");
+    expect(await prepareAccountDeletion(leaver.userId)).toBeNull();
+
+    // A transfer of ownership lands between the preparation and the user delete.
+    await testDatabase()
+      .db.update(organizationsTable)
+      .set({ userId: leaver.userId })
+      .where(eq(organizationsTable.id, organizationId));
+    await testDatabase().db.delete(usersTable).where(eq(usersTable.id, leaver.userId));
+
+    expect(await organizationRow(organizationId)).toEqual({ userId: null });
   });
 });

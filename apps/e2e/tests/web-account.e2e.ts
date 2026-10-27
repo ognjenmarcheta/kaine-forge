@@ -58,10 +58,12 @@ test("changes the name and password, then signs out another session", async ({
       .getByRole("list", { name: ACCOUNT_LABELS.sessions })
       .getByRole("listitem");
     await expect(sessions).toHaveCount(2);
-    await expect(sessions.filter({ hasText: ACCOUNT_LABELS.thisDevice })).toHaveCount(1);
+    // The marker is a badge inside the row, next to the user agent, IP and time.
+    const thisDevice = page.getByText(ACCOUNT_LABELS.thisDevice);
+    await expect(sessions.filter({ has: thisDevice })).toHaveCount(1);
 
     await sessions
-      .filter({ hasNotText: ACCOUNT_LABELS.thisDevice })
+      .filter({ hasNot: thisDevice })
       .getByRole("button", { name: ACCOUNT_LABELS.signOut })
       .click();
     await expect(sessions).toHaveCount(1);

@@ -456,10 +456,22 @@ function refuseAccountDeletion(refusal: AccountDeletionRefusal): APIError {
   });
 }
 
-// Account settings: the social providers a user can link, and the refusal of
-// a delete request before better-auth emails the confirmation link. A request
-// with the emailed token is checked by user.deleteUser.beforeDelete, under row
-// locks.
+// Routes that would let a client set a Public Asset URL, and the body field.
+// Only the API's public-asset upload writes users.image and
+// organizations.logo; a client-chosen URL could name another owner's file,
+// which a later replacement or purge would delete. /organization/update
+// carries its fields under `data`.
+const PUBLIC_ASSET_URL_FIELDS = new Map([
+  ["/sign-up/email", "image"],
+  ["/update-user", "image"],
+  ["/organization/create", "logo"],
+  ["/organization/update", "logo"]
+]);
+
+// Account settings: the social providers a user can link, the refusal of a
+// client-set Public Asset URL, and the refusal of a delete request before
+// better-auth emails the confirmation link. A request with the emailed token
+// is checked by user.deleteUser.beforeDelete, under row locks.
 const accountPlugin = {
   id: "account",
   endpoints: {
@@ -471,6 +483,21 @@ const accountPlugin = {
   },
   hooks: {
     before: [
+      {
+        matcher: (ctx) => PUBLIC_ASSET_URL_FIELDS.has(ctx.path ?? ""),
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = readRecord(ctx.body);
+          const fields = ctx.path === "/organization/update" ? readRecord(body.data) : body;
+          const field = PUBLIC_ASSET_URL_FIELDS.get(ctx.path) ?? "";
+
+          if (fields[field] !== undefined) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "PUBLIC_ASSET_URL_READ_ONLY",
+              message: "Profile pictures and logos change only through an upload"
+            });
+          }
+        })
+      },
       {
         matcher: (ctx) => ctx.path === "/delete-user" && readRecord(ctx.body).token === undefined,
         handler: createAuthMiddleware(async (ctx) => {
@@ -789,8 +816,9 @@ export function createAuthInstance() {
         },
         schema: {
           organization: {
-            // organizations.user_id is NOT NULL (owner column predating the
-            // plugin). Declared as a server-only additional field so the
+            // organizations.user_id is the owner column predating the plugin
+            // (null after its user deleted the account). Declared as a
+            // server-only additional field so the
             // beforeCreateOrganization hook value survives the adapter's
             // field mapping while clients cannot set it.
             additionalFields: {

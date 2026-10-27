@@ -18,7 +18,9 @@ export interface AccountDeletionRefusal {
 type Executor = Pick<typeof db, "select">;
 
 interface DeletionPlan {
-  /** Organizations whose `user_id` moves to another member before the delete. */
+  /** Organizations the user is alone in; they go with the account. */
+  deletions: string[];
+  /** Organizations whose `user_id` moves to another owner before the delete. */
   handovers: { organizationId: string; userId: string }[];
   refusal: AccountDeletionRefusal | null;
 }
@@ -46,7 +48,7 @@ async function planAccountDeletion(
   const organizationIds = [
     ...new Set([...memberships.map((row) => row.organizationId), ...created.map((row) => row.id)])
   ];
-  const plan: DeletionPlan = { handovers: [], refusal: null };
+  const plan: DeletionPlan = { deletions: [], handovers: [], refusal: null };
 
   if (organizationIds.length === 0) {
     return plan;
@@ -77,14 +79,14 @@ async function planAccountDeletion(
     const ofOrganization = members.filter((member) => member.organizationId === organization.id);
     const others = ofOrganization.filter((member) => member.userId !== userId);
     const own = ofOrganization.find((member) => member.userId === userId);
-    const nextOwner = others.find((member) => isOwner(member.role)) ?? others[0];
+    const nextOwner = others.find((member) => isOwner(member.role));
 
-    // Alone in it: the user delete cascades the Organization away.
-    if (!nextOwner) {
+    if (others.length === 0) {
+      plan.deletions.push(organization.id);
       continue;
     }
 
-    if (own && isOwner(own.role) && !isOwner(nextOwner.role)) {
+    if (own && isOwner(own.role) && !nextOwner) {
       plan.refusal = {
         code: organization.personal
           ? ACCOUNT_DELETION_REFUSALS.PERSONAL_ORGANIZATION_HAS_MEMBERS
@@ -94,7 +96,9 @@ async function planAccountDeletion(
       return plan;
     }
 
-    if (organization.userId === userId) {
+    // A Personal Organization is never handed over; like an Organization
+    // without another owner, it keeps a null `user_id` (ON DELETE SET NULL).
+    if (organization.userId === userId && !organization.personal && nextOwner) {
       plan.handovers.push({ organizationId: organization.id, userId: nextOwner.userId });
     }
   }
@@ -112,10 +116,13 @@ export async function findAccountDeletionRefusal(
 /**
  * Readies the user's Organizations for the account delete in one transaction
  * that locks them: refuses while the user is the only owner of an
- * Organization with other members, and otherwise hands `organizations.user_id`
- * of every Organization with another member to another owner (or the oldest
- * other member). The user delete then cascades away only the Organizations
- * the user was alone in. Returns the refusal, or null when the delete may go on.
+ * Organization with other members; otherwise deletes the Organizations the
+ * user is alone in (the delete trigger queues their storage) and hands
+ * `organizations.user_id` of a shared, non-personal one to another owner.
+ * better-auth deletes the user row after this transaction, and
+ * `organizations.user_id` is ON DELETE SET NULL, so an Organization that
+ * reaches the user in that gap survives with its members. Returns the
+ * refusal, or null when the delete may go on.
  */
 export async function prepareAccountDeletion(
   userId: string
@@ -125,6 +132,10 @@ export async function prepareAccountDeletion(
 
     if (plan.refusal) {
       return plan.refusal;
+    }
+
+    if (plan.deletions.length > 0) {
+      await tx.delete(organizationsTable).where(inArray(organizationsTable.id, plan.deletions));
     }
 
     for (const handover of plan.handovers) {

@@ -1,5 +1,5 @@
 {
-  "id": "2d06f607-b8e0-4b90-bf0d-13343d33e843",
+  "id": "908b3f68-5fb0-46d7-a1f4-511ac6b5e6cf",
   "prevId": "b8cf7b50-7d48-43f5-88af-427782b76ad1",
   "version": "7",
   "dialect": "postgresql",
@@ -875,7 +875,7 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "name": {
           "name": "name",
@@ -924,7 +924,7 @@
           "tableTo": "users",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1275,10 +1275,16 @@
       "name": "public_asset_purges",
       "schema": "",
       "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "url": {
           "name": "url",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "created_at": {

@@ -7,7 +7,7 @@ import {
   isTwoFactorRequiredError,
   parseSocialProviders
 } from "./auth.transport";
-import type { AuthTransportAdapter } from "./auth.transport";
+import type { AuthTransport, AuthTransportAdapter } from "./auth.transport";
 import type { AuthSession } from "./auth.type";
 
 const { createAuthClientMock, organizationClientMock } = vi.hoisted(() => ({
@@ -143,6 +143,15 @@ function createClientStub() {
       >([])
     ),
     revokeSession: vi.fn(async () => stubResult({ status: true })),
+    revokeOtherSessions: vi.fn(async () => stubResult({ status: true })),
+    updateUser: vi.fn(async () => stubResult({ status: true })),
+    changePassword: vi.fn(async () => stubResult<Record<string, unknown>>({ token: null })),
+    changeEmail: vi.fn(async () => stubResult({ status: true })),
+    listAccounts: vi.fn(async () =>
+      stubResult<{ createdAt: string; id: string; providerId: string }[]>([])
+    ),
+    linkSocial: vi.fn(async () => stubResult({ redirect: true, url: "https://provider.test" })),
+    unlinkAccount: vi.fn(async () => stubResult({ status: true })),
     deleteUser: vi.fn(async () => stubResult({ success: true, message: "User deleted" })),
     organization: {
       list: vi.fn(async () =>
@@ -713,6 +722,129 @@ describe("createAuthTransport", () => {
     ]);
     await transport.revokeSession("session-2");
     expect(client.revokeSession.mock.calls).toEqual([[{ token: "token-2" }]]);
+  });
+
+  it("sends account changes for the session user and maps linked accounts", async () => {
+    const client = createClientStub();
+    client.listAccounts.mockResolvedValue(
+      stubResult([
+        { id: "account-1", providerId: "credential", createdAt: "2026-10-01T08:00:00.000Z" }
+      ])
+    );
+    client.$fetch.mockResolvedValue(stubResult({ providers: ["google", "unknown"] }));
+    createAuthClientMock.mockReturnValue(client);
+    const setSessionToken = vi.fn();
+
+    const transport = createAuthTransport({ adapter: createAdapter({ setSessionToken }) });
+
+    await expect(transport.updateProfile({ name: "Ada" })).resolves.toEqual(expectedSession());
+    await transport.changePassword({
+      currentPassword: "old-secret",
+      newPassword: "new-secret",
+      revokeOtherSessions: true
+    });
+    await transport.changeEmail({ newEmail: "new@example.com" });
+    await transport.changeEmail({
+      newEmail: "new@example.com",
+      callbackUrl: "https://app.example.test/account"
+    });
+    await transport.revokeOtherSessions();
+    await expect(transport.listAccounts()).resolves.toEqual([
+      { id: "account-1", providerId: "credential", createdAt: "2026-10-01T08:00:00.000Z" }
+    ]);
+    await expect(transport.listSocialProviders()).resolves.toEqual(["google"]);
+    await transport.linkSocialAccount({
+      provider: "github",
+      callbackUrl: "https://app.example.test/account"
+    });
+    await transport.unlinkAccount("account-2");
+    await transport.requestAccountDeletion();
+    await transport.confirmAccountDeletion("delete-token-1");
+
+    expect(client.updateUser.mock.calls).toEqual([[{ name: "Ada" }]]);
+    expect(client.changePassword.mock.calls).toEqual([
+      [{ currentPassword: "old-secret", newPassword: "new-secret", revokeOtherSessions: true }]
+    ]);
+    expect(client.changeEmail.mock.calls).toEqual([
+      [{ newEmail: "new@example.com" }],
+      [{ newEmail: "new@example.com", callbackURL: "https://app.example.test/account" }]
+    ]);
+    expect(client.revokeOtherSessions).toHaveBeenCalledTimes(1);
+    expect(client.linkSocial.mock.calls).toEqual([
+      [{ provider: "github", callbackURL: "https://app.example.test/account" }]
+    ]);
+    expect(client.unlinkAccount.mock.calls).toEqual([[{ accountId: "account-2" }]]);
+    expect(client.deleteUser.mock.calls).toEqual([[{}], [{ token: "delete-token-1" }]]);
+    // The deleted account's bearer token is dropped.
+    expect(setSessionToken.mock.calls).toEqual([[null]]);
+  });
+
+  it("does not revoke anything for a session id the user does not have", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await createAuthTransport({ adapter: createAdapter() }).revokeSession("session-unknown");
+
+    expect(client.revokeSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["updateProfile", (transport: AuthTransport) => transport.updateProfile({ name: "Ada" })],
+    [
+      "changePassword",
+      (transport: AuthTransport) =>
+        transport.changePassword({
+          currentPassword: "wrong",
+          newPassword: "new-secret",
+          revokeOtherSessions: false
+        })
+    ],
+    [
+      "changeEmail",
+      (transport: AuthTransport) => transport.changeEmail({ newEmail: "new@example.com" })
+    ],
+    ["listSessions", (transport: AuthTransport) => transport.listSessions()],
+    // Revoking looks the session up first; the revoke itself fails.
+    ["revokeSession", (transport: AuthTransport) => transport.revokeSession("session-2"), true],
+    ["revokeOtherSessions", (transport: AuthTransport) => transport.revokeOtherSessions()],
+    ["listAccounts", (transport: AuthTransport) => transport.listAccounts()],
+    ["listSocialProviders", (transport: AuthTransport) => transport.listSocialProviders()],
+    [
+      "linkSocialAccount",
+      (transport: AuthTransport) => transport.linkSocialAccount({ provider: "github" })
+    ],
+    ["unlinkAccount", (transport: AuthTransport) => transport.unlinkAccount("account-1")],
+    ["confirmAccountDeletion", (transport: AuthTransport) => transport.confirmAccountDeletion("t")]
+  ])("keeps the better-auth error code when %s fails", async (_name, call, listed = false) => {
+    const failure = { data: null, error: { status: 400, code: "INVALID_PASSWORD" } };
+    const client = createClientStub();
+    for (const method of [
+      client.updateUser,
+      client.changePassword,
+      client.changeEmail,
+      client.listSessions,
+      client.revokeSession,
+      client.revokeOtherSessions,
+      client.listAccounts,
+      client.$fetch,
+      client.linkSocial,
+      client.unlinkAccount,
+      client.deleteUser
+    ]) {
+      method.mockResolvedValue(failure);
+    }
+    if (listed) {
+      client.listSessions.mockResolvedValueOnce(
+        stubResult([{ id: "session-2", token: "token-2", createdAt: "2026-10-02T08:00:00.000Z" }])
+      );
+    }
+    createAuthClientMock.mockReturnValue(client);
+
+    const error: unknown = await call(createAuthTransport({ adapter: createAdapter() })).catch(
+      (caught: unknown) => caught
+    );
+
+    expect(getAuthErrorMessageKey(error)).toBe("auth.account.error.invalidPassword");
   });
 
   it("names the organization that blocks an account deletion", async () => {
