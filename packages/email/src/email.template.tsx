@@ -30,7 +30,9 @@ export type EmailTemplate =
     }
   | { template: "twoFactorCode"; code: string }
   | { template: "emailOtp"; code: string; type: EmailOtpType; expiresInMinutes: number }
-  | { template: "welcome"; name: string; url: string }
+  // No user-supplied text: anyone can sign up with another person's address
+  // before it is verified.
+  | { template: "welcome"; url: string }
   | { template: "passwordChanged"; securityUrl: string }
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string };
@@ -168,7 +170,7 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
 
       return {
         subject: t("email.welcome.subject", { appName }),
-        heading: t("email.welcome.heading", { name: email.name }),
+        heading: t("email.welcome.heading", { appName }),
         body: (
           <>
             <EmailText>{t("email.welcome.body")}</EmailText>

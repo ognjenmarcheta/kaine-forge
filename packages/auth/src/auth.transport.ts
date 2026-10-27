@@ -355,12 +355,16 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       return requireSession();
     },
     async signupWithPassword(signupInput: SignupInput) {
+      // locale is a server-side additional field the typed client does not
+      // declare; a body variable (not a literal) passes it through.
+      const body = {
+        email: signupInput.email,
+        name: signupInput.name,
+        password: signupInput.password,
+        ...(signupInput.locale ? { locale: signupInput.locale } : {})
+      };
       const { error } = await client.signUp.email(
-        {
-          email: signupInput.email,
-          name: signupInput.name,
-          password: signupInput.password
-        },
+        body,
         captchaFetchOptions(signupInput.captchaToken)
       );
 
