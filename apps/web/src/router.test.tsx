@@ -7,6 +7,18 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appRoutes } from "./router";
 
 const READY = { dashboard: "dashboard ready", todos: "todos ready" };
+const signedIn = vi.hoisted(() => ({ value: true }));
+const translation = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  return {
+    language: "en",
+    listeners,
+    setLanguage(next: string) {
+      translation.language = next;
+      for (const listener of listeners) listener();
+    }
+  };
+});
 const routeFailure = vi.hoisted(() => ({
   auth: false,
   dashboard: false,
@@ -20,7 +32,7 @@ vi.mock("./hooks/use-auth", () => ({
     return {
       isLoading: false,
       logout: vi.fn(),
-      session: { user: { email: "user@example.com", name: "User" } }
+      session: signedIn.value ? { user: { email: "user@example.com", name: "User" } } : null
     };
   }
 }));
@@ -35,9 +47,24 @@ vi.mock("./hooks/use-organization", () => ({
     setActiveOrganization: vi.fn()
   })
 }));
-vi.mock("./hooks/use-translation", () => ({
-  useTranslation: () => ({ language: "en", setLanguage: vi.fn(), t: (key: string) => key })
-}));
+vi.mock("./hooks/use-translation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (listener: () => void) => {
+    translation.listeners.add(listener);
+    return () => translation.listeners.delete(listener);
+  };
+  return {
+    useTranslation: () => {
+      const language = useSyncExternalStore(subscribe, () => translation.language);
+      return {
+        language,
+        setLanguage: vi.fn(),
+        // English returns the bare key so assertions read as translation keys.
+        t: (key: string) => (language === "en" ? key : `${language}:${key}`)
+      };
+    }
+  };
+});
 vi.mock("./hooks/use-theme", () => ({
   useTheme: () => ({ setThemeMode: vi.fn(), themeMode: "system" })
 }));
@@ -89,6 +116,8 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   Object.assign(routeFailure, { auth: false, dashboard: false, shell: false, todos: false });
+  signedIn.value = true;
+  translation.language = "en";
   consoleError.mockRestore();
   vi.unstubAllGlobals();
 });
@@ -157,9 +186,33 @@ it("shows a titled not-found page for an unknown path", async () => {
 
   expect(router.state.location.pathname).toBe("/no-such-page");
   expect(findByText("h1", "notFound.title")).toBeDefined();
-  expect(document.title).toBe("notFound.title");
+  expect(document.title).toBe("notFound.title · common.appName");
 
   await click(findByText("a", "common.goToDashboard"));
 
   expect(router.state.location.pathname).toBe("/dashboard");
+});
+
+it("titles the document per route and follows a language change", async () => {
+  const router = await renderAt("/todos");
+
+  expect(document.title).toBe("navigation.todos · common.appName");
+
+  await act(async () => router.navigate("/dashboard"));
+  expect(document.title).toBe("navigation.dashboard · common.appName");
+
+  await act(async () => translation.setLanguage("de"));
+  expect(document.title).toBe("de:navigation.dashboard · de:common.appName");
+});
+
+it.each([
+  { heading: "legal.terms.title", path: "/terms" },
+  { heading: "legal.privacy.title", path: "/privacy" }
+])("shows $path to a signed-out visitor without a redirect", async ({ heading, path }) => {
+  signedIn.value = false;
+  const router = await renderAt(path);
+
+  expect(router.state.location.pathname).toBe(path);
+  expect(findByText("h1", heading)).toBeDefined();
+  expect(document.title).toBe(`${heading} · common.appName`);
 });

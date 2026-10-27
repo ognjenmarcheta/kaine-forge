@@ -23,5 +23,11 @@
   "common.goToDashboard": "Go to dashboard",
   "error.routeSummary": "This page could not load. Try again, or go back to the dashboard.",
   "notFound.title": "Page not found",
-  "notFound.summary": "This page does not exist or has moved."
+  "notFound.summary": "This page does not exist or has moved.",
+  "legal.footerLabel": "Legal",
+  "legal.stubNotice": "Template stub. Replace this page with your own text before launch.",
+  "legal.terms.title": "Terms of Service",
+  "legal.terms.body": "This page is a placeholder from the project template. Write the terms that govern the use of your product here.",
+  "legal.privacy.title": "Privacy Policy",
+  "legal.privacy.body": "This page is a placeholder from the project template. Describe which personal data your product collects, why it collects the data, and how long you keep it."
 }

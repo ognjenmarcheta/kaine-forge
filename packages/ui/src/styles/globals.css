@@ -974,6 +974,8 @@ body {
 .ui-auth-layout {
   align-items: center;
   display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-200);
   justify-content: center;
   min-height: 100vh;
   padding: var(--ds-space-300);
@@ -995,6 +997,11 @@ body {
 .ui-auth-layout__subtitle {
   color: var(--ds-text-subtle);
   margin: var(--ds-space-100) 0 var(--ds-space-300);
+}
+
+.ui-auth-layout__footer {
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
 }
 
 .ui-modal__overlay {
