@@ -1,0 +1,1 @@
+ALTER TABLE "organization_storage_purges" ADD COLUMN "attempted_at" timestamp with time zone;

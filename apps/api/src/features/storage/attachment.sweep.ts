@@ -159,7 +159,12 @@ export async function sweepDeletedOrganizations({
   const purges = await db
     .select()
     .from(organizationStoragePurgesTable)
-    .orderBy(asc(organizationStoragePurgesTable.createdAt))
+    // Never-tried rows first, then the longest-waiting failures, so a row
+    // that keeps failing cannot starve later Organizations.
+    .orderBy(
+      sql`${organizationStoragePurgesTable.attemptedAt} asc nulls first`,
+      asc(organizationStoragePurgesTable.createdAt)
+    )
     .limit(batchSize);
 
   for (const purge of purges) {
@@ -213,6 +218,10 @@ export async function sweepDeletedOrganizations({
 
     if (failed) {
       totals.failed += 1;
+      await db
+        .update(organizationStoragePurgesTable)
+        .set({ attemptedAt: new Date() })
+        .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
     } else if (purge.createdAt < pendingCutoff) {
       await db
         .delete(organizationStoragePurgesTable)

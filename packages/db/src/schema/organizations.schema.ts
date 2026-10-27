@@ -25,5 +25,8 @@ export const organizationsTable = pgTable("organizations", {
 export const organizationStoragePurgesTable = pgTable("organization_storage_purges", {
   organizationId: uuid("organization_id").primaryKey(),
   logo: text("logo"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  // Set when a sweep run fails on this row; failed rows go to the back of the
+  // queue so they cannot starve later Organizations.
+  attemptedAt: timestamp("attempted_at", { withTimezone: true })
 });
