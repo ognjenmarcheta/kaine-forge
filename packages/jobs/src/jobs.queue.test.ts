@@ -191,4 +191,23 @@ describe("createJobQueue", () => {
     await expect(draining.stop()).resolves.toBeUndefined();
     await failed;
   });
+
+  it("stops within its budget when an enqueue never settles", async () => {
+    const pool = createClosablePool(client, () => new Promise<void>(() => undefined));
+    const draining = createJobQueue({
+      backend: "pglite",
+      db: pool.db,
+      definitions: TEST_JOBS,
+      logger,
+      stopTimeoutMs: 1000
+    });
+    await draining.start();
+
+    void draining.enqueue("greet", { name: "stuck" });
+    const started = Date.now();
+    await draining.stop();
+
+    // 1 s for the enqueue, then at most the 1 s pg-boss minimum.
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
 });

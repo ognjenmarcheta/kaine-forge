@@ -10,6 +10,8 @@ const DEFAULT_POLLING_INTERVAL_SECONDS = 2;
 // Retention runs inside pg-boss maintenance, so this bounds how long a
 // finished job's payload outlives its deleteAfterSeconds.
 const MAINTENANCE_INTERVAL_SECONDS = 60;
+// pg-boss 12 raises any stop() timeout below this to it.
+const MIN_BOSS_STOP_TIMEOUT_MS = 1000;
 
 export interface JobQueueOptions<TDefinitions extends JobDefinitions> {
   backend?: "pglite" | "postgres";
@@ -181,7 +183,13 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
       // enqueue is already logged and must not block shutdown.
       const deadline = Date.now() + options.stopTimeoutMs;
       await settleWithin(Promise.allSettled(pending), options.stopTimeoutMs);
-      await boss.stop({ graceful: true, close: false, timeout: deadline - Date.now() });
+      // Enqueues may use the whole budget; the handler drain still gets the
+      // pg-boss minimum, so stop() can take up to stopTimeoutMs + 1 s.
+      await boss.stop({
+        graceful: true,
+        close: false,
+        timeout: Math.max(MIN_BOSS_STOP_TIMEOUT_MS, deadline - Date.now())
+      });
     }
   };
 }
