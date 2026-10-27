@@ -17,6 +17,7 @@ const VERIFY_URL = "https://api.example.com/api/auth/verify-email?token=vtok-1";
 const INVITE_URL = "https://app.example.com/invitations/inv-1";
 const SECURITY_URL = "https://app.example.com/security";
 const DELETE_URL = "https://app.example.com/account/delete?token=dtok-1";
+const MEMBERS_URL = "https://app.example.com/members";
 
 const cases: TemplateCase[] = [
   {
@@ -215,6 +216,20 @@ const cases: TemplateCase[] = [
     subject: "Potvrdite brisanje naloga",
     phrase: "Link ističe za 24 sati.",
     token: DELETE_URL
+  },
+  {
+    email: { template: "roleChanged", url: MEMBERS_URL, organizationName: "Acme", role: "admin" },
+    locale: "en",
+    subject: "Your role in Acme changed",
+    phrase: "You are now an admin of Acme.",
+    token: MEMBERS_URL
+  },
+  {
+    email: { template: "roleChanged", url: MEMBERS_URL, organizationName: "Acme", role: "owner" },
+    locale: "de",
+    subject: "Deine Rolle in Acme hat sich geändert",
+    phrase: "Du bist jetzt Inhaber von Acme.",
+    token: MEMBERS_URL
   }
 ];
 

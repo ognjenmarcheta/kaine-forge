@@ -36,6 +36,11 @@ const {
 const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-assets.definition");
 const { publicAssetStorage, s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
+const { setNotificationDispatcher } = await import("@repo/auth/notifications");
+const { renderEmail } = await import("@repo/email");
+const { createNotificationDelivery } =
+  await import("./features/notifications/notifications.delivery");
+const { pubsub } = await import("./pubsub");
 const { startHousekeeping } = await import("./features/housekeeping/housekeeping.sweep");
 const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
 
@@ -72,6 +77,18 @@ try {
   process.exit(1);
 }
 stopBackgroundWork.push(() => jobQueue.stop());
+
+// Auth actions in this process hand their Notification events to this
+// delivery; the in-process pubsub streams them, so delivery stays here.
+setNotificationDispatcher(
+  createNotificationDelivery({
+    db,
+    publish: (payload) => pubsub.publish("notification:created", payload),
+    sendEmail: async (to, email, locale) => {
+      await jobQueue.enqueue("email.send", { to, ...(await renderEmail(email, locale)) });
+    }
+  })
+);
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {

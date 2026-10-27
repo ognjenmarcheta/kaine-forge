@@ -49,6 +49,7 @@ import {
 } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
+import { dispatchNotification, hasNotificationDispatcher } from "./auth.notification";
 import { hashPassword, verifyPassword } from "./auth.password";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
 import {
@@ -79,6 +80,7 @@ const AUTH_SCHEMA = {
 } as const;
 
 const emailLogger = createLogger({ name: "auth.email" });
+const notificationLookupLogger = createLogger({ name: "auth.notifications" });
 
 // Every auth email goes through the job runner, which retries a failed send
 // (ADR 0018). Each hook starts the locale read, the render, and the enqueue
@@ -117,6 +119,83 @@ async function findLocaleByEmail(email: string): Promise<string | null> {
     .limit(1);
 
   return row?.locale ?? null;
+}
+
+async function findUserIdByEmail(email: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase()))
+    .limit(1);
+
+  return row?.id ?? null;
+}
+
+// An invitee with an account gets an "invitation received" Notification, and
+// its email channel sends the invitation email; any other address gets the
+// email at once. A failed account lookup falls back to the email, so an
+// Invitation is never left unsent. A resend is a new reminder, so it creates
+// a new Notification.
+function deliverInvitation(
+  data: { email: string; id: string; organization: { id: string; name: string }; role: string },
+  inviter: { email: string; name: string },
+  email: EmailTemplate
+): void {
+  const sendEmail = () =>
+    enqueueAuthEmail(
+      data.email,
+      email,
+      findLocaleByEmail(inviter.email).catch(() => null)
+    );
+
+  if (!hasNotificationDispatcher()) {
+    sendEmail();
+    return;
+  }
+
+  void findUserIdByEmail(data.email).then((recipientUserId) => {
+    if (!recipientUserId) {
+      sendEmail();
+      return;
+    }
+
+    dispatchNotification({
+      type: "invitation_received",
+      recipientUserId,
+      organizationId: data.organization.id,
+      payload: {
+        invitationId: data.id,
+        inviterName: inviter.name,
+        organizationName: data.organization.name,
+        role: data.role
+      },
+      email
+    });
+  }, sendEmail);
+}
+
+function buildMembersUrl(webAppUrl: string): string {
+  return new URL("/members", webAppUrl).toString();
+}
+
+function notifyRoleChanged(
+  webAppUrl: string,
+  input: { organization: { id: string; name: string }; role: string; userId: string }
+): void {
+  const organizationName = input.organization.name;
+
+  dispatchNotification({
+    type: "role_changed",
+    recipientUserId: input.userId,
+    organizationId: input.organization.id,
+    payload: { organizationName, role: input.role },
+    email: {
+      template: "roleChanged",
+      organizationName,
+      role: input.role,
+      url: buildMembersUrl(webAppUrl)
+    }
+  });
 }
 
 // Routes that can change a user's email address. /verify-email changes it
@@ -431,6 +510,30 @@ const activeOrganizationRefreshHook = createAuthMiddleware(async (ctx) => {
   }
 });
 
+// The new owner's role changed, so they get a "role changed" Notification.
+// The previous owner made the change and gets none.
+async function notifyNewOwner(memberId: string): Promise<void> {
+  const [member] = await db
+    .select({
+      organizationId: organizationsTable.id,
+      organizationName: organizationsTable.name,
+      role: membersTable.role,
+      userId: membersTable.userId
+    })
+    .from(membersTable)
+    .innerJoin(organizationsTable, eq(organizationsTable.id, membersTable.organizationId))
+    .where(eq(membersTable.id, memberId))
+    .limit(1);
+
+  if (member) {
+    notifyRoleChanged(getServerAuthConfig().webAppUrl, {
+      organization: { id: member.organizationId, name: member.organizationName },
+      role: member.role,
+      userId: member.userId
+    });
+  }
+}
+
 // The organization plugin has no transfer-ownership route; this one moves
 // ownership of the Active Organization in one database transaction.
 const organizationOwnershipPlugin = {
@@ -460,6 +563,9 @@ const organizationOwnershipPlugin = {
           throw refuse(refusal);
         }
 
+        void notifyNewOwner(ctx.body.memberId).catch(() => {
+          notificationLookupLogger.error("new owner not notified");
+        });
         return ctx.json({ success: true });
       }
     )
@@ -835,18 +941,14 @@ export function createAuthInstance() {
         // stored language. The inviter here is the session user, which a
         // cookie cache can hold from before a language change.
         sendInvitationEmail: async (data) => {
-          enqueueAuthEmail(
-            data.email,
-            {
-              template: "invitation",
-              url: buildInvitationUrl(config.webAppUrl, data.id),
-              organizationName: data.organization.name,
-              inviterName: data.inviter.user.name,
-              role: data.role,
-              expiresInDays: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS / 86400
-            },
-            findLocaleByEmail(data.inviter.user.email).catch(() => null)
-          );
+          deliverInvitation(data, data.inviter.user, {
+            template: "invitation",
+            url: buildInvitationUrl(config.webAppUrl, data.id),
+            organizationName: data.organization.name,
+            inviterName: data.inviter.user.name,
+            role: data.role,
+            expiresInDays: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS / 86400
+          });
         },
         schema: {
           organization: {
@@ -875,7 +977,16 @@ export function createAuthInstance() {
         organizationHooks: {
           beforeCreateOrganization: async ({ organization: organizationData, user }) => ({
             data: { ...organizationData, userId: user.id }
-          })
+          }),
+          afterUpdateMemberRole: async ({ member, previousRole, organization: changed }) => {
+            if (member.role !== previousRole) {
+              notifyRoleChanged(config.webAppUrl, {
+                organization: changed,
+                role: member.role,
+                userId: member.userId
+              });
+            }
+          }
         }
       }),
       organizationOwnershipPlugin,

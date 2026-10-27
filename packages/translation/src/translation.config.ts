@@ -8,6 +8,7 @@ import deskDe from "./locales/de/desk.json";
 import emailDe from "./locales/de/email.json";
 import navigationDe from "./locales/de/navigation.json";
 import notesDe from "./locales/de/notes.json";
+import notificationsDe from "./locales/de/notifications.json";
 import organizationsDe from "./locales/de/organizations.json";
 import storageDe from "./locales/de/storage.json";
 import todosDe from "./locales/de/todos.json";
@@ -19,6 +20,7 @@ import deskEn from "./locales/en/desk.json";
 import emailEn from "./locales/en/email.json";
 import navigationEn from "./locales/en/navigation.json";
 import notesEn from "./locales/en/notes.json";
+import notificationsEn from "./locales/en/notifications.json";
 import organizationsEn from "./locales/en/organizations.json";
 import storageEn from "./locales/en/storage.json";
 import todosEn from "./locales/en/todos.json";
@@ -30,6 +32,7 @@ import deskSr from "./locales/sr/desk.json";
 import emailSr from "./locales/sr/email.json";
 import navigationSr from "./locales/sr/navigation.json";
 import notesSr from "./locales/sr/notes.json";
+import notificationsSr from "./locales/sr/notifications.json";
 import organizationsSr from "./locales/sr/organizations.json";
 import storageSr from "./locales/sr/storage.json";
 import todosSr from "./locales/sr/todos.json";
@@ -55,6 +58,7 @@ void translationInstance.init({
       dashboard: dashboardDe,
       navigation: navigationDe,
       notes: notesDe,
+      notifications: notificationsDe,
       organizations: organizationsDe,
       storage: storageDe,
       todos: todosDe
@@ -68,6 +72,7 @@ void translationInstance.init({
       dashboard: dashboardEn,
       navigation: navigationEn,
       notes: notesEn,
+      notifications: notificationsEn,
       organizations: organizationsEn,
       storage: storageEn,
       todos: todosEn
@@ -81,6 +86,7 @@ void translationInstance.init({
       dashboard: dashboardSr,
       navigation: navigationSr,
       notes: notesSr,
+      notifications: notificationsSr,
       organizations: organizationsSr,
       storage: storageSr,
       todos: todosSr

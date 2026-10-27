@@ -45,6 +45,7 @@ import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
+import { NotificationBell } from "./features/notifications/components/notification-bell";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
@@ -179,6 +180,9 @@ function ShellContent() {
               className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
             />
             <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
+            <div className="ml-auto">
+              <NotificationBell />
+            </div>
           </div>
         </header>
       }

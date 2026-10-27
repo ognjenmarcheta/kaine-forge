@@ -23,6 +23,7 @@
       "@repo/auth/server": ["packages/auth/src/auth.server.ts"],
       "@repo/auth/audit": ["packages/auth/src/auth.audit.ts"],
       "@repo/auth/audit.definition": ["packages/auth/src/auth.audit.definition.ts"],
+      "@repo/auth/notifications": ["packages/auth/src/auth.notification.ts"],
       "@repo/auth/client": ["packages/auth/src/auth.client.ts"],
       "@repo/auth/instance": ["packages/auth/src/auth.instance.ts"],
       "@repo/auth/permissions": ["packages/auth/src/auth.permissions.ts"],

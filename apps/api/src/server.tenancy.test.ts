@@ -77,7 +77,19 @@ const apiSchema = buildSchema(apiTypeDefs.join("\n"));
 
 // Fields that are public by design. Every other root field is organization-scoped.
 const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"];
+// Fields about the caller as a user, whatever their Active Organization: they
+// require a session but no Active Organization, and take the user from the
+// session. features/notifications/notifications.tenancy.test.ts proves their rows.
+const USER_LEVEL_FIELDS = [
+  "Query.notifications",
+  "Query.notificationPreferences",
+  "Mutation.markNotificationRead",
+  "Mutation.markAllNotificationsRead",
+  "Mutation.updateNotificationPreference",
+  "Subscription.notificationReceived"
+];
 const ORGANIZATION_ID_NAME = /organi[sz]ation|^org(?:id)?$|tenant/i;
+const USER_ID_NAME = /^user(?:id)?$|recipient/i;
 
 type OperationType = "query" | "mutation" | "subscription";
 
@@ -111,6 +123,10 @@ function rootFields(): RootField[] {
 }
 
 const scopedFields = rootFields().filter((root) => !PUBLIC_FIELDS.includes(root.coordinate));
+const userLevelFields = scopedFields.filter((root) => USER_LEVEL_FIELDS.includes(root.coordinate));
+const organizationFields = scopedFields.filter(
+  (root) => !USER_LEVEL_FIELDS.includes(root.coordinate)
+);
 
 // A literal for every required input, so the request passes validation and
 // reaches the resolver. Optional inputs are left out.
@@ -258,7 +274,18 @@ describe("organization-scoped GraphQL field contract", () => {
     const coordinates = rootFields().map((root) => root.coordinate);
 
     expect(coordinates).toEqual(expect.arrayContaining(PUBLIC_FIELDS));
+    expect(coordinates).toEqual(expect.arrayContaining(USER_LEVEL_FIELDS));
     expect(scopedFields.length).toBeGreaterThan(0);
+  });
+
+  it("offers no argument or input field that carries a user id on a user-level field", () => {
+    const offenders = userLevelFields.flatMap((root) =>
+      inputNames(root.field.args)
+        .filter((name) => USER_ID_NAME.test(name.split(".").at(-1) ?? ""))
+        .map((name) => `${root.coordinate}(${name})`)
+    );
+
+    expect(offenders).toEqual([]);
   });
 
   it("offers no argument or input field that carries an organization id", () => {
@@ -284,7 +311,9 @@ describe("organization-scoped GraphQL field contract", () => {
 
       expect(result.errors?.[0]?.message).toBe("authentication required");
     });
+  });
 
+  describe.each(organizationFields)("$coordinate", (root) => {
     it("takes the organization from the session's Active Organization", async () => {
       const result = await run(root.operation, operationFor(root), NO_ACTIVE_ORGANIZATION);
 

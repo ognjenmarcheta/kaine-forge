@@ -18,6 +18,10 @@
       "types": "./dist/auth.audit.definition.d.ts",
       "default": "./dist/auth.audit.definition.js"
     },
+    "./notifications": {
+      "types": "./dist/auth.notification.d.ts",
+      "default": "./dist/auth.notification.js"
+    },
     "./auth.definition": {
       "types": "./dist/auth.definition.d.ts",
       "default": "./dist/auth.definition.js"
