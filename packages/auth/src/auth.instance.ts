@@ -64,8 +64,10 @@ import {
   prepareAccountDeletion,
   type AccountDeletionRefusal
 } from "./auth.server.account";
+import { customRoleHasPendingInvitations } from "./auth.server.invitation";
 import {
   ensurePersonalOrganizationForUser,
+  findMemberRole,
   getOrganizationMembershipProof,
   isPersonalOrganization,
   loadRolePermissions,
@@ -357,9 +359,17 @@ const ORGANIZATION_REFUSAL_RESPONSES: Record<
     message: "A personal organization cannot be transferred",
     status: "BAD_REQUEST"
   },
+  MEMBER_EXCEEDS_YOUR_PERMISSIONS: {
+    message: "You cannot change or remove a member who holds permissions you do not hold",
+    status: "FORBIDDEN"
+  },
   ROLE_EXCEEDS_YOUR_PERMISSIONS: {
     message: "You cannot give a role with permissions you do not hold",
     status: "FORBIDDEN"
+  },
+  ROLE_IS_ASSIGNED_TO_INVITATIONS: {
+    message: "Pending invitations name this role",
+    status: "BAD_REQUEST"
   },
   TRANSFER_TARGET_NOT_FOUND: {
     message: "The new owner must be another member of the organization",
@@ -411,6 +421,42 @@ async function refuseRoleAssignment(params: {
 
   if (caller && granted.some((permission) => !caller.permissions.includes(permission))) {
     throw refuse(ORGANIZATION_REFUSALS.ROLE_EXCEEDS_YOUR_PERMISSIONS);
+  }
+}
+
+// A member's role changes, or the member leaves, only through a caller who
+// holds every Permission the member holds now. The plugin itself protects
+// only the owner role, so a Custom Role with member:update or member:delete
+// could otherwise demote or remove an admin.
+async function refuseMemberChange(params: {
+  memberIdOrEmail: unknown;
+  organizationId: string;
+  userId: string;
+}): Promise<void> {
+  if (typeof params.memberIdOrEmail !== "string") {
+    return;
+  }
+
+  const [caller, role] = await Promise.all([
+    getOrganizationMembershipProof({
+      organizationId: params.organizationId,
+      userId: params.userId
+    }),
+    findMemberRole({
+      memberIdOrEmail: params.memberIdOrEmail,
+      organizationId: params.organizationId
+    })
+  ]);
+
+  if (!caller || role === null) {
+    // The route itself answers a caller or member that does not exist.
+    return;
+  }
+
+  const held = await loadRolePermissions({ organizationId: params.organizationId, role });
+
+  if (held.some((permission) => !caller.permissions.includes(permission))) {
+    throw refuse(ORGANIZATION_REFUSALS.MEMBER_EXCEEDS_YOUR_PERMISSIONS);
   }
 }
 
@@ -467,6 +513,31 @@ const organizationGuardHook = createAuthMiddleware(async (ctx) => {
     ctx.path === "/organization/invite-member"
   ) {
     await refuseRoleAssignment({ organizationId, role: body.role, userId: session.user.id });
+  }
+
+  if (
+    ctx.path === "/organization/update-member-role" ||
+    ctx.path === "/organization/remove-member"
+  ) {
+    await refuseMemberChange({
+      memberIdOrEmail:
+        ctx.path === "/organization/remove-member" ? body.memberIdOrEmail : body.memberId,
+      organizationId,
+      userId: session.user.id
+    });
+  }
+
+  // The plugin refuses only while members hold the role; an Invitation would
+  // give it to the invitee after it is gone.
+  if (
+    ctx.path === "/organization/delete-role" &&
+    (await customRoleHasPendingInvitations({
+      organizationId,
+      roleId: typeof body.roleId === "string" ? body.roleId : null,
+      roleName: typeof body.roleName === "string" ? body.roleName : null
+    }))
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.ROLE_IS_ASSIGNED_TO_INVITATIONS);
   }
 
   if (ctx.path === "/organization/create-role" || ctx.path === "/organization/update-role") {

@@ -112,6 +112,8 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail",
   ROLE_EXCEEDS_YOUR_PERMISSIONS: "organizations.error.roleExceedsPermissions",
+  MEMBER_EXCEEDS_YOUR_PERMISSIONS: "organizations.error.memberExceedsPermissions",
+  ROLE_IS_ASSIGNED_TO_INVITATIONS: "organizations.roles.error.invited",
   CUSTOM_ROLE_NAME_INVALID: "organizations.roles.error.nameInvalid",
   ROLE_NAME_IS_ALREADY_TAKEN: "organizations.roles.error.nameTaken",
   ROLE_IS_ASSIGNED_TO_MEMBERS: "organizations.roles.error.assigned",

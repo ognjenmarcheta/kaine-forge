@@ -7,6 +7,7 @@ import {
   recordAuditEvent,
   type AuditEventInput
 } from "./auth.audit";
+import { permissionsOfStatements } from "./auth.permissions";
 
 // Routes whose success writes an Audit Event. The organization plugin's
 // organizationHooks name the target user but not the acting one, and leave
@@ -217,7 +218,10 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
         ? {
             action: ctx.path === "/organization/create-role" ? "role_created" : "role_updated",
             actorUserId,
-            metadata: { name },
+            metadata: {
+              name,
+              permissions: permissionsOfStatements(readRecord(role.permission)).join(",")
+            },
             organizationId,
             targetId: id
           }

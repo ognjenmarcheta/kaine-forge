@@ -1,4 +1,4 @@
-import { auditEventsTable, membersTable } from "@repo/db";
+import { auditEventsTable, invitationsTable, membersTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
 import type { EmailMessage } from "@repo/email";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -178,8 +178,16 @@ describe("managing Custom Roles", () => {
       )
       .orderBy(asc(auditEventsTable.createdAt), asc(auditEventsTable.id));
     expect(events).toEqual([
-      { action: "role_created", metadata: { name: "editor" }, targetType: "role" },
-      { action: "role_updated", metadata: { name: "editor" }, targetType: "role" },
+      {
+        action: "role_created",
+        metadata: { name: "editor", permissions: "todo:create,note:create,note:update" },
+        targetType: "role"
+      },
+      {
+        action: "role_updated",
+        metadata: { name: "editor", permissions: "note:create" },
+        targetType: "role"
+      },
       { action: "role_deleted", metadata: { name: "editor" }, targetType: "role" }
     ]);
   });
@@ -322,6 +330,84 @@ describe("assigning a Custom Role", () => {
       })
     ).toEqual({ code: "ROLE_EXCEEDS_YOUR_PERMISSIONS", status: 403 });
     expect(await roleOf(member.memberId)).toBe("member");
+  });
+});
+
+describe("managing members with a Custom Role", () => {
+  it("refuses to remove or demote a member who holds permissions the caller does not", async () => {
+    const owner = await signUp("manage-owner");
+    const shared = await createOrganization(owner.headers, "Manage");
+    await post("/organization/create-role", shared.headers, {
+      role: "people",
+      permission: { member: ["update", "delete"] }
+    });
+    const manager = await joinAs(shared.organizationId, "manage-people", "people");
+    const admin = await joinAs(shared.organizationId, "manage-admin", "admin");
+
+    expect(
+      await post("/organization/update-member-role", manager.headers, {
+        memberId: admin.memberId,
+        role: "people"
+      })
+    ).toEqual({ code: "MEMBER_EXCEEDS_YOUR_PERMISSIONS", status: 403 });
+    expect(
+      await post("/organization/remove-member", manager.headers, {
+        memberIdOrEmail: admin.memberId
+      })
+    ).toEqual({ code: "MEMBER_EXCEEDS_YOUR_PERMISSIONS", status: 403 });
+    expect(
+      await post("/organization/remove-member", manager.headers, {
+        memberIdOrEmail: admin.email
+      })
+    ).toEqual({ code: "MEMBER_EXCEEDS_YOUR_PERMISSIONS", status: 403 });
+    expect(await roleOf(admin.memberId)).toBe("admin");
+  });
+
+  it("lets an admin change and remove members as before", async () => {
+    const owner = await signUp("manage-admin-owner");
+    const shared = await createOrganization(owner.headers, "AdminManage");
+    const admin = await joinAs(shared.organizationId, "manage-admin-actor", "admin");
+    const otherAdmin = await joinAs(shared.organizationId, "manage-admin-target", "admin");
+    const member = await joinAs(shared.organizationId, "manage-admin-member", "member");
+
+    expect(
+      await post("/organization/update-member-role", admin.headers, {
+        memberId: otherAdmin.memberId,
+        role: "member"
+      })
+    ).toEqual({ code: null, status: 200 });
+    expect(
+      await post("/organization/remove-member", admin.headers, {
+        memberIdOrEmail: member.memberId
+      })
+    ).toEqual({ code: null, status: 200 });
+    expect(await roleOf(otherAdmin.memberId)).toBe("member");
+    expect(await roleOf(member.memberId)).toBeNull();
+  });
+});
+
+describe("deleting a Custom Role", () => {
+  it("refuses while a pending Invitation names the role", async () => {
+    const owner = await signUp("invited-role-owner");
+    const shared = await createOrganization(owner.headers, "InvitedRole");
+    await post("/organization/create-role", shared.headers, EDITOR);
+    await post("/organization/invite-member", shared.headers, {
+      email: "invited-editor@example.com",
+      role: "editor"
+    });
+
+    expect(await post("/organization/delete-role", shared.headers, { roleName: "editor" })).toEqual(
+      { code: "ROLE_IS_ASSIGNED_TO_INVITATIONS", status: 400 }
+    );
+
+    await testDatabase()
+      .db.update(invitationsTable)
+      .set({ status: "canceled" })
+      .where(eq(invitationsTable.organizationId, shared.organizationId));
+
+    expect(await post("/organization/delete-role", shared.headers, { roleName: "editor" })).toEqual(
+      { code: null, status: 200 }
+    );
   });
 });
 

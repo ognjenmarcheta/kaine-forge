@@ -115,5 +115,7 @@
   "organizations.permission.audit.read": "Read the audit log",
   "organizations.audit.action.role_created": "Custom role created",
   "organizations.audit.action.role_updated": "Custom role changed",
-  "organizations.audit.action.role_deleted": "Custom role deleted"
+  "organizations.audit.action.role_deleted": "Custom role deleted",
+  "organizations.error.memberExceedsPermissions": "You cannot change or remove a member who holds permissions you do not hold.",
+  "organizations.roles.error.invited": "Pending invitations give this role. Revoke them first."
 }

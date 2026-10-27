@@ -16,8 +16,9 @@ export interface AuditEventMetadataByAction {
   two_factor_disabled: Record<string, never>;
   password_changed: Record<string, never>;
   attachment_deleted: { originalName: string };
-  role_created: { name: string };
-  role_updated: { name: string };
+  /** `permissions` lists the granted Permissions, comma-separated, in catalog order. */
+  role_created: { name: string; permissions: string };
+  role_updated: { name: string; permissions: string };
   role_deleted: { name: string };
 }
 

@@ -115,5 +115,7 @@
   "organizations.permission.audit.read": "Audit-Protokoll lesen",
   "organizations.audit.action.role_created": "Eigene Rolle erstellt",
   "organizations.audit.action.role_updated": "Eigene Rolle geändert",
-  "organizations.audit.action.role_deleted": "Eigene Rolle gelöscht"
+  "organizations.audit.action.role_deleted": "Eigene Rolle gelöscht",
+  "organizations.error.memberExceedsPermissions": "Sie können kein Mitglied ändern oder entfernen, das Berechtigungen hat, die Sie selbst nicht haben.",
+  "organizations.roles.error.invited": "Offene Einladungen vergeben diese Rolle. Widerrufen Sie sie zuerst."
 }

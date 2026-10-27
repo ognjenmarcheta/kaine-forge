@@ -16,6 +16,7 @@
   "email.invitation.body": "{{inviterName}} vas je pozvao da se pridružite organizaciji {{organizationName}} kao {{role}}. Prijavite se ovom email adresom da prihvatite ili odbijete poziv.",
   "email.invitation.role.admin": "administrator",
   "email.invitation.role.member": "član",
+  "email.invitation.role.custom": "član sa ulogom „{{name}}“",
   "email.invitation.action": "Pogledaj poziv",
   "email.invitation.expiry": "Poziv ističe za {{days}} dana.",
   "email.twoFactorCode.subject": "Vaš verifikacioni kod za prijavu",

@@ -76,6 +76,20 @@ const cases: TemplateCase[] = [
     token: INVITE_URL
   },
   {
+    email: {
+      template: "invitation",
+      url: INVITE_URL,
+      organizationName: "Acme",
+      inviterName: "Ada",
+      role: "editor",
+      expiresInDays: 7
+    },
+    locale: "en",
+    subject: "You have been invited to Acme",
+    phrase: "Ada invited you to join Acme as a member with the “editor” role.",
+    token: INVITE_URL
+  },
+  {
     email: { template: "twoFactorCode", code: "731045" },
     locale: "en",
     subject: "Your sign-in verification code",

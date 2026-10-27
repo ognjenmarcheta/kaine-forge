@@ -115,5 +115,7 @@
   "organizations.permission.audit.read": "Čitanje dnevnika revizije",
   "organizations.audit.action.role_created": "Prilagođena uloga je kreirana",
   "organizations.audit.action.role_updated": "Prilagođena uloga je promenjena",
-  "organizations.audit.action.role_deleted": "Prilagođena uloga je obrisana"
+  "organizations.audit.action.role_deleted": "Prilagođena uloga je obrisana",
+  "organizations.error.memberExceedsPermissions": "Ne možete promeniti ili ukloniti člana koji ima dozvole koje vi nemate.",
+  "organizations.roles.error.invited": "Pozivnice na čekanju dodeljuju ovu ulogu. Prvo ih opozovite."
 }

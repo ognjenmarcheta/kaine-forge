@@ -37,6 +37,8 @@ export const ORGANIZATION_REFUSALS = {
   PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "PERSONAL_ORGANIZATION_CANNOT_BE_DELETED",
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "PERSONAL_ORGANIZATION_CANNOT_BE_LEFT",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED",
+  MEMBER_EXCEEDS_YOUR_PERMISSIONS: "MEMBER_EXCEEDS_YOUR_PERMISSIONS",
+  ROLE_IS_ASSIGNED_TO_INVITATIONS: "ROLE_IS_ASSIGNED_TO_INVITATIONS",
   ROLE_EXCEEDS_YOUR_PERMISSIONS: "ROLE_EXCEEDS_YOUR_PERMISSIONS",
   TRANSFER_TARGET_NOT_FOUND: "TRANSFER_TARGET_NOT_FOUND"
 } as const;
@@ -305,6 +307,35 @@ export async function loadRolePermissions(params: {
           );
 
   return resolveRolePermissions(params.role, customRoles);
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The role of the Organization's member that remove-member names by member id
+ * or email; null when no member matches.
+ */
+export async function findMemberRole(params: {
+  memberIdOrEmail: string;
+  organizationId: string;
+}): Promise<string | null> {
+  const match = params.memberIdOrEmail.includes("@")
+    ? eq(usersTable.email, params.memberIdOrEmail.toLowerCase())
+    : UUID_PATTERN.test(params.memberIdOrEmail)
+      ? eq(membersTable.id, params.memberIdOrEmail)
+      : null;
+
+  if (!match) {
+    return null;
+  }
+
+  const [member] = await db
+    .select({ role: membersTable.role })
+    .from(membersTable)
+    .innerJoin(usersTable, eq(membersTable.userId, usersTable.id))
+    .where(and(eq(membersTable.organizationId, params.organizationId), match));
+
+  return member?.role ?? null;
 }
 
 export async function getOrganizationMembershipProof(params: {

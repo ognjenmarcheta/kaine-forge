@@ -176,6 +176,12 @@ describe("named permission checks", () => {
       { todo: ["create"] }
     ],
     [
+      "generateTodos",
+      `mutation { generateTodos(input: { prompt: "Plan a trip" }) { status } }`,
+      "todo:create",
+      { todo: ["create"] }
+    ],
+    [
       "toggleTodo",
       `mutation { toggleTodo(id: "${TODO_ID}") { id } }`,
       "todo:update",
@@ -213,7 +219,7 @@ describe("named permission checks", () => {
     ],
     ["auditEvents", `query { auditEvents { items { id } } }`, "audit:read", { audit: ["read"] }]
   ])(
-    "%s refuses a Custom Role without %s and passes it with it",
+    "%s refuses a Custom Role without its permission and passes it with it",
     async (_name, query, permission, grant) => {
       await setEditorPermission({ note: ["delete"] });
       const refused = await run(query);

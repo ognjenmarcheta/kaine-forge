@@ -153,6 +153,8 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
       return todo;
     },
     async delete(id) {
+      // todo:delete alone deletes the Todo's Attachments too: they belong to
+      // the Todo, so attachment:delete governs only deleting one on its own.
       data.authorize("todo:delete");
       let purge: () => Promise<void> = async () => undefined;
       try {
