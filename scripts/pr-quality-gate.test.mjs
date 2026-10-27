@@ -458,7 +458,14 @@ describe("Hand-kept alignments", () => {
       readdirSync("node_modules/.bin").map((name) => name.replace(/\.(cmd|ps1)$/i, ""))
     );
     const unknown = [];
-    for (const doc of ["README.md", "CONTRIBUTING.md", "docs/agents/day-one.md", "AGENTS.md"]) {
+    for (const doc of [
+      "README.md",
+      "CONTRIBUTING.md",
+      "docs/agents/day-one.md",
+      "docs/backup-and-restore.md",
+      "docs/incident-response.md",
+      "AGENTS.md"
+    ]) {
       const text = readFileSync(doc, "utf8");
       for (const [, block, span] of text.matchAll(/```[^\n]*\n([\s\S]*?)```|`([^`\n]+)`/g)) {
         const tokens = (block ?? span).split(/[\s;&|()]+/);
