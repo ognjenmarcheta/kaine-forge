@@ -132,12 +132,12 @@ export async function sweepStaleObjects({
 
 /**
  * Deletes what a deleted Organization left in storage: every private object
- * under its `<organizationId>/` prefix and, best effort, its logo in the
- * public bucket. The organizations delete trigger queues each one in
- * organization_storage_purges, also on a cascade from a deleted user. A queued
- * row stays until its prefix is empty and `pendingCutoff` has passed its
- * deletion, so an upload URL issued just before the deletion cannot leave an
- * object behind.
+ * under its `<organizationId>/` prefix and its logo in the public bucket. The
+ * organizations delete trigger queues each one in organization_storage_purges,
+ * also on a cascade from a deleted user. A queued row stays until every delete
+ * succeeds, its prefix is empty, and `pendingCutoff` has passed its deletion,
+ * so an upload URL issued just before the deletion cannot leave an object
+ * behind and a failed logo delete is retried.
  */
 export async function sweepDeletedOrganizations({
   db,
@@ -166,18 +166,21 @@ export async function sweepDeletedOrganizations({
     const logoKey =
       purge.logo && publicStorage ? publicAssetKeyFromUrl(publicStorage.baseUrl, purge.logo) : null;
 
+    // A logo that fails to delete keeps the row queued for a retry, like a
+    // private object, but never blocks the private cleanup below.
+    let failed = false;
+
     if (publicStorage && logoKey) {
       try {
         await store.delete({ bucket: publicStorage.bucket, key: logoKey });
       } catch (err) {
+        failed = true;
         logger.warn(
           { error: formatLoggableError(err), organizationId: purge.organizationId },
           "failed to delete deleted organization logo"
         );
       }
     }
-
-    let failed = false;
 
     for (;;) {
       const refs = await store.listBefore(`${purge.organizationId}/`, new Date(), batchSize);
@@ -197,9 +200,13 @@ export async function sweepDeletedOrganizations({
       );
       const deleted = outcomes.filter(Boolean).length;
       totals.deletedObjects += deleted;
-      failed = deleted < outcomes.length;
 
-      if (failed || refs.length < batchSize) {
+      if (deleted < outcomes.length) {
+        failed = true;
+        break;
+      }
+
+      if (refs.length < batchSize) {
         break;
       }
     }

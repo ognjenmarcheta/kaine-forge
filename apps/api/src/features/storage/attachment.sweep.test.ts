@@ -250,6 +250,47 @@ describe("sweepDeletedOrganizations", () => {
     expect(await queuedPurges()).toEqual([]);
   });
 
+  it("keeps the purge queued while the logo delete fails, and still clears the objects", async () => {
+    const [withLogo] = await database.db
+      .insert(organizationsTable)
+      .values({
+        name: "Logo",
+        slug: "sweep-logo",
+        userId,
+        logo: "https://cdn.example.test/organization-logos/stuck.webp"
+      })
+      .returning();
+    if (!withLogo) throw new Error("failed to seed organization");
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload(
+      { bucket: "uploads", key: `${withLogo.id}/todo/a/a.png` },
+      { contentType: "image/png", sizeBytes: 8, lastModified: before }
+    );
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, withLogo.id));
+
+    await expect(
+      sweepDeletedOrganizations({
+        db: database.db,
+        logger,
+        store: {
+          ...memory,
+          delete: async (ref: { bucket: string; key: string }) => {
+            if (ref.bucket === publicStorage.bucket) throw new Error("cdn bucket unreachable");
+            await memory.delete(ref);
+          }
+        },
+        publicStorage,
+        // The cutoff has passed the deletion: only the failed logo keeps the row.
+        pendingCutoff: new Date(Date.now() + 60_000)
+      })
+    ).resolves.toEqual({ deletedObjects: 1, failed: 1 });
+    expect(memory.keys()).toEqual([]);
+    expect(await queuedPurges()).toEqual([{ organizationId: withLogo.id }]);
+    await database.db
+      .delete(organizationStoragePurgesTable)
+      .where(eq(organizationStoragePurgesTable.organizationId, withLogo.id));
+  });
+
   it("keeps the purge queued while an object delete fails", async () => {
     const [failing] = await database.db
       .insert(organizationsTable)
