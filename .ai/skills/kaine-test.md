@@ -13,7 +13,7 @@ Use this skill whenever you add, change, repair, or plan tests, including tests 
 Answer these before each new or changed test. If a question has no answer, do not write the test; state the decision in the handoff.
 
 1. Which observable behavior, invariant, or contract does it protect?
-2. Which credible regression makes it fail?
+2. Which credible regression makes it fail? Make that change once in the production code, watch the test fail, then restore the file exactly.
 3. Why does no existing test catch that regression? Each contract has one owning test at the strongest boundary. Extend a table case or shared fixture before adding a file. A second layer needs a distinct risk, such as the real-database tenancy proof next to a resolver test.
 4. Does it need a test-only export, flag, or injection seam? If so, test at the real boundary instead.
 
@@ -26,6 +26,7 @@ A behavior-preserving refactor must not break a good test.
 - Call-shape assertions on internal collaborators when a boundary test already proves the result.
 - Mocks that supply the value the test then asserts.
 - Expected values computed by the code under test, and self-comparisons.
+- Loops, branches, or arithmetic in a test body that build the expected value. Write literal expected values; use `it.each` rows for several cases.
 - Negative tests that pass on an unrelated guard, or rejections the code never reaches.
 - Names that promise behavior the assertions do not check.
 - One bug replayed at every layer it crosses.
@@ -54,7 +55,7 @@ Independent contracts stay even when they are slow or static: public API and Gra
 
 ## Expectations
 
-- Assert behavior, not implementation trivia.
+- Assert what a user or caller observes: for UI, find elements by role, label, or visible text and check what is shown; for APIs, check return values, errors, and persisted rows. Not class names, render counts, or internal state.
 - For a bug, write the reproduction test first and watch it fail before the fix.
 - Prefer real dependencies, then fakes, then stubs, then mocks. Tenancy tests run the real resolver (`apps/api/src/features/notes/notes.tenancy.test.ts`).
 - Keep fixtures small and explicit.
