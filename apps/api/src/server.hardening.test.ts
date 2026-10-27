@@ -126,6 +126,85 @@ describe("createApiServer graphql hardening gates", () => {
     });
   });
 
+  describe("csrf prevention", () => {
+    const query = "{ health }";
+
+    // Browsers send these without a CORS preflight, so the header is the only
+    // thing a cross-site form or image tag cannot add. Yoga has no text/plain
+    // parser, so that request still fails with the header, just not with 403.
+    it.each<[string, { method: string; headers?: Record<string, string>; body?: string }, number]>([
+      ["a GET query", { method: "GET" }, 200],
+      [
+        "a text/plain POST",
+        {
+          method: "POST",
+          headers: { "content-type": "text/plain" },
+          body: JSON.stringify({ query })
+        },
+        415
+      ],
+      [
+        "a form-urlencoded POST",
+        {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ query }).toString()
+        },
+        200
+      ]
+    ])(
+      "rejects %s without the x-graphql-yoga-csrf header with 403",
+      async (_case, init, statusWithHeader) => {
+        await withApiServer(async (baseUrl) => {
+          const url = `${baseUrl}/graphql?${new URLSearchParams({ query }).toString()}`;
+          const rejected = await fetch(url, init);
+          expect(rejected.status).toBe(403);
+
+          // Positive control: the same request with the header passes the guard.
+          const allowed = await fetch(url, {
+            ...init,
+            headers: { ...init.headers, "x-graphql-yoga-csrf": "1" }
+          });
+          expect(allowed.status).toBe(statusWithHeader);
+        });
+      }
+    );
+
+    it("executes a JSON POST that carries the header", async () => {
+      await withApiServer(async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/graphql`, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            "x-graphql-yoga-csrf": "1"
+          },
+          body: JSON.stringify({ query })
+        });
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toEqual({ data: { health: "ok" } });
+      });
+    });
+
+    it("lets an allowlisted origin send the header after a preflight", async () => {
+      await withApiServer(async (baseUrl) => {
+        const preflight = await fetch(`${baseUrl}/graphql`, {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://localhost:5173",
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "content-type, x-graphql-yoga-csrf"
+          }
+        });
+        expect(preflight.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
+        expect(preflight.headers.get("access-control-allow-headers")).toContain(
+          "x-graphql-yoga-csrf"
+        );
+        expect(preflight.headers.get("access-control-expose-headers")).toContain("x-request-id");
+      });
+    });
+  });
+
   describe("depth", () => {
     it("rejects a query nested past the configured max depth and accepts one at the limit", async () => {
       const { maxQueryDepth } = resolveApiRuntimeConfig(process.env);

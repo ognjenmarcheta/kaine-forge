@@ -1,3 +1,4 @@
+import { useCSRFPrevention } from "@graphql-yoga/plugin-csrf-prevention";
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
 import { createChildLogger, type Logger } from "@repo/logger";
@@ -121,6 +122,8 @@ export function createApiServer({
   // No-op unless OBSERVABILITY_ENABLED / SENTRY_DSN / OTEL endpoint is configured.
   // Dev/test may omit the allowlist (Yoga reflects any origin). Production
   // fails earlier in resolveApiRuntimeConfig when API_CORS_ORIGINS is empty.
+  // allowedHeaders stays unset: Yoga then echoes the preflight's requested
+  // headers, which lets allowlisted origins send x-graphql-yoga-csrf.
   const cors =
     runtimeConfig.allowedCorsOrigins === undefined
       ? { exposedHeaders: EXPOSED_HEADERS }
@@ -136,6 +139,9 @@ export function createApiServer({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
     plugins: [
+      // A GET or form/text POST is a "simple" request that browsers send
+      // cross-site without a preflight; requiring a custom header blocks it.
+      useCSRFPrevention({ requestHeaders: ["x-graphql-yoga-csrf"] }),
       createGraphQlLimitsPlugin({
         allowIntrospection: runtimeConfig.allowIntrospection,
         maxComplexity: runtimeConfig.maxQueryComplexity,
@@ -173,12 +179,13 @@ export function createApiServer({
     res: ServerResponse<IncomingMessage>
   ): Promise<void> => {
     // Assigned before routing so every response, including /health, auth, and
-    // 429s, carries the id the logs use.
+    // 429s, carries the id the logs use and the nosniff header.
     const requestId = resolveRequestId(req.headers[REQUEST_ID_HEADER]);
     const requestLogger = createChildLogger(logger, { requestId });
     const pathname = (req.url ?? "").split("?")[0] ?? "";
 
     res.setHeader(REQUEST_ID_HEADER, requestId);
+    res.setHeader("x-content-type-options", "nosniff");
     logRequestCompletion(req, res, requestLogger, pathname);
 
     try {
