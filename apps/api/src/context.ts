@@ -4,12 +4,13 @@ import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import { resolveFeatureFlags } from "@repo/feature-flags";
-import { createChildLogger, type Logger } from "@repo/logger";
+import { createChildLogger, createLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
+import { createApiKeys, type ApiKeys } from "./features/api-keys/api-keys.module";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
 import { createNotes, type Notes } from "./features/notes/notes.module";
 import {
@@ -23,6 +24,12 @@ import {
 import { createAttachments, type Attachments } from "./features/storage/attachment.module";
 import { publicAssetStorage, s3ObjectStore } from "./features/storage/attachment.store";
 import { createTodos, type Todos } from "./features/todos/todos.module";
+import {
+  createWebhookDispatcher,
+  enqueueWebhookDelivery
+} from "./features/webhooks/webhooks.dispatch";
+import { createWebhookEndpoints, type WebhookEndpoints } from "./features/webhooks/webhooks.module";
+import { resolveHostWithDns } from "./features/webhooks/webhooks.ssrf";
 import { pubsub, type PubSubEventMap } from "./pubsub";
 
 export interface ApiContext {
@@ -40,6 +47,8 @@ export interface ApiContext {
   notes: Notes;
   attachments: Attachments;
   auditEvents: AuditEvents;
+  apiKeys: ApiKeys;
+  webhooks: WebhookEndpoints;
   notifications: Notifications;
   publicAssets: PublicAssets;
   loaders: ApiLoaders;
@@ -50,20 +59,64 @@ export interface ApiContext {
 
 type RequestHeaders = Headers | IncomingHttpHeaders;
 
+/** An `x-api-key` request the server already verified; see server.ts. */
+export interface ApiKeyRequest {
+  apiKeyId: string;
+  scope: AuthenticatedOrganizationScope;
+}
+
+// Every organization event also goes to the Organization's Webhook Endpoints.
+const dispatchWebhookEvent = createWebhookDispatcher({
+  db,
+  enqueue: enqueueWebhookDelivery,
+  logger: createLogger({ name: "webhooks" })
+});
+
+async function resolveRequestIdentity(
+  headers: RequestHeaders,
+  auth: ServerAuth,
+  apiKey: ApiKeyRequest | undefined
+): Promise<{
+  session: AuthSession | null;
+  organizationScope: AuthenticatedOrganizationScope | null;
+  requireOrganizationScope: () => AuthenticatedOrganizationScope;
+}> {
+  // An API Key request acts only in the key's Organization: no Session, so
+  // no user-level data and nothing from a cookie sent alongside it.
+  if (apiKey) {
+    return {
+      session: null,
+      organizationScope: apiKey.scope,
+      requireOrganizationScope: () => apiKey.scope
+    };
+  }
+
+  const session = await auth.getSessionFromHeaders(headers);
+  return {
+    session,
+    ...(await resolveOrganizationScope({
+      getMembership: auth.getOrganizationMembershipProof,
+      session
+    }))
+  };
+}
+
 export async function createContextFromHeaders(
   headers: RequestHeaders,
   logger: Logger,
-  auth: ServerAuth = createServerAuth()
+  auth: ServerAuth = createServerAuth(),
+  apiKey?: ApiKeyRequest
 ): Promise<ApiContext> {
-  const session = await auth.getSessionFromHeaders(headers);
-  const { organizationScope, requireOrganizationScope } = await resolveOrganizationScope({
-    getMembership: auth.getOrganizationMembershipProof,
-    session
-  });
+  const { session, organizationScope, requireOrganizationScope } = await resolveRequestIdentity(
+    headers,
+    auth,
+    apiKey
+  );
 
   const contextLogger = createChildLogger(logger, {
-    userId: session?.user?.id ?? null,
-    organizationId: organizationScope?.organizationId ?? null
+    userId: organizationScope?.userId ?? session?.user?.id ?? null,
+    organizationId: organizationScope?.organizationId ?? null,
+    ...(apiKey ? { apiKeyId: apiKey.apiKeyId } : {})
   });
 
   const requireUserId = (): string => {
@@ -78,6 +131,8 @@ export async function createContextFromHeaders(
     ...payload: PubSubEventMap[TEventName]
   ): void => {
     pubsub.publish(eventName, ...payload);
+    const [event] = payload;
+    dispatchWebhookEvent(eventName, event);
   };
   const attachments = createAttachments({
     data,
@@ -100,6 +155,8 @@ export async function createContextFromHeaders(
     notes: createNotes({ data, publish }),
     attachments,
     auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),
+    apiKeys: createApiKeys({ auth, data, db, recordAuditEvent, requireOrganizationScope }),
+    webhooks: createWebhookEndpoints({ data, recordAuditEvent, resolveHost: resolveHostWithDns }),
     notifications: createNotifications({ db, requireUserId }),
     publicAssets: createPublicAssets({
       db,

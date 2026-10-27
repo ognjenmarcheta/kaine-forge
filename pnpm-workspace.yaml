@@ -9,6 +9,8 @@ catalog:
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.12"
   "@better-auth/expo": "1.7.12"
+  # Organization-owned API keys (packages/auth, #709). Keep on the better-auth line.
+  "@better-auth/api-key": "1.7.12"
   dotenv: "^18.0.9"
   drizzle-orm: "^0.45.4"
   graphql: "^16.14.2"

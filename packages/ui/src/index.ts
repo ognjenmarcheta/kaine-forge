@@ -67,6 +67,7 @@ export {
   FileText,
   GitBranch,
   GitPullRequest,
+  KeyRound,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
@@ -82,5 +83,6 @@ export {
   TriangleAlert,
   User,
   Users,
+  Webhook,
   X
 } from "lucide-react";

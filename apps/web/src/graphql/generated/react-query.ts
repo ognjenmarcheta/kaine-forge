@@ -9,6 +9,8 @@ import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type AttachmentEntityType = "general" | "todo";
 
 export type AuditAction =
+  | "api_key_created"
+  | "api_key_revoked"
   | "attachment_deleted"
   | "invitation_revoked"
   | "member_invited"
@@ -24,7 +26,15 @@ export type AuditAction =
   | "role_deleted"
   | "role_updated"
   | "two_factor_disabled"
-  | "two_factor_enabled";
+  | "two_factor_enabled"
+  | "webhook_endpoint_created"
+  | "webhook_endpoint_deleted"
+  | "webhook_endpoint_updated";
+
+export type CreateApiKeyInput = {
+  expiresInDays?: number | null | undefined;
+  name: string;
+};
 
 export type CreateNoteInput = {
   body?: string | null | undefined;
@@ -91,6 +101,66 @@ export type UpdateTodoInput = {
   description?: string | null | undefined;
   title?: string | null | undefined;
 };
+
+export type WebhookEndpointInput = {
+  eventTypes: Array<string>;
+  url: string;
+};
+
+export type ApiKeyFieldsFragment = {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdBy: { id: string; name: string; email: string } | null;
+};
+
+export type ApiKeysQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type ApiKeysQuery = {
+  apiKeys: {
+    items: Array<{
+      id: string;
+      name: string;
+      prefix: string;
+      createdAt: string;
+      lastUsedAt: string | null;
+      expiresAt: string | null;
+      createdBy: { id: string; name: string; email: string } | null;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CreateApiKeyMutationVariables = Exact<{
+  input: CreateApiKeyInput;
+}>;
+
+export type CreateApiKeyMutation = {
+  createApiKey: {
+    key: string;
+    apiKey: {
+      id: string;
+      name: string;
+      prefix: string;
+      createdAt: string;
+      lastUsedAt: string | null;
+      expiresAt: string | null;
+      createdBy: { id: string; name: string; email: string } | null;
+    };
+  };
+};
+
+export type RevokeApiKeyMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type RevokeApiKeyMutation = { revokeApiKey: boolean };
 
 export type GetConversationsQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -630,6 +700,96 @@ export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>
 
 export type OnTodoToggledSubscription = { todoToggled: { id: string } };
 
+export type WebhookEndpointFieldsFragment = {
+  id: string;
+  url: string;
+  eventTypes: Array<string>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WebhookEventTypesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type WebhookEventTypesQuery = { webhookEventTypes: Array<string> };
+
+export type WebhookEndpointsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type WebhookEndpointsQuery = {
+  webhookEndpoints: {
+    items: Array<{
+      id: string;
+      url: string;
+      eventTypes: Array<string>;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type WebhookDeliveriesQueryVariables = Exact<{
+  endpointId: string | number;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type WebhookDeliveriesQuery = {
+  webhookDeliveries: {
+    items: Array<{
+      id: string;
+      eventId: string;
+      eventType: string;
+      attempt: number;
+      statusCode: number | null;
+      durationMs: number;
+      error: string | null;
+      createdAt: string;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CreateWebhookEndpointMutationVariables = Exact<{
+  input: WebhookEndpointInput;
+}>;
+
+export type CreateWebhookEndpointMutation = {
+  createWebhookEndpoint: {
+    secret: string;
+    endpoint: {
+      id: string;
+      url: string;
+      eventTypes: Array<string>;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
+};
+
+export type UpdateWebhookEndpointMutationVariables = Exact<{
+  id: string | number;
+  input: WebhookEndpointInput;
+}>;
+
+export type UpdateWebhookEndpointMutation = {
+  updateWebhookEndpoint: {
+    id: string;
+    url: string;
+    eventTypes: Array<string>;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type DeleteWebhookEndpointMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type DeleteWebhookEndpointMutation = { deleteWebhookEndpoint: boolean };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -648,6 +808,24 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
+export const ApiKeyFieldsFragmentDoc = new TypedDocumentString(
+  `
+    fragment ApiKeyFields on ApiKey {
+  id
+  name
+  prefix
+  createdBy {
+    id
+    name
+    email
+  }
+  createdAt
+  lastUsedAt
+  expiresAt
+}
+    `,
+  { fragmentName: "ApiKeyFields" }
+);
 export const NotificationFieldsFragmentDoc = new TypedDocumentString(
   `
     fragment NotificationFields on Notification {
@@ -673,6 +851,130 @@ export const NotificationFieldsFragmentDoc = new TypedDocumentString(
     `,
   { fragmentName: "NotificationFields" }
 );
+export const WebhookEndpointFieldsFragmentDoc = new TypedDocumentString(
+  `
+    fragment WebhookEndpointFields on WebhookEndpoint {
+  id
+  url
+  eventTypes
+  createdAt
+  updatedAt
+}
+    `,
+  { fragmentName: "WebhookEndpointFields" }
+);
+export const ApiKeysDocument = new TypedDocumentString(`
+    query ApiKeys($first: Int, $after: String) {
+  apiKeys(first: $first, after: $after) {
+    items {
+      ...ApiKeyFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    fragment ApiKeyFields on ApiKey {
+  id
+  name
+  prefix
+  createdBy {
+    id
+    name
+    email
+  }
+  createdAt
+  lastUsedAt
+  expiresAt
+}`);
+
+export const useApiKeysQuery = <TData = ApiKeysQuery, TError = unknown>(
+  variables?: ApiKeysQueryVariables,
+  options?: Omit<UseQueryOptions<ApiKeysQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<ApiKeysQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<ApiKeysQuery, TError, TData>({
+    queryKey: variables === undefined ? ["ApiKeys"] : ["ApiKeys", variables],
+    queryFn: useGraphqlFetcher<ApiKeysQuery, ApiKeysQueryVariables>(ApiKeysDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useApiKeysQuery.getKey = (variables?: ApiKeysQueryVariables) =>
+  variables === undefined ? ["ApiKeys"] : ["ApiKeys", variables];
+
+export const CreateApiKeyDocument = new TypedDocumentString(`
+    mutation CreateApiKey($input: CreateApiKeyInput!) {
+  createApiKey(input: $input) {
+    apiKey {
+      ...ApiKeyFields
+    }
+    key
+  }
+}
+    fragment ApiKeyFields on ApiKey {
+  id
+  name
+  prefix
+  createdBy {
+    id
+    name
+    email
+  }
+  createdAt
+  lastUsedAt
+  expiresAt
+}`);
+
+export const useCreateApiKeyMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    CreateApiKeyMutation,
+    TError,
+    CreateApiKeyMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<CreateApiKeyMutation, TError, CreateApiKeyMutationVariables, TContext>({
+    mutationKey: ["CreateApiKey"],
+    mutationFn: useGraphqlFetcher<CreateApiKeyMutation, CreateApiKeyMutationVariables>(
+      CreateApiKeyDocument
+    ),
+    ...options
+  });
+};
+
+useCreateApiKeyMutation.getKey = () => ["CreateApiKey"];
+
+export const RevokeApiKeyDocument = new TypedDocumentString(`
+    mutation RevokeApiKey($id: ID!) {
+  revokeApiKey(id: $id)
+}
+    `);
+
+export const useRevokeApiKeyMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    RevokeApiKeyMutation,
+    TError,
+    RevokeApiKeyMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<RevokeApiKeyMutation, TError, RevokeApiKeyMutationVariables, TContext>({
+    mutationKey: ["RevokeApiKey"],
+    mutationFn: useGraphqlFetcher<RevokeApiKeyMutation, RevokeApiKeyMutationVariables>(
+      RevokeApiKeyDocument
+    ),
+    ...options
+  });
+};
+
+useRevokeApiKeyMutation.getKey = () => ["RevokeApiKey"];
+
 export const GetConversationsDocument = new TypedDocumentString(`
     query GetConversations($first: Int, $after: String) {
   conversations(first: $first, after: $after) {
@@ -1873,3 +2175,217 @@ export const OnTodoToggledDocument = new TypedDocumentString(`
   }
 }
     `);
+export const WebhookEventTypesDocument = new TypedDocumentString(`
+    query WebhookEventTypes {
+  webhookEventTypes
+}
+    `);
+
+export const useWebhookEventTypesQuery = <TData = WebhookEventTypesQuery, TError = unknown>(
+  variables?: WebhookEventTypesQueryVariables,
+  options?: Omit<UseQueryOptions<WebhookEventTypesQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<WebhookEventTypesQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<WebhookEventTypesQuery, TError, TData>({
+    queryKey: variables === undefined ? ["WebhookEventTypes"] : ["WebhookEventTypes", variables],
+    queryFn: useGraphqlFetcher<WebhookEventTypesQuery, WebhookEventTypesQueryVariables>(
+      WebhookEventTypesDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useWebhookEventTypesQuery.getKey = (variables?: WebhookEventTypesQueryVariables) =>
+  variables === undefined ? ["WebhookEventTypes"] : ["WebhookEventTypes", variables];
+
+export const WebhookEndpointsDocument = new TypedDocumentString(`
+    query WebhookEndpoints($first: Int, $after: String) {
+  webhookEndpoints(first: $first, after: $after) {
+    items {
+      ...WebhookEndpointFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    fragment WebhookEndpointFields on WebhookEndpoint {
+  id
+  url
+  eventTypes
+  createdAt
+  updatedAt
+}`);
+
+export const useWebhookEndpointsQuery = <TData = WebhookEndpointsQuery, TError = unknown>(
+  variables?: WebhookEndpointsQueryVariables,
+  options?: Omit<UseQueryOptions<WebhookEndpointsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<WebhookEndpointsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<WebhookEndpointsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["WebhookEndpoints"] : ["WebhookEndpoints", variables],
+    queryFn: useGraphqlFetcher<WebhookEndpointsQuery, WebhookEndpointsQueryVariables>(
+      WebhookEndpointsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useWebhookEndpointsQuery.getKey = (variables?: WebhookEndpointsQueryVariables) =>
+  variables === undefined ? ["WebhookEndpoints"] : ["WebhookEndpoints", variables];
+
+export const WebhookDeliveriesDocument = new TypedDocumentString(`
+    query WebhookDeliveries($endpointId: ID!, $first: Int, $after: String) {
+  webhookDeliveries(endpointId: $endpointId, first: $first, after: $after) {
+    items {
+      id
+      eventId
+      eventType
+      attempt
+      statusCode
+      durationMs
+      error
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    `);
+
+export const useWebhookDeliveriesQuery = <TData = WebhookDeliveriesQuery, TError = unknown>(
+  variables: WebhookDeliveriesQueryVariables,
+  options?: Omit<UseQueryOptions<WebhookDeliveriesQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<WebhookDeliveriesQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<WebhookDeliveriesQuery, TError, TData>({
+    queryKey: ["WebhookDeliveries", variables],
+    queryFn: useGraphqlFetcher<WebhookDeliveriesQuery, WebhookDeliveriesQueryVariables>(
+      WebhookDeliveriesDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useWebhookDeliveriesQuery.getKey = (variables: WebhookDeliveriesQueryVariables) => [
+  "WebhookDeliveries",
+  variables
+];
+
+export const CreateWebhookEndpointDocument = new TypedDocumentString(`
+    mutation CreateWebhookEndpoint($input: WebhookEndpointInput!) {
+  createWebhookEndpoint(input: $input) {
+    endpoint {
+      ...WebhookEndpointFields
+    }
+    secret
+  }
+}
+    fragment WebhookEndpointFields on WebhookEndpoint {
+  id
+  url
+  eventTypes
+  createdAt
+  updatedAt
+}`);
+
+export const useCreateWebhookEndpointMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    CreateWebhookEndpointMutation,
+    TError,
+    CreateWebhookEndpointMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    CreateWebhookEndpointMutation,
+    TError,
+    CreateWebhookEndpointMutationVariables,
+    TContext
+  >({
+    mutationKey: ["CreateWebhookEndpoint"],
+    mutationFn: useGraphqlFetcher<
+      CreateWebhookEndpointMutation,
+      CreateWebhookEndpointMutationVariables
+    >(CreateWebhookEndpointDocument),
+    ...options
+  });
+};
+
+useCreateWebhookEndpointMutation.getKey = () => ["CreateWebhookEndpoint"];
+
+export const UpdateWebhookEndpointDocument = new TypedDocumentString(`
+    mutation UpdateWebhookEndpoint($id: ID!, $input: WebhookEndpointInput!) {
+  updateWebhookEndpoint(id: $id, input: $input) {
+    ...WebhookEndpointFields
+  }
+}
+    fragment WebhookEndpointFields on WebhookEndpoint {
+  id
+  url
+  eventTypes
+  createdAt
+  updatedAt
+}`);
+
+export const useUpdateWebhookEndpointMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    UpdateWebhookEndpointMutation,
+    TError,
+    UpdateWebhookEndpointMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    UpdateWebhookEndpointMutation,
+    TError,
+    UpdateWebhookEndpointMutationVariables,
+    TContext
+  >({
+    mutationKey: ["UpdateWebhookEndpoint"],
+    mutationFn: useGraphqlFetcher<
+      UpdateWebhookEndpointMutation,
+      UpdateWebhookEndpointMutationVariables
+    >(UpdateWebhookEndpointDocument),
+    ...options
+  });
+};
+
+useUpdateWebhookEndpointMutation.getKey = () => ["UpdateWebhookEndpoint"];
+
+export const DeleteWebhookEndpointDocument = new TypedDocumentString(`
+    mutation DeleteWebhookEndpoint($id: ID!) {
+  deleteWebhookEndpoint(id: $id)
+}
+    `);
+
+export const useDeleteWebhookEndpointMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    DeleteWebhookEndpointMutation,
+    TError,
+    DeleteWebhookEndpointMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    DeleteWebhookEndpointMutation,
+    TError,
+    DeleteWebhookEndpointMutationVariables,
+    TContext
+  >({
+    mutationKey: ["DeleteWebhookEndpoint"],
+    mutationFn: useGraphqlFetcher<
+      DeleteWebhookEndpointMutation,
+      DeleteWebhookEndpointMutationVariables
+    >(DeleteWebhookEndpointDocument),
+    ...options
+  });
+};
+
+useDeleteWebhookEndpointMutation.getKey = () => ["DeleteWebhookEndpoint"];

@@ -17,6 +17,12 @@ export const AUTH_DEFINITIONS = {
   ORGANIZATION_NAME_MAX_LENGTH: 64,
   // Each Custom Role is read on every request of a member who holds it.
   CUSTOM_ROLES_PER_ORGANIZATION_MAX: 25,
+  // Leading characters of every API Key, so secret scanners and people can spot one.
+  API_KEY_PREFIX: "kf_",
+  // The prefix plus four characters, shown in the key list.
+  API_KEY_START_LENGTH: 7,
+  API_KEY_NAME_MAX_LENGTH: 64,
+  API_KEY_MAX_EXPIRES_IN_DAYS: 365,
   // Issuer label authenticator apps show next to the TOTP entry.
   TWO_FACTOR_ISSUER: "Kaine Forge"
 } as const;

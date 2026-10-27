@@ -11,7 +11,8 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
-import { createContext, createContextFromHeaders } from "./context";
+import { createContext, createContextFromHeaders, type ApiKeyRequest } from "./context";
+import { API_KEYS_CONFIG } from "./features/api-keys/api-keys.definition";
 import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
 import {
@@ -136,7 +137,7 @@ export function createApiServer({
 
   // handleRequest passes the request-scoped logger as server context, so
   // GraphQL context logs carry the same request id as the completion line.
-  const yoga = createYoga<{ requestLogger?: Logger }>({
+  const yoga = createYoga<{ requestLogger?: Logger; apiKey?: ApiKeyRequest }>({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
     plugins: [
@@ -160,7 +161,7 @@ export function createApiServer({
 
       const nodeHeaders = serverContext.req?.headers;
       if (nodeHeaders) {
-        return createContextFromHeaders(nodeHeaders, requestLogger, auth);
+        return createContextFromHeaders(nodeHeaders, requestLogger, auth, initialContext.apiKey);
       }
 
       return createContext(serverContext.request, requestLogger, auth);
@@ -221,9 +222,20 @@ export function createApiServer({
       // it covers plain HTTP requests only.
       const isRateLimitedPath =
         pathname === "/api/auth" || pathname.startsWith("/api/auth/") || pathname === "/graphql";
+      // A GraphQL request with an API Key acts as the key's Organization and
+      // has the key's own rate limit bucket. An unknown, revoked, or expired
+      // key counts against the client address and gets 401.
+      const presentedApiKey =
+        req.method !== "OPTIONS" && pathname === "/graphql"
+          ? req.headers[API_KEYS_CONFIG.header]
+          : undefined;
+      const apiKey =
+        typeof presentedApiKey === "string" ? await auth.resolveApiKey(presentedApiKey) : null;
 
       if (req.method !== "OPTIONS" && isRateLimitedPath) {
-        const key = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+        const key = apiKey
+          ? `api-key:${apiKey.apiKeyId}`
+          : resolveRateLimitKey(req, rateLimitConfig.trustProxy);
         const decision = rateLimiter.check(key);
 
         if (!decision.allowed) {
@@ -269,7 +281,14 @@ export function createApiServer({
         return;
       }
 
-      void yoga(req, res, { requestLogger });
+      if (presentedApiKey !== undefined && !apiKey) {
+        res.statusCode = 401;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "invalid api key" }));
+        return;
+      }
+
+      void yoga(req, res, { requestLogger, ...(apiKey ? { apiKey } : {}) });
     } catch (error) {
       errorReporter.captureException(error, {
         path: req.url ?? "",

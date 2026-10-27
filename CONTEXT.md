@@ -56,6 +56,14 @@ _Avoid_: activity feed, log entry, history
 A stored message to one **User** about something another person or the system did that concerns them, such as an **Invitation** they received or a change to their role. It stays in their inbox until they mark it read, and only they read or mark it, whatever their **Active Organization**; one about an **Organization** names it. Per notification type, the user chooses whether it reaches them in-app, by email, or both. A toast is not a Notification: a toast confirms the user's own action on screen and is gone, and nothing stores it.
 _Avoid_: alert, toast, inbox message
 
+**API Key**:
+A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never manages API Keys, never reads user-level data, and gets 401 once revoked or expired.
+_Avoid_: token, access token, personal access token
+
+**Webhook Endpoint**:
+An HTTPS URL that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
+_Avoid_: callback, hook URL, integration
+
 **Email Verification**:
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation
@@ -73,6 +81,8 @@ _Avoid_: account activation
 - A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only a member with the `logo:update` **Permission** changes an Organization's logo.
 - A **Custom Role** belongs to exactly one **Organization**; an **Organization Membership** holds one or more roles by name.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
+- An **API Key** belongs to exactly one **Organization** and was created by one **User**; it never reaches another Organization.
+- A **Webhook Endpoint** belongs to exactly one **Organization** and receives only that Organization's events.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
 ## Example dialogue

@@ -185,8 +185,29 @@ export type AuthSocialProvider = "github" | "google";
 // reset, email verification) go through better-auth's /api/auth handler; the
 // server facade only covers session resolution and organization-scoped reads
 // consumed by the GraphQL context and resolvers.
+export interface CreateApiKeyInput {
+  name: string;
+  /** Null for a key that never expires. */
+  expiresInDays: number | null;
+}
+
+/** A new API Key; `key` is the plain key, returned once and stored nowhere. */
+export interface CreatedApiKey {
+  id: string;
+  key: string;
+  name: string;
+}
+
 export interface ServerAuth {
   getSessionFromHeaders(headers: Headers | IncomingHttpHeaders): Promise<AuthSession | null>;
+  /** The scope an `x-api-key` request acts in; null for an unknown, revoked, or expired key. */
+  resolveApiKey(
+    key: string
+  ): Promise<{ apiKeyId: string; scope: AuthenticatedOrganizationScope } | null>;
+  createApiKey(
+    scope: AuthenticatedOrganizationScope,
+    input: CreateApiKeyInput
+  ): Promise<CreatedApiKey>;
   listOrganizationsByScope(scope: AuthenticatedOrganizationScope): Promise<AuthOrganization[]>;
   getCurrentOrganizationByScope(
     scope: AuthenticatedOrganizationScope

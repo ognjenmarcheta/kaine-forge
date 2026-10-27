@@ -35,7 +35,7 @@ export interface AuditEventsDeps {
 }
 
 function targetLabelOf(metadata: Record<string, AuditEventMetadataValue>): string | null {
-  const label = metadata.email ?? metadata.name ?? metadata.originalName;
+  const label = metadata.email ?? metadata.name ?? metadata.originalName ?? metadata.url;
   return typeof label === "string" ? label : null;
 }
 

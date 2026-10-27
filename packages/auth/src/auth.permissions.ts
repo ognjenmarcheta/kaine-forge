@@ -23,7 +23,10 @@ export const PERMISSION_STATEMENTS = {
   note: ["create", "update", "delete"],
   attachment: ["create", "delete"],
   logo: ["update"],
-  audit: ["read"]
+  audit: ["read"],
+  // The api-key plugin checks `apiKey:create` itself before it stores a key.
+  apiKey: ["create", "read", "delete"],
+  webhook: ["create", "read", "update", "delete"]
 } as const;
 
 type PermissionStatements = typeof PERMISSION_STATEMENTS;
@@ -37,6 +40,11 @@ export type Permission = {
 
 /** The catalog the organization plugin checks its own routes against. */
 export const accessControl = createAccessControl(PERMISSION_STATEMENTS);
+
+const INTEGRATION_STATEMENTS = {
+  apiKey: ["create", "read", "delete"],
+  webhook: ["create", "read", "update", "delete"]
+} as const;
 
 const CONTENT_STATEMENTS = {
   todo: ["create", "update", "delete"],
@@ -54,7 +62,8 @@ export const BUILT_IN_ROLES = {
     ac: ["create", "read", "update", "delete"],
     ...CONTENT_STATEMENTS,
     logo: ["update"],
-    audit: ["read"]
+    audit: ["read"],
+    ...INTEGRATION_STATEMENTS
   }),
   admin: accessControl.newRole({
     organization: ["update"],
@@ -64,7 +73,8 @@ export const BUILT_IN_ROLES = {
     ac: ["read"],
     ...CONTENT_STATEMENTS,
     logo: ["update"],
-    audit: ["read"]
+    audit: ["read"],
+    ...INTEGRATION_STATEMENTS
   }),
   member: accessControl.newRole({
     ac: ["read"],

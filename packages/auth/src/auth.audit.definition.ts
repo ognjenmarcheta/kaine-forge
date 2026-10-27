@@ -20,12 +20,24 @@ export interface AuditEventMetadataByAction {
   role_created: { name: string; permissions: string };
   role_updated: { name: string; permissions: string };
   role_deleted: { name: string };
+  api_key_created: { name: string };
+  api_key_revoked: { name: string };
+  webhook_endpoint_created: { url: string; eventTypes: string };
+  webhook_endpoint_updated: { url: string; eventTypes: string };
+  webhook_endpoint_deleted: { url: string };
 }
 
 export type AuditAction = keyof AuditEventMetadataByAction;
 
 export type AuditTargetType =
-  "attachment" | "invitation" | "member" | "organization" | "role" | "user";
+  | "api_key"
+  | "attachment"
+  | "invitation"
+  | "member"
+  | "organization"
+  | "role"
+  | "user"
+  | "webhook_endpoint";
 
 /** Actions about a User's own account: they belong to no Organization. */
 type UserAuditAction = "two_factor_enabled" | "two_factor_disabled" | "password_changed";
@@ -47,7 +59,12 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   attachment_deleted: "attachment",
   role_created: "role",
   role_updated: "role",
-  role_deleted: "role"
+  role_deleted: "role",
+  api_key_created: "api_key",
+  api_key_revoked: "api_key",
+  webhook_endpoint_created: "webhook_endpoint",
+  webhook_endpoint_updated: "webhook_endpoint",
+  webhook_endpoint_deleted: "webhook_endpoint"
 };
 
 export function isAuditAction(value: string): value is AuditAction {

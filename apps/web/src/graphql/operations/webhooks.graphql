@@ -1,0 +1,61 @@
+fragment WebhookEndpointFields on WebhookEndpoint {
+  id
+  url
+  eventTypes
+  createdAt
+  updatedAt
+}
+
+query WebhookEventTypes {
+  webhookEventTypes
+}
+
+query WebhookEndpoints($first: Int, $after: String) {
+  webhookEndpoints(first: $first, after: $after) {
+    items {
+      ...WebhookEndpointFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query WebhookDeliveries($endpointId: ID!, $first: Int, $after: String) {
+  webhookDeliveries(endpointId: $endpointId, first: $first, after: $after) {
+    items {
+      id
+      eventId
+      eventType
+      attempt
+      statusCode
+      durationMs
+      error
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+mutation CreateWebhookEndpoint($input: WebhookEndpointInput!) {
+  createWebhookEndpoint(input: $input) {
+    endpoint {
+      ...WebhookEndpointFields
+    }
+    secret
+  }
+}
+
+mutation UpdateWebhookEndpoint($id: ID!, $input: WebhookEndpointInput!) {
+  updateWebhookEndpoint(id: $id, input: $input) {
+    ...WebhookEndpointFields
+  }
+}
+
+mutation DeleteWebhookEndpoint($id: ID!) {
+  deleteWebhookEndpoint(id: $id)
+}

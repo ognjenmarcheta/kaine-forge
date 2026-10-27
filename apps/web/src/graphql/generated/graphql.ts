@@ -8,6 +8,8 @@ import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/
 export type AttachmentEntityType = "general" | "todo";
 
 export type AuditAction =
+  | "api_key_created"
+  | "api_key_revoked"
   | "attachment_deleted"
   | "invitation_revoked"
   | "member_invited"
@@ -23,7 +25,15 @@ export type AuditAction =
   | "role_deleted"
   | "role_updated"
   | "two_factor_disabled"
-  | "two_factor_enabled";
+  | "two_factor_enabled"
+  | "webhook_endpoint_created"
+  | "webhook_endpoint_deleted"
+  | "webhook_endpoint_updated";
+
+export type CreateApiKeyInput = {
+  expiresInDays?: number | null | undefined;
+  name: string;
+};
 
 export type CreateNoteInput = {
   body?: string | null | undefined;
@@ -90,6 +100,50 @@ export type UpdateTodoInput = {
   description?: string | null | undefined;
   title?: string | null | undefined;
 };
+
+export type WebhookEndpointInput = {
+  eventTypes: Array<string>;
+  url: string;
+};
+
+export type ApiKeyFieldsFragment = {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: unknown;
+  lastUsedAt: unknown;
+  expiresAt: unknown;
+  createdBy: { id: string; name: string; email: string } | null;
+} & { " $fragmentName"?: "ApiKeyFieldsFragment" };
+
+export type ApiKeysQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type ApiKeysQuery = {
+  apiKeys: {
+    items: Array<{ " $fragmentRefs"?: { ApiKeyFieldsFragment: ApiKeyFieldsFragment } }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CreateApiKeyMutationVariables = Exact<{
+  input: CreateApiKeyInput;
+}>;
+
+export type CreateApiKeyMutation = {
+  createApiKey: {
+    key: string;
+    apiKey: { " $fragmentRefs"?: { ApiKeyFieldsFragment: ApiKeyFieldsFragment } };
+  };
+};
+
+export type RevokeApiKeyMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type RevokeApiKeyMutation = { revokeApiKey: boolean };
 
 export type GetConversationsQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -588,6 +642,117 @@ export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>
 
 export type OnTodoToggledSubscription = { todoToggled: { id: string } };
 
+export type WebhookEndpointFieldsFragment = {
+  id: string;
+  url: string;
+  eventTypes: Array<string>;
+  createdAt: unknown;
+  updatedAt: unknown;
+} & { " $fragmentName"?: "WebhookEndpointFieldsFragment" };
+
+export type WebhookEventTypesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type WebhookEventTypesQuery = { webhookEventTypes: Array<string> };
+
+export type WebhookEndpointsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type WebhookEndpointsQuery = {
+  webhookEndpoints: {
+    items: Array<{
+      " $fragmentRefs"?: { WebhookEndpointFieldsFragment: WebhookEndpointFieldsFragment };
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type WebhookDeliveriesQueryVariables = Exact<{
+  endpointId: string | number;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type WebhookDeliveriesQuery = {
+  webhookDeliveries: {
+    items: Array<{
+      id: string;
+      eventId: string;
+      eventType: string;
+      attempt: number;
+      statusCode: number | null;
+      durationMs: number;
+      error: string | null;
+      createdAt: unknown;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CreateWebhookEndpointMutationVariables = Exact<{
+  input: WebhookEndpointInput;
+}>;
+
+export type CreateWebhookEndpointMutation = {
+  createWebhookEndpoint: {
+    secret: string;
+    endpoint: {
+      " $fragmentRefs"?: { WebhookEndpointFieldsFragment: WebhookEndpointFieldsFragment };
+    };
+  };
+};
+
+export type UpdateWebhookEndpointMutationVariables = Exact<{
+  id: string | number;
+  input: WebhookEndpointInput;
+}>;
+
+export type UpdateWebhookEndpointMutation = {
+  updateWebhookEndpoint: {
+    " $fragmentRefs"?: { WebhookEndpointFieldsFragment: WebhookEndpointFieldsFragment };
+  };
+};
+
+export type DeleteWebhookEndpointMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type DeleteWebhookEndpointMutation = { deleteWebhookEndpoint: boolean };
+
+export const ApiKeyFieldsFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ApiKeyFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ApiKey" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "prefix" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "lastUsedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "expiresAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<ApiKeyFieldsFragment, unknown>;
 export const NotificationFieldsFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -648,6 +813,239 @@ export const NotificationFieldsFragmentDoc = {
     }
   ]
 } as unknown as DocumentNode<NotificationFieldsFragment, unknown>;
+export const WebhookEndpointFieldsFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WebhookEndpointFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpoint" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "url" } },
+          { kind: "Field", name: { kind: "Name", value: "eventTypes" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<WebhookEndpointFieldsFragment, unknown>;
+export const ApiKeysDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "ApiKeys" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "apiKeys" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ApiKeyFields" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ApiKeyFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ApiKey" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "prefix" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "lastUsedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "expiresAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<ApiKeysQuery, ApiKeysQueryVariables>;
+export const CreateApiKeyDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "CreateApiKey" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "CreateApiKeyInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createApiKey" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "apiKey" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ApiKeyFields" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "key" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ApiKeyFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ApiKey" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "prefix" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "lastUsedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "expiresAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<CreateApiKeyMutation, CreateApiKeyMutationVariables>;
+export const RevokeApiKeyDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RevokeApiKey" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "revokeApiKey" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<RevokeApiKeyMutation, RevokeApiKeyMutationVariables>;
 export const GetConversationsDocument = {
   kind: "Document",
   definitions: [
@@ -2831,3 +3229,369 @@ export const OnTodoToggledDocument = {
     }
   ]
 } as unknown as DocumentNode<OnTodoToggledSubscription, OnTodoToggledSubscriptionVariables>;
+export const WebhookEventTypesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "WebhookEventTypes" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "webhookEventTypes" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<WebhookEventTypesQuery, WebhookEventTypesQueryVariables>;
+export const WebhookEndpointsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "WebhookEndpoints" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "webhookEndpoints" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "FragmentSpread",
+                        name: { kind: "Name", value: "WebhookEndpointFields" }
+                      }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WebhookEndpointFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpoint" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "url" } },
+          { kind: "Field", name: { kind: "Name", value: "eventTypes" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<WebhookEndpointsQuery, WebhookEndpointsQueryVariables>;
+export const WebhookDeliveriesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "WebhookDeliveries" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "endpointId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "webhookDeliveries" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "endpointId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "endpointId" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "eventId" } },
+                      { kind: "Field", name: { kind: "Name", value: "eventType" } },
+                      { kind: "Field", name: { kind: "Name", value: "attempt" } },
+                      { kind: "Field", name: { kind: "Name", value: "statusCode" } },
+                      { kind: "Field", name: { kind: "Name", value: "durationMs" } },
+                      { kind: "Field", name: { kind: "Name", value: "error" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<WebhookDeliveriesQuery, WebhookDeliveriesQueryVariables>;
+export const CreateWebhookEndpointDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "CreateWebhookEndpoint" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpointInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createWebhookEndpoint" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "endpoint" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "FragmentSpread",
+                        name: { kind: "Name", value: "WebhookEndpointFields" }
+                      }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "secret" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WebhookEndpointFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpoint" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "url" } },
+          { kind: "Field", name: { kind: "Name", value: "eventTypes" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<CreateWebhookEndpointMutation, CreateWebhookEndpointMutationVariables>;
+export const UpdateWebhookEndpointDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "UpdateWebhookEndpoint" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpointInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateWebhookEndpoint" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "WebhookEndpointFields" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WebhookEndpointFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WebhookEndpoint" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "url" } },
+          { kind: "Field", name: { kind: "Name", value: "eventTypes" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<UpdateWebhookEndpointMutation, UpdateWebhookEndpointMutationVariables>;
+export const DeleteWebhookEndpointDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DeleteWebhookEndpoint" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteWebhookEndpoint" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DeleteWebhookEndpointMutation, DeleteWebhookEndpointMutationVariables>;

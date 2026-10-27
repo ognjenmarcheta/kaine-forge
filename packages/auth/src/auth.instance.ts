@@ -1,6 +1,7 @@
 import { expo } from "@better-auth/expo";
 import {
   accountsTable,
+  apiKeysTable,
   db,
   invitationsTable,
   membersTable,
@@ -40,6 +41,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { API_KEY_HTTP_PATHS, apiKeyPlugin } from "./auth.api-key";
 import { recordAuditEvent } from "./auth.audit";
 import { auditPlugin } from "./auth.audit.plugin";
 import {
@@ -90,7 +92,8 @@ const AUTH_SCHEMA = {
   members: membersTable,
   invitations: invitationsTable,
   organizationRoles: organizationRolesTable,
-  twoFactors: twoFactorsTable
+  twoFactors: twoFactorsTable,
+  apikeys: apiKeysTable
 } as const;
 
 const emailLogger = createLogger({ name: "auth.email" });
@@ -880,6 +883,7 @@ export function createAuthInstance() {
     // web app); Expo OAuth returns via kaineforge://. better-auth rejects
     // state-changing requests from origins outside this list.
     trustedOrigins: resolveTrustedOrigins(process.env),
+    disabledPaths: API_KEY_HTTP_PATHS,
     socialProviders: resolveSocialProviders(process.env),
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -1200,6 +1204,7 @@ export function createAuthInstance() {
       organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
+      apiKeyPlugin(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).
       twoFactor({

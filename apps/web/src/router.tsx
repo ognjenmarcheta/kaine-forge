@@ -2,6 +2,7 @@ import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   AppSidebar,
   FileText,
+  KeyRound,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
@@ -17,7 +18,8 @@ import {
   ShieldCheck,
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger
+  SidebarTrigger,
+  Webhook
 } from "@repo/ui";
 import { useState } from "react";
 import {
@@ -38,6 +40,8 @@ import {
 } from "./components/workspace-navigation.provider";
 import { AccountDeleteRoute } from "./features/account/account.delete.route";
 import { AccountRoute } from "./features/account/account.route";
+import { useApiKeysAccess } from "./features/api-keys/api-keys.hook";
+import { ApiKeysRoute } from "./features/api-keys/api-keys.route";
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { useAuditLogAccess } from "./features/audit/audit.hook";
 import { AuditLogRoute } from "./features/audit/audit.route";
@@ -54,6 +58,8 @@ import { OrganizationsRoute } from "./features/organizations/organizations.route
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { SecurityRoute } from "./features/security/security.route";
 import { TodosRoute } from "./features/todos/todos.route";
+import { useWebhooksAccess } from "./features/webhooks/webhooks.hook";
+import { WebhooksRoute } from "./features/webhooks/webhooks.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
 import { useRouteTitle } from "./hooks/use-route-title";
@@ -69,13 +75,15 @@ const THEME_OPTIONS = [
 
 const ROUTE_TO_BREADCRUMB = {
   "/account": "navigation.account",
+  "/api-keys": "navigation.apiKeys",
   "/assistant": "navigation.assistant",
   "/audit-log": "navigation.auditLog",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
   "/notes": "navigation.notes",
   "/security": "navigation.security",
-  "/todos": "navigation.todos"
+  "/todos": "navigation.todos",
+  "/webhooks": "navigation.webhooks"
 } as const;
 
 function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_BREADCRUMB {
@@ -114,6 +122,8 @@ function ShellContent() {
   const { assets: publicAssets } = usePublicAssets();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
   const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
+  const canReadApiKeys = useApiKeysAccess(activeOrganizationId);
+  const canReadWebhooks = useWebhooksAccess(activeOrganizationId);
 
   if (isLoading) {
     return (
@@ -140,6 +150,8 @@ function ShellContent() {
   const isAssistantActive = location.pathname === "/assistant";
   const isSecurityActive = location.pathname === "/security";
   const isAuditLogActive = location.pathname === "/audit-log";
+  const isApiKeysActive = location.pathname === "/api-keys";
+  const isWebhooksActive = location.pathname === "/webhooks";
   const currentRouteKey = isBreadcrumbRoute(location.pathname)
     ? ROUTE_TO_BREADCRUMB[location.pathname]
     : isNotesActive
@@ -247,6 +259,26 @@ function ShellContent() {
                         icon: FileText,
                         isActive: isAuditLogActive,
                         title: t("navigation.auditLog")
+                      }
+                    ]
+                  : []),
+                ...(canReadApiKeys
+                  ? [
+                      {
+                        href: "/api-keys",
+                        icon: KeyRound,
+                        isActive: isApiKeysActive,
+                        title: t("navigation.apiKeys")
+                      }
+                    ]
+                  : []),
+                ...(canReadWebhooks
+                  ? [
+                      {
+                        href: "/webhooks",
+                        icon: Webhook,
+                        isActive: isWebhooksActive,
+                        title: t("navigation.webhooks")
                       }
                     ]
                   : []),
@@ -397,6 +429,16 @@ export const appRoutes: RouteObject[] = [
                 element: <AuditLogRoute />,
                 handle: { titleKey: "navigation.auditLog" },
                 path: "audit-log"
+              },
+              {
+                element: <ApiKeysRoute />,
+                handle: { titleKey: "navigation.apiKeys" },
+                path: "api-keys"
+              },
+              {
+                element: <WebhooksRoute />,
+                handle: { titleKey: "navigation.webhooks" },
+                path: "webhooks"
               },
               {
                 element: <SecurityRoute />,

@@ -89,6 +89,11 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "navigation.json:navigation.languageName.de",
     "navigation.json:navigation.languageName.sr",
     "navigation.json:navigation.themeSystem",
+    // "Webhook" and "Name" are the German words too.
+    "navigation.json:navigation.webhooks",
+    "organizations.json:organizations.apiKeys.name",
+    "organizations.json:organizations.webhooks.title",
+    "organizations.json:organizations.permission.group.webhook",
     "storage.json:storage.status",
     "todos.json:todos.ai.promptLabel"
   ],

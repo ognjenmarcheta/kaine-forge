@@ -39,7 +39,14 @@ describe("built-in role permissions", () => {
         "attachment:create",
         "attachment:delete",
         "logo:update",
-        "audit:read"
+        "audit:read",
+        "apiKey:create",
+        "apiKey:read",
+        "apiKey:delete",
+        "webhook:create",
+        "webhook:read",
+        "webhook:update",
+        "webhook:delete"
       ]
     ],
     [
@@ -65,7 +72,14 @@ describe("built-in role permissions", () => {
         "attachment:create",
         "attachment:delete",
         "logo:update",
-        "audit:read"
+        "audit:read",
+        "apiKey:create",
+        "apiKey:read",
+        "apiKey:delete",
+        "webhook:create",
+        "webhook:read",
+        "webhook:update",
+        "webhook:delete"
       ]
     ],
     [

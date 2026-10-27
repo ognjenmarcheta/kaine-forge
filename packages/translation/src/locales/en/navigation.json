@@ -24,5 +24,7 @@
   "navigation.assistant": "Assistant",
   "navigation.security": "Security",
   "navigation.account": "Account",
-  "navigation.auditLog": "Audit log"
+  "navigation.auditLog": "Audit log",
+  "navigation.apiKeys": "API keys",
+  "navigation.webhooks": "Webhooks"
 }

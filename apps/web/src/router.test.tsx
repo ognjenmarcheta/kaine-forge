@@ -117,6 +117,10 @@ vi.mock("./features/organizations/organizations.route", () => ({
 vi.mock("./features/security/security.route", () => ({ SecurityRoute: () => null }));
 vi.mock("./features/audit/audit.hook", () => ({ useAuditLogAccess: () => auditLogAccess.value }));
 vi.mock("./features/audit/audit.route", () => ({ AuditLogRoute: () => null }));
+vi.mock("./features/api-keys/api-keys.hook", () => ({ useApiKeysAccess: () => null }));
+vi.mock("./features/api-keys/api-keys.route", () => ({ ApiKeysRoute: () => null }));
+vi.mock("./features/webhooks/webhooks.hook", () => ({ useWebhooksAccess: () => null }));
+vi.mock("./features/webhooks/webhooks.route", () => ({ WebhooksRoute: () => null }));
 
 let container: HTMLDivElement;
 let root: Root;

@@ -1,4 +1,5 @@
 export * from "./accounts.schema";
+export * from "./api-keys.schema";
 export * from "./assistant.schema";
 export * from "./audit-events.schema";
 export * from "./files.schema";
@@ -13,3 +14,4 @@ export * from "./todos.schema";
 export * from "./two-factors.schema";
 export * from "./users.schema";
 export * from "./verifications.schema";
+export * from "./webhooks.schema";

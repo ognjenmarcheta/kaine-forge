@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 
 import { auth } from "./auth.instance";
+import { createApiKeyForScope, resolveApiKeyRequest } from "./auth.server.api-key";
 import { listInvitationsForScope } from "./auth.server.invitation";
 import {
   getCurrentOrganizationForScope,
@@ -52,6 +53,12 @@ export function createServerAuth(): ServerAuth {
         expiresAt: new Date(result.session.expiresAt).toISOString(),
         activeOrganizationId: result.session.activeOrganizationId ?? null
       };
+    },
+    resolveApiKey(key) {
+      return resolveApiKeyRequest(key);
+    },
+    createApiKey(scope, input) {
+      return createApiKeyForScope(scope, input);
     },
     listOrganizationsByScope(scope) {
       return listOrganizationsForUser(scope.userId);

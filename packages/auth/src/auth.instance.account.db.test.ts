@@ -7,6 +7,7 @@ import {
   usersTable
 } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
+import type { EmailMessage } from "@repo/email";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +22,10 @@ vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 vi.stubEnv("WEB_APP_URL", "http://localhost:3000");
 vi.stubEnv("AUTH_PASSWORD_BREACH_CHECK", "false");
 
-const { database } = vi.hoisted(() => ({ database: { current: null as TestDatabase | null } }));
+const { database, enqueue } = vi.hoisted(() => ({
+  database: { current: null as TestDatabase | null },
+  enqueue: vi.fn<(name: string, message: EmailMessage) => Promise<string>>()
+}));
 
 // Only the schema, never the real `@repo/db` index: its client throws without
 // DATABASE_URL, which a fresh checkout or worktree does not have.
@@ -32,14 +36,12 @@ vi.mock("@repo/db", async () => {
   return { ...schema, db: database.current.db };
 });
 
-vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: vi.fn().mockResolvedValue("job-1") } }));
+vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: enqueue.mockResolvedValue("job-1") } }));
 
-const { jobQueue } = await import("@repo/jobs/client");
 const { createAuthInstance } = await import("./auth.instance");
 const { prepareAccountDeletion } = await import("./auth.server.account");
 
 const auth = createAuthInstance();
-const enqueue = vi.mocked(jobQueue.enqueue);
 
 function testDatabase(): TestDatabase {
   if (!database.current) {

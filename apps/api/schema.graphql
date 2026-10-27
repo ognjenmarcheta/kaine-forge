@@ -17,6 +17,10 @@ type Query {
   auditEvents(first: Int, after: String): AuditEventConnection!
   notifications(first: Int, after: String): NotificationConnection!
   notificationPreferences: [NotificationPreference!]!
+  apiKeys(first: Int, after: String): ApiKeyConnection!
+  webhookEventTypes: [String!]!
+  webhookEndpoints(first: Int, after: String): WebhookEndpointConnection!
+  webhookDeliveries(endpointId: ID!, first: Int, after: String): WebhookDeliveryConnection!
 }
 
 type Mutation {
@@ -40,6 +44,11 @@ type Mutation {
   markNotificationRead(id: ID!): Notification!
   markAllNotificationsRead: Int!
   updateNotificationPreference(input: NotificationPreferenceInput!): NotificationPreference!
+  createApiKey(input: CreateApiKeyInput!): CreatedApiKey!
+  revokeApiKey(id: ID!): Boolean!
+  createWebhookEndpoint(input: WebhookEndpointInput!): CreatedWebhookEndpoint!
+  updateWebhookEndpoint(id: ID!, input: WebhookEndpointInput!): WebhookEndpoint!
+  deleteWebhookEndpoint(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -316,6 +325,11 @@ enum AuditAction {
   role_created
   role_updated
   role_deleted
+  api_key_created
+  api_key_revoked
+  webhook_endpoint_created
+  webhook_endpoint_updated
+  webhook_endpoint_deleted
 }
 
 type AuditActor {
@@ -386,4 +400,74 @@ input NotificationPreferenceInput {
   type: NotificationType!
   inApp: Boolean!
   email: Boolean!
+}
+
+type ApiKeyCreator {
+  id: ID!
+  name: String!
+  email: String!
+}
+
+type ApiKey {
+  id: ID!
+  name: String!
+  prefix: String!
+  createdBy: ApiKeyCreator
+  createdAt: DateTime!
+  lastUsedAt: DateTime
+  expiresAt: DateTime
+}
+
+type ApiKeyConnection {
+  items: [ApiKey!]!
+  pageInfo: PageInfo!
+}
+
+type CreatedApiKey {
+  apiKey: ApiKey!
+  key: String!
+}
+
+input CreateApiKeyInput {
+  name: String!
+  expiresInDays: Int
+}
+
+type WebhookEndpoint {
+  id: ID!
+  url: String!
+  eventTypes: [String!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type WebhookEndpointConnection {
+  items: [WebhookEndpoint!]!
+  pageInfo: PageInfo!
+}
+
+type CreatedWebhookEndpoint {
+  endpoint: WebhookEndpoint!
+  secret: String!
+}
+
+type WebhookDelivery {
+  id: ID!
+  eventId: ID!
+  eventType: String!
+  attempt: Int!
+  statusCode: Int
+  durationMs: Int!
+  error: String
+  createdAt: DateTime!
+}
+
+type WebhookDeliveryConnection {
+  items: [WebhookDelivery!]!
+  pageInfo: PageInfo!
+}
+
+input WebhookEndpointInput {
+  url: String!
+  eventTypes: [String!]!
 }

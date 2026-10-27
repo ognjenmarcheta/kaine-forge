@@ -19,6 +19,8 @@ try {
 const { db, pool } = await import("@repo/db/client");
 const { createEmailSender } = await import("@repo/email");
 const { createJobHandlers } = await import("@repo/jobs");
+const { createWebhookDeliveryHandler } = await import("./features/webhooks/webhooks.delivery");
+const { postWebhook } = await import("./features/webhooks/webhooks.transport");
 const { jobQueue } = await import("@repo/jobs/client");
 const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
@@ -41,6 +43,7 @@ const { renderEmail } = await import("@repo/email");
 const { createNotificationDelivery } =
   await import("./features/notifications/notifications.delivery");
 const { pubsub } = await import("./pubsub");
+const { setWebhookDeliveryQueue } = await import("./features/webhooks/webhooks.dispatch");
 const { startHousekeeping } = await import("./features/housekeeping/housekeeping.sweep");
 const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
 
@@ -68,7 +71,15 @@ try {
   await jobQueue.start();
 
   if (env.JOBS_RUNNER_ENABLED === "true") {
-    await jobQueue.startRunner(createJobHandlers({ emailSender: createEmailSender() }));
+    await jobQueue.startRunner(
+      createJobHandlers({
+        emailSender: createEmailSender(),
+        deliverWebhook: createWebhookDeliveryHandler({
+          db,
+          send: (request) => postWebhook(request)
+        })
+      })
+    );
   } else {
     logger.info("job runner disabled; this process only enqueues jobs");
   }
@@ -89,6 +100,7 @@ setNotificationDispatcher(
     }
   })
 );
+setWebhookDeliveryQueue((delivery) => jobQueue.enqueue("webhook.deliver", delivery));
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {
