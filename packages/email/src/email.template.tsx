@@ -35,7 +35,9 @@ export type EmailTemplate =
   | { template: "welcome"; url: string }
   | { template: "passwordChanged"; securityUrl: string }
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
-  | { template: "twoFactorEnabled"; securityUrl: string };
+  | { template: "twoFactorEnabled"; securityUrl: string }
+  | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
+  | { template: "accountDeletion"; url: string; expiresInHours: number };
 
 const EMAIL_OTP_SUBJECT_KEYS: Record<EmailOtpType, string> = {
   "sign-in": "email.emailOtp.subject.signIn",
@@ -189,6 +191,46 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
       return securityAlert(t, "emailChanged", email.securityUrl, { newEmail: email.newEmail });
     case "twoFactorEnabled":
       return securityAlert(t, "twoFactorEnabled", email.securityUrl);
+    // Goes to the current address before the new one gets a verification link.
+    case "emailChangeApproval":
+      return {
+        subject: t("email.emailChangeApproval.subject"),
+        heading: t("email.emailChangeApproval.heading"),
+        body: (
+          <>
+            <EmailText>
+              {t("email.emailChangeApproval.body", {
+                newEmail: email.newEmail,
+                hours: email.expiresInHours
+              })}
+            </EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.emailChangeApproval.action")}
+            />
+            <EmailText>{t("email.emailChangeApproval.ignore")}</EmailText>
+          </>
+        )
+      };
+    case "accountDeletion":
+      return {
+        subject: t("email.accountDeletion.subject"),
+        heading: t("email.accountDeletion.heading"),
+        body: (
+          <>
+            <EmailText>
+              {t("email.accountDeletion.body", { hours: email.expiresInHours })}
+            </EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.accountDeletion.action")}
+            />
+            <EmailText>{t("email.accountDeletion.ignore")}</EmailText>
+          </>
+        )
+      };
   }
 }
 

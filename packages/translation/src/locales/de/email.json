@@ -43,5 +43,15 @@
   "email.emailChanged.body": "Die E-Mail-Adresse deines Kontos wurde in {{newEmail}} geändert. Diese Nachricht geht an deine bisherige Adresse.",
   "email.twoFactorEnabled.subject": "Zwei-Faktor-Authentifizierung ist aktiv",
   "email.twoFactorEnabled.heading": "Zwei-Faktor-Authentifizierung ist aktiv",
-  "email.twoFactorEnabled.body": "Für dein Konto wurde die Zwei-Faktor-Authentifizierung eingeschaltet. Jede Anmeldung mit Passwort braucht jetzt einen zweiten Schritt."
+  "email.twoFactorEnabled.body": "Für dein Konto wurde die Zwei-Faktor-Authentifizierung eingeschaltet. Jede Anmeldung mit Passwort braucht jetzt einen zweiten Schritt.",
+  "email.emailChangeApproval.subject": "Bestätige die Änderung deiner E-Mail-Adresse",
+  "email.emailChangeApproval.heading": "Bestätige die Änderung deiner E-Mail-Adresse",
+  "email.emailChangeApproval.body": "Jemand möchte die E-Mail-Adresse deines Kontos in {{newEmail}} ändern. Nach deiner Bestätigung senden wir einen Bestätigungslink an die neue Adresse. Der Link läuft in {{hours}} Stunden ab.",
+  "email.emailChangeApproval.action": "Änderung bestätigen",
+  "email.emailChangeApproval.ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail und setze dein Passwort zurück. Deine E-Mail-Adresse bleibt gleich.",
+  "email.accountDeletion.subject": "Bestätige die Löschung deines Kontos",
+  "email.accountDeletion.heading": "Konto löschen",
+  "email.accountDeletion.body": "Wir haben eine Anfrage zur Löschung deines Kontos erhalten. Dabei werden auch alle Organisationen gelöscht, in denen du das einzige Mitglied bist. Der Link läuft in {{hours}} Stunden ab.",
+  "email.accountDeletion.action": "Konto löschen",
+  "email.accountDeletion.ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail und setze dein Passwort zurück. Dein Konto bleibt unverändert."
 }

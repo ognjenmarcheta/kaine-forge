@@ -16,6 +16,7 @@ const RESET_URL = "https://api.example.com/api/auth/reset-password/tok-1?callbac
 const VERIFY_URL = "https://api.example.com/api/auth/verify-email?token=vtok-1";
 const INVITE_URL = "https://app.example.com/invitations/inv-1";
 const SECURITY_URL = "https://app.example.com/security";
+const DELETE_URL = "https://app.example.com/account/delete?token=dtok-1";
 
 const cases: TemplateCase[] = [
   {
@@ -176,6 +177,44 @@ const cases: TemplateCase[] = [
     subject: "Dvofaktorska autentifikacija je uključena",
     phrase: "Za vaš nalog je uključena dvofaktorska autentifikacija.",
     token: SECURITY_URL
+  },
+  {
+    email: {
+      template: "emailChangeApproval",
+      newEmail: "new@example.com",
+      url: VERIFY_URL,
+      expiresInHours: 24
+    },
+    locale: "en",
+    subject: "Approve your email address change",
+    phrase: "change the email address of your account to new@example.com.",
+    token: VERIFY_URL
+  },
+  {
+    email: {
+      template: "emailChangeApproval",
+      newEmail: "new@example.com",
+      url: VERIFY_URL,
+      expiresInHours: 24
+    },
+    locale: "de",
+    subject: "Bestätige die Änderung deiner E-Mail-Adresse",
+    phrase: "Der Link läuft in 24 Stunden ab.",
+    token: VERIFY_URL
+  },
+  {
+    email: { template: "accountDeletion", url: DELETE_URL, expiresInHours: 24 },
+    locale: "en",
+    subject: "Confirm your account deletion",
+    phrase: "This also deletes every organization where you are the only member.",
+    token: DELETE_URL
+  },
+  {
+    email: { template: "accountDeletion", url: DELETE_URL, expiresInHours: 24 },
+    locale: "sr",
+    subject: "Potvrdite brisanje naloga",
+    phrase: "Link ističe za 24 sati.",
+    token: DELETE_URL
   }
 ];
 

@@ -43,5 +43,15 @@
   "email.emailChanged.body": "The email address for your account was changed to {{newEmail}}. This notice goes to your previous address.",
   "email.twoFactorEnabled.subject": "Two-factor authentication is on",
   "email.twoFactorEnabled.heading": "Two-factor authentication is on",
-  "email.twoFactorEnabled.body": "Two-factor authentication was turned on for your account. Each password sign-in now needs a second step."
+  "email.twoFactorEnabled.body": "Two-factor authentication was turned on for your account. Each password sign-in now needs a second step.",
+  "email.emailChangeApproval.subject": "Approve your email address change",
+  "email.emailChangeApproval.heading": "Approve your email address change",
+  "email.emailChangeApproval.body": "Someone asked to change the email address of your account to {{newEmail}}. After you approve, we send a verification link to the new address. The link expires in {{hours}} hours.",
+  "email.emailChangeApproval.action": "Approve change",
+  "email.emailChangeApproval.ignore": "If you did not ask for this, ignore this email and reset your password. Your email address stays the same.",
+  "email.accountDeletion.subject": "Confirm your account deletion",
+  "email.accountDeletion.heading": "Delete your account",
+  "email.accountDeletion.body": "We received a request to delete your account. This also deletes every organization where you are the only member. The link expires in {{hours}} hours.",
+  "email.accountDeletion.action": "Delete account",
+  "email.accountDeletion.ignore": "If you did not ask for this, ignore this email and reset your password. Your account stays as it is."
 }

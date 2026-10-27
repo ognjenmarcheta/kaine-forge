@@ -16,3 +16,15 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
+
+// The avatar URL of each deleted user, written by the users_public_asset_purge
+// trigger. The API storage sweep deletes the object from the public bucket
+// when its key belongs to that user, then this row. Any other URL, such as a
+// social provider's avatar, is only dropped. No foreign key: the user is gone.
+export const publicAssetPurgesTable = pgTable("public_asset_purges", {
+  userId: uuid("user_id").primaryKey(),
+  url: text("url").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  // Set when a sweep run fails on this row; failed rows go to the back of the queue.
+  attemptedAt: timestamp("attempted_at", { withTimezone: true })
+});

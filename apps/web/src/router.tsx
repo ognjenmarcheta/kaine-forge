@@ -26,6 +26,7 @@ import {
   Outlet,
   createBrowserRouter,
   useLocation,
+  useNavigate,
   type RouteObject
 } from "react-router-dom";
 
@@ -35,6 +36,8 @@ import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
 } from "./components/workspace-navigation.provider";
+import { AccountDeleteRoute } from "./features/account/account.delete.route";
+import { AccountRoute } from "./features/account/account.route";
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { useAuditLogAccess } from "./features/audit/audit.hook";
 import { AuditLogRoute } from "./features/audit/audit.route";
@@ -62,6 +65,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
+  "/account": "navigation.account",
   "/assistant": "navigation.assistant",
   "/audit-log": "navigation.auditLog",
   "/dashboard": "navigation.dashboard",
@@ -91,6 +95,7 @@ function ShellLayout() {
 function ShellContent() {
   const { requestLeave } = useWorkspaceNavigation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { isLoading, logout, session } = useAuth();
   const {
     activeOrganizationId,
@@ -299,6 +304,10 @@ function ShellContent() {
           }
           user={
             <NavUser
+              accountItem={{
+                label: t("navigation.account"),
+                onSelect: () => requestLeave(() => void navigate("/account"))
+              }}
               className="w-full min-w-0 max-w-none"
               logoutLabel={t("auth.logout")}
               onLogout={() => requestLeave(() => void logout())}
@@ -370,6 +379,11 @@ export const appRoutes: RouteObject[] = [
                 path: "members"
               },
               {
+                element: <AccountRoute />,
+                handle: { titleKey: "navigation.account" },
+                path: "account"
+              },
+              {
                 element: <AuditLogRoute />,
                 handle: { titleKey: "navigation.auditLog" },
                 path: "audit-log"
@@ -388,6 +402,14 @@ export const appRoutes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         handle: { titleKey: "auth.login.title" },
         path: "/auth"
+      },
+      {
+        // Outside the shell: a signed-out visitor goes to /auth and comes back
+        // with the emailed token.
+        element: <AccountDeleteRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "auth.account.delete.confirmTitle" },
+        path: "/account/delete"
       },
       {
         // Outside the shell: a signed-out visitor goes to /auth and comes back.

@@ -4,6 +4,7 @@ export const AUTH_DEFINITIONS = {
   INVITATION_MAX_AGE_SECONDS: 60 * 60 * 24 * 7,
   PASSWORD_RESET_MAX_AGE_SECONDS: 60 * 60,
   EMAIL_VERIFICATION_MAX_AGE_SECONDS: 60 * 60 * 24,
+  ACCOUNT_DELETION_MAX_AGE_SECONDS: 60 * 60 * 24,
   // Signed session cookie that skips the database session read; a revoked
   // session stays valid on cookie clients for at most this long (ADR 0015).
   SESSION_COOKIE_CACHE_MAX_AGE_SECONDS: 60 * 5,

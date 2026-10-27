@@ -1,12 +1,17 @@
-import { filesTable, organizationStoragePurgesTable } from "@repo/db/schema";
+import {
+  filesTable,
+  organizationStoragePurgesTable,
+  publicAssetPurgesTable
+} from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
-import { publicAssetKeyFromUrl, type PublicAssetConfig } from "@repo/storage";
+import type { PublicAssetConfig } from "@repo/storage";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import { objectRefsOf, type ObjectStore } from "./attachment.store";
 import { STORAGE_CONFIG } from "./storage.definition";
 import { formatLoggableError } from "../../observability";
+import { ownedPublicAssetKey } from "../public-assets/public-assets.util";
 
 export interface AttachmentSweepDeps {
   db: Database;
@@ -134,7 +139,7 @@ export async function sweepStaleObjects({
  * Deletes what a deleted Organization left in storage: every private object
  * under its `<organizationId>/` prefix and its logo in the public bucket. The
  * organizations delete trigger queues each one in organization_storage_purges,
- * also on a cascade from a deleted user. A queued row stays until every delete
+ * also when an account delete removes it. A queued row stays until every delete
  * succeeds, its prefix is empty, and `pendingCutoff` has passed its deletion,
  * so an upload URL issued just before the deletion cannot leave an object
  * behind and a failed logo delete is retried.
@@ -169,7 +174,9 @@ export async function sweepDeletedOrganizations({
 
   for (const purge of purges) {
     const logoKey =
-      purge.logo && publicStorage ? publicAssetKeyFromUrl(publicStorage.baseUrl, purge.logo) : null;
+      purge.logo && publicStorage
+        ? ownedPublicAssetKey(publicStorage, "organization_logo", purge.organizationId, purge.logo)
+        : null;
 
     // A logo that fails to delete keeps the row queued for a retry, like a
     // private object, but never blocks the private cleanup below.
@@ -227,6 +234,61 @@ export async function sweepDeletedOrganizations({
         .delete(organizationStoragePurgesTable)
         .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
     }
+  }
+
+  return totals;
+}
+
+/**
+ * Deletes the avatars that deleted users left in the public bucket, best
+ * effort. The users delete trigger queues each user's image URL in
+ * public_asset_purges. Only a key published for that user is deleted; any
+ * other URL, such as a social provider's avatar, is only dropped. A failed
+ * delete stays queued, behind rows not tried yet.
+ */
+export async function sweepDeletedPublicAssets({
+  db,
+  logger,
+  store,
+  publicStorage,
+  batchSize = STORAGE_CONFIG.sweep.batchSize
+}: {
+  db: Database;
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete">;
+  /** The public bucket of avatars, or null when Public Assets are off. */
+  publicStorage: PublicAssetConfig | null;
+  batchSize?: number;
+}): Promise<{ deleted: number; failed: number }> {
+  const totals = { deleted: 0, failed: 0 };
+  const purges = await db
+    .select({ userId: publicAssetPurgesTable.userId, url: publicAssetPurgesTable.url })
+    .from(publicAssetPurgesTable)
+    .orderBy(
+      sql`${publicAssetPurgesTable.attemptedAt} asc nulls first`,
+      asc(publicAssetPurgesTable.createdAt)
+    )
+    .limit(batchSize);
+
+  for (const { userId, url } of purges) {
+    const key = publicStorage ? ownedPublicAssetKey(publicStorage, "avatar", userId, url) : null;
+
+    if (publicStorage && key) {
+      try {
+        await store.delete({ bucket: publicStorage.bucket, key });
+        totals.deleted += 1;
+      } catch (err) {
+        totals.failed += 1;
+        logger.warn({ error: formatLoggableError(err), key }, "failed to delete public asset");
+        await db
+          .update(publicAssetPurgesTable)
+          .set({ attemptedAt: new Date() })
+          .where(eq(publicAssetPurgesTable.userId, userId));
+        continue;
+      }
+    }
+
+    await db.delete(publicAssetPurgesTable).where(eq(publicAssetPurgesTable.userId, userId));
   }
 
   return totals;

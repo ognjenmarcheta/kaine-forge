@@ -43,5 +43,15 @@
   "email.emailChanged.body": "Email adresa vašeg naloga je promenjena u {{newEmail}}. Ovo obaveštenje stiže na vašu prethodnu adresu.",
   "email.twoFactorEnabled.subject": "Dvofaktorska autentifikacija je uključena",
   "email.twoFactorEnabled.heading": "Dvofaktorska autentifikacija je uključena",
-  "email.twoFactorEnabled.body": "Za vaš nalog je uključena dvofaktorska autentifikacija. Svaka prijava lozinkom sada traži drugi korak."
+  "email.twoFactorEnabled.body": "Za vaš nalog je uključena dvofaktorska autentifikacija. Svaka prijava lozinkom sada traži drugi korak.",
+  "email.emailChangeApproval.subject": "Odobrite promenu email adrese",
+  "email.emailChangeApproval.heading": "Odobrite promenu email adrese",
+  "email.emailChangeApproval.body": "Neko je zatražio da se email adresa vašeg naloga promeni u {{newEmail}}. Kada odobrite, poslaćemo link za potvrdu na novu adresu. Link ističe za {{hours}} sati.",
+  "email.emailChangeApproval.action": "Odobri promenu",
+  "email.emailChangeApproval.ignore": "Ako ovo niste zatražili, zanemarite ovaj email i resetujte lozinku. Vaša email adresa ostaje ista.",
+  "email.accountDeletion.subject": "Potvrdite brisanje naloga",
+  "email.accountDeletion.heading": "Brisanje naloga",
+  "email.accountDeletion.body": "Primili smo zahtev za brisanje vašeg naloga. Time se brišu i sve organizacije u kojima ste jedini član. Link ističe za {{hours}} sati.",
+  "email.accountDeletion.action": "Obriši nalog",
+  "email.accountDeletion.ignore": "Ako ovo niste zatražili, zanemarite ovaj email i resetujte lozinku. Vaš nalog ostaje nepromenjen."
 }

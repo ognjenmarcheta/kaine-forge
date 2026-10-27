@@ -233,3 +233,14 @@ it.each([
   expect(findByText("h1", heading)).toBeDefined();
   expect(document.title).toBe(`${heading} · common.appName`);
 });
+
+it("sends a signed-out visitor of the deletion link to sign in and back with the token", async () => {
+  signedIn.value = false;
+
+  const router = await renderAt("/account/delete?token=delete-token-1");
+
+  expect(router.state.location.pathname).toBe("/auth");
+  expect(router.state.location.search).toBe(
+    "?redirect=%2Faccount%2Fdelete%3Ftoken%3Ddelete-token-1"
+  );
+});

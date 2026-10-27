@@ -109,7 +109,9 @@ describe("createPublicAssets", () => {
 
     const first = await assets.confirm("avatar", firstKey);
 
-    expect(first.avatarUrl).toMatch(new RegExp(`^${BASE_URL}/avatars/[0-9a-f-]{36}\\.webp$`));
+    expect(first.avatarUrl).toMatch(
+      new RegExp(`^${BASE_URL}/avatars/${owner.userId}/[0-9a-f-]{36}\\.webp$`)
+    );
     const publishedKey = first.avatarUrl?.slice(BASE_URL.length + 1) ?? "";
     expect(memory.stat({ bucket: "public", key: publishedKey })).toMatchObject({
       contentType: "image/webp",
@@ -139,10 +141,31 @@ describe("createPublicAssets", () => {
       await staged(assetsFor(owner), "organization_logo")
     );
 
-    expect(logo.organizationLogoUrl).toMatch(`${BASE_URL}/organization-logos/`);
+    expect(logo.organizationLogoUrl).toMatch(
+      `${BASE_URL}/organization-logos/${owner.organizationId}/`
+    );
     expect(await assetsFor(member).current()).toMatchObject({
       organizationLogoUrl: logo.organizationLogoUrl
     });
+  });
+
+  it("never deletes another owner's image that the replaced url points at", async () => {
+    const victimKey = `avatars/${member.userId}/victim.webp`;
+    memory.upload(
+      { bucket: "public", key: victimKey },
+      { contentType: "image/webp", sizeBytes: 8, bytes: new Uint8Array(8) }
+    );
+    await database.db
+      .update(usersTable)
+      .set({ image: `${BASE_URL}/${victimKey}` })
+      .where(eq(usersTable.id, owner.userId));
+    const assets = assetsFor(owner);
+
+    const replaced = await assets.confirm("avatar", await staged(assets, "avatar"));
+
+    expect(memory.keys().sort()).toEqual(
+      [victimKey, replaced.avatarUrl?.slice(BASE_URL.length + 1)].sort()
+    );
   });
 
   it("refuses a staging key issued to another user", async () => {

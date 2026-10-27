@@ -41,11 +41,21 @@ import { z } from "zod";
 
 import { recordAuditEvent } from "./auth.audit";
 import { auditPlugin } from "./auth.audit.plugin";
-import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
+import {
+  assertProductionAuthSecret,
+  buildAccountDeletionUrl,
+  buildInvitationUrl,
+  getServerAuthConfig
+} from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { hashPassword, verifyPassword } from "./auth.password";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
+import {
+  findAccountDeletionRefusal,
+  prepareAccountDeletion,
+  type AccountDeletionRefusal
+} from "./auth.server.account";
 import {
   ensurePersonalOrganizationForUser,
   isPersonalOrganization,
@@ -456,6 +466,84 @@ const organizationOwnershipPlugin = {
   }
 } satisfies BetterAuthPlugin;
 
+const ACCOUNT_DELETION_REFUSAL_MESSAGES: Record<AccountDeletionRefusal["code"], string> = {
+  PERSONAL_ORGANIZATION_HAS_MEMBERS:
+    "Remove the other members of your personal organization before you delete your account",
+  SOLE_OWNER_OF_SHARED_ORGANIZATION:
+    "Transfer ownership of the organization or delete it before you delete your account"
+};
+
+// The body names the Organization, so the client can show it in its message.
+function refuseAccountDeletion(refusal: AccountDeletionRefusal): APIError {
+  return APIError.fromStatus("BAD_REQUEST", {
+    code: refusal.code,
+    message: ACCOUNT_DELETION_REFUSAL_MESSAGES[refusal.code],
+    organizationName: refusal.organizationName
+  });
+}
+
+// Routes that would let a client set a Public Asset URL, and the body field.
+// Only the API's public-asset upload writes users.image and
+// organizations.logo; a client-chosen URL could name another owner's file,
+// which a later replacement or purge would delete. /organization/update
+// carries its fields under `data`.
+const PUBLIC_ASSET_URL_FIELDS = new Map([
+  ["/sign-up/email", "image"],
+  ["/update-user", "image"],
+  ["/organization/create", "logo"],
+  ["/organization/update", "logo"]
+]);
+
+// Account settings: the social providers a user can link, the refusal of a
+// client-set Public Asset URL, and the refusal of a delete request before
+// better-auth emails the confirmation link. A request with the emailed token
+// is checked by user.deleteUser.beforeDelete, under row locks.
+const accountPlugin = {
+  id: "account",
+  endpoints: {
+    listSocialProviders: createAuthEndpoint(
+      "/account/social-providers",
+      { method: "GET", use: [sessionMiddleware] },
+      async (ctx) => ctx.json({ providers: Object.keys(resolveSocialProviders(process.env)) })
+    )
+  },
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => PUBLIC_ASSET_URL_FIELDS.has(ctx.path ?? ""),
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = readRecord(ctx.body);
+          const fields = ctx.path === "/organization/update" ? readRecord(body.data) : body;
+          const field = PUBLIC_ASSET_URL_FIELDS.get(ctx.path) ?? "";
+
+          if (fields[field] !== undefined) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "PUBLIC_ASSET_URL_READ_ONLY",
+              message: "Profile pictures and logos change only through an upload"
+            });
+          }
+        })
+      },
+      {
+        matcher: (ctx) => ctx.path === "/delete-user" && readRecord(ctx.body).token === undefined,
+        handler: createAuthMiddleware(async (ctx) => {
+          const session = await getSessionFromCtx(ctx);
+
+          if (!session) {
+            return;
+          }
+
+          const refusal = await findAccountDeletionRefusal(session.user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
 /** Deep-link scheme for Expo OAuth return (must match apps/mobile app.json scheme). */
 export const EXPO_AUTH_SCHEME = "kaineforge";
 
@@ -574,6 +662,48 @@ export function createAuthInstance() {
           required: false,
           input: true,
           validator: { input: z.enum(SUPPORTED_LANGUAGES) }
+        }
+      },
+      changeEmail: {
+        enabled: true,
+        // The email on the user row changes only after the new address is
+        // verified; a verified user's old address approves the change first.
+        updateEmailWithoutVerification: false,
+        sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+          enqueueAuthEmail(
+            user.email,
+            {
+              template: "emailChangeApproval",
+              newEmail,
+              url,
+              expiresInHours: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS / 3600
+            },
+            readUserLocale(user)
+          );
+        }
+      },
+      deleteUser: {
+        enabled: true,
+        deleteTokenExpiresIn: AUTH_DEFINITIONS.ACCOUNT_DELETION_MAX_AGE_SECONDS,
+        // The user row is deleted only after the emailed link is used. The
+        // link opens the web app, which confirms with the token.
+        sendDeleteAccountVerification: async ({ user, token }) => {
+          enqueueAuthEmail(
+            user.email,
+            {
+              template: "accountDeletion",
+              url: buildAccountDeletionUrl(config.webAppUrl, token),
+              expiresInHours: AUTH_DEFINITIONS.ACCOUNT_DELETION_MAX_AGE_SECONDS / 3600
+            },
+            readUserLocale(user)
+          );
+        },
+        beforeDelete: async (user) => {
+          const refusal = await prepareAccountDeletion(user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
         }
       }
     },
@@ -720,8 +850,9 @@ export function createAuthInstance() {
         },
         schema: {
           organization: {
-            // organizations.user_id is NOT NULL (owner column predating the
-            // plugin). Declared as a server-only additional field so the
+            // organizations.user_id is the owner column predating the plugin
+            // (null after its user deleted the account). Declared as a
+            // server-only additional field so the
             // beforeCreateOrganization hook value survives the adapter's
             // field mapping while clients cannot set it.
             additionalFields: {
@@ -748,6 +879,7 @@ export function createAuthInstance() {
         }
       }),
       organizationOwnershipPlugin,
+      accountPlugin,
       auditPlugin,
       userNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
