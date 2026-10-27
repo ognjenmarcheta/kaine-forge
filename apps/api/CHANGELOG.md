@@ -1,5 +1,22 @@
 # @repo/api
 
+## 1.14.0
+
+### Minor Changes
+
+- 2e2bd97: `/graphql` now requires the `x-graphql-yoga-csrf` header on GET requests and on POSTs without a content type or with `text/plain`, `application/x-www-form-urlencoded`, or `multipart/form-data`; those requests get 403 without it. JSON POSTs are unaffected, and allowlisted origins may send the header through CORS. The web, desktop, and mobile GraphQL clients send `x-graphql-yoga-csrf: 1`; other GraphQL clients that use GET must send it too. Every API response, including `/api/auth/*`, `/health`, and 429s, carries `X-Content-Type-Options: nosniff`. The web image sends `Content-Security-Policy`, `Strict-Transport-Security` (`max-age=31536000; includeSubDomains`), and `Permissions-Policy` on every response, including `/assets/` and `index.html`. Set `CSP_STORAGE_ORIGINS`, `CSP_PUBLIC_ASSET_ORIGINS`, and, for a cross-origin API, `CSP_API_ORIGINS` on the web container when they differ from the same-origin defaults; otherwise the browser blocks uploads and storage images.
+- 32c958f: Add a Postgres background job runner (ADR 0018). The new `@repo/jobs` package wraps pg-boss on the existing `DATABASE_URL`, with typed job definitions, retries with backoff, and a bounded `stop()`. Its tables live in the `pgboss` schema, which pg-boss creates on start.
+
+  The API starts the job queue after migrations and after it listens, runs the job handlers by default, and stops them before the database pool closes on shutdown. Set the new `JOBS_RUNNER_ENABLED=false` to keep the API enqueue-only and run `node apps/api/dist/worker.js` from the same image as a separate worker.
+
+  `@repo/auth` no longer sends email inline. Every auth email (password reset, email verification, invitation, two-factor code, and email one-time codes) is enqueued as an `email.send` job and delivered by the runner, which retries a failed send. A process that imports `@repo/auth/instance` must now call `jobQueue.start()` from `@repo/jobs/client`, and run the runner or a worker, or auth emails are not delivered.
+
+### Patch Changes
+
+- Updated dependencies [32c958f]
+  - @repo/jobs@0.1.0
+  - @repo/auth@4.0.0
+
 ## 1.13.0
 
 ### Minor Changes
