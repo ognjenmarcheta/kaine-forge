@@ -5,8 +5,9 @@ import { defineJob } from "./jobs.definition";
 
 export const EMAIL_JOB = defineJob({
   payload: z.object({ to: z.string(), subject: z.string(), text: z.string() }),
-  // Exponential from 10 s, capped at 10 min: about 15 min of provider outage
-  // before the job fails.
+  // pg-boss waits 10 s * 2^n * (1 + jitter) after failed attempt n (0-4), so
+  // the job fails after about 5-10 min of provider outage. The 10 min cap is
+  // a ceiling only: with 5 retries no single wait exceeds 320 s.
   retry: { limit: 5, delaySeconds: 10, backoff: true, maxDelaySeconds: 600 },
   // Auth emails carry codes, links, and tokens. The row and its payload go
   // within a minute of the last attempt, plus one maintenance interval

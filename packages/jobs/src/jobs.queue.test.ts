@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { fromPglite } from "pg-boss";
+import { fromPglite, type Db } from "pg-boss";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -27,6 +27,25 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
     resolve = settle;
   });
   return { promise, resolve };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Models the API pool: shutdown ends it right after stop(), and every query
+// after that rejects. `beforeInsert` runs before pg-boss stores a job.
+function createClosablePool(client: PGlite, beforeInsert: () => Promise<void>) {
+  const pglite = fromPglite(client);
+  let closed = false;
+  const db: Db = {
+    async executeSql(text, values) {
+      if (text.includes("INSERT INTO pgboss.job")) await beforeInsert();
+      if (closed) throw new Error("pool ended");
+      return pglite.executeSql(text, values);
+    }
+  };
+  return { db, end: () => (closed = true) };
 }
 
 function createLoggerSpy() {
@@ -130,5 +149,46 @@ describe("createJobQueue", () => {
     await queue.stop();
 
     expect(finished).toBe(true);
+  });
+
+  it("stores an enqueue still in flight when stop() is called", async () => {
+    const pool = createClosablePool(client, () => sleep(300));
+    const draining = createJobQueue({
+      backend: "pglite",
+      db: pool.db,
+      definitions: TEST_JOBS,
+      logger,
+      stopTimeoutMs: 5000
+    });
+    await draining.start();
+
+    const pending = draining.enqueue("greet", { name: "late" });
+    await draining.stop();
+    pool.end();
+
+    const id = await pending;
+    const { rows } = await client.query("SELECT id FROM pgboss.job WHERE id = $1", [id]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("stops even when an enqueue in flight fails", async () => {
+    const pool = createClosablePool(client, async () => {
+      await sleep(100);
+      throw new Error("connection lost");
+    });
+    const draining = createJobQueue({
+      backend: "pglite",
+      db: pool.db,
+      definitions: TEST_JOBS,
+      logger,
+      stopTimeoutMs: 5000
+    });
+    await draining.start();
+
+    const failed = expect(draining.enqueue("greet", { name: "lost" })).rejects.toThrow(
+      "connection lost"
+    );
+    await expect(draining.stop()).resolves.toBeUndefined();
+    await failed;
   });
 });

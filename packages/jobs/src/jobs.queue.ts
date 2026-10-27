@@ -53,6 +53,9 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
   // would crash the process.
   boss.on("error", (error) => logger.error({ err: error }, "job queue error"));
   let starting: Promise<void> | undefined;
+  // Enqueues not yet stored. Auth hooks do not await theirs, so stop() waits
+  // for these before the caller ends the pool.
+  const pending = new Set<Promise<string>>();
 
   const start = async (): Promise<void> => {
     await boss.start();
@@ -78,6 +81,28 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
       } else {
         await boss.createQueue(name, queue);
       }
+    }
+  };
+
+  const storeJob = async (name: string, payload: JobPayloadData): Promise<string> => {
+    if (!starting) {
+      throw new Error("job queue is not started");
+    }
+
+    try {
+      await starting;
+      const id = await boss.send(name, payload);
+
+      if (!id) {
+        throw new Error(`job ${name} was not stored`);
+      }
+
+      return id;
+    } catch (error) {
+      // Fire-and-forget callers swallow the rejection, so the queue logs
+      // the lost job here, by name only.
+      logger.error({ jobName: name }, "job enqueue failed");
+      throw error;
     }
   };
 
@@ -116,26 +141,13 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
       return starting;
     },
 
-    async enqueue(name, payload) {
-      if (!starting) {
-        throw new Error("job queue is not started");
-      }
-
-      try {
-        await starting;
-        const id = await boss.send(name, payload);
-
-        if (!id) {
-          throw new Error(`job ${name} was not stored`);
-        }
-
-        return id;
-      } catch (error) {
-        // Fire-and-forget callers swallow the rejection, so the queue logs
-        // the lost job here, by name only.
-        logger.error({ jobName: name }, "job enqueue failed");
-        throw error;
-      }
+    enqueue(name, payload) {
+      const sending = storeJob(name, payload);
+      pending.add(sending);
+      // The catch only keeps this bookkeeping chain from becoming an
+      // unhandled rejection; the caller receives `sending` itself.
+      sending.finally(() => pending.delete(sending)).catch(() => undefined);
+      return sending;
     },
 
     async startRunner(handlers) {
@@ -165,7 +177,24 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
     async stop() {
       if (!starting) return;
       await starting.catch(() => undefined);
-      await boss.stop({ graceful: true, close: false, timeout: options.stopTimeoutMs });
+      // One stopTimeoutMs budget covers both waits. allSettled: a failed
+      // enqueue is already logged and must not block shutdown.
+      const deadline = Date.now() + options.stopTimeoutMs;
+      await settleWithin(Promise.allSettled(pending), options.stopTimeoutMs);
+      await boss.stop({ graceful: true, close: false, timeout: deadline - Date.now() });
     }
   };
+}
+
+async function settleWithin(work: Promise<unknown>, timeoutMs: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+
+  try {
+    await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
