@@ -26,8 +26,6 @@ if (unknownFlagVariables.length > 0) {
 }
 
 const { db, pool } = await import("@repo/db/client");
-const { createEmailSender } = await import("@repo/email");
-const { createJobHandlers } = await import("@repo/jobs");
 const { jobQueue } = await import("@repo/jobs/client");
 const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
@@ -46,12 +44,14 @@ const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-as
 const { publicAssetStorage, s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
 const { setNotificationDispatcher } = await import("@repo/auth/notifications");
-const { renderEmail } = await import("@repo/email");
 const { createNotificationDelivery } =
   await import("./features/notifications/notifications.delivery");
 const { pubsub } = await import("./pubsub");
-const { startHousekeeping } = await import("./features/housekeeping/housekeeping.sweep");
+const { purgeExpiredAuthRows, startHousekeeping } =
+  await import("./features/housekeeping/housekeeping.sweep");
+const { applyRetention } = await import("./features/housekeeping/housekeeping.retention");
 const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
+const { createApiJobHandlers, queueEmail } = await import("./api.jobs");
 
 const { server, subscriptions, wsServer } = await startApiRuntime({
   createServer: createApiServer,
@@ -77,7 +77,7 @@ try {
   await jobQueue.start();
 
   if (env.JOBS_RUNNER_ENABLED === "true") {
-    await jobQueue.startRunner(createJobHandlers({ emailSender: createEmailSender() }));
+    await jobQueue.startRunner(createApiJobHandlers(logger));
   } else {
     logger.info("job runner disabled; this process only enqueues jobs");
   }
@@ -93,9 +93,7 @@ setNotificationDispatcher(
   createNotificationDelivery({
     db,
     publish: (payload) => pubsub.publish("notification:created", payload),
-    sendEmail: async (to, email, locale) => {
-      await jobQueue.enqueue("email.send", { to, ...(await renderEmail(email, locale)) });
-    }
+    sendEmail: queueEmail
   })
 );
 const sweep = resolveAttachmentSweepConfig(process.env);
@@ -156,7 +154,22 @@ if (sweep) {
 const housekeeping = resolveHousekeepingConfig(process.env);
 
 if (housekeeping) {
-  stopBackgroundWork.push(startHousekeeping({ db, intervalMs: housekeeping.intervalMs, logger }));
+  stopBackgroundWork.push(
+    startHousekeeping({
+      intervalMs: housekeeping.intervalMs,
+      logger,
+      run: async (now) => ({
+        ...(await purgeExpiredAuthRows({ db, now })),
+        ...(await applyRetention({
+          db,
+          store: s3ObjectStore,
+          now,
+          windows: housekeeping.retention,
+          logger
+        }))
+      })
+    })
+  );
 }
 
 registerApiShutdown({

@@ -731,6 +731,7 @@ describe("monorepo alignment", () => {
       "@repo/db": "packages/db",
       "@repo/email": "packages/email",
       "@repo/feature-flags": "packages/feature-flags",
+      "@repo/jobs": "packages/jobs",
       "@repo/logger": "packages/logger",
       "@repo/persistence": "packages/persistence",
       "@repo/query": "packages/query",

@@ -38,7 +38,8 @@ export type EmailTemplate =
   | { template: "twoFactorEnabled"; securityUrl: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
   | { template: "accountDeletion"; url: string; expiresInHours: number }
-  | { template: "roleChanged"; url: string; organizationName: string; role: string };
+  | { template: "roleChanged"; url: string; organizationName: string; role: string }
+  | { template: "dataExportReady"; url: string; expiresInDays: number };
 
 const EMAIL_OTP_SUBJECT_KEYS: Record<EmailOtpType, string> = {
   "sign-in": "email.emailOtp.subject.signIn",
@@ -233,6 +234,21 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
               label={t("email.accountDeletion.action")}
             />
             <EmailText>{t("email.accountDeletion.ignore")}</EmailText>
+          </>
+        )
+      };
+    case "dataExportReady":
+      return {
+        subject: t("email.dataExportReady.subject"),
+        heading: t("email.dataExportReady.heading"),
+        body: (
+          <>
+            <EmailText>{t("email.dataExportReady.body", { days: email.expiresInDays })}</EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.dataExportReady.action")}
+            />
           </>
         )
       };

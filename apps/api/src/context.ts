@@ -11,6 +11,7 @@ import type { IncomingHttpHeaders } from "node:http";
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
+import { createDataExports, type DataExports } from "./features/data-export/data-export.module";
 import {
   createFeatureFlagOverrides,
   resolveRequestFeatureFlags,
@@ -45,6 +46,7 @@ export interface ApiContext {
   notes: Notes;
   attachments: Attachments;
   auditEvents: AuditEvents;
+  dataExports: DataExports;
   notifications: Notifications;
   publicAssets: PublicAssets;
   loaders: ApiLoaders;
@@ -107,6 +109,18 @@ export async function createContextFromHeaders(
     notes: createNotes({ data, publish }),
     attachments,
     auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),
+    dataExports: createDataExports({
+      db,
+      // Loaded on first use: the job client opens the database pool on import.
+      enqueue: async (exportId) => {
+        const { jobQueue } = await import("@repo/jobs/client");
+        return jobQueue.enqueue("data.export", { exportId });
+      },
+      recordAuditEvent,
+      requireOrganizationScope,
+      requireUserId,
+      store: s3ObjectStore
+    }),
     notifications: createNotifications({ db, requireUserId }),
     publicAssets: createPublicAssets({
       db,

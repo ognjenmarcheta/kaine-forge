@@ -12,12 +12,13 @@ export type OrganizationRole = (typeof ORGANIZATION_ROLES)[keyof typeof ORGANIZA
 /**
  * Every Permission, as resource → actions: the organization plugin's own
  * statements plus the template's features. `organization:transfer` guards the
- * template's transfer-ownership route. Every member reads the Organization's
+ * template's transfer-ownership route, `organization:export` the Organization
+ * data export. Every member reads the Organization's
  * shared content; the template resources govern changing it.
  */
 export const PERMISSION_STATEMENTS = {
   ...defaultStatements,
-  organization: [...defaultStatements.organization, "transfer"],
+  organization: [...defaultStatements.organization, "transfer", "export"],
   invitation: [...defaultStatements.invitation, "read"],
   todo: ["create", "update", "delete"],
   note: ["create", "update", "delete"],
@@ -48,7 +49,7 @@ const CONTENT_STATEMENTS = {
 /** The built-in roles, for the organization plugin's `roles` option. */
 export const BUILT_IN_ROLES = {
   owner: accessControl.newRole({
-    organization: ["update", "delete", "transfer"],
+    organization: ["update", "delete", "transfer", "export"],
     member: ["create", "update", "delete"],
     invitation: ["create", "cancel", "read"],
     team: ["create", "update", "delete"],
@@ -92,6 +93,7 @@ export const PERMISSIONS: readonly Permission[] = [...PERMISSION_SET].filter(isP
 export const OWNER_ONLY_PERMISSIONS = [
   "organization:delete",
   "organization:transfer",
+  "organization:export",
   "ac:create",
   "ac:update",
   "ac:delete"
