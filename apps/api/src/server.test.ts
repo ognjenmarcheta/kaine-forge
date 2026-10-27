@@ -25,6 +25,54 @@ async function listen(server: Server): Promise<string> {
 }
 
 describe("createApiServer rate limiting", () => {
+  it.each([
+    [
+      "an allowlisted origin with credentials",
+      "http://localhost:5173",
+      "http://localhost:5173",
+      { origin: "http://localhost:5173", credentials: "true" }
+    ],
+    [
+      "no CORS headers to an origin outside the allowlist",
+      "http://localhost:5173",
+      "https://attacker.example",
+      { origin: null, credentials: null }
+    ],
+    [
+      "any origin without credentials when CORS is open",
+      "",
+      "https://anywhere.example",
+      { origin: "*", credentials: null }
+    ]
+  ])("answers a 429 to %s", async (_label, allowlist, origin, expected) => {
+    const previous = process.env.API_CORS_ORIGINS;
+    process.env.API_CORS_ORIGINS = allowlist;
+    const { server, wsServer } = createApiServer({
+      logger: createLogger({ name: "api-test", level: "silent" }),
+      rateLimitConfig: { enabled: true, max: 1, windowMs: 60000, trustProxy: false }
+    });
+    process.env.API_CORS_ORIGINS = previous;
+    const baseUrl = await listen(server);
+
+    try {
+      await fetch(`${baseUrl}/graphql`, { headers: { accept: "application/json" } });
+      const limited = await fetch(`${baseUrl}/graphql`, {
+        headers: { accept: "application/json", origin }
+      });
+
+      expect(limited.status).toBe(429);
+      expect({
+        origin: limited.headers.get("access-control-allow-origin"),
+        credentials: limited.headers.get("access-control-allow-credentials")
+      }).toEqual(expected);
+    } finally {
+      wsServer.close();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
   it("returns a CORS-readable 429 once the limit is exceeded, but never for preflights", async () => {
     const { server, wsServer } = createApiServer({
       logger: createLogger({ name: "api-test", level: "silent" }),

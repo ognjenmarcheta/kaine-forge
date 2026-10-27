@@ -203,22 +203,24 @@ export function createApiServer({
     );
   };
 
-  // Mirror the yoga CORS behavior (reflect the origin when CORS is open or
-  // the origin is allowlisted) so browsers can read the 429.
+  // Lets browsers read the 429. An allowlisted origin is reflected with
+  // credentials; open CORS (development only: production refuses to start
+  // without an allowlist) answers `*`, which never grants credentials; any
+  // other origin gets no CORS headers.
   const rejectTooManyRequests = (
     req: IncomingMessage,
     res: ServerResponse<IncomingMessage>,
     retryAfterSeconds: number
   ): void => {
     const origin = req.headers.origin;
+    const allowedOrigins = runtimeConfig.allowedCorsOrigins;
 
-    if (
-      origin &&
-      (runtimeConfig.allowedCorsOrigins === undefined ||
-        runtimeConfig.allowedCorsOrigins.includes(origin))
-    ) {
+    if (origin && allowedOrigins?.includes(origin)) {
       res.setHeader("access-control-allow-origin", origin);
       res.setHeader("access-control-allow-credentials", "true");
+      res.setHeader("vary", "Origin");
+    } else if (origin && allowedOrigins === undefined) {
+      res.setHeader("access-control-allow-origin", "*");
     }
 
     res.statusCode = 429;
