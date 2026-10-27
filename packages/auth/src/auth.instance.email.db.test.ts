@@ -50,10 +50,10 @@ function cookieHeaders(headers: Headers): Headers {
   });
 }
 
-async function signUp(label: string) {
+async function signUp(label: string, name = label) {
   const email = `${label}-${crypto.randomUUID().slice(0, 8)}@example.com`;
   const { headers, response } = await auth.api.signUpEmail({
-    body: { email, password: PASSWORD, name: label },
+    body: { email, password: PASSWORD, name },
     returnHeaders: true
   });
   return { email, headers: cookieHeaders(headers), userId: response.user.id };
@@ -91,15 +91,41 @@ describe("auth emails on the real auth instance", () => {
   });
 
   it("sends one welcome email to a new user and none on a later sign-in", async () => {
-    const { email } = await signUp("welcome");
+    // Anyone can sign up with another person's address before it is verified,
+    // so the welcome email carries no text the sign-up form supplies.
+    const { email } = await signUp("welcome", "Account locked, call 555 0100");
 
     const welcome = await emailTo(email, "Welcome to Kaine Forge");
     expect(welcome.text).toContain("https://app.example.com");
+    expect(welcome.text).not.toContain("555 0100");
+    expect(welcome.html).not.toContain("555 0100");
 
     await auth.api.signInEmail({ body: { email, password: PASSWORD } });
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(subjectsTo(email)).toEqual(["Welcome to Kaine Forge"]);
+  });
+
+  it("refuses a name longer than 64 characters on sign-up and on update", async () => {
+    await expect(signUp("long-name", "n".repeat(65))).rejects.toMatchObject({ statusCode: 400 });
+
+    const { headers } = await signUp("rename");
+    await expect(
+      auth.api.updateUser({ body: { name: "n".repeat(65) }, headers })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      auth.api.updateUser({ body: { name: "n".repeat(64) }, headers })
+    ).resolves.toMatchObject({ status: true });
+  });
+
+  it("stores the locale a sign-up sends", async () => {
+    const email = `signup-locale-${crypto.randomUUID().slice(0, 8)}@example.com`;
+
+    await auth.api.signUpEmail({
+      body: { email, password: PASSWORD, name: "Signup", locale: "sr" }
+    });
+
+    await emailTo(email, "Dobro došli u Kaine Forge");
   });
 
   it("stores a supported locale and refuses an unsupported one", async () => {
@@ -123,6 +149,29 @@ describe("auth emails on the real auth instance", () => {
 
     const message = await emailTo(email, "Dein Anmeldecode");
     expect(message.text).toMatch(/\d{6}/);
+  });
+
+  // better-auth sends the change-email code to the new address, which has no
+  // account; the requesting session names the account and its language.
+  it("sends the change-email code in the requesting user's language", async () => {
+    const { email } = await signUpGerman("otp-change");
+    const plugin = (auth.options.plugins ?? []).find((entry) => entry.id === "email-otp") as
+      | {
+          options?: {
+            sendVerificationOTP?: (
+              data: { email: string; otp: string; type: "change-email" },
+              ctx: { context: { session: { user: { email: string } } } }
+            ) => Promise<void>;
+          };
+        }
+      | undefined;
+
+    await plugin?.options?.sendVerificationOTP?.(
+      { email: "new-address@example.com", otp: "482913", type: "change-email" },
+      { context: { session: { user: { email } } } }
+    );
+
+    await emailTo("new-address@example.com", "Dein Code zum Ändern der E-Mail-Adresse");
   });
 
   it("alerts the user in their language after a password change", async () => {
