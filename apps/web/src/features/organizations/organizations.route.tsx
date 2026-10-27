@@ -47,7 +47,15 @@ export function OrganizationsRoute() {
   const activeOrganization = organizations.find(
     (organization) => organization.id === activeOrganizationId
   );
-  if (!organizationsVisible) return <Navigate replace to="/dashboard" />;
+  // Organization UI stays hidden until the API's flags arrive; redirect only
+  // once they say it is hidden.
+  if (!organizationsVisible) {
+    return isOrganizationLoading ? (
+      <LoadingRows label={t("organizations.members.loading")} />
+    ) : (
+      <Navigate replace to="/dashboard" />
+    );
+  }
 
   return (
     <section className="grid gap-[var(--ds-space-300)]">

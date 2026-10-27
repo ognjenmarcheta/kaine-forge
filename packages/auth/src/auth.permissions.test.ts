@@ -40,7 +40,8 @@ describe("built-in role permissions", () => {
         "attachment:create",
         "attachment:delete",
         "logo:update",
-        "audit:read"
+        "audit:read",
+        "featureFlag:update"
       ]
     ],
     [
@@ -66,7 +67,8 @@ describe("built-in role permissions", () => {
         "attachment:create",
         "attachment:delete",
         "logo:update",
-        "audit:read"
+        "audit:read",
+        "featureFlag:update"
       ]
     ],
     [

@@ -82,7 +82,10 @@ const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"]
 // session. features/notifications/notifications.tenancy.test.ts proves their rows.
 // The data export fields are user-level for kind user; for kind organization
 // they take the Active Organization, which data-export.module.test.ts proves.
+// Query.featureFlags reads the Active Organization's overrides only when the
+// session has one; features/feature-flags/feature-flags.tenancy.test.ts proves it.
 const USER_LEVEL_FIELDS = [
+  "Query.featureFlags",
   "Query.notifications",
   "Query.notificationPreferences",
   "Mutation.markNotificationRead",

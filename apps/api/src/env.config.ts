@@ -1,3 +1,4 @@
+import { FEATURE_FLAG_REGISTRY, parseFeatureFlagEnvironment } from "@repo/feature-flags";
 import { z } from "zod";
 
 const blankAsUnset = (value: unknown): unknown => (value === "" ? undefined : value);
@@ -121,6 +122,10 @@ export function validateApiEnv(env: Record<string, string | undefined> = process
       .join("; ");
     throw new Error(`invalid environment: ${details}`);
   }
+
+  // FEATURE_FLAG_<KEY> variables follow the flag registry, so they are checked
+  // against it rather than listed in the schema above.
+  parseFeatureFlagEnvironment(env, FEATURE_FLAG_REGISTRY);
 
   return result.data;
 }

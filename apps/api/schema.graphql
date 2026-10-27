@@ -15,6 +15,7 @@ type Query {
   assistantMessages(conversationId: ID!, first: Int, after: String): AssistantMessageConnection!
   conversations(first: Int, after: String): AssistantConversationConnection!
   auditEvents(first: Int, after: String): AuditEventConnection!
+  featureFlags: [FeatureFlag!]!
   notifications(first: Int, after: String): NotificationConnection!
   notificationPreferences: [NotificationPreference!]!
   dataExports(kind: DataExportKind!, first: Int, after: String): DataExportConnection!
@@ -38,6 +39,8 @@ type Mutation {
   confirmPublicAssetUpload(kind: PublicAssetKind!, stagingKey: String!): PublicAssets!
   sendMessage(input: SendMessageInput!): SendMessagePayload!
   deleteConversation(id: ID!): Boolean!
+  setFeatureFlagOverride(key: FeatureFlagKey!, enabled: Boolean!): [FeatureFlag!]!
+  clearFeatureFlagOverride(key: FeatureFlagKey!): [FeatureFlag!]!
   markNotificationRead(id: ID!): Notification!
   markAllNotificationsRead: Int!
   updateNotificationPreference(input: NotificationPreferenceInput!): NotificationPreference!
@@ -317,6 +320,7 @@ enum AuditAction {
   two_factor_disabled
   password_changed
   attachment_deleted
+  feature_flag_override_changed
   role_created
   role_updated
   role_deleted
@@ -343,6 +347,15 @@ type AuditEvent {
 type AuditEventConnection {
   items: [AuditEvent!]!
   pageInfo: PageInfo!
+}
+
+enum FeatureFlagKey {
+  organizations_visible
+}
+
+type FeatureFlag {
+  key: FeatureFlagKey!
+  enabled: Boolean!
 }
 
 enum NotificationType {

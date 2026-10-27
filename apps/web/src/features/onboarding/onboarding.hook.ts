@@ -27,12 +27,17 @@ export function useOnboardingSteps(): OnboardingStepsState {
       : null
   );
 
+  // Organization UI stays hidden while the flags load, so wait before reading it.
+  if (isLoading) {
+    return { status: "pending" };
+  }
+
   // Without the Organization UI there is nothing to name or invite into.
   if (!organizationsVisible) {
     return { status: "ready", steps: [] };
   }
 
-  if (isLoading || !activeOrganization) {
+  if (!activeOrganization) {
     return { status: "pending" };
   }
 

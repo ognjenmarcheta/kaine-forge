@@ -1,9 +1,15 @@
-import { FEATURE_FLAGS, isFeatureEnabled, resolveFeatureFlags } from "@repo/feature-flags";
+import {
+  DEFAULT_FLAGS,
+  FEATURE_FLAGS,
+  featureFlagsFromValues,
+  isFeatureEnabled
+} from "@repo/feature-flags";
 import { createSyncStoragePersistenceAdapter } from "@repo/persistence";
 import {
   createActiveOrganizationMutationHandlers,
   createActiveOrganizationLifecycle,
   createActiveOrganizationProviderState,
+  createActiveOrganizationQueryKey,
   syncActiveOrganizationProvider,
   queryKeys
 } from "@repo/query";
@@ -12,6 +18,7 @@ import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "
 
 import type { AuthSession } from "../features/auth/auth.type";
 import type { OrganizationOption } from "../features/organizations/organizations.type";
+import { useFeatureFlagsQuery } from "../graphql/generated/react-query";
 import { useAuth } from "../hooks/use-auth";
 import {
   createOrganizationRequest,
@@ -60,8 +67,25 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const { isLoading: isSessionLoading, session } = useAuth();
   const queryClient = useQueryClient();
 
-  const featureFlags = useMemo(() => resolveFeatureFlags(), []);
-  const organizationsVisible = isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
+  const activeOrganizationId = session?.activeOrganizationId ?? null;
+  // The API resolves flags for the session: default, environment, then the
+  // Active Organization's override. Organization UI stays hidden, and the
+  // remembered Organization unused, until the API has answered.
+  const featureFlagsQuery = useFeatureFlagsQuery(undefined, {
+    enabled: Boolean(session),
+    queryKey: createActiveOrganizationQueryKey(useFeatureFlagsQuery.getKey(), activeOrganizationId)
+  });
+  const isFeatureFlagsPending = Boolean(session) && featureFlagsQuery.isPending;
+  // An answer without a flag list, such as a test double's `{ data: {} }`,
+  // counts as no answer instead of failing the render.
+  const flagValues = featureFlagsQuery.data?.featureFlags;
+  const hasServerFlags = Array.isArray(flagValues);
+  const featureFlags = useMemo(
+    () => (hasServerFlags ? featureFlagsFromValues(flagValues) : DEFAULT_FLAGS),
+    [hasServerFlags, flagValues]
+  );
+  const organizationsVisible =
+    hasServerFlags && isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),
@@ -112,7 +136,6 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     () => organizationsQuery.data?.organizations ?? [],
     [organizationsQuery.data?.organizations]
   );
-  const activeOrganizationId = session?.activeOrganizationId ?? null;
 
   const setActiveOrganization = useCallback(
     async (organizationId: string) => {
@@ -132,7 +155,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     let isActive = true;
 
     void (async () => {
-      if (!isActive) {
+      if (!isActive || isFeatureFlagsPending) {
         return;
       }
 
@@ -151,6 +174,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     };
   }, [
     activeOrganizationLifecycle,
+    isFeatureFlagsPending,
     isSessionLoading,
     organizationsQuery.data,
     session,
@@ -189,12 +213,18 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       activeOrganizationId: providerState.activeOrganizationId,
       organizationsVisible: providerState.organizationsVisible,
       hasError: providerState.hasError,
-      isLoading: providerState.isLoading,
+      isLoading: providerState.isLoading || isFeatureFlagsPending,
       setActiveOrganization,
       createOrganization,
       applyOrganizationSession
     }),
-    [providerState, setActiveOrganization, createOrganization, applyOrganizationSession]
+    [
+      providerState,
+      isFeatureFlagsPending,
+      setActiveOrganization,
+      createOrganization,
+      applyOrganizationSession
+    ]
   );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;
