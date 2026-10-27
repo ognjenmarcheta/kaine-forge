@@ -13,6 +13,9 @@ export const usersTable = pgTable("users", {
   // Language of the user's emails, written by the web language switch. Null
   // or an unsupported value means DEFAULT_LANGUAGE (@repo/translation).
   locale: varchar("locale", { length: 16 }),
+  // Set once the user finishes or skips the web first-run onboarding. Null
+  // means the web app still shows it.
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

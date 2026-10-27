@@ -1,4 +1,4 @@
-import type { AssignableOrganizationRole } from "@repo/auth/auth.type";
+import type { AssignableOrganizationRole, AuthInvitation } from "@repo/auth/auth.type";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
@@ -16,7 +16,11 @@ import { useTranslation } from "../../../hooks/use-translation";
 import { organizationApi } from "../../../lib/auth-api";
 import { isAssignableRole, ORGANIZATIONS_DEFINITION } from "../organizations.definition";
 
-export function OrganizationInviteForm() {
+interface OrganizationInviteFormProps {
+  onInvited?: (invitation: AuthInvitation) => void;
+}
+
+export function OrganizationInviteForm({ onInvited }: OrganizationInviteFormProps = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emailId = useId();
@@ -26,8 +30,9 @@ export function OrganizationInviteForm() {
   const [notice, setNotice] = useState<string | null>(null);
   const invite = useMutation({
     mutationFn: organizationApi.inviteMember,
-    onSuccess: async () => {
+    onSuccess: async (invitation) => {
       setEmail("");
+      onInvited?.(invitation);
       setNotice(t("organizations.invite.sent"));
       await queryClient.invalidateQueries({
         queryKey: ORGANIZATIONS_DEFINITION.invitationsScope

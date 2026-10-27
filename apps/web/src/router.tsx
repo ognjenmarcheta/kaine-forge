@@ -45,6 +45,8 @@ import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
+import { OnboardingRoute } from "./features/onboarding/onboarding.route";
+import { needsOnboarding } from "./features/onboarding/onboarding.util";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
@@ -122,6 +124,10 @@ function ShellContent() {
 
   if (!session) {
     return <Navigate replace to="/auth" />;
+  }
+
+  if (needsOnboarding(session)) {
+    return <Navigate replace to="/onboarding" />;
   }
 
   const currentSession = session;
@@ -410,6 +416,13 @@ export const appRoutes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         handle: { titleKey: "auth.account.delete.confirmTitle" },
         path: "/account/delete"
+      },
+      {
+        // Outside the shell, which sends a new user here until it ends.
+        element: <OnboardingRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "auth.onboarding.title" },
+        path: "/onboarding"
       },
       {
         // Outside the shell: a signed-out visitor goes to /auth and comes back.

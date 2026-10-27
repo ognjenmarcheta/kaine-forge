@@ -115,6 +115,11 @@ export const organizationApi = {
     authTransport.updateMemberRole(input)
 };
 
+// Ends the first-run onboarding for the session user (finish or skip).
+export const onboardingApi = {
+  complete: () => authTransport.completeOnboarding()
+};
+
 // The account page sends links back to itself after a verification or a
 // provider sign-in.
 function accountPageUrl(): string | undefined {
