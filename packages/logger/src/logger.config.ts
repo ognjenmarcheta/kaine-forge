@@ -45,7 +45,19 @@ export function resolveLoggerConfig(options: CreateLoggerOptions): LoggerOptions
 
   const config: LoggerOptions = {
     name: options.name,
-    level
+    level,
+    // Credentials must never reach log storage, whichever shape logs headers.
+    redact: {
+      paths: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        'res.headers["set-cookie"]',
+        "headers.authorization",
+        "headers.cookie",
+        'headers["set-cookie"]'
+      ],
+      censor: "[redacted]"
+    }
   };
 
   if (usePretty) {

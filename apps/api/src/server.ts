@@ -1,9 +1,10 @@
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
-import { type Logger } from "@repo/logger";
+import { createChildLogger, type Logger } from "@repo/logger";
 import { toNodeHandler } from "better-auth/node";
 import { useServer } from "graphql-ws/use/ws";
 import { createYoga, type YogaInitialContext } from "graphql-yoga";
+import { randomUUID } from "node:crypto";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -18,13 +19,51 @@ import {
   type RateLimitConfig
 } from "./middleware/rate-limit.middleware";
 import { errorReporter } from "./observability";
-import { createLoggerPlugin } from "./plugins/logger.plugin";
 import { apiSchema } from "./schema";
 import { createGraphQlLimitsPlugin, resolveApiRuntimeConfig } from "./server.config";
 
 interface CreateApiServerOptions {
   logger: Logger;
   rateLimitConfig?: RateLimitConfig;
+}
+
+const REQUEST_ID_HEADER = "x-request-id";
+// Response headers browser clients may read; CORS hides the rest.
+const EXPOSED_HEADERS = [REQUEST_ID_HEADER];
+// A caller-supplied id is logged verbatim, so only a short, log-safe charset is
+// trusted; anything else is replaced.
+const INCOMING_REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
+
+function resolveRequestId(incoming: string | string[] | undefined): string {
+  return typeof incoming === "string" && INCOMING_REQUEST_ID_PATTERN.test(incoming)
+    ? incoming
+    : randomUUID();
+}
+
+// Logs one completion line per request once the response is done (or the
+// client went away). /health is probed every few seconds, so it stays at debug.
+function logRequestCompletion(
+  req: IncomingMessage,
+  res: ServerResponse<IncomingMessage>,
+  requestLogger: Logger,
+  pathname: string
+): void {
+  const startedAt = performance.now();
+
+  res.once("close", () => {
+    const fields = {
+      method: req.method,
+      path: pathname,
+      status: res.statusCode,
+      durationMs: Math.round(performance.now() - startedAt)
+    };
+
+    if (pathname === "/health") {
+      requestLogger.debug(fields, "request completed");
+    } else {
+      requestLogger.info(fields, "request completed");
+    }
+  });
 }
 
 // better-auth (1.6.23) does not emit CORS response headers itself
@@ -49,6 +88,7 @@ function applyAuthCorsHeaders(
   res.setHeader("access-control-allow-headers", "content-type, authorization");
   res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("access-control-expose-headers", EXPOSED_HEADERS.join(", "));
 }
 
 export function mergeWebSocketConnectionHeaders(
@@ -83,17 +123,19 @@ export function createApiServer({
   // fails earlier in resolveApiRuntimeConfig when API_CORS_ORIGINS is empty.
   const cors =
     runtimeConfig.allowedCorsOrigins === undefined
-      ? true
+      ? { exposedHeaders: EXPOSED_HEADERS }
       : {
           credentials: true,
+          exposedHeaders: EXPOSED_HEADERS,
           origin: runtimeConfig.allowedCorsOrigins
         };
 
-  const yoga = createYoga({
+  // handleRequest passes the request-scoped logger as server context, so
+  // GraphQL context logs carry the same request id as the completion line.
+  const yoga = createYoga<{ requestLogger?: Logger }>({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
     plugins: [
-      createLoggerPlugin({ logger }),
       createGraphQlLimitsPlugin({
         allowIntrospection: runtimeConfig.allowIntrospection,
         maxComplexity: runtimeConfig.maxQueryComplexity,
@@ -102,14 +144,12 @@ export function createApiServer({
     ],
     context: async (initialContext) => {
       // The node adapter merges { req } into the server context for HTTP
-      // requests and the logger plugin stashes a request-scoped child logger
-      // on the same object; yoga's inferred context type carries neither, so
-      // declare those extra properties instead of asserting them.
+      // requests; yoga's inferred context type does not carry it, so declare
+      // that extra property instead of asserting it.
       const serverContext: YogaInitialContext & {
         req?: { headers?: IncomingHttpHeaders };
-        requestLogger?: Logger;
       } = initialContext;
-      const requestLogger = serverContext.requestLogger ?? logger;
+      const requestLogger = initialContext.requestLogger ?? logger;
 
       const nodeHeaders = serverContext.req?.headers;
       if (nodeHeaders) {
@@ -132,6 +172,15 @@ export function createApiServer({
     req: IncomingMessage,
     res: ServerResponse<IncomingMessage>
   ): Promise<void> => {
+    // Assigned before routing so every response, including /health, auth, and
+    // 429s, carries the id the logs use.
+    const requestId = resolveRequestId(req.headers[REQUEST_ID_HEADER]);
+    const requestLogger = createChildLogger(logger, { requestId });
+    const pathname = (req.url ?? "").split("?")[0] ?? "";
+
+    res.setHeader(REQUEST_ID_HEADER, requestId);
+    logRequestCompletion(req, res, requestLogger, pathname);
+
     try {
       const handledHealth = await handleHealthRoute({ req, res });
 
@@ -143,7 +192,6 @@ export function createApiServer({
       // above stay unthrottled and CORS preflights never consume the limit.
       // Note: websocket upgrades (/graphql subscriptions) bypass this limiter;
       // it covers plain HTTP requests only.
-      const pathname = (req.url ?? "").split("?")[0] ?? "";
       const isRateLimitedPath =
         pathname === "/api/auth" || pathname.startsWith("/api/auth/") || pathname === "/graphql";
 
@@ -153,7 +201,7 @@ export function createApiServer({
 
         if (!decision.allowed) {
           if (decision.firstRejection) {
-            logger.warn({ key }, "rate limit exceeded");
+            requestLogger.warn({ key }, "rate limit exceeded");
           }
 
           // Mirror the yoga CORS behavior (reflect the origin when CORS is
@@ -172,7 +220,10 @@ export function createApiServer({
           res.statusCode = 429;
           res.setHeader("content-type", "application/json");
           res.setHeader("retry-after", String(decision.retryAfterSeconds));
-          res.setHeader("access-control-expose-headers", "retry-after");
+          res.setHeader(
+            "access-control-expose-headers",
+            ["retry-after", ...EXPOSED_HEADERS].join(", ")
+          );
           res.end(JSON.stringify({ error: "too many requests" }));
           return;
         }
@@ -191,13 +242,13 @@ export function createApiServer({
         return;
       }
 
-      void yoga(req, res);
+      void yoga(req, res, { requestLogger });
     } catch (error) {
       errorReporter.captureException(error, {
         path: req.url ?? "",
         method: req.method ?? ""
       });
-      logger.error({ err: error }, "unhandled request error");
+      requestLogger.error({ err: error }, "unhandled request error");
       const normalized = formatApiError(error, {
         exposeDetails: runtimeConfig.exposeErrorDetails
       });
@@ -213,7 +264,15 @@ export function createApiServer({
 
   const wsServer = new WebSocketServer({ server, path: "/graphql" });
 
-  const subscriptions = useServer(
+  // One id per WebSocket connection, minted on first use: onClose also runs for
+  // sockets that close before onConnect.
+  const connectionLoggerFor = (extra: { connectionLogger?: Logger }): Logger =>
+    (extra.connectionLogger ??= createChildLogger(logger, { connectionId: randomUUID() }));
+
+  const subscriptions = useServer<
+    Record<string, unknown> | undefined,
+    { connectionLogger: Logger }
+  >(
     {
       schema: apiSchema,
       context: async (ctx) => {
@@ -221,7 +280,7 @@ export function createApiServer({
         const connectionParams = ctx.connectionParams;
         return createContextFromHeaders(
           mergeWebSocketConnectionHeaders(headers, connectionParams),
-          logger,
+          connectionLoggerFor(ctx.extra),
           auth
         );
       },
@@ -232,7 +291,11 @@ export function createApiServer({
           mergeWebSocketConnectionHeaders(headers, connectionParams)
         );
         if (!session) return false;
+        connectionLoggerFor(ctx.extra).info("websocket connected");
         return true;
+      },
+      onClose: (ctx, code) => {
+        connectionLoggerFor(ctx.extra).info({ code }, "websocket disconnected");
       }
     },
     wsServer

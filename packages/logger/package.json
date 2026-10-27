@@ -41,7 +41,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "pino": "^9.6.0"
+    "pino": "catalog:"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
