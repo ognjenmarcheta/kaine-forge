@@ -10,6 +10,7 @@ export type AttachmentEntityType = "general" | "todo";
 
 export type AuditAction =
   | "attachment_deleted"
+  | "feature_flag_override_changed"
   | "invitation_revoked"
   | "member_invited"
   | "member_joined"
@@ -37,6 +38,8 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type FeatureFlagKey = "organizations_visible";
 
 export type FileStatus = "deleted" | "pending" | "uploaded";
 
@@ -175,6 +178,10 @@ export type AuditEventsQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type FeatureFlagsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type FeatureFlagsQuery = { featureFlags: Array<{ key: FeatureFlagKey; enabled: boolean }> };
 
 export type GetNotesQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -886,6 +893,33 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
+
+export const FeatureFlagsDocument = new TypedDocumentString(`
+    query FeatureFlags {
+  featureFlags {
+    key
+    enabled
+  }
+}
+    `);
+
+export const useFeatureFlagsQuery = <TData = FeatureFlagsQuery, TError = unknown>(
+  variables?: FeatureFlagsQueryVariables,
+  options?: Omit<UseQueryOptions<FeatureFlagsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<FeatureFlagsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<FeatureFlagsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["FeatureFlags"] : ["FeatureFlags", variables],
+    queryFn: useGraphqlFetcher<FeatureFlagsQuery, FeatureFlagsQueryVariables>(
+      FeatureFlagsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useFeatureFlagsQuery.getKey = (variables?: FeatureFlagsQueryVariables) =>
+  variables === undefined ? ["FeatureFlags"] : ["FeatureFlags", variables];
 
 export const GetNotesDocument = new TypedDocumentString(`
     query GetNotes($first: Int, $after: String, $search: String) {

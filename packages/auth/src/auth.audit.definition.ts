@@ -19,6 +19,8 @@ export interface AuditEventMetadataByAction {
   passkey_added: { name: string | null };
   passkey_removed: { name: string | null };
   attachment_deleted: { originalName: string };
+  /** `enabled` is null when the override was cleared. */
+  feature_flag_override_changed: { flag: string; enabled: boolean | null };
   /** `permissions` lists the granted Permissions, comma-separated, in catalog order. */
   role_created: { name: string; permissions: string };
   role_updated: { name: string; permissions: string };
@@ -55,6 +57,7 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   passkey_added: "passkey",
   passkey_removed: "passkey",
   attachment_deleted: "attachment",
+  feature_flag_override_changed: "organization",
   role_created: "role",
   role_updated: "role",
   role_deleted: "role"

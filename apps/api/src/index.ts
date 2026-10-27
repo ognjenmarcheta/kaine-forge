@@ -1,3 +1,4 @@
+import { FEATURE_FLAG_REGISTRY, unknownFeatureFlagVariables } from "@repo/feature-flags";
 import { createLogger } from "@repo/logger";
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,14 @@ try {
 } catch (error) {
   logger.error({ err: error }, "environment validation failed");
   process.exit(1);
+}
+
+const unknownFlagVariables = unknownFeatureFlagVariables(process.env, FEATURE_FLAG_REGISTRY);
+if (unknownFlagVariables.length > 0) {
+  logger.warn(
+    { variables: unknownFlagVariables },
+    "feature flag variables match no registry key and are ignored"
+  );
 }
 
 const { db, pool } = await import("@repo/db/client");

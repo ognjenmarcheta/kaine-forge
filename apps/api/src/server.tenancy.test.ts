@@ -80,7 +80,10 @@ const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"]
 // Fields about the caller as a user, whatever their Active Organization: they
 // require a session but no Active Organization, and take the user from the
 // session. features/notifications/notifications.tenancy.test.ts proves their rows.
+// Query.featureFlags reads the Active Organization's overrides only when the
+// session has one; features/feature-flags/feature-flags.tenancy.test.ts proves it.
 const USER_LEVEL_FIELDS = [
+  "Query.featureFlags",
   "Query.notifications",
   "Query.notificationPreferences",
   "Mutation.markNotificationRead",

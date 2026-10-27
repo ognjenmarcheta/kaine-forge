@@ -23,7 +23,8 @@ export const PERMISSION_STATEMENTS = {
   note: ["create", "update", "delete"],
   attachment: ["create", "delete"],
   logo: ["update"],
-  audit: ["read"]
+  audit: ["read"],
+  featureFlag: ["update"]
 } as const;
 
 type PermissionStatements = typeof PERMISSION_STATEMENTS;
@@ -54,7 +55,8 @@ export const BUILT_IN_ROLES = {
     ac: ["create", "read", "update", "delete"],
     ...CONTENT_STATEMENTS,
     logo: ["update"],
-    audit: ["read"]
+    audit: ["read"],
+    featureFlag: ["update"]
   }),
   admin: accessControl.newRole({
     organization: ["update"],
@@ -64,7 +66,8 @@ export const BUILT_IN_ROLES = {
     ac: ["read"],
     ...CONTENT_STATEMENTS,
     logo: ["update"],
-    audit: ["read"]
+    audit: ["read"],
+    featureFlag: ["update"]
   }),
   member: accessControl.newRole({
     ac: ["read"],
