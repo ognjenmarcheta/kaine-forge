@@ -15,6 +15,8 @@ Use this index to find the right source of truth quickly.
 ## Operational docs
 
 - [`self-hosted-ci.md`](self-hosted-ci.md): optional private-repository runner routing, the ARC reference setup with automatic hosted fallback, validation, and rollback.
+- [`backup-and-restore.md`](backup-and-restore.md): Postgres and object storage backups, default RPO and RTO targets, bucket versioning against the storage sweeper, and the restore drill.
+- [`incident-response.md`](incident-response.md): severity levels, roles, first-hour checklist, status update template, and blameless postmortem template.
 - [`release-checklist.md`](release-checklist.md): release validation checklist.
 - [`troubleshooting.md`](troubleshooting.md): common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - [`.env.example`](../.env.example): commented environment variable defaults (behavior detail lives in `MONOREPO_GUIDE.md` section 9).
