@@ -43,6 +43,7 @@ function todosWith(attachments?: TodoAttachments): Todos {
       createAttachments({
         data,
         logger,
+        recordAuditEvent: () => Promise.resolve(),
         // The real Attachment module; only the object delete is the test's to control.
         store: { ...createMemoryObjectStore(), delete: (ref) => deleteObject(ref) }
       }),

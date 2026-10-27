@@ -8,6 +8,21 @@ import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tan
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type AttachmentEntityType = "general" | "todo";
 
+export type AuditAction =
+  | "attachment_deleted"
+  | "invitation_revoked"
+  | "member_invited"
+  | "member_joined"
+  | "member_left"
+  | "member_removed"
+  | "member_role_changed"
+  | "organization_deleted"
+  | "organization_renamed"
+  | "ownership_transferred"
+  | "password_changed"
+  | "two_factor_disabled"
+  | "two_factor_enabled";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -122,6 +137,32 @@ export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]
 
 export type OnAssistantMessageDeltaSubscription = {
   assistantMessageDelta: { conversationId: string; delta: string };
+};
+
+export type AuditEventsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type AuditEventsQuery = {
+  auditEvents: {
+    items: Array<{
+      id: string;
+      action: AuditAction;
+      targetType: string;
+      targetLabel: string | null;
+      ipAddress: string | null;
+      createdAt: string;
+      actor: { id: string; name: string; email: string } | null;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
+
+export type CurrentOrganizationRoleQuery = {
+  currentOrganization: { id: string; role: string } | null;
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -627,6 +668,81 @@ export const OnAssistantMessageDeltaDocument = new TypedDocumentString(`
   }
 }
     `);
+export const AuditEventsDocument = new TypedDocumentString(`
+    query AuditEvents($first: Int, $after: String) {
+  auditEvents(first: $first, after: $after) {
+    items {
+      id
+      action
+      actor {
+        id
+        name
+        email
+      }
+      targetType
+      targetLabel
+      ipAddress
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    `);
+
+export const useAuditEventsQuery = <TData = AuditEventsQuery, TError = unknown>(
+  variables?: AuditEventsQueryVariables,
+  options?: Omit<UseQueryOptions<AuditEventsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<AuditEventsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<AuditEventsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["AuditEvents"] : ["AuditEvents", variables],
+    queryFn: useGraphqlFetcher<AuditEventsQuery, AuditEventsQueryVariables>(
+      AuditEventsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useAuditEventsQuery.getKey = (variables?: AuditEventsQueryVariables) =>
+  variables === undefined ? ["AuditEvents"] : ["AuditEvents", variables];
+
+export const CurrentOrganizationRoleDocument = new TypedDocumentString(`
+    query CurrentOrganizationRole {
+  currentOrganization {
+    id
+    role
+  }
+}
+    `);
+
+export const useCurrentOrganizationRoleQuery = <
+  TData = CurrentOrganizationRoleQuery,
+  TError = unknown
+>(
+  variables?: CurrentOrganizationRoleQueryVariables,
+  options?: Omit<UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<CurrentOrganizationRoleQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["CurrentOrganizationRole"]
+        : ["CurrentOrganizationRole", variables],
+    queryFn: useGraphqlFetcher<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>(
+      CurrentOrganizationRoleDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useCurrentOrganizationRoleQuery.getKey = (variables?: CurrentOrganizationRoleQueryVariables) =>
+  variables === undefined ? ["CurrentOrganizationRole"] : ["CurrentOrganizationRole", variables];
+
 export const HealthDocument = new TypedDocumentString(`
     query Health {
   health

@@ -1,6 +1,8 @@
 import { baseTypeDefs } from "./base";
 import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
+import { auditResolvers } from "../features/audit/audit.router";
+import { auditTypeDefs } from "../features/audit/audit.schema";
 import { notesResolvers } from "../features/notes/notes.router";
 import { notesTypeDefs } from "../features/notes/notes.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
@@ -104,6 +106,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "assistant",
     typeDefs: assistantTypeDefs,
     resolvers: assistantResolvers
+  },
+  {
+    name: "audit",
+    typeDefs: auditTypeDefs,
+    resolvers: auditResolvers
   }
 ];
 

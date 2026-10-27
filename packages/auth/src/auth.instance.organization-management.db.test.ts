@@ -1,6 +1,8 @@
-import { invitationsTable, membersTable, organizationsTable } from "@repo/db";
+import { auditEventsTable, invitationsTable, membersTable, organizationsTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
-import { and, eq } from "drizzle-orm";
+import type { EmailMessage } from "@repo/email";
+import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
+import { createHmac } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 // The real auth instance on an in-process Postgres with every migration
@@ -9,7 +11,10 @@ vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 vi.stubEnv("AUTH_PASSWORD_BREACH_CHECK", "false");
 
-const { database } = vi.hoisted(() => ({ database: { current: null as TestDatabase | null } }));
+const { database, enqueue } = vi.hoisted(() => ({
+  database: { current: null as TestDatabase | null },
+  enqueue: vi.fn<(name: string, message: EmailMessage) => Promise<string>>()
+}));
 
 // Only the schema, never the real `@repo/db` index: its client throws without
 // DATABASE_URL, which a fresh checkout or worktree does not have.
@@ -20,9 +25,10 @@ vi.mock("@repo/db", async () => {
   return { ...schema, db: database.current.db };
 });
 
-vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: vi.fn().mockResolvedValue("job-1") } }));
+vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue } }));
 
 const { createAuthInstance } = await import("./auth.instance");
+const { runWithAuditRequest } = await import("./auth.audit");
 
 const auth = createAuthInstance();
 
@@ -132,6 +138,56 @@ async function organizationOwnerColumn(organizationId: string) {
     .from(organizationsTable)
     .where(eq(organizationsTable.id, organizationId));
   return organization?.userId ?? null;
+}
+
+async function auditEventsOf(where: SQL | undefined) {
+  return testDatabase()
+    .db.select({
+      action: auditEventsTable.action,
+      actorUserId: auditEventsTable.actorUserId,
+      metadata: auditEventsTable.metadata,
+      organizationId: auditEventsTable.organizationId,
+      targetId: auditEventsTable.targetId,
+      targetType: auditEventsTable.targetType
+    })
+    .from(auditEventsTable)
+    .where(where)
+    .orderBy(asc(auditEventsTable.createdAt), asc(auditEventsTable.id));
+}
+
+// RFC 6238 TOTP (SHA-1, 6 digits, 30 s) for the secret in an otpauth:// URI.
+function totpCode(totpUri: string): string {
+  const secret = new URL(totpUri).searchParams.get("secret") ?? "";
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const bits = [...secret.replace(/=+$/, "")]
+    .map((character) => alphabet.indexOf(character).toString(2).padStart(5, "0"))
+    .join("");
+  const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((byte) => Number.parseInt(byte, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
+  const digest = createHmac("sha1", key).update(counter).digest();
+  const offset = (digest[digest.length - 1] ?? 0) & 0xf;
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
+
+// Auth emails are enqueued without awaiting; wait for the one that matches.
+async function emailedMatch(to: string, pattern: RegExp): Promise<string> {
+  return vi.waitFor(() => {
+    const match = enqueue.mock.calls
+      .map(([, message]) => message)
+      .filter((message) => message.to === to)
+      .map((message) => pattern.exec(message.text)?.[1])
+      .filter((value) => value !== undefined)
+      .at(-1);
+    if (!match) throw new Error(`no email to ${to} matches ${String(pattern)}`);
+    return match;
+  });
+}
+
+async function resetThroughLink(email: string) {
+  await auth.api.requestPasswordReset({ body: { email } });
+  const token = await emailedMatch(email, /reset-password\/([^?\s]+)/);
+  return post("/reset-password", new Headers(), { newPassword: "Reset123!Secret", token });
 }
 
 afterAll(async () => {
@@ -330,5 +386,336 @@ describe("transfer ownership", () => {
       })
     ).rejects.toMatchObject({ body: { code: "ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP" } });
     expect(await organizationOwnerColumn(shared.organizationId)).toBe(owner.userId);
+  });
+});
+
+describe("audit events", () => {
+  it("records each organization action with its actor, target, and metadata", async () => {
+    const owner = await signUp("audit-owner");
+    const shared = await createOrganization(owner.headers, "Audited");
+    const invitee = await signUp("audit-invitee");
+    const leaver = await signUp("audit-leaver");
+    const removed = await signUp("audit-removed");
+
+    const invitation = await auth.api.createInvitation({
+      body: { email: invitee.email, role: "member" },
+      headers: shared.headers
+    });
+    // A resend extends the same Invitation: no second member_invited event.
+    await post("/organization/invite-member", shared.headers, {
+      email: invitee.email,
+      resend: true,
+      role: "member"
+    });
+    await post("/organization/accept-invitation", invitee.headers, {
+      invitationId: invitation.id
+    });
+    const [inviteeMember] = await testDatabase()
+      .db.select({ id: membersTable.id })
+      .from(membersTable)
+      .where(
+        and(
+          eq(membersTable.organizationId, shared.organizationId),
+          eq(membersTable.userId, invitee.userId)
+        )
+      );
+    const inviteeMemberId = inviteeMember?.id ?? "";
+    await post("/organization/update-member-role", shared.headers, {
+      memberId: inviteeMemberId,
+      role: "admin"
+    });
+    await post("/organization/update", shared.headers, { data: { name: "Audited Renamed" } });
+    // The same name again changes nothing: no second organization_renamed event.
+    await post("/organization/update", shared.headers, { data: { name: "Audited Renamed" } });
+    const revoked = await auth.api.createInvitation({
+      body: { email: "revoked@example.com", role: "admin" },
+      headers: shared.headers
+    });
+    await post("/organization/cancel-invitation", shared.headers, { invitationId: revoked.id });
+    const leaverMemberId = await addMember(shared.organizationId, leaver.userId, "member");
+    await post("/organization/leave", await setActive(leaver.headers, shared.organizationId), {});
+    const removedMemberId = await addMember(shared.organizationId, removed.userId, "member");
+    await post("/organization/remove-member", shared.headers, {
+      memberIdOrEmail: removedMemberId
+    });
+    await post("/organization/transfer-ownership", shared.headers, {
+      memberId: inviteeMemberId
+    });
+    await post("/organization/delete", await setActive(invitee.headers, shared.organizationId), {});
+
+    expect(await auditEventsOf(eq(auditEventsTable.organizationId, shared.organizationId))).toEqual(
+      [
+        {
+          action: "member_invited",
+          actorUserId: owner.userId,
+          metadata: { email: invitee.email, role: "member" },
+          organizationId: shared.organizationId,
+          targetId: invitation.id,
+          targetType: "invitation"
+        },
+        {
+          action: "member_joined",
+          actorUserId: invitee.userId,
+          metadata: { email: invitee.email, role: "member" },
+          organizationId: shared.organizationId,
+          targetId: inviteeMemberId,
+          targetType: "member"
+        },
+        {
+          action: "member_role_changed",
+          actorUserId: owner.userId,
+          metadata: { email: invitee.email, role: "admin" },
+          organizationId: shared.organizationId,
+          targetId: inviteeMemberId,
+          targetType: "member"
+        },
+        {
+          action: "organization_renamed",
+          actorUserId: owner.userId,
+          metadata: { name: "Audited Renamed" },
+          organizationId: shared.organizationId,
+          targetId: shared.organizationId,
+          targetType: "organization"
+        },
+        {
+          action: "member_invited",
+          actorUserId: owner.userId,
+          metadata: { email: "revoked@example.com", role: "admin" },
+          organizationId: shared.organizationId,
+          targetId: revoked.id,
+          targetType: "invitation"
+        },
+        {
+          action: "invitation_revoked",
+          actorUserId: owner.userId,
+          metadata: { email: "revoked@example.com" },
+          organizationId: shared.organizationId,
+          targetId: revoked.id,
+          targetType: "invitation"
+        },
+        {
+          action: "member_left",
+          actorUserId: leaver.userId,
+          metadata: { role: "member" },
+          organizationId: shared.organizationId,
+          targetId: leaverMemberId,
+          targetType: "member"
+        },
+        {
+          action: "member_removed",
+          actorUserId: owner.userId,
+          metadata: { email: removed.email, role: "member" },
+          organizationId: shared.organizationId,
+          targetId: removedMemberId,
+          targetType: "member"
+        },
+        {
+          action: "ownership_transferred",
+          actorUserId: owner.userId,
+          metadata: { email: invitee.email },
+          organizationId: shared.organizationId,
+          targetId: inviteeMemberId,
+          targetType: "member"
+        },
+        {
+          action: "organization_deleted",
+          actorUserId: invitee.userId,
+          metadata: { name: "Audited Renamed" },
+          organizationId: shared.organizationId,
+          targetId: shared.organizationId,
+          targetType: "organization"
+        }
+      ]
+    );
+  });
+
+  it("records two-factor and password changes as user-level events", async () => {
+    const user = await signUp("audit-account");
+    const password = "Secret123!Secret";
+
+    const enabled = await auth.api.enableTwoFactor({
+      body: { password },
+      headers: user.headers
+    });
+    const totpURI = "totpURI" in enabled ? enabled.totpURI : "";
+    const verified = await post("/two-factor/verify-totp", user.headers, {
+      code: totpCode(totpURI)
+    });
+    // Turning two-factor on or off replaces the session.
+    const enabledHeaders = mergeCookies(user.headers, verified.headers);
+    const disabled = await post("/two-factor/disable", enabledHeaders, { password });
+    const disabledHeaders = mergeCookies(enabledHeaders, disabled.headers);
+    // Already off: no second two_factor_disabled event.
+    const disabledAgain = await post("/two-factor/disable", disabledHeaders, { password });
+    const changed = await post(
+      "/change-password",
+      mergeCookies(disabledHeaders, disabledAgain.headers),
+      {
+        currentPassword: password,
+        newPassword: "Changed123!Changed",
+        revokeOtherSessions: true
+      }
+    );
+    expect([verified.status, disabled.status, disabledAgain.status, changed.status]).toEqual([
+      200, 200, 200, 200
+    ]);
+
+    const userLevel = { actorUserId: user.userId, metadata: {}, organizationId: null };
+    expect(
+      await auditEventsOf(
+        and(eq(auditEventsTable.actorUserId, user.userId), isNull(auditEventsTable.organizationId))
+      )
+    ).toEqual([
+      { ...userLevel, action: "two_factor_enabled", targetId: user.userId, targetType: "user" },
+      { ...userLevel, action: "two_factor_disabled", targetId: user.userId, targetType: "user" },
+      { ...userLevel, action: "password_changed", targetId: user.userId, targetType: "user" }
+    ]);
+  });
+
+  it("stores the request's IP address and user agent", async () => {
+    const owner = await signUp("audit-request");
+    const shared = await createOrganization(owner.headers, "Request");
+
+    await runWithAuditRequest({ ipAddress: "203.0.113.7", userAgent: "audit-test/1.0" }, () =>
+      post("/organization/update", shared.headers, { data: { name: "Request Renamed" } })
+    );
+
+    const [event] = await testDatabase()
+      .db.select({ ipAddress: auditEventsTable.ipAddress, userAgent: auditEventsTable.userAgent })
+      .from(auditEventsTable)
+      .where(eq(auditEventsTable.organizationId, shared.organizationId));
+    expect(event).toEqual({ ipAddress: "203.0.113.7", userAgent: "audit-test/1.0" });
+  });
+
+  it("logs a failed audit write and still completes the action", async () => {
+    const owner = await signUp("audit-failure");
+    const shared = await createOrganization(owner.headers, "Failure");
+    const logger = { error: vi.fn() };
+    await testDatabase().client.exec("ALTER TABLE audit_events RENAME TO audit_events_away;");
+
+    let status = 0;
+    try {
+      const response = await runWithAuditRequest({ ipAddress: null, logger, userAgent: null }, () =>
+        post("/organization/update", shared.headers, { data: { name: "Still Renamed" } })
+      );
+      status = response.status;
+    } finally {
+      await testDatabase().client.exec("ALTER TABLE audit_events_away RENAME TO audit_events;");
+    }
+
+    expect(status).toBe(200);
+    const [organization] = await testDatabase()
+      .db.select({ name: organizationsTable.name })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, shared.organizationId));
+    expect(organization?.name).toBe("Still Renamed");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "organization_renamed" }),
+      "audit event not recorded"
+    );
+  });
+
+  it("records a password reset through the emailed link and the email code", async () => {
+    const linkUser = await signUp("audit-reset-link");
+    const codeUser = await signUp("audit-reset-code");
+
+    const linkReset = await resetThroughLink(linkUser.email);
+    await auth.api.requestPasswordResetEmailOTP({ body: { email: codeUser.email } });
+    const otp = await emailedMatch(codeUser.email, /\b(\d{6})\b/);
+    const codeReset = await post("/email-otp/reset-password", new Headers(), {
+      email: codeUser.email,
+      otp,
+      password: "Reset123!Secret"
+    });
+
+    expect([linkReset.status, codeReset.status]).toEqual([200, 200]);
+    for (const user of [linkUser, codeUser]) {
+      expect(await auditEventsOf(eq(auditEventsTable.targetId, user.userId))).toEqual([
+        {
+          action: "password_changed",
+          actorUserId: user.userId,
+          metadata: {},
+          organizationId: null,
+          targetId: user.userId,
+          targetType: "user"
+        }
+      ]);
+    }
+  });
+
+  it("completes a password reset when its audit write fails", async () => {
+    const user = await signUp("audit-reset-failure");
+    const logger = { error: vi.fn() };
+    await testDatabase().client.exec("ALTER TABLE audit_events RENAME TO audit_events_away;");
+
+    let status = 0;
+    try {
+      const response = await runWithAuditRequest({ ipAddress: null, logger, userAgent: null }, () =>
+        resetThroughLink(user.email)
+      );
+      status = response.status;
+    } finally {
+      await testDatabase().client.exec("ALTER TABLE audit_events_away RENAME TO audit_events;");
+    }
+
+    expect(status).toBe(200);
+    const signIn = await post("/sign-in/email", new Headers(), {
+      email: user.email,
+      password: "Reset123!Secret"
+    });
+    expect(signIn.status).toBe(200);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "password_changed" }),
+      "audit event not recorded"
+    );
+  });
+
+  it("logs a failed audit lookup and still completes the action", async () => {
+    const owner = await signUp("audit-lookup");
+    const shared = await createOrganization(owner.headers, "Lookup");
+    const target = await signUp("audit-lookup-target");
+    const targetMemberId = await addMember(shared.organizationId, target.userId, "member");
+    const logger = { error: vi.fn() };
+    const { adapter } = await auth.$context;
+    const findOne = adapter.findOne.bind(adapter);
+    // Only the hook reads a member through the adapter on this route.
+    const lookup = vi.spyOn(adapter, "findOne").mockImplementation((query) => {
+      if (query.model === "member") {
+        return Promise.reject(new Error("member lookup failed"));
+      }
+      return findOne(query);
+    });
+
+    let status = 0;
+    try {
+      const response = await runWithAuditRequest({ ipAddress: null, logger, userAgent: null }, () =>
+        post("/organization/transfer-ownership", shared.headers, { memberId: targetMemberId })
+      );
+      status = response.status;
+    } finally {
+      lookup.mockRestore();
+    }
+
+    expect(status).toBe(200);
+    expect(await roleOf(shared.organizationId, target.userId)).toBe("owner");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/organization/transfer-ownership" }),
+      "audit event not recorded"
+    );
+  });
+
+  it("records nothing for a transfer the server refuses", async () => {
+    const owner = await signUp("audit-refused");
+    const shared = await createOrganization(owner.headers, "Refused");
+
+    const response = await post("/organization/transfer-ownership", shared.headers, {
+      memberId: crypto.randomUUID()
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "TRANSFER_TARGET_NOT_FOUND" });
+    expect(await auditEventsOf(eq(auditEventsTable.organizationId, shared.organizationId))).toEqual(
+      []
+    );
   });
 });

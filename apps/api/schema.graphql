@@ -13,6 +13,7 @@ type Query {
   publicAssets: PublicAssets!
   assistantMessages(conversationId: ID!, first: Int, after: String): AssistantMessageConnection!
   conversations(first: Int, after: String): AssistantConversationConnection!
+  auditEvents(first: Int, after: String): AuditEventConnection!
 }
 
 type Mutation {
@@ -288,5 +289,44 @@ type AssistantMessageConnection {
 
 type AssistantConversationConnection {
   items: [AssistantConversation!]!
+  pageInfo: PageInfo!
+}
+
+enum AuditAction {
+  member_invited
+  member_joined
+  member_removed
+  member_left
+  member_role_changed
+  ownership_transferred
+  organization_renamed
+  organization_deleted
+  invitation_revoked
+  two_factor_enabled
+  two_factor_disabled
+  password_changed
+  attachment_deleted
+}
+
+type AuditActor {
+  id: ID!
+  name: String!
+  email: String!
+}
+
+type AuditEvent {
+  id: ID!
+  action: AuditAction!
+  actor: AuditActor
+  targetType: String!
+  targetId: ID!
+  targetLabel: String
+  ipAddress: String
+  userAgent: String
+  createdAt: DateTime!
+}
+
+type AuditEventConnection {
+  items: [AuditEvent!]!
   pageInfo: PageInfo!
 }

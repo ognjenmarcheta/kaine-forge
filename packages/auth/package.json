@@ -10,6 +10,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./audit": {
+      "types": "./dist/auth.audit.d.ts",
+      "default": "./dist/auth.audit.js"
+    },
+    "./audit.definition": {
+      "types": "./dist/auth.audit.definition.d.ts",
+      "default": "./dist/auth.audit.definition.js"
+    },
     "./auth.definition": {
       "types": "./dist/auth.definition.d.ts",
       "default": "./dist/auth.definition.js"

@@ -39,6 +39,8 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { recordAuditEvent } from "./auth.audit";
+import { auditPlugin } from "./auth.audit.plugin";
 import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
@@ -137,6 +139,30 @@ function buildSecurityUrl(webAppUrl: string): string {
 const changePasswordResponse = z.object({
   user: z.object({ email: z.string(), locale: z.string().nullish() })
 });
+
+// better-auth checks only that a name is a string. Names reach other people's
+// inboxes in invitation emails, so a long one could carry a paragraph of
+// attacker text from our sender.
+const userNameLimitPlugin = {
+  id: "user-name-limit",
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => ctx.path === "/sign-up/email" || ctx.path === "/update-user",
+        handler: createAuthMiddleware(async (ctx) => {
+          const name = readRecord(ctx.body).name;
+
+          if (typeof name === "string" && name.length > AUTH_DEFINITIONS.USER_NAME_MAX_LENGTH) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "NAME_TOO_LONG",
+              message: `Name must be at most ${String(AUTH_DEFINITIONS.USER_NAME_MAX_LENGTH)} characters`
+            });
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
 
 // /change-password has no callback of its own; the alert reads the user from
 // a successful response. Resets alert through onPasswordReset.
@@ -503,12 +529,20 @@ export function createAuthInstance() {
         );
       },
       // Runs after both reset flows: the emailed link and the email one-time code.
+      // Neither route returns the user, so the audit after hook cannot record it.
       onPasswordReset: async ({ user }) => {
         enqueueAuthEmail(
           user.email,
           { template: "passwordChanged", securityUrl: buildSecurityUrl(config.webAppUrl) },
           readUserLocale(user)
         );
+        await recordAuditEvent({
+          action: "password_changed",
+          actorUserId: user.id,
+          metadata: {},
+          organizationId: null,
+          targetId: user.id
+        });
       },
       resetPasswordTokenExpiresIn: AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS
       // Soft verification (ADR 0007): requireEmailVerification stays unset so
@@ -585,7 +619,7 @@ export function createAuthInstance() {
             await ensurePersonalOrganizationForUser(user.id);
             enqueueAuthEmail(
               user.email,
-              { template: "welcome", name: user.name, url: config.webAppUrl },
+              { template: "welcome", url: config.webAppUrl },
               readUserLocale(user)
             );
           }
@@ -714,6 +748,8 @@ export function createAuthInstance() {
         }
       }),
       organizationOwnershipPlugin,
+      auditPlugin,
+      userNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
@@ -738,7 +774,12 @@ export function createAuthInstance() {
         // Accounts are created only through the captcha-protected sign-up
         // form, which also collects the user's name.
         disableSignUp: true,
-        sendVerificationOTP: async ({ email, otp, type }) => {
+        sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+          // The change-email code goes to the new address, which has no
+          // account; the requesting session names the account.
+          const accountEmail =
+            type === "change-email" ? (ctx?.context.session?.user.email ?? email) : email;
+
           enqueueAuthEmail(
             email,
             {
@@ -747,7 +788,7 @@ export function createAuthInstance() {
               type,
               expiresInMinutes: AUTH_DEFINITIONS.EMAIL_OTP_MAX_AGE_SECONDS / 60
             },
-            findLocaleByEmail(email).catch(() => null)
+            findLocaleByEmail(accountEmail).catch(() => null)
           );
         }
       }),

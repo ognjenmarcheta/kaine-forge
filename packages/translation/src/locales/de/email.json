@@ -30,7 +30,7 @@
   "email.emailOtp.body": "Gib diesen Code ein, um fortzufahren. Er läuft in {{minutes}} Minuten ab.",
   "email.emailOtp.ignore": "Falls du diesen Code nicht angefordert hast, ignoriere diese E-Mail.",
   "email.welcome.subject": "Willkommen bei {{appName}}",
-  "email.welcome.heading": "Willkommen, {{name}}",
+  "email.welcome.heading": "Willkommen bei {{appName}}",
   "email.welcome.body": "Dein Konto ist bereit. Deine persönliche Organisation ist eingerichtet, du kannst sofort loslegen.",
   "email.welcome.action": "{{appName}} öffnen",
   "email.securityAlert.action": "Sicherheitseinstellungen prüfen",

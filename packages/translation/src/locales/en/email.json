@@ -30,7 +30,7 @@
   "email.emailOtp.body": "Enter this code to continue. It expires in {{minutes}} minutes.",
   "email.emailOtp.ignore": "If you did not ask for this code, ignore this email.",
   "email.welcome.subject": "Welcome to {{appName}}",
-  "email.welcome.heading": "Welcome, {{name}}",
+  "email.welcome.heading": "Welcome to {{appName}}",
   "email.welcome.body": "Your account is ready. Your personal organization is set up, so you can start right away.",
   "email.welcome.action": "Open {{appName}}",
   "email.securityAlert.action": "Review your security settings",
