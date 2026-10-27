@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { notesTable, organizationsTable, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
@@ -26,7 +27,12 @@ beforeAll(async () => {
     .returning();
   if (!organization) throw new Error("failed to seed organization");
   scope = {
-    membership: { id: "membership-1", role: "owner", userId: user.id },
+    membership: {
+      id: "membership-1",
+      permissions: resolveRolePermissions("owner", []),
+      role: "owner",
+      userId: user.id
+    },
     organizationId: organization.id,
     user: {
       email: user.email,

@@ -37,7 +37,7 @@ const READ_ROLE_CHANGE = {
   createdAt: "2026-10-26T10:00:00.000Z",
   id: "notification-1",
   organizationId: "org-1",
-  payload: { __typename: "RoleChangedNotification", organizationName: "Beta", role: "owner" },
+  payload: { __typename: "RoleChangedNotification", organizationName: "Beta", role: "editor" },
   readAt: "2026-10-26T11:00:00.000Z",
   type: "role_changed"
 };
@@ -156,7 +156,7 @@ it("names the bell with the unread count and lists translated Notifications", as
 
   expect(menuItems()).toEqual([
     expect.stringMatching(/^Ada invited you to join Acme as admin\.Unread/),
-    expect.stringMatching(/^Your role in Beta is now owner\.Oct 26, 2026/)
+    expect.stringMatching(/^Your role in Beta is now “editor”\.Oct 26, 2026/)
   ]);
 });
 

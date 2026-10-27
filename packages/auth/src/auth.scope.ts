@@ -1,7 +1,10 @@
+import type { Permission } from "./auth.permissions";
 import type { AuthSession, AuthSessionUser } from "./auth.type";
 
 export interface AuthenticatedOrganizationMembership {
   id: string;
+  /** What the role grants in this Organization, Custom Roles included, read with the membership. */
+  permissions: readonly Permission[];
   role: string;
   userId: string;
 }
@@ -64,11 +67,34 @@ export async function resolveOrganizationScope(
   }
 
   const organizationScope: AuthenticatedOrganizationScope = {
-    membership: { id: membership.id, role: membership.role, userId: membership.userId },
+    membership: {
+      id: membership.id,
+      permissions: membership.permissions,
+      role: membership.role,
+      userId: membership.userId
+    },
     organizationId,
     user: session.user,
     userId: session.user.id
   };
 
   return { organizationScope, requireOrganizationScope: () => organizationScope };
+}
+
+/** Whether the scope's member holds `permission` in the Active Organization. */
+export function hasOrganizationPermission(
+  scope: AuthenticatedOrganizationScope,
+  permission: Permission
+): boolean {
+  return scope.membership.permissions.includes(permission);
+}
+
+/** Throws `permission required: <permission>` unless the scope's member holds it. */
+export function requireOrganizationPermission(
+  scope: AuthenticatedOrganizationScope,
+  permission: Permission
+): void {
+  if (!hasOrganizationPermission(scope, permission)) {
+    throw new Error(`permission required: ${permission}`);
+  }
 }

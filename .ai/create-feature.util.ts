@@ -413,7 +413,8 @@ export const ${names.pluralCamel}Resolvers = {
 
 const apiModuleTestFile = (
   names: FeatureNames
-): string => `import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+): string => `import { resolveRolePermissions } from "@repo/auth/permissions";
+import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { organizationsTable, ${names.pluralCamel}Table, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { eq } from "drizzle-orm";
@@ -443,7 +444,12 @@ async function seedScope(slug: string): Promise<AuthenticatedOrganizationScope> 
     .returning();
   if (!organization) throw new Error("failed to seed organization");
   return {
-    membership: { id: \`membership-\${slug}\`, role: "owner", userId: user.id },
+    membership: {
+      id: \`membership-\${slug}\`,
+      permissions: resolveRolePermissions("owner", []),
+      role: "owner",
+      userId: user.id
+    },
     organizationId: organization.id,
     user: { email: user.email, emailVerified: true, id: user.id, name: user.name },
     userId: user.id

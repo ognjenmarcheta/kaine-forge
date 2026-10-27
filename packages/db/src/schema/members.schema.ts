@@ -1,4 +1,4 @@
-import { index, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
@@ -13,7 +13,8 @@ export const membersTable = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 32 }).notNull(),
+    // Comma-separated role names; a Custom Role name alone may be 32 characters.
+    role: text("role").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [

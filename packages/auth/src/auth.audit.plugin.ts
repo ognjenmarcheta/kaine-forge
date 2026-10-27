@@ -7,6 +7,7 @@ import {
   recordAuditEvent,
   type AuditEventInput
 } from "./auth.audit";
+import { permissionsOfStatements } from "./auth.permissions";
 
 // Routes whose success writes an Audit Event. The organization plugin's
 // organizationHooks name the target user but not the acting one, and leave
@@ -15,13 +16,16 @@ const AUDITED_PATHS = new Set([
   "/change-password",
   "/organization/accept-invitation",
   "/organization/cancel-invitation",
+  "/organization/create-role",
   "/organization/delete",
+  "/organization/delete-role",
   "/organization/invite-member",
   "/organization/leave",
   "/organization/remove-member",
   "/organization/transfer-ownership",
   "/organization/update",
-  "/organization/update-member-role"
+  "/organization/update-member-role",
+  "/organization/update-role"
 ]);
 
 type HookContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
@@ -35,6 +39,13 @@ type UserUpdateContext = NonNullable<Parameters<NonNullable<UserUpdateHook>>[1]>
 // Each map is keyed by the one request's context object that both of its
 // hooks receive, and empties itself when the request ends.
 const previousOrganizationNames = new WeakMap<HookContext["context"], string>();
+const deletedRoles = new WeakMap<HookContext["context"], CustomRoleRow>();
+
+interface CustomRoleRow {
+  id: string;
+  organizationId: string;
+  role: string;
+}
 const previousTwoFactorEnabled = new WeakMap<UserUpdateContext, boolean>();
 
 function readRecord(value: unknown): Record<string, unknown> {
@@ -195,6 +206,41 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
           }
         : null;
     }
+    case "/organization/create-role":
+    case "/organization/update-role": {
+      // Both answer { roleData } with the stored row.
+      const role = readRecord(returned.roleData);
+      const id = readString(role, "id");
+      const organizationId = readString(role, "organizationId");
+      const name = readString(role, "role");
+
+      return id && organizationId && name
+        ? {
+            action: ctx.path === "/organization/create-role" ? "role_created" : "role_updated",
+            actorUserId,
+            metadata: {
+              name,
+              permissions: permissionsOfStatements(readRecord(role.permission)).join(",")
+            },
+            organizationId,
+            targetId: id
+          }
+        : null;
+    }
+    case "/organization/delete-role": {
+      // The route answers { success } only; the before hook read the row.
+      const role = deletedRoles.get(ctx.context);
+
+      return role
+        ? {
+            action: "role_deleted",
+            actorUserId,
+            metadata: { name: role.role },
+            organizationId: role.organizationId,
+            targetId: role.id
+          }
+        : null;
+    }
     case "/organization/transfer-ownership": {
       // The route acts on the session's Active Organization only.
       const organizationId = readString(readRecord(session.session), "activeOrganizationId");
@@ -248,6 +294,36 @@ export const auditPlugin = {
 
             if (organization) {
               previousOrganizationNames.set(ctx.context, organization.name);
+            }
+          } catch (error) {
+            logAuditFailure({ path: ctx.path }, error);
+          }
+        })
+      },
+      {
+        matcher: (ctx) => ctx.path === "/organization/delete-role",
+        handler: createAuthMiddleware(async (ctx) => {
+          try {
+            const session = await getSessionFromCtx(ctx);
+            const body = readRecord(ctx.body);
+            const organizationId = readString(readRecord(session?.session), "activeOrganizationId");
+            const roleName = readString(body, "roleName");
+            const roleId = readString(body, "roleId");
+            const role =
+              organizationId && (roleName || roleId)
+                ? await ctx.context.adapter.findOne<CustomRoleRow>({
+                    model: "organizationRole",
+                    where: [
+                      { field: "organizationId", value: organizationId },
+                      roleName
+                        ? { field: "role", value: roleName }
+                        : { field: "id", value: roleId ?? "" }
+                    ]
+                  })
+                : null;
+
+            if (role) {
+              deletedRoles.set(ctx.context, role);
             }
           } catch (error) {
             logAuditFailure({ path: ctx.path }, error);

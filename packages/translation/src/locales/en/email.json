@@ -16,6 +16,7 @@
   "email.invitation.body": "{{inviterName}} invited you to join {{organizationName}} as {{role}}. Sign in with this email address to accept or decline the invitation.",
   "email.invitation.role.admin": "an admin",
   "email.invitation.role.member": "a member",
+  "email.invitation.role.custom": "a member with the “{{name}}” role",
   "email.invitation.action": "View invitation",
   "email.invitation.expiry": "The invitation expires in {{days}} days.",
   "email.twoFactorCode.subject": "Your sign-in verification code",
@@ -60,5 +61,6 @@
   "email.roleChanged.role.owner": "an owner",
   "email.roleChanged.role.admin": "an admin",
   "email.roleChanged.role.member": "a member",
+  "email.roleChanged.role.custom": "a member with the “{{name}}” role",
   "email.roleChanged.action": "View members"
 }

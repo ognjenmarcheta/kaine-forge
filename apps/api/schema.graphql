@@ -4,6 +4,7 @@ type Query {
   currentOrganization: Organization
   members: [OrganizationMember!]!
   invitations: [OrganizationInvitation!]!
+  organizationPermissions: [String!]!
   todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
   todo(id: ID!): Todo
   notes(first: Int, after: String, search: String): NoteConnection!
@@ -312,6 +313,9 @@ enum AuditAction {
   two_factor_disabled
   password_changed
   attachment_deleted
+  role_created
+  role_updated
+  role_deleted
 }
 
 type AuditActor {

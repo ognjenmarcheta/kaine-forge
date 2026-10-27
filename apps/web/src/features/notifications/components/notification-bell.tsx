@@ -17,10 +17,11 @@ import { useNotificationInbox } from "../notifications.hook";
 
 type Translate = ReturnType<typeof useTranslation>["t"];
 
-// Roles come from the organization plugin's owner, admin, and member
-// vocabulary; any other value reads as member.
+// A built-in role reads by its translated name; a Custom Role by its own name.
 function roleLabel(t: Translate, role: string): string {
-  return t(`notifications.role.${role === "owner" || role === "admin" ? role : "member"}`);
+  return role === "owner" || role === "admin" || role === "member"
+    ? t(`notifications.role.${role}`)
+    : t("notifications.role.custom").replace("{name}", role);
 }
 
 function messageOf(t: Translate, notification: NotificationFieldsFragment): string {

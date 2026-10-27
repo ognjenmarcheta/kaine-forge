@@ -108,6 +108,7 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
         .orderBy(desc(todosTable.createdAt));
     },
     async create(input) {
+      data.authorize("todo:create");
       const title = ensureTodoTitle(input.title);
       const description = parseOptionalDescription(input.description ?? null);
       const noteId = input.noteId ?? null;
@@ -134,11 +135,13 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
       return todo;
     },
     async update(id, input) {
+      data.authorize("todo:update");
       const todo = await write(id, applyTodoPatch(input));
       publish("todo:updated", todo);
       return todo;
     },
     async toggle(id) {
+      data.authorize("todo:update");
       const current = await get(id);
 
       if (!current) {
@@ -150,6 +153,9 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
       return todo;
     },
     async delete(id) {
+      // todo:delete alone deletes the Todo's Attachments too: they belong to
+      // the Todo, so attachment:delete governs only deleting one on its own.
+      data.authorize("todo:delete");
       let purge: () => Promise<void> = async () => undefined;
       try {
         ({ purge } = await attachments.detach(id));

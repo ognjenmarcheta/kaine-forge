@@ -19,6 +19,9 @@ export type AuditAction =
   | "organization_renamed"
   | "ownership_transferred"
   | "password_changed"
+  | "role_created"
+  | "role_deleted"
+  | "role_updated"
   | "two_factor_disabled"
   | "two_factor_enabled";
 
@@ -164,12 +167,6 @@ export type AuditEventsQuery = {
     }>;
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
-};
-
-export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
-
-export type CurrentOrganizationRoleQuery = {
-  currentOrganization: { id: string; role: string } | null;
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -325,6 +322,10 @@ export type UpdateNotificationPreferenceMutation = {
     emailAvailable: boolean;
   };
 };
+
+export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type OrganizationPermissionsQuery = { organizationPermissions: Array<string> };
 
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -1024,32 +1025,6 @@ export const AuditEventsDocument = {
     }
   ]
 } as unknown as DocumentNode<AuditEventsQuery, AuditEventsQueryVariables>;
-export const CurrentOrganizationRoleDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "CurrentOrganizationRole" },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "currentOrganization" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "role" } }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  ]
-} as unknown as DocumentNode<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>;
 export const HealthDocument = {
   kind: "Document",
   definitions: [
@@ -1874,6 +1849,20 @@ export const UpdateNotificationPreferenceDocument = {
   UpdateNotificationPreferenceMutation,
   UpdateNotificationPreferenceMutationVariables
 >;
+export const OrganizationPermissionsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "OrganizationPermissions" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "organizationPermissions" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OrganizationPermissionsQuery, OrganizationPermissionsQueryVariables>;
 export const GetPublicAssetsDocument = {
   kind: "Document",
   definitions: [

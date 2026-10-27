@@ -187,6 +187,7 @@ export function createAttachments({
     },
     async request(input) {
       // Scope first, so a request without one fails on scope, not on input.
+      data.authorize("attachment:create");
       const { organizationId } = data.stamp();
       const validation = validateFile({
         mimeType: input.mimeType,
@@ -234,6 +235,7 @@ export function createAttachments({
       return { fileId: file.id, uploadUrl: upload.url, key: ref.key, expiresIn: upload.expiresIn };
     },
     async confirm(id) {
+      data.authorize("attachment:create");
       const file = await requireFile(id);
 
       if (file.status !== "pending") {
@@ -267,6 +269,7 @@ export function createAttachments({
       return updateFileStatus(data, file.id, "uploaded", { sizeBytes });
     },
     async delete(id) {
+      data.authorize("attachment:delete");
       const file = await requireFile(id);
 
       await removeObject(file, "failed to delete object from S3");

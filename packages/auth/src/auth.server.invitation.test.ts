@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuthenticatedOrganizationScope } from "./auth.scope";
+
 const invitationsTable = {
   createdAt: "invitations.created_at",
   email: "invitations.email",
@@ -41,7 +43,7 @@ vi.mock("drizzle-orm", () => ({
 
 const { listInvitationsForScope } = await import("./auth.server.invitation");
 
-const adminScope = {
+const adminScope: AuthenticatedOrganizationScope = {
   organizationId: "org-1",
   user: {
     id: "user-1",
@@ -51,7 +53,7 @@ const adminScope = {
     twoFactorEnabled: false
   },
   userId: "user-1",
-  membership: { id: "m-1", role: "admin", userId: "user-1" }
+  membership: { id: "m-1", permissions: ["invitation:read"], role: "admin", userId: "user-1" }
 };
 
 describe("auth.server.invitation", () => {
@@ -89,12 +91,14 @@ describe("auth.server.invitation", () => {
     ]);
   });
 
-  it("rejects non-admin members", async () => {
-    const memberScope = {
+  it("rejects a member without the invitation:read permission", async () => {
+    const memberScope: AuthenticatedOrganizationScope = {
       ...adminScope,
-      membership: { id: "m-2", role: "member", userId: "user-1" }
+      membership: { id: "m-2", permissions: [], role: "member", userId: "user-1" }
     };
 
-    await expect(listInvitationsForScope(memberScope)).rejects.toThrow("admin role required");
+    await expect(listInvitationsForScope(memberScope)).rejects.toThrow(
+      "permission required: invitation:read"
+    );
   });
 });

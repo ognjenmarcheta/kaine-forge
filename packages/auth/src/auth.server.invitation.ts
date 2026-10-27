@@ -1,8 +1,8 @@
-import { db, invitationsTable } from "@repo/db";
+import { db, invitationsTable, organizationRolesTable } from "@repo/db";
 import { and, asc, eq, gt } from "drizzle-orm";
 
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "./auth.permissions";
-import type { AuthenticatedOrganizationScope } from "./auth.scope";
+import { parseRoleNames } from "./auth.permissions";
+import { requireOrganizationPermission, type AuthenticatedOrganizationScope } from "./auth.scope";
 import type { AuthInvitation } from "./auth.type";
 
 // Invitation writes (create/accept/revoke) go through the better-auth
@@ -31,19 +31,10 @@ function toAuthInvitation(row: InvitationRow): AuthInvitation {
   };
 }
 
-function requireAdminMembership(scope: AuthenticatedOrganizationScope): void {
-  // SAFETY: member roles are written only by the better-auth organization
-  // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
-  // closed (returns false) for any string outside the role hierarchy.
-  if (!hasRoleAtLeast(scope.membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)) {
-    throw new Error("admin role required");
-  }
-}
-
 export async function listInvitationsForScope(
   scope: AuthenticatedOrganizationScope
 ): Promise<AuthInvitation[]> {
-  requireAdminMembership(scope);
+  requireOrganizationPermission(scope, "invitation:read");
 
   const rows = await db
     .select()
@@ -58,4 +49,47 @@ export async function listInvitationsForScope(
     .orderBy(asc(invitationsTable.createdAt));
 
   return rows.map(toAuthInvitation);
+}
+
+/**
+ * Whether a pending, unexpired Invitation of the Organization names the Custom
+ * Role, given by name or id. Accepting it would give a role that no longer
+ * exists, and a later role of the same name would grant its Permissions.
+ */
+export async function customRoleHasPendingInvitations(params: {
+  organizationId: string;
+  roleId: string | null;
+  roleName: string | null;
+}): Promise<boolean> {
+  let roleName = params.roleName;
+
+  if (!roleName && params.roleId) {
+    const [role] = await db
+      .select({ role: organizationRolesTable.role })
+      .from(organizationRolesTable)
+      .where(
+        and(
+          eq(organizationRolesTable.organizationId, params.organizationId),
+          eq(organizationRolesTable.id, params.roleId)
+        )
+      );
+    roleName = role?.role ?? null;
+  }
+
+  if (!roleName) {
+    return false;
+  }
+
+  const pending = await db
+    .select({ role: invitationsTable.role })
+    .from(invitationsTable)
+    .where(
+      and(
+        eq(invitationsTable.organizationId, params.organizationId),
+        eq(invitationsTable.status, INVITATION_STATUSES.PENDING),
+        gt(invitationsTable.expiresAt, new Date())
+      )
+    );
+
+  return pending.some((invitation) => parseRoleNames(invitation.role).includes(roleName));
 }

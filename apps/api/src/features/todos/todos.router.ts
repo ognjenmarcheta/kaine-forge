@@ -1,3 +1,5 @@
+import { requireOrganizationPermission } from "@repo/auth/scope";
+
 import { createTodoAiWorkflow, type GenerateTodosInput } from "./todos.ai";
 import { createTodoAiRuntime } from "./todos.ai-runtime";
 import type { CreateTodoInput, UpdateTodoInput } from "./todos.type";
@@ -62,8 +64,8 @@ export const todosResolvers = {
       return ctx.todos.create(args.input);
     },
     async generateTodos(_parent: unknown, args: GenerateTodosArgs, ctx: ResolverContext) {
-      // Scope first: a request without one must fail before any model call.
-      ctx.requireOrganizationScope();
+      // Scope and permission first: a refused request must fail before any model call.
+      requireOrganizationPermission(ctx.requireOrganizationScope(), "todo:create");
       return createTodoAiWorkflowForContext(ctx).generateTodos(args.input);
     },
     async updateTodo(_parent: unknown, args: UpdateTodoArgs, ctx: ResolverContext) {

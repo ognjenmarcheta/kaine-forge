@@ -18,6 +18,7 @@
 //
 // PGlite is Postgres compiled to WASM, single-connection and in-process, so
 // nothing here covers the pg pool, concurrency, or resolveSslConfig.
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import { createLogger } from "@repo/logger";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -83,7 +84,8 @@ vi.mock("@repo/auth/server", () => ({
         )
         .limit(1);
       const member = rows[0];
-      return member ?? null;
+      const { resolveRolePermissions } = await import("@repo/auth/permissions");
+      return member ? { ...member, permissions: resolveRolePermissions(member.role, []) } : null;
     },
     getCurrentOrganizationByScope: () => Promise.resolve(null),
     listInvitationsByScope: () => Promise.resolve([]),
@@ -401,7 +403,12 @@ describe("attachment deletion SQL", () => {
       .returning();
 
     const scope = {
-      membership: { id: "membership-1", role: "owner", userId: fixture.userId },
+      membership: {
+        id: "membership-1",
+        permissions: resolveRolePermissions("owner", []),
+        role: "owner",
+        userId: fixture.userId
+      },
       organizationId: fixture.orgA,
       userId: fixture.userId,
       user: {

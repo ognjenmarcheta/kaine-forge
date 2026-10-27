@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   assistantMessagesTable,
@@ -23,7 +24,12 @@ let colleague: ScopedData;
 
 function scopeFor(organizationId: string, userId: string): AuthenticatedOrganizationScope {
   return {
-    membership: { id: `membership-${userId}`, role: "member", userId },
+    membership: {
+      id: `membership-${userId}`,
+      permissions: resolveRolePermissions("member", []),
+      role: "member",
+      userId
+    },
     organizationId,
     user: {
       email: `${userId}@example.test`,

@@ -7,9 +7,14 @@ import { useOrganization } from "../../../hooks/use-organization";
 import { useTranslation } from "../../../hooks/use-translation";
 import { organizationApi } from "../../../lib/auth-api";
 import { ORGANIZATIONS_DEFINITION } from "../organizations.definition";
+import { roleLabel } from "../organizations.util";
 
-/** Pending Invitations of the Active Organization, which an owner or admin can revoke. */
-export function OrganizationInvitations() {
+interface OrganizationInvitationsProps {
+  canRevoke: boolean;
+}
+
+/** Pending Invitations of the Active Organization; `invitation:cancel` revokes one. */
+export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsProps) {
   const { language, t } = useTranslation();
   const { activeOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
@@ -56,20 +61,22 @@ export function OrganizationInvitations() {
                   {invitation.email}
                 </p>
                 <p className="flex flex-wrap gap-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-subtle)]">
-                  <span>{t(`organizations.role.${invitation.role}`)}</span>
+                  <span>{roleLabel(invitation.role, t)}</span>
                   <span>
                     {t("organizations.invitations.expires")}{" "}
                     {new Date(invitation.expiresAt).toLocaleDateString(language)}
                   </span>
                 </p>
               </div>
-              <Button
-                appearance="subtle"
-                disabled={revoke.isPending}
-                onClick={() => revoke.mutate(invitation.id)}
-              >
-                {t("organizations.invitations.revoke")}
-              </Button>
+              {canRevoke ? (
+                <Button
+                  appearance="subtle"
+                  disabled={revoke.isPending}
+                  onClick={() => revoke.mutate(invitation.id)}
+                >
+                  {t("organizations.invitations.revoke")}
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>

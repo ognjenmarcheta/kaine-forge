@@ -20,6 +20,14 @@ _Avoid_: default workspace, private account
 The relationship proving a **User** belongs to an **Organization**, including the user's role in that Organization.
 _Avoid_: team membership, account access
 
+**Permission**:
+A named check, `resource:action` such as `member:create` or `todo:delete`, from the one catalog in `packages/auth`. A role grants a set of Permissions, and every server check asks for one. The built-in roles are owner (every Permission), admin (all but deleting or transferring the **Organization** and editing **Custom Roles**), and member (changing the shared content). Every member reads the Organization's shared content.
+_Avoid_: role rank, access level, scope
+
+**Custom Role**:
+A role an owner defines for one **Organization**: a name plus Permissions from the catalog. It cannot grant an owner-only Permission (delete or transfer the Organization, edit Custom Roles), reuse a built-in role name, or apply in another Organization. A member's next request uses its current Permissions.
+_Avoid_: group, profile, team
+
 **Authenticated Organization Scope**:
 An API request identity containing an authenticated user and their active organization as resolved from the session.
 _Avoid_: auth context, org context
@@ -37,11 +45,11 @@ An image that anyone with its URL may see, served from a separate public bucket 
 _Avoid_: public attachment, public file
 
 **Invitation**:
-A pending offer for an email address to join an **Organization** with a role (admin or member). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked by admins.
+A pending offer for an email address to join an **Organization** with a role (admin, member, or a **Custom Role**). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked with the `invitation:cancel` **Permission**.
 _Avoid_: invite link, access request
 
 **Audit Event**:
-A record the system writes when a security-relevant or membership action succeeds: who did what to which target, from which IP address and user agent, and when. An organization action belongs to its **Organization**; an account action, such as a password change, belongs to no Organization. Owners and admins read the **Active Organization**'s Audit Events. Nobody edits one.
+A record the system writes when a security-relevant or membership action succeeds: who did what to which target, from which IP address and user agent, and when. An organization action belongs to its **Organization**; an account action, such as a password change, belongs to no Organization. Members with the `audit:read` **Permission** read the **Active Organization**'s Audit Events. Nobody edits one.
 _Avoid_: activity feed, log entry, history
 
 **Notification**:
@@ -62,7 +70,8 @@ _Avoid_: account activation
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
 - A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
-- A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only an admin or owner changes an Organization's logo.
+- A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only a member with the `logo:update` **Permission** changes an Organization's logo.
+- A **Custom Role** belongs to exactly one **Organization**; an **Organization Membership** holds one or more roles by name.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
@@ -131,5 +140,5 @@ This repository is a multi-platform **template**. Reference features are not req
 
 - "context" can mean GraphQL runtime context or domain request identity. Use **Authenticated Organization Scope** for the domain request identity used by organization-scoped API work.
 - "agent" can mean any AI assistant (Claude, Codex) or a desk **Agent** definition. Use **Agent** only for the desk definition; say "AI assistant" otherwise.
-- "role" means the user's role in an **Organization Membership** (admin or member). On the agent desk, a role (planner, builder, reviewer) is the permission profile and the config key for providers and models; each built-in **Agent** has its role as its id. Name a desk definition an **Agent**, not a role.
+- "role" means the user's role in an **Organization Membership** (owner, admin, member, or a **Custom Role**); a role grants **Permissions**. On the agent desk, a role (planner, builder, reviewer) is the permission profile and the config key for providers and models; each built-in **Agent** has its role as its id. Name a desk definition an **Agent**, not a role.
 - "full-stack feature" can mean API + web only, or API + web + mobile. Prefer the **Template platform surfaces** matrix over assuming mobile is required.
