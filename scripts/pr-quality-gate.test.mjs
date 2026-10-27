@@ -222,7 +222,8 @@ describe("Self-hosted runner routing", () => {
     "release",
     "docker-cache",
     "deep-checks",
-    "labeler"
+    "labeler",
+    "deployed-check"
   ]) {
     const workflow = parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
     for (const [jobName, job] of Object.entries(workflow.jobs)) {
@@ -458,7 +459,13 @@ describe("Hand-kept alignments", () => {
       readdirSync("node_modules/.bin").map((name) => name.replace(/\.(cmd|ps1)$/i, ""))
     );
     const unknown = [];
-    for (const doc of ["README.md", "CONTRIBUTING.md", "docs/agents/day-one.md", "AGENTS.md"]) {
+    for (const doc of [
+      "README.md",
+      "CONTRIBUTING.md",
+      "docs/agents/day-one.md",
+      "docs/deploy.md",
+      "AGENTS.md"
+    ]) {
       const text = readFileSync(doc, "utf8");
       for (const [, block, span] of text.matchAll(/```[^\n]*\n([\s\S]*?)```|`([^`\n]+)`/g)) {
         const tokens = (block ?? span).split(/[\s;&|()]+/);
