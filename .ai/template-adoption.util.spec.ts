@@ -239,6 +239,7 @@ describe("applyTemplateAdoption", () => {
   it("rewrites only allowlisted active identity surfaces", () => {
     const config = deriveTemplateAdoptionConfig({
       productName: "Acme Ops",
+      webTitle: "Acme Console",
       desktopIdentifier: "com.acme.ops.desktop",
       compatibilityPolicy: "Acme supports the current public API for one major version.",
       designCompatibilityPolicy: "Acme records visual breaking changes in release notes."
@@ -268,7 +269,16 @@ describe("applyTemplateAdoption", () => {
           'import { Button } from "@repo/ui";'
         ].join("\n")
       ],
-      ["apps/web/index.html", "<title>kaine-forge</title>\n"],
+      [
+        "apps/web/index.html",
+        [
+          "<title>Kaine Forge</title>",
+          '<meta name="description" content="Kaine Forge workspace." />',
+          '<meta property="og:title" content="Kaine Forge" />',
+          '<meta property="og:description" content="Kaine Forge workspace." />',
+          ""
+        ].join("\n")
+      ],
       ["apps/web/src/stores/theme.store.ts", '      name: "kaine.theme.mode",\n'],
       [
         "packages/auth/src/auth.instance.ts",
@@ -321,7 +331,15 @@ describe("applyTemplateAdoption", () => {
       'name = "acme_ops_desktop_lib"'
     );
     expect(result.files.get("docs/troubleshooting.md")).toContain("`acme-ops.session_token`");
-    expect(result.files.get("apps/web/index.html")).toBe("<title>Acme Ops</title>\n");
+    expect(result.files.get("apps/web/index.html")).toBe(
+      [
+        "<title>Acme Console</title>",
+        '<meta name="description" content="Acme Ops workspace." />',
+        '<meta property="og:title" content="Acme Console" />',
+        '<meta property="og:description" content="Acme Ops workspace." />',
+        ""
+      ].join("\n")
+    );
     expect(result.files.get("package.json")).toContain('"name": "acme-ops"');
     expect(result.files.get("package.json")).toContain('"@repo/ui": "workspace:*"');
     expect(result.files.get("README.md")).toContain("# Acme Ops");

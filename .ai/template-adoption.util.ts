@@ -350,8 +350,9 @@ const replacementsForConfig = (
   config: TemplateAdoptionConfig
 ): ReadonlyArray<readonly [string, string]> => [
   ...ownerReplacements(config),
-  // Before the generic kaine-forge pair, which would slug-case the web title.
-  ["<title>kaine-forge</title>", `<title>${config.webTitle}</title>`],
+  // Before the generic Kaine Forge pair, which would write productName, not webTitle.
+  ["<title>Kaine Forge</title>", `<title>${config.webTitle}</title>`],
+  ['og:title" content="Kaine Forge"', `og:title" content="${config.webTitle}"`],
   ["com.kaine.forge.desktop", config.desktopIdentifier],
   ["Kaine Forge Mobile", config.mobileName],
   ["Kaine Forge Desktop", config.desktopWindowTitle],

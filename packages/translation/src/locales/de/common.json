@@ -23,5 +23,11 @@
   "common.goToDashboard": "Zur Übersicht",
   "error.routeSummary": "Diese Seite konnte nicht geladen werden. Versuche es erneut oder kehre zur Übersicht zurück.",
   "notFound.title": "Seite nicht gefunden",
-  "notFound.summary": "Diese Seite existiert nicht oder wurde verschoben."
+  "notFound.summary": "Diese Seite existiert nicht oder wurde verschoben.",
+  "legal.footerLabel": "Rechtliches",
+  "legal.stubNotice": "Vorlagenseite. Ersetzen Sie diese Seite vor dem Start durch Ihren eigenen Text.",
+  "legal.terms.title": "Nutzungsbedingungen",
+  "legal.terms.body": "Diese Seite ist ein Platzhalter aus der Projektvorlage. Schreiben Sie hier die Bedingungen für die Nutzung Ihres Produkts.",
+  "legal.privacy.title": "Datenschutzerklärung",
+  "legal.privacy.body": "Diese Seite ist ein Platzhalter aus der Projektvorlage. Beschreiben Sie, welche personenbezogenen Daten Ihr Produkt erhebt, warum es sie erhebt und wie lange Sie sie speichern."
 }

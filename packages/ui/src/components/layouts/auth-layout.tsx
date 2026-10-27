@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 
 interface AuthLayoutProps {
   children?: ReactNode;
+  footer?: ReactNode;
   subtitle: string;
   title: string;
 }
 
-export function AuthLayout({ children, subtitle, title }: AuthLayoutProps) {
+export function AuthLayout({ children, footer, subtitle, title }: AuthLayoutProps) {
   return (
     <main className="ui-auth-layout">
       <section className="ui-auth-layout__card">
@@ -14,6 +15,7 @@ export function AuthLayout({ children, subtitle, title }: AuthLayoutProps) {
         <p className="ui-auth-layout__subtitle">{subtitle}</p>
         {children}
       </section>
+      {footer ? <footer className="ui-auth-layout__footer">{footer}</footer> : null}
     </main>
   );
 }
