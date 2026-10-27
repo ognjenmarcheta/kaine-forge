@@ -29,7 +29,7 @@ A role an owner defines for one **Organization**: a name plus Permissions from t
 _Avoid_: group, profile, team
 
 **Authenticated Organization Scope**:
-An API request identity containing an authenticated user and their active organization as resolved from the session.
+An API request identity: an authenticated **User**, a proven **Organization Membership**, and the one **Organization** the request may reach. For a Session request it is the Session's **Active Organization**; for an **API Key** request it is the key's Organization, acting as the key's creator, and it carries the key's id and only the Permissions the key grants. It never comes from a client-supplied organization id.
 _Avoid_: auth context, org context
 
 **Todo**:
@@ -74,7 +74,7 @@ _Avoid_: account activation
 - An **Organization Membership** belongs to exactly one **User** and exactly one **Organization**.
 - A **User** owns at least one **Personal Organization**; an owner can transfer any other **Organization** to another member.
 - A **Session** has zero or one **Active Organization** before authentication checks, and scoped API work requires one.
-- An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Active Organization**.
+- An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Organization**: the **Active Organization** of a Session request, or the Organization of an **API Key** request, which has no Session.
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
 - A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
@@ -88,7 +88,7 @@ _Avoid_: account activation
 ## Example dialogue
 
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
-> **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Active Organization** resolved from the session."
+> **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Organization** the request proved: the **Active Organization** from the session, or the Organization of a verified **API Key**."
 
 ## Agent desk language
 
