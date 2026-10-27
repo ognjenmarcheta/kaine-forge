@@ -19,6 +19,9 @@ export const organizationsResolvers = {
     async invitations(_parent: unknown, _args: unknown, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
       return ctx.auth.listInvitationsByScope(scope);
+    },
+    organizationPermissions(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+      return ctx.requireOrganizationScope().membership.permissions;
     }
   }
 };

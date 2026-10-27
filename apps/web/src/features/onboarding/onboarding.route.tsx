@@ -43,15 +43,15 @@ export function OnboardingRoute() {
     return <Navigate replace to={AUTH_DEFINITION.defaultReturnPath} />;
   }
 
-  return <OnboardingFlow userId={session.user.id} />;
+  return <OnboardingFlow />;
 }
 
-function OnboardingFlow({ userId }: { userId: string }) {
+function OnboardingFlow() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { refreshSession } = useAuth();
   const { activeOrganizationId, organizations } = useOrganization();
-  const resolvedSteps = useOnboardingSteps(userId);
+  const resolved = useOnboardingSteps();
   // Kept from the first answer: a new Organization from the first step
   // changes the Active Organization, and with it the steps that apply.
   const [steps, setSteps] = useState<OnboardingStep[] | null>(null);
@@ -66,8 +66,8 @@ function OnboardingFlow({ userId }: { userId: string }) {
   const { isIdle, mutate: completeOnboarding } = complete;
   const nothingToOffer = steps?.length === 0;
 
-  if (steps === null && resolvedSteps !== null) {
-    setSteps(resolvedSteps);
+  if (steps === null && resolved.status === "ready") {
+    setSteps(resolved.steps);
   }
 
   useEffect(() => {
@@ -93,6 +93,16 @@ function OnboardingFlow({ userId }: { userId: string }) {
         />
       ) : null}
       {step === "invite" ? <OnboardingInviteStep /> : null}
+      {steps === null && resolved.status === "error" ? (
+        <div className="grid gap-[var(--ds-space-100)]">
+          <FieldError>{t("auth.onboarding.loadError")}</FieldError>
+          <div>
+            <Button appearance="subtle" type="button" onClick={resolved.retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {complete.error ? (
         <FieldError className="mt-[var(--ds-space-150)]">
           {t(getAuthErrorMessageKey(complete.error))}

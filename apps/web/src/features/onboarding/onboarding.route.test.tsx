@@ -23,7 +23,8 @@ const { auth, organization, api } = vi.hoisted(() => ({
   api: {
     complete: vi.fn(),
     inviteMember: vi.fn(),
-    listMembers: vi.fn(),
+    permissions: [] as string[],
+    permissionsFail: false,
     renameOrganization: vi.fn()
   }
 }));
@@ -48,8 +49,13 @@ vi.mock("../../hooks/use-organization", () => ({
 vi.mock("../../hooks/use-translation", () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }));
+vi.mock("../../lib/graphql-codegen-fetcher", () => ({
+  useGraphqlFetcher: () => () =>
+    api.permissionsFail
+      ? Promise.reject(new Error("Unavailable"))
+      : Promise.resolve({ organizationPermissions: api.permissions })
+}));
 vi.mock("../../lib/auth-api", () => ({
-  listOrganizationMembersRequest: api.listMembers,
   onboardingApi: { complete: api.complete },
   organizationApi: {
     inviteMember: api.inviteMember,
@@ -125,6 +131,8 @@ function completeOnboarding() {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  api.permissions = [];
+  api.permissionsFail = false;
   organization.activeOrganizationId = "org-1";
   organization.organizations = [{ id: "org-1", name: "Personal", personal: true }];
   organization.isLoading = false;
@@ -205,14 +213,14 @@ it("skips onboarding from the first step and opens the dashboard", async () => {
   }
 });
 
-it("offers an invited admin only the invite step and lists the Invitations sent", async () => {
+it("offers an invited member with invitation:create only the invite step and lists the Invitations sent", async () => {
   auth.session = newUser();
   organization.activeOrganizationId = "org-2";
   organization.organizations = [
     { id: "org-1", name: "Personal", personal: true },
     { id: "org-2", name: "Acme", personal: false }
   ];
-  api.listMembers.mockResolvedValue({ members: [{ userId: "user-1", role: "admin" }] });
+  api.permissions = ["invitation:create", "member:update"];
   api.inviteMember.mockResolvedValue({
     email: "ada@example.com",
     expiresAt: "2026-11-03T00:00:00.000Z",
@@ -245,7 +253,7 @@ it("offers an invited admin only the invite step and lists the Invitations sent"
   }
 });
 
-it("completes onboarding at once for an invited member with no step to offer", async () => {
+it("completes onboarding at once for an invited member without invitation:create", async () => {
   auth.session = newUser();
   completeOnboarding();
   organization.activeOrganizationId = "org-2";
@@ -253,7 +261,7 @@ it("completes onboarding at once for an invited member with no step to offer", a
     { id: "org-1", name: "Personal", personal: true },
     { id: "org-2", name: "Acme", personal: false }
   ];
-  api.listMembers.mockResolvedValue({ members: [{ userId: "user-1", role: "member" }] });
+  api.permissions = ["todo:create", "note:create"];
   const { container, cleanup } = await renderOnboarding();
   try {
     await vi.waitFor(() => expect(container.textContent).toBe("/dashboard"));
@@ -274,6 +282,32 @@ it("keeps onboarding open while the Organization flags load", async () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(api.complete).not.toHaveBeenCalled();
     expect(container.textContent).not.toBe("/dashboard");
+  } finally {
+    await cleanup();
+  }
+});
+
+it("keeps onboarding open after a failed Permissions read and offers the invite step after a retry", async () => {
+  auth.session = newUser();
+  completeOnboarding();
+  organization.activeOrganizationId = "org-2";
+  organization.organizations = [
+    { id: "org-1", name: "Personal", personal: true },
+    { id: "org-2", name: "Acme", personal: false }
+  ];
+  api.permissions = ["invitation:create"];
+  api.permissionsFail = true;
+  const { container, cleanup } = await renderOnboarding();
+  try {
+    await vi.waitFor(() => expect(container.textContent).toContain("auth.onboarding.loadError"));
+    expect(api.complete).not.toHaveBeenCalled();
+
+    api.permissionsFail = false;
+    await act(async () => button(container, "common.retry").click());
+
+    await vi.waitFor(() => expect(container.textContent).toContain("auth.onboarding.invite.title"));
+    expect(container.textContent).not.toContain("auth.onboarding.loadError");
+    expect(api.complete).not.toHaveBeenCalled();
   } finally {
     await cleanup();
   }

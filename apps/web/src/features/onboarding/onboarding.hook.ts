@@ -1,50 +1,59 @@
-import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
-import { useQuery } from "@tanstack/react-query";
-
 import { resolveOnboardingSteps, type OnboardingStep } from "./onboarding.util";
 import { useOrganization } from "../../hooks/use-organization";
-import { listOrganizationMembersRequest } from "../../lib/auth-api";
+import { useOrganizationPermissionsState } from "../organizations/organizations.hook";
+
+/** The onboarding steps for the Active Organization, once they are known. */
+export type OnboardingStepsState =
+  | { status: "pending" }
+  | { status: "error"; retry: () => void }
+  | { status: "ready"; steps: OnboardingStep[] };
 
 /**
- * The onboarding steps for the Active Organization, or null while the
- * Organization or the user's role in it is still loading.
+ * The onboarding steps for the Active Organization. They stay pending while
+ * the Organization or the user's Permissions in it load, and a failed
+ * Permissions read is an error to retry, never an empty step list.
  */
-export function useOnboardingSteps(userId: string): OnboardingStep[] | null {
+export function useOnboardingSteps(): OnboardingStepsState {
   const { activeOrganizationId, isLoading, organizations, organizationsVisible } =
     useOrganization();
   const activeOrganization = organizations.find(
     (organization) => organization.id === activeOrganizationId
   );
   const personal = activeOrganization?.personal === true;
-  // A Personal Organization belongs to its user, so only a joined one needs the role.
-  const membersQuery = useQuery({
-    queryKey: createActiveOrganizationQueryKey(
-      queryKeys.organizationMembersScope(),
-      activeOrganizationId
-    ),
-    queryFn: listOrganizationMembersRequest,
-    enabled: organizationsVisible && activeOrganization !== undefined && !personal
-  });
+  // A Personal Organization belongs to its user, so only a joined one needs the Permissions.
+  const permissions = useOrganizationPermissionsState(
+    organizationsVisible && activeOrganization !== undefined && !personal
+      ? activeOrganizationId
+      : null
+  );
 
   // Organization UI stays hidden while the flags load, so wait before reading it.
   if (isLoading) {
-    return null;
+    return { status: "pending" };
   }
 
   // Without the Organization UI there is nothing to name or invite into.
   if (!organizationsVisible) {
-    return [];
+    return { status: "ready", steps: [] };
   }
 
   if (!activeOrganization) {
-    return null;
+    return { status: "pending" };
   }
 
-  if (!personal && membersQuery.status !== "success") {
-    return null;
+  if (personal) {
+    return { status: "ready", steps: resolveOnboardingSteps({ personal, canInvite: true }) };
   }
 
-  const role = membersQuery.data?.members.find((member) => member.userId === userId)?.role ?? null;
+  if (permissions.status !== "success") {
+    return permissions;
+  }
 
-  return resolveOnboardingSteps({ personal, role });
+  return {
+    status: "ready",
+    steps: resolveOnboardingSteps({
+      personal,
+      canInvite: permissions.permissions.has("invitation:create")
+    })
+  };
 }

@@ -16,6 +16,7 @@
   "email.invitation.body": "{{inviterName}} hat dich eingeladen, {{organizationName}} als {{role}} beizutreten. Melde dich mit dieser E-Mail-Adresse an, um die Einladung anzunehmen oder abzulehnen.",
   "email.invitation.role.admin": "Administrator",
   "email.invitation.role.member": "Mitglied",
+  "email.invitation.role.custom": "Mitglied mit der Rolle „{{name}}“",
   "email.invitation.action": "Einladung ansehen",
   "email.invitation.expiry": "Die Einladung läuft in {{days}} Tagen ab.",
   "email.twoFactorCode.subject": "Dein Bestätigungscode für die Anmeldung",
@@ -60,5 +61,6 @@
   "email.roleChanged.role.owner": "Inhaber",
   "email.roleChanged.role.admin": "Admin",
   "email.roleChanged.role.member": "Mitglied",
+  "email.roleChanged.role.custom": "Mitglied mit der Rolle „{{name}}“",
   "email.roleChanged.action": "Mitglieder anzeigen"
 }

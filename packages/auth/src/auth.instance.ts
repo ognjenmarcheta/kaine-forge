@@ -4,6 +4,7 @@ import {
   db,
   invitationsTable,
   membersTable,
+  organizationRolesTable,
   organizationsTable,
   sessionsTable,
   twoFactorsTable,
@@ -52,15 +53,26 @@ import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { dispatchNotification, hasNotificationDispatcher } from "./auth.notification";
 import { onboardingPlugin } from "./auth.onboarding.plugin";
 import { hashPassword, verifyPassword } from "./auth.password";
-import { ORGANIZATION_ROLES } from "./auth.permissions";
+import {
+  accessControl,
+  BUILT_IN_ROLES,
+  CUSTOM_ROLE_NAME_PATTERN,
+  findUngrantablePermissions,
+  ORGANIZATION_ROLES,
+  parseRoleNames
+} from "./auth.permissions";
 import {
   findAccountDeletionRefusal,
   prepareAccountDeletion,
   type AccountDeletionRefusal
 } from "./auth.server.account";
+import { customRoleHasPendingInvitations } from "./auth.server.invitation";
 import {
   ensurePersonalOrganizationForUser,
+  findMemberRole,
+  getOrganizationMembershipProof,
   isPersonalOrganization,
+  loadRolePermissions,
   ORGANIZATION_REFUSALS,
   resolveActiveOrganizationForUser,
   transferOrganizationOwnership,
@@ -77,6 +89,7 @@ const AUTH_SCHEMA = {
   organizations: organizationsTable,
   members: membersTable,
   invitations: invitationsTable,
+  organizationRoles: organizationRolesTable,
   twoFactors: twoFactorsTable
 } as const;
 
@@ -400,7 +413,10 @@ const ACTIVE_ORGANIZATION_PATHS = new Set([
   "/organization/update-member-role",
   "/organization/update",
   "/organization/leave",
-  "/organization/delete"
+  "/organization/delete",
+  "/organization/create-role",
+  "/organization/update-role",
+  "/organization/delete-role"
 ]);
 
 // Routes that change the session's Active Organization in the database
@@ -419,6 +435,18 @@ const ORGANIZATION_REFUSAL_RESPONSES: Record<
   ACTIVE_ORGANIZATION_MISMATCH: {
     message: "Organization actions apply only to the active organization",
     status: "FORBIDDEN"
+  },
+  CUSTOM_ROLE_NAME_INVALID: {
+    message: "A role name uses 2 to 32 lowercase letters, digits, or hyphens",
+    status: "BAD_REQUEST"
+  },
+  CUSTOM_ROLE_PERMISSION_NOT_ALLOWED: {
+    message: "A custom role cannot grant this permission",
+    status: "BAD_REQUEST"
+  },
+  CUSTOM_ROLE_RENAME_NOT_SUPPORTED: {
+    message: "A custom role cannot be renamed",
+    status: "BAD_REQUEST"
   },
   NO_ACTIVE_ORGANIZATION: { message: "No active organization", status: "BAD_REQUEST" },
   ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP: {
@@ -441,6 +469,18 @@ const ORGANIZATION_REFUSAL_RESPONSES: Record<
     message: "A personal organization cannot be transferred",
     status: "BAD_REQUEST"
   },
+  MEMBER_EXCEEDS_YOUR_PERMISSIONS: {
+    message: "You cannot change or remove a member who holds permissions you do not hold",
+    status: "FORBIDDEN"
+  },
+  ROLE_EXCEEDS_YOUR_PERMISSIONS: {
+    message: "You cannot give a role with permissions you do not hold",
+    status: "FORBIDDEN"
+  },
+  ROLE_IS_ASSIGNED_TO_INVITATIONS: {
+    message: "Pending invitations name this role",
+    status: "BAD_REQUEST"
+  },
   TRANSFER_TARGET_NOT_FOUND: {
     message: "The new owner must be another member of the organization",
     status: "BAD_REQUEST"
@@ -460,6 +500,96 @@ function readActiveOrganizationId(session: Readonly<Record<string, unknown>>): s
 
 function readRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? { ...value } : {};
+}
+
+// An invite or a role change never gives the owner role, and never a role
+// with a Permission the caller does not hold. The role may be a string, an
+// array, or comma-separated names, as the plugin reads it.
+async function refuseRoleAssignment(params: {
+  organizationId: string;
+  role: unknown;
+  userId: string;
+}): Promise<void> {
+  const roleNames = parseRoleNames(
+    [params.role]
+      .flat()
+      .filter((name) => typeof name === "string")
+      .join(",")
+  );
+
+  if (roleNames.includes(ORGANIZATION_ROLES.OWNER)) {
+    throw refuse(ORGANIZATION_REFUSALS.OWNER_ROLE_REQUIRES_TRANSFER);
+  }
+
+  const [caller, granted] = await Promise.all([
+    getOrganizationMembershipProof({
+      organizationId: params.organizationId,
+      userId: params.userId
+    }),
+    loadRolePermissions({ organizationId: params.organizationId, role: roleNames.join(",") })
+  ]);
+
+  if (caller && granted.some((permission) => !caller.permissions.includes(permission))) {
+    throw refuse(ORGANIZATION_REFUSALS.ROLE_EXCEEDS_YOUR_PERMISSIONS);
+  }
+}
+
+// A member's role changes, or the member leaves, only through a caller who
+// holds every Permission the member holds now. The plugin itself protects
+// only the owner role, so a Custom Role with member:update or member:delete
+// could otherwise demote or remove an admin.
+async function refuseMemberChange(params: {
+  memberIdOrEmail: unknown;
+  organizationId: string;
+  userId: string;
+}): Promise<void> {
+  if (typeof params.memberIdOrEmail !== "string") {
+    return;
+  }
+
+  const [caller, role] = await Promise.all([
+    getOrganizationMembershipProof({
+      organizationId: params.organizationId,
+      userId: params.userId
+    }),
+    findMemberRole({
+      memberIdOrEmail: params.memberIdOrEmail,
+      organizationId: params.organizationId
+    })
+  ]);
+
+  if (!caller || role === null) {
+    // The route itself answers a caller or member that does not exist.
+    return;
+  }
+
+  const held = await loadRolePermissions({ organizationId: params.organizationId, role });
+
+  if (held.some((permission) => !caller.permissions.includes(permission))) {
+    throw refuse(ORGANIZATION_REFUSALS.MEMBER_EXCEEDS_YOUR_PERMISSIONS);
+  }
+}
+
+// A Custom Role is a valid name plus Permissions from CUSTOM_ROLE_PERMISSIONS.
+// It keeps its name: members hold roles by name, so a rename would drop them.
+function refuseCustomRoleDefinition(fields: Record<string, unknown>): void {
+  if (fields.roleName !== undefined) {
+    throw refuse(ORGANIZATION_REFUSALS.CUSTOM_ROLE_RENAME_NOT_SUPPORTED);
+  }
+
+  if (
+    fields.role !== undefined &&
+    (typeof fields.role !== "string" || !CUSTOM_ROLE_NAME_PATTERN.test(fields.role))
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.CUSTOM_ROLE_NAME_INVALID);
+  }
+
+  if (
+    fields.permission !== undefined &&
+    findUngrantablePermissions(readRecord(fields.permission)).length > 0
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.CUSTOM_ROLE_PERMISSION_NOT_ALLOWED);
+  }
 }
 
 // Server-side rules on top of the organization plugin's own role checks: the
@@ -488,14 +618,42 @@ const organizationGuardHook = createAuthMiddleware(async (ctx) => {
     throw refuse(ORGANIZATION_REFUSALS.ACTIVE_ORGANIZATION_MISMATCH);
   }
 
-  // An invite or a role change gives admin or member only; the role may be a
-  // string or an array.
   if (
-    (ctx.path === "/organization/update-member-role" ||
-      ctx.path === "/organization/invite-member") &&
-    [body.role].flat().includes(ORGANIZATION_ROLES.OWNER)
+    ctx.path === "/organization/update-member-role" ||
+    ctx.path === "/organization/invite-member"
   ) {
-    throw refuse(ORGANIZATION_REFUSALS.OWNER_ROLE_REQUIRES_TRANSFER);
+    await refuseRoleAssignment({ organizationId, role: body.role, userId: session.user.id });
+  }
+
+  if (
+    ctx.path === "/organization/update-member-role" ||
+    ctx.path === "/organization/remove-member"
+  ) {
+    await refuseMemberChange({
+      memberIdOrEmail:
+        ctx.path === "/organization/remove-member" ? body.memberIdOrEmail : body.memberId,
+      organizationId,
+      userId: session.user.id
+    });
+  }
+
+  // The plugin refuses only while members hold the role; an Invitation would
+  // give it to the invitee after it is gone.
+  if (
+    ctx.path === "/organization/delete-role" &&
+    (await customRoleHasPendingInvitations({
+      organizationId,
+      roleId: typeof body.roleId === "string" ? body.roleId : null,
+      roleName: typeof body.roleName === "string" ? body.roleName : null
+    }))
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.ROLE_IS_ASSIGNED_TO_INVITATIONS);
+  }
+
+  if (ctx.path === "/organization/create-role" || ctx.path === "/organization/update-role") {
+    refuseCustomRoleDefinition(
+      ctx.path === "/organization/create-role" ? body : readRecord(body.data)
+    );
   }
 
   if (
@@ -965,6 +1123,14 @@ export function createAuthInstance() {
       // Enables Expo deep-link OAuth return and mobile cookie/origin handling.
       expo(),
       organization({
+        // One Permission catalog for the plugin's routes and the API's checks;
+        // owners manage the Active Organization's Custom Roles.
+        ac: accessControl,
+        roles: BUILT_IN_ROLES,
+        dynamicAccessControl: {
+          enabled: true,
+          maximumRolesPerOrganization: AUTH_DEFINITIONS.CUSTOM_ROLES_PER_ORGANIZATION_MAX
+        },
         invitationExpiresIn: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS,
         // Our advanced.database.generateId is a custom function, which
         // better-auth's heuristic treats as potentially predictable and would

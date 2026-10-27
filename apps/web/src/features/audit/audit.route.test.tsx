@@ -9,7 +9,7 @@ import { AuditLogRoute } from "./audit.route";
 import type { AuditEventsQueryVariables } from "../../graphql/generated/react-query";
 
 const api = vi.hoisted(() => ({
-  role: "admin",
+  permissions: ["audit:read"] as string[] | undefined,
   pages: vi.fn<(variables: AuditEventsQueryVariables) => void>()
 }));
 
@@ -34,8 +34,8 @@ const SECOND_EVENT = {
 
 vi.mock("../../lib/graphql-codegen-fetcher", () => ({
   useGraphqlFetcher: (document: { toString(): string }) => {
-    if (document.toString().includes("query CurrentOrganizationRole")) {
-      return () => Promise.resolve({ currentOrganization: { id: "org-1", role: api.role } });
+    if (document.toString().includes("query OrganizationPermissions")) {
+      return () => Promise.resolve({ organizationPermissions: api.permissions });
     }
 
     return (variables: AuditEventsQueryVariables) => {
@@ -71,14 +71,14 @@ afterEach(async () => {
   await act(async () => root.unmount());
   client.clear();
   container.remove();
-  api.role = "admin";
+  api.permissions = ["audit:read"];
   api.pages.mockClear();
   vi.unstubAllGlobals();
 });
 
 const DASHBOARD = "dashboard";
 
-// The role query and then the events query resolve on later ticks; wait for
+// The permissions query and then the events query resolve on later ticks; wait for
 // what the test needs instead of a fixed delay that a loaded machine misses.
 async function settleUntil(done: () => boolean) {
   for (let attempt = 0; attempt < 100 && !done(); attempt += 1) {
@@ -130,8 +130,16 @@ it("lists each event's translated action, actor, target, and IP, then loads the 
   expect(container.textContent).not.toContain("organizations.audit.loadMore");
 });
 
-it("sends a member to the dashboard without reading the audit log", async () => {
-  api.role = "member";
+it("sends a member without audit:read to the dashboard without reading the audit log", async () => {
+  api.permissions = ["todo:create", "member:update"];
+  await renderRoute();
+
+  expect(container.textContent).toBe(DASHBOARD);
+  expect(api.pages).not.toHaveBeenCalled();
+});
+
+it("sends the session to the dashboard when the permissions answer has no list", async () => {
+  api.permissions = undefined;
   await renderRoute();
 
   expect(container.textContent).toBe(DASHBOARD);

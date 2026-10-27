@@ -1,6 +1,8 @@
 import { isAuditAction, type AuditAction } from "@repo/auth/audit";
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import {
+  requireOrganizationPermission,
+  type AuthenticatedOrganizationScope
+} from "@repo/auth/scope";
 import { auditEventsTable, usersTable, type AuditEventMetadataValue } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import { inArray } from "drizzle-orm";
@@ -20,7 +22,7 @@ export interface AuditEventView {
   userAgent: string | null;
 }
 
-/** The Active Organization's Audit Events, readable by its owners and admins only. */
+/** The Active Organization's Audit Events, readable with the `audit:read` permission. */
 export interface AuditEvents {
   /** Newest first; throws `invalid cursor` for a malformed or foreign `after`. */
   list: (input: PageInput) => Promise<Connection<AuditEventView>>;
@@ -46,12 +48,7 @@ export function createAuditEvents({
     async list(input) {
       const scope = requireOrganizationScope();
 
-      // SAFETY: member roles are written only by the better-auth organization
-      // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
-      // closed (returns false) for any string outside the role hierarchy.
-      if (!hasRoleAtLeast(scope.membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)) {
-        throw new Error("admin role required");
-      }
+      requireOrganizationPermission(scope, "audit:read");
 
       const { items: page, pageInfo } = await data.page(auditEventsTable, input, {
         orderBy: auditEventsTable.createdAt,

@@ -32,7 +32,7 @@ export const auditTypeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    # The Active Organization's Audit Events, newest first. Owners and admins only.
+    # The Active Organization's Audit Events, newest first. Requires audit:read.
     auditEvents(first: Int, after: String): AuditEventConnection!
   }
 `;

@@ -13,6 +13,7 @@
   "notifications.role.owner": "vlasnik",
   "notifications.role.admin": "administrator",
   "notifications.role.member": "član",
+  "notifications.role.custom": "„{name}“",
   "notifications.preferences.title": "Obaveštenja",
   "notifications.preferences.description": "Izaberite gde dobijate svaku vrstu obaveštenja.",
   "notifications.preferences.inApp": "U aplikaciji",

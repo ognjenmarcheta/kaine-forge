@@ -1,6 +1,8 @@
 import type { AuditEventInput } from "@repo/auth/audit";
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import {
+  requireOrganizationPermission,
+  type AuthenticatedOrganizationScope
+} from "@repo/auth/scope";
 import { featureFlagOverridesTable } from "@repo/db/schema";
 import {
   FEATURE_FLAG_REGISTRY,
@@ -76,12 +78,7 @@ export function createFeatureFlagOverrides({
   function requireOverride(key: FeatureFlagKey): AuthenticatedOrganizationScope {
     const scope = requireOrganizationScope();
 
-    // SAFETY: member roles are written only by the better-auth organization
-    // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
-    // closed (returns false) for any string outside the role hierarchy.
-    if (!hasRoleAtLeast(scope.membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)) {
-      throw new Error("admin role required");
-    }
+    requireOrganizationPermission(scope, "featureFlag:update");
 
     if (!FEATURE_FLAG_REGISTRY[key].organizationOverridable) {
       throw new GraphQLError("feature flag does not allow an organization override", {

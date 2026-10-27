@@ -13,6 +13,7 @@
   "notifications.role.owner": "owner",
   "notifications.role.admin": "admin",
   "notifications.role.member": "member",
+  "notifications.role.custom": "“{name}”",
   "notifications.preferences.title": "Notifications",
   "notifications.preferences.description": "Choose where you get each kind of notification.",
   "notifications.preferences.inApp": "In app",

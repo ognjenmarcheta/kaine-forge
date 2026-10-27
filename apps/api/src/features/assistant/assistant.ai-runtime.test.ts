@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Only the fields these tests read. Typing the mock's parameter is what makes
@@ -84,7 +85,12 @@ import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { createAssistantTools } from "./assistant.tools";
 
 const scope = {
-  membership: { id: "membership-1", role: "owner", userId: "user-1" },
+  membership: {
+    id: "membership-1",
+    permissions: resolveRolePermissions("owner", []),
+    role: "owner",
+    userId: "user-1"
+  },
   organizationId: "org-1",
   user: {
     email: "u@example.test",

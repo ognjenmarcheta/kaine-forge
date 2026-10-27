@@ -15,6 +15,8 @@ export const AUTH_DEFINITIONS = {
   USER_NAME_MAX_LENGTH: 64,
   // Organization names appear there too, as the Organization invited to.
   ORGANIZATION_NAME_MAX_LENGTH: 64,
+  // Each Custom Role is read on every request of a member who holds it.
+  CUSTOM_ROLES_PER_ORGANIZATION_MAX: 25,
   // Issuer label authenticator apps show next to the TOTP entry.
   TWO_FACTOR_ISSUER: "Kaine Forge"
 } as const;

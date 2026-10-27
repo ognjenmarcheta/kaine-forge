@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { filesTable, organizationsTable, todosTable, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
@@ -72,7 +73,12 @@ beforeAll(async () => {
   ownTodoId = ownTodo.id;
   foreignTodoId = foreignTodo.id;
   const scope: AuthenticatedOrganizationScope = {
-    membership: { id: "membership-1", role: "owner", userId: user.id },
+    membership: {
+      id: "membership-1",
+      permissions: resolveRolePermissions("owner", []),
+      role: "owner",
+      userId: user.id
+    },
     organizationId: own.id,
     user: {
       email: user.email,

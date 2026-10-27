@@ -1,4 +1,8 @@
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import type { Permission } from "@repo/auth/permissions";
+import {
+  requireOrganizationPermission,
+  type AuthenticatedOrganizationScope
+} from "@repo/auth/scope";
 import type { Database } from "@repo/db/types";
 import { and, asc, desc, eq, getTableName, gt, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import type {
@@ -155,6 +159,8 @@ export interface ScopedData {
   ): { organizationId: string } & Record<TAuthor, string>;
   /** Rows the scope's user owns, for user-private tables such as Conversations. */
   mine(table: UserOwnedTable): SQL;
+  /** Throws `permission required: <permission>` unless the scope's member holds it. */
+  authorize(permission: Permission): void;
   /**
    * One page of the table in `order`, after the `after` cursor: `first` is
    * clamped to the order's limits, and `first + 1` rows are read to set
@@ -296,6 +302,8 @@ export function createScopedData(input: {
     },
     stamp,
     mine: (table) => eq(table.userId, requireOrganizationScope().userId),
+    authorize: (permission) =>
+      requireOrganizationPermission(requireOrganizationScope(), permission),
     page: (table, input, order, ...conditions) =>
       selectPage(
         db,

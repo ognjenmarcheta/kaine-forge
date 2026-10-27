@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { organizationsTable, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
@@ -24,7 +25,12 @@ function scopeFor(
   role: string
 ): AuthenticatedOrganizationScope {
   return {
-    membership: { id: `membership-${user.id}`, role, userId: user.id },
+    membership: {
+      id: `membership-${user.id}`,
+      permissions: resolveRolePermissions(role, []),
+      role,
+      userId: user.id
+    },
     organizationId,
     user: {
       email: user.email,
@@ -134,7 +140,7 @@ describe("createPublicAssets", () => {
   it("lets only an admin or owner change the organization logo", async () => {
     await expect(
       assetsFor(member).request({ kind: "organization_logo", mimeType: "image/png", sizeBytes: 10 })
-    ).rejects.toThrow("admin role required");
+    ).rejects.toThrow("permission required: logo:update");
 
     const logo = await assetsFor(owner).confirm(
       "organization_logo",

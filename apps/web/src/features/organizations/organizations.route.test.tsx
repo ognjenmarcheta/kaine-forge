@@ -23,7 +23,11 @@ vi.mock("../../hooks/use-auth", () => ({
 vi.mock("../../hooks/use-translation", () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }));
-vi.mock("../../lib/auth-api", () => ({ listOrganizationMembersRequest: members }));
+vi.mock("../../lib/auth-api", () => ({
+  authTransport: {},
+  listOrganizationMembersRequest: members,
+  organizationApi: {}
+}));
 
 async function renderMembersRoute(): Promise<string | null> {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

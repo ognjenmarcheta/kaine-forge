@@ -130,8 +130,12 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
               {t("email.invitation.body", {
                 inviterName: email.inviterName,
                 organizationName,
-                // Invitations grant admin or member only; ownership moves by transfer.
-                role: t(`email.invitation.role.${email.role === "admin" ? "admin" : "member"}`)
+                // Ownership moves by transfer, so an Invitation gives admin,
+                // member, or a Custom Role, which is shown by its name.
+                role:
+                  email.role === "admin" || email.role === "member"
+                    ? t(`email.invitation.role.${email.role}`)
+                    : t("email.invitation.role.custom", { name: email.role })
               })}
             </EmailText>
             <EmailButton
@@ -243,7 +247,7 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
             <EmailText>
               {t("email.roleChanged.body", {
                 organizationName,
-                role: t(`email.roleChanged.role.${roleKey(email.role)}`)
+                role: roleLabel(t, email.role)
               })}
             </EmailText>
             <EmailButton
@@ -258,10 +262,11 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
   }
 }
 
-// Roles come from the organization plugin's owner, admin, and member
-// vocabulary; any other value reads as member.
-function roleKey(role: string): "owner" | "admin" | "member" {
-  return role === "owner" || role === "admin" ? role : "member";
+// A built-in role reads by its translated name; a Custom Role by its own name.
+function roleLabel(t: Translate, role: string): string {
+  return role === "owner" || role === "admin" || role === "member"
+    ? t(`email.roleChanged.role.${role}`)
+    : t("email.roleChanged.role.custom", { name: role });
 }
 
 function resolveEmailLocale(locale: string | null | undefined): SupportedLanguage {

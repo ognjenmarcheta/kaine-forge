@@ -103,6 +103,12 @@ export const organizationApi = {
   cancelInvitation: (invitationId: string) => authTransport.cancelInvitation(invitationId),
   deleteOrganization: () => authTransport.deleteOrganization(),
   getInvitation: (invitationId: string) => authTransport.getInvitation(invitationId),
+  listCustomRoles: () => authTransport.listCustomRoles(),
+  createCustomRole: (input: Parameters<typeof authTransport.createCustomRole>[0]) =>
+    authTransport.createCustomRole(input),
+  updateCustomRole: (input: Parameters<typeof authTransport.updateCustomRole>[0]) =>
+    authTransport.updateCustomRole(input),
+  deleteCustomRole: (name: string) => authTransport.deleteCustomRole(name),
   inviteMember: (input: Parameters<typeof authTransport.inviteMember>[0]) =>
     authTransport.inviteMember(input),
   leaveOrganization: () => authTransport.leaveOrganization(),

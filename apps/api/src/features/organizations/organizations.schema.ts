@@ -27,5 +27,7 @@ export const organizationsTypeDefs = /* GraphQL */ `
     currentOrganization: Organization
     members: [OrganizationMember!]!
     invitations: [OrganizationInvitation!]!
+    # The caller's Permissions in the Active Organization, such as "todo:delete".
+    organizationPermissions: [String!]!
   }
 `;

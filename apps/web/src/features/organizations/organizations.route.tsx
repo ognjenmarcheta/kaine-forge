@@ -1,4 +1,4 @@
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
+import type { Permission } from "@repo/auth/permissions";
 import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
 import { Button } from "@repo/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,9 @@ import { Navigate } from "react-router-dom";
 import { OrganizationInvitations } from "./components/organization-invitations";
 import { OrganizationInviteForm } from "./components/organization-invite-form";
 import { OrganizationMemberList } from "./components/organization-member-list";
+import { OrganizationRoles } from "./components/organization-roles";
 import { OrganizationSettings } from "./components/organization-settings";
+import { useCustomRoles, useOrganizationPermissions } from "./organizations.hook";
 import { LoadingRows } from "../../components/loading-rows";
 import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
@@ -34,12 +36,13 @@ export function OrganizationsRoute() {
 
   const members = membersQuery.data?.members ?? [];
   const { session } = useAuth();
-  const ownMemberRole = members.find((member) => member.userId === session?.user.id)?.role;
-  // SAFETY: member roles come from the better-auth organization plugin's
-  // ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails closed for any other
-  // string. The API enforces the same rules; this only hides controls.
-  const ownRole = ownMemberRole === undefined ? null : (ownMemberRole as OrganizationRole);
-  const isManager = ownRole !== null && hasRoleAtLeast(ownRole, ORGANIZATION_ROLES.ADMIN);
+  // The API answers with the session's Permissions and enforces each one;
+  // these only decide which controls show.
+  const permissions = useOrganizationPermissions(
+    organizationsVisible ? activeOrganizationId : null
+  );
+  const can = (permission: Permission) => permissions?.has(permission) === true;
+  const customRoleNames = (useCustomRoles(can("ac:read")).data ?? []).map((role) => role.name);
   const activeOrganization = organizations.find(
     (organization) => organization.id === activeOrganizationId
   );
@@ -64,12 +67,16 @@ export function OrganizationsRoute() {
         </p>
       </header>
 
-      {isManager ? (
+      {can("logo:update") ? (
         <PublicAssetUpload kind="organization_logo" ownerName={activeOrganization?.name ?? ""} />
       ) : null}
 
-      {isManager ? <OrganizationInviteForm /> : null}
-      {isManager ? <OrganizationInvitations /> : null}
+      {can("invitation:create") ? (
+        <OrganizationInviteForm customRoleNames={customRoleNames} />
+      ) : null}
+      {can("invitation:read") ? (
+        <OrganizationInvitations canRevoke={can("invitation:cancel")} />
+      ) : null}
 
       {membersQuery.status === "pending" || isOrganizationLoading ? (
         <LoadingRows label={t("organizations.members.loading")} />
@@ -91,14 +98,21 @@ export function OrganizationsRoute() {
       ) : null}
 
       {members.length > 0 ? (
-        <OrganizationMemberList members={members} ownRole={ownRole} ownUserId={session?.user.id} />
+        <OrganizationMemberList
+          customRoleNames={customRoleNames}
+          members={members}
+          ownUserId={session?.user.id}
+          permissions={permissions ?? new Set()}
+        />
       ) : null}
 
-      {activeOrganization && ownRole ? (
+      {can("ac:create") ? <OrganizationRoles /> : null}
+
+      {activeOrganization && permissions ? (
         <OrganizationSettings
           key={activeOrganization.id}
-          canDelete={ownRole === ORGANIZATION_ROLES.OWNER}
-          canRename={isManager}
+          canDelete={can("organization:delete")}
+          canRename={can("organization:update")}
           organization={activeOrganization}
         />
       ) : null}

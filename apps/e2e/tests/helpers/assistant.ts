@@ -3,6 +3,7 @@ import { type Page } from "@playwright/test";
 import { connection } from "./connection";
 import { featureFlagData } from "./feature-flags";
 import { notificationData } from "./notifications";
+import { ORGANIZATION_PERMISSIONS_RESPONSE } from "./permissions";
 
 const noteId = "1ec1f87d-71b6-4d66-8a9a-dd611dab474f";
 const tools = [
@@ -164,7 +165,9 @@ export async function mockAssistant(page: Page) {
     } else if (query.includes("mutation DeleteConversation")) {
       conversations = conversations.filter((item) => item.id !== "a");
       await route.fulfill({ json: { data: { deleteConversation: true } } });
-    } else
+    } else if (query.includes("query OrganizationPermissions"))
+      await route.fulfill({ json: ORGANIZATION_PERMISSIONS_RESPONSE });
+    else
       await route.fulfill({
         json: { data: notificationData(query) ?? featureFlagData(query) ?? {} }
       });

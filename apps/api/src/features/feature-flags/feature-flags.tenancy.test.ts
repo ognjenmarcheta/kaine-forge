@@ -1,5 +1,5 @@
 // Proves Organization overrides of feature flags stay inside their
-// Organization and are owner/admin-only writes, by driving the real GraphQL API
+// Organization and need the featureFlag:update Permission, by driving the real GraphQL API
 // over HTTP against an in-process Postgres. The same two seams as
 // audit.tenancy.test.ts: @repo/db is PGlite, and the session comes from an
 // x-test-organization header. Membership, resolvers, SQL, and the audit write
@@ -78,7 +78,8 @@ vi.mock("@repo/auth/server", () => ({
           )
         )
         .limit(1);
-      return member ?? null;
+      const { resolveRolePermissions } = await import("@repo/auth/permissions");
+      return member ? { ...member, permissions: resolveRolePermissions(member.role, []) } : null;
     },
     getCurrentOrganizationByScope: () => Promise.resolve(null),
     listInvitationsByScope: () => Promise.resolve([]),
@@ -234,10 +235,10 @@ describe("feature flag overrides", () => {
     expect((await runAs(ORG_B, FEATURE_FLAGS)).data?.featureFlags).toEqual(RESOLVED_DEFAULTS);
   });
 
-  it("refuses a member who is not an owner or admin and writes no override", async () => {
+  it("refuses a member without the featureFlag:update Permission and writes no override", async () => {
     const result = await runAs(ORG_B, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
 
-    expect(result.errors?.[0]?.message).toBe("admin role required");
+    expect(result.errors?.[0]?.message).toBe("permission required: featureFlag:update");
     expect(
       await testDb
         .select()

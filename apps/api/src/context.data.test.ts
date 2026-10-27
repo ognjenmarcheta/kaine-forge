@@ -1,6 +1,7 @@
 // The tenancy proof for every organization-owned table, through the one module
 // that writes the organization predicate. It runs on PGlite with the real
 // migrations, so the SQL is real; feature tests no longer re-prove tenancy.
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   assistantConversationsTable,
@@ -26,7 +27,12 @@ const ids: Record<string, string> = {};
 
 function scopeFor(organizationId: string, userId: string): AuthenticatedOrganizationScope {
   return {
-    membership: { id: `membership-${userId}`, role: "owner", userId },
+    membership: {
+      id: `membership-${userId}`,
+      permissions: resolveRolePermissions("owner", []),
+      role: "owner",
+      userId
+    },
     organizationId,
     user: {
       email: `${userId}@example.test`,
