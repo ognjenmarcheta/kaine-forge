@@ -1,4 +1,8 @@
-import { filesTable, organizationStoragePurgesTable } from "@repo/db/schema";
+import {
+  filesTable,
+  organizationStoragePurgesTable,
+  publicAssetPurgesTable
+} from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
 import { publicAssetKeyFromUrl, type PublicAssetConfig } from "@repo/storage";
@@ -227,6 +231,61 @@ export async function sweepDeletedOrganizations({
         .delete(organizationStoragePurgesTable)
         .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
     }
+  }
+
+  return totals;
+}
+
+/**
+ * Deletes the Public Assets that deleted users left in the public bucket (their
+ * avatars), best effort. The users delete trigger queues each URL in
+ * public_asset_purges. A URL outside the public bucket, such as a social
+ * provider's avatar, is only dropped; a failed delete stays queued, behind
+ * rows not tried yet.
+ */
+export async function sweepDeletedPublicAssets({
+  db,
+  logger,
+  store,
+  publicStorage,
+  batchSize = STORAGE_CONFIG.sweep.batchSize
+}: {
+  db: Database;
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete">;
+  /** The public bucket of avatars, or null when Public Assets are off. */
+  publicStorage: PublicAssetConfig | null;
+  batchSize?: number;
+}): Promise<{ deleted: number; failed: number }> {
+  const totals = { deleted: 0, failed: 0 };
+  const purges = await db
+    .select({ url: publicAssetPurgesTable.url })
+    .from(publicAssetPurgesTable)
+    .orderBy(
+      sql`${publicAssetPurgesTable.attemptedAt} asc nulls first`,
+      asc(publicAssetPurgesTable.createdAt)
+    )
+    .limit(batchSize);
+
+  for (const { url } of purges) {
+    const key = publicStorage ? publicAssetKeyFromUrl(publicStorage.baseUrl, url) : null;
+
+    if (publicStorage && key) {
+      try {
+        await store.delete({ bucket: publicStorage.bucket, key });
+        totals.deleted += 1;
+      } catch (err) {
+        totals.failed += 1;
+        logger.warn({ error: formatLoggableError(err), key }, "failed to delete public asset");
+        await db
+          .update(publicAssetPurgesTable)
+          .set({ attemptedAt: new Date() })
+          .where(eq(publicAssetPurgesTable.url, url));
+        continue;
+      }
+    }
+
+    await db.delete(publicAssetPurgesTable).where(eq(publicAssetPurgesTable.url, url));
   }
 
   return totals;

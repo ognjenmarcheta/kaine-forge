@@ -57,6 +57,13 @@ export function buildInvitationUrl(webAppUrl: string, invitationId: string): str
   return new URL(`/invitations/${encodeURIComponent(invitationId)}`, webAppUrl).toString();
 }
 
+// The web page that confirms an account deletion with the emailed token.
+export function buildAccountDeletionUrl(webAppUrl: string, token: string): string {
+  const url = new URL("/account/delete", webAppUrl);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
 export function getClientAuthConfig(
   env: Record<string, string | undefined> = process.env
 ): AuthClientConfig {

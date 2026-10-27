@@ -29,6 +29,7 @@ const {
   startAttachmentSweep,
   sweepAttachmentObjects,
   sweepDeletedOrganizations,
+  sweepDeletedPublicAssets,
   sweepStaleObjects,
   withSweepLock
 } = await import("./features/storage/attachment.sweep");
@@ -99,15 +100,26 @@ if (sweep) {
           publicStorage: publicAssetStorage(),
           pendingCutoff: cutoff
         });
+        const publicAssets = await sweepDeletedPublicAssets({
+          db: tx,
+          logger,
+          store: s3ObjectStore,
+          publicStorage: publicAssetStorage()
+        });
 
         if (
           result.purged > 0 ||
           result.failed > 0 ||
           staged > 0 ||
           organizations.deletedObjects > 0 ||
-          organizations.failed > 0
+          organizations.failed > 0 ||
+          publicAssets.deleted > 0 ||
+          publicAssets.failed > 0
         ) {
-          logger.info({ ...result, staged, organizations }, "attachment sweep finished");
+          logger.info(
+            { ...result, staged, organizations, publicAssets },
+            "attachment sweep finished"
+          );
         }
       });
     }

@@ -1,0 +1,21 @@
+CREATE TABLE "public_asset_purges" (
+	"url" text PRIMARY KEY NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"attempted_at" timestamp with time zone
+);
+--> statement-breakpoint
+ALTER TABLE "files" DROP CONSTRAINT "files_uploaded_by_users_id_fk";
+--> statement-breakpoint
+ALTER TABLE "files" ALTER COLUMN "uploaded_by" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "files" ADD CONSTRAINT "files_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE FUNCTION "users_public_asset_purge"() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD."image" IS NOT NULL THEN
+    INSERT INTO "public_asset_purges" ("url")
+    VALUES (OLD."image")
+    ON CONFLICT ("url") DO NOTHING;
+  END IF;
+  RETURN OLD;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "users_public_asset_purge" AFTER DELETE ON "users" FOR EACH ROW EXECUTE FUNCTION "users_public_asset_purge"();

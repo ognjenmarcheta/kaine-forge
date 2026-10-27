@@ -2,6 +2,7 @@ import {
   filesTable,
   organizationStoragePurgesTable,
   organizationsTable,
+  publicAssetPurgesTable,
   usersTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
@@ -13,6 +14,7 @@ import { createMemoryObjectStore } from "./attachment.store.memory";
 import {
   sweepAttachmentObjects,
   sweepDeletedOrganizations,
+  sweepDeletedPublicAssets,
   sweepStaleObjects,
   withSweepLock
 } from "./attachment.sweep";
@@ -371,6 +373,59 @@ describe("sweepDeletedOrganizations", () => {
       })
     ).resolves.toEqual({ deletedObjects: 0, failed: 1 });
     expect(await queuedPurges()).toEqual([{ organizationId: failing.id }]);
+  });
+});
+
+describe("sweepDeletedPublicAssets", () => {
+  const publicStorage = { bucket: "public", baseUrl: "https://cdn.example.test" };
+  const object = { contentType: "image/webp", sizeBytes: 8, lastModified: before };
+
+  async function deleteUserWithAvatar(label: string, image: string) {
+    const [user] = await database.db
+      .insert(usersTable)
+      .values({ email: `${label}@example.test`, name: label, image })
+      .returning();
+    if (!user) throw new Error("failed to seed user");
+    // The users delete trigger queues the avatar URL.
+    await database.db.delete(usersTable).where(eq(usersTable.id, user.id));
+  }
+
+  async function queuedUrls() {
+    return database.db.select({ url: publicAssetPurgesTable.url }).from(publicAssetPurgesTable);
+  }
+
+  it("deletes a deleted user's avatar, keeps other objects, and drops foreign urls", async () => {
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload({ bucket: "public", key: "avatars/gone.webp" }, object);
+    memory.upload({ bucket: "public", key: "avatars/kept.webp" }, object);
+    await deleteUserWithAvatar("avatar-gone", "https://cdn.example.test/avatars/gone.webp");
+    await deleteUserWithAvatar("avatar-social", "https://avatars.github.test/u/1");
+
+    await expect(
+      sweepDeletedPublicAssets({ db: database.db, logger, store: memory, publicStorage })
+    ).resolves.toEqual({ deleted: 1, failed: 0 });
+    expect(memory.keys()).toEqual(["avatars/kept.webp"]);
+    expect(await queuedUrls()).toEqual([]);
+  });
+
+  it("keeps a failed avatar delete queued for the next run", async () => {
+    await deleteUserWithAvatar("avatar-stuck", "https://cdn.example.test/avatars/stuck.webp");
+    const failing = {
+      delete: async () => {
+        throw new Error("cdn bucket unreachable");
+      }
+    };
+
+    await expect(
+      sweepDeletedPublicAssets({ db: database.db, logger, store: failing, publicStorage })
+    ).resolves.toEqual({ deleted: 0, failed: 1 });
+    expect(await queuedUrls()).toEqual([{ url: "https://cdn.example.test/avatars/stuck.webp" }]);
+
+    const memory = createMemoryObjectStore("uploads");
+    await expect(
+      sweepDeletedPublicAssets({ db: database.db, logger, store: memory, publicStorage })
+    ).resolves.toEqual({ deleted: 1, failed: 0 });
+    expect(await queuedUrls()).toEqual([]);
   });
 });
 

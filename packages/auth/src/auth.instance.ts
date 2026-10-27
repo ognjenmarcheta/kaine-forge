@@ -36,11 +36,21 @@ import {
 } from "better-auth/plugins";
 import { z } from "zod";
 
-import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
+import {
+  assertProductionAuthSecret,
+  buildAccountDeletionUrl,
+  buildInvitationUrl,
+  getServerAuthConfig
+} from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { hashPassword, verifyPassword } from "./auth.password";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
+import {
+  findAccountDeletionRefusal,
+  prepareAccountDeletion,
+  type AccountDeletionRefusal
+} from "./auth.server.account";
 import {
   ensurePersonalOrganizationForUser,
   isPersonalOrganization,
@@ -361,6 +371,49 @@ const organizationOwnershipPlugin = {
   }
 } satisfies BetterAuthPlugin;
 
+const ACCOUNT_DELETION_REFUSAL_MESSAGES: Record<AccountDeletionRefusal["code"], string> = {
+  PERSONAL_ORGANIZATION_HAS_MEMBERS:
+    "Remove the other members of your personal organization before you delete your account",
+  SOLE_OWNER_OF_SHARED_ORGANIZATION:
+    "Transfer ownership of the organization or delete it before you delete your account"
+};
+
+// The body names the Organization, so the client can show it in its message.
+function refuseAccountDeletion(refusal: AccountDeletionRefusal): APIError {
+  return APIError.fromStatus("BAD_REQUEST", {
+    code: refusal.code,
+    message: ACCOUNT_DELETION_REFUSAL_MESSAGES[refusal.code],
+    organizationName: refusal.organizationName
+  });
+}
+
+// Refuses a delete request before better-auth emails the confirmation link.
+// A request with the emailed token is checked by user.deleteUser.beforeDelete,
+// under row locks.
+const accountDeletionPlugin = {
+  id: "account-deletion",
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => ctx.path === "/delete-user" && readRecord(ctx.body).token === undefined,
+        handler: createAuthMiddleware(async (ctx) => {
+          const session = await getSessionFromCtx(ctx);
+
+          if (!session) {
+            return;
+          }
+
+          const refusal = await findAccountDeletionRefusal(session.user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
 /** Deep-link scheme for Expo OAuth return (must match apps/mobile app.json scheme). */
 export const EXPO_AUTH_SCHEME = "kaineforge";
 
@@ -448,6 +501,40 @@ export function createAuthInstance() {
       // login either way.
       sendOnSignUp: config.requireEmailVerification,
       expiresIn: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS
+    },
+    user: {
+      changeEmail: {
+        enabled: true,
+        // The email on the user row changes only after the new address is
+        // verified; a verified user's old address approves the change first.
+        updateEmailWithoutVerification: false,
+        sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+          enqueueAuthEmail({
+            to: user.email,
+            subject: "Approve your email address change",
+            text: `Someone asked to change the email address of your account to ${newEmail}. To approve the change, open: ${url}\n\nIf you did not ask for this, ignore this email and change your password.`
+          });
+        }
+      },
+      deleteUser: {
+        enabled: true,
+        // The user row is deleted only after the emailed link is used. The
+        // link opens the web app, which confirms with the token.
+        sendDeleteAccountVerification: async ({ user, token }) => {
+          enqueueAuthEmail({
+            to: user.email,
+            subject: "Confirm your account deletion",
+            text: `To delete your account and all organizations where you are the only member, open: ${buildAccountDeletionUrl(config.webAppUrl, token)}\n\nIf you did not ask for this, ignore this email and change your password.`
+          });
+        },
+        beforeDelete: async (user) => {
+          const refusal = await prepareAccountDeletion(user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
+        }
+      }
     },
     session: {
       expiresIn: AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS,
@@ -563,6 +650,7 @@ export function createAuthInstance() {
         }
       }),
       organizationOwnershipPlugin,
+      accountDeletionPlugin,
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).

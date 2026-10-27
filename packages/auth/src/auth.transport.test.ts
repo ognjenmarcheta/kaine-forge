@@ -28,6 +28,7 @@ vi.mock("better-auth/client/plugins", () => ({
 interface StubError {
   code?: string;
   message?: string;
+  organizationName?: string;
   status: number;
   statusText?: string;
 }
@@ -40,6 +41,7 @@ interface StubResult<T> {
 interface SessionData {
   session: {
     activeOrganizationId?: string | null;
+    id?: string;
     expiresAt: Date | string;
   };
   user: {
@@ -129,6 +131,19 @@ function createClientStub() {
       sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
     },
     $fetch: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+    listSessions: vi.fn(async () =>
+      stubResult<
+        {
+          createdAt: string;
+          id: string;
+          ipAddress?: string | null;
+          token: string;
+          userAgent?: string | null;
+        }[]
+      >([])
+    ),
+    revokeSession: vi.fn(async () => stubResult({ status: true })),
+    deleteUser: vi.fn(async () => stubResult({ success: true, message: "User deleted" })),
     organization: {
       list: vi.fn(async () =>
         stubResult<
@@ -640,6 +655,75 @@ describe("createAuthTransport", () => {
       ["/organization/leave", { method: "POST", body: {} }],
       ["/organization/delete", { method: "POST", body: {} }]
     ]);
+  });
+
+  it("lists sessions with a marker on this device and revokes one by its id", async () => {
+    const client = createClientStub();
+    const current = sessionPayload();
+    client.getSession.mockResolvedValue({
+      ...current,
+      data: current.data && {
+        ...current.data,
+        session: { ...current.data.session, id: "session-1" }
+      }
+    });
+    client.listSessions.mockResolvedValue(
+      stubResult([
+        {
+          id: "session-1",
+          token: "token-1",
+          userAgent: "Firefox",
+          ipAddress: "10.0.0.1",
+          createdAt: "2026-10-01T08:00:00.000Z"
+        },
+        {
+          id: "session-2",
+          token: "token-2",
+          userAgent: null,
+          ipAddress: null,
+          createdAt: "2026-10-02T08:00:00.000Z"
+        }
+      ])
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.listSessions()).resolves.toEqual([
+      {
+        id: "session-1",
+        userAgent: "Firefox",
+        ipAddress: "10.0.0.1",
+        createdAt: "2026-10-01T08:00:00.000Z",
+        current: true
+      },
+      {
+        id: "session-2",
+        userAgent: null,
+        ipAddress: null,
+        createdAt: "2026-10-02T08:00:00.000Z",
+        current: false
+      }
+    ]);
+    await transport.revokeSession("session-2");
+    expect(client.revokeSession.mock.calls).toEqual([[{ token: "token-2" }]]);
+  });
+
+  it("names the organization that blocks an account deletion", async () => {
+    const client = createClientStub();
+    client.deleteUser.mockResolvedValue({
+      data: null,
+      error: { status: 400, code: "SOLE_OWNER_OF_SHARED_ORGANIZATION", organizationName: "Acme" }
+    });
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+    const error: unknown = await transport
+      .requestAccountDeletion()
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ organizationName: "Acme" });
+    expect(getAuthErrorMessageKey(error)).toBe("auth.account.error.soleOwner");
   });
 
   it("maps organization members from the better-auth member payload", async () => {

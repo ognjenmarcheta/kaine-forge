@@ -3,12 +3,16 @@ import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth
 
 import type {
   AssignableOrganizationRole,
+  AuthDeviceSession,
   AuthInvitation,
   AuthInvitationDetails,
+  AuthLinkedAccount,
   AuthOrganizationMember,
   AuthOrganizationsResult,
   AuthSession,
   AuthSocialProvider,
+  ChangeEmailInput,
+  ChangePasswordInput,
   ClientAuth,
   CreateOrganizationInput,
   InviteMemberInput,
@@ -55,17 +59,21 @@ export const TWO_FACTOR_REQUIRED = "TWO_FACTOR_REQUIRED";
  */
 export class AuthRequestError extends Error {
   readonly code: string | undefined;
+  /** The Organization a refused account deletion names. */
+  readonly organizationName: string | undefined;
   readonly status: number;
   readonly twoFactorMethods: readonly TwoFactorMethod[];
 
   constructor(input: {
     code?: string | undefined;
+    organizationName?: string | undefined;
     status: number;
     twoFactorMethods?: readonly TwoFactorMethod[] | undefined;
   }) {
     super(`auth request failed (${String(input.status)})`);
     this.name = "AuthRequestError";
     this.code = input.code;
+    this.organizationName = input.organizationName;
     this.status = input.status;
     this.twoFactorMethods = input.twoFactorMethods ?? [];
   }
@@ -100,7 +108,15 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "organizations.error.personalDelete",
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "organizations.error.personalLeave",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
-  YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail"
+  YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail",
+  // Account settings.
+  INVALID_PASSWORD: "auth.account.error.invalidPassword",
+  CREDENTIAL_ACCOUNT_NOT_FOUND: "auth.account.error.noPassword",
+  FAILED_TO_UNLINK_LAST_ACCOUNT: "auth.account.error.lastAccount",
+  SESSION_NOT_FRESH: "auth.account.error.signInAgain",
+  INVALID_TOKEN: "auth.account.error.invalidLink",
+  SOLE_OWNER_OF_SHARED_ORGANIZATION: "auth.account.error.soleOwner",
+  PERSONAL_ORGANIZATION_HAS_MEMBERS: "auth.account.error.personalMembers"
 };
 
 export function getAuthErrorMessageKey(error: unknown): string {
@@ -151,6 +167,25 @@ export interface AuthTransport extends ClientAuth {
   leaveOrganization(): Promise<AuthSession>;
   /** The session switches to another Organization the user belongs to. */
   deleteOrganization(): Promise<AuthSession>;
+  /** Changes the display name and returns the refreshed session. */
+  updateProfile(input: { name: string }): Promise<AuthSession>;
+  changePassword(input: ChangePasswordInput): Promise<void>;
+  /** Emails a verification link; the email changes only after it is used. */
+  changeEmail(input: ChangeEmailInput): Promise<void>;
+  listSessions(): Promise<AuthDeviceSession[]>;
+  revokeSession(sessionId: string): Promise<void>;
+  revokeOtherSessions(): Promise<void>;
+  listAccounts(): Promise<AuthLinkedAccount[]>;
+  /** Redirects to the provider; it returns to `callbackUrl` with the account linked. */
+  linkSocialAccount(input: {
+    provider: AuthSocialProvider;
+    callbackUrl?: string | undefined;
+  }): Promise<void>;
+  unlinkAccount(accountId: string): Promise<void>;
+  /** Emails a confirmation link; nothing is deleted yet. */
+  requestAccountDeletion(): Promise<void>;
+  /** Deletes the account with the token from the emailed link. */
+  confirmAccountDeletion(token: string): Promise<void>;
   /** Completes a password sign-in that threw TWO_FACTOR_REQUIRED. */
   verifyTwoFactor(input: VerifyTwoFactorInput): Promise<AuthSession>;
   /** Emails a second-factor code during a pending two-factor sign-in. */
@@ -189,11 +224,17 @@ export function parseSocialProviders(value: string | undefined): AuthSocialProvi
 interface TransportRequestError {
   code?: string | undefined;
   message?: string | undefined;
+  organizationName?: unknown;
   status: number;
 }
 
 function toAuthError(error: TransportRequestError): AuthRequestError {
-  return new AuthRequestError({ code: error.code, status: error.status });
+  return new AuthRequestError({
+    code: error.code,
+    organizationName:
+      typeof error.organizationName === "string" ? error.organizationName : undefined,
+    status: error.status
+  });
 }
 
 function isTwoFactorMethod(value: unknown): value is TwoFactorMethod {
@@ -367,6 +408,129 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       }
 
       return requireSession();
+    },
+    async updateProfile(profileInput: { name: string }) {
+      const { error } = await client.updateUser({ name: profileInput.name });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async changePassword(passwordInput: ChangePasswordInput) {
+      const { error } = await client.changePassword({
+        currentPassword: passwordInput.currentPassword,
+        newPassword: passwordInput.newPassword,
+        revokeOtherSessions: passwordInput.revokeOtherSessions
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async changeEmail(emailInput: ChangeEmailInput) {
+      const { error } = await client.changeEmail({
+        newEmail: emailInput.newEmail,
+        ...(emailInput.callbackUrl ? { callbackURL: emailInput.callbackUrl } : {})
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async listSessions() {
+      const [sessionsResult, currentResult] = await Promise.all([
+        client.listSessions(),
+        client.getSession()
+      ]);
+
+      if (sessionsResult.error) {
+        throw toAuthError(sessionsResult.error);
+      }
+
+      const currentId = currentResult.data?.session.id;
+
+      return (sessionsResult.data ?? []).map((session) => ({
+        id: session.id,
+        userAgent: session.userAgent ?? null,
+        ipAddress: session.ipAddress ?? null,
+        createdAt: toIsoString(session.createdAt),
+        current: session.id === currentId
+      }));
+    },
+    async revokeSession(sessionId: string) {
+      // better-auth revokes by token; the token stays inside the transport.
+      const { data, error: listError } = await client.listSessions();
+
+      if (listError) {
+        throw toAuthError(listError);
+      }
+
+      const session = (data ?? []).find((candidate) => candidate.id === sessionId);
+
+      if (!session) {
+        return;
+      }
+
+      const { error } = await client.revokeSession({ token: session.token });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async revokeOtherSessions() {
+      const { error } = await client.revokeOtherSessions();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async listAccounts() {
+      const { data, error } = await client.listAccounts();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return (data ?? []).map((account) => ({
+        id: account.id,
+        providerId: account.providerId,
+        createdAt: toIsoString(account.createdAt)
+      }));
+    },
+    async linkSocialAccount(linkInput) {
+      const { error } = await client.linkSocial({
+        provider: linkInput.provider,
+        ...(linkInput.callbackUrl ? { callbackURL: linkInput.callbackUrl } : {})
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async unlinkAccount(accountId: string) {
+      const { error } = await client.unlinkAccount({ accountId });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async requestAccountDeletion() {
+      const { error } = await client.deleteUser({});
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async confirmAccountDeletion(token: string) {
+      const { error } = await client.deleteUser({ token });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      await adapter.setSessionToken(null);
     },
     async verifyTwoFactor(verifyInput: VerifyTwoFactorInput) {
       const body = { code: verifyInput.code, trustDevice: verifyInput.trustDevice };

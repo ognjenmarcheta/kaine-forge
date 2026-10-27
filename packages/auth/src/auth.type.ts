@@ -74,6 +74,36 @@ export interface TwoFactorEnrollment {
   totpUri: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  /** Signs out every other session; this device gets a new session. */
+  revokeOtherSessions: boolean;
+}
+
+export interface ChangeEmailInput {
+  newEmail: string;
+  /** Absolute URL the verification link returns to. */
+  callbackUrl?: string | undefined;
+}
+
+/** One signed-in device of the session user. */
+export interface AuthDeviceSession {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  /** The session making this request. */
+  current: boolean;
+}
+
+/** A sign-in method linked to the user: "credential" (password) or a social provider id. */
+export interface AuthLinkedAccount {
+  id: string;
+  providerId: string;
+  createdAt: string;
+}
+
 export interface CreateOrganizationInput {
   name: string;
 }
