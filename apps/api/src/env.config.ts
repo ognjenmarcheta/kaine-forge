@@ -77,6 +77,11 @@ const apiEnvSchema = z.object({
   STORAGE_SWEEP_INTERVAL_MS: z.preprocess(
     blankAsUnset,
     z.coerce.number().int().positive().optional()
+  ),
+  HOUSEKEEPING_ENABLED: z.preprocess(blankAsUnset, z.enum(["true", "false"]).optional()),
+  HOUSEKEEPING_INTERVAL_MS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
   )
 });
 
