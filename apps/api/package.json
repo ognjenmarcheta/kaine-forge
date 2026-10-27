@@ -47,6 +47,7 @@
     "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
     "@types/ws": "^8.18.2",
+    "pino": "catalog:",
     "vitest": "catalog:"
   }
 }
