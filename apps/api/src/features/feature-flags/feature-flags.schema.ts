@@ -12,9 +12,9 @@ export const featureFlagsTypeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    # Every flag resolved for the Active Organization: default, then
-    # environment, then the Organization's override. Bounded by the registry,
-    # so it is not paged.
+    # Every flag resolved for the session: default, then environment, then the
+    # Active Organization's override when the session has one. Signed-in users
+    # only. Bounded by the registry, so it is not paged.
     featureFlags: [FeatureFlag!]!
   }
 

@@ -9,7 +9,7 @@ import {
   type FeatureFlagKey,
   type FeatureFlags
 } from "@repo/feature-flags";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, ne, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 
 import type { ScopedData } from "../../context.data";
@@ -100,20 +100,27 @@ export function createFeatureFlagOverrides({
     async set(key, enabled) {
       const scope = requireOverride(key);
 
-      await data
+      // An existing row with the same value is left alone and returns
+      // nothing, so a repeat records no Audit Event.
+      const changed = await data
         .insert(featureFlagOverridesTable)
         .values({ ...data.stamp(), flagKey: key, enabled })
         .onConflictDoUpdate({
           target: [featureFlagOverridesTable.organizationId, featureFlagOverridesTable.flagKey],
-          set: { enabled, updatedAt: sql`now()` }
+          set: { enabled, updatedAt: sql`now()` },
+          setWhere: ne(featureFlagOverridesTable.enabled, enabled)
+        })
+        .returning({ flagKey: featureFlagOverridesTable.flagKey });
+
+      if (changed.length > 0) {
+        await recordAuditEvent({
+          action: "feature_flag_override_changed",
+          actorUserId: scope.userId,
+          metadata: { enabled, flag: key },
+          organizationId: scope.organizationId,
+          targetId: scope.organizationId
         });
-      await recordAuditEvent({
-        action: "feature_flag_override_changed",
-        actorUserId: scope.userId,
-        metadata: { enabled, flag: key },
-        organizationId: scope.organizationId,
-        targetId: scope.organizationId
-      });
+      }
 
       return resolved(scope);
     },

@@ -6,7 +6,8 @@ import {
   isFeatureEnabled,
   parseFeatureFlagEnvironment,
   resolveFeatureFlags,
-  resolveFlags
+  resolveFlags,
+  unknownFeatureFlagVariables
 } from "./feature-flags.util";
 
 // One flag of each kind, so the precedence rows do not depend on the shipped registry.
@@ -64,6 +65,17 @@ describe("parseFeatureFlagEnvironment", () => {
     ).toThrow(
       'invalid feature flag environment: FEATURE_FLAG_LOCKED must be "true" or "false"; FEATURE_FLAG_OPEN must be "true" or "false"'
     );
+  });
+});
+
+describe("unknownFeatureFlagVariables", () => {
+  it("lists FEATURE_FLAG_ variables that match no registry key", () => {
+    expect(
+      unknownFeatureFlagVariables(
+        { FEATURE_FLAG_LOCKED: "true", FEATURE_FLAG_LOKCED: "false", LOCKED: "true" },
+        REGISTRY
+      )
+    ).toEqual(["FEATURE_FLAG_LOKCED"]);
   });
 });
 

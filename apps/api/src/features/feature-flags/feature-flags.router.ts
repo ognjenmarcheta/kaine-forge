@@ -6,8 +6,12 @@ import type { ApiContext } from "../../context";
 export const featureFlagsResolvers = {
   Query: {
     featureFlags(_parent: unknown, _args: unknown, ctx: ApiContext) {
-      // Fails without an Active Organization; ctx.featureFlags already holds its overrides.
-      ctx.requireOrganizationScope();
+      // ctx.featureFlags already holds the Active Organization's overrides, or
+      // only defaults and environment values when the session has none.
+      if (!ctx.session) {
+        throw new Error("authentication required");
+      }
+
       return toFeatureFlagViews(ctx.featureFlags);
     }
   },

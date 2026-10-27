@@ -6,7 +6,7 @@
 // are real. The shipped registry has no overridable flag, so this suite adds one.
 import { createLogger } from "@repo/logger";
 import type { Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@localhost:5432/feature-flags-tenancy-test";
@@ -15,6 +15,8 @@ process.env.API_CORS_ORIGINS = "http://localhost:3000";
 vi.stubEnv("FEATURE_FLAG_BETA_REPORTS", "false");
 
 const TEST_ORGANIZATION_HEADER = "x-test-organization";
+// Header value for a signed-in session with no Active Organization.
+const NO_ORGANIZATION = "none";
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 
 const { testDatabase, testDb } = await vi.hoisted(async () => {
@@ -52,7 +54,7 @@ vi.mock("@repo/auth/server", () => ({
       }
 
       return Promise.resolve({
-        activeOrganizationId: organizationId,
+        activeOrganizationId: organizationId === NO_ORGANIZATION ? null : organizationId,
         expiresAt: "2099-01-01T00:00:00.000Z",
         user: {
           email: "flags@example.test",
@@ -198,6 +200,24 @@ afterAll(async () => {
   await testDatabase.close();
 });
 
+beforeEach(async () => {
+  await testDb.delete(featureFlagOverridesTable);
+  await testDb.delete(auditEventsTable);
+});
+
+async function overrideEvents() {
+  return testDb
+    .select({
+      action: auditEventsTable.action,
+      actorUserId: auditEventsTable.actorUserId,
+      metadata: auditEventsTable.metadata,
+      targetId: auditEventsTable.targetId
+    })
+    .from(auditEventsTable)
+    .where(eq(auditEventsTable.organizationId, ORG_A))
+    .orderBy(auditEventsTable.createdAt);
+}
+
 describe("feature flag overrides", () => {
   it("changes only the Active Organization's resolved flags", async () => {
     const set = await runAs(ORG_A, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
@@ -237,21 +257,21 @@ describe("feature flag overrides", () => {
     );
   });
 
-  it("clears an override back to the environment value and records both changes", async () => {
+  it("clears an override back to the environment value", async () => {
+    await runAs(ORG_A, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
     const cleared = await runAs(ORG_A, CLEAR_OVERRIDE, { key: "beta_reports" });
-    const events = await testDb
-      .select({
-        action: auditEventsTable.action,
-        actorUserId: auditEventsTable.actorUserId,
-        metadata: auditEventsTable.metadata,
-        targetId: auditEventsTable.targetId
-      })
-      .from(auditEventsTable)
-      .where(eq(auditEventsTable.organizationId, ORG_A))
-      .orderBy(auditEventsTable.createdAt);
 
     expect(cleared.data?.clearFeatureFlagOverride).toEqual(RESOLVED_DEFAULTS);
-    expect(events).toEqual([
+    expect((await runAs(ORG_A, FEATURE_FLAGS)).data?.featureFlags).toEqual(RESOLVED_DEFAULTS);
+  });
+
+  it("records one Audit Event per change and none for a repeat", async () => {
+    await runAs(ORG_A, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
+    await runAs(ORG_A, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
+    await runAs(ORG_A, CLEAR_OVERRIDE, { key: "beta_reports" });
+    await runAs(ORG_A, CLEAR_OVERRIDE, { key: "beta_reports" });
+
+    expect(await overrideEvents()).toEqual([
       {
         action: "feature_flag_override_changed",
         actorUserId: USER_ID,
@@ -265,5 +285,13 @@ describe("feature flag overrides", () => {
         targetId: ORG_A
       }
     ]);
+  });
+
+  it("answers a session without an Active Organization with defaults and environment values", async () => {
+    await runAs(ORG_A, SET_OVERRIDE, { enabled: true, key: "beta_reports" });
+
+    expect((await runAs(NO_ORGANIZATION, FEATURE_FLAGS)).data?.featureFlags).toEqual(
+      RESOLVED_DEFAULTS
+    );
   });
 });

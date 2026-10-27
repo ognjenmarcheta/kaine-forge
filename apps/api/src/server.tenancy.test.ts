@@ -77,6 +77,9 @@ const apiSchema = buildSchema(apiTypeDefs.join("\n"));
 
 // Fields that are public by design. Every other root field is organization-scoped.
 const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"];
+// Fields for any signed-in session. They read the Active Organization only
+// when the session has one, and still take no organization id.
+const SESSION_FIELDS = ["Query.featureFlags"];
 const ORGANIZATION_ID_NAME = /organi[sz]ation|^org(?:id)?$|tenant/i;
 
 type OperationType = "query" | "mutation" | "subscription";
@@ -110,7 +113,10 @@ function rootFields(): RootField[] {
   );
 }
 
-const scopedFields = rootFields().filter((root) => !PUBLIC_FIELDS.includes(root.coordinate));
+const authenticatedFields = rootFields().filter((root) => !PUBLIC_FIELDS.includes(root.coordinate));
+const scopedFields = authenticatedFields.filter(
+  (root) => !SESSION_FIELDS.includes(root.coordinate)
+);
 
 // A literal for every required input, so the request passes validation and
 // reaches the resolver. Optional inputs are left out.
@@ -257,12 +263,12 @@ describe("organization-scoped GraphQL field contract", () => {
   it("keeps every public allowlist entry a real root field", () => {
     const coordinates = rootFields().map((root) => root.coordinate);
 
-    expect(coordinates).toEqual(expect.arrayContaining(PUBLIC_FIELDS));
+    expect(coordinates).toEqual(expect.arrayContaining([...PUBLIC_FIELDS, ...SESSION_FIELDS]));
     expect(scopedFields.length).toBeGreaterThan(0);
   });
 
   it("offers no argument or input field that carries an organization id", () => {
-    const offenders = scopedFields.flatMap((root) =>
+    const offenders = authenticatedFields.flatMap((root) =>
       inputNames(root.field.args)
         .filter((name) => ORGANIZATION_ID_NAME.test(name.split(".").at(-1) ?? ""))
         .map((name) => `${root.coordinate}(${name})`)
@@ -278,13 +284,15 @@ describe("organization-scoped GraphQL field contract", () => {
     expect(result.data?.["health"]).toBe("ok");
   });
 
-  describe.each(scopedFields)("$coordinate", (root) => {
+  describe.each(authenticatedFields)("$coordinate", (root) => {
     it("requires authentication", async () => {
       const result = await run(root.operation, operationFor(root), null);
 
       expect(result.errors?.[0]?.message).toBe("authentication required");
     });
+  });
 
+  describe.each(scopedFields)("$coordinate", (root) => {
     it("takes the organization from the session's Active Organization", async () => {
       const result = await run(root.operation, operationFor(root), NO_ACTIVE_ORGANIZATION);
 

@@ -77,6 +77,21 @@ export function parseFeatureFlagEnvironment<TKey extends string>(
   return flags;
 }
 
+/**
+ * `FEATURE_FLAG_*` variables that name no flag in `registry`, such as a
+ * misspelled key. Parsing ignores them, so callers warn about them instead.
+ */
+export function unknownFeatureFlagVariables<TKey extends string>(
+  env: Readonly<Record<string, string | undefined>>,
+  registry: FlagRegistry<TKey>
+): string[] {
+  const known = new Set(flagKeys(registry).map(featureFlagEnvironmentVariable));
+
+  return Object.keys(env).filter(
+    (variable) => variable.startsWith(featureFlagEnvironmentVariable("")) && !known.has(variable)
+  );
+}
+
 export function resolveFeatureFlags(layers: FeatureFlagLayers = {}): FeatureFlags {
   return resolveFlags(FEATURE_FLAG_REGISTRY, layers);
 }

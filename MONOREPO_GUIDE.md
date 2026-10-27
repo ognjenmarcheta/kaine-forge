@@ -163,10 +163,10 @@ Feature flags live in `@repo/feature-flags`. No remote flag service is used: the
 The typed registry `FEATURE_FLAG_REGISTRY` in `packages/feature-flags/src/feature-flags.definition.ts` declares each flag with its key, its default value, and whether an Organization may override it. The API resolves every flag once per request into `ctx.featureFlags`, in three layers. A later layer wins:
 
 1. Default: the registry's `defaultValue`.
-2. Environment: `FEATURE_FLAG_<KEY>` (for example `FEATURE_FLAG_ORGANIZATIONS_VISIBLE`) set to `true` or `false` applies to the whole API process. Any other value fails API startup. `.env.example` lists the variables.
+2. Environment: `FEATURE_FLAG_<KEY>` (for example `FEATURE_FLAG_ORGANIZATIONS_VISIBLE`) set to `true` or `false` applies to the whole API process. Any other value fails API startup, and a `FEATURE_FLAG_*` variable that names no flag logs a warning at boot. `.env.example` lists the variables.
 3. Organization override: a row in `feature_flag_overrides` for the Active Organization. It applies only to a flag that the registry marks `organizationOverridable`; a row for any other key has no effect. A request with no Active Organization gets layers 1 and 2 only.
 
-The GraphQL query `featureFlags` returns the resolved flags for the Active Organization. Owners and admins set and clear an override with `setFeatureFlagOverride` and `clearFeatureFlagOverride`; each change records a `feature_flag_override_changed` Audit Event. The web `OrganizationProvider` reads the query, keyed by the Active Organization, and uses the registry defaults while it loads. Mobile keeps the registry defaults.
+The GraphQL query `featureFlags` returns the resolved flags for the signed-in session, with the Active Organization's overrides when the session has one. Owners and admins set and clear an override with `setFeatureFlagOverride` and `clearFeatureFlagOverride`; each change records a `feature_flag_override_changed` Audit Event, and a repeat of the current value records none. The web `OrganizationProvider` reads the query, keyed by the Active Organization. Until the query succeeds, the provider reports loading, keeps organization UI hidden, and does not restore the remembered Organization; a failed query keeps it that way. Mobile keeps the registry defaults.
 
 The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. It defaults to `true`, and an Organization cannot override it, because it decides whether organization UI shows before an Active Organization is known.
 

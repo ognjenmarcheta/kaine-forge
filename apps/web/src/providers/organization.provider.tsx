@@ -68,12 +68,14 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const queryClient = useQueryClient();
 
   const activeOrganizationId = session?.activeOrganizationId ?? null;
-  // The API resolves flags for the Active Organization; the registry defaults
-  // stand in while that loads or without an Active Organization.
+  // The API resolves flags for the session: default, environment, then the
+  // Active Organization's override. Organization UI stays hidden, and the
+  // remembered Organization unused, until the API has answered.
   const featureFlagsQuery = useFeatureFlagsQuery(undefined, {
-    enabled: Boolean(activeOrganizationId),
+    enabled: Boolean(session),
     queryKey: createActiveOrganizationQueryKey(useFeatureFlagsQuery.getKey(), activeOrganizationId)
   });
+  const isFeatureFlagsPending = Boolean(session) && featureFlagsQuery.isPending;
   const featureFlags = useMemo(
     () =>
       featureFlagsQuery.data
@@ -81,7 +83,9 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         : DEFAULT_FLAGS,
     [featureFlagsQuery.data]
   );
-  const organizationsVisible = isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
+  const organizationsVisible =
+    featureFlagsQuery.isSuccess &&
+    isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),
@@ -151,7 +155,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     let isActive = true;
 
     void (async () => {
-      if (!isActive) {
+      if (!isActive || isFeatureFlagsPending) {
         return;
       }
 
@@ -170,6 +174,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     };
   }, [
     activeOrganizationLifecycle,
+    isFeatureFlagsPending,
     isSessionLoading,
     organizationsQuery.data,
     session,
@@ -208,12 +213,18 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       activeOrganizationId: providerState.activeOrganizationId,
       organizationsVisible: providerState.organizationsVisible,
       hasError: providerState.hasError,
-      isLoading: providerState.isLoading,
+      isLoading: providerState.isLoading || isFeatureFlagsPending,
       setActiveOrganization,
       createOrganization,
       applyOrganizationSession
     }),
-    [providerState, setActiveOrganization, createOrganization, applyOrganizationSession]
+    [
+      providerState,
+      isFeatureFlagsPending,
+      setActiveOrganization,
+      createOrganization,
+      applyOrganizationSession
+    ]
   );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;
