@@ -113,7 +113,6 @@ export interface AuthDeviceSession {
   current: boolean;
 }
 
-/** A sign-in method linked to the user: "credential" (password) or a social provider id. */
 /** A passkey of the signed-in user. */
 export interface AuthPasskey {
   id: string;
@@ -121,6 +120,7 @@ export interface AuthPasskey {
   createdAt: string;
 }
 
+/** A sign-in method linked to the user: "credential" (password) or a social provider id. */
 export interface AuthLinkedAccount {
   id: string;
   providerId: string;

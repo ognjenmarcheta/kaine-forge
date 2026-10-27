@@ -1,3 +1,4 @@
+import { AUTH_DEFINITIONS } from "@repo/auth/auth.definition";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
@@ -16,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { LoadingRows } from "../../../components/loading-rows";
+import { useAuth } from "../../../hooks/use-auth";
 import { useTranslation } from "../../../hooks/use-translation";
 import { passkeyApi } from "../../../lib/auth-api";
 import { isPasskeySupported } from "../../auth/auth.util";
@@ -23,8 +25,11 @@ import { SECURITY_DEFINITION } from "../security.definition";
 
 /** Lists, adds, and deletes the signed-in user's passkeys. */
 export function PasskeySettings() {
+  const { session } = useAuth();
   const { language, t } = useTranslation();
   const queryClient = useQueryClient();
+  // The passkey a Delete click asks to confirm; one at a time.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const passkeys = useQuery({
@@ -40,10 +45,18 @@ export function PasskeySettings() {
       await refresh();
     }
   });
-  const remove = useMutation({ mutationFn: passkeyApi.delete, onSuccess: refresh });
+  const remove = useMutation({
+    mutationFn: passkeyApi.delete,
+    onSuccess: async () => {
+      setConfirmingId(null);
+      await refresh();
+    }
+  });
   const date = new Intl.DateTimeFormat(language, { dateStyle: "medium" });
   const error = add.error ?? remove.error;
-  const canAdd = isPasskeySupported();
+  const isSupported = isPasskeySupported();
+  // The server refuses a passkey for an unverified account (soft verification).
+  const isVerified = session?.user.emailVerified === true;
 
   return (
     <Card>
@@ -80,21 +93,43 @@ export function PasskeySettings() {
                       )}
                     </p>
                   </div>
-                  <Button
-                    appearance="subtle"
-                    aria-label={t("auth.passkeys.deleteLabel").replace("{name}", label)}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(passkey.id)}
-                  >
-                    {t("auth.passkeys.delete")}
-                  </Button>
+                  {confirmingId === passkey.id ? (
+                    <div className="grid w-full gap-[var(--ds-space-100)]" role="group">
+                      <p className="text-body text-[color:var(--ds-text)]">
+                        {t("auth.passkeys.deleteConfirm").replace("{name}", label)}
+                      </p>
+                      <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+                        <Button
+                          appearance="danger"
+                          disabled={remove.isPending}
+                          onClick={() => remove.mutate(passkey.id)}
+                        >
+                          {t("auth.passkeys.deleteConfirmAction")}
+                        </Button>
+                        <Button appearance="subtle" onClick={() => setConfirmingId(null)}>
+                          {t("auth.passkeys.cancel")}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      appearance="subtle"
+                      aria-label={t("auth.passkeys.deleteLabel").replace("{name}", label)}
+                      onClick={() => setConfirmingId(passkey.id)}
+                    >
+                      {t("auth.passkeys.delete")}
+                    </Button>
+                  )}
                 </li>
               );
             })}
           </ul>
         ) : null}
         {error ? <FieldError>{t(getAuthErrorMessageKey(error))}</FieldError> : null}
-        {canAdd ? (
+        {isSupported && !isVerified ? (
+          <FieldDescription>{t("auth.passkeys.verifyEmail")}</FieldDescription>
+        ) : null}
+        {isSupported && isVerified ? (
           <form
             className="grid gap-[var(--ds-space-150)]"
             onSubmit={(event) => {
@@ -114,7 +149,7 @@ export function PasskeySettings() {
               <FieldLabel htmlFor="passkey-name">{t("auth.passkeys.nameLabel")}</FieldLabel>
               <Input
                 id="passkey-name"
-                maxLength={SECURITY_DEFINITION.passkeyNameMaxLength}
+                maxLength={AUTH_DEFINITIONS.PASSKEY_NAME_MAX_LENGTH}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
@@ -126,9 +161,8 @@ export function PasskeySettings() {
               </Button>
             </div>
           </form>
-        ) : (
-          <FieldDescription>{t("auth.passkeys.unsupported")}</FieldDescription>
-        )}
+        ) : null}
+        {isSupported ? null : <FieldDescription>{t("auth.passkeys.unsupported")}</FieldDescription>}
       </CardContent>
     </Card>
   );

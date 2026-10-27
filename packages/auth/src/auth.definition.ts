@@ -13,6 +13,8 @@ export const AUTH_DEFINITIONS = {
   EMAIL_OTP_ALLOWED_ATTEMPTS: 3,
   // A magic link signs in once; the plugin consumes its token on first use.
   MAGIC_LINK_MAX_AGE_SECONDS: 60 * 10,
+  // A passkey name appears in the user's own list, Audit Events, and nowhere else.
+  PASSKEY_NAME_MAX_LENGTH: 64,
   // User names appear in other people's inboxes (invitation emails).
   USER_NAME_MAX_LENGTH: 64,
   // Organization names appear there too, as the Organization invited to.

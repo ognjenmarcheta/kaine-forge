@@ -20,7 +20,7 @@ import { renderEmail, type EmailTemplate } from "@repo/email";
 import { jobQueue } from "@repo/jobs/client";
 import { createLogger } from "@repo/logger";
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
-import type { BetterAuthPlugin, User } from "better-auth";
+import type { BetterAuthPlugin, GenericEndpointContext, User } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
   APIError,
@@ -357,6 +357,108 @@ function createPasswordChangeAlertPlugin(webAppUrl: string) {
     }
   } satisfies BetterAuthPlugin;
 }
+
+const PASSKEY_REGISTRATION_PATHS = new Set([
+  "/passkey/generate-register-options",
+  "/passkey/verify-registration"
+]);
+
+// Routes that store a passkey name: registration sends it in the query and
+// the body, a rename in the body.
+const PASSKEY_NAME_PATHS = new Set([...PASSKEY_REGISTRATION_PATHS, "/passkey/update-passkey"]);
+
+const passkeyRegistrationResponse = z.object({ userId: z.string() });
+
+// Under soft verification (ADR 0007) anyone can sign up with an address they
+// do not own. A passkey added to such an account would let the squatter back
+// in after the owner proves the address, so only a verified account adds
+// one. The stored row decides: a cookie-cached session can predate the
+// verification. A successful registration alerts the account's address.
+function createPasskeyPolicyPlugin(webAppUrl: string) {
+  return {
+    id: "passkey-policy",
+    hooks: {
+      before: [
+        {
+          matcher: (ctx) => PASSKEY_NAME_PATHS.has(ctx.path ?? ""),
+          handler: createAuthMiddleware(async (ctx) => {
+            const names = [readRecord(ctx.query).name, readRecord(ctx.body).name];
+
+            if (
+              names.some(
+                (name) =>
+                  typeof name === "string" && name.length > AUTH_DEFINITIONS.PASSKEY_NAME_MAX_LENGTH
+              )
+            ) {
+              throw APIError.from("BAD_REQUEST", {
+                code: "PASSKEY_NAME_TOO_LONG",
+                message: `Passkey name must be at most ${String(AUTH_DEFINITIONS.PASSKEY_NAME_MAX_LENGTH)} characters`
+              });
+            }
+
+            if (!PASSKEY_REGISTRATION_PATHS.has(ctx.path)) {
+              return;
+            }
+
+            const session = await getSessionFromCtx(ctx);
+
+            if (!session) {
+              // The route itself answers an unauthenticated request.
+              return;
+            }
+
+            const user = await ctx.context.internalAdapter.findUserById(session.user.id);
+
+            if (user?.emailVerified !== true) {
+              throw APIError.from("FORBIDDEN", {
+                code: "PASSKEY_REQUIRES_VERIFIED_EMAIL",
+                message: "Verify your email address before you add a passkey"
+              });
+            }
+          })
+        }
+      ],
+      after: [
+        {
+          matcher: (ctx) => ctx.path === "/passkey/verify-registration",
+          handler: createAuthMiddleware(async (ctx) => {
+            const response = passkeyRegistrationResponse.safeParse(ctx.context.returned);
+
+            if (!response.success) {
+              return;
+            }
+
+            // better-auth re-throws an after hook's error, which would fail a
+            // registration that already succeeded.
+            try {
+              const user = await ctx.context.internalAdapter.findUserById(response.data.userId);
+
+              if (user) {
+                enqueueAuthEmail(
+                  user.email,
+                  { template: "passkeyAdded", securityUrl: buildSecurityUrl(webAppUrl) },
+                  readUserLocale(user)
+                );
+              }
+            } catch {
+              emailLogger.error({ template: "passkeyAdded" }, "auth email not queued");
+            }
+          })
+        }
+      ]
+    }
+  } satisfies BetterAuthPlugin;
+}
+
+// Sign-ins that prove control of the email address. On these routes the only
+// user write that sets emailVerified is better-auth's promotion of an
+// unverified account (revokeUnprovenAccountAccess), which removes the
+// account's password, social links, and sessions, but not its passkeys.
+const EMAIL_PROOF_SIGN_IN_PATHS = new Set(["/magic-link/verify", "/sign-in/email-otp"]);
+
+// Requests whose user write promotes an unverified account. The update hooks
+// of one request share its context object.
+const unverifiedAccountPromotions = new WeakSet<GenericEndpointContext>();
 
 // Endpoints a bot could abuse to create accounts, guess passwords, or send
 // email. Paths are relative to the /api/auth base path.
@@ -1100,9 +1202,20 @@ export function createAuthInstance() {
         // that change, so a stale cookie-cached session elsewhere cannot
         // trigger one.
         update: {
+          before: async (data, ctx) => {
+            if (ctx && EMAIL_PROOF_SIGN_IN_PATHS.has(ctx.path) && data.emailVerified === true) {
+              unverifiedAccountPromotions.add(ctx);
+            }
+          },
           after: async (user, ctx) => {
             if (!ctx) {
               return;
+            }
+
+            // The owner just proved the address: a passkey added before that
+            // proof may belong to whoever signed up with it.
+            if (unverifiedAccountPromotions.has(ctx)) {
+              await db.delete(passkeysTable).where(eq(passkeysTable.userId, user.id));
             }
 
             const previousUser = ctx.context.session?.user;
@@ -1237,6 +1350,7 @@ export function createAuthInstance() {
       userNameLimitPlugin,
       organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
+      createPasskeyPolicyPlugin(config.webAppUrl),
       bearer(),
       // Second factor for password sign-in only; email OTP, magic-link,
       // passkey, and social sign-in are not challenged (better-auth default,

@@ -195,6 +195,20 @@ const cases: TemplateCase[] = [
     token: SECURITY_URL
   },
   {
+    email: { template: "passkeyAdded", securityUrl: SECURITY_URL },
+    locale: "en",
+    subject: "A passkey was added to your account",
+    phrase: "A new passkey was added to your account.",
+    token: SECURITY_URL
+  },
+  {
+    email: { template: "passkeyAdded", securityUrl: SECURITY_URL },
+    locale: "sr",
+    subject: "Vašem nalogu je dodat pristupni ključ",
+    phrase: "Vašem nalogu je dodat novi pristupni ključ.",
+    token: SECURITY_URL
+  },
+  {
     email: { template: "twoFactorEnabled", securityUrl: SECURITY_URL },
     locale: "en",
     subject: "Two-factor authentication is on",

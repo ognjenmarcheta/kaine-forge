@@ -37,6 +37,7 @@ export type EmailTemplate =
   | { template: "passwordChanged"; securityUrl: string }
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string }
+  | { template: "passkeyAdded"; securityUrl: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
   | { template: "accountDeletion"; url: string; expiresInHours: number }
   | { template: "roleChanged"; url: string; organizationName: string; role: string };
@@ -58,7 +59,7 @@ interface TemplateParts {
 
 function securityAlert(
   t: Translate,
-  name: "passwordChanged" | "emailChanged" | "twoFactorEnabled",
+  name: "passwordChanged" | "emailChanged" | "twoFactorEnabled" | "passkeyAdded",
   securityUrl: string,
   values?: Record<string, string>
 ): TemplateParts {
@@ -209,6 +210,8 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
       return securityAlert(t, "emailChanged", email.securityUrl, { newEmail: email.newEmail });
     case "twoFactorEnabled":
       return securityAlert(t, "twoFactorEnabled", email.securityUrl);
+    case "passkeyAdded":
+      return securityAlert(t, "passkeyAdded", email.securityUrl);
     // Goes to the current address before the new one gets a verification link.
     case "emailChangeApproval":
       return {

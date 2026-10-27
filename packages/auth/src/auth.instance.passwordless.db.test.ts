@@ -8,6 +8,7 @@ import {
 import type { TestDatabase } from "@repo/db/testing";
 import type { EmailMessage } from "@repo/email";
 import { and, eq, like } from "drizzle-orm";
+import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Each test signs users up through scrypt on PGlite, which can pass vitest's
@@ -137,6 +138,127 @@ async function insertPasskey(userId: string, name: string): Promise<string> {
     .returning({ id: passkeysTable.id });
   if (!row) throw new Error("passkey not inserted");
   return row.id;
+}
+
+async function verifyEmail(userId: string): Promise<void> {
+  await testDatabase()
+    .db.update(usersTable)
+    .set({ emailVerified: true })
+    .where(eq(usersTable.id, userId));
+}
+
+async function passkeyNamesOf(userId: string): Promise<(string | null)[]> {
+  const rows = await testDatabase()
+    .db.select({ name: passkeysTable.name })
+    .from(passkeysTable)
+    .where(eq(passkeysTable.userId, userId));
+  return rows.map((row) => row.name);
+}
+
+// Hooks enqueue after rendering, without awaiting; wait for the job.
+async function emailTo(to: string, subject: string): Promise<EmailMessage> {
+  return vi.waitFor(() => {
+    const message = enqueue.mock.calls
+      .map(([, payload]) => payload)
+      .find((payload) => payload.to === to && payload.subject === subject);
+    if (!message) throw new Error(`no email "${subject}" to ${to}`);
+    return message;
+  });
+}
+
+// The few CBOR types a WebAuthn "none" attestation uses.
+type Cbor = number | string | Uint8Array | Map<Cbor, Cbor>;
+
+function cborHead(major: number, length: number): number[] {
+  if (length < 24) return [(major << 5) | length];
+  if (length < 256) return [(major << 5) | 24, length];
+  return [(major << 5) | 25, length >> 8, length & 0xff];
+}
+
+function cbor(value: Cbor): number[] {
+  if (typeof value === "number") {
+    return value >= 0 ? cborHead(0, value) : cborHead(1, -1 - value);
+  }
+  if (typeof value === "string") {
+    const bytes = new TextEncoder().encode(value);
+    return [...cborHead(3, bytes.length), ...bytes];
+  }
+  if (value instanceof Uint8Array) {
+    return [...cborHead(2, value.length), ...value];
+  }
+  return [
+    ...cborHead(5, value.size),
+    ...[...value].flatMap(([key, item]) => [...cbor(key), ...cbor(item)])
+  ];
+}
+
+// What a platform authenticator answers for the web app: a new P-256
+// credential with a "none" attestation, signed for the challenge it was given.
+function registrationResponse(challenge: string) {
+  const jwk = generateKeyPairSync("ec", { namedCurve: "P-256" }).publicKey.export({
+    format: "jwk"
+  });
+  const coseKey = new Map<Cbor, Cbor>([
+    [1, 2],
+    [3, -7],
+    [-1, 1],
+    [-2, Buffer.from(jwk.x ?? "", "base64url")],
+    [-3, Buffer.from(jwk.y ?? "", "base64url")]
+  ]);
+  const credentialId = randomBytes(16);
+  const authData = Buffer.concat([
+    createHash("sha256").update("app.example.com").digest(),
+    // Flags user present, user verified, attested credential; sign count 0.
+    Buffer.from([0x45, 0, 0, 0, 0]),
+    Buffer.alloc(16),
+    Buffer.from([0, credentialId.length]),
+    credentialId,
+    Buffer.from(cbor(coseKey))
+  ]);
+  const attestationObject = cbor(
+    new Map<Cbor, Cbor>([
+      ["fmt", "none"],
+      ["attStmt", new Map()],
+      ["authData", authData]
+    ])
+  );
+  const clientDataJSON = JSON.stringify({
+    type: "webauthn.create",
+    challenge,
+    origin: WEB_APP,
+    crossOrigin: false
+  });
+  const id = credentialId.toString("base64url");
+
+  return {
+    id,
+    rawId: id,
+    type: "public-key",
+    clientExtensionResults: {},
+    response: {
+      clientDataJSON: Buffer.from(clientDataJSON).toString("base64url"),
+      attestationObject: Buffer.from(attestationObject).toString("base64url"),
+      transports: ["internal"]
+    }
+  };
+}
+
+// The browser ceremony: options set a signed challenge cookie that the
+// verification request sends back with the session cookie.
+async function registerPasskey(headers: Headers, name: string) {
+  const { headers: optionHeaders, response: options } =
+    await auth.api.generatePasskeyRegistrationOptions({ headers, returnHeaders: true });
+  const cookie = [
+    headers.get("cookie"),
+    ...(cookieHeaders(optionHeaders).get("cookie") ?? "").split("; ")
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  return auth.api.verifyPasskeyRegistration({
+    body: { response: registrationResponse(options.challenge), name },
+    headers: new Headers({ cookie })
+  });
 }
 
 afterAll(async () => {
@@ -269,12 +391,108 @@ describe("magic-link sign-in", () => {
 });
 
 describe("passkeys", () => {
+  beforeEach(() => {
+    enqueue.mockReset();
+    enqueue.mockResolvedValue("job-1");
+  });
+
   it("offers registration for the web app's relying party", async () => {
-    const { headers } = await signUp("rp");
+    const { headers, userId } = await signUp("rp");
+    await verifyEmail(userId);
 
     const options = await auth.api.generatePasskeyRegistrationOptions({ headers });
 
     expect(options.rp).toEqual({ id: "app.example.com", name: "Kaine Forge" });
+  });
+
+  // Soft verification: anyone can sign up with an address they do not own.
+  it("refuses passkey registration for an unverified account", async () => {
+    const { headers } = await signUp("unverified-passkey");
+
+    await expect(auth.api.generatePasskeyRegistrationOptions({ headers })).rejects.toMatchObject({
+      statusCode: 403,
+      body: { code: "PASSKEY_REQUIRES_VERIFIED_EMAIL" }
+    });
+  });
+
+  it("registers a passkey, records an Audit Event, and alerts the account's address", async () => {
+    const { email, headers, userId } = await signUp("register");
+    await verifyEmail(userId);
+
+    const passkey = await registerPasskey(headers, "Laptop");
+
+    expect(await passkeyNamesOf(userId)).toEqual(["Laptop"]);
+    const events = await testDatabase()
+      .db.select({
+        action: auditEventsTable.action,
+        actorUserId: auditEventsTable.actorUserId,
+        metadata: auditEventsTable.metadata,
+        organizationId: auditEventsTable.organizationId
+      })
+      .from(auditEventsTable)
+      .where(eq(auditEventsTable.targetId, passkey.id));
+    expect(events).toEqual([
+      {
+        action: "passkey_added",
+        actorUserId: userId,
+        metadata: { name: "Laptop" },
+        organizationId: null
+      }
+    ]);
+    const alert = await emailTo(email, "A passkey was added to your account");
+    expect(alert.text).toContain("https://app.example.com/security");
+  });
+
+  it("refuses a passkey name longer than 64 characters", async () => {
+    const { headers, userId } = await signUp("long-passkey-name");
+    await verifyEmail(userId);
+
+    await expect(registerPasskey(headers, "n".repeat(65))).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "PASSKEY_NAME_TOO_LONG" }
+    });
+    expect(await passkeyNamesOf(userId)).toEqual([]);
+  });
+
+  // better-auth's promotion of an unverified account removes its password and
+  // sessions; a passkey from before the proof may be the squatter's.
+  it.each([
+    {
+      path: "magic link",
+      signIn: async (email: string) => {
+        await requestMagicLink(email);
+        await openMagicLink(await magicLinkTo(email));
+      }
+    },
+    {
+      path: "email code",
+      signIn: async (email: string) => {
+        await auth.api.sendVerificationOTP({ body: { email, type: "sign-in" } });
+        const otp = /\d{6}/.exec((await emailTo(email, "Your sign-in code")).text)?.[0] ?? "";
+        await auth.api.signInEmailOTP({ body: { email, otp } });
+      }
+    }
+  ])(
+    "deletes an unverified account's passkeys when the owner proves the address by $path",
+    async ({ signIn }) => {
+      const { email, userId } = await signUp("squatted");
+      await insertPasskey(userId, "Squatter");
+
+      await signIn(email);
+
+      expect(await passkeyNamesOf(userId)).toEqual([]);
+    }
+  );
+
+  it("keeps a verified account's passkeys on a magic-link sign-in", async () => {
+    const { email, userId } = await signUp("verified-passkeys");
+    await verifyEmail(userId);
+    await insertPasskey(userId, "Laptop");
+    await requestMagicLink(email);
+
+    await openMagicLink(await magicLinkTo(email));
+
+    expect(await passkeyNamesOf(userId)).toEqual(["Laptop"]);
   });
 
   it("lists only the signed-in user's passkeys", async () => {

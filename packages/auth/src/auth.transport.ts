@@ -142,6 +142,8 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   REGISTRATION_CANCELLED: "auth.passkey.error.cancelled",
   ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: "auth.passkey.error.alreadyRegistered",
   PREVIOUSLY_REGISTERED: "auth.passkey.error.alreadyRegistered",
+  PASSKEY_REQUIRES_VERIFIED_EMAIL: "auth.passkey.error.verifyEmail",
+  PASSKEY_NAME_TOO_LONG: "auth.passkey.error.nameTooLong",
   PASSKEY_NOT_FOUND: "auth.passkey.error.failed",
   AUTHENTICATION_FAILED: "auth.passkey.error.failed"
 };
