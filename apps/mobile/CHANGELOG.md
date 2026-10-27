@@ -1,5 +1,32 @@
 # @repo/mobile
 
+## 1.9.6
+
+### Patch Changes
+
+- 9efcac9: Breaking GraphQL change: the `todos`, `notes`, `conversations`, `assistantMessages`, and `files` list fields take `first: Int` and `after: String` instead of `limit` and `offset`, and return a `<Type>Connection` (`TodoConnection`, `NoteConnection`, `AssistantConversationConnection`, `AssistantMessageConnection`, `FileInfoConnection`) with `items` and the shared `pageInfo { hasNextPage endCursor }`. `FilesFilterInput` no longer has `limit` or `offset`. The `auditEvents` query keeps `first` and `after` but returns `AuditEventConnection` (`items`, `pageInfo`) instead of `AuditEventPage` (`events`, `endCursor`, `hasNextPage`). Pass the previous page's `endCursor` as `after` to read the next page. A cursor is opaque and pages by the list's sort key plus `id`, so rows inserted or deleted between two requests no longer shift or repeat a page. A malformed cursor, or one from another list or another Organization, returns the GraphQL error `invalid cursor` (`BAD_USER_INPUT`). The web Todo, Note, assistant, and audit-log lists and the mobile Todo list use the new shape; their UI does not change.
+- Updated dependencies [729d942]
+- Updated dependencies [5752644]
+- Updated dependencies [1e5e82d]
+- Updated dependencies [a54d7ff]
+- Updated dependencies [fc6f746]
+- Updated dependencies [d1fa587]
+- Updated dependencies [8be54b9]
+- Updated dependencies [a9cc2b2]
+- Updated dependencies [5752644]
+- Updated dependencies [6839bae]
+- Updated dependencies [4e3873d]
+- Updated dependencies [a2b6d40]
+  - @repo/auth@5.0.0
+  - @repo/translation@1.11.0
+  - @repo/query@1.3.8
+  - @repo/logger@1.2.1
+  - @repo/feature-flags@1.2.0
+  - @repo/mobile-ui@1.3.0
+  - @repo/persistence@1.1.2
+  - @repo/storage@1.5.0
+  - @repo/todos@1.1.0
+
 ## 1.9.5
 
 ### Patch Changes
