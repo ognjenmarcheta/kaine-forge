@@ -34,16 +34,27 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
     if (query.includes("query GetTodos("))
       return (variables: GetTodosQueryVariables) => {
         api.searches(variables);
+        const matching = [...api.rows.values()].filter(
+          (item) =>
+            `${item.title} ${item.description}`
+              .toLowerCase()
+              .includes(variables.search?.toLowerCase() ?? "") &&
+            (variables.completed == null || item.completed === variables.completed)
+        );
+        // A fake keyset: the cursor is `cursor:<id of the last row>`.
+        const start = variables.after
+          ? matching.findIndex((item) => `cursor:${item.id}` === variables.after) + 1
+          : 0;
+        const items = matching.slice(start, start + (variables.first ?? 50));
+        const last = items.at(-1);
         return Promise.resolve({
-          todos: [...api.rows.values()]
-            .filter(
-              (item) =>
-                `${item.title} ${item.description}`
-                  .toLowerCase()
-                  .includes(variables.search?.toLowerCase() ?? "") &&
-                (variables.completed == null || item.completed === variables.completed)
-            )
-            .slice(variables.offset ?? 0, (variables.offset ?? 0) + 50)
+          todos: {
+            items,
+            pageInfo: {
+              hasNextPage: start + items.length < matching.length,
+              endCursor: last ? `cursor:${last.id}` : null
+            }
+          }
         });
       };
     return ({ id }: { id: string }) => Promise.resolve({ todo: api.rows.get(id) ?? null });
@@ -191,8 +202,8 @@ it("keeps quick and edit drafts through searches and status changes", async () =
   expect(api.searches).toHaveBeenLastCalledWith({
     search: "missing",
     completed: true,
-    limit: 50,
-    offset: 0
+    first: 50,
+    after: null
   });
 });
 it("does not overwrite completion when saving text", async () => {
@@ -272,6 +283,12 @@ it("paginates and deduplicates loaded results", async () => {
   await flush();
   expect(current.rows).toHaveLength(56);
   expect(current.list.hasNextPage).toBe(false);
+  expect(api.searches).toHaveBeenLastCalledWith({
+    search: "",
+    completed: null,
+    first: 50,
+    after: "cursor:48"
+  });
 });
 it("sends the prompt through the generated AI operation", async () => {
   api.generate.mockResolvedValue({ generateTodos: { status: "AI_NOT_CONFIGURED", todos: [] } });

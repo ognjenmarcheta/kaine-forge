@@ -1,20 +1,27 @@
 import { expect, test } from "@playwright/test";
 
-import { authApi, signIn, signUp } from "./helpers/auth";
-import { isRecord, selectOrganization } from "./helpers/organizations";
+import { AUTH_LABELS, NAV_LABELS, signIn } from "./helpers/auth";
+import { createOrganization, isRecord } from "./helpers/organizations";
+
+const MEMBERS_LABELS = {
+  inviteSubmit: /^(Send invitation|organizations\.invite\.submit)$/,
+  pending: /^(Pending invitations|organizations\.invitations\.title)$/,
+  accept: /^(Accept|organizations\.invitation\.accept)$/
+} as const;
 
 /**
- * The template shell has no invite UI and the console email adapter only logs,
- * so the owner side runs through the better-auth organization routes under
- * /api/auth with the page's session cookie. The invited user still signs up
- * through the real UI and accepts by invitation id (ADR 0007: the invited email
- * may accept before verifying it). Recipient binding (a different signed-in
- * email is refused) stays with the packages/auth invitation security tests.
+ * The seeded owner invites through the /members form; the invited person opens
+ * the accept page signed out, signs up, comes back to the same invitation, and
+ * accepts it (ADR 0007: the invited email may accept before verifying it). The
+ * console email adapter only logs the accept link, so the test reads the
+ * invitation id from the same list the pending invitations section shows.
+ * Recipient binding (a different signed-in email is refused) stays with the
+ * packages/auth invitation security tests.
  *
  * Todo attachment upload requires S3-compatible storage (CI only provides Postgres).
  * Set E2E_STORAGE_ENABLED=1 to run the real storage flow below.
  */
-test("an invited user becomes a member and sees the organization after accepting", async ({
+test("an invited user signs up from the invitation link and joins the organization", async ({
   page,
   browser,
   baseURL
@@ -27,45 +34,57 @@ test("an invited user becomes a member and sees the organization after accepting
     password: "ChangeMe123!"
   } as const;
 
-  // The seeded owner creates the organization and the invitation.
+  // The seeded owner creates the organization, which becomes active, and invites.
   await signIn(page);
-  const organization = await authApi(page, "organization/create", {
-    name: organizationName,
-    slug: `e2e-invite-${suffix}`
-  });
-  if (typeof organization.id !== "string") {
-    throw new Error("organization/create did not return an id");
-  }
-  const invitation = await authApi(page, "organization/invite-member", {
-    email: invitee.email,
-    role: "member",
-    organizationId: organization.id
-  });
-  if (typeof invitation.id !== "string") {
-    throw new Error("organization/invite-member did not return an id");
-  }
+  await createOrganization(page, organizationName);
+  await expect(page.getByRole("button", { name: NAV_LABELS.organization })).toContainText(
+    organizationName
+  );
+  await page.goto("/members");
+  const inviteForm = page
+    .locator("form")
+    .filter({ has: page.getByRole("button", { name: MEMBERS_LABELS.inviteSubmit }) });
+  await inviteForm.getByLabel(AUTH_LABELS.email).fill(invitee.email);
+  await inviteForm.getByRole("button", { name: MEMBERS_LABELS.inviteSubmit }).click();
+  await expect(
+    page.getByRole("list", { name: MEMBERS_LABELS.pending }).getByText(invitee.email)
+  ).toBeVisible();
 
-  // The invited person registers in a separate browser context, so the owner's
-  // session and the seeded user's active organization stay untouched.
+  const listed = await page.request.get("/api/auth/organization/list-invitations");
+  expect(listed.ok()).toBe(true);
+  const invitations: unknown = await listed.json();
+  const invitation = Array.isArray(invitations)
+    ? invitations.find((entry: unknown) => isRecord(entry) && entry.email === invitee.email)
+    : undefined;
+  if (!isRecord(invitation) || typeof invitation.id !== "string") {
+    throw new Error("the pending invitation is not listed");
+  }
+  const invitationPath = `/invitations/${invitation.id}`;
+
+  // The invited person uses a separate browser context, so the owner's session
+  // and the seeded user's active organization stay untouched.
   const inviteeContext = await browser.newContext(baseURL ? { baseURL } : {});
   try {
     const inviteePage = await inviteeContext.newPage();
-    await signUp(inviteePage, invitee);
+    await inviteePage.goto(invitationPath);
+    await expect(inviteePage).toHaveURL(/\/auth\?redirect=%2Finvitations%2F/);
 
-    const accepted = await authApi(inviteePage, "organization/accept-invitation", {
-      invitationId: invitation.id
-    });
-    const member = accepted.member;
-    expect(isRecord(member) ? member.organizationId : member).toBe(organization.id);
-    const acceptedInvitation = accepted.invitation;
-    expect(isRecord(acceptedInvitation) ? acceptedInvitation.status : acceptedInvitation).toBe(
-      "accepted"
+    await inviteePage.getByRole("button", { name: AUTH_LABELS.signup }).click();
+    await inviteePage.getByLabel(AUTH_LABELS.name).fill(invitee.name);
+    await inviteePage.getByLabel(AUTH_LABELS.email).fill(invitee.email);
+    await inviteePage.getByLabel(AUTH_LABELS.password).fill(invitee.password);
+    await inviteePage.getByLabel(AUTH_LABELS.confirmPassword).fill(invitee.password);
+    await inviteePage.locator("form").getByRole("button", { name: AUTH_LABELS.signup }).click();
+    await expect(inviteePage).toHaveURL(new RegExp(`${invitationPath}$`));
+
+    await expect(inviteePage.getByRole("heading", { name: organizationName })).toBeVisible();
+    await inviteePage.getByRole("button", { name: MEMBERS_LABELS.accept }).click();
+    await expect(inviteePage).toHaveURL(/\/dashboard$/);
+
+    // Accepting made the organization active.
+    await expect(inviteePage.getByRole("button", { name: NAV_LABELS.organization })).toContainText(
+      organizationName
     );
-
-    // Membership shows up in the UI: the switcher lists the organization and can
-    // make it active.
-    await inviteePage.goto("/dashboard");
-    await selectOrganization(inviteePage, organizationName);
   } finally {
     await inviteeContext.close();
   }

@@ -22,5 +22,7 @@
   "navigation.todos": "Zadaci",
   "navigation.notes": "Beleške",
   "navigation.assistant": "Asistent",
-  "navigation.security": "Bezbednost"
+  "navigation.security": "Bezbednost",
+  "navigation.account": "Nalog",
+  "navigation.auditLog": "Dnevnik aktivnosti"
 }

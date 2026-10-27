@@ -6,6 +6,8 @@ export interface AuthConfig {
   baseUrl: string;
   requireEmailVerification: boolean;
   secret: string;
+  // Origin of the web app, for links in emails (BETTER_AUTH_URL is the API).
+  webAppUrl: string;
 }
 
 export interface AuthClientConfig {
@@ -41,6 +43,8 @@ export interface SignupInput extends CaptchaInput {
   email: string;
   name: string;
   password: string;
+  /** Language of the user's emails; the server accepts en, sr, or de. */
+  locale?: string | undefined;
 }
 
 export type TwoFactorMethod = "totp" | "otp";
@@ -72,6 +76,36 @@ export interface TwoFactorEnrollment {
   totpUri: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  /** Signs out every other session; this device gets a new session. */
+  revokeOtherSessions: boolean;
+}
+
+export interface ChangeEmailInput {
+  newEmail: string;
+  /** Absolute URL the verification link returns to. */
+  callbackUrl?: string | undefined;
+}
+
+/** One signed-in device of the session user. */
+export interface AuthDeviceSession {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  /** The session making this request. */
+  current: boolean;
+}
+
+/** A sign-in method linked to the user: "credential" (password) or a social provider id. */
+export interface AuthLinkedAccount {
+  id: string;
+  providerId: string;
+  createdAt: string;
+}
+
 export interface CreateOrganizationInput {
   name: string;
 }
@@ -99,10 +133,31 @@ export interface AuthInvitation {
   expiresAt: string;
 }
 
+// Roles an owner or admin may give through an invite or a role change; the
+// owner role moves only through a transfer of ownership.
+export type AssignableOrganizationRole = "admin" | "member";
+
+export interface InviteMemberInput {
+  email: string;
+  role: AssignableOrganizationRole;
+}
+
+// What the invited person sees before accepting or declining.
+export interface AuthInvitationDetails {
+  id: string;
+  email: string;
+  role: string;
+  organizationName: string;
+  expiresAt: string;
+}
+
 // better-auth's client-side organization list has no per-membership role, so
 // the client result carries the role-less organization shape while the server
 // facade keeps returning AuthOrganization (with role) for GraphQL resolvers.
-export type AuthClientOrganization = Omit<AuthOrganization, "role">;
+export type AuthClientOrganization = Omit<AuthOrganization, "role"> & {
+  // A Personal Organization cannot be deleted, left, or handed over.
+  personal: boolean;
+};
 
 export interface AuthOrganizationsResult {
   activeOrganizationId: string | null;

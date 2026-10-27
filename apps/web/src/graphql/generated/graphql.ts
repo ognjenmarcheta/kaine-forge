@@ -7,6 +7,21 @@ export type Incremental<T> =
 import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 export type AttachmentEntityType = "general" | "todo";
 
+export type AuditAction =
+  | "attachment_deleted"
+  | "invitation_revoked"
+  | "member_invited"
+  | "member_joined"
+  | "member_left"
+  | "member_removed"
+  | "member_role_changed"
+  | "organization_deleted"
+  | "organization_renamed"
+  | "ownership_transferred"
+  | "password_changed"
+  | "two_factor_disabled"
+  | "two_factor_enabled";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -22,8 +37,6 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
 };
 
@@ -68,29 +81,35 @@ export type UpdateTodoInput = {
 };
 
 export type GetConversationsQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetConversationsQuery = {
-  conversations: Array<{ id: string; title: string | null; updatedAt: unknown }>;
+  conversations: {
+    items: Array<{ id: string; title: string | null; updatedAt: unknown }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetConversationQueryVariables = Exact<{
   conversationId: string | number;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetConversationQuery = {
-  assistantMessages: Array<{
-    id: string;
-    conversationId: string;
-    role: string;
-    content: string;
-    createdAt: unknown;
-    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
-  }>;
+  assistantMessages: {
+    items: Array<{
+      id: string;
+      conversationId: string;
+      role: string;
+      content: string;
+      createdAt: unknown;
+      toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type DeleteConversationMutationVariables = Exact<{
@@ -119,24 +138,53 @@ export type OnAssistantMessageDeltaSubscription = {
   assistantMessageDelta: { conversationId: string; delta: string };
 };
 
+export type AuditEventsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type AuditEventsQuery = {
+  auditEvents: {
+    items: Array<{
+      id: string;
+      action: AuditAction;
+      targetType: string;
+      targetLabel: string | null;
+      ipAddress: string | null;
+      createdAt: unknown;
+      actor: { id: string; name: string; email: string } | null;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
+
+export type CurrentOrganizationRoleQuery = {
+  currentOrganization: { id: string; role: string } | null;
+};
+
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
 
 export type GetNotesQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
   search?: string | null | undefined;
 }>;
 
 export type GetNotesQuery = {
-  notes: Array<{
-    id: string;
-    title: string;
-    body: string | null;
-    createdAt: unknown;
-    updatedAt: unknown;
-  }>;
+  notes: {
+    items: Array<{
+      id: string;
+      title: string;
+      body: string | null;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetNoteQueryVariables = Exact<{
@@ -239,22 +287,27 @@ export type GetFileQuery = {
 
 export type GetFilesQueryVariables = Exact<{
   filter?: FilesFilterInput | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetFilesQuery = {
-  files: Array<{
-    id: string;
-    key: string;
-    originalName: string;
-    mimeType: string;
-    sizeBytes: number;
-    status: FileStatus;
-    entityType: AttachmentEntityType | null;
-    entityId: string | null;
-    downloadUrl: string | null;
-    createdAt: unknown;
-    updatedAt: unknown;
-  }>;
+  files: {
+    items: Array<{
+      id: string;
+      key: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      status: FileStatus;
+      entityType: AttachmentEntityType | null;
+      entityId: string | null;
+      downloadUrl: string | null;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type RequestUploadUrlMutationVariables = Exact<{
@@ -290,29 +343,32 @@ export type DeleteFileMutationVariables = Exact<{
 export type DeleteFileMutation = { deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
   search?: string | null | undefined;
   completed?: boolean | null | undefined;
 }>;
 
 export type GetTodosQuery = {
-  todos: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: unknown;
-    updatedAt: unknown;
-    attachments: Array<{
+  todos: {
+    items: Array<{
       id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-      thumbnailUrl: string | null;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      createdAt: unknown;
+      updatedAt: unknown;
+      attachments: Array<{
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl: string | null;
+        thumbnailUrl: string | null;
+      }>;
     }>;
-  }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetTodoQueryVariables = Exact<{
@@ -457,13 +513,13 @@ export const GetConversationsDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -475,21 +531,41 @@ export const GetConversationsDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "limit" },
-                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "offset" },
-                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }
@@ -516,13 +592,13 @@ export const GetConversationDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -539,32 +615,52 @@ export const GetConversationDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "limit" },
-                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "offset" },
-                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "conversationId" } },
-                { kind: "Field", name: { kind: "Name", value: "role" } },
-                { kind: "Field", name: { kind: "Name", value: "content" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "toolActions" },
+                  name: { kind: "Name", value: "items" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "tool" } },
-                      { kind: "Field", name: { kind: "Name", value: "input" } },
-                      { kind: "Field", name: { kind: "Name", value: "output" } }
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "conversationId" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } },
+                      { kind: "Field", name: { kind: "Name", value: "content" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "toolActions" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "tool" } },
+                            { kind: "Field", name: { kind: "Name", value: "input" } },
+                            { kind: "Field", name: { kind: "Name", value: "output" } }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
                     ]
                   }
                 }
@@ -698,6 +794,118 @@ export const OnAssistantMessageDeltaDocument = {
   OnAssistantMessageDeltaSubscription,
   OnAssistantMessageDeltaSubscriptionVariables
 >;
+export const AuditEventsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "AuditEvents" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "auditEvents" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "action" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "actor" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "email" } }
+                          ]
+                        }
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "targetType" } },
+                      { kind: "Field", name: { kind: "Name", value: "targetLabel" } },
+                      { kind: "Field", name: { kind: "Name", value: "ipAddress" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<AuditEventsQuery, AuditEventsQueryVariables>;
+export const CurrentOrganizationRoleDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "CurrentOrganizationRole" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "currentOrganization" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "role" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>;
 export const HealthDocument = {
   kind: "Document",
   definitions: [
@@ -722,13 +930,13 @@ export const GetNotesDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         },
         {
           kind: "VariableDefinition",
@@ -745,13 +953,13 @@ export const GetNotesDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "limit" },
-                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "offset" },
-                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               },
               {
                 kind: "Argument",
@@ -762,11 +970,31 @@ export const GetNotesDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "body" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "body" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }
@@ -1297,6 +1525,16 @@ export const GetFilesDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "filter" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "FilesFilterInput" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -1310,22 +1548,52 @@ export const GetFilesDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "filter" },
                 value: { kind: "Variable", name: { kind: "Name", value: "filter" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "key" } },
-                { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                { kind: "Field", name: { kind: "Name", value: "status" } },
-                { kind: "Field", name: { kind: "Name", value: "entityType" } },
-                { kind: "Field", name: { kind: "Name", value: "entityId" } },
-                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                      { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }
@@ -1475,13 +1743,13 @@ export const GetTodosDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         },
         {
           kind: "VariableDefinition",
@@ -1503,13 +1771,13 @@ export const GetTodosDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "limit" },
-                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "offset" },
-                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               },
               {
                 kind: "Argument",
@@ -1525,27 +1793,47 @@ export const GetTodosDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "completed" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "attachments" },
+                  name: { kind: "Name", value: "items" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
-                      { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "completed" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "attachments" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                            { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                            { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                            { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                            { kind: "Field", name: { kind: "Name", value: "thumbnailUrl" } }
+                          ]
+                        }
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
                     ]
                   }
                 },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }

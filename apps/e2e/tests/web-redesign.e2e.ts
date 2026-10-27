@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./helpers/auth";
+import { connection } from "./helpers/connection";
 
 test("collapsed sidebar keeps preference controls inside the rail", async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -152,13 +153,13 @@ test("Assistant history retries and preserves the reader's scroll position", asy
       await route.fulfill({
         json: {
           data: {
-            conversations: [
+            conversations: connection([
               {
                 id: "history-check",
                 title: "History check",
                 updatedAt: new Date().toISOString()
               }
-            ]
+            ])
           }
         }
       });
@@ -167,17 +168,19 @@ test("Assistant history retries and preserves the reader's scroll position", asy
         json: historyAvailable
           ? {
               data: {
-                assistantMessages: Array.from({ length: 30 + replies }, (_, index) => ({
-                  id: String(index),
-                  conversationId: "history-check",
-                  role: "assistant",
-                  content:
-                    index < 30
-                      ? `History message ${index}\n${"A line of conversation.\n".repeat(6)}`
-                      : "New reply",
-                  createdAt: new Date().toISOString(),
-                  toolActions: []
-                }))
+                assistantMessages: connection(
+                  Array.from({ length: 30 + replies }, (_, index) => ({
+                    id: String(index),
+                    conversationId: "history-check",
+                    role: "assistant",
+                    content:
+                      index < 30
+                        ? `History message ${index}\n${"A line of conversation.\n".repeat(6)}`
+                        : "New reply",
+                    createdAt: new Date().toISOString(),
+                    toolActions: []
+                  }))
+                )
               }
             }
           : { errors: [{ message: "Unavailable" }] }
@@ -239,15 +242,17 @@ test("deleting a conversation requires confirmation", async ({ page }) => {
       await route.fulfill({
         json: {
           data: {
-            conversations: deleted
-              ? []
-              : [
-                  {
-                    id: "preview-conversation",
-                    title: "Review conversation",
-                    updatedAt: new Date().toISOString()
-                  }
-                ]
+            conversations: connection(
+              deleted
+                ? []
+                : [
+                    {
+                      id: "preview-conversation",
+                      title: "Review conversation",
+                      updatedAt: new Date().toISOString()
+                    }
+                  ]
+            )
           }
         }
       });

@@ -1,6 +1,7 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   AppSidebar,
+  FileText,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
@@ -25,6 +26,7 @@ import {
   Outlet,
   createBrowserRouter,
   useLocation,
+  useNavigate,
   type RouteObject
 } from "react-router-dom";
 
@@ -34,12 +36,17 @@ import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
 } from "./components/workspace-navigation.provider";
+import { AccountDeleteRoute } from "./features/account/account.delete.route";
+import { AccountRoute } from "./features/account/account.route";
 import { AssistantRoute } from "./features/assistant/assistant.route";
+import { useAuditLogAccess } from "./features/audit/audit.hook";
+import { AuditLogRoute } from "./features/audit/audit.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
+import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { SecurityRoute } from "./features/security/security.route";
@@ -49,6 +56,7 @@ import { useOrganization } from "./hooks/use-organization";
 import { useRouteTitle } from "./hooks/use-route-title";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
+import { saveEmailLanguageRequest } from "./lib/auth-api";
 
 const THEME_OPTIONS = [
   { labelKey: "navigation.themeSystem", value: "system" },
@@ -57,7 +65,9 @@ const THEME_OPTIONS = [
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
+  "/account": "navigation.account",
   "/assistant": "navigation.assistant",
+  "/audit-log": "navigation.auditLog",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
   "/notes": "navigation.notes",
@@ -85,6 +95,7 @@ function ShellLayout() {
 function ShellContent() {
   const { requestLeave } = useWorkspaceNavigation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { isLoading, logout, session } = useAuth();
   const {
     activeOrganizationId,
@@ -99,6 +110,7 @@ function ShellContent() {
   const { setThemeMode, themeMode } = useTheme();
   const { assets: publicAssets } = usePublicAssets();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
 
   if (isLoading) {
     return (
@@ -120,6 +132,7 @@ function ShellContent() {
   const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
   const isAssistantActive = location.pathname === "/assistant";
   const isSecurityActive = location.pathname === "/security";
+  const isAuditLogActive = location.pathname === "/audit-log";
   const currentRouteKey = isBreadcrumbRoute(location.pathname)
     ? ROUTE_TO_BREADCRUMB[location.pathname]
     : isNotesActive
@@ -217,6 +230,16 @@ function ShellContent() {
                       }
                     ]
                   : []),
+                ...(canReadAuditLog
+                  ? [
+                      {
+                        href: "/audit-log",
+                        icon: FileText,
+                        isActive: isAuditLogActive,
+                        title: t("navigation.auditLog")
+                      }
+                    ]
+                  : []),
                 {
                   href: "/security",
                   icon: ShieldCheck,
@@ -235,6 +258,8 @@ function ShellContent() {
                 label: t("navigation.language"),
                 onValueChange: (value) => {
                   void setLanguage(value);
+                  // A failed write keeps the old email language; the UI still switches.
+                  saveEmailLanguageRequest(value).catch(() => undefined);
                 },
                 options: SUPPORTED_LANGUAGES.map((value) => ({
                   label: t(`navigation.languageName.${value}`),
@@ -279,6 +304,10 @@ function ShellContent() {
           }
           user={
             <NavUser
+              accountItem={{
+                label: t("navigation.account"),
+                onSelect: () => requestLeave(() => void navigate("/account"))
+              }}
               className="w-full min-w-0 max-w-none"
               logoutLabel={t("auth.logout")}
               onLogout={() => requestLeave(() => void logout())}
@@ -350,6 +379,16 @@ export const appRoutes: RouteObject[] = [
                 path: "members"
               },
               {
+                element: <AccountRoute />,
+                handle: { titleKey: "navigation.account" },
+                path: "account"
+              },
+              {
+                element: <AuditLogRoute />,
+                handle: { titleKey: "navigation.auditLog" },
+                path: "audit-log"
+              },
+              {
                 element: <SecurityRoute />,
                 handle: { titleKey: "navigation.security" },
                 path: "security"
@@ -363,6 +402,21 @@ export const appRoutes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         handle: { titleKey: "auth.login.title" },
         path: "/auth"
+      },
+      {
+        // Outside the shell: a signed-out visitor goes to /auth and comes back
+        // with the emailed token.
+        element: <AccountDeleteRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "auth.account.delete.confirmTitle" },
+        path: "/account/delete"
+      },
+      {
+        // Outside the shell: a signed-out visitor goes to /auth and comes back.
+        element: <OrganizationInvitationRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "organizations.invitation.title" },
+        path: "/invitations/:invitationId"
       },
       {
         element: <LegalRoute page="terms" />,

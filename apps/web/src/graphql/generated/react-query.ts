@@ -8,6 +8,21 @@ import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tan
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type AttachmentEntityType = "general" | "todo";
 
+export type AuditAction =
+  | "attachment_deleted"
+  | "invitation_revoked"
+  | "member_invited"
+  | "member_joined"
+  | "member_left"
+  | "member_removed"
+  | "member_role_changed"
+  | "organization_deleted"
+  | "organization_renamed"
+  | "ownership_transferred"
+  | "password_changed"
+  | "two_factor_disabled"
+  | "two_factor_enabled";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -23,8 +38,6 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
 };
 
@@ -69,29 +82,35 @@ export type UpdateTodoInput = {
 };
 
 export type GetConversationsQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetConversationsQuery = {
-  conversations: Array<{ id: string; title: string | null; updatedAt: string }>;
+  conversations: {
+    items: Array<{ id: string; title: string | null; updatedAt: string }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetConversationQueryVariables = Exact<{
   conversationId: string | number;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetConversationQuery = {
-  assistantMessages: Array<{
-    id: string;
-    conversationId: string;
-    role: string;
-    content: string;
-    createdAt: string;
-    toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
-  }>;
+  assistantMessages: {
+    items: Array<{
+      id: string;
+      conversationId: string;
+      role: string;
+      content: string;
+      createdAt: string;
+      toolActions: Array<{ tool: string; input: string | null; output: string | null }>;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type DeleteConversationMutationVariables = Exact<{
@@ -120,24 +139,53 @@ export type OnAssistantMessageDeltaSubscription = {
   assistantMessageDelta: { conversationId: string; delta: string };
 };
 
+export type AuditEventsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type AuditEventsQuery = {
+  auditEvents: {
+    items: Array<{
+      id: string;
+      action: AuditAction;
+      targetType: string;
+      targetLabel: string | null;
+      ipAddress: string | null;
+      createdAt: string;
+      actor: { id: string; name: string; email: string } | null;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
+
+export type CurrentOrganizationRoleQuery = {
+  currentOrganization: { id: string; role: string } | null;
+};
+
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
 
 export type GetNotesQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
   search?: string | null | undefined;
 }>;
 
 export type GetNotesQuery = {
-  notes: Array<{
-    id: string;
-    title: string;
-    body: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  notes: {
+    items: Array<{
+      id: string;
+      title: string;
+      body: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetNoteQueryVariables = Exact<{
@@ -240,22 +288,27 @@ export type GetFileQuery = {
 
 export type GetFilesQueryVariables = Exact<{
   filter?: FilesFilterInput | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetFilesQuery = {
-  files: Array<{
-    id: string;
-    key: string;
-    originalName: string;
-    mimeType: string;
-    sizeBytes: number;
-    status: FileStatus;
-    entityType: AttachmentEntityType | null;
-    entityId: string | null;
-    downloadUrl: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  files: {
+    items: Array<{
+      id: string;
+      key: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      status: FileStatus;
+      entityType: AttachmentEntityType | null;
+      entityId: string | null;
+      downloadUrl: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type RequestUploadUrlMutationVariables = Exact<{
@@ -291,29 +344,32 @@ export type DeleteFileMutationVariables = Exact<{
 export type DeleteFileMutation = { deleteFile: boolean };
 
 export type GetTodosQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
   search?: string | null | undefined;
   completed?: boolean | null | undefined;
 }>;
 
 export type GetTodosQuery = {
-  todos: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: string;
-    updatedAt: string;
-    attachments: Array<{
+  todos: {
+    items: Array<{
       id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
-      thumbnailUrl: string | null;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      createdAt: string;
+      updatedAt: string;
+      attachments: Array<{
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl: string | null;
+        thumbnailUrl: string | null;
+      }>;
     }>;
-  }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type GetTodoQueryVariables = Exact<{
@@ -468,11 +524,17 @@ export class TypedDocumentString<TResult, TVariables>
 }
 
 export const GetConversationsDocument = new TypedDocumentString(`
-    query GetConversations($limit: Int, $offset: Int) {
-  conversations(limit: $limit, offset: $offset) {
-    id
-    title
-    updatedAt
+    query GetConversations($first: Int, $after: String) {
+  conversations(first: $first, after: $after) {
+    items {
+      id
+      title
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);
@@ -496,21 +558,23 @@ useGetConversationsQuery.getKey = (variables?: GetConversationsQueryVariables) =
   variables === undefined ? ["GetConversations"] : ["GetConversations", variables];
 
 export const GetConversationDocument = new TypedDocumentString(`
-    query GetConversation($conversationId: ID!, $limit: Int, $offset: Int) {
-  assistantMessages(
-    conversationId: $conversationId
-    limit: $limit
-    offset: $offset
-  ) {
-    id
-    conversationId
-    role
-    content
-    createdAt
-    toolActions {
-      tool
-      input
-      output
+    query GetConversation($conversationId: ID!, $first: Int, $after: String) {
+  assistantMessages(conversationId: $conversationId, first: $first, after: $after) {
+    items {
+      id
+      conversationId
+      role
+      content
+      createdAt
+      toolActions {
+        tool
+        input
+        output
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
     }
   }
 }
@@ -604,6 +668,81 @@ export const OnAssistantMessageDeltaDocument = new TypedDocumentString(`
   }
 }
     `);
+export const AuditEventsDocument = new TypedDocumentString(`
+    query AuditEvents($first: Int, $after: String) {
+  auditEvents(first: $first, after: $after) {
+    items {
+      id
+      action
+      actor {
+        id
+        name
+        email
+      }
+      targetType
+      targetLabel
+      ipAddress
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    `);
+
+export const useAuditEventsQuery = <TData = AuditEventsQuery, TError = unknown>(
+  variables?: AuditEventsQueryVariables,
+  options?: Omit<UseQueryOptions<AuditEventsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<AuditEventsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<AuditEventsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["AuditEvents"] : ["AuditEvents", variables],
+    queryFn: useGraphqlFetcher<AuditEventsQuery, AuditEventsQueryVariables>(
+      AuditEventsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useAuditEventsQuery.getKey = (variables?: AuditEventsQueryVariables) =>
+  variables === undefined ? ["AuditEvents"] : ["AuditEvents", variables];
+
+export const CurrentOrganizationRoleDocument = new TypedDocumentString(`
+    query CurrentOrganizationRole {
+  currentOrganization {
+    id
+    role
+  }
+}
+    `);
+
+export const useCurrentOrganizationRoleQuery = <
+  TData = CurrentOrganizationRoleQuery,
+  TError = unknown
+>(
+  variables?: CurrentOrganizationRoleQueryVariables,
+  options?: Omit<UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<CurrentOrganizationRoleQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["CurrentOrganizationRole"]
+        : ["CurrentOrganizationRole", variables],
+    queryFn: useGraphqlFetcher<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>(
+      CurrentOrganizationRoleDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useCurrentOrganizationRoleQuery.getKey = (variables?: CurrentOrganizationRoleQueryVariables) =>
+  variables === undefined ? ["CurrentOrganizationRole"] : ["CurrentOrganizationRole", variables];
+
 export const HealthDocument = new TypedDocumentString(`
     query Health {
   health
@@ -630,13 +769,19 @@ useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
 
 export const GetNotesDocument = new TypedDocumentString(`
-    query GetNotes($limit: Int, $offset: Int, $search: String) {
-  notes(limit: $limit, offset: $offset, search: $search) {
-    id
-    title
-    body
-    createdAt
-    updatedAt
+    query GetNotes($first: Int, $after: String, $search: String) {
+  notes(first: $first, after: $after, search: $search) {
+    items {
+      id
+      title
+      body
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);
@@ -948,19 +1093,25 @@ export const useGetFileQuery = <TData = GetFileQuery, TError = unknown>(
 useGetFileQuery.getKey = (variables: GetFileQueryVariables) => ["GetFile", variables];
 
 export const GetFilesDocument = new TypedDocumentString(`
-    query GetFiles($filter: FilesFilterInput) {
-  files(filter: $filter) {
-    id
-    key
-    originalName
-    mimeType
-    sizeBytes
-    status
-    entityType
-    entityId
-    downloadUrl
-    createdAt
-    updatedAt
+    query GetFiles($filter: FilesFilterInput, $first: Int, $after: String) {
+  files(filter: $filter, first: $first, after: $after) {
+    items {
+      id
+      key
+      originalName
+      mimeType
+      sizeBytes
+      status
+      entityType
+      entityId
+      downloadUrl
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);
@@ -1072,22 +1223,28 @@ export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
 useDeleteFileMutation.getKey = () => ["DeleteFile"];
 
 export const GetTodosDocument = new TypedDocumentString(`
-    query GetTodos($limit: Int, $offset: Int, $search: String, $completed: Boolean) {
-  todos(limit: $limit, offset: $offset, search: $search, completed: $completed) {
-    id
-    title
-    description
-    completed
-    attachments {
+    query GetTodos($first: Int, $after: String, $search: String, $completed: Boolean) {
+  todos(first: $first, after: $after, search: $search, completed: $completed) {
+    items {
       id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-      thumbnailUrl
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+        thumbnailUrl
+      }
+      createdAt
+      updatedAt
     }
-    createdAt
-    updatedAt
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);

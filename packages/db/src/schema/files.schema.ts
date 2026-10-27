@@ -28,9 +28,9 @@ export const filesTable = pgTable(
     mimeType: varchar("mime_type", { length: 127 }).notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     status: fileStatusEnum("status").notNull().default("pending"),
-    uploadedBy: uuid("uploaded_by")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
+    // Null once the uploader deleted their account: the Attachment stays with
+    // its Organization.
+    uploadedBy: uuid("uploaded_by").references(() => usersTable.id, { onDelete: "set null" }),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizationsTable.id, { onDelete: "cascade" }),

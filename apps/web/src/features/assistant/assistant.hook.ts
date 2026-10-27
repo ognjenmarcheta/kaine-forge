@@ -66,13 +66,13 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
   });
   function historyKey(id: string) {
     return createActiveOrganizationQueryKey(
-      useGetConversationQuery.getKey({ conversationId: id, limit: 100 }),
+      useGetConversationQuery.getKey({ conversationId: id, first: 100 }),
       organizationId
     );
   }
   const isSaved = activeKey !== NEW_CHAT && !activeKey.startsWith(TEMP_CHAT_PREFIX);
   const historyQuery = useGetConversationQuery(
-    { conversationId: activeKey, limit: 100 },
+    { conversationId: activeKey, first: 100 },
     {
       enabled: enabled && isSaved && pendingKey !== activeKey,
       queryKey: historyKey(activeKey)
@@ -103,7 +103,7 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
 
   const messages: ChatMessage[] = [
     ...(isSaved
-      ? (historyQuery.data?.assistantMessages ?? []).map((row): ChatMessage => ({
+      ? (historyQuery.data?.assistantMessages.items ?? []).map((row): ChatMessage => ({
           id: row.id,
           content: row.content,
           role: row.role === "assistant" ? "assistant" : "user",
@@ -158,7 +158,7 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
 
     let targetKey = key;
     let replied = false;
-    let confirmedMessages: GetConversationQuery["assistantMessages"] = [];
+    let confirmedMessages: GetConversationQuery["assistantMessages"]["items"] = [];
     try {
       const result = await mutation.mutateAsync({
         input: {
@@ -236,14 +236,20 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
       try {
         await client.fetchQuery({
           queryKey: historyKey(targetKey),
-          queryFn: () => fetchHistory({ conversationId: targetKey, limit: 100 }),
+          queryFn: () => fetchHistory({ conversationId: targetKey, first: 100 }),
           staleTime: 0
         });
       } catch {
         // The mutation confirmed these messages even if the follow-up read fails.
         if (mounted.current && pending.current === request && replied) {
           client.setQueryData<GetConversationQuery>(historyKey(targetKey), (current) => ({
-            assistantMessages: [...(current?.assistantMessages ?? []), ...confirmedMessages]
+            assistantMessages: {
+              items: [...(current?.assistantMessages.items ?? []), ...confirmedMessages],
+              pageInfo: current?.assistantMessages.pageInfo ?? {
+                hasNextPage: false,
+                endCursor: null
+              }
+            }
           }));
         }
       }

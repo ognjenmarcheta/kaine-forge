@@ -6,8 +6,8 @@ import { errorReporter, formatLoggableError } from "../../observability";
 import { organizationSubscriptions } from "../../pubsub";
 
 type TodosQueryArgs = {
-  limit?: number;
-  offset?: number;
+  first?: number | null;
+  after?: string | null;
   search?: string | null;
   completed?: boolean | null;
 };

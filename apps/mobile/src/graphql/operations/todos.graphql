@@ -1,18 +1,24 @@
-query GetMobileTodos($limit: Int, $offset: Int) {
-  todos(limit: $limit, offset: $offset) {
-    id
-    title
-    description
-    completed
-    attachments {
+query GetMobileTodos($first: Int, $after: String) {
+  todos(first: $first, after: $after) {
+    items {
       id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+      }
+      createdAt
+      updatedAt
     }
-    createdAt
-    updatedAt
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 

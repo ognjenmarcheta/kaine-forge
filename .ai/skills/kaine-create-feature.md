@@ -61,6 +61,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 Do not "improve" these — they are the contract `.ai/create-feature.util.spec.ts` asserts:
 
 - The feature is one deep module, `create{Plural}` in `{plural}.module.ts`, on the request context as `ctx.{plural}`. It reads and writes only through `ScopedData` (`ctx.data`), which adds the organization predicate; no file imports the `db` singleton.
+- The list field returns `{Singular}Connection` (`items` plus the shared `pageInfo`) and takes `first` and `after`. `list` builds its page with `data.page(...)`, which keeps the organization predicate and refuses a malformed or foreign cursor with `invalid cursor`; the list route pages with `useInfiniteQuery` after `pageInfo.endCursor`. Keep the `createdAt` order and `id` tie breaker when you replace the columns. `MONOREPO_GUIDE.md` **List fields and cursors** states the contract.
 - Resolvers only call `ctx.{plural}`. Subscriptions come from `organizationSubscriptions([...])`, whose fields the wiring adds to `ORGANIZATION_SUBSCRIPTIONS` in `apps/api/src/pubsub.ts`.
 - The module test runs on PGlite through `createTestDatabase()` from `@repo/db/testing` and proves that another Organization's rows stay unreadable and unchanged. It does not mock `@repo/db`.
 - Web routes subscribe through `useLive{Plural}` in `apps/web/src/hooks/use-live-list.ts`, which uses the generated `On*Document` subscriptions — never a subscription string.

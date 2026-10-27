@@ -52,3 +52,15 @@ export function authHeaders(session: AuthSession | null): Record<string, string>
   void session;
   return {};
 }
+
+/**
+ * The page to open after sign-in: a same-origin relative path, or the
+ * dashboard. "//host" and "/\\host" would leave the origin, so they fall back.
+ */
+export function resolveReturnPath(value: string | null): string {
+  if (!value?.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
+    return AUTH_DEFINITION.defaultReturnPath;
+  }
+
+  return value;
+}

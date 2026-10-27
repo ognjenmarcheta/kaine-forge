@@ -45,7 +45,7 @@ it("replays migrations and proves API CRUD, validation and unchanged foreign row
   if (typeof foreignId !== "string") throw new Error("Missing foreign Organization");
   const schema = createSchema({
     typeDefs: [
-      "scalar DateTime type Todo { id: ID! } input CreateTodoInput { title: String! } type Query { _control: Boolean } type Mutation { _control: Boolean } type Subscription { _control: Boolean }",
+      "scalar DateTime type Todo { id: ID! } input CreateTodoInput { title: String! } type PageInfo { hasNextPage: Boolean! endCursor: String } type Query { _control: Boolean } type Mutation { _control: Boolean } type Subscription { _control: Boolean }",
       __plural__TypeDefs
     ],
     resolvers: __plural__Resolvers
@@ -59,7 +59,7 @@ it("replays migrations and proves API CRUD, validation and unchanged foreign row
         update__Singular__: rowSchema.optional(),
         delete__Singular__: z.boolean().optional(),
         __singular__: rowSchema.nullable().optional(),
-        __plural__: z.array(rowSchema).optional()
+        __plural__: z.object({ items: z.array(rowSchema) }).optional()
       })
       .nullable()
       .optional()
@@ -109,9 +109,9 @@ it("replays migrations and proves API CRUD, validation and unchanged foreign row
       foreignId
     ]);
   const before = await protectedRows();
-  const list = await execute("{ __plural__ { id title body } }");
+  const list = await execute("{ __plural__ { items { id title body } } }");
   expect(list.errors).toBeUndefined();
-  expect(list.data?.__plural__).toEqual([{ id: ownId, title: "Owner control", body: null }]);
+  expect(list.data?.__plural__?.items).toEqual([{ id: ownId, title: "Owner control", body: null }]);
   const read = "query($id: ID!) { __singular__(id: $id) { id title body } }";
   expect((await execute(read, { id: foreignRowId })).data?.__singular__).toBeNull();
   const update =

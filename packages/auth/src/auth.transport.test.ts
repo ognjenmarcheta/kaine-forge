@@ -7,7 +7,7 @@ import {
   isTwoFactorRequiredError,
   parseSocialProviders
 } from "./auth.transport";
-import type { AuthTransportAdapter } from "./auth.transport";
+import type { AuthTransport, AuthTransportAdapter } from "./auth.transport";
 import type { AuthSession } from "./auth.type";
 
 const { createAuthClientMock, organizationClientMock } = vi.hoisted(() => ({
@@ -28,6 +28,7 @@ vi.mock("better-auth/client/plugins", () => ({
 interface StubError {
   code?: string;
   message?: string;
+  organizationName?: string;
   status: number;
   statusText?: string;
 }
@@ -40,6 +41,7 @@ interface StubResult<T> {
 interface SessionData {
   session: {
     activeOrganizationId?: string | null;
+    id?: string;
     expiresAt: Date | string;
   };
   user: {
@@ -128,9 +130,39 @@ function createClientStub() {
       resetPassword: vi.fn(async () => stubResult({ success: true })),
       sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
     },
+    $fetch: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+    listSessions: vi.fn(async () =>
+      stubResult<
+        {
+          createdAt: string;
+          id: string;
+          ipAddress?: string | null;
+          token: string;
+          userAgent?: string | null;
+        }[]
+      >([])
+    ),
+    revokeSession: vi.fn(async () => stubResult({ status: true })),
+    revokeOtherSessions: vi.fn(async () => stubResult({ status: true })),
+    updateUser: vi.fn(async () => stubResult({ status: true })),
+    changePassword: vi.fn(async () => stubResult<Record<string, unknown>>({ token: null })),
+    changeEmail: vi.fn(async () => stubResult({ status: true })),
+    listAccounts: vi.fn(async () =>
+      stubResult<{ createdAt: string; id: string; providerId: string }[]>([])
+    ),
+    linkSocial: vi.fn(async () => stubResult({ redirect: true, url: "https://provider.test" })),
+    unlinkAccount: vi.fn(async () => stubResult({ status: true })),
+    deleteUser: vi.fn(async () => stubResult({ success: true, message: "User deleted" })),
     organization: {
       list: vi.fn(async () =>
-        stubResult<{ createdAt?: string; id: string; name: string; slug: string }[]>([])
+        stubResult<
+          { createdAt?: string; id: string; name: string; personal?: boolean; slug: string }[]
+        >([])
+      ),
+      listInvitations: vi.fn(async () =>
+        stubResult<
+          { email: string; expiresAt: string; id: string; role: string; status: string }[]
+        >([])
       ),
       listMembers: vi.fn(async () => stubResult({ members: [] as MemberData[], total: 0 })),
       setActive: vi.fn(async () => stubResult<Record<string, unknown>>({})),
@@ -396,6 +428,12 @@ describe("createAuthTransport", () => {
       run: (transport) => transport.disableTwoFactor("secret"),
       call: (client) => client.twoFactor.disable,
       args: [{ password: "secret" }]
+    },
+    {
+      name: "stores the language of the user's emails",
+      run: (transport) => transport.updateEmailLanguage("de"),
+      call: (client) => client.$fetch,
+      args: ["/update-user", { method: "POST", body: { locale: "de" } }]
     }
   ];
 
@@ -459,6 +497,23 @@ describe("createAuthTransport", () => {
     ).resolves.toEqual(expectedSession());
     expect(client.signUp.email).toHaveBeenCalledWith(
       { email: "user@example.com", name: "User", password: "secret" },
+      undefined
+    );
+  });
+
+  it("signs up with the UI language as the language of the user's emails", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await createAuthTransport({ adapter: createAdapter() }).signupWithPassword({
+      email: "user@example.com",
+      name: "User",
+      password: "secret",
+      locale: "de"
+    });
+
+    expect(client.signUp.email).toHaveBeenCalledWith(
+      { email: "user@example.com", name: "User", password: "secret", locale: "de" },
       undefined
     );
   });
@@ -557,7 +612,10 @@ describe("createAuthTransport", () => {
     const client = createClientStub();
     client.getSession.mockResolvedValue(sessionPayload("org-2"));
     client.organization.list.mockResolvedValue({
-      data: [{ id: "org-2", name: "Acme", slug: "acme", createdAt: "2026-01-01" }],
+      data: [
+        { id: "org-1", name: "Personal", slug: "personal-1", personal: true },
+        { id: "org-2", name: "Acme", slug: "acme", createdAt: "2026-01-01" }
+      ],
       error: null
     });
     createAuthClientMock.mockReturnValue(client);
@@ -566,8 +624,261 @@ describe("createAuthTransport", () => {
 
     await expect(transport.listOrganizations()).resolves.toEqual({
       activeOrganizationId: "org-2",
-      organizations: [{ id: "org-2", name: "Acme", slug: "acme" }]
+      organizations: [
+        { id: "org-1", name: "Personal", slug: "personal-1", personal: true },
+        { id: "org-2", name: "Acme", slug: "acme", personal: false }
+      ]
     });
+  });
+
+  it("lists only pending, unexpired invitations", async () => {
+    const client = createClientStub();
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    client.organization.listInvitations.mockResolvedValue(
+      stubResult([
+        {
+          id: "pending",
+          email: "a@example.com",
+          role: "member",
+          status: "pending",
+          expiresAt: future
+        },
+        {
+          id: "expired",
+          email: "b@example.com",
+          role: "member",
+          status: "pending",
+          expiresAt: past
+        },
+        {
+          id: "accepted",
+          email: "c@example.com",
+          role: "admin",
+          status: "accepted",
+          expiresAt: future
+        }
+      ])
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.listInvitations()).resolves.toEqual([
+      {
+        id: "pending",
+        email: "a@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: future
+      }
+    ]);
+  });
+
+  it("leaves and deletes without sending an organization id", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.leaveOrganization()).resolves.toEqual(expectedSession());
+    await expect(transport.deleteOrganization()).resolves.toEqual(expectedSession());
+    expect(client.$fetch.mock.calls).toEqual([
+      ["/organization/leave", { method: "POST", body: {} }],
+      ["/organization/delete", { method: "POST", body: {} }]
+    ]);
+  });
+
+  it("lists sessions with a marker on this device and revokes one by its id", async () => {
+    const client = createClientStub();
+    const current = sessionPayload();
+    client.getSession.mockResolvedValue({
+      ...current,
+      data: current.data && {
+        ...current.data,
+        session: { ...current.data.session, id: "session-1" }
+      }
+    });
+    client.listSessions.mockResolvedValue(
+      stubResult([
+        {
+          id: "session-1",
+          token: "token-1",
+          userAgent: "Firefox",
+          ipAddress: "10.0.0.1",
+          createdAt: "2026-10-01T08:00:00.000Z"
+        },
+        {
+          id: "session-2",
+          token: "token-2",
+          userAgent: null,
+          ipAddress: null,
+          createdAt: "2026-10-02T08:00:00.000Z"
+        }
+      ])
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.listSessions()).resolves.toEqual([
+      {
+        id: "session-1",
+        userAgent: "Firefox",
+        ipAddress: "10.0.0.1",
+        createdAt: "2026-10-01T08:00:00.000Z",
+        current: true
+      },
+      {
+        id: "session-2",
+        userAgent: null,
+        ipAddress: null,
+        createdAt: "2026-10-02T08:00:00.000Z",
+        current: false
+      }
+    ]);
+    await transport.revokeSession("session-2");
+    expect(client.revokeSession.mock.calls).toEqual([[{ token: "token-2" }]]);
+  });
+
+  it("sends account changes for the session user and maps linked accounts", async () => {
+    const client = createClientStub();
+    client.listAccounts.mockResolvedValue(
+      stubResult([
+        { id: "account-1", providerId: "credential", createdAt: "2026-10-01T08:00:00.000Z" }
+      ])
+    );
+    client.$fetch.mockResolvedValue(stubResult({ providers: ["google", "unknown"] }));
+    createAuthClientMock.mockReturnValue(client);
+    const setSessionToken = vi.fn();
+
+    const transport = createAuthTransport({ adapter: createAdapter({ setSessionToken }) });
+
+    await expect(transport.updateProfile({ name: "Ada" })).resolves.toEqual(expectedSession());
+    await transport.changePassword({
+      currentPassword: "old-secret",
+      newPassword: "new-secret",
+      revokeOtherSessions: true
+    });
+    await transport.changeEmail({ newEmail: "new@example.com" });
+    await transport.changeEmail({
+      newEmail: "new@example.com",
+      callbackUrl: "https://app.example.test/account"
+    });
+    await transport.revokeOtherSessions();
+    await expect(transport.listAccounts()).resolves.toEqual([
+      { id: "account-1", providerId: "credential", createdAt: "2026-10-01T08:00:00.000Z" }
+    ]);
+    await expect(transport.listSocialProviders()).resolves.toEqual(["google"]);
+    await transport.linkSocialAccount({
+      provider: "github",
+      callbackUrl: "https://app.example.test/account"
+    });
+    await transport.unlinkAccount("account-2");
+    await transport.requestAccountDeletion();
+    await transport.confirmAccountDeletion("delete-token-1");
+
+    expect(client.updateUser.mock.calls).toEqual([[{ name: "Ada" }]]);
+    expect(client.changePassword.mock.calls).toEqual([
+      [{ currentPassword: "old-secret", newPassword: "new-secret", revokeOtherSessions: true }]
+    ]);
+    expect(client.changeEmail.mock.calls).toEqual([
+      [{ newEmail: "new@example.com" }],
+      [{ newEmail: "new@example.com", callbackURL: "https://app.example.test/account" }]
+    ]);
+    expect(client.revokeOtherSessions).toHaveBeenCalledTimes(1);
+    expect(client.linkSocial.mock.calls).toEqual([
+      [{ provider: "github", callbackURL: "https://app.example.test/account" }]
+    ]);
+    expect(client.unlinkAccount.mock.calls).toEqual([[{ accountId: "account-2" }]]);
+    expect(client.deleteUser.mock.calls).toEqual([[{}], [{ token: "delete-token-1" }]]);
+    // The deleted account's bearer token is dropped.
+    expect(setSessionToken.mock.calls).toEqual([[null]]);
+  });
+
+  it("does not revoke anything for a session id the user does not have", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await createAuthTransport({ adapter: createAdapter() }).revokeSession("session-unknown");
+
+    expect(client.revokeSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["updateProfile", (transport: AuthTransport) => transport.updateProfile({ name: "Ada" })],
+    [
+      "changePassword",
+      (transport: AuthTransport) =>
+        transport.changePassword({
+          currentPassword: "wrong",
+          newPassword: "new-secret",
+          revokeOtherSessions: false
+        })
+    ],
+    [
+      "changeEmail",
+      (transport: AuthTransport) => transport.changeEmail({ newEmail: "new@example.com" })
+    ],
+    ["listSessions", (transport: AuthTransport) => transport.listSessions()],
+    // Revoking looks the session up first; the revoke itself fails.
+    ["revokeSession", (transport: AuthTransport) => transport.revokeSession("session-2"), true],
+    ["revokeOtherSessions", (transport: AuthTransport) => transport.revokeOtherSessions()],
+    ["listAccounts", (transport: AuthTransport) => transport.listAccounts()],
+    ["listSocialProviders", (transport: AuthTransport) => transport.listSocialProviders()],
+    [
+      "linkSocialAccount",
+      (transport: AuthTransport) => transport.linkSocialAccount({ provider: "github" })
+    ],
+    ["unlinkAccount", (transport: AuthTransport) => transport.unlinkAccount("account-1")],
+    ["confirmAccountDeletion", (transport: AuthTransport) => transport.confirmAccountDeletion("t")]
+  ])("keeps the better-auth error code when %s fails", async (_name, call, listed = false) => {
+    const failure = { data: null, error: { status: 400, code: "INVALID_PASSWORD" } };
+    const client = createClientStub();
+    for (const method of [
+      client.updateUser,
+      client.changePassword,
+      client.changeEmail,
+      client.listSessions,
+      client.revokeSession,
+      client.revokeOtherSessions,
+      client.listAccounts,
+      client.$fetch,
+      client.linkSocial,
+      client.unlinkAccount,
+      client.deleteUser
+    ]) {
+      method.mockResolvedValue(failure);
+    }
+    if (listed) {
+      client.listSessions.mockResolvedValueOnce(
+        stubResult([{ id: "session-2", token: "token-2", createdAt: "2026-10-02T08:00:00.000Z" }])
+      );
+    }
+    createAuthClientMock.mockReturnValue(client);
+
+    const error: unknown = await call(createAuthTransport({ adapter: createAdapter() })).catch(
+      (caught: unknown) => caught
+    );
+
+    expect(getAuthErrorMessageKey(error)).toBe("auth.account.error.invalidPassword");
+  });
+
+  it("names the organization that blocks an account deletion", async () => {
+    const client = createClientStub();
+    client.deleteUser.mockResolvedValue({
+      data: null,
+      error: { status: 400, code: "SOLE_OWNER_OF_SHARED_ORGANIZATION", organizationName: "Acme" }
+    });
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+    const error: unknown = await transport
+      .requestAccountDeletion()
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ organizationName: "Acme" });
+    expect(getAuthErrorMessageKey(error)).toBe("auth.account.error.soleOwner");
   });
 
   it("maps organization members from the better-auth member payload", async () => {

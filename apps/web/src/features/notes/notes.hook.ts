@@ -22,6 +22,8 @@ import { queryRuntime } from "../../lib/query-runtime";
 queryRuntime.registerOrgScopedOperation("notes.web.list", useGetNotesQuery.getKey());
 const detailPrefix = useGetNoteQuery.getKey({ id: "" }).slice(0, 1);
 queryRuntime.registerOrgScopedOperation("notes.web.detail", detailPrefix);
+/** The `after` cursor of the first page: none. */
+const FIRST_PAGE: string | null = null;
 
 export function useNotes(organizationId: string | null, enabled: boolean, selected: string | null) {
   const client = useQueryClient();
@@ -58,17 +60,17 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
 
   const fetchNotes = useGraphqlFetcher<GetNotesQuery, GetNotesQueryVariables>(GetNotesDocument);
   const listKey = createActiveOrganizationQueryKey(
-    [...useGetNotesQuery.getKey({ search: phrase, limit: NOTES_CONFIG.pageSize }), "pages"],
+    [...useGetNotesQuery.getKey({ search: phrase, first: NOTES_CONFIG.pageSize }), "pages"],
     organizationId
   );
   const list = useInfiniteQuery({
     queryKey: listKey,
     enabled,
-    initialPageParam: 0,
+    initialPageParam: FIRST_PAGE,
     queryFn: ({ pageParam }) =>
-      fetchNotes({ search: phrase, limit: NOTES_CONFIG.pageSize, offset: pageParam }),
-    getNextPageParam: (last, pages) =>
-      last.notes.length === NOTES_CONFIG.pageSize ? pages.length * NOTES_CONFIG.pageSize : undefined
+      fetchNotes({ search: phrase, first: NOTES_CONFIG.pageSize, after: pageParam }),
+    getNextPageParam: ({ notes: { pageInfo } }) =>
+      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
   });
   const selectedDraft = selected ? drafts[selected] : undefined;
   const serverId = selectedDraft?.serverId ?? (selected === NEW_NOTE ? null : selected);
@@ -195,7 +197,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   }
   const rows = [
     ...new Map(
-      (list.data?.pages.flatMap((page) => page.notes) ?? []).map((note) => [note.id, note])
+      (list.data?.pages.flatMap((page) => page.notes.items) ?? []).map((note) => [note.id, note])
     ).values()
   ];
   const unsaved = Object.entries(drafts).filter(

@@ -16,6 +16,8 @@ const apiEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "is required"),
   BETTER_AUTH_URL: z.string().optional(),
+  // Web app origin for links in emails, such as the Invitation accept page.
+  WEB_APP_URL: z.preprocess(blankAsUnset, z.url().optional()),
   API_HOST: z.string().optional(),
   API_PORT: z.preprocess(blankAsUnset, z.coerce.number().int().positive().default(4000)),
   API_URL: z.string().optional(),

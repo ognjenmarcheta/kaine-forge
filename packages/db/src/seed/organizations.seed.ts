@@ -28,7 +28,8 @@ export async function ensurePersonalOrganization(userId: string) {
     .values({
       userId,
       name: "Personal",
-      slug
+      slug,
+      personal: true
     })
     .returning();
 

@@ -26,7 +26,8 @@ queryRuntime.registerOrgScopedOperation("todos.web.list", useGetTodosQuery.getKe
 const detailPrefix = useGetTodoQuery.getKey({ id: "" }).slice(0, 1);
 queryRuntime.registerOrgScopedOperation("todos.web.detail", detailPrefix);
 const EMPTY_DRAFT: TodoDraft = { title: "", description: "" };
-type TodoPage = GetTodosQuery & { nextOffset: number | undefined };
+/** The `after` cursor of the first page: none. */
+const FIRST_PAGE: string | null = null;
 
 export function useTodos(
   organizationId: string | null,
@@ -55,29 +56,17 @@ export function useTodos(
   const completed = status === "all" ? null : status === "completed";
   const fetchTodos = useGraphqlFetcher<GetTodosQuery, GetTodosQueryVariables>(GetTodosDocument);
   const listKey = createActiveOrganizationQueryKey(
-    [...useGetTodosQuery.getKey({ search, completed, limit: TODOS_CONFIG.pageSize }), "pages"],
+    [...useGetTodosQuery.getKey({ search, completed, first: TODOS_CONFIG.pageSize }), "pages"],
     organizationId
   );
   const list = useInfiniteQuery({
     queryKey: listKey,
     enabled,
-    initialPageParam: 0,
-    queryFn: async ({ pageParam }): Promise<TodoPage> => {
-      const result = await fetchTodos({
-        search,
-        completed,
-        limit: TODOS_CONFIG.pageSize,
-        offset: pageParam
-      });
-      return {
-        ...result,
-        nextOffset:
-          result.todos.length === TODOS_CONFIG.pageSize
-            ? pageParam + TODOS_CONFIG.pageSize
-            : undefined
-      };
-    },
-    getNextPageParam: (last) => last.nextOffset
+    initialPageParam: FIRST_PAGE,
+    queryFn: ({ pageParam }) =>
+      fetchTodos({ search, completed, first: TODOS_CONFIG.pageSize, after: pageParam }),
+    getNextPageParam: ({ todos: { pageInfo } }) =>
+      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
   });
   const detailKey = createActiveOrganizationQueryKey(
     useGetTodoQuery.getKey({ id: editing?.base.id ?? "" }),
@@ -128,7 +117,7 @@ export function useTodos(
     });
   }
   function confirmRow(id: string, patch: Partial<TodoItem> | null) {
-    client.setQueriesData<InfiniteData<TodoPage>>(
+    client.setQueriesData<InfiniteData<GetTodosQuery>>(
       {
         queryKey: useGetTodosQuery.getKey(),
         predicate: (query) =>
@@ -140,10 +129,15 @@ export function useTodos(
               ...data,
               pages: data.pages.map((page) => ({
                 ...page,
-                todos:
-                  patch === null
-                    ? page.todos.filter((item) => item.id !== id)
-                    : page.todos.map((item) => (item.id === id ? { ...item, ...patch } : item))
+                todos: {
+                  ...page.todos,
+                  items:
+                    patch === null
+                      ? page.todos.items.filter((item) => item.id !== id)
+                      : page.todos.items.map((item) =>
+                          item.id === id ? { ...item, ...patch } : item
+                        )
+                }
               }))
             }
           : data
@@ -220,7 +214,7 @@ export function useTodos(
     list,
     rows: [
       ...new Map(
-        (list.data?.pages.flatMap((page) => page.todos) ?? []).map((item) => [item.id, item])
+        (list.data?.pages.flatMap((page) => page.todos.items) ?? []).map((item) => [item.id, item])
       ).values()
     ].filter(
       (item) =>

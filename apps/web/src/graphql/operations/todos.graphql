@@ -1,19 +1,25 @@
-query GetTodos($limit: Int, $offset: Int, $search: String, $completed: Boolean) {
-  todos(limit: $limit, offset: $offset, search: $search, completed: $completed) {
-    id
-    title
-    description
-    completed
-    attachments {
+query GetTodos($first: Int, $after: String, $search: String, $completed: Boolean) {
+  todos(first: $first, after: $after, search: $search, completed: $completed) {
+    items {
       id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
-      thumbnailUrl
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+        thumbnailUrl
+      }
+      createdAt
+      updatedAt
     }
-    createdAt
-    updatedAt
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 

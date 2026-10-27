@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.stubEnv("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/dummy");
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
+vi.stubEnv("WEB_APP_URL", "https://app.example.com");
 
 const jobMocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
 
@@ -39,7 +40,7 @@ interface OrganizationPluginOptions {
     email: string;
     id: string;
     invitation: unknown;
-    inviter: unknown;
+    inviter: { userId: string; user: { email: string; name: string } };
     organization: { id: string; name: string };
     role: string;
   }) => Promise<void>;
@@ -65,7 +66,7 @@ async function sendInvitation(email: string): Promise<void> {
     email,
     organization: { id: "org-1", name: "Acme" },
     invitation: { id: "inv-1" },
-    inviter: { userId: "user-1" }
+    inviter: { userId: "user-1", user: { email: "owner@example.com", name: "Owner" } }
   });
 }
 
@@ -79,19 +80,39 @@ describe("auth.instance email hooks", () => {
     vi.unstubAllEnvs();
   });
 
-  it("enqueues the password reset email with the url and raw token", async () => {
+  it("enqueues the password reset email with the reset link in both parts", async () => {
     const sendResetPassword = auth.options.emailAndPassword?.sendResetPassword;
 
     expect(sendResetPassword).toBeTypeOf("function");
 
     await sendResetPassword?.({ user, url: "http://localhost:4000/reset?token=tok", token: "tok" });
 
-    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
-      to: "user@example.com",
-      subject: "Reset your password",
-      text: expect.stringContaining("http://localhost:4000/reset?token=tok")
+    await vi.waitFor(() => {
+      expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
+        to: "user@example.com",
+        subject: "Reset your password",
+        html: expect.stringContaining("http://localhost:4000/reset?token=tok"),
+        text: expect.stringContaining("http://localhost:4000/reset?token=tok")
+      });
     });
-    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("tok");
+  });
+
+  it("renders a hook email in the locale stored on the user", async () => {
+    // The stored row carries locale; better-auth's hook types omit it.
+    const serbianUser = { ...user, locale: "sr" };
+
+    await auth.options.emailAndPassword?.sendResetPassword?.({
+      user: serbianUser,
+      url: "http://localhost:4000/reset?token=tok",
+      token: "tok"
+    });
+
+    await vi.waitFor(() => {
+      expect(jobMocks.enqueue).toHaveBeenCalledWith(
+        "email.send",
+        expect.objectContaining({ subject: "Resetujte lozinku" })
+      );
+    });
   });
 
   it("mirrors the legacy password reset token lifetime", () => {
@@ -108,7 +129,7 @@ describe("auth.instance email hooks", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("enqueues the verification email with the url and raw token", async () => {
+  it("enqueues the verification email with the verification link in both parts", async () => {
     const sendVerificationEmail = auth.options.emailVerification?.sendVerificationEmail;
 
     expect(sendVerificationEmail).toBeTypeOf("function");
@@ -119,12 +140,14 @@ describe("auth.instance email hooks", () => {
       token: "vtok"
     });
 
-    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
-      to: "user@example.com",
-      subject: "Verify your email address",
-      text: expect.stringContaining("http://localhost:4000/verify?token=vtok")
+    await vi.waitFor(() => {
+      expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
+        to: "user@example.com",
+        subject: "Verify your email address",
+        html: expect.stringContaining("http://localhost:4000/verify?token=vtok"),
+        text: expect.stringContaining("http://localhost:4000/verify?token=vtok")
+      });
     });
-    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("vtok");
   });
 
   it("mirrors the legacy email verification token lifetime", () => {
@@ -208,15 +231,17 @@ describe("auth.instance email hooks", () => {
     });
   });
 
-  it("enqueues the invitation email with the organization name and invitation id", async () => {
+  it("enqueues the invitation email with the organization name and accept URL", async () => {
     await sendInvitation("invited@example.com");
 
-    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
-      to: "invited@example.com",
-      subject: expect.stringContaining("Acme"),
-      text: expect.stringContaining("inv-1")
+    await vi.waitFor(() => {
+      expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
+        to: "invited@example.com",
+        subject: "You have been invited to Acme",
+        html: expect.stringContaining("https://app.example.com/invitations/inv-1"),
+        text: expect.stringContaining("https://app.example.com/invitations/inv-1")
+      });
     });
-    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("Acme");
   });
 
   it("resolves the invitation hook even when enqueue fails", async () => {

@@ -96,6 +96,56 @@ export async function createOrganizationRequest(name: string): Promise<AuthSessi
   return authTransport.createOrganization({ name });
 }
 
+// Organization management acts on the Active Organization; the server resolves
+// it from the session, so no request carries an organization id.
+export const organizationApi = {
+  acceptInvitation: (invitationId: string) => authTransport.acceptInvitation(invitationId),
+  cancelInvitation: (invitationId: string) => authTransport.cancelInvitation(invitationId),
+  deleteOrganization: () => authTransport.deleteOrganization(),
+  getInvitation: (invitationId: string) => authTransport.getInvitation(invitationId),
+  inviteMember: (input: Parameters<typeof authTransport.inviteMember>[0]) =>
+    authTransport.inviteMember(input),
+  leaveOrganization: () => authTransport.leaveOrganization(),
+  listInvitations: () => authTransport.listInvitations(),
+  rejectInvitation: (invitationId: string) => authTransport.rejectInvitation(invitationId),
+  removeMember: (memberId: string) => authTransport.removeMember(memberId),
+  renameOrganization: (name: string) => authTransport.renameOrganization(name),
+  transferOwnership: (memberId: string) => authTransport.transferOwnership(memberId),
+  updateMemberRole: (input: Parameters<typeof authTransport.updateMemberRole>[0]) =>
+    authTransport.updateMemberRole(input)
+};
+
+// The account page sends links back to itself after a verification or a
+// provider sign-in.
+function accountPageUrl(): string | undefined {
+  return typeof window === "undefined" ? undefined : `${window.location.origin}/account`;
+}
+
+// Account settings of the session user; nothing here takes a user id.
+export const accountApi = {
+  changeEmail: (newEmail: string) =>
+    authTransport.changeEmail({ newEmail, callbackUrl: accountPageUrl() }),
+  changePassword: (input: Parameters<typeof authTransport.changePassword>[0]) =>
+    authTransport.changePassword(input),
+  confirmDeletion: (token: string) => authTransport.confirmAccountDeletion(token),
+  linkSocialAccount: (provider: AuthSocialProvider) =>
+    authTransport.linkSocialAccount({ provider, callbackUrl: accountPageUrl() }),
+  listAccounts: () => authTransport.listAccounts(),
+  listSessions: () => authTransport.listSessions(),
+  listSocialProviders: () => authTransport.listSocialProviders(),
+  requestDeletion: () => authTransport.requestAccountDeletion(),
+  revokeOtherSessions: () => authTransport.revokeOtherSessions(),
+  revokeSession: (sessionId: string) => authTransport.revokeSession(sessionId),
+  unlinkAccount: (accountId: string) => authTransport.unlinkAccount(accountId),
+  updateName: (name: string) => authTransport.updateProfile({ name })
+};
+
+// Auth emails use the language stored on the user; the browser keeps its own
+// copy for the UI.
+export async function saveEmailLanguageRequest(language: string): Promise<void> {
+  return authTransport.updateEmailLanguage(language);
+}
+
 export async function signInWithSocialRequest(provider: AuthSocialProvider): Promise<void> {
   await authTransport.signInWithSocial(provider);
 }

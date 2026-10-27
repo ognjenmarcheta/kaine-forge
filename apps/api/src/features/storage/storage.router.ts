@@ -1,11 +1,12 @@
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
 import type { ApiContext } from "../../context";
+import type { PageInput } from "../../context.data";
 
 type ResolverContext = ApiContext;
 
 type RequestUploadArgs = { input: RequestUploadInput };
 type FileByIdArgs = { id: string };
-type FilesArgs = { filter?: FilesFilterInput };
+type FilesArgs = PageInput & { filter?: FilesFilterInput | null };
 type ConfirmUploadArgs = { fileId: string };
 type DeleteFileArgs = { fileId: string };
 
@@ -15,7 +16,7 @@ export const storageResolvers = {
       return ctx.attachments.get(args.id);
     },
     async files(_parent: unknown, args: FilesArgs, ctx: ResolverContext) {
-      return ctx.attachments.list(args.filter ?? {});
+      return ctx.attachments.list(args.filter ?? {}, args);
     }
   },
   Mutation: {

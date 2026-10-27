@@ -8,9 +8,9 @@ const { mockDb, selectResults, insertCalls, insertReturnings } = vi.hoisted(() =
   const mockDb = {
     select: vi.fn(() => ({
       from: () => ({
-        where: () => ({
-          orderBy: () => ({
-            limit: async () => selectResults.shift() ?? []
+        leftJoin: () => ({
+          where: () => ({
+            orderBy: async () => selectResults.shift() ?? []
           })
         })
       })
@@ -67,7 +67,8 @@ describe("ensurePersonalOrganizationForUser", () => {
       values: {
         userId: "user-1234-uuid",
         name: "Personal",
-        slug: "personal-user-123"
+        slug: "personal-user-123",
+        personal: true
       }
     });
     expect(insertCalls[1]).toEqual({
@@ -86,7 +87,9 @@ describe("ensurePersonalOrganizationForUser", () => {
     // Insert lost the race: onConflictDoNothing yields an empty returning.
     insertReturnings.push([]);
     // Re-select finds the row the concurrent winner created.
-    selectResults.push([{ id: "org-existing", userId: "user-1234-uuid" }]);
+    selectResults.push([
+      { organization: { id: "org-existing", userId: "user-1234-uuid" }, memberId: null }
+    ]);
 
     const organization = await ensurePersonalOrganizationForUser("user-1234-uuid");
 

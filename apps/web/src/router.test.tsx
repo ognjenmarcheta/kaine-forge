@@ -19,6 +19,7 @@ const translation = vi.hoisted(() => {
     }
   };
 });
+const auditLogAccess = vi.hoisted(() => ({ value: false }));
 const routeFailure = vi.hoisted(() => ({
   auth: false,
   dashboard: false,
@@ -95,6 +96,8 @@ vi.mock("./features/organizations/organizations.route", () => ({
   OrganizationsRoute: () => null
 }));
 vi.mock("./features/security/security.route", () => ({ SecurityRoute: () => null }));
+vi.mock("./features/audit/audit.hook", () => ({ useAuditLogAccess: () => auditLogAccess.value }));
+vi.mock("./features/audit/audit.route", () => ({ AuditLogRoute: () => null }));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -117,6 +120,7 @@ afterEach(async () => {
   container.remove();
   Object.assign(routeFailure, { auth: false, dashboard: false, shell: false, todos: false });
   signedIn.value = true;
+  auditLogAccess.value = false;
   translation.language = "en";
   consoleError.mockRestore();
   vi.unstubAllGlobals();
@@ -181,6 +185,19 @@ it.each([
   }
 );
 
+it.each([
+  { canRead: true, link: "navigation.auditLog" },
+  { canRead: false, link: undefined }
+])(
+  "shows the audit log link only to an owner or admin (can read: $canRead)",
+  async ({ canRead, link }) => {
+    auditLogAccess.value = canRead;
+    await renderAt("/dashboard");
+
+    expect(findByText("a", "navigation.auditLog")?.textContent).toBe(link);
+  }
+);
+
 it("shows a titled not-found page for an unknown path", async () => {
   const router = await renderAt("/no-such-page");
 
@@ -215,4 +232,15 @@ it.each([
   expect(router.state.location.pathname).toBe(path);
   expect(findByText("h1", heading)).toBeDefined();
   expect(document.title).toBe(`${heading} · common.appName`);
+});
+
+it("sends a signed-out visitor of the deletion link to sign in and back with the token", async () => {
+  signedIn.value = false;
+
+  const router = await renderAt("/account/delete?token=delete-token-1");
+
+  expect(router.state.location.pathname).toBe("/auth");
+  expect(router.state.location.search).toBe(
+    "?redirect=%2Faccount%2Fdelete%3Ftoken%3Ddelete-token-1"
+  );
 });

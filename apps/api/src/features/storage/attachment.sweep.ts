@@ -1,11 +1,17 @@
-import { filesTable } from "@repo/db/schema";
+import {
+  filesTable,
+  organizationStoragePurgesTable,
+  publicAssetPurgesTable
+} from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
+import type { PublicAssetConfig } from "@repo/storage";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import { objectRefsOf, type ObjectStore } from "./attachment.store";
 import { STORAGE_CONFIG } from "./storage.definition";
 import { formatLoggableError } from "../../observability";
+import { ownedPublicAssetKey } from "../public-assets/public-assets.util";
 
 export interface AttachmentSweepDeps {
   db: Database;
@@ -127,6 +133,165 @@ export async function sweepStaleObjects({
   );
 
   return outcomes.filter(Boolean).length;
+}
+
+/**
+ * Deletes what a deleted Organization left in storage: every private object
+ * under its `<organizationId>/` prefix and its logo in the public bucket. The
+ * organizations delete trigger queues each one in organization_storage_purges,
+ * also when an account delete removes it. A queued row stays until every delete
+ * succeeds, its prefix is empty, and `pendingCutoff` has passed its deletion,
+ * so an upload URL issued just before the deletion cannot leave an object
+ * behind and a failed logo delete is retried.
+ */
+export async function sweepDeletedOrganizations({
+  db,
+  logger,
+  store,
+  publicStorage,
+  pendingCutoff,
+  batchSize = STORAGE_CONFIG.sweep.batchSize
+}: {
+  db: Database;
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete" | "listBefore">;
+  /** The public bucket of organization logos, or null when Public Assets are off. */
+  publicStorage: PublicAssetConfig | null;
+  pendingCutoff: Date;
+  batchSize?: number;
+}): Promise<{ deletedObjects: number; failed: number }> {
+  const totals = { deletedObjects: 0, failed: 0 };
+  const purges = await db
+    .select()
+    .from(organizationStoragePurgesTable)
+    // Never-tried rows first, then the longest-waiting failures, so a row
+    // that keeps failing cannot starve later Organizations.
+    .orderBy(
+      sql`${organizationStoragePurgesTable.attemptedAt} asc nulls first`,
+      asc(organizationStoragePurgesTable.createdAt)
+    )
+    .limit(batchSize);
+
+  for (const purge of purges) {
+    const logoKey =
+      purge.logo && publicStorage
+        ? ownedPublicAssetKey(publicStorage, "organization_logo", purge.organizationId, purge.logo)
+        : null;
+
+    // A logo that fails to delete keeps the row queued for a retry, like a
+    // private object, but never blocks the private cleanup below.
+    let failed = false;
+
+    if (publicStorage && logoKey) {
+      try {
+        await store.delete({ bucket: publicStorage.bucket, key: logoKey });
+      } catch (err) {
+        failed = true;
+        logger.warn(
+          { error: formatLoggableError(err), organizationId: purge.organizationId },
+          "failed to delete deleted organization logo"
+        );
+      }
+    }
+
+    for (;;) {
+      const refs = await store.listBefore(`${purge.organizationId}/`, new Date(), batchSize);
+      const outcomes = await Promise.all(
+        refs.map(async (ref) => {
+          try {
+            await store.delete(ref);
+            return true;
+          } catch (err) {
+            logger.warn(
+              { error: formatLoggableError(err), key: ref.key },
+              "failed to delete deleted organization object"
+            );
+            return false;
+          }
+        })
+      );
+      const deleted = outcomes.filter(Boolean).length;
+      totals.deletedObjects += deleted;
+
+      if (deleted < outcomes.length) {
+        failed = true;
+        break;
+      }
+
+      if (refs.length < batchSize) {
+        break;
+      }
+    }
+
+    if (failed) {
+      totals.failed += 1;
+      await db
+        .update(organizationStoragePurgesTable)
+        .set({ attemptedAt: new Date() })
+        .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
+    } else if (purge.createdAt < pendingCutoff) {
+      await db
+        .delete(organizationStoragePurgesTable)
+        .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
+    }
+  }
+
+  return totals;
+}
+
+/**
+ * Deletes the avatars that deleted users left in the public bucket, best
+ * effort. The users delete trigger queues each user's image URL in
+ * public_asset_purges. Only a key published for that user is deleted; any
+ * other URL, such as a social provider's avatar, is only dropped. A failed
+ * delete stays queued, behind rows not tried yet.
+ */
+export async function sweepDeletedPublicAssets({
+  db,
+  logger,
+  store,
+  publicStorage,
+  batchSize = STORAGE_CONFIG.sweep.batchSize
+}: {
+  db: Database;
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete">;
+  /** The public bucket of avatars, or null when Public Assets are off. */
+  publicStorage: PublicAssetConfig | null;
+  batchSize?: number;
+}): Promise<{ deleted: number; failed: number }> {
+  const totals = { deleted: 0, failed: 0 };
+  const purges = await db
+    .select({ userId: publicAssetPurgesTable.userId, url: publicAssetPurgesTable.url })
+    .from(publicAssetPurgesTable)
+    .orderBy(
+      sql`${publicAssetPurgesTable.attemptedAt} asc nulls first`,
+      asc(publicAssetPurgesTable.createdAt)
+    )
+    .limit(batchSize);
+
+  for (const { userId, url } of purges) {
+    const key = publicStorage ? ownedPublicAssetKey(publicStorage, "avatar", userId, url) : null;
+
+    if (publicStorage && key) {
+      try {
+        await store.delete({ bucket: publicStorage.bucket, key });
+        totals.deleted += 1;
+      } catch (err) {
+        totals.failed += 1;
+        logger.warn({ error: formatLoggableError(err), key }, "failed to delete public asset");
+        await db
+          .update(publicAssetPurgesTable)
+          .set({ attemptedAt: new Date() })
+          .where(eq(publicAssetPurgesTable.userId, userId));
+        continue;
+      }
+    }
+
+    await db.delete(publicAssetPurgesTable).where(eq(publicAssetPurgesTable.userId, userId));
+  }
+
+  return totals;
 }
 
 /**

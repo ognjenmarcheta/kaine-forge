@@ -43,6 +43,7 @@ function todosWith(attachments?: TodoAttachments): Todos {
       createAttachments({
         data,
         logger,
+        recordAuditEvent: () => Promise.resolve(),
         // The real Attachment module; only the object delete is the test's to control.
         store: { ...createMemoryObjectStore(), delete: (ref) => deleteObject(ref) }
       }),
@@ -138,7 +139,7 @@ describe("createTodos", () => {
   it("searches title and description before pagination, combined with the completed filter", async () => {
     const todos = todosWith();
     const titles = async (filters: { search?: string; completed?: boolean }) =>
-      (await todos.list({ limit: 50, ...filters })).map((todo) => todo.title);
+      (await todos.list({ first: 50, ...filters })).items.map((todo) => todo.title);
 
     expect(await titles({ search: " nEeDlE " })).toEqual(["Todo 3", "Needle TITLE"]);
     expect(await titles({ search: "needle", completed: true })).toEqual([]);
@@ -147,13 +148,15 @@ describe("createTodos", () => {
 
   it("pages deterministically and clamps the requested page", async () => {
     const todos = todosWith();
-    const first = await todos.list({ limit: 50 });
-    const second = await todos.list({ limit: 50, offset: 50 });
+    const first = await todos.list({ first: 50 });
+    const second = await todos.list({ first: 50, after: first.pageInfo.endCursor });
 
-    expect(first).toHaveLength(50);
-    expect(second).toHaveLength(11);
-    expect(new Set([...first, ...second].map((todo) => todo.id)).size).toBe(61);
-    expect(await todos.list({ limit: 500, offset: -5 })).toHaveLength(61);
+    expect(first.items).toHaveLength(50);
+    expect(first.pageInfo.hasNextPage).toBe(true);
+    expect(second.items).toHaveLength(11);
+    expect(second.pageInfo.hasNextPage).toBe(false);
+    expect(new Set([...first.items, ...second.items].map((todo) => todo.id)).size).toBe(61);
+    expect((await todos.list({ first: 500 })).items).toHaveLength(61);
   });
 
   it("creates a Todo from normalized input and publishes todo:created once", async () => {

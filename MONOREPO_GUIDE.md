@@ -176,6 +176,14 @@ The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. It
 - Do not hand-edit generated GraphQL artifacts.
 - Use generated React Query hooks for GraphQL data fetching.
 
+### List fields and cursors
+
+Every list field returns a `<Type>Connection` with `items: [<Type>!]!` and the shared `pageInfo: PageInfo!` (`hasNextPage`, `endCursor`), and takes `first: Int` and `after: String`. The template uses `items`, not Relay `edges { node cursor }`: clients only ever read the end of a page, so a per-row cursor is unused weight. There is no backward paging and no total count.
+
+- Build a page with `data.page(table, { first, after }, { orderBy, direction, limits })` from `apps/api/src/context.data.ts`. It clamps `first` to the feature's `defaultLimit` and `maxLimit`, keeps the organization predicate, orders by the timestamp column and then `id`, and reads `first + 1` rows to set `hasNextPage`.
+- A cursor is opaque. It encodes the list's table, the Active Organization, the sort key with microseconds, and the row `id`, so a row inserted or deleted between two requests never shifts the next page. A malformed cursor, or one from another list or another Organization, fails with the GraphQL error `invalid cursor` (`BAD_USER_INPUT`). A list paged on a sort key that changes keeps this promise only for inserts and deletes: conversations sort on `updated_at`, which `touchConversation` moves forward, so a conversation that moves above the cursor between two page loads is skipped on the next page.
+- Web lists page with TanStack `useInfiniteQuery`: `initialPageParam` is `null`, each request sends `after: pageParam`, and `getNextPageParam` returns `pageInfo.endCursor` while `pageInfo.hasNextPage` is true.
+
 Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs API `schema:generate` (writes `apps/api/schema.graphql`) then client codegen for web and mobile:
 
 ```bash
@@ -231,7 +239,9 @@ Important runtime variables:
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
 
-**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes) need no other change.
+**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts` and send both the `html` and `text` parts of each `EmailMessage`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes, welcome, security alerts) need no other change.
+
+**Adding an email**: add a variant to `EmailTemplate` in `packages/email/src/email.template.tsx` and its copy to the `email` namespace in `packages/translation` (`en`, `sr`, `de`). Render it with `renderEmail(template, locale)` and enqueue the result as an `email.send` job; never call `EmailSender.send` from a request path.
 
 Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases. Password reset uses better-auth routes (`/api/auth/request-password-reset`, `/api/auth/reset-password`). Production hardening checklist: `SECURITY.md`.
 

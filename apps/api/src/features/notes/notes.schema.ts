@@ -24,8 +24,13 @@ export const notesTypeDefs = /* GraphQL */ `
     organizationId: ID!
   }
 
+  type NoteConnection {
+    items: [Note!]!
+    pageInfo: PageInfo!
+  }
+
   extend type Query {
-    notes(limit: Int, offset: Int, search: String): [Note!]!
+    notes(first: Int, after: String, search: String): NoteConnection!
     note(id: ID!): Note
   }
 

@@ -23,6 +23,7 @@ describe("createResendEmailSender", () => {
     await sender.send({
       to: "user@example.com",
       subject: "Hello",
+      html: "<p>Body</p>",
       text: "Body"
     });
 
@@ -30,6 +31,30 @@ describe("createResendEmailSender", () => {
     expect(capturedInit?.method).toBe("POST");
     expect(new Headers(capturedInit?.headers).get("authorization")).toBe("Bearer re_test");
     expect(JSON.parse(String(capturedInit?.body))).toEqual({
+      from: "noreply@example.com",
+      to: ["user@example.com"],
+      subject: "Hello",
+      html: "<p>Body</p>",
+      text: "Body"
+    });
+  });
+
+  it("sends a text-only message without an html field", async () => {
+    let body: unknown;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response("{}", { status: 200 });
+    };
+    const sender = createResendEmailSender({
+      apiKey: "re_test",
+      from: "noreply@example.com",
+      fetchImpl,
+      logger: { error: vi.fn(), info: vi.fn() }
+    });
+
+    await sender.send({ to: "user@example.com", subject: "Hello", text: "Body" });
+
+    expect(body).toEqual({
       from: "noreply@example.com",
       to: ["user@example.com"],
       subject: "Hello",
@@ -47,7 +72,7 @@ describe("createResendEmailSender", () => {
     });
 
     await expect(
-      sender.send({ to: "user@example.com", subject: "Hello", text: "Body" })
+      sender.send({ to: "user@example.com", subject: "Hello", html: "<p>Body</p>", text: "Body" })
     ).rejects.toThrow(/401/);
   });
 });

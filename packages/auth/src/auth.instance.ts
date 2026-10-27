@@ -10,10 +10,21 @@ import {
   usersTable,
   verificationsTable
 } from "@repo/db";
-import type { EmailMessage } from "@repo/email";
+import { renderEmail, type EmailTemplate } from "@repo/email";
 import { jobQueue } from "@repo/jobs/client";
-import type { BetterAuthPlugin } from "better-auth";
+import { createLogger } from "@repo/logger";
+import { SUPPORTED_LANGUAGES } from "@repo/translation";
+import type { BetterAuthPlugin, User } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  APIError,
+  createAuthEndpoint,
+  createAuthMiddleware,
+  getSessionFromCtx,
+  isAPIError,
+  sessionMiddleware
+} from "better-auth/api";
+import { setSessionCookie } from "better-auth/cookies";
 // The minimal entry leaves out Kysely; the drizzle adapter owns database
 // access and drizzle-kit owns migrations (better-auth performance guide).
 import { betterAuth } from "better-auth/minimal";
@@ -25,14 +36,33 @@ import {
   organization,
   twoFactor
 } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 
-import { assertProductionAuthSecret, getServerAuthConfig } from "./auth.config";
+import { recordAuditEvent } from "./auth.audit";
+import { auditPlugin } from "./auth.audit.plugin";
+import {
+  assertProductionAuthSecret,
+  buildAccountDeletionUrl,
+  buildInvitationUrl,
+  getServerAuthConfig
+} from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { hashPassword, verifyPassword } from "./auth.password";
+import { ORGANIZATION_ROLES } from "./auth.permissions";
+import {
+  findAccountDeletionRefusal,
+  prepareAccountDeletion,
+  type AccountDeletionRefusal
+} from "./auth.server.account";
 import {
   ensurePersonalOrganizationForUser,
-  resolveActiveOrganizationForUser
+  isPersonalOrganization,
+  ORGANIZATION_REFUSALS,
+  resolveActiveOrganizationForUser,
+  transferOrganizationOwnership,
+  type OrganizationRefusal
 } from "./auth.server.organization";
 
 // Adapter model names are pluralized (usePlural), so the schema map is keyed
@@ -48,36 +78,126 @@ const AUTH_SCHEMA = {
   twoFactors: twoFactorsTable
 } as const;
 
+const emailLogger = createLogger({ name: "auth.email" });
+
 // Every auth email goes through the job runner, which retries a failed send
-// (ADR 0018). Each hook enqueues on the same path and does not await it, so
-// the response never varies on enqueue or delivery outcome, and response
-// timing does not reveal whether an account exists (anti-enumeration,
-// better-auth email OTP guidance). The queue logs a failed enqueue.
-function enqueueAuthEmail(message: EmailMessage): void {
-  jobQueue.enqueue("email.send", message).catch(() => undefined);
+// (ADR 0018). Each hook starts the locale read, the render, and the enqueue
+// on the same path and does not await them, so the response never varies on
+// enqueue or delivery outcome, and response timing does not reveal whether an
+// account exists (anti-enumeration, better-auth email OTP guidance).
+function enqueueAuthEmail(
+  to: string,
+  email: EmailTemplate,
+  locale: Promise<string | null> | string | null
+): void {
+  void (async () => {
+    const content = await renderEmail(email, await locale);
+    await jobQueue.enqueue("email.send", { to, ...content });
+  })().catch(() => {
+    // The queue logs its own enqueue failures by job name. Errors can carry
+    // the payload (links, codes), so this names the template only.
+    emailLogger.error({ template: email.template }, "auth email not queued");
+  });
 }
 
-type EmailOtpType = "sign-in" | "email-verification" | "forget-password" | "change-email";
+// better-auth passes the stored user row, with additional fields such as
+// locale, but its hook types declare the core user fields only.
+function readUserLocale(user: User): string | null {
+  return "locale" in user && typeof user.locale === "string" ? user.locale : null;
+}
 
-const EMAIL_OTP_SUBJECTS: Record<EmailOtpType, string> = {
-  "sign-in": "Your sign-in code",
-  "email-verification": "Your email verification code",
-  "forget-password": "Your password reset code",
-  "change-email": "Your email change code"
-};
+// Hooks without a fresh user row (email one-time codes, invitations) read the
+// stored locale. A failed read falls back to the default language, and the
+// email still goes out.
+async function findLocaleByEmail(email: string): Promise<string | null> {
+  const [row] = await db
+    .select({ locale: usersTable.locale })
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase()))
+    .limit(1);
 
-function buildEmailOtpMessage(input: {
-  email: string;
-  otp: string;
-  type: EmailOtpType;
-}): EmailMessage {
-  const minutes = String(AUTH_DEFINITIONS.EMAIL_OTP_MAX_AGE_SECONDS / 60);
+  return row?.locale ?? null;
+}
 
+// Routes that can change a user's email address. /verify-email changes it
+// when the link from a change request is opened, with or without a session.
+const EMAIL_CHANGE_PATHS = new Set(["/change-email", "/verify-email", "/email-otp/change-email"]);
+
+const verificationTokenClaims = z.object({ email: z.string() });
+
+// /verify-email verifies this signed token before it changes the address, and
+// its `email` claim is the previous address.
+function readVerificationTokenEmail(token: unknown): string | null {
+  if (typeof token !== "string") {
+    return null;
+  }
+
+  try {
+    const payload: unknown = JSON.parse(
+      Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")
+    );
+    return verificationTokenClaims.safeParse(payload).data?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function buildSecurityUrl(webAppUrl: string): string {
+  return new URL("/security", webAppUrl).toString();
+}
+
+const changePasswordResponse = z.object({
+  user: z.object({ email: z.string(), locale: z.string().nullish() })
+});
+
+// better-auth checks only that a name is a string. Names reach other people's
+// inboxes in invitation emails, so a long one could carry a paragraph of
+// attacker text from our sender.
+const userNameLimitPlugin = {
+  id: "user-name-limit",
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => ctx.path === "/sign-up/email" || ctx.path === "/update-user",
+        handler: createAuthMiddleware(async (ctx) => {
+          const name = readRecord(ctx.body).name;
+
+          if (typeof name === "string" && name.length > AUTH_DEFINITIONS.USER_NAME_MAX_LENGTH) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "NAME_TOO_LONG",
+              message: `Name must be at most ${String(AUTH_DEFINITIONS.USER_NAME_MAX_LENGTH)} characters`
+            });
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
+// /change-password has no callback of its own; the alert reads the user from
+// a successful response. Resets alert through onPasswordReset.
+function createPasswordChangeAlertPlugin(webAppUrl: string) {
   return {
-    to: input.email,
-    subject: EMAIL_OTP_SUBJECTS[input.type],
-    text: `Your code is ${input.otp}. It expires in ${minutes} minutes. If you did not request it, ignore this email.`
-  };
+    id: "password-change-alert",
+    hooks: {
+      after: [
+        {
+          matcher: (ctx) => ctx.path === "/change-password",
+          handler: createAuthMiddleware(async (ctx) => {
+            const response = changePasswordResponse.safeParse(ctx.context.returned);
+
+            if (response.success) {
+              enqueueAuthEmail(
+                response.data.user.email,
+                { template: "passwordChanged", securityUrl: buildSecurityUrl(webAppUrl) },
+                response.data.user.locale ?? null
+              );
+            }
+          })
+        }
+      ]
+    }
+  } satisfies BetterAuthPlugin;
 }
 
 // Endpoints a bot could abuse to create accounts, guess passwords, or send
@@ -161,6 +281,269 @@ function parseCommaList(value: string | undefined): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+// better-auth organization routes that act on one Organization through their
+// body. Clients send no organization id: the hook below fills in the session's
+// Active Organization and refuses any other id a client sends.
+const ACTIVE_ORGANIZATION_PATHS = new Set([
+  "/organization/invite-member",
+  "/organization/remove-member",
+  "/organization/update-member-role",
+  "/organization/update",
+  "/organization/leave",
+  "/organization/delete"
+]);
+
+// Routes that change the session's Active Organization in the database
+// without refreshing the session cookie cache.
+const ACTIVE_ORGANIZATION_CHANGE_PATHS = new Set([
+  "/organization/create",
+  "/organization/leave",
+  "/organization/delete",
+  "/organization/accept-invitation"
+]);
+
+const ORGANIZATION_REFUSAL_RESPONSES: Record<
+  OrganizationRefusal,
+  { message: string; status: "BAD_REQUEST" | "FORBIDDEN" }
+> = {
+  ACTIVE_ORGANIZATION_MISMATCH: {
+    message: "Organization actions apply only to the active organization",
+    status: "FORBIDDEN"
+  },
+  NO_ACTIVE_ORGANIZATION: { message: "No active organization", status: "BAD_REQUEST" },
+  ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP: {
+    message: "Only an owner can transfer ownership",
+    status: "FORBIDDEN"
+  },
+  OWNER_ROLE_REQUIRES_TRANSFER: {
+    message: "Ownership moves only through a transfer",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: {
+    message: "A personal organization cannot be deleted",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: {
+    message: "A personal organization cannot be left",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: {
+    message: "A personal organization cannot be transferred",
+    status: "BAD_REQUEST"
+  },
+  TRANSFER_TARGET_NOT_FOUND: {
+    message: "The new owner must be another member of the organization",
+    status: "BAD_REQUEST"
+  }
+};
+
+function refuse(code: OrganizationRefusal): APIError {
+  const { message, status } = ORGANIZATION_REFUSAL_RESPONSES[code];
+  return APIError.from(status, { code, message });
+}
+
+// activeOrganizationId is an organization-plugin session field that the
+// core session types do not declare.
+function readActiveOrganizationId(session: Readonly<Record<string, unknown>>): string | null {
+  return typeof session.activeOrganizationId === "string" ? session.activeOrganizationId : null;
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? { ...value } : {};
+}
+
+// Server-side rules on top of the organization plugin's own role checks: the
+// Active Organization comes from the session, a Personal Organization cannot
+// be deleted or left, and ownership moves only through the transfer endpoint.
+const organizationGuardHook = createAuthMiddleware(async (ctx) => {
+  if (!ACTIVE_ORGANIZATION_PATHS.has(ctx.path)) {
+    return;
+  }
+
+  const session = await getSessionFromCtx(ctx);
+
+  if (!session) {
+    // The route itself answers an unauthenticated request.
+    return;
+  }
+
+  const body = readRecord(ctx.body);
+  const organizationId = readActiveOrganizationId(session.session);
+
+  if (!organizationId) {
+    throw refuse(ORGANIZATION_REFUSALS.NO_ACTIVE_ORGANIZATION);
+  }
+
+  if (body.organizationId !== undefined && body.organizationId !== organizationId) {
+    throw refuse(ORGANIZATION_REFUSALS.ACTIVE_ORGANIZATION_MISMATCH);
+  }
+
+  // An invite or a role change gives admin or member only; the role may be a
+  // string or an array.
+  if (
+    (ctx.path === "/organization/update-member-role" ||
+      ctx.path === "/organization/invite-member") &&
+    [body.role].flat().includes(ORGANIZATION_ROLES.OWNER)
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.OWNER_ROLE_REQUIRES_TRANSFER);
+  }
+
+  if (
+    (ctx.path === "/organization/delete" || ctx.path === "/organization/leave") &&
+    (await isPersonalOrganization(organizationId))
+  ) {
+    throw refuse(
+      ctx.path === "/organization/delete"
+        ? ORGANIZATION_REFUSALS.PERSONAL_ORGANIZATION_CANNOT_BE_DELETED
+        : ORGANIZATION_REFUSALS.PERSONAL_ORGANIZATION_CANNOT_BE_LEFT
+    );
+  }
+
+  return { context: { body: { ...body, organizationId } } };
+});
+
+// Leave and delete clear the Active Organization; create and accept set it.
+// Each writes only the session row, so a cookie client would read the old
+// value from its cookie cache. Pick a valid Active Organization (another
+// membership, or a personal organization) and refresh the cookie.
+const activeOrganizationRefreshHook = createAuthMiddleware(async (ctx) => {
+  if (!ACTIVE_ORGANIZATION_CHANGE_PATHS.has(ctx.path) || isAPIError(ctx.context.returned)) {
+    return;
+  }
+
+  const session = await getSessionFromCtx(ctx);
+
+  if (!session) {
+    return;
+  }
+
+  const stored = await ctx.context.internalAdapter.findSession(session.session.token);
+  const activeOrganizationId = await resolveActiveOrganizationForUser({
+    requestedActiveOrganizationId: stored ? readActiveOrganizationId(stored.session) : null,
+    userId: session.user.id
+  });
+  const updated = await ctx.context.internalAdapter.updateSession(session.session.token, {
+    activeOrganizationId
+  });
+
+  if (updated) {
+    await setSessionCookie(ctx, { session: updated, user: session.user });
+  }
+});
+
+// The organization plugin has no transfer-ownership route; this one moves
+// ownership of the Active Organization in one database transaction.
+const organizationOwnershipPlugin = {
+  id: "organization-ownership",
+  endpoints: {
+    transferOrganizationOwnership: createAuthEndpoint(
+      "/organization/transfer-ownership",
+      {
+        method: "POST",
+        body: z.object({ memberId: z.string().min(1) }),
+        use: [sessionMiddleware]
+      },
+      async (ctx) => {
+        const organizationId = readActiveOrganizationId(ctx.context.session.session);
+
+        if (!organizationId) {
+          throw refuse(ORGANIZATION_REFUSALS.NO_ACTIVE_ORGANIZATION);
+        }
+
+        const refusal = await transferOrganizationOwnership({
+          organizationId,
+          targetMemberId: ctx.body.memberId,
+          userId: ctx.context.session.user.id
+        });
+
+        if (refusal) {
+          throw refuse(refusal);
+        }
+
+        return ctx.json({ success: true });
+      }
+    )
+  }
+} satisfies BetterAuthPlugin;
+
+const ACCOUNT_DELETION_REFUSAL_MESSAGES: Record<AccountDeletionRefusal["code"], string> = {
+  PERSONAL_ORGANIZATION_HAS_MEMBERS:
+    "Remove the other members of your personal organization before you delete your account",
+  SOLE_OWNER_OF_SHARED_ORGANIZATION:
+    "Transfer ownership of the organization or delete it before you delete your account"
+};
+
+// The body names the Organization, so the client can show it in its message.
+function refuseAccountDeletion(refusal: AccountDeletionRefusal): APIError {
+  return APIError.fromStatus("BAD_REQUEST", {
+    code: refusal.code,
+    message: ACCOUNT_DELETION_REFUSAL_MESSAGES[refusal.code],
+    organizationName: refusal.organizationName
+  });
+}
+
+// Routes that would let a client set a Public Asset URL, and the body field.
+// Only the API's public-asset upload writes users.image and
+// organizations.logo; a client-chosen URL could name another owner's file,
+// which a later replacement or purge would delete. /organization/update
+// carries its fields under `data`.
+const PUBLIC_ASSET_URL_FIELDS = new Map([
+  ["/sign-up/email", "image"],
+  ["/update-user", "image"],
+  ["/organization/create", "logo"],
+  ["/organization/update", "logo"]
+]);
+
+// Account settings: the social providers a user can link, the refusal of a
+// client-set Public Asset URL, and the refusal of a delete request before
+// better-auth emails the confirmation link. A request with the emailed token
+// is checked by user.deleteUser.beforeDelete, under row locks.
+const accountPlugin = {
+  id: "account",
+  endpoints: {
+    listSocialProviders: createAuthEndpoint(
+      "/account/social-providers",
+      { method: "GET", use: [sessionMiddleware] },
+      async (ctx) => ctx.json({ providers: Object.keys(resolveSocialProviders(process.env)) })
+    )
+  },
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => PUBLIC_ASSET_URL_FIELDS.has(ctx.path ?? ""),
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = readRecord(ctx.body);
+          const fields = ctx.path === "/organization/update" ? readRecord(body.data) : body;
+          const field = PUBLIC_ASSET_URL_FIELDS.get(ctx.path) ?? "";
+
+          if (fields[field] !== undefined) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "PUBLIC_ASSET_URL_READ_ONLY",
+              message: "Profile pictures and logos change only through an upload"
+            });
+          }
+        })
+      },
+      {
+        matcher: (ctx) => ctx.path === "/delete-user" && readRecord(ctx.body).token === undefined,
+        handler: createAuthMiddleware(async (ctx) => {
+          const session = await getSessionFromCtx(ctx);
+
+          if (!session) {
+            return;
+          }
+
+          const refusal = await findAccountDeletionRefusal(session.user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
 /** Deep-link scheme for Expo OAuth return (must match apps/mobile app.json scheme). */
 export const EXPO_AUTH_SCHEME = "kaineforge";
 
@@ -222,13 +605,31 @@ export function createAuthInstance() {
         hash: hashPassword,
         verify: ({ hash, password }) => verifyPassword(password, hash)
       },
-      sendResetPassword: async ({ user, url, token }) => {
-        // The raw token rides along for dev visibility with the console
-        // adapter; real adapters simply deliver the message as-is.
-        enqueueAuthEmail({
-          to: user.email,
-          subject: "Reset your password",
-          text: `Reset your password: ${url}\n\nReset token: ${token}`
+      sendResetPassword: async ({ user, url }) => {
+        enqueueAuthEmail(
+          user.email,
+          {
+            template: "passwordReset",
+            url,
+            expiresInMinutes: AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS / 60
+          },
+          readUserLocale(user)
+        );
+      },
+      // Runs after both reset flows: the emailed link and the email one-time code.
+      // Neither route returns the user, so the audit after hook cannot record it.
+      onPasswordReset: async ({ user }) => {
+        enqueueAuthEmail(
+          user.email,
+          { template: "passwordChanged", securityUrl: buildSecurityUrl(config.webAppUrl) },
+          readUserLocale(user)
+        );
+        await recordAuditEvent({
+          action: "password_changed",
+          actorUserId: user.id,
+          metadata: {},
+          organizationId: null,
+          targetId: user.id
         });
       },
       resetPasswordTokenExpiresIn: AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS
@@ -236,18 +637,75 @@ export function createAuthInstance() {
       // login is never gated on a verified email.
     },
     emailVerification: {
-      sendVerificationEmail: async ({ user, url, token }) => {
-        enqueueAuthEmail({
-          to: user.email,
-          subject: "Verify your email address",
-          text: `Verify your email address: ${url}\n\nVerification token: ${token}`
-        });
+      sendVerificationEmail: async ({ user, url }) => {
+        enqueueAuthEmail(
+          user.email,
+          {
+            template: "emailVerification",
+            url,
+            expiresInHours: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS / 3600
+          },
+          readUserLocale(user)
+        );
       },
       // Soft verification (ADR 0007): verification emails go out on signup
       // only when AUTH_REQUIRE_EMAIL_VERIFICATION=true; the flag never blocks
       // login either way.
       sendOnSignUp: config.requireEmailVerification,
       expiresIn: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS
+    },
+    user: {
+      additionalFields: {
+        // Language of the user's emails; the web language switch writes it.
+        locale: {
+          type: "string",
+          required: false,
+          input: true,
+          validator: { input: z.enum(SUPPORTED_LANGUAGES) }
+        }
+      },
+      changeEmail: {
+        enabled: true,
+        // The email on the user row changes only after the new address is
+        // verified; a verified user's old address approves the change first.
+        updateEmailWithoutVerification: false,
+        sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+          enqueueAuthEmail(
+            user.email,
+            {
+              template: "emailChangeApproval",
+              newEmail,
+              url,
+              expiresInHours: AUTH_DEFINITIONS.EMAIL_VERIFICATION_MAX_AGE_SECONDS / 3600
+            },
+            readUserLocale(user)
+          );
+        }
+      },
+      deleteUser: {
+        enabled: true,
+        deleteTokenExpiresIn: AUTH_DEFINITIONS.ACCOUNT_DELETION_MAX_AGE_SECONDS,
+        // The user row is deleted only after the emailed link is used. The
+        // link opens the web app, which confirms with the token.
+        sendDeleteAccountVerification: async ({ user, token }) => {
+          enqueueAuthEmail(
+            user.email,
+            {
+              template: "accountDeletion",
+              url: buildAccountDeletionUrl(config.webAppUrl, token),
+              expiresInHours: AUTH_DEFINITIONS.ACCOUNT_DELETION_MAX_AGE_SECONDS / 3600
+            },
+            readUserLocale(user)
+          );
+        },
+        beforeDelete: async (user) => {
+          const refusal = await prepareAccountDeletion(user.id);
+
+          if (refusal) {
+            throw refuseAccountDeletion(refusal);
+          }
+        }
+      }
     },
     session: {
       expiresIn: AUTH_DEFINITIONS.SESSION_MAX_AGE_SECONDS,
@@ -263,6 +721,10 @@ export function createAuthInstance() {
     // Rate limiting for /api/auth and /graphql is handled by our own API
     // middleware, so better-auth's built-in limiter stays off.
     rateLimit: { enabled: false },
+    hooks: {
+      before: organizationGuardHook,
+      after: activeOrganizationRefreshHook
+    },
     advanced: {
       cookiePrefix: "kaine",
       // Stated rather than inherited from better-auth defaults, so a library
@@ -285,6 +747,53 @@ export function createAuthInstance() {
           // seeds, e2e flows, and GraphQL scope resolution rely on it.
           after: async (user) => {
             await ensurePersonalOrganizationForUser(user.id);
+            enqueueAuthEmail(
+              user.email,
+              { template: "welcome", url: config.webAppUrl },
+              readUserLocale(user)
+            );
+          }
+        },
+        // Security alerts for an email change (to the previous address) and
+        // for two-factor turning on. Each is limited to the routes that make
+        // that change, so a stale cookie-cached session elsewhere cannot
+        // trigger one.
+        update: {
+          after: async (user, ctx) => {
+            if (!ctx) {
+              return;
+            }
+
+            const previousUser = ctx.context.session?.user;
+            const securityUrl = buildSecurityUrl(config.webAppUrl);
+
+            if (EMAIL_CHANGE_PATHS.has(ctx.path)) {
+              const previousEmail =
+                ctx.path === "/verify-email"
+                  ? readVerificationTokenEmail(ctx.query?.token)
+                  : (previousUser?.email ?? null);
+
+              if (previousEmail && previousEmail !== user.email) {
+                enqueueAuthEmail(
+                  previousEmail,
+                  { template: "emailChanged", newEmail: user.email, securityUrl },
+                  readUserLocale(user)
+                );
+              }
+            }
+
+            if (
+              ctx.path.startsWith("/two-factor/") &&
+              "twoFactorEnabled" in user &&
+              user.twoFactorEnabled === true &&
+              previousUser?.twoFactorEnabled !== true
+            ) {
+              enqueueAuthEmail(
+                user.email,
+                { template: "twoFactorEnabled", securityUrl },
+                readUserLocale(user)
+              );
+            }
           }
         }
       },
@@ -322,17 +831,28 @@ export function createAuthInstance() {
         // gate stays off. The accept route still enforces that the accepting
         // user's email matches the invitation email unconditionally.
         requireEmailVerificationOnInvitation: false,
+        // The invitee may have no account, so the email uses the inviter's
+        // stored language. The inviter here is the session user, which a
+        // cookie cache can hold from before a language change.
         sendInvitationEmail: async (data) => {
-          enqueueAuthEmail({
-            to: data.email,
-            subject: `You have been invited to ${data.organization.name}`,
-            text: `You were invited to join ${data.organization.name} as ${data.role}. Sign in with this email address and accept invitation ${data.id}.`
-          });
+          enqueueAuthEmail(
+            data.email,
+            {
+              template: "invitation",
+              url: buildInvitationUrl(config.webAppUrl, data.id),
+              organizationName: data.organization.name,
+              inviterName: data.inviter.user.name,
+              role: data.role,
+              expiresInDays: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS / 86400
+            },
+            findLocaleByEmail(data.inviter.user.email).catch(() => null)
+          );
         },
         schema: {
           organization: {
-            // organizations.user_id is NOT NULL (owner column predating the
-            // plugin). Declared as a server-only additional field so the
+            // organizations.user_id is the owner column predating the plugin
+            // (null after its user deleted the account). Declared as a
+            // server-only additional field so the
             // beforeCreateOrganization hook value survives the adapter's
             // field mapping while clients cannot set it.
             additionalFields: {
@@ -340,6 +860,14 @@ export function createAuthInstance() {
                 type: "string",
                 required: false,
                 input: false
+              },
+              // Set only by ensurePersonalOrganizationForUser; returned so
+              // clients can hide leave and delete for a Personal Organization.
+              personal: {
+                type: "boolean",
+                required: false,
+                input: false,
+                defaultValue: false
               }
             }
           }
@@ -350,6 +878,11 @@ export function createAuthInstance() {
           })
         }
       }),
+      organizationOwnershipPlugin,
+      accountPlugin,
+      auditPlugin,
+      userNameLimitPlugin,
+      createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).
@@ -357,11 +890,11 @@ export function createAuthInstance() {
         issuer: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
         otpOptions: {
           sendOTP: ({ user, otp }) => {
-            enqueueAuthEmail({
-              to: user.email,
-              subject: "Your sign-in verification code",
-              text: `Your verification code is ${otp}. If you did not try to sign in, change your password.`
-            });
+            enqueueAuthEmail(
+              user.email,
+              { template: "twoFactorCode", code: otp },
+              readUserLocale(user)
+            );
           }
         }
       }),
@@ -373,8 +906,22 @@ export function createAuthInstance() {
         // Accounts are created only through the captcha-protected sign-up
         // form, which also collects the user's name.
         disableSignUp: true,
-        sendVerificationOTP: async ({ email, otp, type }) => {
-          enqueueAuthEmail(buildEmailOtpMessage({ email, otp, type }));
+        sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+          // The change-email code goes to the new address, which has no
+          // account; the requesting session names the account.
+          const accountEmail =
+            type === "change-email" ? (ctx?.context.session?.user.email ?? email) : email;
+
+          enqueueAuthEmail(
+            email,
+            {
+              template: "emailOtp",
+              code: otp,
+              type,
+              expiresInMinutes: AUTH_DEFINITIONS.EMAIL_OTP_MAX_AGE_SECONDS / 60
+            },
+            findLocaleByEmail(accountEmail).catch(() => null)
+          );
         }
       }),
       // Wraps our scrypt hash hook, so sign-up, change-password, and both

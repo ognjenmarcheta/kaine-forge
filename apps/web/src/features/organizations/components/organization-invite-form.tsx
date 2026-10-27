@@ -1,0 +1,85 @@
+import type { AssignableOrganizationRole } from "@repo/auth/auth.type";
+import { getAuthErrorMessageKey } from "@repo/auth/transport";
+import {
+  Button,
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  Input,
+  LabeledSelect
+} from "@repo/ui";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useId, useState } from "react";
+
+import { useTranslation } from "../../../hooks/use-translation";
+import { organizationApi } from "../../../lib/auth-api";
+import { isAssignableRole, ORGANIZATIONS_DEFINITION } from "../organizations.definition";
+
+export function OrganizationInviteForm() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const emailId = useId();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<AssignableOrganizationRole>("member");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const invite = useMutation({
+    mutationFn: organizationApi.inviteMember,
+    onSuccess: async () => {
+      setEmail("");
+      setNotice(t("organizations.invite.sent"));
+      await queryClient.invalidateQueries({
+        queryKey: ORGANIZATIONS_DEFINITION.invitationsScope
+      });
+    },
+    onError: (inviteError) => setError(t(getAuthErrorMessageKey(inviteError)))
+  });
+
+  return (
+    <section className="grid gap-[var(--ds-space-100)]">
+      <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">
+        {t("organizations.invite.title")}
+      </h2>
+      <form
+        className="grid gap-[var(--ds-space-150)]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setError(null);
+          setNotice(null);
+          invite.mutate({ email: email.trim(), role });
+        }}
+      >
+        <Field>
+          <FieldLabel htmlFor={emailId}>{t("common.emailLabel")}</FieldLabel>
+          <Input
+            id={emailId}
+            autoComplete="off"
+            required
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </Field>
+        <LabeledSelect
+          label={t("organizations.role.label")}
+          options={ORGANIZATIONS_DEFINITION.assignableRoles.map((value) => ({
+            label: t(`organizations.role.${value}`),
+            value
+          }))}
+          value={role}
+          onValueChange={(value) => {
+            if (isAssignableRole(value)) setRole(value);
+          }}
+        />
+        {error ? <FieldError>{error}</FieldError> : null}
+        {notice ? <FieldDescription role="status">{notice}</FieldDescription> : null}
+        <div>
+          <Button disabled={invite.isPending} type="submit">
+            {invite.isPending ? t("common.loadingShort") : t("organizations.invite.submit")}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}

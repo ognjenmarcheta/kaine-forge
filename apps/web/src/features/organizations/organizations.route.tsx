@@ -4,6 +4,10 @@ import { Button } from "@repo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 
+import { OrganizationInvitations } from "./components/organization-invitations";
+import { OrganizationInviteForm } from "./components/organization-invite-form";
+import { OrganizationMemberList } from "./components/organization-member-list";
+import { OrganizationSettings } from "./components/organization-settings";
 import { LoadingRows } from "../../components/loading-rows";
 import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
@@ -30,16 +34,19 @@ export function OrganizationsRoute() {
 
   const members = membersQuery.data?.members ?? [];
   const { session } = useAuth();
-  const ownRole = members.find((member) => member.userId === session?.user.id)?.role;
+  const ownMemberRole = members.find((member) => member.userId === session?.user.id)?.role;
   // SAFETY: member roles come from the better-auth organization plugin's
   // ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails closed for any other
-  // string. The API enforces the same rule; this only hides a control.
-  const canEditLogo =
-    ownRole !== undefined && hasRoleAtLeast(ownRole as OrganizationRole, ORGANIZATION_ROLES.ADMIN);
+  // string. The API enforces the same rules; this only hides controls.
+  const ownRole = ownMemberRole === undefined ? null : (ownMemberRole as OrganizationRole);
+  const isManager = ownRole !== null && hasRoleAtLeast(ownRole, ORGANIZATION_ROLES.ADMIN);
+  const activeOrganization = organizations.find(
+    (organization) => organization.id === activeOrganizationId
+  );
   if (!organizationsVisible) return <Navigate replace to="/dashboard" />;
 
   return (
-    <section className="grid gap-[var(--ds-space-200)]">
+    <section className="grid gap-[var(--ds-space-300)]">
       <header>
         <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
           {t("organizations.members.title")}
@@ -49,15 +56,12 @@ export function OrganizationsRoute() {
         </p>
       </header>
 
-      {canEditLogo ? (
-        <PublicAssetUpload
-          kind="organization_logo"
-          ownerName={
-            organizations.find((organization) => organization.id === activeOrganizationId)?.name ??
-            ""
-          }
-        />
+      {isManager ? (
+        <PublicAssetUpload kind="organization_logo" ownerName={activeOrganization?.name ?? ""} />
       ) : null}
+
+      {isManager ? <OrganizationInviteForm /> : null}
+      {isManager ? <OrganizationInvitations /> : null}
 
       {membersQuery.status === "pending" || isOrganizationLoading ? (
         <LoadingRows label={t("organizations.members.loading")} />
@@ -79,23 +83,16 @@ export function OrganizationsRoute() {
       ) : null}
 
       {members.length > 0 ? (
-        <div className="ui-work-list">
-          {members.map((member) => (
-            <article key={member.id} className="ui-work-row">
-              <div className="flex flex-wrap items-start justify-between gap-[var(--ds-space-150)]">
-                <div>
-                  <h2 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">
-                    {member.name}
-                  </h2>
-                  <p className="text-body-sm text-[color:var(--ds-text-subtle)]">{member.email}</p>
-                </div>
-                <span className="rounded-[var(--ds-radius-100)] bg-[var(--ds-background-neutral)] px-[var(--ds-space-100)] py-[var(--ds-space-050)] text-body-sm text-[color:var(--ds-text-subtle)]">
-                  {member.role}
-                </span>
-              </div>
-            </article>
-          ))}
-        </div>
+        <OrganizationMemberList members={members} ownRole={ownRole} ownUserId={session?.user.id} />
+      ) : null}
+
+      {activeOrganization && ownRole ? (
+        <OrganizationSettings
+          key={activeOrganization.id}
+          canDelete={ownRole === ORGANIZATION_ROLES.OWNER}
+          canRename={isManager}
+          organization={activeOrganization}
+        />
       ) : null}
     </section>
   );

@@ -7,7 +7,6 @@ import {
   buildPublicAssetUrl,
   COMMON_MIME_TYPES,
   matchesFileSignature,
-  publicAssetKeyFromUrl,
   STORAGE_DEFAULTS,
   validateFile,
   type PublicAssetConfig
@@ -16,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 import { PUBLIC_ASSET_CONFIG, type PublicAssetKind } from "./public-assets.definition";
+import { ownedPublicAssetKey, publicAssetKey } from "./public-assets.util";
 import { formatLoggableError } from "../../observability";
 import { renderSquareWebp } from "../storage/attachment.image";
 import type { ObjectRef, ObjectStore } from "../storage/attachment.store";
@@ -196,7 +196,7 @@ export function createPublicAssets({
 
       const published: ObjectRef = {
         bucket: storage.bucket,
-        key: `${PUBLIC_ASSET_CONFIG.kinds[kind].prefix}/${randomUUID()}.webp`
+        key: publicAssetKey(kind, ownerId, randomUUID())
       };
       await store.put(published, rendered, "image/webp", PUBLIC_ASSET_CONFIG.cacheControl);
       const url = buildPublicAssetUrl(storage.baseUrl, published.key);
@@ -216,8 +216,9 @@ export function createPublicAssets({
       }
 
       await removeQuietly(staged, "failed to delete published public asset upload");
-      // Only an asset this app published: an OAuth avatar URL is left alone.
-      const previousKey = previous ? publicAssetKeyFromUrl(storage.baseUrl, previous) : null;
+      // Only an asset this app published for this owner: an OAuth avatar URL,
+      // or a URL that names someone else's asset, is left alone.
+      const previousKey = previous ? ownedPublicAssetKey(storage, kind, ownerId, previous) : null;
 
       if (previousKey) {
         await removeQuietly(

@@ -30,6 +30,7 @@ export interface AuthContextValue {
   signup: (input: {
     captchaToken?: string | undefined;
     email: string;
+    locale?: string | undefined;
     name: string;
     password: string;
   }) => Promise<void>;
