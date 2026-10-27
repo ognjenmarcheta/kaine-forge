@@ -53,6 +53,7 @@ query NotificationPreferences {
     type
     inApp
     email
+    emailAvailable
   }
 }
 
@@ -61,5 +62,6 @@ mutation UpdateNotificationPreference($input: NotificationPreferenceInput!) {
     type
     inApp
     email
+    emailAvailable
   }
 }

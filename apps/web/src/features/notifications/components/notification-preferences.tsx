@@ -7,6 +7,10 @@ import { useNotificationPreferences } from "../notifications.hook";
 
 type Channel = "email" | "inApp";
 
+const CHANNELS: readonly Channel[] = ["inApp", "email"];
+// A type whose email always goes out, such as an Invitation, offers in-app only.
+const IN_APP_ONLY: readonly Channel[] = ["inApp"];
+
 /** Account settings: the in-app and email channels of each notification type. */
 export function NotificationPreferences() {
   const { t } = useTranslation();
@@ -59,7 +63,7 @@ export function NotificationPreferences() {
                 {typeLabel}
               </span>
               <span className="flex flex-wrap gap-[var(--ds-space-200)]">
-                {(["inApp", "email"] as const).map((channel) => {
+                {(preference.emailAvailable ? CHANNELS : IN_APP_ONLY).map((channel) => {
                   const id = `notification-${preference.type}-${channel}`;
 
                   return (
@@ -80,6 +84,11 @@ export function NotificationPreferences() {
                     </span>
                   );
                 })}
+                {preference.emailAvailable ? null : (
+                  <span className="text-body-sm text-[color:var(--ds-text-subtle)]">
+                    {t("notifications.preferences.emailAlwaysSent")}
+                  </span>
+                )}
               </span>
             </fieldset>
           );

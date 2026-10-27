@@ -375,6 +375,7 @@ type NotificationPreference {
   type: NotificationType!
   inApp: Boolean!
   email: Boolean!
+  emailAvailable: Boolean!
 }
 
 input NotificationPreferenceInput {

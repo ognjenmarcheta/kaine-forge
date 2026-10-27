@@ -25,8 +25,11 @@ export type NotificationEvent = {
     /** The Organization the Notification is about, or null. */
     organizationId: string | null;
     payload: NotificationPayloadByType[TType];
-    /** What the email channel sends when the recipient keeps it on. */
-    email: EmailTemplate;
+    /**
+     * What the email channel sends when the recipient keeps it on, or null
+     * for a type whose email the producer always sends itself.
+     */
+    email: EmailTemplate | null;
   };
 }[NotificationType];
 

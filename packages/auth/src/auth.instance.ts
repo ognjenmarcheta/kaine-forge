@@ -36,7 +36,7 @@ import {
   organization,
   twoFactor
 } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { recordAuditEvent } from "./auth.audit";
@@ -121,57 +121,58 @@ async function findLocaleByEmail(email: string): Promise<string | null> {
   return row?.locale ?? null;
 }
 
-async function findUserIdByEmail(email: string): Promise<string | null> {
+// Only a verified account proves it controls the invited address. Under soft
+// verification (ADR 0007) anyone can sign up with an address they do not own.
+async function findVerifiedUserIdByEmail(email: string): Promise<string | null> {
   const [row] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(eq(usersTable.email, email.toLowerCase()))
+    .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.emailVerified, true)))
     .limit(1);
 
   return row?.id ?? null;
 }
 
-// An invitee with an account gets an "invitation received" Notification, and
-// its email channel sends the invitation email; any other address gets the
-// email at once. A failed account lookup falls back to the email, so an
-// Invitation is never left unsent. A resend is a new reminder, so it creates
-// a new Notification.
+// The invitation email always goes to the invited address: it delivers the
+// Invitation itself, so no preference or notification failure can stop it.
+// A verified account with that address also gets an "invitation received"
+// Notification in-app. A resend is a new reminder, so it creates a new one.
 function deliverInvitation(
   data: { email: string; id: string; organization: { id: string; name: string }; role: string },
   inviter: { email: string; name: string },
   email: EmailTemplate
 ): void {
-  const sendEmail = () =>
-    enqueueAuthEmail(
-      data.email,
-      email,
-      findLocaleByEmail(inviter.email).catch(() => null)
-    );
+  enqueueAuthEmail(
+    data.email,
+    email,
+    findLocaleByEmail(inviter.email).catch(() => null)
+  );
 
   if (!hasNotificationDispatcher()) {
-    sendEmail();
     return;
   }
 
-  void findUserIdByEmail(data.email).then((recipientUserId) => {
-    if (!recipientUserId) {
-      sendEmail();
-      return;
+  void findVerifiedUserIdByEmail(data.email).then(
+    (recipientUserId) => {
+      if (recipientUserId) {
+        dispatchNotification({
+          type: "invitation_received",
+          recipientUserId,
+          organizationId: data.organization.id,
+          payload: {
+            invitationId: data.id,
+            inviterName: inviter.name,
+            organizationName: data.organization.name,
+            role: data.role
+          },
+          email: null
+        });
+      }
+    },
+    () => {
+      notificationLookupLogger.error("invitee not notified");
     }
-
-    dispatchNotification({
-      type: "invitation_received",
-      recipientUserId,
-      organizationId: data.organization.id,
-      payload: {
-        invitationId: data.id,
-        inviterName: inviter.name,
-        organizationName: data.organization.name,
-        role: data.role
-      },
-      email
-    });
-  }, sendEmail);
+  );
 }
 
 function buildMembersUrl(webAppUrl: string): string {

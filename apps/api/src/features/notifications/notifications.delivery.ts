@@ -46,7 +46,7 @@ export function createNotificationDelivery({
       }
     };
 
-    const email = async () => {
+    const email = async (template: EmailTemplate) => {
       const [recipient] = await db
         .select({ email: usersTable.email, locale: usersTable.locale })
         .from(usersTable)
@@ -54,10 +54,13 @@ export function createNotificationDelivery({
         .limit(1);
 
       if (recipient) {
-        await sendEmail(recipient.email, event.email, recipient.locale);
+        await sendEmail(recipient.email, template, recipient.locale);
       }
     };
 
-    await Promise.all([channels.inApp ? inApp() : null, channels.email ? email() : null]);
+    await Promise.all([
+      channels.inApp ? inApp() : null,
+      channels.email && event.email ? email(event.email) : null
+    ]);
   };
 }

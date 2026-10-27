@@ -59,8 +59,8 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
       case "NotificationPreferences":
         return Promise.resolve({
           notificationPreferences: [
-            { email: true, inApp: true, type: "invitation_received" },
-            { email: true, inApp: true, type: "role_changed" }
+            { email: false, emailAvailable: false, inApp: true, type: "invitation_received" },
+            { email: true, emailAvailable: true, inApp: true, type: "role_changed" }
           ]
         });
       case "MarkNotificationRead":
@@ -193,6 +193,9 @@ it("saves one channel of one type from the preferences", async () => {
   );
 
   expect(container.textContent).toContain("Changes to your role");
+  // The invitation email always goes out, so that type offers in-app only.
+  expect(container.querySelector("#notification-invitation_received-email")).toBeNull();
+  expect(container.textContent).toContain("The invitation email always goes to your address.");
   expect(api.calls).toHaveBeenCalledWith("UpdateNotificationPreference", {
     input: { email: false, inApp: true, type: "role_changed" }
   });

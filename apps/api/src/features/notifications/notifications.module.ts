@@ -31,6 +31,8 @@ export interface NotificationConnection extends Connection<NotificationView> {
 
 export interface NotificationPreferenceView extends NotificationChannels {
   type: NotificationType;
+  /** False when the type has no email channel to turn on. */
+  emailAvailable: boolean;
 }
 
 /** The signed-in user's own Notifications and preferences, whatever their Active Organization. */
@@ -43,7 +45,9 @@ export interface Notifications {
   markAllRead: () => Promise<number>;
   /** Every type, with the user's choice or the type's defaults. */
   preferences: () => Promise<NotificationPreferenceView[]>;
-  setPreference: (input: NotificationPreferenceView) => Promise<NotificationPreferenceView>;
+  setPreference: (
+    input: NotificationChannels & { type: NotificationType }
+  ) => Promise<NotificationPreferenceView>;
 }
 
 export interface NotificationsDeps {
@@ -82,6 +86,16 @@ export function toNotificationView(row: NotificationRow): NotificationView | nul
   };
 }
 
+// A type without an email channel never sends email, whatever a stored row says.
+function effectiveChannels(
+  type: NotificationType,
+  preference: NotificationChannels | undefined
+): NotificationChannels {
+  const definition = NOTIFICATION_TYPES[type];
+  const { email, inApp } = preference ?? definition.defaults;
+  return { email: definition.emailAvailable && email, inApp };
+}
+
 /** The channels a user gets for a type: their own choice, or the type's defaults. */
 export async function resolveChannels(
   db: Database,
@@ -102,7 +116,7 @@ export async function resolveChannels(
     )
     .limit(1);
 
-  return preference ?? NOTIFICATION_TYPES[type].defaults;
+  return effectiveChannels(type, preference);
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -143,14 +157,27 @@ export function createNotifications({ db, requireUserId }: NotificationsDeps): N
         throw notificationNotFound();
       }
 
+      const owned = and(eq(notificationsTable.id, id), mine(userId));
+      const [row] = await db.select().from(notificationsTable).where(owned).limit(1);
+
+      if (!row) {
+        throw notificationNotFound();
+      }
+
+      // The inbox never lists a row it cannot show, so it is left as it is.
+      if (!toNotificationView(row)) {
+        throw new Error("notification not readable");
+      }
+
       // Marking an already read Notification keeps its first read time.
-      const [row] = await db
+      const [updated] = await db
         .update(notificationsTable)
         .set({ readAt: sql`coalesce(${notificationsTable.readAt}, now())` })
-        .where(and(eq(notificationsTable.id, id), mine(userId)))
+        .where(owned)
         .returning();
-      const view = row ? toNotificationView(row) : null;
+      const view = updated ? toNotificationView(updated) : null;
 
+      // Deleted between the read and the write.
       if (!view) {
         throw notificationNotFound();
       }
@@ -177,13 +204,16 @@ export function createNotifications({ db, requireUserId }: NotificationsDeps): N
 
       return Object.keys(NOTIFICATION_TYPES)
         .filter(isNotificationType)
-        .map((type) => {
-          const { email, inApp } = byType.get(type) ?? NOTIFICATION_TYPES[type].defaults;
-          return { email, inApp, type };
-        });
+        .map((type) => ({
+          ...effectiveChannels(type, byType.get(type)),
+          emailAvailable: NOTIFICATION_TYPES[type].emailAvailable,
+          type
+        }));
     },
-    async setPreference({ email, inApp, type }) {
+    async setPreference(input) {
       const userId = requireUserId();
+      const { type } = input;
+      const { email, inApp } = effectiveChannels(type, input);
       await db
         .insert(notificationPreferencesTable)
         .values({ email, inApp, type, userId })
@@ -192,7 +222,7 @@ export function createNotifications({ db, requireUserId }: NotificationsDeps): N
           set: { email, inApp, updatedAt: sql`now()` }
         });
 
-      return { email, inApp, type };
+      return { email, emailAvailable: NOTIFICATION_TYPES[type].emailAvailable, inApp, type };
     }
   };
 }

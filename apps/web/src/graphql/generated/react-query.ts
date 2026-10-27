@@ -347,7 +347,12 @@ export type OnNotificationReceivedSubscription = {
 export type NotificationPreferencesQueryVariables = Exact<{ [key: string]: never }>;
 
 export type NotificationPreferencesQuery = {
-  notificationPreferences: Array<{ type: NotificationType; inApp: boolean; email: boolean }>;
+  notificationPreferences: Array<{
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  }>;
 };
 
 export type UpdateNotificationPreferenceMutationVariables = Exact<{
@@ -355,7 +360,12 @@ export type UpdateNotificationPreferenceMutationVariables = Exact<{
 }>;
 
 export type UpdateNotificationPreferenceMutation = {
-  updateNotificationPreference: { type: NotificationType; inApp: boolean; email: boolean };
+  updateNotificationPreference: {
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  };
 };
 
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
@@ -1266,6 +1276,7 @@ export const NotificationPreferencesDocument = new TypedDocumentString(`
     type
     inApp
     email
+    emailAvailable
   }
 }
     `);
@@ -1300,6 +1311,7 @@ export const UpdateNotificationPreferenceDocument = new TypedDocumentString(`
     type
     inApp
     email
+    emailAvailable
   }
 }
     `);

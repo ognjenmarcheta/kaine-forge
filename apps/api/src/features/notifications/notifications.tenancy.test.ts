@@ -84,6 +84,7 @@ const A_NEW = "00000000-0000-4000-8000-0000000000a2";
 const A_READ = "00000000-0000-4000-8000-0000000000a3";
 const B_ONE = "00000000-0000-4000-8000-0000000000b1";
 const B_TWO = "00000000-0000-4000-8000-0000000000b2";
+const B_RETIRED = "00000000-0000-4000-8000-0000000000b3";
 
 let baseUrl: string;
 let server: Server;
@@ -197,6 +198,15 @@ beforeAll(async () => {
       id: B_TWO,
       organizationId: ORG_B,
       userId: USER_B
+    },
+    // A type this release no longer knows: the inbox cannot show it.
+    {
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      id: B_RETIRED,
+      organizationId: ORG_B,
+      payload: {},
+      type: "retired_type",
+      userId: USER_B
     }
   ]);
 
@@ -292,6 +302,13 @@ describe("marking Notifications read", () => {
     expect(await readAtOf(B_ONE)).toBeInstanceOf(Date);
   });
 
+  it("refuses a Notification the inbox cannot show and leaves it unread", async () => {
+    const result = await runAs(USER_B, MARK_READ, { id: B_RETIRED });
+
+    expect(result.errors?.map((error) => error.message)).toEqual(["notification not readable"]);
+    expect(await readAtOf(B_RETIRED)).toBeNull();
+  });
+
   it("returns not found for another user's Notification and leaves it unread", async () => {
     const result = await runAs(USER_A, MARK_READ, { id: B_TWO });
 
@@ -316,6 +333,7 @@ describe("notification preferences", () => {
         type
         inApp
         email
+        emailAvailable
       }
     }
   `;
@@ -340,13 +358,36 @@ describe("notification preferences", () => {
       type: "role_changed"
     });
     expect((await runAs(USER_A, PREFERENCES)).data?.notificationPreferences).toEqual([
-      { email: true, inApp: true, type: "invitation_received" },
-      { email: false, inApp: true, type: "role_changed" }
+      { email: false, emailAvailable: false, inApp: true, type: "invitation_received" },
+      { email: false, emailAvailable: true, inApp: true, type: "role_changed" }
     ]);
     expect((await runAs(USER_B, PREFERENCES)).data?.notificationPreferences).toEqual([
-      { email: true, inApp: true, type: "invitation_received" },
-      { email: true, inApp: true, type: "role_changed" }
+      { email: false, emailAvailable: false, inApp: true, type: "invitation_received" },
+      { email: true, emailAvailable: true, inApp: true, type: "role_changed" }
     ]);
+  });
+
+  it("keeps the email channel off for a type without one", async () => {
+    const updated = await runAs(
+      USER_B,
+      /* GraphQL */ `
+        mutation {
+          updateNotificationPreference(
+            input: { type: invitation_received, inApp: false, email: true }
+          ) {
+            type
+            inApp
+            email
+          }
+        }
+      `
+    );
+
+    expect(updated.data?.updateNotificationPreference).toEqual({
+      email: false,
+      inApp: false,
+      type: "invitation_received"
+    });
   });
 });
 

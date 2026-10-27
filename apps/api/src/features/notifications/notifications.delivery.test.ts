@@ -31,7 +31,7 @@ vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue } }));
 
 const { createAuthInstance } = await import("@repo/auth/instance");
 const { setNotificationDispatcher } = await import("@repo/auth/notifications");
-const { membersTable, notificationPreferencesTable, notificationsTable } =
+const { membersTable, notificationPreferencesTable, notificationsTable, usersTable } =
   await import("@repo/db/schema");
 const { createNotificationDelivery } = await import("./notifications.delivery");
 
@@ -56,11 +56,12 @@ const delivery = createNotificationDelivery({
 const deliveries: Array<Promise<void>> = [];
 
 // Keeps each delivery's promise, so a test can wait for it to settle.
-setNotificationDispatcher((event: NotificationEvent) => {
+function recordingDispatcher(event: NotificationEvent): Promise<void> {
   const delivered = delivery(event);
   deliveries.push(delivered.catch(() => undefined));
   return delivered;
-});
+}
+setNotificationDispatcher(recordingDispatcher);
 
 afterEach(() => {
   published.length = 0;
@@ -149,16 +150,30 @@ async function setPreference(userId: string, type: string, inApp: boolean, email
   await db().insert(notificationPreferencesTable).values({ email, inApp, type, userId });
 }
 
+// Sign-up leaves the address unverified (ADR 0007); a test that needs a
+// verified invitee verifies it here.
+async function verifyEmail(userId: string) {
+  await db().update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, userId));
+}
+
+// The invitee lookup runs after the email is queued and is not observable
+// when it dispatches nothing; this gives it time to finish.
+async function lookupFinished() {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
+async function invite(headers: Headers, email: string, role: "admin" | "member" = "member") {
+  return auth.api.createInvitation({ body: { email, role }, headers });
+}
+
 describe("invitation received", () => {
-  it("gives an existing user one Notification and sends the invitation email once", async () => {
+  it("gives a verified invitee one in-app Notification next to the invitation email", async () => {
     const owner = await signUp("invite-owner");
     const invitee = await signUp("invitee");
+    await verifyEmail(invitee.userId);
     const shared = await createOrganization(owner.headers, "Acme");
 
-    const invitation = await auth.api.createInvitation({
-      body: { email: invitee.email, role: "admin" },
-      headers: shared.headers
-    });
+    const invitation = await invite(shared.headers, invitee.email, "admin");
     await settled();
 
     expect(await notificationsOf(invitee.userId)).toEqual([
@@ -174,49 +189,79 @@ describe("invitation received", () => {
       }
     ]);
     expect(published.map((payload) => payload.userId)).toEqual([invitee.userId]);
-    expect(emails).toEqual([
-      {
-        email: expect.objectContaining({ template: "invitation", organizationName: "Acme" }),
-        locale: null,
-        to: invitee.email
-      }
-    ]);
-    // The email channel replaced the direct send, so the invitee gets one email.
-    expect(queuedInvitationEmails()).toEqual([]);
+    // The invitation email goes out once, directly, and never through the email channel.
+    await vi.waitFor(() =>
+      expect(queuedInvitationEmails().map((message) => message.to)).toEqual([invitee.email])
+    );
+    expect(emails).toEqual([]);
+  });
+
+  it("emails an unverified account's address and gives that account no Notification", async () => {
+    const owner = await signUp("squat-owner");
+    const squatter = await signUp("squatter");
+    await setPreference(squatter.userId, "invitation_received", true, false);
+    const shared = await createOrganization(owner.headers, "Squat");
+
+    await invite(shared.headers, squatter.email);
+    await vi.waitFor(() =>
+      expect(queuedInvitationEmails().map((message) => message.to)).toEqual([squatter.email])
+    );
+    await lookupFinished();
+
+    expect(deliveries).toEqual([]);
+    expect(await notificationsOf(squatter.userId)).toEqual([]);
   });
 
   it("emails an address without an account directly and stores no Notification", async () => {
     const owner = await signUp("stranger-owner");
     const shared = await createOrganization(owner.headers, "Stranger");
 
-    await auth.api.createInvitation({
-      body: { email: "no-account@example.com", role: "member" },
-      headers: shared.headers
-    });
-
+    await invite(shared.headers, "no-account@example.com");
     await vi.waitFor(() =>
       expect(queuedInvitationEmails().map((message) => message.to)).toEqual([
         "no-account@example.com"
       ])
     );
+    await lookupFinished();
+
     expect(deliveries).toEqual([]);
   });
 
-  it("sends no email when the invitee turned the email channel off", async () => {
+  it("still sends the invitation email when the invitee turned every channel off", async () => {
     const owner = await signUp("quiet-owner");
     const invitee = await signUp("quiet-invitee");
+    await verifyEmail(invitee.userId);
+    await setPreference(invitee.userId, "invitation_received", false, false);
     const shared = await createOrganization(owner.headers, "Quiet");
-    await setPreference(invitee.userId, "invitation_received", true, false);
 
-    await auth.api.createInvitation({
-      body: { email: invitee.email, role: "member" },
-      headers: shared.headers
-    });
+    await invite(shared.headers, invitee.email);
     await settled();
 
-    expect(await notificationsOf(invitee.userId)).toHaveLength(1);
-    expect(emails).toEqual([]);
-    expect(queuedInvitationEmails()).toEqual([]);
+    expect(await notificationsOf(invitee.userId)).toEqual([]);
+    await vi.waitFor(() =>
+      expect(queuedInvitationEmails().map((message) => message.to)).toEqual([invitee.email])
+    );
+  });
+
+  it("still sends the invitation email when creating the Notification fails", async () => {
+    const owner = await signUp("broken-owner");
+    const invitee = await signUp("broken-invitee");
+    await verifyEmail(invitee.userId);
+    const shared = await createOrganization(owner.headers, "Broken");
+    const failed = vi.fn(() => Promise.reject(new Error("notifications down")));
+    setNotificationDispatcher(failed);
+
+    try {
+      await invite(shared.headers, invitee.email);
+      await vi.waitFor(() => expect(failed).toHaveBeenCalledTimes(1));
+    } finally {
+      setNotificationDispatcher(recordingDispatcher);
+    }
+
+    await vi.waitFor(() =>
+      expect(queuedInvitationEmails().map((message) => message.to)).toEqual([invitee.email])
+    );
+    expect(await notificationsOf(invitee.userId)).toEqual([]);
   });
 });
 
@@ -316,11 +361,7 @@ describe("role changed", () => {
       });
       expect(updated).toMatchObject({ id: memberId, role: "admin" });
     } finally {
-      setNotificationDispatcher((event: NotificationEvent) => {
-        const delivered = delivery(event);
-        deliveries.push(delivered.catch(() => undefined));
-        return delivered;
-      });
+      setNotificationDispatcher(recordingDispatcher);
     }
 
     const [row] = await db()

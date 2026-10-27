@@ -21,5 +21,6 @@
   "notifications.preferences.error": "Podešavanja obaveštenja nije moguće učitati.",
   "notifications.preferences.saveError": "Podešavanje nije sačuvano. Pokušajte ponovo.",
   "notifications.preferences.type.invitation_received": "Pozivi u organizaciju",
-  "notifications.preferences.type.role_changed": "Promene vaše uloge"
+  "notifications.preferences.type.role_changed": "Promene vaše uloge",
+  "notifications.preferences.emailAlwaysSent": "Email sa pozivom uvek stiže na vašu adresu."
 }

@@ -82,7 +82,10 @@ export function NotificationBell() {
           ) : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[min(24rem,calc(100vw-2rem))]">
+      <DropdownMenuContent
+        align="end"
+        className="w-[calc(100vw-var(--ds-space-400))] max-w-[calc(var(--ds-space-1000)*5)]"
+      >
         <div className="flex items-center justify-between gap-[var(--ds-space-100)] px-[var(--ds-space-100)]">
           <DropdownMenuLabel className="px-0">{t("notifications.inbox.title")}</DropdownMenuLabel>
           {unreadCount > 0 ? (

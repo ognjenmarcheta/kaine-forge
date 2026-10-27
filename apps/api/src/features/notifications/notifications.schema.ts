@@ -45,6 +45,9 @@ export const notificationsTypeDefs = /* GraphQL */ `
     type: NotificationType!
     inApp: Boolean!
     email: Boolean!
+    # False for a type whose email always goes out, such as the invitation
+    # email; email then stays false and cannot be turned on.
+    emailAvailable: Boolean!
   }
 
   input NotificationPreferenceInput {

@@ -21,5 +21,6 @@
   "notifications.preferences.error": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
   "notifications.preferences.saveError": "Die Einstellung wurde nicht gespeichert. Versuche es erneut.",
   "notifications.preferences.type.invitation_received": "Einladungen in eine Organisation",
-  "notifications.preferences.type.role_changed": "Änderungen deiner Rolle"
+  "notifications.preferences.type.role_changed": "Änderungen deiner Rolle",
+  "notifications.preferences.emailAlwaysSent": "Die Einladungs-E-Mail geht immer an deine Adresse."
 }

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -43,7 +44,11 @@ export const notificationsTable = pgTable(
   },
   (table) => [
     // The inbox reads one user's Notifications newest first, by (created_at, id) cursor.
-    index("notifications_user_id_created_at_id_idx").on(table.userId, table.createdAt, table.id)
+    index("notifications_user_id_created_at_id_idx").on(table.userId, table.createdAt, table.id),
+    // The unread count reads only a user's unread rows.
+    index("notifications_user_id_unread_idx")
+      .on(table.userId)
+      .where(sql`${table.readAt} is null`)
   ]
 );
 
