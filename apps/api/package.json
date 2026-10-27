@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b tsconfig.build.json",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
@@ -24,7 +25,9 @@
     "@ai-sdk/openai": "^4.0.101",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/email": "workspace:*",
     "@repo/feature-flags": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/translation": "workspace:*",

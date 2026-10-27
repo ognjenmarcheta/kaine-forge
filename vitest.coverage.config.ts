@@ -12,6 +12,7 @@ export default defineConfig({
       "packages/db",
       "packages/email",
       "packages/feature-flags",
+      "packages/jobs",
       "packages/logger",
       "packages/mobile-ui",
       "packages/persistence",

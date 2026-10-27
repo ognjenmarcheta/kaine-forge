@@ -22,6 +22,13 @@ describe("validateApiEnv", () => {
     expect(validateApiEnv(validEnv).API_PORT).toBe(4000);
     expect(validateApiEnv({ ...validEnv, API_PORT: "5001" }).API_PORT).toBe(5001);
     expect(validateApiEnv(validEnv).API_SHUTDOWN_TIMEOUT_MS).toBe(8000);
+    expect(validateApiEnv(validEnv).JOBS_RUNNER_ENABLED).toBe("true");
+  });
+
+  it("rejects a job runner flag other than true or false", () => {
+    expect(() => validateApiEnv({ ...validEnv, JOBS_RUNNER_ENABLED: "no" })).toThrow(
+      /JOBS_RUNNER_ENABLED/
+    );
   });
 
   it("treats blank coerced values as unset", () => {

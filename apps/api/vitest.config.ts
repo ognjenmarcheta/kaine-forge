@@ -23,6 +23,8 @@ export default defineConfig({
       "@repo/db/types": path.join(workspaceRoot, "packages/db/src/types/index.ts"),
       "@repo/db": path.join(workspaceRoot, "packages/db/src/index.ts"),
       "@repo/email": path.join(workspaceRoot, "packages/email/src/index.ts"),
+      "@repo/jobs/client": path.join(workspaceRoot, "packages/jobs/src/jobs.client.ts"),
+      "@repo/jobs": path.join(workspaceRoot, "packages/jobs/src/index.ts"),
       "@repo/feature-flags": path.join(workspaceRoot, "packages/feature-flags/src/index.ts"),
       "@repo/logger": path.join(workspaceRoot, "packages/logger/src/index.ts"),
       "@repo/storage": path.join(workspaceRoot, "packages/storage/src/index.ts"),

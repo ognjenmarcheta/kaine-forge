@@ -39,6 +39,9 @@ const apiEnvSchema = z.object({
     blankAsUnset,
     z.coerce.number().int().positive().default(8000)
   ),
+  // false: this process only enqueues; a worker (dist/worker.js) runs the
+  // handlers. Enum, not a loose string, so a typo cannot flip it silently.
+  JOBS_RUNNER_ENABLED: z.preprocess(blankAsUnset, z.enum(["true", "false"]).default("true")),
   AUTH_REQUIRE_EMAIL_VERIFICATION: z.string().optional(),
   AUTH_PASSWORD_BREACH_CHECK: z.string().optional(),
   EMAIL_PROVIDER: z.string().optional(),

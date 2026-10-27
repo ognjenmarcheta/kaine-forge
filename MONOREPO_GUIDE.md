@@ -35,6 +35,7 @@ kaine-forge/
     db/            Drizzle schema, validators, migrations, seed, migrate export
     email/         provider-agnostic email sending (console adapter, EMAIL_PROVIDER factory)
     feature-flags/ config-driven feature flags
+    jobs/          typed background jobs on Postgres (pg-boss, ADR 0018)
     logger/        shared logger setup
     mobile-ui/     React Native primitives and NativeWind variants
     persistence/   Zustand storage adapters (sync/async)
@@ -224,6 +225,7 @@ Important runtime variables:
 | `EXPO_PUBLIC_GRAPHQL_URL`                                          | mobile GraphQL URL                                                                                                     |
 | `S3_*`                                                             | S3-compatible storage settings; `S3_UPLOAD_URL_EXPIRY` / `S3_DOWNLOAD_URL_EXPIRY` set presigned URL lifetimes          |
 | `S3_PUBLIC_BUCKET` / `S3_PUBLIC_BASE_URL`                          | Public Asset bucket and its CDN URL; both set turns avatar and organization-logo uploads on                            |
+| `JOBS_RUNNER_ENABLED`                                              | run job handlers in the API (default `true`); `false` keeps it enqueue-only for a worker (ADR 0018)                    |
 | `STORAGE_SWEEP_ENABLED` / `STORAGE_SWEEP_INTERVAL_MS`              | storage sweep of deleted and abandoned Attachment objects; on by default when S3 is set, one replica at a time         |
 | `OBSERVABILITY_*` / `SENTRY_DSN` / `OTEL_*`                        | optional error-reporting seam (no traffic when disabled)                                                               |
 
@@ -259,7 +261,7 @@ The command detects the laptop LAN IPv4, starts the API on `0.0.0.0`, points Exp
 
 The template includes production Dockerfiles for API and web:
 
-- `Dockerfile.api` uses `turbo prune @repo/api --docker`, builds the API graph, fixes emitted ESM extensions, copies package dist outputs, and runs `node apps/api/dist/index.js`.
+- `Dockerfile.api` uses `turbo prune @repo/api --docker`, builds the API graph, fixes emitted ESM extensions, copies package dist outputs, and runs `node apps/api/dist/index.js`. The same image runs the job worker with the command `node apps/api/dist/worker.js` (ADR 0018).
 - `Dockerfile.web` uses `turbo prune @repo/web --docker`, builds the web graph, and serves the SPA through unprivileged nginx (`nginxinc/nginx-unprivileged` on port `3000`).
 - `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers. Runtime proxy target: `API_BACKEND_URL`.
 - Both images define `HEALTHCHECK` directives: API probes `GET /health` (liveness; `GET /ready` checks database for readiness); web probes nginx.
