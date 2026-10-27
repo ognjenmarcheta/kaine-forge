@@ -46,20 +46,23 @@ beforeAll(async () => {
     ])
     .returning();
   if (!alice || !bob) throw new Error("failed to seed users");
-  const [acme, globex] = await db
+  const [acme, globex, initech] = await db
     .insert(organizationsTable)
     .values([
       { name: "Acme", slug: "acme", userId: alice.id },
-      { name: "Globex", slug: "globex", userId: bob.id }
+      { name: "Globex", slug: "globex", userId: bob.id },
+      { name: "Initech", slug: "initech", userId: bob.id }
     ])
     .returning();
-  if (!acme || !globex) throw new Error("failed to seed organizations");
+  if (!acme || !globex || !initech) throw new Error("failed to seed organizations");
   Object.assign(ids, { alice: alice.id, bob: bob.id, acme: acme.id, globex: globex.id });
 
   await db.insert(membersTable).values([
     { organizationId: acme.id, userId: alice.id, role: "owner" },
     { organizationId: acme.id, userId: bob.id, role: "member" },
-    { organizationId: globex.id, userId: bob.id, role: "owner" }
+    { organizationId: globex.id, userId: bob.id, role: "owner" },
+    // Alice left Initech: her rows there stay with Initech.
+    { organizationId: initech.id, userId: bob.id, role: "owner" }
   ]);
   // Credentials the archive must never hold.
   await db.insert(accountsTable).values({
@@ -82,7 +85,8 @@ beforeAll(async () => {
   const rows = [
     { userId: alice.id, organizationId: acme.id, label: "alice-acme" },
     { userId: bob.id, organizationId: acme.id, label: "bob-acme" },
-    { userId: bob.id, organizationId: globex.id, label: "bob-globex" }
+    { userId: bob.id, organizationId: globex.id, label: "bob-globex" },
+    { userId: alice.id, organizationId: initech.id, label: "alice-initech" }
   ];
   for (const { userId, organizationId, label } of rows) {
     await db.insert(todosTable).values({ userId, organizationId, title: `todo-${label}` });
@@ -96,7 +100,9 @@ beforeAll(async () => {
       conversationId: conversation.id,
       organizationId,
       role: "user",
-      content: `message-${label}`
+      content: `message-${label}`,
+      // A tool result can quote what other members wrote.
+      toolActions: [{ tool: "listNotes", result: `tool-result-quoting-note-of-${label}` }]
     });
     await db.insert(filesTable).values({
       key: `${organizationId}/file-${label}`,
@@ -212,6 +218,23 @@ describe("data exports", () => {
     ]);
     expect(archive).not.toContain("bob-");
     expect(archive).not.toContain("bob@example.test");
+  });
+
+  it("holds no row from an Organization the requester left", async () => {
+    const archive = Object.values(await exportArchive(ids.alice, ids.acme, "owner", "user")).join(
+      "\n"
+    );
+
+    expect(archive).toContain("todo-alice-acme");
+    expect(archive).not.toContain("alice-initech");
+    expect(archive).not.toContain("Initech");
+  });
+
+  it("holds no assistant tool result, which can quote other members' content", async () => {
+    const files = await exportArchive(ids.alice, ids.acme, "owner", "user");
+
+    expect(files["assistant-messages.json"]).toContain("message-alice-acme");
+    expect(Object.values(files).join("\n")).not.toContain("tool-result-quoting");
   });
 
   it("holds only the Active Organization's shared data in an Organization export", async () => {

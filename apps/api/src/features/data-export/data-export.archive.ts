@@ -12,7 +12,7 @@ import {
   usersTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
-import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import JSZip from "jszip";
 
 /** A value JSON.stringify writes as is: what the selected columns hold. */
@@ -70,8 +70,7 @@ const messageColumns = {
   organizationId: assistantMessagesTable.organizationId,
   role: assistantMessagesTable.role,
   content: assistantMessagesTable.content,
-  // jsonb arrives already parsed, as JSON values.
-  toolActions: sql<ArchiveValue>`${assistantMessagesTable.toolActions}`,
+  // No tool_actions: a tool result can quote other members' todos and notes.
   createdAt: assistantMessagesTable.createdAt
 };
 
@@ -109,15 +108,42 @@ async function contentFiles(
 }
 
 /**
- * A user's own assistant conversations and their messages. Conversations are
- * private to their author, so only a user export holds them, never an
- * Organization export.
+ * The Organizations a user belongs to now. A user export holds their rows in
+ * these only: what they created in an Organization they left stays with it.
+ */
+function currentOrganizationIds(db: Database, userId: string) {
+  return db
+    .select({ id: membersTable.organizationId })
+    .from(membersTable)
+    .where(eq(membersTable.userId, userId));
+}
+
+/** Rows the user wrote, in an Organization they belong to now. */
+function mineInCurrentOrganizations(
+  db: Database,
+  userId: string,
+  author: AnyColumn,
+  organization: AnyColumn
+): SQL {
+  return sql`(${eq(author, userId)} and ${inArray(organization, currentOrganizationIds(db, userId))})`;
+}
+
+/**
+ * A user's own assistant conversations and their messages, in the
+ * Organizations they belong to. Conversations are private to their author,
+ * so only a user export holds them, never an Organization export.
  */
 async function assistantFiles(db: Database, userId: string): Promise<ArchiveFiles> {
+  const owned = mineInCurrentOrganizations(
+    db,
+    userId,
+    assistantConversationsTable.userId,
+    assistantConversationsTable.organizationId
+  );
   const conversations = await db
     .select(conversationColumns)
     .from(assistantConversationsTable)
-    .where(eq(assistantConversationsTable.userId, userId))
+    .where(owned)
     .orderBy(asc(assistantConversationsTable.createdAt));
   // Messages follow the same conversations, by subquery: a bound id list
   // would pass Postgres' 65,535 parameter limit for a large export.
@@ -130,7 +156,7 @@ async function assistantFiles(db: Database, userId: string): Promise<ArchiveFile
         db
           .select({ id: assistantConversationsTable.id })
           .from(assistantConversationsTable)
-          .where(eq(assistantConversationsTable.userId, userId))
+          .where(owned)
       )
     )
     .orderBy(asc(assistantMessagesTable.createdAt));
@@ -141,7 +167,10 @@ async function assistantFiles(db: Database, userId: string): Promise<ArchiveFile
   };
 }
 
-/** A user's own data: profile, Organization Memberships, and the rows they created. */
+/**
+ * A user's own data: profile, current Organization Memberships, and the rows
+ * they created in those Organizations.
+ */
 export async function collectUserExport(db: Database, userId: string): Promise<ArchiveFiles> {
   const [profile] = await db
     .select({
@@ -180,9 +209,14 @@ export async function collectUserExport(db: Database, userId: string): Promise<A
     "profile.json": profile,
     "memberships.json": memberships,
     ...(await contentFiles(db, {
-      todos: eq(todosTable.userId, userId),
-      notes: eq(notesTable.userId, userId),
-      files: eq(filesTable.uploadedBy, userId)
+      todos: mineInCurrentOrganizations(db, userId, todosTable.userId, todosTable.organizationId),
+      notes: mineInCurrentOrganizations(db, userId, notesTable.userId, notesTable.organizationId),
+      files: mineInCurrentOrganizations(
+        db,
+        userId,
+        filesTable.uploadedBy,
+        filesTable.organizationId
+      )
     })),
     ...(await assistantFiles(db, userId))
   };
