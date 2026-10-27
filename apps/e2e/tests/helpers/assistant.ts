@@ -1,6 +1,7 @@
 import { type Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { notificationData } from "./notifications";
 
 const noteId = "1ec1f87d-71b6-4d66-8a9a-dd611dab474f";
 const tools = [
@@ -162,7 +163,7 @@ export async function mockAssistant(page: Page) {
     } else if (query.includes("mutation DeleteConversation")) {
       conversations = conversations.filter((item) => item.id !== "a");
       await route.fulfill({ json: { data: { deleteConversation: true } } });
-    } else await route.fulfill({ json: { data: {} } });
+    } else await route.fulfill({ json: { data: notificationData(query) ?? {} } });
   });
   return { state, finish: () => resolveReply(), delta: (text: string) => sendDelta(text) };
 }

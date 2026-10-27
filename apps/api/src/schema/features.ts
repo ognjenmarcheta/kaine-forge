@@ -5,6 +5,8 @@ import { auditResolvers } from "../features/audit/audit.router";
 import { auditTypeDefs } from "../features/audit/audit.schema";
 import { notesResolvers } from "../features/notes/notes.router";
 import { notesTypeDefs } from "../features/notes/notes.schema";
+import { notificationsResolvers } from "../features/notifications/notifications.router";
+import { notificationsTypeDefs } from "../features/notifications/notifications.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
 import { publicAssetsResolvers } from "../features/public-assets/public-assets.router";
@@ -111,6 +113,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "audit",
     typeDefs: auditTypeDefs,
     resolvers: auditResolvers
+  },
+  {
+    name: "notifications",
+    typeDefs: notificationsTypeDefs,
+    resolvers: notificationsResolvers
   }
 ];
 

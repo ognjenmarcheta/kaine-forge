@@ -105,6 +105,9 @@ vi.mock("./features/auth/auth.route", () => ({
   }
 }));
 vi.mock("./features/notes/notes.route", () => ({ NotesRoute: () => null }));
+vi.mock("./features/notifications/components/notification-bell", () => ({
+  NotificationBell: () => null
+}));
 vi.mock("./features/onboarding/onboarding.route", () => ({
   OnboardingRoute: () => <p>{READY.onboarding}</p>
 }));

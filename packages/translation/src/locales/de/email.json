@@ -53,5 +53,12 @@
   "email.accountDeletion.heading": "Konto löschen",
   "email.accountDeletion.body": "Wir haben eine Anfrage zur Löschung deines Kontos erhalten. Dabei werden auch alle Organisationen gelöscht, in denen du das einzige Mitglied bist. Der Link läuft in {{hours}} Stunden ab.",
   "email.accountDeletion.action": "Konto löschen",
-  "email.accountDeletion.ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail und setze dein Passwort zurück. Dein Konto bleibt unverändert."
+  "email.accountDeletion.ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail und setze dein Passwort zurück. Dein Konto bleibt unverändert.",
+  "email.roleChanged.subject": "Deine Rolle in {{organizationName}} hat sich geändert",
+  "email.roleChanged.heading": "Deine Rolle hat sich geändert",
+  "email.roleChanged.body": "Du bist jetzt {{role}} von {{organizationName}}.",
+  "email.roleChanged.role.owner": "Inhaber",
+  "email.roleChanged.role.admin": "Admin",
+  "email.roleChanged.role.member": "Mitglied",
+  "email.roleChanged.action": "Mitglieder anzeigen"
 }

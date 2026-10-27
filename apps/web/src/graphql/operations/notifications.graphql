@@ -1,0 +1,67 @@
+fragment NotificationFields on Notification {
+  id
+  type
+  organizationId
+  readAt
+  createdAt
+  payload {
+    __typename
+    ... on InvitationReceivedNotification {
+      invitationId
+      inviterName
+      organizationName
+      role
+    }
+    ... on RoleChangedNotification {
+      organizationName
+      role
+    }
+  }
+}
+
+query Notifications($first: Int, $after: String) {
+  notifications(first: $first, after: $after) {
+    items {
+      ...NotificationFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    unreadCount
+  }
+}
+
+mutation MarkNotificationRead($id: ID!) {
+  markNotificationRead(id: $id) {
+    ...NotificationFields
+  }
+}
+
+mutation MarkAllNotificationsRead {
+  markAllNotificationsRead
+}
+
+subscription OnNotificationReceived {
+  notificationReceived {
+    ...NotificationFields
+  }
+}
+
+query NotificationPreferences {
+  notificationPreferences {
+    type
+    inApp
+    email
+    emailAvailable
+  }
+}
+
+mutation UpdateNotificationPreference($input: NotificationPreferenceInput!) {
+  updateNotificationPreference(input: $input) {
+    type
+    inApp
+    email
+    emailAvailable
+  }
+}

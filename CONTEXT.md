@@ -44,6 +44,10 @@ _Avoid_: invite link, access request
 A record the system writes when a security-relevant or membership action succeeds: who did what to which target, from which IP address and user agent, and when. An organization action belongs to its **Organization**; an account action, such as a password change, belongs to no Organization. Owners and admins read the **Active Organization**'s Audit Events. Nobody edits one.
 _Avoid_: activity feed, log entry, history
 
+**Notification**:
+A stored message to one **User** about something another person or the system did that concerns them, such as an **Invitation** they received or a change to their role. It stays in their inbox until they mark it read, and only they read or mark it, whatever their **Active Organization**; one about an **Organization** names it. Per notification type, the user chooses whether it reaches them in-app, by email, or both. A toast is not a Notification: a toast confirms the user's own action on screen and is gone, and nothing stores it.
+_Avoid_: alert, toast, inbox message
+
 **Email Verification**:
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation

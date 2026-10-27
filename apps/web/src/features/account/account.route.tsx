@@ -5,6 +5,7 @@ import { AccountPassword } from "./components/account-password";
 import { AccountProfile } from "./components/account-profile";
 import { AccountSessions } from "./components/account-sessions";
 import { useTranslation } from "../../hooks/use-translation";
+import { NotificationPreferences } from "../notifications/components/notification-preferences";
 
 export function AccountRoute() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export function AccountRoute() {
       <AccountEmail />
       <AccountPassword />
       <AccountSessions />
+      <NotificationPreferences />
       <AccountLinkedAccounts />
       <AccountDelete />
     </section>

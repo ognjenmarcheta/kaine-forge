@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { notificationData } from "./notifications";
 
 interface FixtureNote {
   id: string;
@@ -185,7 +186,7 @@ export async function mockNotes(page: Page) {
       const index = notes.findIndex((note) => note.id === vars.id);
       if (index >= 0) notes.splice(index, 1);
       await route.fulfill({ json: { data: { deleteNote: true } } });
-    } else await route.fulfill({ json: { data: {} } });
+    } else await route.fulfill({ json: { data: notificationData(query) ?? {} } });
   });
   return {
     state,

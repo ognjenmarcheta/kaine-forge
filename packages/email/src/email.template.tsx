@@ -37,7 +37,8 @@ export type EmailTemplate =
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
-  | { template: "accountDeletion"; url: string; expiresInHours: number };
+  | { template: "accountDeletion"; url: string; expiresInHours: number }
+  | { template: "roleChanged"; url: string; organizationName: string; role: string };
 
 const EMAIL_OTP_SUBJECT_KEYS: Record<EmailOtpType, string> = {
   "sign-in": "email.emailOtp.subject.signIn",
@@ -231,7 +232,36 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
           </>
         )
       };
+    case "roleChanged": {
+      const organizationName = email.organizationName;
+
+      return {
+        subject: t("email.roleChanged.subject", { organizationName }),
+        heading: t("email.roleChanged.heading"),
+        body: (
+          <>
+            <EmailText>
+              {t("email.roleChanged.body", {
+                organizationName,
+                role: t(`email.roleChanged.role.${roleKey(email.role)}`)
+              })}
+            </EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.roleChanged.action")}
+            />
+          </>
+        )
+      };
+    }
   }
+}
+
+// Roles come from the organization plugin's owner, admin, and member
+// vocabulary; any other value reads as member.
+function roleKey(role: string): "owner" | "admin" | "member" {
+  return role === "owner" || role === "admin" ? role : "member";
 }
 
 function resolveEmailLocale(locale: string | null | undefined): SupportedLanguage {

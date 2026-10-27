@@ -1,5 +1,7 @@
 import { createPubSub, filter, pipe } from "graphql-yoga";
 
+import type { NotificationView } from "./features/notifications/notifications.module";
+
 export interface TodoSubscriptionPayload {
   id: string;
   title: string;
@@ -36,6 +38,12 @@ export interface NoteDeletedPayload {
   organizationId: string;
 }
 
+/** A new in-app Notification; it streams to its recipient only. */
+export interface NotificationCreatedPayload {
+  notification: NotificationView;
+  userId: string;
+}
+
 export type PubSubEventMap = {
   "todo:created": [TodoSubscriptionPayload];
   "todo:updated": [TodoSubscriptionPayload];
@@ -45,11 +53,15 @@ export type PubSubEventMap = {
   "note:created": [NoteSubscriptionPayload];
   "note:updated": [NoteSubscriptionPayload];
   "note:deleted": [NoteDeletedPayload];
+  "notification:created": [NotificationCreatedPayload];
 };
 
 export const pubsub = createPubSub<PubSubEventMap>();
 
-type OrganizationEventName = Exclude<keyof PubSubEventMap, "assistant:delta">;
+type OrganizationEventName = Exclude<
+  keyof PubSubEventMap,
+  "assistant:delta" | "notification:created"
+>;
 
 /**
  * Each organization-scoped GraphQL subscription field and the event it

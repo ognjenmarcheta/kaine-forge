@@ -14,6 +14,14 @@ export type OrganizationOwnedTable = PgTable & { organizationId: AnyPgColumn };
 type UserOwnedTable = OrganizationOwnedTable & { userId: AnyPgColumn };
 
 type PagedTable = OrganizationOwnedTable & { id: AnyPgColumn };
+type UserPagedTable = PgTable & { id: AnyPgColumn; userId: AnyPgColumn };
+
+// The column a list is bound to and its value: the Organization for scoped
+// data, the user for a user's own rows. A cursor carries the value.
+interface PageOwner {
+  column: AnyPgColumn;
+  id: string;
+}
 
 /** The `first` and `after` arguments of a list field. */
 export interface PageInput {
@@ -72,15 +80,15 @@ function invalidCursor(): GraphQLError {
   return new GraphQLError("invalid cursor", { extensions: { code: "BAD_USER_INPUT" } });
 }
 
-// A cursor names its list and Organization, so one from another list or
-// another Organization is refused instead of paging from a foreign position.
-function encodeCursor(list: string, organizationId: string, position: CursorPosition): string {
-  return Buffer.from(
-    JSON.stringify([list, organizationId, position.sortKey, position.id])
-  ).toString("base64url");
+// A cursor names its list and owner (Organization or user), so one from
+// another list or owner is refused instead of paging from a foreign position.
+function encodeCursor(list: string, ownerId: string, position: CursorPosition): string {
+  return Buffer.from(JSON.stringify([list, ownerId, position.sortKey, position.id])).toString(
+    "base64url"
+  );
 }
 
-function decodeCursor(cursor: string, list: string, organizationId: string): CursorPosition {
+function decodeCursor(cursor: string, list: string, ownerId: string): CursorPosition {
   let parsed: unknown;
   try {
     parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
@@ -88,10 +96,10 @@ function decodeCursor(cursor: string, list: string, organizationId: string): Cur
     throw invalidCursor();
   }
   if (!Array.isArray(parsed) || parsed.length !== 4) throw invalidCursor();
-  const [cursorList, cursorOrganizationId, sortKey, id] = parsed;
+  const [cursorList, cursorOwnerId, sortKey, id] = parsed;
   if (
     cursorList !== list ||
-    cursorOrganizationId !== organizationId ||
+    cursorOwnerId !== ownerId ||
     !isSortKey(sortKey) ||
     typeof id !== "string" ||
     !UUID_PATTERN.test(id)
@@ -168,9 +176,9 @@ function organizationPredicate(
   return and(eq(table.organizationId, scope.organizationId), ...conditions);
 }
 
-function selectable<TTable extends OrganizationOwnedTable>(table: TTable) {
+function selectable<TTable extends PgTable>(table: TTable) {
   // SAFETY: TableLikeHasEmptySelection is true only for a Subquery without a
-  // `returning` clause; an OrganizationOwnedTable is a PgTable, never a
+  // `returning` clause; the source is a PgTable, never a
   // Subquery, so the check is always false. TypeScript cannot resolve it for a
   // generic table, so the source is narrowed to the branch it always takes.
   return table as TableLikeHasEmptySelection<TTable> extends true ? never : TTable;
@@ -188,9 +196,9 @@ function selectFromScoped<TTable extends OrganizationOwnedTable>(
     .where(organizationPredicate(table, scope, conditions));
 }
 
-async function selectPage<TTable extends PagedTable>(
+async function selectPage<TTable extends PgTable & { id: AnyPgColumn }>(
   db: Database,
-  scope: AuthenticatedOrganizationScope,
+  owner: PageOwner,
   table: TTable,
   input: PageInput,
   order: PageOrder,
@@ -199,8 +207,7 @@ async function selectPage<TTable extends PagedTable>(
   const { defaultLimit, maxLimit } = order.limits;
   const first = Math.min(maxLimit, Math.max(1, Math.floor(input.first ?? defaultLimit)));
   const list = getTableName(table);
-  const after =
-    input.after == null ? undefined : decodeCursor(input.after, list, scope.organizationId);
+  const after = input.after == null ? undefined : decodeCursor(input.after, list, owner.id);
   const [direction, beyond] = order.direction === "desc" ? [desc, lt] : [asc, gt];
   let keyset: SQL | undefined;
   if (after) {
@@ -218,7 +225,7 @@ async function selectPage<TTable extends PagedTable>(
       id: sql<string>`${table.id}::text`
     })
     .from(selectable(table))
-    .where(organizationPredicate(table, scope, [...conditions, keyset]))
+    .where(and(eq(owner.column, owner.id), ...conditions, keyset))
     .orderBy(direction(order.orderBy), direction(table.id))
     .limit(first + 1);
   const page = rows.slice(0, first);
@@ -228,7 +235,7 @@ async function selectPage<TTable extends PagedTable>(
     items: page.map(({ row }) => row),
     pageInfo: {
       hasNextPage: rows.length > first,
-      endCursor: last ? encodeCursor(list, scope.organizationId, last) : null
+      endCursor: last ? encodeCursor(list, owner.id, last) : null
     }
   };
 }
@@ -290,6 +297,29 @@ export function createScopedData(input: {
     stamp,
     mine: (table) => eq(table.userId, requireOrganizationScope().userId),
     page: (table, input, order, ...conditions) =>
-      selectPage(db, requireOrganizationScope(), table, input, order, conditions)
+      selectPage(
+        db,
+        { column: table.organizationId, id: requireOrganizationScope().organizationId },
+        table,
+        input,
+        order,
+        conditions
+      )
   };
+}
+
+/**
+ * One page of the rows a user owns whatever their Active Organization, such
+ * as their Notifications, with the same cursor rules as `ScopedData.page`. A
+ * cursor is bound to the user, so another user's cursor is refused.
+ */
+export function pageOwnedByUser<TTable extends UserPagedTable>(
+  db: Database,
+  userId: string,
+  table: TTable,
+  input: PageInput,
+  order: PageOrder,
+  ...conditions: (SQL | undefined)[]
+): Promise<Connection<TTable["$inferSelect"]>> {
+  return selectPage(db, { column: table.userId, id: userId }, table, input, order, conditions);
 }
