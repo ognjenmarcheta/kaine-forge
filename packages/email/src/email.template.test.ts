@@ -18,6 +18,7 @@ const INVITE_URL = "https://app.example.com/invitations/inv-1";
 const SECURITY_URL = "https://app.example.com/security";
 const DELETE_URL = "https://app.example.com/account/delete?token=dtok-1";
 const MEMBERS_URL = "https://app.example.com/members";
+const MAGIC_LINK_URL = "https://api.example.com/api/auth/magic-link/verify?token=mtok-1";
 
 const cases: TemplateCase[] = [
   {
@@ -105,6 +106,20 @@ const cases: TemplateCase[] = [
     token: "731045"
   },
   {
+    email: { template: "magicLink", url: MAGIC_LINK_URL, expiresInMinutes: 10 },
+    locale: "en",
+    subject: "Your sign-in link",
+    phrase: "The link works once and expires in 10 minutes.",
+    token: MAGIC_LINK_URL
+  },
+  {
+    email: { template: "magicLink", url: MAGIC_LINK_URL, expiresInMinutes: 10 },
+    locale: "de",
+    subject: "Dein Anmeldelink",
+    phrase: "Der Link funktioniert einmal und läuft in 10 Minuten ab.",
+    token: MAGIC_LINK_URL
+  },
+  {
     email: { template: "emailOtp", code: "482913", type: "sign-in", expiresInMinutes: 5 },
     locale: "en",
     subject: "Your sign-in code",
@@ -177,6 +192,27 @@ const cases: TemplateCase[] = [
     locale: "de",
     subject: "Deine E-Mail-Adresse wurde geändert",
     phrase: "Die E-Mail-Adresse deines Kontos wurde in new@example.com geändert.",
+    token: SECURITY_URL
+  },
+  {
+    email: { template: "passwordRemoved", url: "https://app.example.com/auth" },
+    locale: "en",
+    subject: "Your password was removed",
+    phrase: "on the sign-in page and set a new one.",
+    token: "https://app.example.com/auth"
+  },
+  {
+    email: { template: "passkeyAdded", securityUrl: SECURITY_URL },
+    locale: "en",
+    subject: "A passkey was added to your account",
+    phrase: "A new passkey was added to your account.",
+    token: SECURITY_URL
+  },
+  {
+    email: { template: "passkeyAdded", securityUrl: SECURITY_URL },
+    locale: "sr",
+    subject: "Vašem nalogu je dodat pristupni ključ",
+    phrase: "Vašem nalogu je dodat novi pristupni ključ.",
     token: SECURITY_URL
   },
   {

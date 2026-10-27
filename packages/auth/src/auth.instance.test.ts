@@ -94,19 +94,10 @@ describe("auth.instance", () => {
     await expect(response.json()).resolves.toMatchObject({ code: "PASSWORD_TOO_SHORT" });
   });
 
-  it("keeps uuid primary-key continuity and a recognizable cookie prefix", () => {
+  // better-auth's own uuid strategy: the database generates row ids, and
+  // deterministic single-use ids are encoded as uuids too.
+  it("keeps uuid primary keys and a recognizable cookie prefix", () => {
     expect(auth.options.advanced?.cookiePrefix).toBe("kaine");
-
-    const generateId = auth.options.advanced?.database?.generateId;
-
-    expect(generateId).toBeTypeOf("function");
-
-    if (typeof generateId !== "function") {
-      throw new Error("generateId must be a function");
-    }
-
-    const id = generateId();
-
-    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(auth.options.advanced?.database?.generateId).toBe("uuid");
   });
 });

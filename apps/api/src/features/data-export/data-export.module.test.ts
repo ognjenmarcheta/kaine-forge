@@ -10,6 +10,7 @@ import {
   membersTable,
   notesTable,
   organizationsTable,
+  passkeysTable,
   sessionsTable,
   todosTable,
   twoFactorsTable,
@@ -80,6 +81,15 @@ beforeAll(async () => {
   await db
     .insert(twoFactorsTable)
     .values({ userId: alice.id, secret: "alice-totp-secret", backupCodes: "alice-backup-codes" });
+  await db.insert(passkeysTable).values({
+    userId: alice.id,
+    name: "alice-laptop",
+    publicKey: "alice-passkey-public-key",
+    credentialID: "alice-passkey-credential-id",
+    counter: 0,
+    deviceType: "multiDevice",
+    backedUp: true
+  });
 
   // One row of each kind per (author, Organization), named after both.
   const rows = [
@@ -268,7 +278,7 @@ describe("data exports", () => {
   });
 
   it.each(["user", "organization"] as const)(
-    "never puts a password hash, session token, or two-factor secret in a %s export",
+    "never puts a password hash, session token, two-factor secret, or passkey in a %s export",
     async (kind) => {
       const archive = Object.values(await exportArchive(ids.alice, ids.acme, "owner", kind)).join(
         "\n"
@@ -279,7 +289,9 @@ describe("data exports", () => {
         "alice-oauth-access-token",
         "alice-session-token",
         "alice-totp-secret",
-        "alice-backup-codes"
+        "alice-backup-codes",
+        "alice-passkey-public-key",
+        "alice-passkey-credential-id"
       ]) {
         expect(archive).not.toContain(secret);
       }

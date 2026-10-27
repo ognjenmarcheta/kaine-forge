@@ -21,6 +21,8 @@ export type AuditAction =
   | "organization_exported"
   | "organization_renamed"
   | "ownership_transferred"
+  | "passkey_added"
+  | "passkey_removed"
   | "password_changed"
   | "role_created"
   | "role_deleted"

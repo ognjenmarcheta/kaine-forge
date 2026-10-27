@@ -64,3 +64,16 @@ export function resolveReturnPath(value: string | null): string {
 
   return value;
 }
+
+/**
+ * Whether this page can run a passkey ceremony. The desktop app loads the web
+ * build from its own origin (tauri://localhost, http://tauri.localhost), which
+ * never matches the relying party, so it hides passkeys on every platform.
+ */
+export function isPasskeySupported(): boolean {
+  if (typeof window === "undefined" || "__TAURI_INTERNALS__" in window) {
+    return false;
+  }
+
+  return typeof window.PublicKeyCredential === "function";
+}
