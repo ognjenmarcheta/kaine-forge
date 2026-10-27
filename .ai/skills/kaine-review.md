@@ -44,6 +44,14 @@ The ladder above orders findings; labels state the author's obligation. Label ev
 
 Labels apply to review responses only. GitHub issue titles keep the `kaine-scorecard` rule: no priority prefixes.
 
+## Security Findings
+
+- A security finding names the lower-trust principal, the input or action, the control it defeats, and the affected organization, member, or resource. If any is missing, label it `Consider:`.
+- A gap that another layer already blocks (defense in depth) is `Consider:`, not a defect.
+- Use `Critical:` only when the result fully defeats an explicit control with real consequences: authentication bypass, cross-organization read or write, script execution for other users, or code execution. A weakened control with narrow reach is unprefixed.
+- When the decisive fact is outside the repository (proxy, provider, deployed configuration), write "needs validation" with the exact missing fact and the check that resolves it. Do not label a guess `Critical:`.
+- Before you report a `Critical:` security finding, try to refute it: re-read each cited line and look for a control on the path. When you delegate this check, give a fresh agent the finding and the code, not your reasoning.
+
 ## Method
 
 - Read the diff and surrounding code.

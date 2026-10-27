@@ -14,12 +14,17 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 - [ ] Organization-scoped data uses **Authenticated Organization Scope** / active organization from session — never a client-supplied organization id for scoped reads/writes (`CONTEXT.md`, `MONOREPO_GUIDE.md`).
 - [ ] Authorization and membership checks remain correct for the touched paths.
+- [ ] Every route to the same sensitive operation (GraphQL, auth endpoints, jobs, CLI) applies the same authorization check; the weakest route sets the real policy.
+- [ ] Removing a member, lowering a role, or revoking a credential stops it from authorizing later requests, cached results, and queued jobs.
+- [ ] A token, API key, invitation, or reset link is bound to its principal, organization, and action, expires, and is single-use where the flow intends it.
 - [ ] A new organization-scoped resolver is proved by a two-organization test that executes it (`apps/api/src/features/notes/notes.tenancy.test.ts`), not only by mocking the adapter.
 - [ ] No secrets, tokens, or `.ai.local/` material committed; MCP config uses placeholders only (`SECURITY.md`, `.ai/guide.md`).
 - [ ] CORS / trusted origins and cookie/session assumptions stay consistent with `@repo/auth` (ADR 0008).
-- [ ] File/attachment access remains organization-scoped when relevant.
-- [ ] Model output (assistant, AI todos) is untrusted input: validated before it is persisted or rendered, and never chooses organization scope or authorization.
-- [ ] Server-side requests to user-supplied URLs go through an allowlist of hosts and schemes.
+- [ ] Derived copies of organization data (search results, exports, audit-log entries, job payloads, emails, logs) keep the organization scope when they are read, not only when written.
+- [ ] Background jobs and other paths without a request context take the organization from the stored record and re-check membership when they run.
+- [ ] File and attachment access stays organization-scoped, and an upload or download URL binds the operation, the exact object, the organization, and an expiry.
+- [ ] Model output (assistant, AI todos) is untrusted input: validated before it is persisted or rendered, and never chooses organization scope or authorization. Assistant tools act with the requesting member's authority and active organization, never wider.
+- [ ] Server-side requests to user-supplied URLs go through an allowlist of hosts and schemes, and re-check the target after every redirect.
 - [ ] Log fields carry no secrets, tokens, passwords, or full request bodies (`@repo/logger`, `MONOREPO_GUIDE.md` section 9).
 
 ## Architecture & Boundaries
