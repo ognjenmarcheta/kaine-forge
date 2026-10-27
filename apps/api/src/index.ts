@@ -25,10 +25,15 @@ const { startApiRuntime } = await import("./api.runtime");
 const { registerApiShutdown } = await import("./api.shutdown");
 const { createApiServer } = await import("./server");
 const { resolveApiStartupConfig } = await import("./startup.config");
-const { startAttachmentSweep, sweepAttachmentObjects, sweepStaleObjects, withSweepLock } =
-  await import("./features/storage/attachment.sweep");
+const {
+  startAttachmentSweep,
+  sweepAttachmentObjects,
+  sweepDeletedOrganizations,
+  sweepStaleObjects,
+  withSweepLock
+} = await import("./features/storage/attachment.sweep");
 const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-assets.definition");
-const { s3ObjectStore } = await import("./features/storage/attachment.store");
+const { publicAssetStorage, s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
 const { startHousekeeping } = await import("./features/housekeeping/housekeeping.sweep");
 const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
@@ -87,9 +92,22 @@ if (sweep) {
           prefix: PUBLIC_ASSET_CONFIG.stagingPrefix,
           before: cutoff
         });
+        const organizations = await sweepDeletedOrganizations({
+          db: tx,
+          logger,
+          store: s3ObjectStore,
+          publicStorage: publicAssetStorage(),
+          pendingCutoff: cutoff
+        });
 
-        if (result.purged > 0 || result.failed > 0 || staged > 0) {
-          logger.info({ ...result, staged }, "attachment sweep finished");
+        if (
+          result.purged > 0 ||
+          result.failed > 0 ||
+          staged > 0 ||
+          organizations.deletedObjects > 0 ||
+          organizations.failed > 0
+        ) {
+          logger.info({ ...result, staged, organizations }, "attachment sweep finished");
         }
       });
     }

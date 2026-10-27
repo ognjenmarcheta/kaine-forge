@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   assertProductionAuthSecret,
+  buildInvitationUrl,
   getClientAuthConfig,
   getServerAuthConfig
 } from "./auth.config";
@@ -9,7 +10,8 @@ import {
 const originalEnv = {
   AUTH_REQUIRE_EMAIL_VERIFICATION: process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+  WEB_APP_URL: process.env.WEB_APP_URL
 };
 
 afterEach(() => {
@@ -20,6 +22,11 @@ afterEach(() => {
   }
   process.env.BETTER_AUTH_SECRET = originalEnv.BETTER_AUTH_SECRET;
   process.env.BETTER_AUTH_URL = originalEnv.BETTER_AUTH_URL;
+  if (originalEnv.WEB_APP_URL === undefined) {
+    delete process.env.WEB_APP_URL;
+  } else {
+    process.env.WEB_APP_URL = originalEnv.WEB_APP_URL;
+  }
 });
 
 describe("auth.config", () => {
@@ -27,11 +34,13 @@ describe("auth.config", () => {
     delete process.env.AUTH_REQUIRE_EMAIL_VERIFICATION;
     delete process.env.BETTER_AUTH_SECRET;
     delete process.env.BETTER_AUTH_URL;
+    delete process.env.WEB_APP_URL;
 
     expect(getServerAuthConfig()).toEqual({
       baseUrl: "http://localhost:4000",
       requireEmailVerification: false,
-      secret: "development-secret"
+      secret: "development-secret",
+      webAppUrl: "http://localhost:3000"
     });
     expect(getClientAuthConfig()).toEqual({
       baseUrl: "http://localhost:4000"
@@ -42,11 +51,13 @@ describe("auth.config", () => {
     process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = "true";
     process.env.BETTER_AUTH_SECRET = "production-secret-value-with-enough-length";
     process.env.BETTER_AUTH_URL = "https://auth.example.com";
+    process.env.WEB_APP_URL = "https://app.example.com";
 
     expect(getServerAuthConfig()).toEqual({
       baseUrl: "https://auth.example.com",
       requireEmailVerification: true,
-      secret: "production-secret-value-with-enough-length"
+      secret: "production-secret-value-with-enough-length",
+      webAppUrl: "https://app.example.com"
     });
     expect(getClientAuthConfig()).toEqual({
       baseUrl: "https://auth.example.com"
@@ -66,5 +77,14 @@ describe("auth.config", () => {
     expect(() =>
       assertProductionAuthSecret("a-sufficiently-long-random-secret-value-here", "production")
     ).not.toThrow();
+  });
+
+  it("builds an absolute invitation URL on the web origin", () => {
+    expect(buildInvitationUrl("https://app.example.com", "inv-1")).toBe(
+      "https://app.example.com/invitations/inv-1"
+    );
+    expect(buildInvitationUrl("https://app.example.com/", "a/b")).toBe(
+      "https://app.example.com/invitations/a%2Fb"
+    );
   });
 });

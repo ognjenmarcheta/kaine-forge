@@ -128,9 +128,17 @@ function createClientStub() {
       resetPassword: vi.fn(async () => stubResult({ success: true })),
       sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
     },
+    $fetch: vi.fn(async () => stubResult<Record<string, unknown>>({})),
     organization: {
       list: vi.fn(async () =>
-        stubResult<{ createdAt?: string; id: string; name: string; slug: string }[]>([])
+        stubResult<
+          { createdAt?: string; id: string; name: string; personal?: boolean; slug: string }[]
+        >([])
+      ),
+      listInvitations: vi.fn(async () =>
+        stubResult<
+          { email: string; expiresAt: string; id: string; role: string; status: string }[]
+        >([])
       ),
       listMembers: vi.fn(async () => stubResult({ members: [] as MemberData[], total: 0 })),
       setActive: vi.fn(async () => stubResult<Record<string, unknown>>({})),
@@ -557,7 +565,10 @@ describe("createAuthTransport", () => {
     const client = createClientStub();
     client.getSession.mockResolvedValue(sessionPayload("org-2"));
     client.organization.list.mockResolvedValue({
-      data: [{ id: "org-2", name: "Acme", slug: "acme", createdAt: "2026-01-01" }],
+      data: [
+        { id: "org-1", name: "Personal", slug: "personal-1", personal: true },
+        { id: "org-2", name: "Acme", slug: "acme", createdAt: "2026-01-01" }
+      ],
       error: null
     });
     createAuthClientMock.mockReturnValue(client);
@@ -566,8 +577,69 @@ describe("createAuthTransport", () => {
 
     await expect(transport.listOrganizations()).resolves.toEqual({
       activeOrganizationId: "org-2",
-      organizations: [{ id: "org-2", name: "Acme", slug: "acme" }]
+      organizations: [
+        { id: "org-1", name: "Personal", slug: "personal-1", personal: true },
+        { id: "org-2", name: "Acme", slug: "acme", personal: false }
+      ]
     });
+  });
+
+  it("lists only pending, unexpired invitations", async () => {
+    const client = createClientStub();
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    client.organization.listInvitations.mockResolvedValue(
+      stubResult([
+        {
+          id: "pending",
+          email: "a@example.com",
+          role: "member",
+          status: "pending",
+          expiresAt: future
+        },
+        {
+          id: "expired",
+          email: "b@example.com",
+          role: "member",
+          status: "pending",
+          expiresAt: past
+        },
+        {
+          id: "accepted",
+          email: "c@example.com",
+          role: "admin",
+          status: "accepted",
+          expiresAt: future
+        }
+      ])
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.listInvitations()).resolves.toEqual([
+      {
+        id: "pending",
+        email: "a@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: future
+      }
+    ]);
+  });
+
+  it("leaves and deletes without sending an organization id", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.leaveOrganization()).resolves.toEqual(expectedSession());
+    await expect(transport.deleteOrganization()).resolves.toEqual(expectedSession());
+    expect(client.$fetch.mock.calls).toEqual([
+      ["/organization/leave", { method: "POST", body: {} }],
+      ["/organization/delete", { method: "POST", body: {} }]
+    ]);
   });
 
   it("maps organization members from the better-auth member payload", async () => {

@@ -12,6 +12,10 @@ _Avoid_: account, team
 The organization selected on the current authenticated session for scoped data access.
 _Avoid_: selected team, current account
 
+**Personal Organization**:
+The **Organization** every **User** gets at signup, marked on the organization record. It cannot be deleted, left, or have its ownership transferred; the server refuses each. If the user no longer belongs to it, they get a new **Personal Organization**, never the old membership back.
+_Avoid_: default workspace, private account
+
 **Organization Membership**:
 The relationship proving a **User** belongs to an **Organization**, including the user's role in that Organization.
 _Avoid_: team membership, account access
@@ -44,6 +48,7 @@ _Avoid_: account activation
 
 - A **User** belongs to one or more **Organizations** through membership.
 - An **Organization Membership** belongs to exactly one **User** and exactly one **Organization**.
+- A **User** owns at least one **Personal Organization**; an owner can transfer any other **Organization** to another member.
 - A **Session** has zero or one **Active Organization** before authentication checks, and scoped API work requires one.
 - An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Active Organization**.
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.

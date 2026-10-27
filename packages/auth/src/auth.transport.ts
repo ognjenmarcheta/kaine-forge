@@ -2,12 +2,16 @@ import { createAuthClient } from "better-auth/client";
 import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
 
 import type {
+  AssignableOrganizationRole,
+  AuthInvitation,
+  AuthInvitationDetails,
   AuthOrganizationMember,
   AuthOrganizationsResult,
   AuthSession,
   AuthSocialProvider,
   ClientAuth,
   CreateOrganizationInput,
+  InviteMemberInput,
   LoginInput,
   ResetPasswordWithEmailOtpInput,
   SendEmailOtpInput,
@@ -88,7 +92,15 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   ACCOUNT_TEMPORARILY_LOCKED: "auth.error.accountLocked",
   INVALID_TWO_FACTOR_COOKIE: "auth.error.twoFactorExpired",
   MISSING_RESPONSE: "auth.error.captcha",
-  VERIFICATION_FAILED: "auth.error.captcha"
+  VERIFICATION_FAILED: "auth.error.captcha",
+  // Organization management (packages/translation organizations.json).
+  USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION: "organizations.error.alreadyMember",
+  USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION: "organizations.error.alreadyInvited",
+  YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER: "organizations.error.onlyOwner",
+  PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "organizations.error.personalDelete",
+  PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "organizations.error.personalLeave",
+  PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
+  YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail"
 };
 
 export function getAuthErrorMessageKey(error: unknown): string {
@@ -117,8 +129,28 @@ export interface AuthTransportAdapter {
   clientPlugins?: readonly unknown[] | undefined;
 }
 
+// Organization management acts on the session's Active Organization: no
+// method sends an organization id, the server resolves it from the session.
 export interface AuthTransport extends ClientAuth {
   listOrganizationMembers(): Promise<AuthOrganizationMember[]>;
+  /** Pending, unexpired Invitations of the Active Organization. */
+  listInvitations(): Promise<AuthInvitation[]>;
+  inviteMember(input: InviteMemberInput): Promise<AuthInvitation>;
+  cancelInvitation(invitationId: string): Promise<void>;
+  /** Fails with YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION for another email. */
+  getInvitation(invitationId: string): Promise<AuthInvitationDetails>;
+  /** Joins the Invitation's Organization and makes it active. */
+  acceptInvitation(invitationId: string): Promise<AuthSession>;
+  rejectInvitation(invitationId: string): Promise<void>;
+  removeMember(memberId: string): Promise<void>;
+  updateMemberRole(input: { memberId: string; role: AssignableOrganizationRole }): Promise<void>;
+  /** Makes the member owner and the caller admin. */
+  transferOwnership(memberId: string): Promise<void>;
+  renameOrganization(name: string): Promise<void>;
+  /** The session switches to another Organization the user belongs to. */
+  leaveOrganization(): Promise<AuthSession>;
+  /** The session switches to another Organization the user belongs to. */
+  deleteOrganization(): Promise<AuthSession>;
   /** Completes a password sign-in that threw TWO_FACTOR_REQUIRED. */
   verifyTwoFactor(input: VerifyTwoFactorInput): Promise<AuthSession>;
   /** Emails a second-factor code during a pending two-factor sign-in. */
@@ -186,6 +218,22 @@ function readTwoFactorMethods(data: unknown): TwoFactorMethod[] | null {
 
 function toIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function toAuthInvitation(invitation: {
+  email: string;
+  expiresAt: Date | string;
+  id: string;
+  role: string;
+  status: string;
+}): AuthInvitation {
+  return {
+    id: invitation.id,
+    email: invitation.email,
+    role: invitation.role,
+    status: invitation.status,
+    expiresAt: toIsoString(invitation.expiresAt)
+  };
 }
 
 function isSlugConflict(error: TransportRequestError): boolean {
@@ -462,7 +510,9 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         organizations: (organizationsResult.data ?? []).map((organization) => ({
           id: organization.id,
           name: organization.name,
-          slug: organization.slug
+          slug: organization.slug,
+          // A server-only additional field the client plugin does not type.
+          personal: "personal" in organization && organization.personal === true
         }))
       };
     },
@@ -481,6 +531,135 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         name: member.user.name,
         role: member.role
       }));
+    },
+    async listInvitations() {
+      const { data, error } = await client.organization.listInvitations();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      const now = Date.now();
+
+      return (data ?? [])
+        .map(toAuthInvitation)
+        .filter(
+          (invitation) =>
+            invitation.status === "pending" && new Date(invitation.expiresAt).getTime() > now
+        );
+    },
+    async inviteMember(inviteInput: InviteMemberInput) {
+      const { data, error } = await client.organization.inviteMember({
+        email: inviteInput.email,
+        role: inviteInput.role
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      if (!data) {
+        throw new Error("invite-member returned no invitation");
+      }
+
+      return toAuthInvitation(data);
+    },
+    async cancelInvitation(invitationId: string) {
+      const { error } = await client.organization.cancelInvitation({ invitationId });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async getInvitation(invitationId: string) {
+      const { data, error } = await client.organization.getInvitation({
+        query: { id: invitationId }
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      if (!data) {
+        throw new Error("get-invitation returned no invitation");
+      }
+
+      return {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        organizationName: data.organizationName,
+        expiresAt: toIsoString(data.expiresAt)
+      };
+    },
+    async acceptInvitation(invitationId: string) {
+      const { error } = await client.organization.acceptInvitation({ invitationId });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async rejectInvitation(invitationId: string) {
+      const { error } = await client.organization.rejectInvitation({ invitationId });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async removeMember(memberId: string) {
+      const { error } = await client.organization.removeMember({ memberIdOrEmail: memberId });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async updateMemberRole(roleInput: { memberId: string; role: AssignableOrganizationRole }) {
+      const { error } = await client.organization.updateMemberRole({
+        memberId: roleInput.memberId,
+        role: roleInput.role
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async transferOwnership(memberId: string) {
+      const { error } = await client.$fetch("/organization/transfer-ownership", {
+        method: "POST",
+        body: { memberId }
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async renameOrganization(name: string) {
+      const { error } = await client.organization.update({ data: { name } });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async leaveOrganization() {
+      // The typed client requires an organizationId; the server fills it in.
+      const { error } = await client.$fetch("/organization/leave", { method: "POST", body: {} });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async deleteOrganization() {
+      const { error } = await client.$fetch("/organization/delete", { method: "POST", body: {} });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
     },
     async setActiveOrganization(organizationId: string) {
       const { error } = await client.organization.setActive({ organizationId });

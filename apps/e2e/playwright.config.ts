@@ -49,6 +49,7 @@ export default defineConfig({
         // UI flows share one loopback IP. Rate-limit behavior has dedicated API tests.
         API_RATE_LIMIT_MAX: "1000",
         BETTER_AUTH_URL: "http://127.0.0.1:4010",
+        WEB_APP_URL: "http://127.0.0.1:3010",
         API_CORS_ORIGINS: "http://127.0.0.1:3010",
         // No third-party calls from e2e: the Have I Been Pwned check stays off
         // and captcha is off because TURNSTILE_SECRET_KEY is unset. Both are

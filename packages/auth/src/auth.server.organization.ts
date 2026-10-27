@@ -2,7 +2,7 @@ import { db, membersTable, organizationsTable, usersTable } from "@repo/db";
 import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { ORGANIZATION_ROLES } from "./auth.permissions";
+import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "./auth.permissions";
 import type { AuthenticatedOrganizationScope } from "./auth.scope";
 import type { OrganizationMembershipProof } from "./auth.scope";
 import type { AuthOrganization, AuthOrganizationMember } from "./auth.type";
@@ -17,42 +17,51 @@ function personalOrganizationSlug(userId: string): string {
   return `personal-${userId.slice(0, 8)}`;
 }
 
-async function findOldestOrganizationForUser(userId: string) {
-  const existing = await db
-    .select()
-    .from(organizationsTable)
-    .where(eq(organizationsTable.userId, userId))
-    .orderBy(asc(organizationsTable.createdAt))
-    .limit(1);
+// Why the server refuses an organization action. Each value is also the
+// better-auth error code the web app translates.
+export const ORGANIZATION_REFUSALS = {
+  ACTIVE_ORGANIZATION_MISMATCH: "ACTIVE_ORGANIZATION_MISMATCH",
+  NO_ACTIVE_ORGANIZATION: "NO_ACTIVE_ORGANIZATION",
+  ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP: "ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP",
+  OWNER_ROLE_REQUIRES_TRANSFER: "OWNER_ROLE_REQUIRES_TRANSFER",
+  PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "PERSONAL_ORGANIZATION_CANNOT_BE_DELETED",
+  PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "PERSONAL_ORGANIZATION_CANNOT_BE_LEFT",
+  PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED",
+  TRANSFER_TARGET_NOT_FOUND: "TRANSFER_TARGET_NOT_FOUND"
+} as const;
 
-  return existing[0];
+export type OrganizationRefusal =
+  (typeof ORGANIZATION_REFUSALS)[keyof typeof ORGANIZATION_REFUSALS];
+
+// The user's personal organizations, oldest first, each with the user's
+// membership id or null when they no longer belong to it.
+async function findPersonalOrganizationsForUser(userId: string) {
+  return db
+    .select({ organization: organizationsTable, memberId: membersTable.id })
+    .from(organizationsTable)
+    .leftJoin(
+      membersTable,
+      and(eq(membersTable.organizationId, organizationsTable.id), eq(membersTable.userId, userId))
+    )
+    .where(and(eq(organizationsTable.userId, userId), eq(organizationsTable.personal, true)))
+    .orderBy(asc(organizationsTable.createdAt));
 }
 
 export async function ensurePersonalOrganizationForUser(userId: string) {
-  const currentOrganization = await findOldestOrganizationForUser(userId);
+  const personalOrganizations = await findPersonalOrganizationsForUser(userId);
+  const current = personalOrganizations.find((row) => row.memberId !== null);
 
-  if (currentOrganization) {
-    const existingMembership = await db
-      .select({ id: membersTable.id })
-      .from(membersTable)
-      .where(
-        and(
-          eq(membersTable.userId, userId),
-          eq(membersTable.organizationId, currentOrganization.id)
-        )
-      )
-      .limit(1);
+  if (current) {
+    return current.organization;
+  }
 
-    if (existingMembership[0]) {
-      return currentOrganization;
-    }
-
-    // The user created this organization but no longer belongs to it: an owner
-    // removed them, or they left. Never restore that membership. Start a new
-    // personal organization; its slug must differ from the original one.
+  if (personalOrganizations.length > 0) {
+    // The user no longer belongs to their personal organization: an owner
+    // removed them. Never restore that membership. Start a new personal
+    // organization; its slug must differ from the original one.
     const [replacement] = await db
       .insert(organizationsTable)
-      .values({ userId, name: "Personal", slug: `personal-${randomUUID()}` })
+      .values({ userId, name: "Personal", slug: `personal-${randomUUID()}`, personal: true })
       .returning();
 
     if (!replacement) {
@@ -73,7 +82,8 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
     .values({
       userId,
       name: "Personal",
-      slug: personalOrganizationSlug(userId)
+      slug: personalOrganizationSlug(userId),
+      personal: true
     })
     // Two concurrent first sign-ins can both pass the existence check; the
     // loser's slug conflict yields an empty returning array instead of a 500,
@@ -81,7 +91,8 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
     .onConflictDoNothing()
     .returning();
 
-  const organization = createdOrganizations[0] ?? (await findOldestOrganizationForUser(userId));
+  const organization =
+    createdOrganizations[0] ?? (await findPersonalOrganizationsForUser(userId))[0]?.organization;
 
   if (!organization) {
     throw new Error("failed to create personal organization");
@@ -97,6 +108,77 @@ export async function ensurePersonalOrganizationForUser(userId: string) {
     .onConflictDoNothing();
 
   return organization;
+}
+
+export async function isPersonalOrganization(organizationId: string): Promise<boolean> {
+  const [organization] = await db
+    .select({ personal: organizationsTable.personal })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, organizationId))
+    .limit(1);
+
+  return organization?.personal === true;
+}
+
+/**
+ * Hands an organization to another member in one transaction: the target
+ * becomes owner, the caller becomes admin, and organizations.user_id moves to
+ * the target, so deleting the old owner's account cannot cascade the
+ * organization away. Returns why it refused, or null when it moved ownership.
+ */
+export async function transferOrganizationOwnership(params: {
+  organizationId: string;
+  targetMemberId: string;
+  userId: string;
+}): Promise<OrganizationRefusal | null> {
+  return db.transaction(async (tx) => {
+    const [organization] = await tx
+      .select({ personal: organizationsTable.personal })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, params.organizationId))
+      .for("update");
+
+    if (!organization) {
+      return ORGANIZATION_REFUSALS.NO_ACTIVE_ORGANIZATION;
+    }
+
+    if (organization.personal) {
+      return ORGANIZATION_REFUSALS.PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED;
+    }
+
+    const members = await tx
+      .select({ id: membersTable.id, role: membersTable.role, userId: membersTable.userId })
+      .from(membersTable)
+      .where(eq(membersTable.organizationId, params.organizationId));
+    const caller = members.find((member) => member.userId === params.userId);
+    const target = members.find((member) => member.id === params.targetMemberId);
+
+    // SAFETY: member roles are written only by the better-auth organization
+    // plugin and this module from the ORGANIZATION_ROLES vocabulary, and
+    // hasRoleAtLeast fails closed (returns false) for any other string.
+    if (!caller || !hasRoleAtLeast(caller.role as OrganizationRole, ORGANIZATION_ROLES.OWNER)) {
+      return ORGANIZATION_REFUSALS.ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP;
+    }
+
+    if (!target || target.id === caller.id) {
+      return ORGANIZATION_REFUSALS.TRANSFER_TARGET_NOT_FOUND;
+    }
+
+    await tx
+      .update(membersTable)
+      .set({ role: ORGANIZATION_ROLES.ADMIN })
+      .where(eq(membersTable.id, caller.id));
+    await tx
+      .update(membersTable)
+      .set({ role: ORGANIZATION_ROLES.OWNER })
+      .where(eq(membersTable.id, target.id));
+    await tx
+      .update(organizationsTable)
+      .set({ userId: target.userId })
+      .where(eq(organizationsTable.id, params.organizationId));
+
+    return null;
+  });
 }
 
 export async function createOwnedOrganizationForUser(params: {

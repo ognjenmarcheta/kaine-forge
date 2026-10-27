@@ -42,6 +42,16 @@ describe("validateApiEnv", () => {
     expect(() => validateApiEnv({ ...validEnv, API_PORT: "not-a-port" })).toThrow(/API_PORT/);
   });
 
+  it("accepts a web app URL and rejects a value that is not a URL", () => {
+    expect(
+      validateApiEnv({ ...validEnv, WEB_APP_URL: "https://app.example.com" }).WEB_APP_URL
+    ).toBe("https://app.example.com");
+    expect(validateApiEnv({ ...validEnv, WEB_APP_URL: "" }).WEB_APP_URL).toBeUndefined();
+    expect(() => validateApiEnv({ ...validEnv, WEB_APP_URL: "app.example.com" })).toThrow(
+      /WEB_APP_URL/
+    );
+  });
+
   it("passes through optional values untouched", () => {
     const env = validateApiEnv({ ...validEnv, API_HOST: "0.0.0.0", LOG_LEVEL: "debug" });
     expect(env.API_HOST).toBe("0.0.0.0");

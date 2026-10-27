@@ -1,6 +1,7 @@
-import { filesTable } from "@repo/db/schema";
+import { filesTable, organizationStoragePurgesTable } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
+import { publicAssetKeyFromUrl, type PublicAssetConfig } from "@repo/storage";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import { objectRefsOf, type ObjectStore } from "./attachment.store";
@@ -127,6 +128,99 @@ export async function sweepStaleObjects({
   );
 
   return outcomes.filter(Boolean).length;
+}
+
+/**
+ * Deletes what a deleted Organization left in storage: every private object
+ * under its `<organizationId>/` prefix and its logo in the public bucket. The
+ * organizations delete trigger queues each one in organization_storage_purges,
+ * also on a cascade from a deleted user. A queued row stays until every delete
+ * succeeds, its prefix is empty, and `pendingCutoff` has passed its deletion,
+ * so an upload URL issued just before the deletion cannot leave an object
+ * behind and a failed logo delete is retried.
+ */
+export async function sweepDeletedOrganizations({
+  db,
+  logger,
+  store,
+  publicStorage,
+  pendingCutoff,
+  batchSize = STORAGE_CONFIG.sweep.batchSize
+}: {
+  db: Database;
+  logger: Pick<Logger, "warn">;
+  store: Pick<ObjectStore, "delete" | "listBefore">;
+  /** The public bucket of organization logos, or null when Public Assets are off. */
+  publicStorage: PublicAssetConfig | null;
+  pendingCutoff: Date;
+  batchSize?: number;
+}): Promise<{ deletedObjects: number; failed: number }> {
+  const totals = { deletedObjects: 0, failed: 0 };
+  const purges = await db
+    .select()
+    .from(organizationStoragePurgesTable)
+    .orderBy(asc(organizationStoragePurgesTable.createdAt))
+    .limit(batchSize);
+
+  for (const purge of purges) {
+    const logoKey =
+      purge.logo && publicStorage ? publicAssetKeyFromUrl(publicStorage.baseUrl, purge.logo) : null;
+
+    // A logo that fails to delete keeps the row queued for a retry, like a
+    // private object, but never blocks the private cleanup below.
+    let failed = false;
+
+    if (publicStorage && logoKey) {
+      try {
+        await store.delete({ bucket: publicStorage.bucket, key: logoKey });
+      } catch (err) {
+        failed = true;
+        logger.warn(
+          { error: formatLoggableError(err), organizationId: purge.organizationId },
+          "failed to delete deleted organization logo"
+        );
+      }
+    }
+
+    for (;;) {
+      const refs = await store.listBefore(`${purge.organizationId}/`, new Date(), batchSize);
+      const outcomes = await Promise.all(
+        refs.map(async (ref) => {
+          try {
+            await store.delete(ref);
+            return true;
+          } catch (err) {
+            logger.warn(
+              { error: formatLoggableError(err), key: ref.key },
+              "failed to delete deleted organization object"
+            );
+            return false;
+          }
+        })
+      );
+      const deleted = outcomes.filter(Boolean).length;
+      totals.deletedObjects += deleted;
+
+      if (deleted < outcomes.length) {
+        failed = true;
+        break;
+      }
+
+      if (refs.length < batchSize) {
+        break;
+      }
+    }
+
+    if (failed) {
+      totals.failed += 1;
+    } else if (purge.createdAt < pendingCutoff) {
+      await db
+        .delete(organizationStoragePurgesTable)
+        .where(eq(organizationStoragePurgesTable.organizationId, purge.organizationId));
+    }
+  }
+
+  return totals;
 }
 
 /**

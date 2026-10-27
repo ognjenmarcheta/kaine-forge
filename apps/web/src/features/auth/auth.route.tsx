@@ -1,8 +1,10 @@
 import type { TwoFactorMethod } from "@repo/auth/transport";
 import { AuthLayout, Button, FieldDescription } from "@repo/ui";
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import { AUTH_DEFINITION } from "./auth.definition";
+import { resolveReturnPath } from "./auth.util";
 import { EmailOtpSignInForm } from "./components/email-otp-sign-in-form";
 import { LoginForm } from "./components/login-form";
 import { PasswordResetForm } from "./components/password-reset-form";
@@ -26,6 +28,8 @@ export function AuthRoute() {
   const { isLoading, session } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = resolveReturnPath(searchParams.get(AUTH_DEFINITION.returnPathParam));
   const [mode, setMode] = useState<AuthMode>("login");
   const [twoFactorMethods, setTwoFactorMethods] = useState<readonly TwoFactorMethod[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -34,14 +38,14 @@ export function AuthRoute() {
     setNotice(null);
     setMode(next);
   };
-  const goToDashboard = () => void navigate("/dashboard");
+  const goToReturnPath = () => void navigate(returnPath);
 
   if (isLoading) {
     return <AuthLayout subtitle={t("common.loadingSession")} title={t("common.loading")} />;
   }
 
   if (session) {
-    return <Navigate replace to="/dashboard" />;
+    return <Navigate replace to={returnPath} />;
   }
 
   const isPrimaryMode = mode === "login" || mode === "signup";
@@ -90,7 +94,7 @@ export function AuthRoute() {
       {mode === "login" ? (
         <>
           <LoginForm
-            onDone={goToDashboard}
+            onDone={goToReturnPath}
             onTwoFactorRequired={(methods) => {
               setTwoFactorMethods(methods);
               showMode("two-factor");
@@ -106,8 +110,8 @@ export function AuthRoute() {
           </div>
         </>
       ) : null}
-      {mode === "signup" ? <SignupForm onDone={goToDashboard} /> : null}
-      {mode === "email-code" ? <EmailOtpSignInForm onDone={goToDashboard} /> : null}
+      {mode === "signup" ? <SignupForm onDone={goToReturnPath} /> : null}
+      {mode === "email-code" ? <EmailOtpSignInForm onDone={goToReturnPath} /> : null}
       {mode === "reset" ? (
         <PasswordResetForm
           onReset={() => {
@@ -117,7 +121,7 @@ export function AuthRoute() {
         />
       ) : null}
       {mode === "two-factor" ? (
-        <TwoFactorChallenge methods={twoFactorMethods} onDone={goToDashboard} />
+        <TwoFactorChallenge methods={twoFactorMethods} onDone={goToReturnPath} />
       ) : null}
 
       {isPrimaryMode ? null : (

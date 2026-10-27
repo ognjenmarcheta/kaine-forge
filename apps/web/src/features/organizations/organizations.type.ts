@@ -1,6 +1,8 @@
 export interface OrganizationOption {
   id: string;
   name: string;
+  // A Personal Organization cannot be deleted or left.
+  personal?: boolean;
 }
 
 export interface OrganizationMember {

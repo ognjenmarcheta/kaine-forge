@@ -96,6 +96,25 @@ export async function createOrganizationRequest(name: string): Promise<AuthSessi
   return authTransport.createOrganization({ name });
 }
 
+// Organization management acts on the Active Organization; the server resolves
+// it from the session, so no request carries an organization id.
+export const organizationApi = {
+  acceptInvitation: (invitationId: string) => authTransport.acceptInvitation(invitationId),
+  cancelInvitation: (invitationId: string) => authTransport.cancelInvitation(invitationId),
+  deleteOrganization: () => authTransport.deleteOrganization(),
+  getInvitation: (invitationId: string) => authTransport.getInvitation(invitationId),
+  inviteMember: (input: Parameters<typeof authTransport.inviteMember>[0]) =>
+    authTransport.inviteMember(input),
+  leaveOrganization: () => authTransport.leaveOrganization(),
+  listInvitations: () => authTransport.listInvitations(),
+  rejectInvitation: (invitationId: string) => authTransport.rejectInvitation(invitationId),
+  removeMember: (memberId: string) => authTransport.removeMember(memberId),
+  renameOrganization: (name: string) => authTransport.renameOrganization(name),
+  transferOwnership: (memberId: string) => authTransport.transferOwnership(memberId),
+  updateMemberRole: (input: Parameters<typeof authTransport.updateMemberRole>[0]) =>
+    authTransport.updateMemberRole(input)
+};
+
 export async function signInWithSocialRequest(provider: AuthSocialProvider): Promise<void> {
   await authTransport.signInWithSocial(provider);
 }

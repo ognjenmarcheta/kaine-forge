@@ -282,6 +282,25 @@ describe("syncActiveOrganizationProvider", () => {
     expect(sync).not.toHaveBeenCalled();
   });
 
+  it("keeps the remembered Active Organization while the Session is still loading", async () => {
+    const persistActiveOrganizationId = vi.fn(async () => undefined);
+    const sync = vi.fn(async () => "org-1");
+
+    await expect(
+      syncActiveOrganizationProvider({
+        isSessionLoading: true,
+        lifecycle: { sync },
+        organizationsPayload: undefined,
+        persistActiveOrganizationId,
+        session: null,
+        setActiveOrganizationStatus: "idle"
+      })
+    ).resolves.toBeNull();
+
+    expect(persistActiveOrganizationId).not.toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
+  });
+
   it("syncs Active Organization once organization data is available", async () => {
     const persistActiveOrganizationId = vi.fn(async () => undefined);
     const sync = vi.fn(async () => "org-2");
@@ -333,6 +352,85 @@ describe("createActiveOrganizationMutationHandlers", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.organizations()
     });
+  });
+});
+
+describe("createActiveOrganizationLifecycle.sync with a stale organization list", () => {
+  it("keeps a remembered organization that the list does not show yet", async () => {
+    const persistActiveOrganizationId = vi.fn();
+    const setActiveOrganization = vi.fn(async (organizationId: string) => ({
+      activeOrganizationId: organizationId
+    }));
+    const lifecycle = createActiveOrganizationLifecycle({
+      isOrganizationUiVisible: () => true,
+      persistActiveOrganizationId,
+      queryClient: { invalidateQueries: vi.fn(async () => undefined), setQueryData: vi.fn() },
+      queryRuntime: createQueryRuntime(),
+      // Just created or accepted; the organization list has not refetched yet.
+      readActiveOrganizationId: () => "created",
+      setActiveOrganization
+    });
+
+    await lifecycle.sync({
+      organizations: [{ id: "personal" }],
+      session: { activeOrganizationId: "personal" }
+    });
+
+    expect(setActiveOrganization).not.toHaveBeenCalled();
+    expect(persistActiveOrganizationId).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyCreatedOrganization with the provider's sync", () => {
+  it("keeps the created organization active instead of the first listed one", async () => {
+    type Session = { activeOrganizationId: string | null };
+    let organizations = [{ id: "personal" }];
+    let rememberedOrganizationId: string | null = "personal";
+    const syncs: Promise<string | null>[] = [];
+    const setActiveOrganization = vi.fn(async (organizationId: string) => ({
+      activeOrganizationId: organizationId
+    }));
+    // A fake query client that behaves like the web and mobile providers: every
+    // session write re-runs sync against the organization list in the cache, and
+    // invalidating that list refetches it from the server.
+    const queryClient = {
+      invalidateQueries: vi.fn(async ({ queryKey }: { queryKey: readonly unknown[] }) => {
+        if (queryKey[0] === "organizations") {
+          organizations = [{ id: "personal" }, { id: "created" }];
+        }
+      }),
+      setQueryData: (queryKey: readonly unknown[], value: unknown) => {
+        // Capped: a wrong order makes sync switch back and forth without end.
+        if (queryKey.join("/") === queryKeys.session().join("/") && syncs.length < 5) {
+          syncs.push(
+            lifecycle.sync({ organizations: [...organizations], session: value as Session })
+          );
+        }
+      }
+    };
+    const persistActiveOrganizationId = (organizationId: string | null) => {
+      rememberedOrganizationId = organizationId;
+    };
+    const queryRuntime = createQueryRuntime();
+    const lifecycle = createActiveOrganizationLifecycle<Session>({
+      isOrganizationUiVisible: () => true,
+      persistActiveOrganizationId,
+      queryClient,
+      queryRuntime,
+      readActiveOrganizationId: () => rememberedOrganizationId,
+      setActiveOrganization
+    });
+    const handlers = createActiveOrganizationMutationHandlers({
+      persistActiveOrganizationId,
+      queryClient,
+      queryRuntime
+    });
+
+    await handlers.applyCreatedOrganization({ activeOrganizationId: "created" });
+    await Promise.all(syncs);
+
+    expect(setActiveOrganization).not.toHaveBeenCalled();
+    expect(rememberedOrganizationId).toBe("created");
   });
 });
 

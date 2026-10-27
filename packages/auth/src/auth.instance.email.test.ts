@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.stubEnv("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/dummy");
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
+vi.stubEnv("WEB_APP_URL", "https://app.example.com");
 
 const jobMocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
 
@@ -208,13 +209,13 @@ describe("auth.instance email hooks", () => {
     });
   });
 
-  it("enqueues the invitation email with the organization name and invitation id", async () => {
+  it("enqueues the invitation email with the organization name and accept URL", async () => {
     await sendInvitation("invited@example.com");
 
     expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
       to: "invited@example.com",
       subject: expect.stringContaining("Acme"),
-      text: expect.stringContaining("inv-1")
+      text: expect.stringContaining("https://app.example.com/invitations/inv-1")
     });
     expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("Acme");
   });

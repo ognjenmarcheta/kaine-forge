@@ -14,6 +14,15 @@ import type { EmailMessage } from "@repo/email";
 import { jobQueue } from "@repo/jobs/client";
 import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  APIError,
+  createAuthEndpoint,
+  createAuthMiddleware,
+  getSessionFromCtx,
+  isAPIError,
+  sessionMiddleware
+} from "better-auth/api";
+import { setSessionCookie } from "better-auth/cookies";
 // The minimal entry leaves out Kysely; the drizzle adapter owns database
 // access and drizzle-kit owns migrations (better-auth performance guide).
 import { betterAuth } from "better-auth/minimal";
@@ -25,14 +34,20 @@ import {
   organization,
   twoFactor
 } from "better-auth/plugins";
+import { z } from "zod";
 
-import { assertProductionAuthSecret, getServerAuthConfig } from "./auth.config";
+import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { hashPassword, verifyPassword } from "./auth.password";
+import { ORGANIZATION_ROLES } from "./auth.permissions";
 import {
   ensurePersonalOrganizationForUser,
-  resolveActiveOrganizationForUser
+  isPersonalOrganization,
+  ORGANIZATION_REFUSALS,
+  resolveActiveOrganizationForUser,
+  transferOrganizationOwnership,
+  type OrganizationRefusal
 } from "./auth.server.organization";
 
 // Adapter model names are pluralized (usePlural), so the schema map is keyed
@@ -161,6 +176,191 @@ function parseCommaList(value: string | undefined): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+// better-auth organization routes that act on one Organization through their
+// body. Clients send no organization id: the hook below fills in the session's
+// Active Organization and refuses any other id a client sends.
+const ACTIVE_ORGANIZATION_PATHS = new Set([
+  "/organization/invite-member",
+  "/organization/remove-member",
+  "/organization/update-member-role",
+  "/organization/update",
+  "/organization/leave",
+  "/organization/delete"
+]);
+
+// Routes that change the session's Active Organization in the database
+// without refreshing the session cookie cache.
+const ACTIVE_ORGANIZATION_CHANGE_PATHS = new Set([
+  "/organization/create",
+  "/organization/leave",
+  "/organization/delete",
+  "/organization/accept-invitation"
+]);
+
+const ORGANIZATION_REFUSAL_RESPONSES: Record<
+  OrganizationRefusal,
+  { message: string; status: "BAD_REQUEST" | "FORBIDDEN" }
+> = {
+  ACTIVE_ORGANIZATION_MISMATCH: {
+    message: "Organization actions apply only to the active organization",
+    status: "FORBIDDEN"
+  },
+  NO_ACTIVE_ORGANIZATION: { message: "No active organization", status: "BAD_REQUEST" },
+  ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP: {
+    message: "Only an owner can transfer ownership",
+    status: "FORBIDDEN"
+  },
+  OWNER_ROLE_REQUIRES_TRANSFER: {
+    message: "Ownership moves only through a transfer",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: {
+    message: "A personal organization cannot be deleted",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: {
+    message: "A personal organization cannot be left",
+    status: "BAD_REQUEST"
+  },
+  PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: {
+    message: "A personal organization cannot be transferred",
+    status: "BAD_REQUEST"
+  },
+  TRANSFER_TARGET_NOT_FOUND: {
+    message: "The new owner must be another member of the organization",
+    status: "BAD_REQUEST"
+  }
+};
+
+function refuse(code: OrganizationRefusal): APIError {
+  const { message, status } = ORGANIZATION_REFUSAL_RESPONSES[code];
+  return APIError.from(status, { code, message });
+}
+
+// activeOrganizationId is an organization-plugin session field that the
+// core session types do not declare.
+function readActiveOrganizationId(session: Readonly<Record<string, unknown>>): string | null {
+  return typeof session.activeOrganizationId === "string" ? session.activeOrganizationId : null;
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? { ...value } : {};
+}
+
+// Server-side rules on top of the organization plugin's own role checks: the
+// Active Organization comes from the session, a Personal Organization cannot
+// be deleted or left, and ownership moves only through the transfer endpoint.
+const organizationGuardHook = createAuthMiddleware(async (ctx) => {
+  if (!ACTIVE_ORGANIZATION_PATHS.has(ctx.path)) {
+    return;
+  }
+
+  const session = await getSessionFromCtx(ctx);
+
+  if (!session) {
+    // The route itself answers an unauthenticated request.
+    return;
+  }
+
+  const body = readRecord(ctx.body);
+  const organizationId = readActiveOrganizationId(session.session);
+
+  if (!organizationId) {
+    throw refuse(ORGANIZATION_REFUSALS.NO_ACTIVE_ORGANIZATION);
+  }
+
+  if (body.organizationId !== undefined && body.organizationId !== organizationId) {
+    throw refuse(ORGANIZATION_REFUSALS.ACTIVE_ORGANIZATION_MISMATCH);
+  }
+
+  // An invite or a role change gives admin or member only; the role may be a
+  // string or an array.
+  if (
+    (ctx.path === "/organization/update-member-role" ||
+      ctx.path === "/organization/invite-member") &&
+    [body.role].flat().includes(ORGANIZATION_ROLES.OWNER)
+  ) {
+    throw refuse(ORGANIZATION_REFUSALS.OWNER_ROLE_REQUIRES_TRANSFER);
+  }
+
+  if (
+    (ctx.path === "/organization/delete" || ctx.path === "/organization/leave") &&
+    (await isPersonalOrganization(organizationId))
+  ) {
+    throw refuse(
+      ctx.path === "/organization/delete"
+        ? ORGANIZATION_REFUSALS.PERSONAL_ORGANIZATION_CANNOT_BE_DELETED
+        : ORGANIZATION_REFUSALS.PERSONAL_ORGANIZATION_CANNOT_BE_LEFT
+    );
+  }
+
+  return { context: { body: { ...body, organizationId } } };
+});
+
+// Leave and delete clear the Active Organization; create and accept set it.
+// Each writes only the session row, so a cookie client would read the old
+// value from its cookie cache. Pick a valid Active Organization (another
+// membership, or a personal organization) and refresh the cookie.
+const activeOrganizationRefreshHook = createAuthMiddleware(async (ctx) => {
+  if (!ACTIVE_ORGANIZATION_CHANGE_PATHS.has(ctx.path) || isAPIError(ctx.context.returned)) {
+    return;
+  }
+
+  const session = await getSessionFromCtx(ctx);
+
+  if (!session) {
+    return;
+  }
+
+  const stored = await ctx.context.internalAdapter.findSession(session.session.token);
+  const activeOrganizationId = await resolveActiveOrganizationForUser({
+    requestedActiveOrganizationId: stored ? readActiveOrganizationId(stored.session) : null,
+    userId: session.user.id
+  });
+  const updated = await ctx.context.internalAdapter.updateSession(session.session.token, {
+    activeOrganizationId
+  });
+
+  if (updated) {
+    await setSessionCookie(ctx, { session: updated, user: session.user });
+  }
+});
+
+// The organization plugin has no transfer-ownership route; this one moves
+// ownership of the Active Organization in one database transaction.
+const organizationOwnershipPlugin = {
+  id: "organization-ownership",
+  endpoints: {
+    transferOrganizationOwnership: createAuthEndpoint(
+      "/organization/transfer-ownership",
+      {
+        method: "POST",
+        body: z.object({ memberId: z.string().min(1) }),
+        use: [sessionMiddleware]
+      },
+      async (ctx) => {
+        const organizationId = readActiveOrganizationId(ctx.context.session.session);
+
+        if (!organizationId) {
+          throw refuse(ORGANIZATION_REFUSALS.NO_ACTIVE_ORGANIZATION);
+        }
+
+        const refusal = await transferOrganizationOwnership({
+          organizationId,
+          targetMemberId: ctx.body.memberId,
+          userId: ctx.context.session.user.id
+        });
+
+        if (refusal) {
+          throw refuse(refusal);
+        }
+
+        return ctx.json({ success: true });
+      }
+    )
+  }
+} satisfies BetterAuthPlugin;
+
 /** Deep-link scheme for Expo OAuth return (must match apps/mobile app.json scheme). */
 export const EXPO_AUTH_SCHEME = "kaineforge";
 
@@ -263,6 +463,10 @@ export function createAuthInstance() {
     // Rate limiting for /api/auth and /graphql is handled by our own API
     // middleware, so better-auth's built-in limiter stays off.
     rateLimit: { enabled: false },
+    hooks: {
+      before: organizationGuardHook,
+      after: activeOrganizationRefreshHook
+    },
     advanced: {
       cookiePrefix: "kaine",
       // Stated rather than inherited from better-auth defaults, so a library
@@ -326,7 +530,7 @@ export function createAuthInstance() {
           enqueueAuthEmail({
             to: data.email,
             subject: `You have been invited to ${data.organization.name}`,
-            text: `You were invited to join ${data.organization.name} as ${data.role}. Sign in with this email address and accept invitation ${data.id}.`
+            text: `You were invited to join ${data.organization.name} as ${data.role}. Sign in with this email address to accept or decline: ${buildInvitationUrl(config.webAppUrl, data.id)}`
           });
         },
         schema: {
@@ -340,6 +544,14 @@ export function createAuthInstance() {
                 type: "string",
                 required: false,
                 input: false
+              },
+              // Set only by ensurePersonalOrganizationForUser; returned so
+              // clients can hide leave and delete for a Personal Organization.
+              personal: {
+                type: "boolean",
+                required: false,
+                input: false,
+                defaultValue: false
               }
             }
           }
@@ -350,6 +562,7 @@ export function createAuthInstance() {
           })
         }
       }),
+      organizationOwnershipPlugin,
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).
