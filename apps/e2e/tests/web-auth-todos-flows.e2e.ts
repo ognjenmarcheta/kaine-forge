@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { AUTH_LABELS, NAV_LABELS, signIn } from "./helpers/auth";
+import { AUTH_LABELS, NAV_LABELS, signIn, signUp } from "./helpers/auth";
 
 const TODOS_CREATE_NAME = /^(New todo|todos\.create)$/;
 const TODOS_TITLE_LABEL = /^(Title|todos\.form\.titlePlaceholder)$/;
@@ -18,16 +18,7 @@ test("registers a new account, signs out, and signs back in", async ({ page }) =
     password: `E2e-${uniqueSuffix}-Pass!`
   } as const;
 
-  await page.goto("/auth");
-  // In login mode the only "Create account" button is the mode switcher.
-  await page.getByRole("button", { name: AUTH_LABELS.signup }).click();
-
-  await page.getByLabel(AUTH_LABELS.name).fill(account.name);
-  await page.getByLabel(AUTH_LABELS.email).fill(account.email);
-  await page.getByLabel(AUTH_LABELS.password).fill(account.password);
-  await page.getByLabel(AUTH_LABELS.confirmPassword).fill(account.password);
-  await page.locator("form").getByRole("button", { name: AUTH_LABELS.signup }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await signUp(page, account);
 
   // Sign out through the user menu; the trigger is named after the user.
   await page.getByRole("button", { name: account.name }).click();

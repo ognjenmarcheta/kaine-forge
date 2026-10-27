@@ -1,3 +1,4 @@
+import type { AuthInvitation } from "@repo/auth/auth.type";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
@@ -17,10 +18,15 @@ import { ORGANIZATIONS_DEFINITION } from "../organizations.definition";
 import { assignableRoleOptions } from "../organizations.util";
 
 interface OrganizationInviteFormProps {
-  customRoleNames: readonly string[];
+  /** Custom Roles to offer next to the built-in roles. */
+  customRoleNames?: readonly string[];
+  onInvited?: (invitation: AuthInvitation) => void;
 }
 
-export function OrganizationInviteForm({ customRoleNames }: OrganizationInviteFormProps) {
+export function OrganizationInviteForm({
+  customRoleNames = [],
+  onInvited
+}: OrganizationInviteFormProps = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emailId = useId();
@@ -30,8 +36,9 @@ export function OrganizationInviteForm({ customRoleNames }: OrganizationInviteFo
   const [notice, setNotice] = useState<string | null>(null);
   const invite = useMutation({
     mutationFn: organizationApi.inviteMember,
-    onSuccess: async () => {
+    onSuccess: async (invitation) => {
       setEmail("");
+      onInvited?.(invitation);
       setNotice(t("organizations.invite.sent"));
       await queryClient.invalidateQueries({
         queryKey: ORGANIZATIONS_DEFINITION.invitationsScope

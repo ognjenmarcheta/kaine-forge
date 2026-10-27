@@ -38,6 +38,7 @@
   "organizations.error.personalDelete": "Sie können Ihre persönliche Organisation nicht löschen.",
   "organizations.error.personalLeave": "Sie können Ihre persönliche Organisation nicht verlassen.",
   "organizations.error.personalTransfer": "Sie können Ihre persönliche Organisation nicht übertragen.",
+  "organizations.error.nameTooLong": "Der Organisationsname darf höchstens 64 Zeichen lang sein.",
   "organizations.invitation.title": "Einladung",
   "organizations.invitation.subtitle": "Sie sind eingeladen, dieser Organisation beizutreten.",
   "organizations.invitation.accept": "Annehmen",

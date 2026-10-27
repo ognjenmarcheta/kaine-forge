@@ -1,5 +1,5 @@
 {
-  "id": "1bf3f335-79d8-4756-b330-51236e102f80",
+  "id": "2df2bac5-0a1f-40b7-bc35-ea7ef8ce0327",
   "prevId": "757f3089-aedc-4b46-8f1f-ce90ae475b7b",
   "version": "7",
   "dialect": "postgresql",
@@ -637,7 +637,7 @@
         },
         "role": {
           "name": "role",
-          "type": "text",
+          "type": "varchar(32)",
           "primaryKey": false,
           "notNull": true
         },
@@ -751,7 +751,7 @@
         },
         "role": {
           "name": "role",
-          "type": "text",
+          "type": "varchar(32)",
           "primaryKey": false,
           "notNull": true
         },
@@ -913,89 +913,6 @@
         "notes_organization_id_organizations_id_fk": {
           "name": "notes_organization_id_organizations_id_fk",
           "tableFrom": "notes",
-          "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.organization_roles": {
-      "name": "organization_roles",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "permission": {
-          "name": "permission",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "organization_roles_organization_role_unique": {
-          "name": "organization_roles_organization_role_unique",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "organization_roles_organization_id_organizations_id_fk": {
-          "name": "organization_roles_organization_id_organizations_id_fk",
-          "tableFrom": "organization_roles",
           "tableTo": "organizations",
           "columnsFrom": ["organization_id"],
           "columnsTo": ["id"],
@@ -1556,6 +1473,12 @@
         "locale": {
           "name": "locale",
           "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "onboarding_completed_at": {
+          "name": "onboarding_completed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

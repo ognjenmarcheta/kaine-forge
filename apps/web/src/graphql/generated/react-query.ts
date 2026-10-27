@@ -50,6 +50,14 @@ export type GenerateTodosInput = {
 
 export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
+export type NotificationPreferenceInput = {
+  email: boolean;
+  inApp: boolean;
+  type: NotificationType;
+};
+
+export type NotificationType = "invitation_received" | "role_changed";
+
 export type PublicAssetKind = "avatar" | "organization_logo";
 
 export type RequestPublicAssetUploadInput = {
@@ -239,6 +247,123 @@ export type OnNoteUpdatedSubscription = { noteUpdated: { id: string } };
 export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
+
+export type NotificationFieldsFragment = {
+  id: string;
+  type: NotificationType;
+  organizationId: string | null;
+  readAt: string | null;
+  createdAt: string;
+  payload:
+    | {
+        __typename: "InvitationReceivedNotification";
+        invitationId: string;
+        inviterName: string;
+        organizationName: string;
+        role: string;
+      }
+    | { __typename: "RoleChangedNotification"; organizationName: string; role: string };
+};
+
+export type NotificationsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type NotificationsQuery = {
+  notifications: {
+    unreadCount: number;
+    items: Array<{
+      id: string;
+      type: NotificationType;
+      organizationId: string | null;
+      readAt: string | null;
+      createdAt: string;
+      payload:
+        | {
+            __typename: "InvitationReceivedNotification";
+            invitationId: string;
+            inviterName: string;
+            organizationName: string;
+            role: string;
+          }
+        | { __typename: "RoleChangedNotification"; organizationName: string; role: string };
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type MarkNotificationReadMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type MarkNotificationReadMutation = {
+  markNotificationRead: {
+    id: string;
+    type: NotificationType;
+    organizationId: string | null;
+    readAt: string | null;
+    createdAt: string;
+    payload:
+      | {
+          __typename: "InvitationReceivedNotification";
+          invitationId: string;
+          inviterName: string;
+          organizationName: string;
+          role: string;
+        }
+      | { __typename: "RoleChangedNotification"; organizationName: string; role: string };
+  };
+};
+
+export type MarkAllNotificationsReadMutationVariables = Exact<{ [key: string]: never }>;
+
+export type MarkAllNotificationsReadMutation = { markAllNotificationsRead: number };
+
+export type OnNotificationReceivedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnNotificationReceivedSubscription = {
+  notificationReceived: {
+    id: string;
+    type: NotificationType;
+    organizationId: string | null;
+    readAt: string | null;
+    createdAt: string;
+    payload:
+      | {
+          __typename: "InvitationReceivedNotification";
+          invitationId: string;
+          inviterName: string;
+          organizationName: string;
+          role: string;
+        }
+      | { __typename: "RoleChangedNotification"; organizationName: string; role: string };
+  };
+};
+
+export type NotificationPreferencesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type NotificationPreferencesQuery = {
+  notificationPreferences: Array<{
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  }>;
+};
+
+export type UpdateNotificationPreferenceMutationVariables = Exact<{
+  input: NotificationPreferenceInput;
+}>;
+
+export type UpdateNotificationPreferenceMutation = {
+  updateNotificationPreference: {
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  };
+};
 
 export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -523,7 +648,31 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
-
+export const NotificationFieldsFragmentDoc = new TypedDocumentString(
+  `
+    fragment NotificationFields on Notification {
+  id
+  type
+  organizationId
+  readAt
+  createdAt
+  payload {
+    __typename
+    ... on InvitationReceivedNotification {
+      invitationId
+      inviterName
+      organizationName
+      role
+    }
+    ... on RoleChangedNotification {
+      organizationName
+      role
+    }
+  }
+}
+    `,
+  { fragmentName: "NotificationFields" }
+);
 export const GetConversationsDocument = new TypedDocumentString(`
     query GetConversations($first: Int, $after: String) {
   conversations(first: $first, after: $after) {
@@ -928,6 +1077,238 @@ export const OnNoteDeletedDocument = new TypedDocumentString(`
   }
 }
     `);
+export const NotificationsDocument = new TypedDocumentString(`
+    query Notifications($first: Int, $after: String) {
+  notifications(first: $first, after: $after) {
+    items {
+      ...NotificationFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    unreadCount
+  }
+}
+    fragment NotificationFields on Notification {
+  id
+  type
+  organizationId
+  readAt
+  createdAt
+  payload {
+    __typename
+    ... on InvitationReceivedNotification {
+      invitationId
+      inviterName
+      organizationName
+      role
+    }
+    ... on RoleChangedNotification {
+      organizationName
+      role
+    }
+  }
+}`);
+
+export const useNotificationsQuery = <TData = NotificationsQuery, TError = unknown>(
+  variables?: NotificationsQueryVariables,
+  options?: Omit<UseQueryOptions<NotificationsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<NotificationsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<NotificationsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["Notifications"] : ["Notifications", variables],
+    queryFn: useGraphqlFetcher<NotificationsQuery, NotificationsQueryVariables>(
+      NotificationsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useNotificationsQuery.getKey = (variables?: NotificationsQueryVariables) =>
+  variables === undefined ? ["Notifications"] : ["Notifications", variables];
+
+export const MarkNotificationReadDocument = new TypedDocumentString(`
+    mutation MarkNotificationRead($id: ID!) {
+  markNotificationRead(id: $id) {
+    ...NotificationFields
+  }
+}
+    fragment NotificationFields on Notification {
+  id
+  type
+  organizationId
+  readAt
+  createdAt
+  payload {
+    __typename
+    ... on InvitationReceivedNotification {
+      invitationId
+      inviterName
+      organizationName
+      role
+    }
+    ... on RoleChangedNotification {
+      organizationName
+      role
+    }
+  }
+}`);
+
+export const useMarkNotificationReadMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    MarkNotificationReadMutation,
+    TError,
+    MarkNotificationReadMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    MarkNotificationReadMutation,
+    TError,
+    MarkNotificationReadMutationVariables,
+    TContext
+  >({
+    mutationKey: ["MarkNotificationRead"],
+    mutationFn: useGraphqlFetcher<
+      MarkNotificationReadMutation,
+      MarkNotificationReadMutationVariables
+    >(MarkNotificationReadDocument),
+    ...options
+  });
+};
+
+useMarkNotificationReadMutation.getKey = () => ["MarkNotificationRead"];
+
+export const MarkAllNotificationsReadDocument = new TypedDocumentString(`
+    mutation MarkAllNotificationsRead {
+  markAllNotificationsRead
+}
+    `);
+
+export const useMarkAllNotificationsReadMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    MarkAllNotificationsReadMutation,
+    TError,
+    MarkAllNotificationsReadMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    MarkAllNotificationsReadMutation,
+    TError,
+    MarkAllNotificationsReadMutationVariables,
+    TContext
+  >({
+    mutationKey: ["MarkAllNotificationsRead"],
+    mutationFn: useGraphqlFetcher<
+      MarkAllNotificationsReadMutation,
+      MarkAllNotificationsReadMutationVariables
+    >(MarkAllNotificationsReadDocument),
+    ...options
+  });
+};
+
+useMarkAllNotificationsReadMutation.getKey = () => ["MarkAllNotificationsRead"];
+
+export const OnNotificationReceivedDocument = new TypedDocumentString(`
+    subscription OnNotificationReceived {
+  notificationReceived {
+    ...NotificationFields
+  }
+}
+    fragment NotificationFields on Notification {
+  id
+  type
+  organizationId
+  readAt
+  createdAt
+  payload {
+    __typename
+    ... on InvitationReceivedNotification {
+      invitationId
+      inviterName
+      organizationName
+      role
+    }
+    ... on RoleChangedNotification {
+      organizationName
+      role
+    }
+  }
+}`);
+export const NotificationPreferencesDocument = new TypedDocumentString(`
+    query NotificationPreferences {
+  notificationPreferences {
+    type
+    inApp
+    email
+    emailAvailable
+  }
+}
+    `);
+
+export const useNotificationPreferencesQuery = <
+  TData = NotificationPreferencesQuery,
+  TError = unknown
+>(
+  variables?: NotificationPreferencesQueryVariables,
+  options?: Omit<UseQueryOptions<NotificationPreferencesQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<NotificationPreferencesQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<NotificationPreferencesQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["NotificationPreferences"]
+        : ["NotificationPreferences", variables],
+    queryFn: useGraphqlFetcher<NotificationPreferencesQuery, NotificationPreferencesQueryVariables>(
+      NotificationPreferencesDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useNotificationPreferencesQuery.getKey = (variables?: NotificationPreferencesQueryVariables) =>
+  variables === undefined ? ["NotificationPreferences"] : ["NotificationPreferences", variables];
+
+export const UpdateNotificationPreferenceDocument = new TypedDocumentString(`
+    mutation UpdateNotificationPreference($input: NotificationPreferenceInput!) {
+  updateNotificationPreference(input: $input) {
+    type
+    inApp
+    email
+    emailAvailable
+  }
+}
+    `);
+
+export const useUpdateNotificationPreferenceMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    UpdateNotificationPreferenceMutation,
+    TError,
+    UpdateNotificationPreferenceMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    UpdateNotificationPreferenceMutation,
+    TError,
+    UpdateNotificationPreferenceMutationVariables,
+    TContext
+  >({
+    mutationKey: ["UpdateNotificationPreference"],
+    mutationFn: useGraphqlFetcher<
+      UpdateNotificationPreferenceMutation,
+      UpdateNotificationPreferenceMutationVariables
+    >(UpdateNotificationPreferenceDocument),
+    ...options
+  });
+};
+
+useUpdateNotificationPreferenceMutation.getKey = () => ["UpdateNotificationPreference"];
+
 export const OrganizationPermissionsDocument = new TypedDocumentString(`
     query OrganizationPermissions {
   organizationPermissions

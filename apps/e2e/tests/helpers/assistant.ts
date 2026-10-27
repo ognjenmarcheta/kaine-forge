@@ -1,6 +1,7 @@
 import { type Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { notificationData } from "./notifications";
 import { ORGANIZATION_PERMISSIONS_RESPONSE } from "./permissions";
 
 const noteId = "1ec1f87d-71b6-4d66-8a9a-dd611dab474f";
@@ -165,7 +166,7 @@ export async function mockAssistant(page: Page) {
       await route.fulfill({ json: { data: { deleteConversation: true } } });
     } else if (query.includes("query OrganizationPermissions"))
       await route.fulfill({ json: ORGANIZATION_PERMISSIONS_RESPONSE });
-    else await route.fulfill({ json: { data: {} } });
+    else await route.fulfill({ json: { data: notificationData(query) ?? {} } });
   });
   return { state, finish: () => resolveReply(), delta: (text: string) => sendDelta(text) };
 }

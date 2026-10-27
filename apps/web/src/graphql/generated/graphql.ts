@@ -49,6 +49,14 @@ export type GenerateTodosInput = {
 
 export type GenerateTodosStatus = "AI_NOT_CONFIGURED" | "CREATED" | "FAILED";
 
+export type NotificationPreferenceInput = {
+  email: boolean;
+  inApp: boolean;
+  type: NotificationType;
+};
+
+export type NotificationType = "invitation_received" | "role_changed";
+
 export type PublicAssetKind = "avatar" | "organization_logo";
 
 export type RequestPublicAssetUploadInput = {
@@ -238,6 +246,82 @@ export type OnNoteUpdatedSubscription = { noteUpdated: { id: string } };
 export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
+
+export type NotificationFieldsFragment = {
+  id: string;
+  type: NotificationType;
+  organizationId: string | null;
+  readAt: unknown;
+  createdAt: unknown;
+  payload:
+    | {
+        __typename: "InvitationReceivedNotification";
+        invitationId: string;
+        inviterName: string;
+        organizationName: string;
+        role: string;
+      }
+    | { __typename: "RoleChangedNotification"; organizationName: string; role: string };
+} & { " $fragmentName"?: "NotificationFieldsFragment" };
+
+export type NotificationsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type NotificationsQuery = {
+  notifications: {
+    unreadCount: number;
+    items: Array<{ " $fragmentRefs"?: { NotificationFieldsFragment: NotificationFieldsFragment } }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type MarkNotificationReadMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type MarkNotificationReadMutation = {
+  markNotificationRead: {
+    " $fragmentRefs"?: { NotificationFieldsFragment: NotificationFieldsFragment };
+  };
+};
+
+export type MarkAllNotificationsReadMutationVariables = Exact<{ [key: string]: never }>;
+
+export type MarkAllNotificationsReadMutation = { markAllNotificationsRead: number };
+
+export type OnNotificationReceivedSubscriptionVariables = Exact<{ [key: string]: never }>;
+
+export type OnNotificationReceivedSubscription = {
+  notificationReceived: {
+    " $fragmentRefs"?: { NotificationFieldsFragment: NotificationFieldsFragment };
+  };
+};
+
+export type NotificationPreferencesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type NotificationPreferencesQuery = {
+  notificationPreferences: Array<{
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  }>;
+};
+
+export type UpdateNotificationPreferenceMutationVariables = Exact<{
+  input: NotificationPreferenceInput;
+}>;
+
+export type UpdateNotificationPreferenceMutation = {
+  updateNotificationPreference: {
+    type: NotificationType;
+    inApp: boolean;
+    email: boolean;
+    emailAvailable: boolean;
+  };
+};
 
 export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -504,6 +588,66 @@ export type OnTodoToggledSubscriptionVariables = Exact<{ [key: string]: never }>
 
 export type OnTodoToggledSubscription = { todoToggled: { id: string } };
 
+export const NotificationFieldsFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "NotificationFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Notification" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "organizationId" } },
+          { kind: "Field", name: { kind: "Name", value: "readAt" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "payload" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "__typename" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "InvitationReceivedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "invitationId" } },
+                      { kind: "Field", name: { kind: "Name", value: "inviterName" } },
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "RoleChangedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<NotificationFieldsFragment, unknown>;
 export const GetConversationsDocument = {
   kind: "Document",
   definitions: [
@@ -1301,6 +1445,410 @@ export const OnNoteDeletedDocument = {
     }
   ]
 } as unknown as DocumentNode<OnNoteDeletedSubscription, OnNoteDeletedSubscriptionVariables>;
+export const NotificationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "Notifications" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notifications" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "FragmentSpread",
+                        name: { kind: "Name", value: "NotificationFields" }
+                      }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "unreadCount" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "NotificationFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Notification" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "organizationId" } },
+          { kind: "Field", name: { kind: "Name", value: "readAt" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "payload" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "__typename" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "InvitationReceivedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "invitationId" } },
+                      { kind: "Field", name: { kind: "Name", value: "inviterName" } },
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "RoleChangedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
+export const MarkNotificationReadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "MarkNotificationRead" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "markNotificationRead" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "NotificationFields" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "NotificationFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Notification" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "organizationId" } },
+          { kind: "Field", name: { kind: "Name", value: "readAt" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "payload" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "__typename" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "InvitationReceivedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "invitationId" } },
+                      { kind: "Field", name: { kind: "Name", value: "inviterName" } },
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "RoleChangedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<MarkNotificationReadMutation, MarkNotificationReadMutationVariables>;
+export const MarkAllNotificationsReadDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "MarkAllNotificationsRead" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "markAllNotificationsRead" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  MarkAllNotificationsReadMutation,
+  MarkAllNotificationsReadMutationVariables
+>;
+export const OnNotificationReceivedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "OnNotificationReceived" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notificationReceived" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "NotificationFields" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "NotificationFields" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Notification" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "organizationId" } },
+          { kind: "Field", name: { kind: "Name", value: "readAt" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "payload" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "__typename" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "InvitationReceivedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "invitationId" } },
+                      { kind: "Field", name: { kind: "Name", value: "inviterName" } },
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: {
+                    kind: "NamedType",
+                    name: { kind: "Name", value: "RoleChangedNotification" }
+                  },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "organizationName" } },
+                      { kind: "Field", name: { kind: "Name", value: "role" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  OnNotificationReceivedSubscription,
+  OnNotificationReceivedSubscriptionVariables
+>;
+export const NotificationPreferencesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "NotificationPreferences" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notificationPreferences" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "inApp" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
+                { kind: "Field", name: { kind: "Name", value: "emailAvailable" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<NotificationPreferencesQuery, NotificationPreferencesQueryVariables>;
+export const UpdateNotificationPreferenceDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "UpdateNotificationPreference" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "NamedType",
+              name: { kind: "Name", value: "NotificationPreferenceInput" }
+            }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateNotificationPreference" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "inApp" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
+                { kind: "Field", name: { kind: "Name", value: "emailAvailable" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  UpdateNotificationPreferenceMutation,
+  UpdateNotificationPreferenceMutationVariables
+>;
 export const OrganizationPermissionsDocument = {
   kind: "Document",
   definitions: [

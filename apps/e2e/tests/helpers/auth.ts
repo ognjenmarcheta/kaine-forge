@@ -37,12 +37,18 @@ export async function signIn(
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-/** Register a new account through the sign-up form and land on the dashboard. */
-export async function signUp(
+export const ONBOARDING_LABELS = {
+  nameTitle: /^(Name your organization|auth\.onboarding\.organization\.title)$/,
+  inviteTitle: /^(Invite your team|auth\.onboarding\.invite\.title)$/,
+  rename: /^(Save and continue|auth\.onboarding\.organization\.rename)$/,
+  skip: /^(Skip for now|auth\.onboarding\.skip)$/
+} as const;
+
+/** Submit the sign-up form; a new account lands on the first-run onboarding. */
+export async function submitSignUp(
   page: Page,
   account: { email: string; name: string; password: string }
 ): Promise<void> {
-  await page.goto("/auth");
   // In login mode the only "Create account" button is the mode switcher.
   await page.getByRole("button", { name: AUTH_LABELS.signup }).click();
   await page.getByLabel(AUTH_LABELS.name).fill(account.name);
@@ -50,7 +56,23 @@ export async function signUp(
   await page.getByLabel(AUTH_LABELS.password).fill(account.password);
   await page.getByLabel(AUTH_LABELS.confirmPassword).fill(account.password);
   await page.locator("form").getByRole("button", { name: AUTH_LABELS.signup }).click();
+}
+
+/** Skip the first-run onboarding and land on the dashboard. */
+export async function skipOnboarding(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByRole("button", { name: ONBOARDING_LABELS.skip }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+}
+
+/** Register a new account, skip onboarding, and land on the dashboard. */
+export async function signUp(
+  page: Page,
+  account: { email: string; name: string; password: string }
+): Promise<void> {
+  await page.goto("/auth");
+  await submitSignUp(page, account);
+  await skipOnboarding(page);
 }
 
 /**

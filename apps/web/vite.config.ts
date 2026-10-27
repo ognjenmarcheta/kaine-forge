@@ -24,6 +24,10 @@ export default defineConfig(({ mode }) => {
           workspaceRoot,
           "packages/ui/src/styles/globals.css"
         ),
+        "@repo/auth/auth.definition": path.join(
+          workspaceRoot,
+          "packages/auth/src/auth.definition.ts"
+        ),
         "@repo/auth/form": path.join(workspaceRoot, "packages/auth/src/auth.form.ts"),
         "@repo/auth/transport": path.join(workspaceRoot, "packages/auth/src/auth.transport.ts"),
         "@repo/auth/session": path.join(workspaceRoot, "packages/auth/src/auth.session.ts"),

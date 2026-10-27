@@ -21,6 +21,11 @@ export interface AuthSessionUser {
   emailVerified: boolean;
   name: string;
   twoFactorEnabled: boolean;
+  /**
+   * False until the user finishes or skips the web first-run onboarding. The
+   * client transport sets it; server session reads leave it out.
+   */
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthSession {

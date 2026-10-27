@@ -298,6 +298,37 @@ describe("creating an organization", () => {
   });
 });
 
+describe("organization name length", () => {
+  // Organization names appear in other people's inboxes (invitation emails).
+  it("refuses a name over 64 characters on create and rename", async () => {
+    const owner = await signUp("name-cap");
+    const shared = await createOrganization(owner.headers, "Capped");
+    const longName = "x".repeat(65);
+
+    const created = await post("/organization/create", owner.headers, {
+      name: longName,
+      slug: `long-${crypto.randomUUID().slice(0, 8)}`
+    });
+    const renamed = await post("/organization/update", shared.headers, {
+      data: { name: longName }
+    });
+    const accepted = await post("/organization/update", shared.headers, {
+      data: { name: "y".repeat(64) }
+    });
+
+    expect(created.status).toBe(400);
+    expect(await created.json()).toMatchObject({ code: "ORGANIZATION_NAME_TOO_LONG" });
+    expect(renamed.status).toBe(400);
+    expect(await renamed.json()).toMatchObject({ code: "ORGANIZATION_NAME_TOO_LONG" });
+    expect(accepted.status).toBe(200);
+    const names = await testDatabase()
+      .db.select({ name: organizationsTable.name })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.userId, owner.userId));
+    expect(names.map((row) => row.name).sort()).toEqual(["Personal", "y".repeat(64)]);
+  });
+});
+
 describe("accepting an invitation", () => {
   it("makes the invitation's organization active in the session cookie", async () => {
     const owner = await signUp("accept-owner");

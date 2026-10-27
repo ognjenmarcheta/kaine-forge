@@ -110,6 +110,7 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "organizations.error.personalDelete",
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "organizations.error.personalLeave",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
+  ORGANIZATION_NAME_TOO_LONG: "organizations.error.nameTooLong",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail",
   ROLE_EXCEEDS_YOUR_PERMISSIONS: "organizations.error.roleExceedsPermissions",
   MEMBER_EXCEEDS_YOUR_PERMISSIONS: "organizations.error.memberExceedsPermissions",
@@ -215,6 +216,8 @@ export interface AuthTransport extends ClientAuth {
   regenerateBackupCodes(password: string): Promise<string[]>;
   /** Stores the signed-in user's language; auth emails use it. */
   updateEmailLanguage(language: string): Promise<void>;
+  /** Ends the first-run onboarding for the session user (finish or skip). */
+  completeOnboarding(): Promise<AuthSession>;
   sendSignInOtp(input: SendEmailOtpInput): Promise<void>;
   signInWithOtp(input: SignInWithEmailOtpInput): Promise<AuthSession>;
   requestPasswordResetOtp(input: SendEmailOtpInput): Promise<void>;
@@ -275,6 +278,12 @@ function readTwoFactorMethods(data: unknown): TwoFactorMethod[] | null {
   const methods = "twoFactorMethods" in data ? data.twoFactorMethods : [];
 
   return Array.isArray(methods) ? methods.filter(isTwoFactorMethod) : [];
+}
+
+// users.onboarding_completed_at is a server additional field the typed client
+// does not know. An API without the field never shows onboarding.
+function readOnboardingCompleted<User extends { id: string }>(user: User): boolean {
+  return !("onboardingCompletedAt" in user) || user.onboardingCompletedAt !== null;
 }
 
 function toIsoString(value: Date | string): string {
@@ -371,7 +380,8 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         email: data.user.email,
         emailVerified: data.user.emailVerified,
         name: data.user.name,
-        twoFactorEnabled: data.user.twoFactorEnabled === true
+        twoFactorEnabled: data.user.twoFactorEnabled === true,
+        onboardingCompleted: readOnboardingCompleted(data.user)
       }
     };
   }
@@ -887,6 +897,15 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       if (error) {
         throw toAuthError(error);
       }
+    },
+    async completeOnboarding() {
+      const { error } = await client.$fetch("/onboarding/complete", { method: "POST" });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
     },
     async renameOrganization(name: string) {
       const { error } = await client.organization.update({ data: { name } });

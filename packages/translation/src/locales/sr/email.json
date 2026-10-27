@@ -54,5 +54,13 @@
   "email.accountDeletion.heading": "Brisanje naloga",
   "email.accountDeletion.body": "Primili smo zahtev za brisanje vašeg naloga. Time se brišu i sve organizacije u kojima ste jedini član. Link ističe za {{hours}} sati.",
   "email.accountDeletion.action": "Obriši nalog",
-  "email.accountDeletion.ignore": "Ako ovo niste zatražili, zanemarite ovaj email i resetujte lozinku. Vaš nalog ostaje nepromenjen."
+  "email.accountDeletion.ignore": "Ako ovo niste zatražili, zanemarite ovaj email i resetujte lozinku. Vaš nalog ostaje nepromenjen.",
+  "email.roleChanged.subject": "Vaša uloga u organizaciji {{organizationName}} je promenjena",
+  "email.roleChanged.heading": "Vaša uloga je promenjena",
+  "email.roleChanged.body": "Sada ste {{role}} u organizaciji {{organizationName}}.",
+  "email.roleChanged.role.owner": "vlasnik",
+  "email.roleChanged.role.admin": "administrator",
+  "email.roleChanged.role.member": "član",
+  "email.roleChanged.role.custom": "član sa ulogom „{{name}}“",
+  "email.roleChanged.action": "Prikaži članove"
 }

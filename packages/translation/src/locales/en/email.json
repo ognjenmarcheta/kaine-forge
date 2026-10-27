@@ -54,5 +54,13 @@
   "email.accountDeletion.heading": "Delete your account",
   "email.accountDeletion.body": "We received a request to delete your account. This also deletes every organization where you are the only member. The link expires in {{hours}} hours.",
   "email.accountDeletion.action": "Delete account",
-  "email.accountDeletion.ignore": "If you did not ask for this, ignore this email and reset your password. Your account stays as it is."
+  "email.accountDeletion.ignore": "If you did not ask for this, ignore this email and reset your password. Your account stays as it is.",
+  "email.roleChanged.subject": "Your role in {{organizationName}} changed",
+  "email.roleChanged.heading": "Your role changed",
+  "email.roleChanged.body": "You are now {{role}} of {{organizationName}}.",
+  "email.roleChanged.role.owner": "an owner",
+  "email.roleChanged.role.admin": "an admin",
+  "email.roleChanged.role.member": "a member",
+  "email.roleChanged.role.custom": "a member with the “{{name}}” role",
+  "email.roleChanged.action": "View members"
 }

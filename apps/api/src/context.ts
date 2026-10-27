@@ -13,6 +13,10 @@ import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
 import { createNotes, type Notes } from "./features/notes/notes.module";
 import {
+  createNotifications,
+  type Notifications
+} from "./features/notifications/notifications.module";
+import {
   createPublicAssets,
   type PublicAssets
 } from "./features/public-assets/public-assets.module";
@@ -28,12 +32,15 @@ export interface ApiContext {
   session: AuthSession | null;
   organizationScope: AuthenticatedOrganizationScope | null;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
+  /** The signed-in user's id, for user-level data; throws `authentication required`. */
+  requireUserId: () => string;
   /** Organization-scoped data access for this request; see context.data.ts. */
   data: ScopedData;
   todos: Todos;
   notes: Notes;
   attachments: Attachments;
   auditEvents: AuditEvents;
+  notifications: Notifications;
   publicAssets: PublicAssets;
   loaders: ApiLoaders;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
@@ -59,6 +66,12 @@ export async function createContextFromHeaders(
     organizationId: organizationScope?.organizationId ?? null
   });
 
+  const requireUserId = (): string => {
+    if (!session) {
+      throw new Error("authentication required");
+    }
+    return session.user.id;
+  };
   const data = createScopedData({ db, requireOrganizationScope });
   const publish = <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
@@ -81,11 +94,13 @@ export async function createContextFromHeaders(
     session,
     organizationScope,
     requireOrganizationScope,
+    requireUserId,
     data,
     todos,
     notes: createNotes({ data, publish }),
     attachments,
     auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),
+    notifications: createNotifications({ db, requireUserId }),
     publicAssets: createPublicAssets({
       db,
       logger: contextLogger,

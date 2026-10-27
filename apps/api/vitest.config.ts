@@ -17,6 +17,10 @@ export default defineConfig({
         "packages/auth/src/auth.audit.definition.ts"
       ),
       "@repo/auth/audit": path.join(workspaceRoot, "packages/auth/src/auth.audit.ts"),
+      "@repo/auth/notifications": path.join(
+        workspaceRoot,
+        "packages/auth/src/auth.notification.ts"
+      ),
       "@repo/auth/permissions": path.join(workspaceRoot, "packages/auth/src/auth.permissions.ts"),
       "@repo/auth/scope": path.join(workspaceRoot, "packages/auth/src/auth.scope.ts"),
       "@repo/auth/auth.type": path.join(workspaceRoot, "packages/auth/src/auth.type.ts"),

@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { notificationData } from "./notifications";
 import { ORGANIZATION_PERMISSIONS_RESPONSE } from "./permissions";
 
 interface FixtureNote {
@@ -188,7 +189,7 @@ export async function mockNotes(page: Page) {
       await route.fulfill({ json: { data: { deleteNote: true } } });
     } else if (query.includes("query OrganizationPermissions"))
       await route.fulfill({ json: ORGANIZATION_PERMISSIONS_RESPONSE });
-    else await route.fulfill({ json: { data: {} } });
+    else await route.fulfill({ json: { data: notificationData(query) ?? {} } });
   });
   return {
     state,

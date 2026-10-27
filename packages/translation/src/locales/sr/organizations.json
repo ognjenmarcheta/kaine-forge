@@ -38,6 +38,7 @@
   "organizations.error.personalDelete": "Ne možete da obrišete svoju ličnu organizaciju.",
   "organizations.error.personalLeave": "Ne možete da napustite svoju ličnu organizaciju.",
   "organizations.error.personalTransfer": "Ne možete da prenesete svoju ličnu organizaciju.",
+  "organizations.error.nameTooLong": "Naziv organizacije može imati najviše 64 znaka.",
   "organizations.invitation.title": "Pozivnica",
   "organizations.invitation.subtitle": "Pozvani ste da se pridružite ovoj organizaciji.",
   "organizations.invitation.accept": "Prihvati",

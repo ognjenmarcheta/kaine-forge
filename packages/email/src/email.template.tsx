@@ -37,7 +37,8 @@ export type EmailTemplate =
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
-  | { template: "accountDeletion"; url: string; expiresInHours: number };
+  | { template: "accountDeletion"; url: string; expiresInHours: number }
+  | { template: "roleChanged"; url: string; organizationName: string; role: string };
 
 const EMAIL_OTP_SUBJECT_KEYS: Record<EmailOtpType, string> = {
   "sign-in": "email.emailOtp.subject.signIn",
@@ -235,7 +236,37 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
           </>
         )
       };
+    case "roleChanged": {
+      const organizationName = email.organizationName;
+
+      return {
+        subject: t("email.roleChanged.subject", { organizationName }),
+        heading: t("email.roleChanged.heading"),
+        body: (
+          <>
+            <EmailText>
+              {t("email.roleChanged.body", {
+                organizationName,
+                role: roleLabel(t, email.role)
+              })}
+            </EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.roleChanged.action")}
+            />
+          </>
+        )
+      };
+    }
   }
+}
+
+// A built-in role reads by its translated name; a Custom Role by its own name.
+function roleLabel(t: Translate, role: string): string {
+  return role === "owner" || role === "admin" || role === "member"
+    ? t(`email.roleChanged.role.${role}`)
+    : t("email.roleChanged.role.custom", { name: role });
 }
 
 function resolveEmailLocale(locale: string | null | undefined): SupportedLanguage {
