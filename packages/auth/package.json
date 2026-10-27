@@ -77,6 +77,8 @@
     "@repo/db": "workspace:*",
     "@repo/email": "workspace:*",
     "@repo/jobs": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/translation": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"

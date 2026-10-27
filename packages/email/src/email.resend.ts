@@ -27,6 +27,7 @@ export function createResendEmailSender(config: ResendEmailConfig): EmailSender 
           from: config.from,
           to: [message.to],
           subject: message.subject,
+          html: message.html,
           text: message.text
         })
       });

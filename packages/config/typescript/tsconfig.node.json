@@ -3,6 +3,9 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022"],
+    // @repo/email templates are .tsx, and Node workspaces typecheck them
+    // from source through the tsconfig.base.json paths.
+    "jsx": "react-jsx",
     "types": ["node"],
     "module": "ESNext",
     "moduleResolution": "Bundler"
