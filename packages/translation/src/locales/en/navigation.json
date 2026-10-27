@@ -23,5 +23,6 @@
   "navigation.notes": "Notes",
   "navigation.assistant": "Assistant",
   "navigation.security": "Security",
-  "navigation.account": "Account"
+  "navigation.account": "Account",
+  "navigation.auditLog": "Audit log"
 }

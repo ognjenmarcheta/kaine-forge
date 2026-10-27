@@ -1,4 +1,5 @@
 import { useCSRFPrevention } from "@graphql-yoga/plugin-csrf-prevention";
+import { runWithAuditRequest } from "@repo/auth/audit";
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
 import { createChildLogger, type Logger } from "@repo/logger";
@@ -188,6 +189,25 @@ export function createApiServer({
     res.setHeader("x-content-type-options", "nosniff");
     logRequestCompletion(req, res, requestLogger, pathname);
 
+    // Every Audit Event this request records, from an auth route or a
+    // resolver, takes its client IP from the rate limiter's proxy rule.
+    const ipAddress = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+    await runWithAuditRequest(
+      {
+        ipAddress: ipAddress === "unknown" ? null : ipAddress,
+        logger: requestLogger,
+        userAgent: req.headers["user-agent"] ?? null
+      },
+      () => routeRequest(req, res, requestLogger, pathname)
+    );
+  };
+
+  const routeRequest = async (
+    req: IncomingMessage,
+    res: ServerResponse<IncomingMessage>,
+    requestLogger: Logger,
+    pathname: string
+  ): Promise<void> => {
     try {
       const handledHealth = await handleHealthRoute({ req, res });
 
