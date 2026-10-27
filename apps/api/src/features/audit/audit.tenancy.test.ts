@@ -64,7 +64,8 @@ vi.mock("@repo/auth/server", () => ({
           )
         )
         .limit(1);
-      return member ?? null;
+      const { resolveRolePermissions } = await import("@repo/auth/permissions");
+      return member ? { ...member, permissions: resolveRolePermissions(member.role, []) } : null;
     },
     getCurrentOrganizationByScope: () => Promise.resolve(null),
     listInvitationsByScope: () => Promise.resolve([]),
@@ -256,7 +257,7 @@ describe("audit events viewer", () => {
   it("refuses a member who is not an owner or admin", async () => {
     const result = await runAs(ORG_B, AUDIT_EVENTS);
 
-    expect(result.errors?.[0]?.message).toBe("admin role required");
+    expect(result.errors?.[0]?.message).toBe("permission required: audit:read");
     expect(result.data).toBeNull();
   });
 });

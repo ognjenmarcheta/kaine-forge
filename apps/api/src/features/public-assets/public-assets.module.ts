@@ -1,5 +1,7 @@
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
-import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
+import {
+  requireOrganizationPermission,
+  type AuthenticatedOrganizationScope
+} from "@repo/auth/scope";
 import { organizationsTable, usersTable } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
@@ -37,7 +39,7 @@ export interface PublicAssetUrls {
 /**
  * The Public Assets of one request's session: the user's avatar and the Active
  * Organization's logo. The owner always comes from the session, never from the
- * client, and only an admin or owner may change the logo.
+ * client, and only a member with `logo:update` may change the logo.
  */
 export interface PublicAssets {
   current: () => Promise<PublicAssetUrls>;
@@ -71,18 +73,13 @@ export function createPublicAssets({
     return publicStorage;
   }
 
-  /** Whose asset `kind` is, after the role check the logo needs. */
+  /** Whose asset `kind` is, after the permission check the logo needs. */
   function ownerOf(kind: PublicAssetKind, scope: AuthenticatedOrganizationScope): string {
     if (kind === "avatar") {
       return scope.userId;
     }
 
-    // SAFETY: member roles are written only by the better-auth organization
-    // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
-    // closed (returns false) for any string outside the role hierarchy.
-    if (!hasRoleAtLeast(scope.membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)) {
-      throw new Error("admin role required");
-    }
+    requireOrganizationPermission(scope, "logo:update");
 
     return scope.organizationId;
   }

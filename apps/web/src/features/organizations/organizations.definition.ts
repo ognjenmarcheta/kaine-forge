@@ -1,15 +1,10 @@
-import type { AssignableOrganizationRole } from "@repo/auth/auth.type";
+import { ORGANIZATION_ROLES } from "@repo/auth/permissions";
 
 export const ORGANIZATIONS_DEFINITION = {
-  // Under queryKeys.organizations(), so an organization change reloads it too.
+  // Under queryKeys.organizations(), so an organization change reloads them too.
   invitationsScope: ["organizations", "invitations"],
-  // The roles an invite or a role change may give; ownership moves by transfer.
-  assignableRoles: ["admin", "member"]
-} as const satisfies {
-  invitationsScope: readonly string[];
-  assignableRoles: readonly AssignableOrganizationRole[];
-};
-
-export function isAssignableRole(value: string): value is AssignableOrganizationRole {
-  return ORGANIZATIONS_DEFINITION.assignableRoles.some((role) => role === value);
-}
+  customRolesScope: ["organizations", "roles"],
+  // The built-in roles an invite or a role change may give; ownership moves by
+  // transfer. The Active Organization's Custom Roles follow them.
+  assignableRoles: [ORGANIZATION_ROLES.ADMIN, ORGANIZATION_ROLES.MEMBER]
+} as const;

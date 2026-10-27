@@ -38,6 +38,7 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
     list: ({ search, ...page }) => listNotesByScope(data, page, search),
     get: (id) => getNoteById(data, id),
     async create(input) {
+      data.authorize("note:create");
       const note = await createNote(data, {
         title: ensureNoteTitle(input.title),
         body: parseOptionalBody(input.body ?? null)
@@ -46,6 +47,7 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
       return note;
     },
     async update(id, input) {
+      data.authorize("note:update");
       const patch: NotePatch = {};
       if (input.title !== undefined) patch.title = ensureNoteTitle(input.title);
       if (input.body !== undefined) patch.body = parseOptionalBody(input.body);
@@ -54,6 +56,7 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
       return note;
     },
     async delete(id) {
+      data.authorize("note:delete");
       const deleted = await deleteNote(data, id);
       if (deleted) {
         publish("note:deleted", { id, organizationId: data.stamp().organizationId });

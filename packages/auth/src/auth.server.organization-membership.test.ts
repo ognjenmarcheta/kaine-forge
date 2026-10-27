@@ -65,7 +65,7 @@ import { createServerAuth } from "./auth.server";
 
 describe("auth.server organization membership reads", () => {
   const scope: AuthenticatedOrganizationScope = {
-    membership: { id: "membership-1", role: "owner", userId: "user-1" },
+    membership: { id: "membership-1", permissions: [], role: "owner", userId: "user-1" },
     organizationId: "org-1",
     user: {
       email: "u1@example.com",

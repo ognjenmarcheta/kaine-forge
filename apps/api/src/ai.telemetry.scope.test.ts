@@ -1,4 +1,5 @@
 import type { ServerAuth } from "@repo/auth/auth.type";
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import { createLogger } from "@repo/logger";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,6 +30,7 @@ const auth = {
   getOrganizationMembershipProof: vi.fn(async () => ({
     id: "membership-1",
     organizationId: "org-1",
+    permissions: resolveRolePermissions("owner", []),
     role: "owner",
     userId: "user-1"
   })),

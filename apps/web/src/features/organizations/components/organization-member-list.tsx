@@ -1,4 +1,4 @@
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo/auth/permissions";
+import { ORGANIZATION_ROLES, type Permission } from "@repo/auth/permissions";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import { queryKeys } from "@repo/query";
 import { Button, ConfirmModal, FieldError, LabeledSelect } from "@repo/ui";
@@ -7,26 +7,29 @@ import { useState } from "react";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import { organizationApi } from "../../../lib/auth-api";
-import { isAssignableRole, ORGANIZATIONS_DEFINITION } from "../organizations.definition";
 import type { OrganizationMember } from "../organizations.type";
+import { assignableRoleOptions, roleLabel } from "../organizations.util";
 
 interface OrganizationMemberListProps {
+  customRoleNames: readonly string[];
   members: OrganizationMember[];
-  ownRole: OrganizationRole | null;
   ownUserId: string | undefined;
+  permissions: ReadonlySet<Permission>;
 }
 
 type PendingAction = { kind: "remove" | "transfer"; member: OrganizationMember };
 
 /**
- * Members of the Active Organization. Owners and admins change roles and remove
- * members; an admin cannot touch an owner. Owners also transfer ownership. The
- * server enforces the same rules; this only hides controls.
+ * Members of the Active Organization. `member:update` changes roles and
+ * `member:delete` removes members, never an owner; `organization:transfer`
+ * hands over ownership. The server enforces the same rules; this only hides
+ * controls.
  */
 export function OrganizationMemberList({
+  customRoleNames,
   members,
-  ownRole,
-  ownUserId
+  ownUserId,
+  permissions
 }: OrganizationMemberListProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -47,8 +50,7 @@ export function OrganizationMemberList({
       await reloadMembers();
     }
   });
-  const isManager = ownRole !== null && hasRoleAtLeast(ownRole, ORGANIZATION_ROLES.ADMIN);
-  const isOwner = ownRole === ORGANIZATION_ROLES.OWNER;
+  const roleOptions = assignableRoleOptions(customRoleNames, t);
   const error = updateRole.error ?? confirmAction.error;
 
   return (
@@ -57,7 +59,13 @@ export function OrganizationMemberList({
       <div className="ui-work-list">
         {members.map((member) => {
           const isSelf = member.userId === ownUserId;
-          const canManage = isManager && !isSelf && member.role !== ORGANIZATION_ROLES.OWNER;
+          const isOwner = member.role === ORGANIZATION_ROLES.OWNER;
+          const canChangeRole =
+            permissions.has("member:update") &&
+            !isSelf &&
+            !isOwner &&
+            roleOptions.some((option) => option.value === member.role);
+          const canRemove = permissions.has("member:delete") && !isSelf && !isOwner;
 
           return (
             <article key={member.id} className="ui-work-row">
@@ -69,28 +77,25 @@ export function OrganizationMemberList({
                   <p className="text-body-sm text-[color:var(--ds-text-subtle)]">{member.email}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-[var(--ds-space-100)]">
-                  {canManage && isAssignableRole(member.role) ? (
+                  {canChangeRole ? (
                     <LabeledSelect
                       ariaLabel={`${t("organizations.role.label")}: ${member.name}`}
                       disabled={updateRole.isPending}
                       label={t("organizations.role.label")}
-                      options={ORGANIZATIONS_DEFINITION.assignableRoles.map((value) => ({
-                        label: t(`organizations.role.${value}`),
-                        value
-                      }))}
+                      options={roleOptions}
                       value={member.role}
                       onValueChange={(role) => {
-                        if (isAssignableRole(role) && role !== member.role) {
+                        if (role !== member.role) {
                           updateRole.mutate({ memberId: member.id, role });
                         }
                       }}
                     />
                   ) : (
                     <span className="rounded-[var(--ds-radius-100)] bg-[var(--ds-background-neutral)] px-[var(--ds-space-100)] py-[var(--ds-space-050)] text-body-sm text-[color:var(--ds-text-subtle)]">
-                      {t(`organizations.role.${member.role}`)}
+                      {roleLabel(member.role, t)}
                     </span>
                   )}
-                  {isOwner && !isSelf ? (
+                  {permissions.has("organization:transfer") && !isSelf ? (
                     <Button
                       appearance="subtle"
                       onClick={() => setPending({ kind: "transfer", member })}
@@ -98,7 +103,7 @@ export function OrganizationMemberList({
                       {t("organizations.members.transfer")}
                     </Button>
                   ) : null}
-                  {canManage ? (
+                  {canRemove ? (
                     <Button
                       appearance="subtle"
                       onClick={() => setPending({ kind: "remove", member })}

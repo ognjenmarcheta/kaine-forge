@@ -1,8 +1,9 @@
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
 
+import { permissionsOfStatements, statementsOfPermissions } from "./auth.permissions";
 import type {
-  AssignableOrganizationRole,
+  AuthCustomRole,
   AuthDeviceSession,
   AuthInvitation,
   AuthInvitationDetails,
@@ -15,6 +16,7 @@ import type {
   ChangePasswordInput,
   ClientAuth,
   CreateOrganizationInput,
+  CustomRoleInput,
   InviteMemberInput,
   LoginInput,
   ResetPasswordWithEmailOtpInput,
@@ -109,6 +111,11 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "organizations.error.personalLeave",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "organizations.error.personalTransfer",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "organizations.invitation.wrongEmail",
+  ROLE_EXCEEDS_YOUR_PERMISSIONS: "organizations.error.roleExceedsPermissions",
+  CUSTOM_ROLE_NAME_INVALID: "organizations.roles.error.nameInvalid",
+  ROLE_NAME_IS_ALREADY_TAKEN: "organizations.roles.error.nameTaken",
+  ROLE_IS_ASSIGNED_TO_MEMBERS: "organizations.roles.error.assigned",
+  TOO_MANY_ROLES: "organizations.roles.error.tooMany",
   // Account settings.
   INVALID_PASSWORD: "auth.account.error.invalidPassword",
   CREDENTIAL_ACCOUNT_NOT_FOUND: "auth.account.error.noPassword",
@@ -159,7 +166,14 @@ export interface AuthTransport extends ClientAuth {
   acceptInvitation(invitationId: string): Promise<AuthSession>;
   rejectInvitation(invitationId: string): Promise<void>;
   removeMember(memberId: string): Promise<void>;
-  updateMemberRole(input: { memberId: string; role: AssignableOrganizationRole }): Promise<void>;
+  /** admin, member, or a Custom Role name; the owner role moves only through a transfer. */
+  updateMemberRole(input: { memberId: string; role: string }): Promise<void>;
+  listCustomRoles(): Promise<AuthCustomRole[]>;
+  createCustomRole(input: CustomRoleInput): Promise<void>;
+  /** Replaces the role's Permissions; a Custom Role keeps its name. */
+  updateCustomRole(input: CustomRoleInput): Promise<void>;
+  /** Fails with ROLE_IS_ASSIGNED_TO_MEMBERS while a member holds it. */
+  deleteCustomRole(name: string): Promise<void>;
   /** Makes the member owner and the caller admin. */
   transferOwnership(memberId: string): Promise<void>;
   renameOrganization(name: string): Promise<void>;
@@ -321,7 +335,7 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
   const client = createAuthClient({
     baseURL: adapter.baseUrl || undefined,
     plugins: [
-      organizationClient(),
+      organizationClient({ dynamicAccessControl: { enabled: true } }),
       twoFactorClient(),
       emailOTPClient(),
       ...((adapter.clientPlugins ?? []) as never[])
@@ -801,11 +815,51 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         throw toAuthError(error);
       }
     },
-    async updateMemberRole(roleInput: { memberId: string; role: AssignableOrganizationRole }) {
+    async updateMemberRole(roleInput: { memberId: string; role: string }) {
       const { error } = await client.organization.updateMemberRole({
         memberId: roleInput.memberId,
         role: roleInput.role
       });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async listCustomRoles() {
+      const { data, error } = await client.organization.listRoles();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        name: row.role,
+        permissions: permissionsOfStatements(row.permission)
+      }));
+    },
+    async createCustomRole(roleInput: CustomRoleInput) {
+      const { error } = await client.organization.createRole({
+        role: roleInput.name,
+        permission: statementsOfPermissions(roleInput.permissions)
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async updateCustomRole(roleInput: CustomRoleInput) {
+      const { error } = await client.organization.updateRole({
+        roleName: roleInput.name,
+        data: { permission: statementsOfPermissions(roleInput.permissions) }
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async deleteCustomRole(name: string) {
+      const { error } = await client.organization.deleteRole({ roleName: name });
 
       if (error) {
         throw toAuthError(error);

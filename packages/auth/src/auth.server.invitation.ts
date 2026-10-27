@@ -1,8 +1,7 @@
 import { db, invitationsTable } from "@repo/db";
 import { and, asc, eq, gt } from "drizzle-orm";
 
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "./auth.permissions";
-import type { AuthenticatedOrganizationScope } from "./auth.scope";
+import { requireOrganizationPermission, type AuthenticatedOrganizationScope } from "./auth.scope";
 import type { AuthInvitation } from "./auth.type";
 
 // Invitation writes (create/accept/revoke) go through the better-auth
@@ -31,19 +30,10 @@ function toAuthInvitation(row: InvitationRow): AuthInvitation {
   };
 }
 
-function requireAdminMembership(scope: AuthenticatedOrganizationScope): void {
-  // SAFETY: member roles are written only by the better-auth organization
-  // plugin from the ORGANIZATION_ROLES vocabulary, and hasRoleAtLeast fails
-  // closed (returns false) for any string outside the role hierarchy.
-  if (!hasRoleAtLeast(scope.membership.role as OrganizationRole, ORGANIZATION_ROLES.ADMIN)) {
-    throw new Error("admin role required");
-  }
-}
-
 export async function listInvitationsForScope(
   scope: AuthenticatedOrganizationScope
 ): Promise<AuthInvitation[]> {
-  requireAdminMembership(scope);
+  requireOrganizationPermission(scope, "invitation:read");
 
   const rows = await db
     .select()

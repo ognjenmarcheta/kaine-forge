@@ -13,6 +13,7 @@ const session = { activeOrganizationId: "org-1", expiresAt: "2026-02-26T00:00:00
 const ownMembership: OrganizationMembershipProof = {
   id: "membership-1",
   organizationId: "org-1",
+  permissions: ["todo:create"],
   role: "owner",
   userId: "user-1"
 };
@@ -41,7 +42,12 @@ describe("resolveOrganizationScope", () => {
     const resolution = await resolveOrganizationScope({ getMembership, session });
 
     const expected = {
-      membership: { id: "membership-1", role: "owner", userId: "user-1" },
+      membership: {
+        id: "membership-1",
+        permissions: ["todo:create"],
+        role: "owner",
+        userId: "user-1"
+      },
       organizationId: "org-1",
       user,
       userId: "user-1"

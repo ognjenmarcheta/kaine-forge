@@ -1,4 +1,4 @@
-import { index, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
@@ -11,7 +11,8 @@ export const invitationsTable = pgTable(
       .notNull()
       .references(() => organizationsTable.id, { onDelete: "cascade" }),
     email: varchar("email", { length: 255 }).notNull(),
-    role: varchar("role", { length: 32 }).notNull(),
+    // Comma-separated role names, as on members.role.
+    role: text("role").notNull(),
     status: varchar("status", { length: 32 }).notNull().default("pending"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     inviterId: uuid("inviter_id")

@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   filesTable,
@@ -93,7 +94,12 @@ beforeAll(async () => {
   foreignNoteId = foreignNote.id;
 
   scope = {
-    membership: { id: "membership-1", role: "owner", userId: user.id },
+    membership: {
+      id: "membership-1",
+      permissions: resolveRolePermissions("owner", []),
+      role: "owner",
+      userId: user.id
+    },
     organizationId: own.id,
     user: {
       email: user.email,

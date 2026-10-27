@@ -1,4 +1,3 @@
-import type { AssignableOrganizationRole } from "@repo/auth/auth.type";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
@@ -14,14 +13,19 @@ import { useId, useState } from "react";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import { organizationApi } from "../../../lib/auth-api";
-import { isAssignableRole, ORGANIZATIONS_DEFINITION } from "../organizations.definition";
+import { ORGANIZATIONS_DEFINITION } from "../organizations.definition";
+import { assignableRoleOptions } from "../organizations.util";
 
-export function OrganizationInviteForm() {
+interface OrganizationInviteFormProps {
+  customRoleNames: readonly string[];
+}
+
+export function OrganizationInviteForm({ customRoleNames }: OrganizationInviteFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emailId = useId();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<AssignableOrganizationRole>("member");
+  const [role, setRole] = useState<string>("member");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const invite = useMutation({
@@ -63,14 +67,9 @@ export function OrganizationInviteForm() {
         </Field>
         <LabeledSelect
           label={t("organizations.role.label")}
-          options={ORGANIZATIONS_DEFINITION.assignableRoles.map((value) => ({
-            label: t(`organizations.role.${value}`),
-            value
-          }))}
+          options={assignableRoleOptions(customRoleNames, t)}
           value={role}
-          onValueChange={(value) => {
-            if (isAssignableRole(value)) setRole(value);
-          }}
+          onValueChange={setRole}
         />
         {error ? <FieldError>{error}</FieldError> : null}
         {notice ? <FieldDescription role="status">{notice}</FieldDescription> : null}

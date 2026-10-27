@@ -1,5 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 
+import type { Permission } from "./auth.permissions";
 import type { AuthenticatedOrganizationScope, OrganizationMembershipProof } from "./auth.scope";
 
 export interface AuthConfig {
@@ -133,13 +134,22 @@ export interface AuthInvitation {
   expiresAt: string;
 }
 
-// Roles an owner or admin may give through an invite or a role change; the
-// owner role moves only through a transfer of ownership.
-export type AssignableOrganizationRole = "admin" | "member";
-
 export interface InviteMemberInput {
   email: string;
-  role: AssignableOrganizationRole;
+  /** admin, member, or a Custom Role name; the owner role moves only through a transfer. */
+  role: string;
+}
+
+/** A Custom Role of the Active Organization: a name plus the Permissions it grants. */
+export interface AuthCustomRole {
+  id: string;
+  name: string;
+  permissions: Permission[];
+}
+
+export interface CustomRoleInput {
+  name: string;
+  permissions: readonly Permission[];
 }
 
 // What the invited person sees before accepting or declining.

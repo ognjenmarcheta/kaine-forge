@@ -20,6 +20,9 @@ export type AuditAction =
   | "organization_renamed"
   | "ownership_transferred"
   | "password_changed"
+  | "role_created"
+  | "role_deleted"
+  | "role_updated"
   | "two_factor_disabled"
   | "two_factor_enabled";
 
@@ -159,12 +162,6 @@ export type AuditEventsQuery = {
   };
 };
 
-export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
-
-export type CurrentOrganizationRoleQuery = {
-  currentOrganization: { id: string; role: string } | null;
-};
-
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
@@ -242,6 +239,10 @@ export type OnNoteUpdatedSubscription = { noteUpdated: { id: string } };
 export type OnNoteDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type OnNoteDeletedSubscription = { noteDeleted: { id: string } };
+
+export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type OrganizationPermissionsQuery = { organizationPermissions: Array<string> };
 
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -710,39 +711,6 @@ export const useAuditEventsQuery = <TData = AuditEventsQuery, TError = unknown>(
 useAuditEventsQuery.getKey = (variables?: AuditEventsQueryVariables) =>
   variables === undefined ? ["AuditEvents"] : ["AuditEvents", variables];
 
-export const CurrentOrganizationRoleDocument = new TypedDocumentString(`
-    query CurrentOrganizationRole {
-  currentOrganization {
-    id
-    role
-  }
-}
-    `);
-
-export const useCurrentOrganizationRoleQuery = <
-  TData = CurrentOrganizationRoleQuery,
-  TError = unknown
->(
-  variables?: CurrentOrganizationRoleQueryVariables,
-  options?: Omit<UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>, "queryKey"> & {
-    queryKey?: UseQueryOptions<CurrentOrganizationRoleQuery, TError, TData>["queryKey"];
-  }
-) => {
-  return useQuery<CurrentOrganizationRoleQuery, TError, TData>({
-    queryKey:
-      variables === undefined
-        ? ["CurrentOrganizationRole"]
-        : ["CurrentOrganizationRole", variables],
-    queryFn: useGraphqlFetcher<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>(
-      CurrentOrganizationRoleDocument
-    ).bind(null, variables),
-    ...options
-  });
-};
-
-useCurrentOrganizationRoleQuery.getKey = (variables?: CurrentOrganizationRoleQueryVariables) =>
-  variables === undefined ? ["CurrentOrganizationRole"] : ["CurrentOrganizationRole", variables];
-
 export const HealthDocument = new TypedDocumentString(`
     query Health {
   health
@@ -960,6 +928,36 @@ export const OnNoteDeletedDocument = new TypedDocumentString(`
   }
 }
     `);
+export const OrganizationPermissionsDocument = new TypedDocumentString(`
+    query OrganizationPermissions {
+  organizationPermissions
+}
+    `);
+
+export const useOrganizationPermissionsQuery = <
+  TData = OrganizationPermissionsQuery,
+  TError = unknown
+>(
+  variables?: OrganizationPermissionsQueryVariables,
+  options?: Omit<UseQueryOptions<OrganizationPermissionsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<OrganizationPermissionsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<OrganizationPermissionsQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["OrganizationPermissions"]
+        : ["OrganizationPermissions", variables],
+    queryFn: useGraphqlFetcher<OrganizationPermissionsQuery, OrganizationPermissionsQueryVariables>(
+      OrganizationPermissionsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useOrganizationPermissionsQuery.getKey = (variables?: OrganizationPermissionsQueryVariables) =>
+  variables === undefined ? ["OrganizationPermissions"] : ["OrganizationPermissions", variables];
+
 export const GetPublicAssetsDocument = new TypedDocumentString(`
     query GetPublicAssets {
   publicAssets {

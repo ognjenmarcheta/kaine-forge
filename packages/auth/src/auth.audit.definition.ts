@@ -16,11 +16,15 @@ export interface AuditEventMetadataByAction {
   two_factor_disabled: Record<string, never>;
   password_changed: Record<string, never>;
   attachment_deleted: { originalName: string };
+  role_created: { name: string };
+  role_updated: { name: string };
+  role_deleted: { name: string };
 }
 
 export type AuditAction = keyof AuditEventMetadataByAction;
 
-export type AuditTargetType = "attachment" | "invitation" | "member" | "organization" | "user";
+export type AuditTargetType =
+  "attachment" | "invitation" | "member" | "organization" | "role" | "user";
 
 /** Actions about a User's own account: they belong to no Organization. */
 type UserAuditAction = "two_factor_enabled" | "two_factor_disabled" | "password_changed";
@@ -39,7 +43,10 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   two_factor_enabled: "user",
   two_factor_disabled: "user",
   password_changed: "user",
-  attachment_deleted: "attachment"
+  attachment_deleted: "attachment",
+  role_created: "role",
+  role_updated: "role",
+  role_deleted: "role"
 };
 
 export function isAuditAction(value: string): value is AuditAction {

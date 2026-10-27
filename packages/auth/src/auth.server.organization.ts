@@ -1,8 +1,15 @@
-import { db, membersTable, organizationsTable, usersTable } from "@repo/db";
-import { and, asc, eq } from "drizzle-orm";
+import { db, membersTable, organizationRolesTable, organizationsTable, usersTable } from "@repo/db";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "./auth.permissions";
+import {
+  isBuiltInRole,
+  ORGANIZATION_ROLES,
+  parseRoleNames,
+  resolveRolePermissions,
+  roleHoldsOwnerOnlyPermission,
+  type Permission
+} from "./auth.permissions";
 import type { AuthenticatedOrganizationScope } from "./auth.scope";
 import type { OrganizationMembershipProof } from "./auth.scope";
 import type { AuthOrganization, AuthOrganizationMember } from "./auth.type";
@@ -21,12 +28,16 @@ function personalOrganizationSlug(userId: string): string {
 // better-auth error code the web app translates.
 export const ORGANIZATION_REFUSALS = {
   ACTIVE_ORGANIZATION_MISMATCH: "ACTIVE_ORGANIZATION_MISMATCH",
+  CUSTOM_ROLE_NAME_INVALID: "CUSTOM_ROLE_NAME_INVALID",
+  CUSTOM_ROLE_PERMISSION_NOT_ALLOWED: "CUSTOM_ROLE_PERMISSION_NOT_ALLOWED",
+  CUSTOM_ROLE_RENAME_NOT_SUPPORTED: "CUSTOM_ROLE_RENAME_NOT_SUPPORTED",
   NO_ACTIVE_ORGANIZATION: "NO_ACTIVE_ORGANIZATION",
   ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP: "ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP",
   OWNER_ROLE_REQUIRES_TRANSFER: "OWNER_ROLE_REQUIRES_TRANSFER",
   PERSONAL_ORGANIZATION_CANNOT_BE_DELETED: "PERSONAL_ORGANIZATION_CANNOT_BE_DELETED",
   PERSONAL_ORGANIZATION_CANNOT_BE_LEFT: "PERSONAL_ORGANIZATION_CANNOT_BE_LEFT",
   PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED: "PERSONAL_ORGANIZATION_CANNOT_BE_TRANSFERRED",
+  ROLE_EXCEEDS_YOUR_PERMISSIONS: "ROLE_EXCEEDS_YOUR_PERMISSIONS",
   TRANSFER_TARGET_NOT_FOUND: "TRANSFER_TARGET_NOT_FOUND"
 } as const;
 
@@ -153,10 +164,7 @@ export async function transferOrganizationOwnership(params: {
     const caller = members.find((member) => member.userId === params.userId);
     const target = members.find((member) => member.id === params.targetMemberId);
 
-    // SAFETY: member roles are written only by the better-auth organization
-    // plugin and this module from the ORGANIZATION_ROLES vocabulary, and
-    // hasRoleAtLeast fails closed (returns false) for any other string.
-    if (!caller || !hasRoleAtLeast(caller.role as OrganizationRole, ORGANIZATION_ROLES.OWNER)) {
+    if (!caller || !roleHoldsOwnerOnlyPermission(caller.role, "organization:transfer")) {
       return ORGANIZATION_REFUSALS.ONLY_AN_OWNER_CAN_TRANSFER_OWNERSHIP;
     }
 
@@ -270,11 +278,40 @@ export async function getCurrentOrganizationForScope(
   return organizations[0] ?? null;
 }
 
+/**
+ * The Permissions `role` grants in the Organization. Built-in roles need no
+ * read; Custom Roles are read from this Organization only, so a role name of
+ * another Organization grants nothing.
+ */
+export async function loadRolePermissions(params: {
+  organizationId: string;
+  role: string;
+}): Promise<Permission[]> {
+  const customRoleNames = parseRoleNames(params.role).filter((name) => !isBuiltInRole(name));
+  const customRoles =
+    customRoleNames.length === 0
+      ? []
+      : await db
+          .select({
+            permission: organizationRolesTable.permission,
+            role: organizationRolesTable.role
+          })
+          .from(organizationRolesTable)
+          .where(
+            and(
+              eq(organizationRolesTable.organizationId, params.organizationId),
+              inArray(organizationRolesTable.role, customRoleNames)
+            )
+          );
+
+  return resolveRolePermissions(params.role, customRoles);
+}
+
 export async function getOrganizationMembershipProof(params: {
   organizationId: string;
   userId: string;
 }): Promise<OrganizationMembershipProof | null> {
-  const memberships = await db
+  const [membership] = await db
     .select({
       id: membersTable.id,
       organizationId: membersTable.organizationId,
@@ -290,7 +327,17 @@ export async function getOrganizationMembershipProof(params: {
     )
     .limit(1);
 
-  return memberships[0] ?? null;
+  if (!membership) {
+    return null;
+  }
+
+  return {
+    ...membership,
+    permissions: await loadRolePermissions({
+      organizationId: membership.organizationId,
+      role: membership.role
+    })
+  };
 }
 
 export async function listOrganizationMembersForScope(

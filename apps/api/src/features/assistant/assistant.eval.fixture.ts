@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   notesTable,
@@ -38,7 +39,12 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
     .returning();
   if (!member) throw new Error("Missing fixture Organization Membership");
   const scope: AuthenticatedOrganizationScope = {
-    membership: { id: member.id, role: member.role, userId: member.userId },
+    membership: {
+      id: member.id,
+      permissions: resolveRolePermissions(member.role, []),
+      role: member.role,
+      userId: member.userId
+    },
     organizationId: own.id,
     userId: user.id,
     user: {

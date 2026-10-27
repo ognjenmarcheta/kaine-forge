@@ -19,10 +19,3 @@ query AuditEvents($first: Int, $after: String) {
     }
   }
 }
-
-query CurrentOrganizationRole {
-  currentOrganization {
-    id
-    role
-  }
-}
