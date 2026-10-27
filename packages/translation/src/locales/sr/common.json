@@ -23,5 +23,11 @@
   "common.goToDashboard": "Idi na kontrolnu tablu",
   "error.routeSummary": "Ova stranica nije mogla da se učita. Pokušaj ponovo ili se vrati na kontrolnu tablu.",
   "notFound.title": "Stranica nije pronađena",
-  "notFound.summary": "Ova stranica ne postoji ili je premeštena."
+  "notFound.summary": "Ova stranica ne postoji ili je premeštena.",
+  "legal.footerLabel": "Pravne informacije",
+  "legal.stubNotice": "Šablon stranice. Zamenite ovu stranicu sopstvenim tekstom pre objavljivanja.",
+  "legal.terms.title": "Uslovi korišćenja",
+  "legal.terms.body": "Ova stranica je privremeni sadržaj iz šablona projekta. Ovde napišite uslove koji važe za korišćenje vašeg proizvoda.",
+  "legal.privacy.title": "Politika privatnosti",
+  "legal.privacy.body": "Ova stranica je privremeni sadržaj iz šablona projekta. Opišite koje lične podatke vaš proizvod prikuplja, zašto ih prikuplja i koliko dugo ih čuvate."
 }

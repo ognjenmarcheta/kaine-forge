@@ -37,6 +37,7 @@ import {
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
+import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
@@ -45,6 +46,7 @@ import { SecurityRoute } from "./features/security/security.route";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
+import { useRouteTitle } from "./hooks/use-route-title";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
 
@@ -65,6 +67,11 @@ const ROUTE_TO_BREADCRUMB = {
 
 function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_BREADCRUMB {
   return pathname in ROUTE_TO_BREADCRUMB;
+}
+
+function RootLayout() {
+  useRouteTitle();
+  return <Outlet />;
 }
 
 function ShellLayout() {
@@ -301,54 +308,80 @@ function ShellContent() {
 
 export const appRoutes: RouteObject[] = [
   {
-    element: <ShellLayout />,
-    errorElement: <RouteErrorPage />,
-    path: "/",
+    // Pathless root: sets the document title from the deepest `handle.titleKey`.
+    element: <RootLayout />,
     children: [
       {
-        // Pathless so a failing child route keeps the shell and its sidebar.
+        element: <ShellLayout />,
         errorElement: <RouteErrorPage />,
+        path: "/",
         children: [
           {
-            element: <Navigate replace to="/dashboard" />,
-            index: true
-          },
-          {
-            element: <DashboardRoute />,
-            path: "dashboard"
-          },
-          {
-            element: <TodosRoute />,
-            path: "todos"
-          },
-          {
-            element: <NotesRoute />,
-            path: "notes/:id?"
-          },
-          {
-            element: <AssistantRoute />,
-            path: "assistant"
-          },
-          {
-            element: <OrganizationsRoute />,
-            path: "members"
-          },
-          {
-            element: <SecurityRoute />,
-            path: "security"
+            // Pathless so a failing child route keeps the shell and its sidebar.
+            errorElement: <RouteErrorPage />,
+            children: [
+              {
+                element: <Navigate replace to="/dashboard" />,
+                index: true
+              },
+              {
+                element: <DashboardRoute />,
+                handle: { titleKey: "navigation.dashboard" },
+                path: "dashboard"
+              },
+              {
+                element: <TodosRoute />,
+                handle: { titleKey: "navigation.todos" },
+                path: "todos"
+              },
+              {
+                element: <NotesRoute />,
+                handle: { titleKey: "navigation.notes" },
+                path: "notes/:id?"
+              },
+              {
+                element: <AssistantRoute />,
+                handle: { titleKey: "navigation.assistant" },
+                path: "assistant"
+              },
+              {
+                element: <OrganizationsRoute />,
+                handle: { titleKey: "navigation.members" },
+                path: "members"
+              },
+              {
+                element: <SecurityRoute />,
+                handle: { titleKey: "navigation.security" },
+                path: "security"
+              }
+            ]
           }
         ]
+      },
+      {
+        element: <AuthRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "auth.login.title" },
+        path: "/auth"
+      },
+      {
+        element: <LegalRoute page="terms" />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "legal.terms.title" },
+        path: "/terms"
+      },
+      {
+        element: <LegalRoute page="privacy" />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "legal.privacy.title" },
+        path: "/privacy"
+      },
+      {
+        element: <NotFoundPage />,
+        handle: { titleKey: "notFound.title" },
+        path: "*"
       }
     ]
-  },
-  {
-    element: <AuthRoute />,
-    errorElement: <RouteErrorPage />,
-    path: "/auth"
-  },
-  {
-    element: <NotFoundPage />,
-    path: "*"
   }
 ];
 
