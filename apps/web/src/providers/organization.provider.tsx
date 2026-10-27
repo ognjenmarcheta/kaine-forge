@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
+import type { AuthSession } from "../features/auth/auth.type";
 import type { OrganizationOption } from "../features/organizations/organizations.type";
 import { useAuth } from "../hooks/use-auth";
 import {
@@ -27,6 +28,8 @@ export interface OrganizationContextValue {
   isLoading: boolean;
   setActiveOrganization: (organizationId: string) => Promise<void>;
   createOrganization: (name: string) => Promise<void>;
+  /** After leave, delete, or accept: store the new session and reload organization data. */
+  applyOrganizationSession: (session: AuthSession) => Promise<void>;
 }
 
 const ORGANIZATION_STORAGE_KEY = "kaine.organization.active";
@@ -172,6 +175,12 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     ]
   );
 
+  const applyOrganizationSession = useCallback(
+    (nextSession: AuthSession) =>
+      activeOrganizationMutationHandlers.applyCreatedOrganization(nextSession),
+    [activeOrganizationMutationHandlers]
+  );
+
   const value = useMemo<OrganizationContextValue>(
     () => ({
       organizations: providerState.organizations,
@@ -180,9 +189,10 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       hasError: providerState.hasError,
       isLoading: providerState.isLoading,
       setActiveOrganization,
-      createOrganization
+      createOrganization,
+      applyOrganizationSession
     }),
-    [providerState, setActiveOrganization, createOrganization]
+    [providerState, setActiveOrganization, createOrganization, applyOrganizationSession]
   );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;

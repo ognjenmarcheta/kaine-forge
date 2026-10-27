@@ -47,8 +47,14 @@ export function getServerAuthConfig(
   return {
     baseUrl: env.BETTER_AUTH_URL ?? "http://localhost:4000",
     requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION === "true",
-    secret: env.BETTER_AUTH_SECRET ?? "development-secret"
+    secret: env.BETTER_AUTH_SECRET ?? "development-secret",
+    webAppUrl: env.WEB_APP_URL || "http://localhost:3000"
   };
+}
+
+/** The web page where the invited person accepts or declines an Invitation. */
+export function buildInvitationUrl(webAppUrl: string, invitationId: string): string {
+  return new URL(`/invitations/${encodeURIComponent(invitationId)}`, webAppUrl).toString();
 }
 
 export function getClientAuthConfig(

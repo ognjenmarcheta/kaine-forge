@@ -1,11 +1,21 @@
-import { filesTable, organizationsTable, usersTable } from "@repo/db/schema";
+import {
+  filesTable,
+  organizationStoragePurgesTable,
+  organizationsTable,
+  usersTable
+} from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { createLogger } from "@repo/logger";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createMemoryObjectStore } from "./attachment.store.memory";
-import { sweepAttachmentObjects, sweepStaleObjects, withSweepLock } from "./attachment.sweep";
+import {
+  sweepAttachmentObjects,
+  sweepDeletedOrganizations,
+  sweepStaleObjects,
+  withSweepLock
+} from "./attachment.sweep";
 import { resolveAttachmentSweepConfig } from "./storage.config";
 
 let database: TestDatabase;
@@ -178,6 +188,96 @@ describe("sweepStaleObjects", () => {
     ).resolves.toBe(1);
 
     expect(memory.keys()).toEqual([`${orgId}/todo/f/old.png`, "staging/avatar/u/new"].sort());
+  });
+});
+
+describe("sweepDeletedOrganizations", () => {
+  const publicStorage = { bucket: "public", baseUrl: "https://cdn.example.test" };
+
+  async function queuedPurges() {
+    return database.db
+      .select({ organizationId: organizationStoragePurgesTable.organizationId })
+      .from(organizationStoragePurgesTable);
+  }
+
+  it("deletes a deleted organization's objects and logo, and keeps others", async () => {
+    const [doomed] = await database.db
+      .insert(organizationsTable)
+      .values({
+        name: "Doomed",
+        slug: "sweep-doomed",
+        userId,
+        logo: "https://cdn.example.test/organization-logos/doomed.webp"
+      })
+      .returning();
+    if (!doomed) throw new Error("failed to seed organization");
+    const memory = createMemoryObjectStore("uploads");
+    const object = { contentType: "image/png", sizeBytes: 8, lastModified: before };
+    memory.upload({ bucket: "uploads", key: `${doomed.id}/todo/a/a.png` }, object);
+    memory.upload({ bucket: "uploads", key: `${doomed.id}/todo/b/b.png` }, object);
+    memory.upload({ bucket: "uploads", key: `${otherOrgId}/todo/c/c.png` }, object);
+    memory.upload({ bucket: "public", key: "organization-logos/doomed.webp" }, object);
+
+    // The delete trigger queues the purge; the files rows cascade away.
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, doomed.id));
+    // Deleted after the cutoff: upload URLs issued before it may still be live.
+    await database.db
+      .update(organizationStoragePurgesTable)
+      .set({ createdAt: after })
+      .where(eq(organizationStoragePurgesTable.organizationId, doomed.id));
+
+    await expect(
+      sweepDeletedOrganizations({
+        db: database.db,
+        logger,
+        store: memory,
+        publicStorage,
+        pendingCutoff: cutoff,
+        batchSize: 1
+      })
+    ).resolves.toEqual({ deletedObjects: 2, failed: 0 });
+    expect(memory.keys()).toEqual([`${otherOrgId}/todo/c/c.png`]);
+    expect(await queuedPurges()).toEqual([{ organizationId: doomed.id }]);
+
+    // Once the cutoff passes the deletion, an empty prefix ends the purge.
+    await sweepDeletedOrganizations({
+      db: database.db,
+      logger,
+      store: memory,
+      publicStorage,
+      pendingCutoff: new Date(after.getTime() + 1)
+    });
+    expect(await queuedPurges()).toEqual([]);
+  });
+
+  it("keeps the purge queued while an object delete fails", async () => {
+    const [failing] = await database.db
+      .insert(organizationsTable)
+      .values({ name: "Failing", slug: "sweep-failing", userId })
+      .returning();
+    if (!failing) throw new Error("failed to seed organization");
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload(
+      { bucket: "uploads", key: `${failing.id}/todo/a/a.png` },
+      { contentType: "image/png", sizeBytes: 8, lastModified: before }
+    );
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, failing.id));
+
+    await expect(
+      sweepDeletedOrganizations({
+        db: database.db,
+        logger,
+        store: {
+          ...memory,
+          delete: async () => {
+            throw new Error("s3 unreachable");
+          }
+        },
+        publicStorage: null,
+        pendingCutoff: new Date(Date.now() + 60_000)
+      })
+    ).resolves.toEqual({ deletedObjects: 0, failed: 1 });
+    expect(await queuedPurges()).toEqual([{ organizationId: failing.id }]);
   });
 });
 

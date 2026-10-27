@@ -40,6 +40,7 @@ import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
+import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { SecurityRoute } from "./features/security/security.route";
@@ -363,6 +364,13 @@ export const appRoutes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         handle: { titleKey: "auth.login.title" },
         path: "/auth"
+      },
+      {
+        // Outside the shell: a signed-out visitor goes to /auth and comes back.
+        element: <OrganizationInvitationRoute />,
+        errorElement: <RouteErrorPage />,
+        handle: { titleKey: "organizations.invitation.title" },
+        path: "/invitations/:invitationId"
       },
       {
         element: <LegalRoute page="terms" />,

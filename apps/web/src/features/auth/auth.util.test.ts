@@ -76,3 +76,20 @@ describe("auth.util session storage", () => {
     expect(authHeaders(null)).toEqual({});
   });
 });
+
+describe("resolveReturnPath", () => {
+  it.each([
+    ["/invitations/inv-1", "/invitations/inv-1"],
+    ["/notes/1?tab=a#b", "/notes/1?tab=a#b"],
+    [null, "/dashboard"],
+    ["", "/dashboard"],
+    ["https://evil.example", "/dashboard"],
+    ["//evil.example", "/dashboard"],
+    ["/\\evil.example", "/dashboard"],
+    ["javascript:alert(1)", "/dashboard"]
+  ])("returns %j as %j", async (value, expected) => {
+    const { resolveReturnPath } = await import("./auth.util");
+
+    expect(resolveReturnPath(value)).toBe(expected);
+  });
+});
