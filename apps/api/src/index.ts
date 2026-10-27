@@ -27,6 +27,8 @@ const { startAttachmentSweep, sweepAttachmentObjects, sweepStaleObjects, withSwe
 const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-assets.definition");
 const { s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
+const { startHousekeeping } = await import("./features/housekeeping/housekeeping.sweep");
+const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
 
 const { server, subscriptions, wsServer } = await startApiRuntime({
   createServer: createApiServer,
@@ -74,6 +76,12 @@ if (sweep) {
     }
   });
   stopBackgroundWork.push(stopSweep);
+}
+
+const housekeeping = resolveHousekeepingConfig(process.env);
+
+if (housekeeping) {
+  stopBackgroundWork.push(startHousekeeping({ db, intervalMs: housekeeping.intervalMs, logger }));
 }
 
 registerApiShutdown({
