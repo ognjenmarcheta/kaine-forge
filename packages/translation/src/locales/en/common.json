@@ -19,5 +19,9 @@
   "connection.connecting": "Connecting...",
   "connection.disconnected": "Disconnected",
   "connection.reconnecting": "Reconnecting...",
-  "common.retry": "Try again"
+  "common.retry": "Try again",
+  "common.goToDashboard": "Go to dashboard",
+  "error.routeSummary": "This page could not load. Try again, or go back to the dashboard.",
+  "notFound.title": "Page not found",
+  "notFound.summary": "This page does not exist or has moved."
 }
