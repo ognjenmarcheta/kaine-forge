@@ -4,7 +4,7 @@ import { organizationSubscriptions } from "../../pubsub";
 import type { CreateTodoInput } from "../todos/todos.type";
 
 type ResolverContext = ApiContext;
-type NotesQueryArgs = { limit?: number; offset?: number; search?: string | null };
+type NotesQueryArgs = { first?: number | null; after?: string | null; search?: string | null };
 type NoteByIdArgs = { id: string };
 type CreateNoteArgs = { input: CreateNoteInput };
 type UpdateNoteArgs = { id: string; input: UpdateNoteInput };

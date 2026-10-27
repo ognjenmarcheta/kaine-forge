@@ -79,11 +79,13 @@ const { auditEventsTable, filesTable, membersTable, organizationsTable, usersTab
 
 const ORG_A = "00000000-0000-4000-8000-00000000000a";
 const ORG_B = "00000000-0000-4000-8000-00000000000b";
+const ORG_C = "00000000-0000-4000-8000-00000000000c";
 const EVENT_A_OLD = "00000000-0000-4000-8000-0000000000a1";
 const EVENT_A_TIE_LOW = "00000000-0000-4000-8000-0000000000a2";
 const EVENT_A_TIE_HIGH = "00000000-0000-4000-8000-0000000000a3";
 const EVENT_B = "00000000-0000-4000-8000-0000000000b1";
 const EVENT_USER = "00000000-0000-4000-8000-0000000000c1";
+const EVENT_C = "00000000-0000-4000-8000-0000000000d1";
 const FILE_A = "00000000-0000-4000-8000-0000000000f1";
 
 let baseUrl: string;
@@ -93,9 +95,8 @@ let wsServer: { close: () => void };
 interface GraphqlResponse {
   data?: {
     auditEvents?: {
-      endCursor: string | null;
-      events: Array<Record<string, unknown>>;
-      hasNextPage: boolean;
+      items: Array<Record<string, unknown>>;
+      pageInfo: { endCursor: string | null; hasNextPage: boolean };
     };
   } | null;
   errors?: Array<{ message: string }>;
@@ -123,11 +124,13 @@ async function runAs(
 const AUDIT_EVENTS = /* GraphQL */ `
   query ($first: Int, $after: String) {
     auditEvents(first: $first, after: $after) {
-      events {
+      items {
         id
       }
-      endCursor
-      hasNextPage
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
     }
   }
 `;
@@ -138,12 +141,15 @@ beforeAll(async () => {
     .values({ email: "auditor@example.test", id: USER_ID, name: "Auditor" });
   await testDb.insert(organizationsTable).values([
     { id: ORG_A, name: "Organization A", slug: "audit-a", userId: USER_ID },
-    { id: ORG_B, name: "Organization B", slug: "audit-b", userId: USER_ID }
+    { id: ORG_B, name: "Organization B", slug: "audit-b", userId: USER_ID },
+    { id: ORG_C, name: "Organization C", slug: "audit-c", userId: USER_ID }
   ]);
-  // Admin of A, plain member of B.
+  // Admin of A and C, plain member of B. C lets a foreign cursor pass the
+  // admin check, so only the cursor's own Organization binding can refuse it.
   await testDb.insert(membersTable).values([
     { organizationId: ORG_A, role: "admin", userId: USER_ID },
-    { organizationId: ORG_B, role: "member", userId: USER_ID }
+    { organizationId: ORG_B, role: "member", userId: USER_ID },
+    { organizationId: ORG_C, role: "admin", userId: USER_ID }
   ]);
   const common = {
     action: "member_left",
@@ -167,6 +173,12 @@ beforeAll(async () => {
       createdAt: new Date("2026-01-03T00:00:00.000Z"),
       id: EVENT_B,
       organizationId: ORG_B
+    },
+    {
+      ...common,
+      createdAt: new Date("2026-01-03T00:00:00.000Z"),
+      id: EVENT_C,
+      organizationId: ORG_C
     },
     {
       ...common,
@@ -208,18 +220,37 @@ describe("audit events viewer", () => {
   it("pages the Active Organization's events newest first, never another organization's", async () => {
     const first = await runAs(ORG_A, AUDIT_EVENTS, { first: 2 });
     const second = await runAs(ORG_A, AUDIT_EVENTS, {
-      after: first.data?.auditEvents?.endCursor,
+      after: first.data?.auditEvents?.pageInfo.endCursor,
       first: 2
     });
 
     expect(first.data?.auditEvents).toMatchObject({
-      events: [{ id: EVENT_A_TIE_HIGH }, { id: EVENT_A_TIE_LOW }],
-      hasNextPage: true
+      items: [{ id: EVENT_A_TIE_HIGH }, { id: EVENT_A_TIE_LOW }],
+      pageInfo: { hasNextPage: true }
     });
     expect(second.data?.auditEvents).toMatchObject({
-      events: [{ id: EVENT_A_OLD }],
-      hasNextPage: false
+      items: [{ id: EVENT_A_OLD }],
+      pageInfo: { hasNextPage: false }
     });
+  });
+
+  it("refuses a cursor from another Organization and returns none of its events", async () => {
+    const own = await runAs(ORG_A, AUDIT_EVENTS, { first: 1 });
+    const foreign = await runAs(ORG_C, AUDIT_EVENTS, {
+      after: own.data?.auditEvents?.pageInfo.endCursor
+    });
+
+    // Positive control: without the cursor, C reads its own event.
+    expect((await runAs(ORG_C, AUDIT_EVENTS)).data?.auditEvents?.items).toEqual([{ id: EVENT_C }]);
+    expect(foreign.errors?.map((error) => error.message)).toEqual(["invalid cursor"]);
+    expect(foreign.data).toBeNull();
+  });
+
+  it("refuses a malformed cursor with a GraphQL error and no events", async () => {
+    const result = await runAs(ORG_A, AUDIT_EVENTS, { after: "not a cursor" });
+
+    expect(result.errors?.map((error) => error.message)).toEqual(["invalid cursor"]);
+    expect(result.data).toBeNull();
   });
 
   it("refuses a member who is not an owner or admin", async () => {
@@ -250,11 +281,11 @@ describe("attachment delete", () => {
     });
     const listed = await runAs(
       ORG_A,
-      `{ auditEvents(first: 1) { events { action actor { id } targetId targetLabel ipAddress userAgent } } }`
+      `{ auditEvents(first: 1) { items { action actor { id } targetId targetLabel ipAddress userAgent } } }`
     );
 
     expect(deleted.errors).toBeUndefined();
-    expect(listed.data?.auditEvents?.events).toEqual([
+    expect(listed.data?.auditEvents?.items).toEqual([
       {
         action: "attachment_deleted",
         actor: { id: USER_ID },

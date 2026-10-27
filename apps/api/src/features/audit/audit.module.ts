@@ -3,15 +3,10 @@ import { hasRoleAtLeast, ORGANIZATION_ROLES, type OrganizationRole } from "@repo
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { auditEventsTable, usersTable, type AuditEventMetadataValue } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
-import { desc, inArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
 import { AUDIT_CONFIG } from "./audit.definition";
-import { clampPagination, type ScopedData } from "../../context.data";
-
-export interface AuditEventsPageInput {
-  after?: string | null;
-  first?: number | null;
-}
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 
 export interface AuditEventView {
   action: AuditAction;
@@ -25,44 +20,16 @@ export interface AuditEventView {
   userAgent: string | null;
 }
 
-export interface AuditEventsPage {
-  endCursor: string | null;
-  events: AuditEventView[];
-  hasNextPage: boolean;
-}
-
 /** The Active Organization's Audit Events, readable by its owners and admins only. */
 export interface AuditEvents {
-  list: (input: AuditEventsPageInput) => Promise<AuditEventsPage>;
+  /** Newest first; throws `invalid cursor` for a malformed or foreign `after`. */
+  list: (input: PageInput) => Promise<Connection<AuditEventView>>;
 }
 
 export interface AuditEventsDeps {
   data: ScopedData;
   db: Database;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
-}
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-interface Cursor {
-  createdAt: Date;
-  id: string;
-}
-
-// An opaque position after one event: its (created_at, id), newest first.
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(`${cursor.createdAt.toISOString()}|${cursor.id}`).toString("base64url");
-}
-
-function decodeCursor(value: string): Cursor {
-  const [createdAt = "", id = ""] = Buffer.from(value, "base64url").toString("utf8").split("|");
-  const date = new Date(createdAt);
-
-  if (Number.isNaN(date.getTime()) || !UUID_PATTERN.test(id)) {
-    throw new Error("invalid cursor");
-  }
-
-  return { createdAt: date, id };
 }
 
 function targetLabelOf(metadata: Record<string, AuditEventMetadataValue>): string | null {
@@ -86,18 +53,11 @@ export function createAuditEvents({
         throw new Error("admin role required");
       }
 
-      const { limit } = clampPagination({ limit: input.first }, AUDIT_CONFIG.pagination);
-      const after = input.after ? decodeCursor(input.after) : null;
-      const rows = await data
-        .selectFrom(
-          auditEventsTable,
-          after
-            ? sql`(${auditEventsTable.createdAt}, ${auditEventsTable.id}) < (${after.createdAt.toISOString()}::timestamptz, ${after.id}::uuid)`
-            : undefined
-        )
-        .orderBy(desc(auditEventsTable.createdAt), desc(auditEventsTable.id))
-        .limit(limit + 1);
-      const page = rows.slice(0, limit);
+      const { items: page, pageInfo } = await data.page(auditEventsTable, input, {
+        orderBy: auditEventsTable.createdAt,
+        direction: "desc",
+        limits: AUDIT_CONFIG.pagination
+      });
       const actorIds = [
         ...new Set(page.flatMap((row) => (row.actorUserId ? [row.actorUserId] : [])))
       ];
@@ -109,12 +69,11 @@ export function createAuditEvents({
               .where(inArray(usersTable.id, actorIds))
           : [];
       const actorById = new Map(actors.map((actor) => [actor.id, actor]));
-      const last = page.at(-1);
 
       return {
         // Only recordAuditEvent writes this table, so every action is known;
         // a row from a newer release is skipped rather than failing the page.
-        events: page.flatMap((row) => {
+        items: page.flatMap((row) => {
           const action = row.action;
 
           if (!isAuditAction(action)) {
@@ -135,8 +94,7 @@ export function createAuditEvents({
             }
           ];
         }),
-        endCursor: last ? encodeCursor(last) : null,
-        hasNextPage: rows.length > limit
+        pageInfo
       };
     }
   };

@@ -1,5 +1,7 @@
 import { type Page } from "@playwright/test";
 
+import { connection } from "./connection";
+
 const noteId = "1ec1f87d-71b6-4d66-8a9a-dd611dab474f";
 const tools = [
   { tool: "createNote", input: null, output: JSON.stringify({ id: noteId, title: "Release plan" }) }
@@ -106,7 +108,7 @@ export async function mockAssistant(page: Page) {
   await page.route("**/graphql", async (route) => {
     const query = route.request().postData() ?? "";
     if (query.includes("query GetConversations"))
-      await route.fulfill({ json: { data: { conversations } } });
+      await route.fulfill({ json: { data: { conversations: connection(conversations) } } });
     else if (query.includes("query GetConversation")) {
       if (state.historyError) {
         await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
@@ -120,7 +122,7 @@ export async function mockAssistant(page: Page) {
                 messages.map((message) => ({ ...message, id: `${message.id}-${index.toString()}` }))
               ).flat()
             : messages;
-      await route.fulfill({ json: { data: { assistantMessages: rows } } });
+      await route.fulfill({ json: { data: { assistantMessages: connection(rows) } } });
     } else if (query.includes("mutation SendMessage")) {
       state.sends += 1;
       await gate;

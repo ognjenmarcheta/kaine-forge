@@ -26,15 +26,13 @@ export const auditTypeDefs = /* GraphQL */ `
     createdAt: DateTime!
   }
 
-  type AuditEventPage {
-    events: [AuditEvent!]!
-    # Pass as after to read the next page; null when there is none.
-    endCursor: String
-    hasNextPage: Boolean!
+  type AuditEventConnection {
+    items: [AuditEvent!]!
+    pageInfo: PageInfo!
   }
 
   extend type Query {
     # The Active Organization's Audit Events, newest first. Owners and admins only.
-    auditEvents(first: Int, after: String): AuditEventPage!
+    auditEvents(first: Int, after: String): AuditEventConnection!
   }
 `;

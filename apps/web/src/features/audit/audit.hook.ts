@@ -54,7 +54,7 @@ export function useAuditEvents(organizationId: string | null, enabled: boolean) 
     initialPageParam: FIRST_PAGE,
     queryFn: ({ pageParam }) =>
       fetchAuditEvents({ after: pageParam, first: AUDIT_CONFIG.pageSize }),
-    getNextPageParam: (last) =>
-      last.auditEvents.hasNextPage ? last.auditEvents.endCursor : undefined
+    getNextPageParam: ({ auditEvents: { pageInfo } }) =>
+      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
   });
 }

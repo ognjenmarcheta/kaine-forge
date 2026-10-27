@@ -38,8 +38,8 @@ export function createAssistantTools({ notes, todos }: AssistantToolDeps): ToolS
         limit: z.number().int().min(1).max(50).default(20)
       }),
       execute: async ({ limit }) => {
-        const listed = await todos.list({ limit, offset: 0 });
-        return listed.map((todo) => ({
+        const listed = await todos.list({ first: limit });
+        return listed.items.map((todo) => ({
           id: todo.id,
           title: todo.title,
           completed: todo.completed
@@ -104,8 +104,8 @@ export function createAssistantTools({ notes, todos }: AssistantToolDeps): ToolS
       description: "List the user's notes to find a note id.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
       execute: async ({ limit }) => {
-        const listed = await notes.list({ limit, offset: 0 });
-        return listed.map((note) => ({ id: note.id, title: note.title }));
+        const listed = await notes.list({ first: limit });
+        return listed.items.map((note) => ({ id: note.id, title: note.title }));
       }
     }),
     updateNote: tool({

@@ -1,10 +1,10 @@
 import type { AssistantConversation, AssistantMessage } from "@repo/db";
 import { assistantConversationsTable, assistantMessagesTable } from "@repo/db/schema";
-import { asc, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { ASSISTANT_CONFIG } from "./assistant.config";
 import type { AssistantToolAction } from "./assistant.type";
-import { clampPagination, type PaginationInput, type ScopedData } from "../../context.data";
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 
 export async function createConversation(
   data: ScopedData,
@@ -42,14 +42,18 @@ export async function getConversationById(
 export async function listMessages(
   data: ScopedData,
   conversationId: string,
-  page: PaginationInput
-): Promise<AssistantMessage[]> {
-  const { limit, offset } = clampPagination(page, ASSISTANT_CONFIG.messages);
-  return data
-    .selectFrom(assistantMessagesTable, eq(assistantMessagesTable.conversationId, conversationId))
-    .orderBy(asc(assistantMessagesTable.createdAt))
-    .limit(limit)
-    .offset(offset);
+  page: PageInput
+): Promise<Connection<AssistantMessage>> {
+  return data.page(
+    assistantMessagesTable,
+    page,
+    {
+      orderBy: assistantMessagesTable.createdAt,
+      direction: "asc",
+      limits: ASSISTANT_CONFIG.messages
+    },
+    eq(assistantMessagesTable.conversationId, conversationId)
+  );
 }
 
 export async function listRecentMessages(
@@ -104,14 +108,18 @@ export async function touchConversation(data: ScopedData, id: string): Promise<v
 
 export async function listConversations(
   data: ScopedData,
-  page: PaginationInput
-): Promise<AssistantConversation[]> {
-  const { limit, offset } = clampPagination(page, ASSISTANT_CONFIG.messages);
-  return data
-    .selectFrom(assistantConversationsTable, data.mine(assistantConversationsTable))
-    .orderBy(desc(assistantConversationsTable.updatedAt))
-    .limit(limit)
-    .offset(offset);
+  page: PageInput
+): Promise<Connection<AssistantConversation>> {
+  return data.page(
+    assistantConversationsTable,
+    page,
+    {
+      orderBy: assistantConversationsTable.updatedAt,
+      direction: "desc",
+      limits: ASSISTANT_CONFIG.messages
+    },
+    data.mine(assistantConversationsTable)
+  );
 }
 
 export async function deleteConversation(data: ScopedData, id: string): Promise<boolean> {

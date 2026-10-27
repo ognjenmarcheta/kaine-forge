@@ -3,10 +3,10 @@ import type { Note } from "@repo/db";
 import { createNote, deleteNote, getNoteById, listNotesByScope, updateNote } from "./notes.adapter";
 import type { CreateNoteInput, NotePatch, UpdateNoteInput } from "./notes.type";
 import { ensureNoteTitle, parseOptionalBody } from "./notes.util";
-import type { PaginationInput, ScopedData } from "../../context.data";
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
 
-export interface NoteListArgs extends PaginationInput {
+export interface NoteListArgs extends PageInput {
   search?: string | null | undefined;
 }
 
@@ -23,7 +23,7 @@ export interface NoteModuleDeps {
  * Scope. Writes normalize their input and publish one `note:*` event.
  */
 export interface Notes {
-  list: (args: NoteListArgs) => Promise<Note[]>;
+  list: (args: NoteListArgs) => Promise<Connection<Note>>;
   get: (id: string) => Promise<Note | null>;
   /** Throws `note title is required`/`too long` before any write. */
   create: (input: CreateNoteInput) => Promise<Note>;

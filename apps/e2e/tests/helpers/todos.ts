@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 
+import { connection } from "./connection";
 import { mockNotes } from "./notes";
 
 interface FixtureTodo {
@@ -49,10 +50,10 @@ function variables(body: string) {
       vars && typeof vars === "object" && "search" in vars && typeof vars.search === "string"
         ? vars.search
         : "",
-    offset:
-      vars && typeof vars === "object" && "offset" in vars && typeof vars.offset === "number"
-        ? vars.offset
-        : 0,
+    after:
+      vars && typeof vars === "object" && "after" in vars && typeof vars.after === "string"
+        ? vars.after
+        : null,
     completed:
       vars && typeof vars === "object" && "completed" in vars && typeof vars.completed === "boolean"
         ? vars.completed
@@ -198,18 +199,18 @@ export async function mockTodos(page: Page) {
           ? { errors: [{ message: "Unavailable" }] }
           : {
               data: {
-                todos:
+                todos: connection(
                   common.state.organization === "org-two"
                     ? []
-                    : rows
-                        .filter(
-                          (item) =>
-                            `${item.title} ${item.description ?? ""}`
-                              .toLowerCase()
-                              .includes(vars.search.toLowerCase()) &&
-                            (vars.completed === null || item.completed === vars.completed)
-                        )
-                        .slice(vars.offset, vars.offset + 50)
+                    : rows.filter(
+                        (item) =>
+                          `${item.title} ${item.description ?? ""}`
+                            .toLowerCase()
+                            .includes(vars.search.toLowerCase()) &&
+                          (vars.completed === null || item.completed === vars.completed)
+                      ),
+                  { after: vars.after, first: 50 }
+                )
               }
             }
       });

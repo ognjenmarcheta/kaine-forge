@@ -42,8 +42,8 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
       api.pages(variables);
       return Promise.resolve({
         auditEvents: variables.after
-          ? { endCursor: "cursor-2", events: [SECOND_EVENT], hasNextPage: false }
-          : { endCursor: "cursor-1", events: [FIRST_EVENT], hasNextPage: true }
+          ? { items: [SECOND_EVENT], pageInfo: { endCursor: "cursor-2", hasNextPage: false } }
+          : { items: [FIRST_EVENT], pageInfo: { endCursor: "cursor-1", hasNextPage: true } }
       });
     };
   }

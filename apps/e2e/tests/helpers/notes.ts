@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { connection } from "./connection";
+
 interface FixtureNote {
   id: string;
   title: string;
@@ -22,10 +24,10 @@ function variables(body: string) {
       vars && typeof vars === "object" && "search" in vars && typeof vars.search === "string"
         ? vars.search
         : "",
-    offset:
-      vars && typeof vars === "object" && "offset" in vars && typeof vars.offset === "number"
-        ? vars.offset
-        : 0,
+    after:
+      vars && typeof vars === "object" && "after" in vars && typeof vars.after === "string"
+        ? vars.after
+        : null,
     title:
       input && typeof input === "object" && "title" in input && typeof input.title === "string"
         ? input.title
@@ -128,16 +130,16 @@ export async function mockNotes(page: Page) {
           ? { errors: [{ message: "Unavailable" }] }
           : {
               data: {
-                notes:
+                notes: connection(
                   state.organization === "org-two"
                     ? []
-                    : notes
-                        .filter((note) =>
-                          `${note.title} ${note.body ?? ""}`
-                            .toLowerCase()
-                            .includes(vars.search.trim().toLowerCase())
-                        )
-                        .slice(vars.offset, vars.offset + 50)
+                    : notes.filter((note) =>
+                        `${note.title} ${note.body ?? ""}`
+                          .toLowerCase()
+                          .includes(vars.search.trim().toLowerCase())
+                      ),
+                  { after: vars.after, first: 50 }
+                )
               }
             }
       });

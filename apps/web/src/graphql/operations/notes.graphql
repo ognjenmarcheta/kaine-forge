@@ -1,10 +1,16 @@
-query GetNotes($limit: Int, $offset: Int, $search: String) {
-  notes(limit: $limit, offset: $offset, search: $search) {
-    id
-    title
-    body
-    createdAt
-    updatedAt
+query GetNotes($first: Int, $after: String, $search: String) {
+  notes(first: $first, after: $after, search: $search) {
+    items {
+      id
+      title
+      body
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 

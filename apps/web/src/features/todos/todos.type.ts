@@ -1,7 +1,7 @@
 import type { CreateTodoInput, UpdateTodoInput } from "../../graphql/generated/graphql";
 import type { GetTodosQuery } from "../../graphql/generated/react-query";
 
-export type TodoItem = GetTodosQuery["todos"][number];
+export type TodoItem = GetTodosQuery["todos"]["items"][number];
 
 export interface TodoDraft {
   description: string;

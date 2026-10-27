@@ -37,8 +37,7 @@ export function TodosRoute() {
 
   const listVariables = useMemo(
     () => ({
-      limit: TODOS_CONFIG.pageSize,
-      offset: 0
+      first: TODOS_CONFIG.pageSize
     }),
     []
   );
@@ -115,7 +114,7 @@ export function TodosRoute() {
     ]
   );
 
-  const todos = useMemo(() => todosQuery.data?.todos ?? [], [todosQuery.data]);
+  const todos = useMemo(() => todosQuery.data?.todos.items ?? [], [todosQuery.data]);
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
   const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 

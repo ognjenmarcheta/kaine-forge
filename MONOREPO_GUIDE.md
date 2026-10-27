@@ -176,6 +176,14 @@ The `ORGANIZATIONS_VISIBLE` flag controls whether organization UI is visible. It
 - Do not hand-edit generated GraphQL artifacts.
 - Use generated React Query hooks for GraphQL data fetching.
 
+### List fields and cursors
+
+Every list field returns a `<Type>Connection` with `items: [<Type>!]!` and the shared `pageInfo: PageInfo!` (`hasNextPage`, `endCursor`), and takes `first: Int` and `after: String`. The template uses `items`, not Relay `edges { node cursor }`: clients only ever read the end of a page, so a per-row cursor is unused weight. There is no backward paging and no total count.
+
+- Build a page with `data.page(table, { first, after }, { orderBy, direction, limits })` from `apps/api/src/context.data.ts`. It clamps `first` to the feature's `defaultLimit` and `maxLimit`, keeps the organization predicate, orders by the timestamp column and then `id`, and reads `first + 1` rows to set `hasNextPage`.
+- A cursor is opaque. It encodes the list's table, the Active Organization, the sort key with microseconds, and the row `id`, so a row inserted or deleted between two requests never shifts the next page. A malformed cursor, or one from another list or another Organization, fails with the GraphQL error `invalid cursor` (`BAD_USER_INPUT`). A list paged on a sort key that changes keeps this promise only for inserts and deletes: conversations sort on `updated_at`, which `touchConversation` moves forward, so a conversation that moves above the cursor between two page loads is skipped on the next page.
+- Web lists page with TanStack `useInfiniteQuery`: `initialPageParam` is `null`, each request sends `after: pageParam`, and `getNextPageParam` returns `pageInfo.endCursor` while `pageInfo.hasNextPage` is true.
+
 Regenerate after GraphQL schema or operation changes. Root `pnpm generate` runs API `schema:generate` (writes `apps/api/schema.graphql`) then client codegen for web and mobile:
 
 ```bash

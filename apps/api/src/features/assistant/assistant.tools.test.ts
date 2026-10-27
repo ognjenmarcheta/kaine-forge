@@ -45,13 +45,19 @@ function createDeps(overrides: Partial<AssistantToolDeps> = {}): AssistantToolDe
   return {
     notes: {
       create: vi.fn(async () => note),
-      list: vi.fn(async () => [note]),
+      list: vi.fn(async () => ({
+        items: [note],
+        pageInfo: { hasNextPage: false, endCursor: null }
+      })),
       update: vi.fn(async () => note)
     },
     todos: {
       create: vi.fn(async () => todo),
       delete: vi.fn(async () => true),
-      list: vi.fn(async () => [todo]),
+      list: vi.fn(async () => ({
+        items: [todo],
+        pageInfo: { hasNextPage: false, endCursor: null }
+      })),
       toggle: vi.fn(async () => todo),
       update: vi.fn(async () => todo)
     },
@@ -140,7 +146,7 @@ describe("createAssistantTools", () => {
     await runTool(tools, "listTodos", { limit: 5 });
     await runTool(tools, "listNotes", { limit: 5 });
 
-    expect(deps.todos.list).toHaveBeenCalledWith({ limit: 5, offset: 0 });
-    expect(deps.notes.list).toHaveBeenCalledWith({ limit: 5, offset: 0 });
+    expect(deps.todos.list).toHaveBeenCalledWith({ first: 5 });
+    expect(deps.notes.list).toHaveBeenCalledWith({ first: 5 });
   });
 });

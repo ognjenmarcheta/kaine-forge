@@ -16,7 +16,7 @@ export function AuditLogRoute() {
     return <Navigate replace to="/dashboard" />;
   }
 
-  const events = eventsQuery.data?.pages.flatMap((page) => page.auditEvents.events) ?? [];
+  const events = eventsQuery.data?.pages.flatMap((page) => page.auditEvents.items) ?? [];
 
   return (
     <section className="grid gap-[var(--ds-space-300)]">

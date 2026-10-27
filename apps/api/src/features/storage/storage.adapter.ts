@@ -4,7 +4,7 @@ import { desc, eq, inArray, ne } from "drizzle-orm";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput } from "./storage.type";
-import { clampPagination, type ScopedData } from "../../context.data";
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 
 export async function createFileRecord(
   data: ScopedData,
@@ -49,19 +49,19 @@ export async function getFileById(data: ScopedData, id: string): Promise<File | 
   return files[0] ?? null;
 }
 
-export async function listFiles(data: ScopedData, filter: FilesFilterInput): Promise<File[]> {
-  const { limit, offset } = clampPagination(filter, STORAGE_CONFIG.pagination);
-
-  return data
-    .selectFrom(
-      filesTable,
-      filter.entityType ? eq(filesTable.entityType, filter.entityType) : undefined,
-      filter.entityId ? eq(filesTable.entityId, filter.entityId) : undefined,
-      filter.status ? eq(filesTable.status, filter.status) : undefined
-    )
-    .orderBy(desc(filesTable.createdAt))
-    .limit(limit)
-    .offset(offset);
+export async function listFiles(
+  data: ScopedData,
+  filter: FilesFilterInput,
+  page: PageInput
+): Promise<Connection<File>> {
+  return data.page(
+    filesTable,
+    page,
+    { orderBy: filesTable.createdAt, direction: "desc", limits: STORAGE_CONFIG.pagination },
+    filter.entityType ? eq(filesTable.entityType, filter.entityType) : undefined,
+    filter.entityId ? eq(filesTable.entityId, filter.entityId) : undefined,
+    filter.status ? eq(filesTable.status, filter.status) : undefined
+  );
 }
 
 export async function listFilesByEntityIds(
