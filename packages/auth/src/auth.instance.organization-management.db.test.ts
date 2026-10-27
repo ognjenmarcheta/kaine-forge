@@ -1,5 +1,6 @@
 import { auditEventsTable, invitationsTable, membersTable, organizationsTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
+import type { EmailMessage } from "@repo/email";
 import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
 import { createHmac } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -10,7 +11,10 @@ vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 vi.stubEnv("AUTH_PASSWORD_BREACH_CHECK", "false");
 
-const { database } = vi.hoisted(() => ({ database: { current: null as TestDatabase | null } }));
+const { database, enqueue } = vi.hoisted(() => ({
+  database: { current: null as TestDatabase | null },
+  enqueue: vi.fn<(name: string, message: EmailMessage) => Promise<string>>()
+}));
 
 // Only the schema, never the real `@repo/db` index: its client throws without
 // DATABASE_URL, which a fresh checkout or worktree does not have.
@@ -21,7 +25,7 @@ vi.mock("@repo/db", async () => {
   return { ...schema, db: database.current.db };
 });
 
-vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: vi.fn().mockResolvedValue("job-1") } }));
+vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue } }));
 
 const { createAuthInstance } = await import("./auth.instance");
 const { runWithAuditRequest } = await import("./auth.audit");
@@ -164,6 +168,26 @@ function totpCode(totpUri: string): string {
   const digest = createHmac("sha1", key).update(counter).digest();
   const offset = (digest[digest.length - 1] ?? 0) & 0xf;
   return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
+
+// Auth emails are enqueued without awaiting; wait for the one that matches.
+async function emailedMatch(to: string, pattern: RegExp): Promise<string> {
+  return vi.waitFor(() => {
+    const match = enqueue.mock.calls
+      .map(([, message]) => message)
+      .filter((message) => message.to === to)
+      .map((message) => pattern.exec(message.text)?.[1])
+      .filter((value) => value !== undefined)
+      .at(-1);
+    if (!match) throw new Error(`no email to ${to} matches ${String(pattern)}`);
+    return match;
+  });
+}
+
+async function resetThroughLink(email: string) {
+  await auth.api.requestPasswordReset({ body: { email } });
+  const token = await emailedMatch(email, /reset-password\/([^?\s]+)/);
+  return post("/reset-password", new Headers(), { newPassword: "Reset123!Secret", token });
 }
 
 afterAll(async () => {
@@ -587,6 +611,61 @@ describe("audit events", () => {
     expect(organization?.name).toBe("Still Renamed");
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ action: "organization_renamed" }),
+      "audit event not recorded"
+    );
+  });
+
+  it("records a password reset through the emailed link and the email code", async () => {
+    const linkUser = await signUp("audit-reset-link");
+    const codeUser = await signUp("audit-reset-code");
+
+    const linkReset = await resetThroughLink(linkUser.email);
+    await auth.api.requestPasswordResetEmailOTP({ body: { email: codeUser.email } });
+    const otp = await emailedMatch(codeUser.email, /\b(\d{6})\b/);
+    const codeReset = await post("/email-otp/reset-password", new Headers(), {
+      email: codeUser.email,
+      otp,
+      password: "Reset123!Secret"
+    });
+
+    expect([linkReset.status, codeReset.status]).toEqual([200, 200]);
+    for (const user of [linkUser, codeUser]) {
+      expect(await auditEventsOf(eq(auditEventsTable.targetId, user.userId))).toEqual([
+        {
+          action: "password_changed",
+          actorUserId: user.userId,
+          metadata: {},
+          organizationId: null,
+          targetId: user.userId,
+          targetType: "user"
+        }
+      ]);
+    }
+  });
+
+  it("completes a password reset when its audit write fails", async () => {
+    const user = await signUp("audit-reset-failure");
+    const logger = { error: vi.fn() };
+    await testDatabase().client.exec("ALTER TABLE audit_events RENAME TO audit_events_away;");
+
+    let status = 0;
+    try {
+      const response = await runWithAuditRequest({ ipAddress: null, logger, userAgent: null }, () =>
+        resetThroughLink(user.email)
+      );
+      status = response.status;
+    } finally {
+      await testDatabase().client.exec("ALTER TABLE audit_events_away RENAME TO audit_events;");
+    }
+
+    expect(status).toBe(200);
+    const signIn = await post("/sign-in/email", new Headers(), {
+      email: user.email,
+      password: "Reset123!Secret"
+    });
+    expect(signIn.status).toBe(200);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "password_changed" }),
       "audit event not recorded"
     );
   });

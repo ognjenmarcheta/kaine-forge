@@ -39,6 +39,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { recordAuditEvent } from "./auth.audit";
 import { auditPlugin } from "./auth.audit.plugin";
 import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
@@ -504,12 +505,20 @@ export function createAuthInstance() {
         );
       },
       // Runs after both reset flows: the emailed link and the email one-time code.
+      // Neither route returns the user, so the audit after hook cannot record it.
       onPasswordReset: async ({ user }) => {
         enqueueAuthEmail(
           user.email,
           { template: "passwordChanged", securityUrl: buildSecurityUrl(config.webAppUrl) },
           readUserLocale(user)
         );
+        await recordAuditEvent({
+          action: "password_changed",
+          actorUserId: user.id,
+          metadata: {},
+          organizationId: null,
+          targetId: user.id
+        });
       },
       resetPasswordTokenExpiresIn: AUTH_DEFINITIONS.PASSWORD_RESET_MAX_AGE_SECONDS
       // Soft verification (ADR 0007): requireEmailVerification stays unset so
