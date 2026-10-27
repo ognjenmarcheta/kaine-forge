@@ -34,6 +34,11 @@ const apiEnvSchema = z.object({
     z.coerce.number().int().positive().optional()
   ),
   API_TRUST_PROXY: z.string().optional(),
+  // Below Docker's 10 s stop grace period, so the API exits before SIGKILL.
+  API_SHUTDOWN_TIMEOUT_MS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().default(8000)
+  ),
   AUTH_REQUIRE_EMAIL_VERIFICATION: z.string().optional(),
   AUTH_PASSWORD_BREACH_CHECK: z.string().optional(),
   EMAIL_PROVIDER: z.string().optional(),
