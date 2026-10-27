@@ -5,11 +5,13 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 const { database } = vi.hoisted(() => ({ database: { current: null as TestDatabase | null } }));
 
-vi.mock("@repo/db", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@repo/db")>();
+// Only the schema, never the real `@repo/db` index: its client throws without
+// DATABASE_URL, which a fresh checkout or worktree does not have.
+vi.mock("@repo/db", async () => {
+  const schema = await import("@repo/db/schema");
   const { createTestDatabase: create } = await import("@repo/db/testing");
   database.current = await create();
-  return { ...actual, db: database.current.db };
+  return { ...schema, db: database.current.db };
 });
 
 const { ensurePersonalOrganizationForUser, resolveActiveOrganizationForUser } =

@@ -19,5 +19,9 @@
   "connection.connecting": "Verbindung wird hergestellt...",
   "connection.disconnected": "Getrennt",
   "connection.reconnecting": "Erneut verbinden...",
-  "common.retry": "Erneut versuchen"
+  "common.retry": "Erneut versuchen",
+  "common.goToDashboard": "Zur Übersicht",
+  "error.routeSummary": "Diese Seite konnte nicht geladen werden. Versuche es erneut oder kehre zur Übersicht zurück.",
+  "notFound.title": "Seite nicht gefunden",
+  "notFound.summary": "Diese Seite existiert nicht oder wurde verschoben."
 }
