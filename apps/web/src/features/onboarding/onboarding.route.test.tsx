@@ -16,7 +16,9 @@ const { auth, organization, api } = vi.hoisted(() => ({
   organization: {
     activeOrganizationId: "org-1",
     organizations: [{ id: "org-1", name: "Personal", personal: true as boolean }],
-    createOrganization: vi.fn()
+    createOrganization: vi.fn(),
+    isLoading: false,
+    organizationsVisible: true
   },
   api: {
     complete: vi.fn(),
@@ -38,9 +40,9 @@ vi.mock("../../hooks/use-organization", () => ({
     activeOrganizationId: organization.activeOrganizationId,
     createOrganization: organization.createOrganization,
     hasError: false,
-    isLoading: false,
+    isLoading: organization.isLoading,
     organizations: organization.organizations,
-    organizationsVisible: true
+    organizationsVisible: organization.organizationsVisible
   })
 }));
 vi.mock("../../hooks/use-translation", () => ({
@@ -125,6 +127,8 @@ afterEach(() => {
   vi.clearAllMocks();
   organization.activeOrganizationId = "org-1";
   organization.organizations = [{ id: "org-1", name: "Personal", personal: true }];
+  organization.isLoading = false;
+  organization.organizationsVisible = true;
 });
 
 it.each([
@@ -254,6 +258,22 @@ it("completes onboarding at once for an invited member with no step to offer", a
   try {
     await vi.waitFor(() => expect(container.textContent).toBe("/dashboard"));
     expect(api.complete).toHaveBeenCalledTimes(1);
+  } finally {
+    await cleanup();
+  }
+});
+
+it("keeps onboarding open while the Organization flags load", async () => {
+  auth.session = newUser();
+  completeOnboarding();
+  // The provider hides organization UI until the server's flags arrive.
+  organization.isLoading = true;
+  organization.organizationsVisible = false;
+  const { container, cleanup } = await renderOnboarding();
+  try {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(api.complete).not.toHaveBeenCalled();
+    expect(container.textContent).not.toBe("/dashboard");
   } finally {
     await cleanup();
   }

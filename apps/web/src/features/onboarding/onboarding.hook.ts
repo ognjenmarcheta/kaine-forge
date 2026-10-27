@@ -26,12 +26,17 @@ export function useOnboardingSteps(userId: string): OnboardingStep[] | null {
     enabled: organizationsVisible && activeOrganization !== undefined && !personal
   });
 
+  // Organization UI stays hidden while the flags load, so wait before reading it.
+  if (isLoading) {
+    return null;
+  }
+
   // Without the Organization UI there is nothing to name or invite into.
   if (!organizationsVisible) {
     return [];
   }
 
-  if (isLoading || !activeOrganization) {
+  if (!activeOrganization) {
     return null;
   }
 
