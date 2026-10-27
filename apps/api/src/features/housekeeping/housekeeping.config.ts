@@ -34,7 +34,8 @@ export function resolveHousekeepingConfig(
       auditEventsMs: days(env.RETENTION_AUDIT_EVENTS_DAYS, defaults.auditEvents),
       dataExportsMs: days(env.RETENTION_DATA_EXPORTS_DAYS, defaults.dataExports),
       notificationsMs: days(env.RETENTION_NOTIFICATIONS_DAYS, defaults.notifications),
-      purgedFilesMs: days(env.RETENTION_PURGED_FILES_DAYS, defaults.purgedFiles)
+      purgedFilesMs: days(env.RETENTION_PURGED_FILES_DAYS, defaults.purgedFiles),
+      webhookDeliveriesMs: days(env.RETENTION_WEBHOOK_DELIVERIES_DAYS, defaults.webhookDeliveries)
     }
   };
 }

@@ -105,6 +105,10 @@ const apiEnvSchema = z.object({
     blankAsUnset,
     z.coerce.number().int().positive().optional()
   ),
+  RETENTION_WEBHOOK_DELIVERIES_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
   DATA_EXPORT_ARCHIVE_DAYS: z.preprocess(
     blankAsUnset,
     z.coerce.number().int().positive().optional()

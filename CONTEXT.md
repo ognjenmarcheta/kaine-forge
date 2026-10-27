@@ -57,7 +57,7 @@ A stored message to one **User** about something another person or the system di
 _Avoid_: alert, toast, inbox message
 
 **API Key**:
-A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never changes who or what can reach the Organization (API Keys, Webhook Endpoints, roles, members, invitations), never reads its creator's own data or other Organizations, and gets 401 once revoked or expired.
+A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never changes who or what can reach the Organization (API Keys, Webhook Endpoints, roles, members, invitations), never exports the Organization, never reads its creator's own data or other Organizations, and gets 401 once revoked or expired.
 _Avoid_: token, access token, personal access token
 
 **Webhook Endpoint**:

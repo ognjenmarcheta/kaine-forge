@@ -125,11 +125,13 @@ const CUSTOM_ROLE_PERMISSION_SET: ReadonlySet<string> = new Set(CUSTOM_ROLE_PERM
 
 // What an API Key never grants: changing who or what can reach the
 // Organization (keys, Webhook Endpoints, roles, members, invitations, the
-// Organization itself). A leaked key must not create access that outlives it.
+// Organization itself), so a leaked key cannot create access that outlives
+// it, nor a bulk export of the whole Organization.
 const API_KEY_EXCLUDED_PERMISSIONS: ReadonlySet<string> = new Set([
   "organization:update",
   "organization:delete",
   "organization:transfer",
+  "organization:export",
   "member:create",
   "member:update",
   "member:delete",

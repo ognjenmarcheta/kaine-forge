@@ -7,13 +7,14 @@ export const HOUSEKEEPING_CONFIG = {
   /**
    * Retention windows in days, each overridable by its environment variable
    * (`.env.example`). Purged Attachment rows, failed and expired data exports,
-   * Audit Events, and Notifications.
+   * Audit Events, Notifications, and webhook delivery log rows.
    */
   retentionDays: {
     purgedFiles: 30,
     dataExports: 30,
     auditEvents: 365,
-    notifications: 90
+    notifications: 90,
+    webhookDeliveries: 30
   },
   /** A data export pending or running this long lost its job; housekeeping fails it. */
   stalledExportMs: 24 * 60 * 60 * 1000,
