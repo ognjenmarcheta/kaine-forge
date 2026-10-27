@@ -11,10 +11,6 @@ import { and, eq, like } from "drizzle-orm";
 import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Each test signs users up through scrypt on PGlite, which can pass vitest's
-// 5 s default on a slow runner.
-vi.setConfig({ testTimeout: 30_000 });
-
 // The real auth instance on an in-process Postgres: magic links and passkeys
 // run through better-auth's own routes.
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
