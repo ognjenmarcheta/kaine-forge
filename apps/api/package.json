@@ -23,6 +23,7 @@
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.72",
     "@ai-sdk/openai": "^4.0.101",
+    "@graphql-yoga/plugin-csrf-prevention": "^4.0.1",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/email": "workspace:*",

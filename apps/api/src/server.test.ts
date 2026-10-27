@@ -48,6 +48,7 @@ describe("createApiServer rate limiting", () => {
       expect(second.headers.get("access-control-allow-credentials")).toBe("true");
       expect(second.headers.get("access-control-expose-headers")).toBe("retry-after, x-request-id");
       expect(second.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+      expect(second.headers.get("x-content-type-options")).toBe("nosniff");
       await expect(second.json()).resolves.toEqual({ error: "too many requests" });
 
       // Preflights must never consume or hit the limit.
@@ -201,6 +202,27 @@ async function completionLineFor(
     return line;
   });
 }
+
+describe("createApiServer security headers", () => {
+  it.each([
+    ["/health", { method: "GET" }],
+    ["/api/auth/get-session", { method: "GET", headers: { accept: "application/json" } }],
+    [
+      "/graphql",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "{ health }" })
+      }
+    ],
+    ["/graphql", { method: "GET" }]
+  ])("sends X-Content-Type-Options: nosniff on %s (%o)", async (path, init) => {
+    await withLoggedApiServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}${path}`, init);
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    });
+  });
+});
 
 describe("createApiServer request ids", () => {
   it("echoes a valid incoming x-request-id and logs status and duration under it", async () => {

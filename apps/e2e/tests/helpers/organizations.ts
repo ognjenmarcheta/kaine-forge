@@ -27,7 +27,11 @@ export async function graphql(
   query: string,
   variables: Record<string, unknown>
 ): Promise<GraphqlResult> {
-  const response = await page.request.post("/graphql", { data: { query, variables } });
+  // Sends the CSRF header the app's GraphQL client sends.
+  const response = await page.request.post("/graphql", {
+    data: { query, variables },
+    headers: { "x-graphql-yoga-csrf": "1" }
+  });
   expect(response.ok(), `GraphQL HTTP ${String(response.status())}`).toBe(true);
 
   const payload: unknown = await response.json();
