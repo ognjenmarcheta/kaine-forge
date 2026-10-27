@@ -210,15 +210,28 @@ describe("data exports", () => {
     expect(archive).not.toContain("bob@example.test");
   });
 
-  it("holds only the Active Organization's data in an Organization export", async () => {
+  it("holds only the Active Organization's shared data in an Organization export", async () => {
     const files = await exportArchive(ids.alice, ids.acme, "owner", "organization");
     const archive = Object.values(files).join("\n");
 
+    expect(Object.keys(files).sort()).toEqual([
+      "export.json",
+      "files-manifest.json",
+      "invitations.json",
+      "members.json",
+      "notes.json",
+      "organization.json",
+      "roles.json",
+      "todos.json"
+    ]);
     for (const label of ["alice-acme", "bob-acme"]) {
       expect(archive).toContain(`todo-${label}`);
-      expect(archive).toContain(`message-${label}`);
       expect(archive).toContain(`file-${label}.pdf`);
     }
+    // Assistant conversations are private to their author, the owner's own
+    // included; each member exports theirs with a user export.
+    expect(archive).not.toContain("conversation-");
+    expect(archive).not.toContain("message-");
     expect(archive).not.toContain("globex");
     expect(archive).not.toContain(ids.globex);
     expect(JSON.parse(files["members.json"] ?? "")).toEqual([

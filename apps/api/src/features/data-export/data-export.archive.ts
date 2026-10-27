@@ -90,29 +90,35 @@ const manifestColumns = {
   createdAt: filesTable.createdAt
 };
 
+// Shared content of an Organization: todos, notes, and the files manifest.
 async function contentFiles(
   db: Database,
-  owner: {
-    todos: SQL;
-    notes: SQL;
-    conversations: SQL;
-    files: SQL;
-  }
+  owner: { todos: SQL; notes: SQL; files: SQL }
 ): Promise<ArchiveFiles> {
-  const [todos, notes, conversations, files] = await Promise.all([
+  const [todos, notes, files] = await Promise.all([
     db.select(todoColumns).from(todosTable).where(owner.todos).orderBy(asc(todosTable.createdAt)),
     db.select(noteColumns).from(notesTable).where(owner.notes).orderBy(asc(notesTable.createdAt)),
-    db
-      .select(conversationColumns)
-      .from(assistantConversationsTable)
-      .where(owner.conversations)
-      .orderBy(asc(assistantConversationsTable.createdAt)),
     db
       .select(manifestColumns)
       .from(filesTable)
       .where(and(owner.files, eq(filesTable.status, "uploaded")))
       .orderBy(asc(filesTable.createdAt))
   ]);
+
+  return { "todos.json": todos, "notes.json": notes, "files-manifest.json": files };
+}
+
+/**
+ * A user's own assistant conversations and their messages. Conversations are
+ * private to their author, so only a user export holds them, never an
+ * Organization export.
+ */
+async function assistantFiles(db: Database, userId: string): Promise<ArchiveFiles> {
+  const conversations = await db
+    .select(conversationColumns)
+    .from(assistantConversationsTable)
+    .where(eq(assistantConversationsTable.userId, userId))
+    .orderBy(asc(assistantConversationsTable.createdAt));
   // Messages follow their conversations, so an export never holds a message
   // of a conversation it does not hold.
   const messages =
@@ -130,11 +136,8 @@ async function contentFiles(
       : [];
 
   return {
-    "todos.json": todos,
-    "notes.json": notes,
     "assistant-conversations.json": conversations,
-    "assistant-messages.json": messages,
-    "files-manifest.json": files
+    "assistant-messages.json": messages
   };
 }
 
@@ -179,13 +182,17 @@ export async function collectUserExport(db: Database, userId: string): Promise<A
     ...(await contentFiles(db, {
       todos: eq(todosTable.userId, userId),
       notes: eq(notesTable.userId, userId),
-      conversations: eq(assistantConversationsTable.userId, userId),
       files: eq(filesTable.uploadedBy, userId)
-    }))
+    })),
+    ...(await assistantFiles(db, userId))
   };
 }
 
-/** One Organization's data: the Organization, its members and roles, Invitations, and content. */
+/**
+ * One Organization's data: the Organization, its members and roles,
+ * Invitations, and shared content. No assistant conversations: they are
+ * private to their author, who exports them with a user export.
+ */
 export async function collectOrganizationExport(
   db: Database,
   organizationId: string
@@ -260,7 +267,6 @@ export async function collectOrganizationExport(
     ...(await contentFiles(db, {
       todos: eq(todosTable.organizationId, organizationId),
       notes: eq(notesTable.organizationId, organizationId),
-      conversations: eq(assistantConversationsTable.organizationId, organizationId),
       files: eq(filesTable.organizationId, organizationId)
     }))
   };

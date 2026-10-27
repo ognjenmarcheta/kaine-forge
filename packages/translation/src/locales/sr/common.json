@@ -33,7 +33,7 @@
   "dataExport.user.title": "Izvezite svoje podatke",
   "dataExport.user.description": "Preuzmite arhivu sa vašim profilom, članstvima i zadacima, beleškama, razgovorima sa asistentom i podacima o prilozima koje ste kreirali. Datoteke priloga nisu uključene.",
   "dataExport.organization.title": "Izvoz podataka organizacije",
-  "dataExport.organization.description": "Preuzmite arhivu ove organizacije: članove, uloge, pozivnice, zadatke, beleške, razgovore sa asistentom i podatke o prilozima. Datoteke priloga nisu uključene.",
+  "dataExport.organization.description": "Preuzmite arhivu ove organizacije: članove, uloge, pozivnice, zadatke, beleške i podatke o prilozima. Razgovori sa asistentom ostaju privatni: svaki član izvozi svoje iz podešavanja naloga. Datoteke priloga nisu uključene.",
   "dataExport.request": "Zatraži izvoz",
   "dataExport.download": "Preuzmi",
   "dataExport.list": "Izvozi",

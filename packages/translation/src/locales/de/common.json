@@ -33,7 +33,7 @@
   "dataExport.user.title": "Deine Daten exportieren",
   "dataExport.user.description": "Lade ein Archiv mit deinem Profil, deinen Mitgliedschaften und den Todos, Notizen, Assistenten-Unterhaltungen und Anhangsdaten herunter, die du erstellt hast. Anhangsdateien sind nicht enthalten.",
   "dataExport.organization.title": "Organisationsdaten exportieren",
-  "dataExport.organization.description": "Lade ein Archiv dieser Organisation herunter: Mitglieder, Rollen, Einladungen, Todos, Notizen, Assistenten-Unterhaltungen und Anhangsdaten. Anhangsdateien sind nicht enthalten.",
+  "dataExport.organization.description": "Lade ein Archiv dieser Organisation herunter: Mitglieder, Rollen, Einladungen, Todos, Notizen und Anhangsdaten. Assistenten-Unterhaltungen bleiben privat: Jedes Mitglied exportiert seine eigenen in den Kontoeinstellungen. Anhangsdateien sind nicht enthalten.",
   "dataExport.request": "Export anfordern",
   "dataExport.download": "Herunterladen",
   "dataExport.list": "Exporte",
