@@ -1,5 +1,16 @@
 # @repo/mobile
 
+## 1.9.4
+
+### Patch Changes
+
+- Updated dependencies [12ad7c5]
+- Updated dependencies [46d5bd6]
+- Updated dependencies [2ddc1a9]
+  - @repo/translation@1.10.0
+  - @repo/logger@1.2.0
+  - @repo/auth@3.0.3
+
 ## 1.9.3
 
 ### Patch Changes
