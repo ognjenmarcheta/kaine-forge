@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { FEATURE_FLAGS_RESPONSE } from "./feature-flags";
 
 interface FixtureNote {
   id: string;
@@ -185,7 +186,9 @@ export async function mockNotes(page: Page) {
       const index = notes.findIndex((note) => note.id === vars.id);
       if (index >= 0) notes.splice(index, 1);
       await route.fulfill({ json: { data: { deleteNote: true } } });
-    } else await route.fulfill({ json: { data: {} } });
+    } else if (query.includes("query FeatureFlags"))
+      await route.fulfill({ json: FEATURE_FLAGS_RESPONSE });
+    else await route.fulfill({ json: { data: {} } });
   });
   return {
     state,

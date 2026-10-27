@@ -1,6 +1,7 @@
 import { type Page } from "@playwright/test";
 
 import { connection } from "./connection";
+import { FEATURE_FLAGS_RESPONSE } from "./feature-flags";
 
 const noteId = "1ec1f87d-71b6-4d66-8a9a-dd611dab474f";
 const tools = [
@@ -162,7 +163,9 @@ export async function mockAssistant(page: Page) {
     } else if (query.includes("mutation DeleteConversation")) {
       conversations = conversations.filter((item) => item.id !== "a");
       await route.fulfill({ json: { data: { deleteConversation: true } } });
-    } else await route.fulfill({ json: { data: {} } });
+    } else if (query.includes("query FeatureFlags"))
+      await route.fulfill({ json: FEATURE_FLAGS_RESPONSE });
+    else await route.fulfill({ json: { data: {} } });
   });
   return { state, finish: () => resolveReply(), delta: (text: string) => sendDelta(text) };
 }

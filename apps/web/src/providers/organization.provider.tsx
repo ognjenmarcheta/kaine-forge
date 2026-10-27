@@ -76,16 +76,16 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     queryKey: createActiveOrganizationQueryKey(useFeatureFlagsQuery.getKey(), activeOrganizationId)
   });
   const isFeatureFlagsPending = Boolean(session) && featureFlagsQuery.isPending;
+  // An answer without a flag list, such as a test double's `{ data: {} }`,
+  // counts as no answer instead of failing the render.
+  const flagValues = featureFlagsQuery.data?.featureFlags;
+  const hasServerFlags = Array.isArray(flagValues);
   const featureFlags = useMemo(
-    () =>
-      featureFlagsQuery.data
-        ? featureFlagsFromValues(featureFlagsQuery.data.featureFlags)
-        : DEFAULT_FLAGS,
-    [featureFlagsQuery.data]
+    () => (hasServerFlags ? featureFlagsFromValues(flagValues) : DEFAULT_FLAGS),
+    [hasServerFlags, flagValues]
   );
   const organizationsVisible =
-    featureFlagsQuery.isSuccess &&
-    isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
+    hasServerFlags && isFeatureEnabled(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE, featureFlags);
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations(),

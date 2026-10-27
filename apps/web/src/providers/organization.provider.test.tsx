@@ -6,9 +6,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { OrganizationContext, OrganizationProvider } from "./organization.provider";
 
-// The API's featureFlags answer; each test settles it when it chooses.
+// The API's featureFlags answer; each test settles it when it chooses. An
+// empty object is a malformed answer, like a test double's `{ data: {} }`.
+type FlagsOutcome = { organizationsVisible: boolean } | Record<string, never> | Error;
 const flags = vi.hoisted(() => {
-  const state: { settle?: (outcome: { organizationsVisible: boolean } | Error) => void } = {};
+  const state: { settle?: (outcome: FlagsOutcome) => void } = {};
   return state;
 });
 const setActiveOrganization = vi.hoisted(() => vi.fn());
@@ -34,16 +36,22 @@ vi.mock("../lib/auth-api", () => ({
 vi.mock("../lib/graphql-codegen-fetcher", () => ({
   useGraphqlFetcher: () => () =>
     new Promise((resolve, reject) => {
-      flags.settle = (outcome) =>
-        outcome instanceof Error
-          ? reject(outcome)
-          : resolve({
-              featureFlags: [
-                { key: "organizations_visible", enabled: outcome.organizationsVisible }
-              ]
-            });
+      flags.settle = (outcome) => {
+        if (outcome instanceof Error) reject(outcome);
+        else if (!("organizationsVisible" in outcome)) resolve({});
+        else
+          resolve({
+            featureFlags: [{ key: "organizations_visible", enabled: outcome.organizationsVisible }]
+          });
+      };
     })
 }));
+
+async function settleFlags(outcome: FlagsOutcome): Promise<void> {
+  await act(async () => flags.settle?.(outcome));
+  // React Query reports the result to observers on a later macrotask.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+}
 
 function Probe() {
   const value = useContext(OrganizationContext);
@@ -87,16 +95,21 @@ it("waits for the server's flags before showing organization UI or switching Org
   expect(container.textContent).toBe("loading:true visible:false");
   expect(setActiveOrganization).not.toHaveBeenCalled();
 
-  await act(async () => flags.settle?.({ organizationsVisible: false }));
+  await settleFlags({ organizationsVisible: false });
 
   expect(container.textContent).toBe("loading:false visible:false");
   expect(setActiveOrganization).not.toHaveBeenCalled();
 });
 
 it("keeps organization UI hidden and the remembered Organization unused when the flags fail", async () => {
-  await act(async () => flags.settle?.(new Error("network down")));
-  // React Query reports a rejection to observers on a later macrotask.
-  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  await settleFlags(new Error("network down"));
+
+  expect(container.textContent).toBe("loading:false visible:false");
+  expect(setActiveOrganization).not.toHaveBeenCalled();
+});
+
+it("renders with organization UI hidden when the flags answer has no flag list", async () => {
+  await settleFlags({});
 
   expect(container.textContent).toBe("loading:false visible:false");
   expect(setActiveOrganization).not.toHaveBeenCalled();
