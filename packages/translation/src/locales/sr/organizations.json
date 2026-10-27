@@ -64,6 +64,8 @@
   "organizations.audit.action.ownership_transferred": "Vlasništvo preneto",
   "organizations.audit.action.organization_renamed": "Organizacija preimenovana",
   "organizations.audit.action.organization_deleted": "Organizacija obrisana",
+  "organizations.audit.action.organization_exported": "Podaci organizacije izvezeni",
+  "organizations.audit.action.organization_export_downloaded": "Izvoz podataka organizacije preuzet",
   "organizations.audit.action.invitation_revoked": "Pozivnica opozvana",
   "organizations.audit.action.two_factor_enabled": "Verifikacija u dva koraka uključena",
   "organizations.audit.action.two_factor_disabled": "Verifikacija u dva koraka isključena",

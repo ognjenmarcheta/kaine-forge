@@ -5,6 +5,7 @@ import { AccountPassword } from "./components/account-password";
 import { AccountProfile } from "./components/account-profile";
 import { AccountSessions } from "./components/account-sessions";
 import { useTranslation } from "../../hooks/use-translation";
+import { DataExportSection } from "../data-export/components/data-export-section";
 import { NotificationPreferences } from "../notifications/components/notification-preferences";
 
 export function AccountRoute() {
@@ -22,6 +23,7 @@ export function AccountRoute() {
       <AccountSessions />
       <NotificationPreferences />
       <AccountLinkedAccounts />
+      <DataExportSection kind="user" organizationId={null} />
       <AccountDelete />
     </section>
   );

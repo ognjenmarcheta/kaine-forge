@@ -18,21 +18,13 @@ try {
   process.exit(1);
 }
 
-const { db, pool } = await import("@repo/db/client");
-const { createEmailSender } = await import("@repo/email");
-const { createJobHandlers } = await import("@repo/jobs");
-const { createWebhookDeliveryHandler } = await import("./features/webhooks/webhooks.delivery");
-const { postWebhook } = await import("./features/webhooks/webhooks.transport");
+const { pool } = await import("@repo/db/client");
 const { jobQueue } = await import("@repo/jobs/client");
+const { createApiJobHandlers } = await import("./api.jobs");
 
 try {
   await jobQueue.start();
-  await jobQueue.startRunner(
-    createJobHandlers({
-      emailSender: createEmailSender(),
-      deliverWebhook: createWebhookDeliveryHandler({ db, send: (request) => postWebhook(request) })
-    })
-  );
+  await jobQueue.startRunner(createApiJobHandlers(logger));
 } catch (error) {
   logger.error({ err: error }, "job worker failed to start");
   process.exit(1);

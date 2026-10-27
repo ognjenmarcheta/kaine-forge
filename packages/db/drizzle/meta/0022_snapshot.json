@@ -1,5 +1,5 @@
 {
-  "id": "94d027f7-a6ba-4887-af83-30f2b19c227f",
+  "id": "4df2d155-5d44-45b8-9320-af966c74487d",
   "prevId": "4d1aeb4f-981c-4dc2-aeb1-e3ee0902b8ad",
   "version": "7",
   "dialect": "postgresql",
@@ -134,211 +134,6 @@
           "tableFrom": "accounts",
           "tableTo": "users",
           "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.api_keys": {
-      "name": "api_keys",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "config_id": {
-          "name": "config_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'default'"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "start": {
-          "name": "start",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "prefix": {
-          "name": "prefix",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "refill_interval": {
-          "name": "refill_interval",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "refill_amount": {
-          "name": "refill_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_refill_at": {
-          "name": "last_refill_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "enabled": {
-          "name": "enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "rate_limit_enabled": {
-          "name": "rate_limit_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "rate_limit_time_window": {
-          "name": "rate_limit_time_window",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rate_limit_max": {
-          "name": "rate_limit_max",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "request_count": {
-          "name": "request_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "remaining": {
-          "name": "remaining",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_request": {
-          "name": "last_request",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "permissions": {
-          "name": "permissions",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "api_keys_key_idx": {
-          "name": "api_keys_key_idx",
-          "columns": [
-            {
-              "expression": "key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "api_keys_organization_id_created_at_id_idx": {
-          "name": "api_keys_organization_id_created_at_id_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "api_keys_organization_id_organizations_id_fk": {
-          "name": "api_keys_organization_id_organizations_id_fk",
-          "tableFrom": "api_keys",
-          "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -645,6 +440,167 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.data_exports": {
+      "name": "data_exports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "data_export_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "data_export_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "data_export_failure_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "data_exports_user_id_kind_in_progress_unique": {
+          "name": "data_exports_user_id_kind_in_progress_unique",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"data_exports\".\"status\" in ('pending', 'running')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "data_exports_user_id_created_at_idx": {
+          "name": "data_exports_user_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "data_exports_user_id_users_id_fk": {
+          "name": "data_exports_user_id_users_id_fk",
+          "tableFrom": "data_exports",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "data_exports_organization_id_organizations_id_fk": {
+          "name": "data_exports_organization_id_organizations_id_fk",
+          "tableFrom": "data_exports",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2106,263 +2062,24 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.webhook_deliveries": {
-      "name": "webhook_deliveries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "endpoint_id": {
-          "name": "endpoint_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_type": {
-          "name": "event_type",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempt": {
-          "name": "attempt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status_code": {
-          "name": "status_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "duration_ms": {
-          "name": "duration_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "error": {
-          "name": "error",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "webhook_deliveries_endpoint_id_created_at_id_idx": {
-          "name": "webhook_deliveries_endpoint_id_created_at_id_idx",
-          "columns": [
-            {
-              "expression": "endpoint_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "webhook_deliveries_event_id_idx": {
-          "name": "webhook_deliveries_event_id_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "endpoint_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "webhook_deliveries_organization_id_organizations_id_fk": {
-          "name": "webhook_deliveries_organization_id_organizations_id_fk",
-          "tableFrom": "webhook_deliveries",
-          "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "webhook_deliveries_endpoint_id_webhook_endpoints_id_fk": {
-          "name": "webhook_deliveries_endpoint_id_webhook_endpoints_id_fk",
-          "tableFrom": "webhook_deliveries",
-          "tableTo": "webhook_endpoints",
-          "columnsFrom": ["endpoint_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.webhook_endpoints": {
-      "name": "webhook_endpoints",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "secret": {
-          "name": "secret",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_types": {
-          "name": "event_types",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "webhook_endpoints_organization_id_created_at_id_idx": {
-          "name": "webhook_endpoints_organization_id_created_at_id_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "webhook_endpoints_organization_id_organizations_id_fk": {
-          "name": "webhook_endpoints_organization_id_organizations_id_fk",
-          "tableFrom": "webhook_endpoints",
-          "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "webhook_endpoints_created_by_users_id_fk": {
-          "name": "webhook_endpoints_created_by_users_id_fk",
-          "tableFrom": "webhook_endpoints",
-          "tableTo": "users",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.data_export_failure_reason": {
+      "name": "data_export_failure_reason",
+      "schema": "public",
+      "values": ["too_large", "error"]
+    },
+    "public.data_export_kind": {
+      "name": "data_export_kind",
+      "schema": "public",
+      "values": ["user", "organization"]
+    },
+    "public.data_export_status": {
+      "name": "data_export_status",
+      "schema": "public",
+      "values": ["pending", "running", "ready", "failed", "expired"]
+    },
     "public.attachment_entity_type": {
       "name": "attachment_entity_type",
       "schema": "public",

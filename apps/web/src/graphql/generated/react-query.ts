@@ -20,6 +20,8 @@ export type AuditAction =
   | "member_removed"
   | "member_role_changed"
   | "organization_deleted"
+  | "organization_export_downloaded"
+  | "organization_exported"
   | "organization_renamed"
   | "ownership_transferred"
   | "password_changed"
@@ -47,6 +49,12 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type DataExportFailureReason = "error" | "too_large";
+
+export type DataExportKind = "organization" | "user";
+
+export type DataExportStatus = "expired" | "failed" | "pending" | "ready" | "running";
 
 export type FeatureFlagKey = "organizations_visible";
 
@@ -247,6 +255,41 @@ export type AuditEventsQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type DataExportsQueryVariables = Exact<{
+  kind: DataExportKind;
+  first?: number | null | undefined;
+}>;
+
+export type DataExportsQuery = {
+  dataExports: {
+    items: Array<{
+      id: string;
+      kind: DataExportKind;
+      status: DataExportStatus;
+      sizeBytes: number | null;
+      failureReason: DataExportFailureReason | null;
+      createdAt: string;
+      completedAt: string | null;
+      expiresAt: string | null;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type RequestDataExportMutationVariables = Exact<{
+  kind: DataExportKind;
+}>;
+
+export type RequestDataExportMutation = {
+  requestDataExport: { id: string; status: DataExportStatus };
+};
+
+export type DataExportDownloadUrlMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type DataExportDownloadUrlMutation = { dataExportDownloadUrl: string };
 
 export type FeatureFlagsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -1200,6 +1243,108 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
+
+export const DataExportsDocument = new TypedDocumentString(`
+    query DataExports($kind: DataExportKind!, $first: Int) {
+  dataExports(kind: $kind, first: $first) {
+    items {
+      id
+      kind
+      status
+      sizeBytes
+      failureReason
+      createdAt
+      completedAt
+      expiresAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+    `);
+
+export const useDataExportsQuery = <TData = DataExportsQuery, TError = unknown>(
+  variables: DataExportsQueryVariables,
+  options?: Omit<UseQueryOptions<DataExportsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<DataExportsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<DataExportsQuery, TError, TData>({
+    queryKey: ["DataExports", variables],
+    queryFn: useGraphqlFetcher<DataExportsQuery, DataExportsQueryVariables>(
+      DataExportsDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useDataExportsQuery.getKey = (variables: DataExportsQueryVariables) => ["DataExports", variables];
+
+export const RequestDataExportDocument = new TypedDocumentString(`
+    mutation RequestDataExport($kind: DataExportKind!) {
+  requestDataExport(kind: $kind) {
+    id
+    status
+  }
+}
+    `);
+
+export const useRequestDataExportMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    RequestDataExportMutation,
+    TError,
+    RequestDataExportMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    RequestDataExportMutation,
+    TError,
+    RequestDataExportMutationVariables,
+    TContext
+  >({
+    mutationKey: ["RequestDataExport"],
+    mutationFn: useGraphqlFetcher<RequestDataExportMutation, RequestDataExportMutationVariables>(
+      RequestDataExportDocument
+    ),
+    ...options
+  });
+};
+
+useRequestDataExportMutation.getKey = () => ["RequestDataExport"];
+
+export const DataExportDownloadUrlDocument = new TypedDocumentString(`
+    mutation DataExportDownloadUrl($id: ID!) {
+  dataExportDownloadUrl(id: $id)
+}
+    `);
+
+export const useDataExportDownloadUrlMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    DataExportDownloadUrlMutation,
+    TError,
+    DataExportDownloadUrlMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    DataExportDownloadUrlMutation,
+    TError,
+    DataExportDownloadUrlMutationVariables,
+    TContext
+  >({
+    mutationKey: ["DataExportDownloadUrl"],
+    mutationFn: useGraphqlFetcher<
+      DataExportDownloadUrlMutation,
+      DataExportDownloadUrlMutationVariables
+    >(DataExportDownloadUrlDocument),
+    ...options
+  });
+};
+
+useDataExportDownloadUrlMutation.getKey = () => ["DataExportDownloadUrl"];
 
 export const FeatureFlagsDocument = new TypedDocumentString(`
     query FeatureFlags {

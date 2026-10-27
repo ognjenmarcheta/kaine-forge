@@ -18,6 +18,7 @@ describe("api schema feature registry", () => {
       "audit",
       "feature-flags",
       "notifications",
+      "data-export",
       "api-keys",
       "webhooks"
     ]);
