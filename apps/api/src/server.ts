@@ -1,5 +1,5 @@
 import { useCSRFPrevention } from "@graphql-yoga/plugin-csrf-prevention";
-import { runWithAuditRequest } from "@repo/auth/audit";
+import { runWithAuditRequest, type AuditRequest } from "@repo/auth/audit";
 import { auth as authInstance } from "@repo/auth/instance";
 import { createServerAuth } from "@repo/auth/server";
 import { createChildLogger, type Logger } from "@repo/logger";
@@ -11,7 +11,8 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
-import { createContext, createContextFromHeaders } from "./context";
+import { createContext, createContextFromHeaders, type ApiKeyRequest } from "./context";
+import { API_KEYS_CONFIG } from "./features/api-keys/api-keys.definition";
 import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
 import {
@@ -136,7 +137,7 @@ export function createApiServer({
 
   // handleRequest passes the request-scoped logger as server context, so
   // GraphQL context logs carry the same request id as the completion line.
-  const yoga = createYoga<{ requestLogger?: Logger }>({
+  const yoga = createYoga<{ requestLogger?: Logger; apiKey?: ApiKeyRequest }>({
     schema: apiSchema,
     graphqlEndpoint: "/graphql",
     plugins: [
@@ -160,7 +161,7 @@ export function createApiServer({
 
       const nodeHeaders = serverContext.req?.headers;
       if (nodeHeaders) {
-        return createContextFromHeaders(nodeHeaders, requestLogger, auth);
+        return createContextFromHeaders(nodeHeaders, requestLogger, auth, initialContext.apiKey);
       }
 
       return createContext(serverContext.request, requestLogger, auth);
@@ -192,21 +193,49 @@ export function createApiServer({
     // Every Audit Event this request records, from an auth route or a
     // resolver, takes its client IP from the rate limiter's proxy rule.
     const ipAddress = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
-    await runWithAuditRequest(
-      {
-        ipAddress: ipAddress === "unknown" ? null : ipAddress,
-        logger: requestLogger,
-        userAgent: req.headers["user-agent"] ?? null
-      },
-      () => routeRequest(req, res, requestLogger, pathname)
+    const auditRequest: AuditRequest = {
+      ipAddress: ipAddress === "unknown" ? null : ipAddress,
+      logger: requestLogger,
+      userAgent: req.headers["user-agent"] ?? null
+    };
+    await runWithAuditRequest(auditRequest, () =>
+      routeRequest(req, res, requestLogger, pathname, auditRequest)
     );
+  };
+
+  // Lets browsers read the 429. An allowlisted origin is reflected with
+  // credentials; open CORS (development only: production refuses to start
+  // without an allowlist) answers `*`, which never grants credentials; any
+  // other origin gets no CORS headers.
+  const rejectTooManyRequests = (
+    req: IncomingMessage,
+    res: ServerResponse<IncomingMessage>,
+    retryAfterSeconds: number
+  ): void => {
+    const origin = req.headers.origin;
+    const allowedOrigins = runtimeConfig.allowedCorsOrigins;
+
+    if (origin && allowedOrigins?.includes(origin)) {
+      res.setHeader("access-control-allow-origin", origin);
+      res.setHeader("access-control-allow-credentials", "true");
+      res.setHeader("vary", "Origin");
+    } else if (origin && allowedOrigins === undefined) {
+      res.setHeader("access-control-allow-origin", "*");
+    }
+
+    res.statusCode = 429;
+    res.setHeader("content-type", "application/json");
+    res.setHeader("retry-after", String(retryAfterSeconds));
+    res.setHeader("access-control-expose-headers", ["retry-after", ...EXPOSED_HEADERS].join(", "));
+    res.end(JSON.stringify({ error: "too many requests" }));
   };
 
   const routeRequest = async (
     req: IncomingMessage,
     res: ServerResponse<IncomingMessage>,
     requestLogger: Logger,
-    pathname: string
+    pathname: string,
+    auditRequest: AuditRequest
   ): Promise<void> => {
     try {
       const handledHealth = await handleHealthRoute({ req, res });
@@ -221,9 +250,34 @@ export function createApiServer({
       // it covers plain HTTP requests only.
       const isRateLimitedPath =
         pathname === "/api/auth" || pathname.startsWith("/api/auth/") || pathname === "/graphql";
+      // A GraphQL request with an API Key acts as the key's Organization and
+      // has the key's own rate limit bucket. A client over its address limit
+      // never reaches the key lookup, a value that is not shaped like a key
+      // never reaches the database, and an unknown, revoked, or expired key
+      // counts against the client address and gets 401.
+      const clientKey = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+      const presentedApiKey =
+        req.method !== "OPTIONS" && pathname === "/graphql"
+          ? req.headers[API_KEYS_CONFIG.header]
+          : undefined;
+      let apiKey: ApiKeyRequest | null = null;
+
+      if (presentedApiKey !== undefined) {
+        const clientLimit = rateLimiter.peek(clientKey);
+
+        if (!clientLimit.allowed) {
+          rejectTooManyRequests(req, res, clientLimit.retryAfterSeconds);
+          return;
+        }
+
+        apiKey =
+          typeof presentedApiKey === "string" && API_KEYS_CONFIG.pattern.test(presentedApiKey)
+            ? await auth.resolveApiKey(presentedApiKey)
+            : null;
+      }
 
       if (req.method !== "OPTIONS" && isRateLimitedPath) {
-        const key = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+        const key = apiKey ? `api-key:${apiKey.apiKeyId}` : clientKey;
         const decision = rateLimiter.check(key);
 
         if (!decision.allowed) {
@@ -231,27 +285,7 @@ export function createApiServer({
             requestLogger.warn({ key }, "rate limit exceeded");
           }
 
-          // Mirror the yoga CORS behavior (reflect the origin when CORS is
-          // open or the origin is allowlisted) so browsers can read the 429.
-          const origin = req.headers.origin;
-
-          if (
-            origin &&
-            (runtimeConfig.allowedCorsOrigins === undefined ||
-              runtimeConfig.allowedCorsOrigins.includes(origin))
-          ) {
-            res.setHeader("access-control-allow-origin", origin);
-            res.setHeader("access-control-allow-credentials", "true");
-          }
-
-          res.statusCode = 429;
-          res.setHeader("content-type", "application/json");
-          res.setHeader("retry-after", String(decision.retryAfterSeconds));
-          res.setHeader(
-            "access-control-expose-headers",
-            ["retry-after", ...EXPOSED_HEADERS].join(", ")
-          );
-          res.end(JSON.stringify({ error: "too many requests" }));
+          rejectTooManyRequests(req, res, decision.retryAfterSeconds);
           return;
         }
       }
@@ -266,6 +300,22 @@ export function createApiServer({
         }
 
         await authHandler(req, res);
+        return;
+      }
+
+      if (presentedApiKey !== undefined && !apiKey) {
+        res.statusCode = 401;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "invalid api key" }));
+        return;
+      }
+
+      if (apiKey) {
+        // Every Audit Event this request records names the key that acted.
+        const keyRequest = apiKey;
+        runWithAuditRequest({ ...auditRequest, apiKeyId: keyRequest.apiKeyId }, () => {
+          void yoga(req, res, { requestLogger, apiKey: keyRequest });
+        });
         return;
       }
 

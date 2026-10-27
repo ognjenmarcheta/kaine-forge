@@ -3,6 +3,7 @@ import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import {
   accountsTable,
+  apiKeysTable,
   assistantConversationsTable,
   assistantMessagesTable,
   dataExportsTable,
@@ -14,7 +15,8 @@ import {
   sessionsTable,
   todosTable,
   twoFactorsTable,
-  usersTable
+  usersTable,
+  webhookEndpointsTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import type { EmailTemplate } from "@repo/email";
@@ -81,6 +83,18 @@ beforeAll(async () => {
   await db
     .insert(twoFactorsTable)
     .values({ userId: alice.id, secret: "alice-totp-secret", backupCodes: "alice-backup-codes" });
+  await db.insert(apiKeysTable).values({
+    organizationId: acme.id,
+    name: "acme-key",
+    key: "acme-api-key-hash",
+    metadata: JSON.stringify({ createdBy: alice.id })
+  });
+  await db.insert(webhookEndpointsTable).values({
+    organizationId: acme.id,
+    url: "https://hooks.example.com/acme",
+    secret: "whsec_acme-signing-secret",
+    eventTypes: ["todo:created"]
+  });
   await db.insert(passkeysTable).values({
     userId: alice.id,
     name: "alice-laptop",
@@ -278,7 +292,7 @@ describe("data exports", () => {
   });
 
   it.each(["user", "organization"] as const)(
-    "never puts a password hash, session token, two-factor secret, or passkey in a %s export",
+    "never puts a password hash, session token, two-factor secret, passkey, API Key hash, or webhook secret in a %s export",
     async (kind) => {
       const archive = Object.values(await exportArchive(ids.alice, ids.acme, "owner", kind)).join(
         "\n"
@@ -290,6 +304,8 @@ describe("data exports", () => {
         "alice-session-token",
         "alice-totp-secret",
         "alice-backup-codes",
+        "acme-api-key-hash",
+        "whsec_acme-signing-secret",
         "alice-passkey-public-key",
         "alice-passkey-credential-id"
       ]) {

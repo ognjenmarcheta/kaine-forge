@@ -1,4 +1,6 @@
 import { baseTypeDefs } from "./base";
+import { apiKeysResolvers } from "../features/api-keys/api-keys.router";
+import { apiKeysTypeDefs } from "../features/api-keys/api-keys.schema";
 import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
 import { auditResolvers } from "../features/audit/audit.router";
@@ -19,6 +21,8 @@ import { storageResolvers } from "../features/storage/storage.router";
 import { storageTypeDefs } from "../features/storage/storage.schema";
 import { todosResolvers } from "../features/todos/todos.router";
 import { todosTypeDefs } from "../features/todos/todos.schema";
+import { webhooksResolvers } from "../features/webhooks/webhooks.router";
+import { webhooksTypeDefs } from "../features/webhooks/webhooks.schema";
 
 type ResolverMap = Record<string, unknown>;
 
@@ -132,6 +136,16 @@ export const apiFeatures: ApiFeature[] = [
     name: "data-export",
     typeDefs: dataExportTypeDefs,
     resolvers: dataExportResolvers
+  },
+  {
+    name: "api-keys",
+    typeDefs: apiKeysTypeDefs,
+    resolvers: apiKeysResolvers
+  },
+  {
+    name: "webhooks",
+    typeDefs: webhooksTypeDefs,
+    resolvers: webhooksResolvers
   }
 ];
 

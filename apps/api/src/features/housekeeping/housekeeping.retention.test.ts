@@ -4,7 +4,9 @@ import {
   filesTable,
   notificationsTable,
   organizationsTable,
-  usersTable
+  usersTable,
+  webhookDeliveriesTable,
+  webhookEndpointsTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
 import { asc } from "drizzle-orm";
@@ -16,6 +18,7 @@ import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 let database: TestDatabase;
 let userId: string;
 let orgId: string;
+let endpointId: string;
 
 const now = new Date("2026-06-01T00:00:00Z");
 const day = 24 * 60 * 60 * 1000;
@@ -28,7 +31,8 @@ const windows: RetentionWindows = {
   auditEventsMs: 365 * day,
   dataExportsMs: 30 * day,
   notificationsMs: 90 * day,
-  purgedFilesMs: 30 * day
+  purgedFilesMs: 30 * day,
+  webhookDeliveriesMs: 30 * day
 };
 
 beforeAll(async () => {
@@ -45,12 +49,24 @@ beforeAll(async () => {
   if (!org) throw new Error("failed to seed organization");
   userId = user.id;
   orgId = org.id;
+  const [endpoint] = await database.db
+    .insert(webhookEndpointsTable)
+    .values({
+      organizationId: org.id,
+      url: "https://hooks.example.com/in",
+      secret: "whsec_retention",
+      eventTypes: ["todo:created"]
+    })
+    .returning();
+  if (!endpoint) throw new Error("failed to seed webhook endpoint");
+  endpointId = endpoint.id;
 }, 30_000);
 
 beforeEach(async () => {
   await database.db.delete(filesTable);
   await database.db.delete(auditEventsTable);
   await database.db.delete(notificationsTable);
+  await database.db.delete(webhookDeliveriesTable);
   await database.db.delete(dataExportsTable);
   warnings.length = 0;
 });
@@ -86,6 +102,18 @@ async function seedNotification(type: string, createdAt: Date) {
   await database.db.insert(notificationsTable).values({ userId, type, createdAt });
 }
 
+async function seedDelivery(eventType: string, createdAt: Date) {
+  await database.db.insert(webhookDeliveriesTable).values({
+    organizationId: orgId,
+    endpointId,
+    eventId: crypto.randomUUID(),
+    eventType,
+    attempt: 1,
+    durationMs: 1,
+    createdAt
+  });
+}
+
 async function seedExport(
   name: string,
   values: Partial<typeof dataExportsTable.$inferInsert> &
@@ -114,6 +142,10 @@ async function remaining() {
     .select({ type: notificationsTable.type })
     .from(notificationsTable)
     .orderBy(asc(notificationsTable.type));
+  const deliveries = await database.db
+    .select({ eventType: webhookDeliveriesTable.eventType })
+    .from(webhookDeliveriesTable)
+    .orderBy(asc(webhookDeliveriesTable.eventType));
   const exports = await database.db
     .select({ key: dataExportsTable.key, status: dataExportsTable.status })
     .from(dataExportsTable)
@@ -122,6 +154,7 @@ async function remaining() {
     files: files.map((row) => row.name),
     auditEvents: auditEvents.map((row) => row.targetType),
     notifications: notifications.map((row) => row.type),
+    deliveries: deliveries.map((row) => row.eventType),
     exports
   };
 }
@@ -138,6 +171,8 @@ describe("applyRetention", () => {
     await seedAuditEvent("recent", at(-364 * day));
     await seedNotification("old", at(-91 * day));
     await seedNotification("recent", at(-89 * day));
+    await seedDelivery("old", at(-31 * day));
+    await seedDelivery("recent", at(-29 * day));
     for (const name of ["expired-archive", "live-archive", "orphan-archive"]) {
       await store.put(
         { bucket: "memory", key: `exports/users/${name}.zip` },
@@ -192,6 +227,7 @@ describe("applyRetention", () => {
       purgedFiles: 1,
       auditEvents: 1,
       notifications: 1,
+      webhookDeliveries: 1,
       stalledExports: 1,
       exportArchives: 2,
       dataExports: 2
@@ -201,6 +237,7 @@ describe("applyRetention", () => {
       files: ["deleted-not-purged", "old-uploaded", "recent-purged"],
       auditEvents: ["recent"],
       notifications: ["recent"],
+      deliveries: ["recent"],
       exports: [
         { key: null, status: "expired" },
         { key: "exports/users/live-archive.zip", status: "ready" },
@@ -221,6 +258,7 @@ describe("applyRetention", () => {
     );
     await seedFile("old-purged", "deleted", at(-31 * day));
     await seedAuditEvent("old", at(-366 * day));
+    await seedDelivery("old", at(-31 * day));
     await seedExport("expired", { status: "ready", expiresAt: at(-1) });
     // PGlite has one session, which never conflicts with its own advisory
     // locks; this function answers the lock attempt as Postgres does while
@@ -239,6 +277,7 @@ describe("applyRetention", () => {
         purgedFiles: 0,
         auditEvents: 0,
         notifications: 0,
+        webhookDeliveries: 0,
         stalledExports: 0,
         exportArchives: 0,
         dataExports: 0
@@ -250,6 +289,7 @@ describe("applyRetention", () => {
     expect(await remaining()).toMatchObject({
       files: ["old-purged"],
       auditEvents: ["old"],
+      deliveries: ["old"],
       exports: [{ key: "exports/users/expired.zip", status: "ready" }]
     });
     expect(store.keys()).toEqual(["exports/users/expired.zip"]);

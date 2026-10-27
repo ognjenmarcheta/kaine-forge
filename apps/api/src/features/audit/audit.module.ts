@@ -13,6 +13,8 @@ import type { Connection, PageInput, ScopedData } from "../../context.data";
 export interface AuditEventView {
   action: AuditAction;
   actor: { email: string; id: string; name: string } | null;
+  /** The API Key the actor's request used, when one did. */
+  apiKeyId: string | null;
   createdAt: Date;
   id: string;
   ipAddress: string | null;
@@ -35,7 +37,7 @@ export interface AuditEventsDeps {
 }
 
 function targetLabelOf(metadata: Record<string, AuditEventMetadataValue>): string | null {
-  const label = metadata.email ?? metadata.name ?? metadata.originalName;
+  const label = metadata.email ?? metadata.name ?? metadata.originalName ?? metadata.url;
   return typeof label === "string" ? label : null;
 }
 
@@ -81,6 +83,7 @@ export function createAuditEvents({
             {
               action,
               actor: row.actorUserId ? (actorById.get(row.actorUserId) ?? null) : null,
+              apiKeyId: typeof row.metadata.apiKeyId === "string" ? row.metadata.apiKeyId : null,
               createdAt: row.createdAt,
               id: row.id,
               ipAddress: row.ipAddress,

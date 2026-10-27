@@ -1,0 +1,38 @@
+fragment ApiKeyFields on ApiKey {
+  id
+  name
+  prefix
+  createdBy {
+    id
+    name
+    email
+  }
+  createdAt
+  lastUsedAt
+  expiresAt
+}
+
+query ApiKeys($first: Int, $after: String) {
+  apiKeys(first: $first, after: $after) {
+    items {
+      ...ApiKeyFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+mutation CreateApiKey($input: CreateApiKeyInput!) {
+  createApiKey(input: $input) {
+    apiKey {
+      ...ApiKeyFields
+    }
+    key
+  }
+}
+
+mutation RevokeApiKey($id: ID!) {
+  revokeApiKey(id: $id)
+}

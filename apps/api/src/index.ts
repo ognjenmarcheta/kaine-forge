@@ -47,6 +47,7 @@ const { setNotificationDispatcher } = await import("@repo/auth/notifications");
 const { createNotificationDelivery } =
   await import("./features/notifications/notifications.delivery");
 const { pubsub } = await import("./pubsub");
+const { setWebhookDeliveryQueue } = await import("./features/webhooks/webhooks.dispatch");
 const { purgeExpiredAuthRows, startHousekeeping } =
   await import("./features/housekeeping/housekeeping.sweep");
 const { applyRetention } = await import("./features/housekeeping/housekeeping.retention");
@@ -96,6 +97,7 @@ setNotificationDispatcher(
     sendEmail: queueEmail
   })
 );
+setWebhookDeliveryQueue((delivery) => jobQueue.enqueue("webhook.deliver", delivery));
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {

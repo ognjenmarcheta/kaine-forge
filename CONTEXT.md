@@ -29,7 +29,7 @@ A role an owner defines for one **Organization**: a name plus Permissions from t
 _Avoid_: group, profile, team
 
 **Authenticated Organization Scope**:
-An API request identity containing an authenticated user and their active organization as resolved from the session.
+An API request identity: an authenticated **User**, a proven **Organization Membership**, and the one **Organization** the request may reach. For a Session request it is the Session's **Active Organization**; for an **API Key** request it is the key's Organization, acting as the key's creator, and it carries the key's id and only the Permissions the key grants. It never comes from a client-supplied organization id.
 _Avoid_: auth context, org context
 
 **Todo**:
@@ -56,6 +56,14 @@ _Avoid_: activity feed, log entry, history
 A stored message to one **User** about something another person or the system did that concerns them, such as an **Invitation** they received or a change to their role. It stays in their inbox until they mark it read, and only they read or mark it, whatever their **Active Organization**; one about an **Organization** names it. Per notification type, the user chooses whether it reaches them in-app, by email, or both. A toast is not a Notification: a toast confirms the user's own action on screen and is gone, and nothing stores it.
 _Avoid_: alert, toast, inbox message
 
+**API Key**:
+A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never changes who or what can reach the Organization (API Keys, Webhook Endpoints, roles, members, invitations), never exports the Organization, never reads its creator's own data or other Organizations, and gets 401 once revoked or expired.
+_Avoid_: token, access token, personal access token
+
+**Webhook Endpoint**:
+An HTTPS URL on port 443 that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once, at creation or rotation. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
+_Avoid_: callback, hook URL, integration
+
 **Email Verification**:
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation
@@ -66,19 +74,21 @@ _Avoid_: account activation
 - An **Organization Membership** belongs to exactly one **User** and exactly one **Organization**.
 - A **User** owns at least one **Personal Organization**; an owner can transfer any other **Organization** to another member.
 - A **Session** has zero or one **Active Organization** before authentication checks, and scoped API work requires one.
-- An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Active Organization**.
+- An **Authenticated Organization Scope** belongs to exactly one **User** and exactly one **Organization**: the **Active Organization** of a Session request, or the Organization of an **API Key** request, which has no Session.
 - User-created data belongs to exactly one **Organization** unless explicitly system-level.
 - A **Todo** belongs to exactly one **Organization** through the **Authenticated Organization Scope** used when it is created.
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
 - A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only a member with the `logo:update` **Permission** changes an Organization's logo.
 - A **Custom Role** belongs to exactly one **Organization**; an **Organization Membership** holds one or more roles by name.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
+- An **API Key** belongs to exactly one **Organization** and was created by one **User**; it never reaches another Organization.
+- A **Webhook Endpoint** belongs to exactly one **Organization** and receives only that Organization's events.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
 ## Example dialogue
 
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
-> **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Active Organization** resolved from the session."
+> **Domain expert:** "No. It should use the **Authenticated Organization Scope** so todos are filtered by the **Organization** the request proved: the **Active Organization** from the session, or the Organization of a verified **API Key**."
 
 ## Agent desk language
 

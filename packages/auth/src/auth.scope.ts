@@ -10,10 +10,17 @@ export interface AuthenticatedOrganizationMembership {
 }
 
 /**
- * The Active Organization of a Session whose user is a proven member of it.
- * `resolveOrganizationScope` is its only producer.
+ * The Active Organization of a Session whose user is a proven member of it,
+ * or the Organization of an API Key whose creator is still a member.
+ * `resolveOrganizationScope` and `resolveApiKeyScope` are its only producers.
  */
 export interface AuthenticatedOrganizationScope {
+  /**
+   * Set when an API Key authenticated the request. Such a scope reaches its
+   * Organization's shared data only: never its creator's own data or their
+   * other Organizations.
+   */
+  apiKeyId?: string;
   membership: AuthenticatedOrganizationMembership;
   organizationId: string;
   user: AuthSessionUser;
@@ -79,6 +86,62 @@ export async function resolveOrganizationScope(
   };
 
   return { organizationScope, requireOrganizationScope: () => organizationScope };
+}
+
+/** A verified API Key: its Organization, its creator, and the Permissions it grants. */
+export interface VerifiedApiKey {
+  id: string;
+  /** Null for a key whose metadata names no creator. */
+  creatorUserId: string | null;
+  organizationId: string;
+  permissions: readonly Permission[];
+}
+
+export interface ResolveApiKeyScopeInput {
+  apiKey: VerifiedApiKey;
+  getMembership: ResolveOrganizationScopeInput["getMembership"];
+  getUser: (userId: string) => Promise<AuthSessionUser | null>;
+}
+
+/**
+ * Resolves a verified API Key into an Authenticated Organization Scope for the
+ * key's Organization, acting as its creator. Its Permissions are the ones the
+ * key grants that the creator still holds there. Null when the creator is gone
+ * or no longer a member, so the request gets 401.
+ */
+export async function resolveApiKeyScope(
+  input: ResolveApiKeyScopeInput
+): Promise<AuthenticatedOrganizationScope | null> {
+  const { apiKey } = input;
+
+  if (!apiKey.creatorUserId) {
+    return null;
+  }
+
+  const membership = await input.getMembership({
+    organizationId: apiKey.organizationId,
+    userId: apiKey.creatorUserId
+  });
+  const user = membership ? await input.getUser(apiKey.creatorUserId) : null;
+
+  if (!membership || membership.organizationId !== apiKey.organizationId || !user) {
+    return null;
+  }
+
+  const granted = new Set(apiKey.permissions);
+
+  return {
+    apiKeyId: apiKey.id,
+    membership: {
+      id: membership.id,
+      permissions: membership.permissions.filter((permission) => granted.has(permission)),
+      role: membership.role,
+      userId: membership.userId
+    },
+    organizationId: apiKey.organizationId,
+    user,
+    userId: user.id
+  };
 }
 
 /** Whether the scope's member holds `permission` in the Active Organization. */

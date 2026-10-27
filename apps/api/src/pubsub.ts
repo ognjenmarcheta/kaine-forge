@@ -81,6 +81,21 @@ export const ORGANIZATION_SUBSCRIPTIONS = {
 
 type OrganizationSubscriptionField = keyof typeof ORGANIZATION_SUBSCRIPTIONS;
 
+/**
+ * The event catalog of Webhook Endpoints: every organization event the
+ * subscriptions stream. `assistant:delta` and `notification:created` belong
+ * to one user, so they are not webhook events.
+ */
+export const WEBHOOK_EVENT_TYPES: readonly OrganizationEventName[] = Object.values(
+  ORGANIZATION_SUBSCRIPTIONS
+);
+
+const WEBHOOK_EVENT_TYPE_SET: ReadonlySet<string> = new Set(WEBHOOK_EVENT_TYPES);
+
+export function isWebhookEventType(value: string): value is OrganizationEventName {
+  return WEBHOOK_EVENT_TYPE_SET.has(value);
+}
+
 export interface SubscriptionContext {
   pubsub: typeof pubsub;
   requireOrganizationScope: () => { organizationId: string };

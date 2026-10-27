@@ -51,9 +51,11 @@ export function resolveLoggerConfig(options: CreateLoggerOptions): LoggerOptions
       paths: [
         "req.headers.authorization",
         "req.headers.cookie",
+        'req.headers["x-api-key"]',
         'res.headers["set-cookie"]',
         "headers.authorization",
         "headers.cookie",
+        'headers["x-api-key"]',
         'headers["set-cookie"]'
       ],
       censor: "[redacted]"

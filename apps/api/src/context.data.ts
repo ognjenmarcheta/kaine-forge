@@ -157,7 +157,10 @@ export interface ScopedData {
   stamp<TAuthor extends "uploadedBy" | "userId">(
     author: TAuthor
   ): { organizationId: string } & Record<TAuthor, string>;
-  /** Rows the scope's user owns, for user-private tables such as Conversations. */
+  /**
+   * Rows the scope's user owns, for user-private tables such as Conversations.
+   * Throws `authentication required` for an API Key request.
+   */
   mine(table: UserOwnedTable): SQL;
   /** Throws `permission required: <permission>` unless the scope's member holds it. */
   authorize(permission: Permission): void;
@@ -301,7 +304,14 @@ export function createScopedData(input: {
       return insertInto(db, table);
     },
     stamp,
-    mine: (table) => eq(table.userId, requireOrganizationScope().userId),
+    mine: (table) => {
+      const scope = requireOrganizationScope();
+      // A user's private rows need the user's own Session, not an API Key.
+      if (scope.apiKeyId) {
+        throw new Error("authentication required");
+      }
+      return eq(table.userId, scope.userId);
+    },
     authorize: (permission) =>
       requireOrganizationPermission(requireOrganizationScope(), permission),
     page: (table, input, order, ...conditions) =>

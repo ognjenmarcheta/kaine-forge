@@ -24,5 +24,7 @@
   "navigation.assistant": "Asistent",
   "navigation.security": "Bezbednost",
   "navigation.account": "Nalog",
-  "navigation.auditLog": "Dnevnik aktivnosti"
+  "navigation.auditLog": "Dnevnik aktivnosti",
+  "navigation.apiKeys": "API ključevi",
+  "navigation.webhooks": "Vebhukovi"
 }

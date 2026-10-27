@@ -8,6 +8,8 @@ import type { Logger } from "@repo/logger";
 import { resolveDataExportArchiveTtlMs } from "./features/data-export/data-export.config";
 import { createDataExportJobHandler } from "./features/data-export/data-export.job";
 import { s3ObjectStore } from "./features/storage/attachment.store";
+import { createWebhookDeliveryHandler } from "./features/webhooks/webhooks.delivery";
+import { postWebhook } from "./features/webhooks/webhooks.transport";
 
 /** Renders one #703 email template and queues it on the job runner. */
 export async function queueEmail(
@@ -29,6 +31,7 @@ export function createApiJobHandlers(logger: Pick<Logger, "error" | "warn">) {
       webAppUrl: getServerAuthConfig().webAppUrl,
       sendEmail: queueEmail,
       logger
-    })
+    }),
+    deliverWebhook: createWebhookDeliveryHandler({ db, send: (request) => postWebhook(request) })
   });
 }

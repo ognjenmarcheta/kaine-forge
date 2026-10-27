@@ -17,6 +17,8 @@ export interface AuditRequest {
   ipAddress: string | null;
   logger?: Pick<Logger, "error">;
   userAgent: string | null;
+  /** The API Key that authenticated the request; every event it records names it. */
+  apiKeyId?: string;
 }
 
 const USER_AGENT_MAX_LENGTH = 512;
@@ -72,7 +74,9 @@ export async function recordAuditEvent(input: AuditEventInput): Promise<void> {
       action: input.action,
       actorUserId: input.actorUserId,
       ipAddress: request?.ipAddress ?? null,
-      metadata: input.metadata,
+      metadata: request?.apiKeyId
+        ? { ...input.metadata, apiKeyId: request.apiKeyId }
+        : input.metadata,
       organizationId: input.organizationId,
       targetId: input.targetId,
       targetType: AUDIT_ACTION_TARGETS[input.action],

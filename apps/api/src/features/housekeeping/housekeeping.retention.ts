@@ -2,7 +2,8 @@ import {
   auditEventsTable,
   dataExportsTable,
   filesTable,
-  notificationsTable
+  notificationsTable,
+  webhookDeliveriesTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import { and, asc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
@@ -21,12 +22,15 @@ export interface RetentionWindows {
   notificationsMs: number;
   /** Attachment rows whose object the storage sweep already deleted, by purge time. */
   purgedFilesMs: number;
+  /** Webhook delivery log rows, by attempt time. */
+  webhookDeliveriesMs: number;
 }
 
 type RetentionCounts = Record<
   | "purgedFiles"
   | "auditEvents"
   | "notifications"
+  | "webhookDeliveries"
   | "stalledExports"
   | "exportArchives"
   | "dataExports",
@@ -88,6 +92,21 @@ function retentionPurges(now: Date, windows: RetentionWindows): Array<[RowPurgeN
           .delete(notificationsTable)
           .where(inArray(notificationsTable.id, expired))
           .returning({ id: notificationsTable.id });
+        return rows.length;
+      }
+    ],
+    [
+      "webhookDeliveries",
+      async (tx, limit) => {
+        const expired = tx
+          .select({ id: webhookDeliveriesTable.id })
+          .from(webhookDeliveriesTable)
+          .where(lt(webhookDeliveriesTable.createdAt, cutoff(now, windows.webhookDeliveriesMs)))
+          .limit(limit);
+        const rows = await tx
+          .delete(webhookDeliveriesTable)
+          .where(inArray(webhookDeliveriesTable.id, expired))
+          .returning({ id: webhookDeliveriesTable.id });
         return rows.length;
       }
     ],

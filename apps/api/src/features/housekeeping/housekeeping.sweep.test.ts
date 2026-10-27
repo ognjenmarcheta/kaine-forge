@@ -137,7 +137,8 @@ describe("resolveHousekeepingConfig", () => {
     auditEventsMs: 365 * day,
     dataExportsMs: 30 * day,
     notificationsMs: 90 * day,
-    purgedFilesMs: 30 * day
+    purgedFilesMs: 30 * day,
+    webhookDeliveriesMs: 30 * day
   };
 
   it("runs hourly by default, turns off on false, and takes a custom interval", () => {
@@ -160,13 +161,15 @@ describe("resolveHousekeepingConfig", () => {
         RETENTION_AUDIT_EVENTS_DAYS: "730",
         RETENTION_DATA_EXPORTS_DAYS: "7",
         RETENTION_NOTIFICATIONS_DAYS: "0",
-        RETENTION_PURGED_FILES_DAYS: "soon"
+        RETENTION_PURGED_FILES_DAYS: "soon",
+        RETENTION_WEBHOOK_DELIVERIES_DAYS: "14"
       })?.retention
     ).toEqual({
       auditEventsMs: 730 * day,
       dataExportsMs: 7 * day,
       notificationsMs: 90 * day,
-      purgedFilesMs: 30 * day
+      purgedFilesMs: 30 * day,
+      webhookDeliveriesMs: 14 * day
     });
   });
 });

@@ -622,6 +622,22 @@ describe("audit events", () => {
     expect(event).toEqual({ ipAddress: "203.0.113.7", userAgent: "audit-test/1.0" });
   });
 
+  it("names the API Key of a key request in the event's metadata", async () => {
+    const owner = await signUp("audit-key");
+    const shared = await createOrganization(owner.headers, "KeyRequest");
+    const apiKeyId = "00000000-0000-4000-8000-0000000000ee";
+
+    await runWithAuditRequest({ apiKeyId, ipAddress: null, userAgent: null }, () =>
+      post("/organization/update", shared.headers, { data: { name: "Key Renamed" } })
+    );
+
+    const [event] = await testDatabase()
+      .db.select({ metadata: auditEventsTable.metadata })
+      .from(auditEventsTable)
+      .where(eq(auditEventsTable.organizationId, shared.organizationId));
+    expect(event?.metadata).toEqual({ apiKeyId, name: "Key Renamed" });
+  });
+
   it("logs a failed audit write and still completes the action", async () => {
     const owner = await signUp("audit-failure");
     const shared = await createOrganization(owner.headers, "Failure");

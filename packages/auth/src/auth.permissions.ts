@@ -25,7 +25,10 @@ export const PERMISSION_STATEMENTS = {
   attachment: ["create", "delete"],
   logo: ["update"],
   audit: ["read"],
-  featureFlag: ["update"]
+  featureFlag: ["update"],
+  // The api-key plugin checks `apiKey:create` itself before it stores a key.
+  apiKey: ["create", "read", "delete"],
+  webhook: ["create", "read", "update", "delete"]
 } as const;
 
 type PermissionStatements = typeof PERMISSION_STATEMENTS;
@@ -39,6 +42,11 @@ export type Permission = {
 
 /** The catalog the organization plugin checks its own routes against. */
 export const accessControl = createAccessControl(PERMISSION_STATEMENTS);
+
+const INTEGRATION_STATEMENTS = {
+  apiKey: ["create", "read", "delete"],
+  webhook: ["create", "read", "update", "delete"]
+} as const;
 
 const CONTENT_STATEMENTS = {
   todo: ["create", "update", "delete"],
@@ -57,7 +65,8 @@ export const BUILT_IN_ROLES = {
     ...CONTENT_STATEMENTS,
     logo: ["update"],
     audit: ["read"],
-    featureFlag: ["update"]
+    featureFlag: ["update"],
+    ...INTEGRATION_STATEMENTS
   }),
   admin: accessControl.newRole({
     organization: ["update"],
@@ -68,7 +77,8 @@ export const BUILT_IN_ROLES = {
     ...CONTENT_STATEMENTS,
     logo: ["update"],
     audit: ["read"],
-    featureFlag: ["update"]
+    featureFlag: ["update"],
+    ...INTEGRATION_STATEMENTS
   }),
   member: accessControl.newRole({
     ac: ["read"],
@@ -112,6 +122,38 @@ export const CUSTOM_ROLE_PERMISSIONS: readonly Permission[] = PERMISSIONS.filter
 );
 
 const CUSTOM_ROLE_PERMISSION_SET: ReadonlySet<string> = new Set(CUSTOM_ROLE_PERMISSIONS);
+
+// What an API Key never grants: changing who or what can reach the
+// Organization (keys, Webhook Endpoints, roles, members, invitations, the
+// Organization itself), so a leaked key cannot create access that outlives
+// it, nor a bulk export of the whole Organization.
+const API_KEY_EXCLUDED_PERMISSIONS: ReadonlySet<string> = new Set([
+  "organization:update",
+  "organization:delete",
+  "organization:transfer",
+  "organization:export",
+  "member:create",
+  "member:update",
+  "member:delete",
+  "invitation:create",
+  "invitation:cancel",
+  "ac:create",
+  "ac:update",
+  "ac:delete",
+  "apiKey:create",
+  "apiKey:read",
+  "apiKey:delete",
+  "webhook:create",
+  "webhook:update",
+  "webhook:delete"
+] satisfies Permission[]);
+
+/** The Permissions an API Key may grant out of its creator's: content and reads, never access changes. */
+export function apiKeyGrantablePermissions(
+  creatorPermissions: readonly Permission[]
+): Permission[] {
+  return creatorPermissions.filter((permission) => !API_KEY_EXCLUDED_PERMISSIONS.has(permission));
+}
 
 /** Lowercase letters, digits, and hyphens; better-auth lowercases names, and commas join roles. */
 export const CUSTOM_ROLE_NAME_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;

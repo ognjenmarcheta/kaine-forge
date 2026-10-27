@@ -76,6 +76,10 @@ export function createPublicAssets({
   /** Whose asset `kind` is, after the permission check the logo needs. */
   function ownerOf(kind: PublicAssetKind, scope: AuthenticatedOrganizationScope): string {
     if (kind === "avatar") {
+      // An avatar belongs to the user's account, which an API Key never reaches.
+      if (scope.apiKeyId) {
+        throw new Error("authentication required");
+      }
       return scope.userId;
     }
 
@@ -99,10 +103,13 @@ export function createPublicAssets({
   async function current(): Promise<PublicAssetUrls> {
     const scope = requireOrganizationScope();
     const [[user], [organization]] = await Promise.all([
-      db
-        .select({ image: usersTable.image })
-        .from(usersTable)
-        .where(eq(usersTable.id, scope.userId)),
+      // An API Key request reads the Organization's logo, not its creator's avatar.
+      scope.apiKeyId
+        ? []
+        : db
+            .select({ image: usersTable.image })
+            .from(usersTable)
+            .where(eq(usersTable.id, scope.userId)),
       db
         .select({ logo: organizationsTable.logo })
         .from(organizationsTable)

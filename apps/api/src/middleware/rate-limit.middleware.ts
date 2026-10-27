@@ -104,6 +104,26 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       return { allowed: true, firstRejection: false, retryAfterSeconds: 0 };
     },
+    /** Whether `key` is over its limit now, without counting a request. */
+    peek(key: string, nowMs: number = Date.now()): RateLimitDecision {
+      const bucket = buckets.get(key);
+
+      if (
+        !config.enabled ||
+        !bucket ||
+        nowMs - bucket.windowStartMs >= config.windowMs ||
+        bucket.count < config.max
+      ) {
+        return { allowed: true, firstRejection: false, retryAfterSeconds: 0 };
+      }
+
+      const retryAfterMs = bucket.windowStartMs + config.windowMs - nowMs;
+      return {
+        allowed: false,
+        firstRejection: false,
+        retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000))
+      };
+    },
     size(): number {
       return buckets.size;
     }

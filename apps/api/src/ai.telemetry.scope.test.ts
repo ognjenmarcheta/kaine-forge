@@ -47,7 +47,9 @@ const auth = {
   })),
   listInvitationsByScope: vi.fn(async () => []),
   listOrganizationMembersByScope: vi.fn(async () => []),
-  listOrganizationsByScope: vi.fn(async () => [])
+  listOrganizationsByScope: vi.fn(async () => []),
+  resolveApiKey: vi.fn(async () => null),
+  createApiKey: vi.fn(async () => ({ id: "key-1", key: "kf_test", name: "Test" }))
 } satisfies ServerAuth;
 
 const telemetry: ModelRunTelemetry = {
