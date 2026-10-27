@@ -176,6 +176,8 @@ export interface AuthTransport extends ClientAuth {
   revokeSession(sessionId: string): Promise<void>;
   revokeOtherSessions(): Promise<void>;
   listAccounts(): Promise<AuthLinkedAccount[]>;
+  /** The social providers the server has configured, for linking. */
+  listSocialProviders(): Promise<AuthSocialProvider[]>;
   /** Redirects to the provider; it returns to `callbackUrl` with the account linked. */
   linkSocialAccount(input: {
     provider: AuthSocialProvider;
@@ -498,6 +500,20 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         providerId: account.providerId,
         createdAt: toIsoString(account.createdAt)
       }));
+    },
+    async listSocialProviders() {
+      const { data, error } = await client.$fetch("/account/social-providers", { method: "GET" });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      const providers =
+        typeof data === "object" && data !== null && "providers" in data ? data.providers : [];
+
+      return SOCIAL_PROVIDERS.filter(
+        (provider) => Array.isArray(providers) && providers.includes(provider)
+      );
     },
     async linkSocialAccount(linkInput) {
       const { error } = await client.linkSocial({

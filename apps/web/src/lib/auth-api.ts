@@ -115,6 +115,31 @@ export const organizationApi = {
     authTransport.updateMemberRole(input)
 };
 
+// The account page sends links back to itself after a verification or a
+// provider sign-in.
+function accountPageUrl(): string | undefined {
+  return typeof window === "undefined" ? undefined : `${window.location.origin}/account`;
+}
+
+// Account settings of the session user; nothing here takes a user id.
+export const accountApi = {
+  changeEmail: (newEmail: string) =>
+    authTransport.changeEmail({ newEmail, callbackUrl: accountPageUrl() }),
+  changePassword: (input: Parameters<typeof authTransport.changePassword>[0]) =>
+    authTransport.changePassword(input),
+  confirmDeletion: (token: string) => authTransport.confirmAccountDeletion(token),
+  linkSocialAccount: (provider: AuthSocialProvider) =>
+    authTransport.linkSocialAccount({ provider, callbackUrl: accountPageUrl() }),
+  listAccounts: () => authTransport.listAccounts(),
+  listSessions: () => authTransport.listSessions(),
+  listSocialProviders: () => authTransport.listSocialProviders(),
+  requestDeletion: () => authTransport.requestAccountDeletion(),
+  revokeOtherSessions: () => authTransport.revokeOtherSessions(),
+  revokeSession: (sessionId: string) => authTransport.revokeSession(sessionId),
+  unlinkAccount: (accountId: string) => authTransport.unlinkAccount(accountId),
+  updateName: (name: string) => authTransport.updateProfile({ name })
+};
+
 export async function signInWithSocialRequest(provider: AuthSocialProvider): Promise<void> {
   await authTransport.signInWithSocial(provider);
 }

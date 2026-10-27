@@ -1,4 +1,4 @@
-import { LogOut, MoreVertical } from "lucide-react";
+import { CircleUser, LogOut, MoreVertical } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "../primitives/avatar";
 import {
@@ -18,6 +18,8 @@ export interface NavUserData {
 }
 
 export interface NavUserProps {
+  /** A menu item above log out, such as a link to the account page. */
+  accountItem?: { label: string; onSelect: () => void };
   className?: string;
   logoutLabel: string;
   onLogout: () => void;
@@ -36,7 +38,7 @@ export function resolveNavUserInitials(displayName: string): string {
   return `${first}${second || ""}`.toUpperCase();
 }
 
-export function NavUser({ className, logoutLabel, onLogout, user }: NavUserProps) {
+export function NavUser({ accountItem, className, logoutLabel, onLogout, user }: NavUserProps) {
   const { isMobile } = useSidebar();
   const initials = resolveNavUserInitials(user.name);
 
@@ -81,6 +83,12 @@ export function NavUser({ className, logoutLabel, onLogout, user }: NavUserProps
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {accountItem ? (
+              <DropdownMenuItem onSelect={accountItem.onSelect}>
+                <CircleUser />
+                {accountItem.label}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem destructive onSelect={onLogout}>
               <LogOut />
               {logoutLabel}

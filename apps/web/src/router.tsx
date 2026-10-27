@@ -25,6 +25,7 @@ import {
   Outlet,
   createBrowserRouter,
   useLocation,
+  useNavigate,
   type RouteObject
 } from "react-router-dom";
 
@@ -34,6 +35,8 @@ import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
 } from "./components/workspace-navigation.provider";
+import { AccountDeleteRoute } from "./features/account/account.delete.route";
+import { AccountRoute } from "./features/account/account.route";
 import { AssistantRoute } from "./features/assistant/assistant.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
@@ -58,6 +61,8 @@ const THEME_OPTIONS = [
 ] as const;
 
 const ROUTE_TO_BREADCRUMB = {
+  "/account": "navigation.account",
+  "/account/delete": "navigation.account",
   "/assistant": "navigation.assistant",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
@@ -86,6 +91,7 @@ function ShellLayout() {
 function ShellContent() {
   const { requestLeave } = useWorkspaceNavigation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { isLoading, logout, session } = useAuth();
   const {
     activeOrganizationId,
@@ -280,6 +286,10 @@ function ShellContent() {
           }
           user={
             <NavUser
+              accountItem={{
+                label: t("navigation.account"),
+                onSelect: () => requestLeave(() => void navigate("/account"))
+              }}
               className="w-full min-w-0 max-w-none"
               logoutLabel={t("auth.logout")}
               onLogout={() => requestLeave(() => void logout())}
@@ -349,6 +359,16 @@ export const appRoutes: RouteObject[] = [
                 element: <OrganizationsRoute />,
                 handle: { titleKey: "navigation.members" },
                 path: "members"
+              },
+              {
+                element: <AccountRoute />,
+                handle: { titleKey: "navigation.account" },
+                path: "account"
+              },
+              {
+                element: <AccountDeleteRoute />,
+                handle: { titleKey: "auth.account.delete.confirmTitle" },
+                path: "account/delete"
               },
               {
                 element: <SecurityRoute />,

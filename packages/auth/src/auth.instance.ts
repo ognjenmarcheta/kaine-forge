@@ -387,11 +387,19 @@ function refuseAccountDeletion(refusal: AccountDeletionRefusal): APIError {
   });
 }
 
-// Refuses a delete request before better-auth emails the confirmation link.
-// A request with the emailed token is checked by user.deleteUser.beforeDelete,
-// under row locks.
-const accountDeletionPlugin = {
-  id: "account-deletion",
+// Account settings: the social providers a user can link, and the refusal of
+// a delete request before better-auth emails the confirmation link. A request
+// with the emailed token is checked by user.deleteUser.beforeDelete, under row
+// locks.
+const accountPlugin = {
+  id: "account",
+  endpoints: {
+    listSocialProviders: createAuthEndpoint(
+      "/account/social-providers",
+      { method: "GET", use: [sessionMiddleware] },
+      async (ctx) => ctx.json({ providers: Object.keys(resolveSocialProviders(process.env)) })
+    )
+  },
   hooks: {
     before: [
       {
@@ -650,7 +658,7 @@ export function createAuthInstance() {
         }
       }),
       organizationOwnershipPlugin,
-      accountDeletionPlugin,
+      accountPlugin,
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).
