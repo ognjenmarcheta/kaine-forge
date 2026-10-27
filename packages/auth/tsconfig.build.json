@@ -23,6 +23,9 @@
     },
     {
       "path": "../jobs/tsconfig.build.json"
+    },
+    {
+      "path": "../logger/tsconfig.build.json"
     }
   ]
 }

@@ -1,0 +1,26 @@
+query AuditEvents($first: Int, $after: String) {
+  auditEvents(first: $first, after: $after) {
+    events {
+      id
+      action
+      actor {
+        id
+        name
+        email
+      }
+      targetType
+      targetLabel
+      ipAddress
+      createdAt
+    }
+    endCursor
+    hasNextPage
+  }
+}
+
+query CurrentOrganizationRole {
+  currentOrganization {
+    id
+    role
+  }
+}

@@ -36,6 +36,7 @@ import {
 } from "better-auth/plugins";
 import { z } from "zod";
 
+import { auditPlugin } from "./auth.audit.plugin";
 import { assertProductionAuthSecret, buildInvitationUrl, getServerAuthConfig } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
@@ -563,6 +564,7 @@ export function createAuthInstance() {
         }
       }),
       organizationOwnershipPlugin,
+      auditPlugin,
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in
       // are not challenged (better-auth default, ADR 0015).

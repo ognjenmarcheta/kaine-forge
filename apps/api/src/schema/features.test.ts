@@ -14,7 +14,8 @@ describe("api schema feature registry", () => {
       "notes",
       "storage",
       "public-assets",
-      "assistant"
+      "assistant",
+      "audit"
     ]);
     expect(apiTypeDefs.join("\n")).toContain("type Query");
     expect(apiTypeDefs.join("\n")).toContain("extend type Query");

@@ -22,5 +22,6 @@
   "navigation.todos": "Todos",
   "navigation.notes": "Notes",
   "navigation.assistant": "Assistant",
-  "navigation.security": "Security"
+  "navigation.security": "Security",
+  "navigation.auditLog": "Audit log"
 }

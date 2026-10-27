@@ -1,6 +1,7 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   AppSidebar,
+  FileText,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
@@ -35,6 +36,8 @@ import {
   useWorkspaceNavigation
 } from "./components/workspace-navigation.provider";
 import { AssistantRoute } from "./features/assistant/assistant.route";
+import { useAuditLogAccess } from "./features/audit/audit.hook";
+import { AuditLogRoute } from "./features/audit/audit.route";
 import { AuthRoute } from "./features/auth/auth.route";
 import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
@@ -59,6 +62,7 @@ const THEME_OPTIONS = [
 
 const ROUTE_TO_BREADCRUMB = {
   "/assistant": "navigation.assistant",
+  "/audit-log": "navigation.auditLog",
   "/dashboard": "navigation.dashboard",
   "/members": "navigation.members",
   "/notes": "navigation.notes",
@@ -100,6 +104,7 @@ function ShellContent() {
   const { setThemeMode, themeMode } = useTheme();
   const { assets: publicAssets } = usePublicAssets();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
 
   if (isLoading) {
     return (
@@ -121,6 +126,7 @@ function ShellContent() {
   const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
   const isAssistantActive = location.pathname === "/assistant";
   const isSecurityActive = location.pathname === "/security";
+  const isAuditLogActive = location.pathname === "/audit-log";
   const currentRouteKey = isBreadcrumbRoute(location.pathname)
     ? ROUTE_TO_BREADCRUMB[location.pathname]
     : isNotesActive
@@ -215,6 +221,16 @@ function ShellContent() {
                         icon: Users,
                         isActive: isMembersActive,
                         title: t("navigation.members")
+                      }
+                    ]
+                  : []),
+                ...(canReadAuditLog
+                  ? [
+                      {
+                        href: "/audit-log",
+                        icon: FileText,
+                        isActive: isAuditLogActive,
+                        title: t("navigation.auditLog")
                       }
                     ]
                   : []),
@@ -349,6 +365,11 @@ export const appRoutes: RouteObject[] = [
                 element: <OrganizationsRoute />,
                 handle: { titleKey: "navigation.members" },
                 path: "members"
+              },
+              {
+                element: <AuditLogRoute />,
+                handle: { titleKey: "navigation.auditLog" },
+                path: "audit-log"
               },
               {
                 element: <SecurityRoute />,
