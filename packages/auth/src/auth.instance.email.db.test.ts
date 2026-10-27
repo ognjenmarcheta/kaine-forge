@@ -1,4 +1,4 @@
-import { usersTable } from "@repo/db";
+import { accountsTable, sessionsTable, usersTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
 import type { EmailMessage } from "@repo/email";
 import { createEmailVerificationToken } from "better-auth/api";
@@ -155,16 +155,64 @@ describe("auth emails on the real auth instance", () => {
     expect(message.text).toMatch(/\d{6}/);
   });
 
-  // An email-proof sign-in into an unverified account first takes a cleanup
-  // lock in the verifications table, keyed by a deterministic uuid.
-  it("signs an unverified account in with an email code", async () => {
-    const { email, userId } = await signUp("otp-unverified");
+  async function signInWithEmailCode(email: string, codeSubject = "Your sign-in code") {
     await auth.api.sendVerificationOTP({ body: { email, type: "sign-in" } });
-    const otp = /\d{6}/.exec((await emailTo(email, "Your sign-in code")).text)?.[0] ?? "";
+    const otp = /\d{6}/.exec((await emailTo(email, codeSubject)).text)?.[0] ?? "";
+    return auth.api.signInEmailOTP({ body: { email, otp } });
+  }
 
-    const result = await auth.api.signInEmailOTP({ body: { email, otp } });
+  async function rowsOf(table: typeof accountsTable | typeof sessionsTable, userId: string) {
+    return testDatabase().db.select({ id: table.id }).from(table).where(eq(table.userId, userId));
+  }
+
+  // better-auth's protection against pre-registered accounts: proving the
+  // address of an unverified account removes the password and the sessions
+  // from before the proof. Its cleanup lock in the verifications table is
+  // keyed by a deterministic uuid.
+  it("removes an unverified account's password and old sessions, and says so once", async () => {
+    const { email, userId } = await signUpGerman("otp-unverified");
+
+    const result = await signInWithEmailCode(email, "Dein Anmeldecode");
 
     expect(result.user).toMatchObject({ id: userId, emailVerified: true });
+    expect(await rowsOf(accountsTable, userId)).toEqual([]);
+    expect((await rowsOf(sessionsTable, userId)).map((row) => row.id)).toEqual([
+      expect.any(String)
+    ]);
+    const notice = await emailTo(email, "Dein Passwort wurde entfernt");
+    expect(notice.text).toContain("https://app.example.com/auth");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(
+      subjectsTo(email).filter((subject) => subject === "Dein Passwort wurde entfernt")
+    ).toHaveLength(1);
+  });
+
+  it("sends no password notice when the unverified account had no password", async () => {
+    const { email, userId } = await signUp("otp-no-password");
+    await testDatabase().db.delete(accountsTable).where(eq(accountsTable.userId, userId));
+
+    await signInWithEmailCode(email);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(subjectsTo(email).filter((subject) => subject === "Your password was removed")).toEqual(
+      []
+    );
+  });
+
+  it("sends no password notice on an email-code sign-in to a verified account", async () => {
+    const { email, userId } = await signUp("otp-verified");
+    await testDatabase()
+      .db.update(usersTable)
+      .set({ emailVerified: true })
+      .where(eq(usersTable.id, userId));
+
+    await signInWithEmailCode(email);
+
+    expect(await rowsOf(accountsTable, userId)).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(subjectsTo(email).filter((subject) => subject === "Your password was removed")).toEqual(
+      []
+    );
   });
 
   // better-auth sends the change-email code to the new address, which has no

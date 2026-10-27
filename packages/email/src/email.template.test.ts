@@ -195,6 +195,13 @@ const cases: TemplateCase[] = [
     token: SECURITY_URL
   },
   {
+    email: { template: "passwordRemoved", url: "https://app.example.com/auth" },
+    locale: "en",
+    subject: "Your password was removed",
+    phrase: "on the sign-in page and set a new one.",
+    token: "https://app.example.com/auth"
+  },
+  {
     email: { template: "passkeyAdded", securityUrl: SECURITY_URL },
     locale: "en",
     subject: "A passkey was added to your account",

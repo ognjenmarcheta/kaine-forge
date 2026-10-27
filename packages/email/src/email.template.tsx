@@ -38,6 +38,7 @@ export type EmailTemplate =
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string }
   | { template: "passkeyAdded"; securityUrl: string }
+  | { template: "passwordRemoved"; url: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
   | { template: "accountDeletion"; url: string; expiresInHours: number }
   | { template: "roleChanged"; url: string; organizationName: string; role: string };
@@ -212,6 +213,23 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
       return securityAlert(t, "twoFactorEnabled", email.securityUrl);
     case "passkeyAdded":
       return securityAlert(t, "passkeyAdded", email.securityUrl);
+    // The first email-proof sign-in to an unverified account removed its password.
+    case "passwordRemoved":
+      return {
+        subject: t("email.passwordRemoved.subject"),
+        heading: t("email.passwordRemoved.heading"),
+        body: (
+          <>
+            <EmailText>{t("email.passwordRemoved.body")}</EmailText>
+            <EmailText>{t("email.passwordRemoved.setPassword")}</EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.passwordRemoved.action")}
+            />
+          </>
+        )
+      };
     // Goes to the current address before the new one gets a verification link.
     case "emailChangeApproval":
       return {

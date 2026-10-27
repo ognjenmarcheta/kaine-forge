@@ -456,9 +456,15 @@ function createPasskeyPolicyPlugin(webAppUrl: string) {
 // account's password, social links, and sessions, but not its passkeys.
 const EMAIL_PROOF_SIGN_IN_PATHS = new Set(["/magic-link/verify", "/sign-in/email-otp"]);
 
-// Requests whose user write promotes an unverified account. The update hooks
-// of one request share its context object.
+// Requests whose user write promotes an unverified account, and those whose
+// promotion deleted a password. The hooks of one request share its context
+// object.
 const unverifiedAccountPromotions = new WeakSet<GenericEndpointContext>();
+const unverifiedPasswordRemovals = new WeakSet<GenericEndpointContext>();
+
+function buildSignInUrl(webAppUrl: string): string {
+  return new URL("/auth", webAppUrl).toString();
+}
 
 // Endpoints a bot could abuse to create accounts, guess passwords, or send
 // email. Paths are relative to the /api/auth base path.
@@ -1216,6 +1222,15 @@ export function createAuthInstance() {
             // proof may belong to whoever signed up with it.
             if (unverifiedAccountPromotions.has(ctx)) {
               await db.delete(passkeysTable).where(eq(passkeysTable.userId, user.id));
+
+              // Tell the now-verified address why its password stopped working.
+              if (unverifiedPasswordRemovals.delete(ctx)) {
+                enqueueAuthEmail(
+                  user.email,
+                  { template: "passwordRemoved", url: buildSignInUrl(config.webAppUrl) },
+                  readUserLocale(user)
+                );
+              }
             }
 
             const previousUser = ctx.context.session?.user;
@@ -1247,6 +1262,21 @@ export function createAuthInstance() {
                 { template: "twoFactorEnabled", securityUrl },
                 readUserLocale(user)
               );
+            }
+          }
+        }
+      },
+      account: {
+        delete: {
+          // The promotion deletes every account row before it sets
+          // emailVerified; "credential" is the password.
+          before: async (account, ctx) => {
+            if (
+              ctx &&
+              EMAIL_PROOF_SIGN_IN_PATHS.has(ctx.path) &&
+              account.providerId === "credential"
+            ) {
+              unverifiedPasswordRemovals.add(ctx);
             }
           }
         }
