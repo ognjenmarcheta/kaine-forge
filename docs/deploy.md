@@ -61,6 +61,12 @@ The image serves the app with nginx on port `3000`. It needs one runtime variabl
 
 - `API_BACKEND_URL`: the URL that nginx uses to reach the API, for example `http://api:4000`. nginx proxies `/graphql` and `/api/` to it. The default is `http://localhost:4000`, which does not work in a separate container.
 
+Every response carries a `Content-Security-Policy`. Set these space-separated origin lists when they differ from the defaults, or the browser blocks the requests:
+
+- `CSP_STORAGE_ORIGINS`: the S3 origins that presigned uploads and private-bucket thumbnails use, for example `https://my-bucket.s3.eu-central-1.amazonaws.com`. The default is `http://localhost:9000`, the `docker-compose.yml` storage.
+- `CSP_PUBLIC_ASSET_ORIGINS`: the origin of `S3_PUBLIC_BASE_URL`. The default is `http://localhost:9000`.
+- `CSP_API_ORIGINS`: the API's HTTP and WebSocket origins, for example `https://api.example.com wss://api.example.com`, only when the image is built with a cross-origin `VITE_API_URL`. The default is empty, because the app calls the API on its own origin.
+
 ### Build-time `VITE_*` values
 
 Vite writes every `VITE_*` value into the JavaScript bundle when the image is built. The container cannot change them at runtime.

@@ -10,6 +10,8 @@ export function createGraphqlClient(session: AuthSession | null): GraphQLClient 
   return new GraphQLClient(GRAPHQL_URL, {
     credentials: "include",
     headers: {
+      // The API's CSRF guard rejects GET and form/text POSTs without this header.
+      "x-graphql-yoga-csrf": "1",
       ...authHeaders(session)
     }
   });
