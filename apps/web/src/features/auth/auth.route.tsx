@@ -1,7 +1,7 @@
 import type { TwoFactorMethod } from "@repo/auth/transport";
 import { AuthLayout, Button, FieldDescription } from "@repo/ui";
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { EmailOtpSignInForm } from "./components/email-otp-sign-in-form";
 import { LoginForm } from "./components/login-form";
@@ -47,7 +47,20 @@ export function AuthRoute() {
   const isPrimaryMode = mode === "login" || mode === "signup";
 
   return (
-    <AuthLayout subtitle={t(MODE_COPY_KEYS[mode].subtitle)} title={t(MODE_COPY_KEYS[mode].title)}>
+    <AuthLayout
+      footer={
+        <nav aria-label={t("legal.footerLabel")} className="flex gap-[var(--ds-space-200)]">
+          <Button appearance="link" asChild spacing="compact">
+            <Link to="/terms">{t("legal.terms.title")}</Link>
+          </Button>
+          <Button appearance="link" asChild spacing="compact">
+            <Link to="/privacy">{t("legal.privacy.title")}</Link>
+          </Button>
+        </nav>
+      }
+      subtitle={t(MODE_COPY_KEYS[mode].subtitle)}
+      title={t(MODE_COPY_KEYS[mode].title)}
+    >
       <div className="mb-[var(--ds-space-300)]">
         <ThemeSelect />
       </div>
