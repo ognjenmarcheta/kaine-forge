@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { MIGRATION_ADVISORY_LOCK_KEY, withMigrationLock } from "./migrate.lock";
 
-function createFakePool() {
+function createFakePool(failingQuery?: string) {
   const events: string[] = [];
   const client = {
     query(text: string, values?: readonly number[]): Promise<void> {
       events.push(`${text} ${JSON.stringify(values)}`);
-      return Promise.resolve();
+      return text === failingQuery ? Promise.reject(new Error("query failed")) : Promise.resolve();
     },
-    release(): void {
-      events.push("release");
+    release(destroy?: boolean): void {
+      events.push(destroy ? "destroy" : "release");
     }
   };
   const pool = {
@@ -46,5 +46,13 @@ describe("withMigrationLock", () => {
     ).rejects.toThrow("migration failed");
 
     expect(events).toEqual(["connect", lock, unlock, "release"]);
+  });
+
+  it("destroys the client instead of pooling it when unlock fails", async () => {
+    const { events, pool } = createFakePool("select pg_advisory_unlock($1)");
+
+    await expect(withMigrationLock(pool, () => Promise.resolve())).rejects.toThrow("query failed");
+
+    expect(events).toEqual(["connect", lock, unlock, "destroy"]);
   });
 });
