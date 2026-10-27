@@ -76,8 +76,8 @@ When you need other values, build your own web image from `release/web` or from 
 
 The API applies pending migrations from its bundled `packages/db/drizzle` folder before it starts to serve requests. `API_RUN_MIGRATIONS` controls this. In the image it defaults to `true`, because the image sets `NODE_ENV=production`.
 
-- **One API replica.** Keep the default. The new API migrates the database and then starts. Leave the old API running until the new one passes `GET /ready`.
-- **More than one replica, or migrations as a separate release step.** Run the migrations once before the rollout, then start the replicas with `API_RUN_MIGRATIONS=false`. From a checkout of the release tag, with `DATABASE_URL` pointing at the target database, run:
+- **Migrate at startup.** Keep the default. Each new API replica migrates the database and then starts. A Postgres advisory lock serializes the startup migrations, so the first replica applies them and replicas that start at the same time wait, then find nothing left to apply. Leave the old API running until the new one passes `GET /ready`.
+- **Migrate as a separate release step.** Run the migrations once before the rollout, then start the replicas with `API_RUN_MIGRATIONS=false`. `pnpm db:migrate` does not take the advisory lock, so do not run it while an API with startup migrations is starting. From a checkout of the release tag, with `DATABASE_URL` pointing at the target database, run:
 
   ```bash
   pnpm db:migrate

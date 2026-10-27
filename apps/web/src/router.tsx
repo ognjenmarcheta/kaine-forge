@@ -19,8 +19,17 @@ import {
   SidebarTrigger
 } from "@repo/ui";
 import { useState } from "react";
-import { Navigate, NavLink, Outlet, createBrowserRouter, useLocation } from "react-router-dom";
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  createBrowserRouter,
+  useLocation,
+  type RouteObject
+} from "react-router-dom";
 
+import { NotFoundPage } from "./components/not-found.page";
+import { RouteErrorPage } from "./components/route-error.page";
 import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
@@ -290,47 +299,57 @@ function ShellContent() {
   );
 }
 
-export const appRouter = createBrowserRouter([
+export const appRoutes: RouteObject[] = [
   {
     element: <ShellLayout />,
+    errorElement: <RouteErrorPage />,
     path: "/",
     children: [
       {
-        element: <Navigate replace to="/dashboard" />,
-        index: true
-      },
-      {
-        element: <DashboardRoute />,
-        path: "dashboard"
-      },
-      {
-        element: <TodosRoute />,
-        path: "todos"
-      },
-      {
-        element: <NotesRoute />,
-        path: "notes/:id?"
-      },
-      {
-        element: <AssistantRoute />,
-        path: "assistant"
-      },
-      {
-        element: <OrganizationsRoute />,
-        path: "members"
-      },
-      {
-        element: <SecurityRoute />,
-        path: "security"
+        // Pathless so a failing child route keeps the shell and its sidebar.
+        errorElement: <RouteErrorPage />,
+        children: [
+          {
+            element: <Navigate replace to="/dashboard" />,
+            index: true
+          },
+          {
+            element: <DashboardRoute />,
+            path: "dashboard"
+          },
+          {
+            element: <TodosRoute />,
+            path: "todos"
+          },
+          {
+            element: <NotesRoute />,
+            path: "notes/:id?"
+          },
+          {
+            element: <AssistantRoute />,
+            path: "assistant"
+          },
+          {
+            element: <OrganizationsRoute />,
+            path: "members"
+          },
+          {
+            element: <SecurityRoute />,
+            path: "security"
+          }
+        ]
       }
     ]
   },
   {
     element: <AuthRoute />,
+    errorElement: <RouteErrorPage />,
     path: "/auth"
   },
   {
-    element: <Navigate replace to="/" />,
+    element: <NotFoundPage />,
     path: "*"
   }
-]);
+];
+
+export const appRouter = createBrowserRouter(appRoutes);

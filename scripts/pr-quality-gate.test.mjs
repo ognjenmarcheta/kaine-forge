@@ -463,7 +463,9 @@ describe("Hand-kept alignments", () => {
       "README.md",
       "CONTRIBUTING.md",
       "docs/agents/day-one.md",
+      "docs/backup-and-restore.md",
       "docs/deploy.md",
+      "docs/incident-response.md",
       "AGENTS.md"
     ]) {
       const text = readFileSync(doc, "utf8");
