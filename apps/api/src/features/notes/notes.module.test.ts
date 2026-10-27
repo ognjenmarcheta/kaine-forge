@@ -101,9 +101,9 @@ describe("createNotes", () => {
   it("lists Notes by search phrase within a clamped page", async () => {
     const needle = await notes.create({ title: "Needle in title" });
 
-    expect((await notes.list({ search: "NEEDLE", limit: 500 })).map((n) => n.id)).toEqual([
+    expect((await notes.list({ search: "NEEDLE", first: 500 })).items.map((n) => n.id)).toEqual([
       needle.id
     ]);
-    expect(await notes.list({ limit: 0 })).toHaveLength(1);
+    expect((await notes.list({ first: 0 })).items).toHaveLength(1);
   });
 });

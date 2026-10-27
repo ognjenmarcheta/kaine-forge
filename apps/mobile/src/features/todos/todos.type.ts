@@ -5,7 +5,7 @@ import type {
   UpdateTodoInput
 } from "../../graphql/generated/react-query";
 
-export type TodoItem = NonNullable<GetMobileTodosQuery["todos"]>[number];
+export type TodoItem = GetMobileTodosQuery["todos"]["items"][number];
 
 export interface TodoDraft {
   description: string;

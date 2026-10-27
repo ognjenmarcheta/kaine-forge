@@ -245,6 +245,27 @@ describe("buildFeatureFiles", () => {
     );
   });
 
+  it("lists through the shared cursor connection, never limit and offset", () => {
+    const sdl = read(`${apiDir}/purchase-orders.schema.ts`);
+    const operations = read("apps/web/src/graphql/operations/purchase-orders.graphql");
+    const route = read(`${webDir}/purchase-orders.route.tsx`);
+
+    expect(sdl).toContain(
+      "type PurchaseOrderConnection {\n    items: [PurchaseOrder!]!\n    pageInfo: PageInfo!\n  }"
+    );
+    expect(sdl).toContain("purchaseOrders(first: Int, after: String): PurchaseOrderConnection!");
+    expect(read(`${apiDir}/purchase-orders.module.ts`)).toMatch(/\bdata\.page\(/);
+    expect(operations).toContain(
+      "query GetPurchaseOrders($first: Int, $after: String) {\n  purchaseOrders(first: $first, after: $after) {\n    items {"
+    );
+    expect(operations).toContain("    pageInfo {\n      hasNextPage\n      endCursor\n    }");
+    expect(route).toContain("useInfiniteQuery({");
+    expect(route).toContain("pageInfo.hasNextPage ? pageInfo.endCursor : undefined");
+    for (const [path, content] of files) {
+      expect(content, path).not.toMatch(/\$offset|\boffset:|clampPagination|PaginationInput/);
+    }
+  });
+
   it("never lets a client supply the organization id", () => {
     const sdl = read(`${apiDir}/purchase-orders.schema.ts`);
     const inputs = sdl.slice(
@@ -485,6 +506,6 @@ describe("emitted i18n closure", () => {
 
     expect(keysFor("de")).toEqual(keysFor("en"));
     expect(keysFor("sr")).toEqual(keysFor("en"));
-    expect(keysFor("en")).toHaveLength(8);
+    expect(keysFor("en")).toHaveLength(9);
   });
 });

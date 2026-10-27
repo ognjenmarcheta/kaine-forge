@@ -225,7 +225,7 @@ const apiModuleFile = (
   names: FeatureNames
 ): string => `import type { ${names.singularPascal} } from "@repo/db";
 import { ${names.pluralCamel}Table } from "@repo/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { ${names.pluralConstant}_CONFIG } from "./${names.pluralKebab}.config";
 import type {
@@ -234,7 +234,7 @@ import type {
   Update${names.singularPascal}Input
 } from "./${names.pluralKebab}.type";
 import { ensure${names.singularPascal}Title, parseOptionalBody } from "./${names.pluralKebab}.util";
-import { clampPagination, type PaginationInput, type ScopedData } from "../../context.data";
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
 
 export interface ${names.singularPascal}ModuleDeps {
@@ -250,7 +250,8 @@ export interface ${names.singularPascal}ModuleDeps {
  * Scope. Writes normalize their input and publish one \`${names.singularCamel}:*\` event.
  */
 export interface ${names.pluralPascal} {
-  list: (page: PaginationInput) => Promise<${names.singularPascal}[]>;
+  /** Newest first; throws \`invalid cursor\` for a malformed or foreign \`after\`. */
+  list: (page: PageInput) => Promise<Connection<${names.singularPascal}>>;
   get: (id: string) => Promise<${names.singularPascal} | null>;
   /** Throws \`${names.singularWords} title is required\`/\`too long\` and writes nothing. */
   create: (input: Create${names.singularPascal}Input) => Promise<${names.singularPascal}>;
@@ -262,14 +263,12 @@ export interface ${names.pluralPascal} {
 
 export function create${names.pluralPascal}({ data, publish }: ${names.singularPascal}ModuleDeps): ${names.pluralPascal} {
   return {
-    async list(page) {
-      const { limit, offset } = clampPagination(page, ${names.pluralConstant}_CONFIG.pagination);
-      return data
-        .selectFrom(${names.pluralCamel}Table)
-        .orderBy(desc(${names.pluralCamel}Table.createdAt), desc(${names.pluralCamel}Table.id))
-        .limit(limit)
-        .offset(offset);
-    },
+    list: (page) =>
+      data.page(${names.pluralCamel}Table, page, {
+        orderBy: ${names.pluralCamel}Table.createdAt,
+        direction: "desc",
+        limits: ${names.pluralConstant}_CONFIG.pagination
+      }),
     async get(id) {
       const rows = await data
         .selectFrom(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, id))
@@ -348,8 +347,13 @@ const apiSdlFile = (
     organizationId: ID!
   }
 
+  type ${names.singularPascal}Connection {
+    items: [${names.singularPascal}!]!
+    pageInfo: PageInfo!
+  }
+
   extend type Query {
-    ${names.pluralCamel}(limit: Int, offset: Int): [${names.singularPascal}!]!
+    ${names.pluralCamel}(first: Int, after: String): ${names.singularPascal}Connection!
     ${names.singularCamel}(id: ID!): ${names.singularPascal}
   }
 
@@ -371,7 +375,7 @@ const apiRouterFile = (
   names: FeatureNames
 ): string => `import type { Create${names.singularPascal}Input, Update${names.singularPascal}Input } from "./${names.pluralKebab}.type";
 import type { ApiContext } from "../../context";
-import type { PaginationInput } from "../../context.data";
+import type { PageInput } from "../../context.data";
 import { organizationSubscriptions } from "../../pubsub";
 
 type ResolverContext = ApiContext;
@@ -381,7 +385,7 @@ type Update${names.singularPascal}Args = { id: string; input: Update${names.sing
 
 export const ${names.pluralCamel}Resolvers = {
   Query: {
-    async ${names.pluralCamel}(_parent: unknown, args: PaginationInput, ctx: ResolverContext) {
+    async ${names.pluralCamel}(_parent: unknown, args: PageInput, ctx: ResolverContext) {
       return ctx.${names.pluralCamel}.list(args);
     },
     async ${names.singularCamel}(_parent: unknown, args: ${names.singularPascal}ByIdArgs, ctx: ResolverContext) {
@@ -530,10 +534,9 @@ describe("create${names.pluralPascal}", () => {
       .where(eq(${names.pluralCamel}Table.id, foreign.id));
     events = [];
 
-    expect((await ${names.pluralCamel}.list({ limit: 100 })).map((row) => row.id)).toContain(own.id);
-    expect((await ${names.pluralCamel}.list({ limit: 100 })).map((row) => row.id)).not.toContain(
-      foreign.id
-    );
+    const listed = (await ${names.pluralCamel}.list({ first: 100 })).items.map((row) => row.id);
+    expect(listed).toContain(own.id);
+    expect(listed).not.toContain(foreign.id);
     expect(await ${names.pluralCamel}.get(foreign.id)).toBeNull();
     await expect(${names.pluralCamel}.update(foreign.id, { title: "Taken" })).rejects.toThrow(
       "${names.singularWords} not found"
@@ -548,9 +551,23 @@ describe("create${names.pluralPascal}", () => {
     expect(events).toEqual([]);
   });
 
-  it("clamps the requested page", async () => {
-    expect(await ${names.pluralCamel}.list({ limit: 0 })).toHaveLength(1);
-    expect(await ${names.pluralCamel}.list({ limit: 1, offset: -5 })).toHaveLength(1);
+  it("pages newest first with a cursor and refuses a malformed one", async () => {
+    const pager = ${names.pluralCamel}For(await seedScope("pager"));
+    for (const title of ["First", "Second", "Third"]) await pager.create({ title });
+
+    const page = await pager.list({ first: 2 });
+    expect(page.items.map((row) => row.title)).toEqual(["Third", "Second"]);
+    expect(page.pageInfo.hasNextPage).toBe(true);
+
+    const next = await pager.list({ first: 0, after: page.pageInfo.endCursor });
+    expect(next.items.map((row) => row.title)).toEqual(["First"]);
+    expect(next.pageInfo.hasNextPage).toBe(false);
+
+    await expect(pager.list({ after: "not a cursor" })).rejects.toThrow("invalid cursor");
+    // A cursor from another Organization never pages into this one.
+    await expect(${names.pluralCamel}.list({ after: page.pageInfo.endCursor })).rejects.toThrow(
+      "invalid cursor"
+    );
   });
 });
 `;
@@ -564,6 +581,7 @@ const localeFile = (names: FeatureNames): string => {
       [`${names.pluralKebab}.title`]: names.label,
       [`${names.pluralKebab}.create`]: `New ${names.singularWords}`,
       [`${names.pluralKebab}.empty`]: `No ${names.pluralWords} yet.`,
+      [`${names.pluralKebab}.loadMore`]: "Load more",
       [`${names.pluralKebab}.titleLabel`]: "Title",
       [`${names.pluralKebab}.bodyLabel`]: "Body",
       [`${names.pluralKebab}.notFound`]: `${sentence} not found.`,
@@ -986,13 +1004,19 @@ export const applyCreateFeature = (
 
 const webOperationsFile = (
   names: FeatureNames
-): string => `query Get${names.pluralPascal}($limit: Int, $offset: Int) {
-  ${names.pluralCamel}(limit: $limit, offset: $offset) {
-    id
-    title
-    body
-    createdAt
-    updatedAt
+): string => `query Get${names.pluralPascal}($first: Int, $after: String) {
+  ${names.pluralCamel}(first: $first, after: $after) {
+    items {
+      id
+      title
+      body
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 
@@ -1052,23 +1076,29 @@ const webListRouteFile = (
   names: FeatureNames
 ): string => `import { createActiveOrganizationQueryKey } from "@repo/query";
 import { Button, FieldError, Input } from "@repo/ui";
-import { useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { ${names.pluralConstant}_CONFIG } from "./${names.pluralKebab}.config";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import {
+  Get${names.pluralPascal}Document,
   useCreate${names.singularPascal}Mutation,
   useDelete${names.singularPascal}Mutation,
-  useGet${names.pluralPascal}Query
+  useGet${names.pluralPascal}Query,
+  type Get${names.pluralPascal}Query,
+  type Get${names.pluralPascal}QueryVariables
 } from "../../graphql/generated/react-query";
 import { useLive${names.pluralPascal} } from "../../hooks/use-live-list";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 import { queryRuntime } from "../../lib/query-runtime";
 
 queryRuntime.registerOrgScopedOperation("${names.pluralKebab}.web.list", useGet${names.pluralPascal}Query.getKey());
+/** The \`after\` cursor of the first page: none. */
+const FIRST_PAGE: string | null = null;
 
 export function ${names.pluralPascal}Route() {
   const { t } = useTranslation();
@@ -1079,21 +1109,30 @@ export function ${names.pluralPascal}Route() {
   const [newTitle, setNewTitle] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const listVariables = useMemo(() => ({ limit: ${names.pluralConstant}_CONFIG.pageSize, offset: 0 }), []);
+  const fetch${names.pluralPascal} = useGraphqlFetcher<Get${names.pluralPascal}Query, Get${names.pluralPascal}QueryVariables>(
+    Get${names.pluralPascal}Document
+  );
   const listQueryKey = useMemo(
     () =>
       createActiveOrganizationQueryKey(
-        useGet${names.pluralPascal}Query.getKey(listVariables),
+        [...useGet${names.pluralPascal}Query.getKey({ first: ${names.pluralConstant}_CONFIG.pageSize }), "pages"],
         activeOrganizationId
       ),
-    [activeOrganizationId, listVariables]
+    [activeOrganizationId]
   );
 
   const subscriptionEnabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
 
-  const listQuery = useGet${names.pluralPascal}Query(listVariables, {
+  // Each page reads after the previous page's endCursor, so rows created or
+  // deleted meanwhile never shift a page.
+  const listQuery = useInfiniteQuery({
     queryKey: listQueryKey,
-    enabled: subscriptionEnabled
+    enabled: subscriptionEnabled,
+    initialPageParam: FIRST_PAGE,
+    queryFn: ({ pageParam }) =>
+      fetch${names.pluralPascal}({ first: ${names.pluralConstant}_CONFIG.pageSize, after: pageParam }),
+    getNextPageParam: ({ ${names.pluralCamel}: { pageInfo } }) =>
+      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
   });
 
   const createMutation = useCreate${names.singularPascal}Mutation();
@@ -1101,7 +1140,10 @@ export function ${names.pluralPascal}Route() {
 
   useLive${names.pluralPascal}({ enabled: subscriptionEnabled, invalidateKeys: [listQueryKey] });
 
-  const ${names.pluralCamel} = useMemo(() => listQuery.data?.${names.pluralCamel} ?? [], [listQuery.data]);
+  const ${names.pluralCamel} = useMemo(
+    () => listQuery.data?.pages.flatMap((page) => page.${names.pluralCamel}.items) ?? [],
+    [listQuery.data]
+  );
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1193,6 +1235,19 @@ export function ${names.pluralPascal}Route() {
             );
           })}
         </ul>
+      ) : null}
+
+      {listQuery.hasNextPage ? (
+        <div>
+          <Button
+            appearance="subtle"
+            disabled={listQuery.isFetchingNextPage}
+            type="button"
+            onClick={() => void listQuery.fetchNextPage()}
+          >
+            {t("${names.pluralKebab}.loadMore")}
+          </Button>
+        </div>
       ) : null}
 
       <ConfirmDialog

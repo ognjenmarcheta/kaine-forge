@@ -45,13 +45,16 @@ export const storageTypeDefs = /* GraphQL */ `
     entityType: AttachmentEntityType
     entityId: ID
     status: FileStatus
-    limit: Int
-    offset: Int
+  }
+
+  type FileInfoConnection {
+    items: [FileInfo!]!
+    pageInfo: PageInfo!
   }
 
   extend type Query {
     file(id: ID!): FileInfo
-    files(filter: FilesFilterInput): [FileInfo!]!
+    files(filter: FilesFilterInput, first: Int, after: String): FileInfoConnection!
   }
 
   extend type Mutation {

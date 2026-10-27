@@ -49,7 +49,7 @@ function AssistantWorkspace({
   const composer = useRef<HTMLFormElement>(null);
   const conversations = [
     ...assistant.temporaryConversations,
-    ...(assistant.conversationsQuery.data?.conversations ?? [])
+    ...(assistant.conversationsQuery.data?.conversations.items ?? [])
   ];
   const title =
     conversations.find((item) => item.id === assistant.activeKey)?.title ?? t("assistant.newChat");

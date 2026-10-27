@@ -45,9 +45,19 @@ export const assistantTypeDefs = /* GraphQL */ `
     delta: String!
   }
 
+  type AssistantMessageConnection {
+    items: [AssistantMessage!]!
+    pageInfo: PageInfo!
+  }
+
+  type AssistantConversationConnection {
+    items: [AssistantConversation!]!
+    pageInfo: PageInfo!
+  }
+
   extend type Query {
-    assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
-    conversations(limit: Int, offset: Int): [AssistantConversation!]!
+    assistantMessages(conversationId: ID!, first: Int, after: String): AssistantMessageConnection!
+    conversations(first: Int, after: String): AssistantConversationConnection!
   }
 
   extend type Mutation {

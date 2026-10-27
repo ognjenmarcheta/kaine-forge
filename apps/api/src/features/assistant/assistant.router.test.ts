@@ -52,7 +52,7 @@ describe("assistant.router", () => {
       ctx as never
     );
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({ items: [], pageInfo: { hasNextPage: false, endCursor: null } });
     expect(assistantAdapter.getConversationById).toHaveBeenCalledWith(data, "conversation-1");
     expect(assistantAdapter.listMessages).not.toHaveBeenCalled();
   });

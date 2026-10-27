@@ -1,6 +1,6 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import type { Database } from "@repo/db/types";
-import { and, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, getTableName, gt, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import type {
   AnyPgColumn,
   PgColumn,
@@ -8,31 +8,80 @@ import type {
   PgUpdateSetSource,
   TableLikeHasEmptySelection
 } from "drizzle-orm/pg-core";
+import { GraphQLError } from "graphql";
 
 export type OrganizationOwnedTable = PgTable & { organizationId: AnyPgColumn };
 type UserOwnedTable = OrganizationOwnedTable & { userId: AnyPgColumn };
 
-export interface PaginationInput {
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+type PagedTable = OrganizationOwnedTable & { id: AnyPgColumn };
+
+/** The `first` and `after` arguments of a list field. */
+export interface PageInput {
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }
 
-export interface Pagination {
-  limit: number;
-  offset: number;
+/** How a list sorts: a timestamptz column, with `id` breaking ties in the same direction. */
+export interface PageOrder {
+  orderBy: AnyPgColumn;
+  direction: "asc" | "desc";
+  limits: { defaultLimit: number; maxLimit: number };
 }
 
-/** Clamps a requested page: limit to [1, maxLimit], offset to 0 or more, both floored. */
-export function clampPagination(
-  input: PaginationInput,
-  limits: { defaultLimit: number; maxLimit: number }
-): Pagination {
-  const limit = Math.min(
-    limits.maxLimit,
-    Math.max(1, Math.floor(input.limit ?? limits.defaultLimit))
-  );
-  const offset = Math.max(0, Math.floor(input.offset ?? 0));
-  return { limit, offset };
+/** One page of a list: the `<Type>Connection` shape every list field returns. */
+export interface Connection<TRow> {
+  items: TRow[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+}
+
+export const EMPTY_CONNECTION: Connection<never> = {
+  items: [],
+  pageInfo: { hasNextPage: false, endCursor: null }
+};
+
+// Postgres keeps microseconds and a JS Date keeps milliseconds, so the cursor
+// carries the sort key as Postgres prints it: rounding it to a Date would skip
+// rows created in the same millisecond.
+const SORT_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface CursorPosition {
+  sortKey: string;
+  id: string;
+}
+
+function invalidCursor(): GraphQLError {
+  return new GraphQLError("invalid cursor", { extensions: { code: "BAD_USER_INPUT" } });
+}
+
+// A cursor names its list and Organization, so one from another list or
+// another Organization is refused instead of paging from a foreign position.
+function encodeCursor(list: string, organizationId: string, position: CursorPosition): string {
+  return Buffer.from(
+    JSON.stringify([list, organizationId, position.sortKey, position.id])
+  ).toString("base64url");
+}
+
+function decodeCursor(cursor: string, list: string, organizationId: string): CursorPosition {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+  } catch {
+    throw invalidCursor();
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 4) throw invalidCursor();
+  const [cursorList, cursorOrganizationId, sortKey, id] = parsed;
+  if (
+    cursorList !== list ||
+    cursorOrganizationId !== organizationId ||
+    typeof sortKey !== "string" ||
+    !SORT_KEY_PATTERN.test(sortKey) ||
+    typeof id !== "string" ||
+    !UUID_PATTERN.test(id)
+  ) {
+    throw invalidCursor();
+  }
+  return { sortKey, id };
 }
 
 /**
@@ -81,6 +130,17 @@ export interface ScopedData {
   ): { organizationId: string } & Record<TAuthor, string>;
   /** Rows the scope's user owns, for user-private tables such as Conversations. */
   mine(table: UserOwnedTable): SQL;
+  /**
+   * One page of the table in `order`, after the `after` cursor: `first` is
+   * clamped to the order's limits, and `first + 1` rows are read to set
+   * `hasNextPage`. A malformed or foreign cursor throws `invalid cursor`.
+   */
+  page<TTable extends PagedTable>(
+    table: TTable,
+    input: PageInput,
+    order: PageOrder,
+    ...conditions: (SQL | undefined)[]
+  ): Promise<Connection<TTable["$inferSelect"]>>;
 }
 
 function organizationPredicate(
@@ -91,21 +151,69 @@ function organizationPredicate(
   return and(eq(table.organizationId, scope.organizationId), ...conditions);
 }
 
+function selectable<TTable extends OrganizationOwnedTable>(table: TTable) {
+  // SAFETY: TableLikeHasEmptySelection is true only for a Subquery without a
+  // `returning` clause; an OrganizationOwnedTable is a PgTable, never a
+  // Subquery, so the check is always false. TypeScript cannot resolve it for a
+  // generic table, so the source is narrowed to the branch it always takes.
+  return table as TableLikeHasEmptySelection<TTable> extends true ? never : TTable;
+}
+
 function selectFromScoped<TTable extends OrganizationOwnedTable>(
   db: Database,
   scope: AuthenticatedOrganizationScope,
   table: TTable,
   conditions: (SQL | undefined)[]
 ) {
-  // SAFETY: TableLikeHasEmptySelection is true only for a Subquery without a
-  // `returning` clause; an OrganizationOwnedTable is a PgTable, never a
-  // Subquery, so the check is always false. TypeScript cannot resolve it for a
-  // generic table, so the source is narrowed to the branch it always takes.
-  const source = table as TableLikeHasEmptySelection<TTable> extends true ? never : TTable;
   return db
     .select()
-    .from(source)
+    .from(selectable(table))
     .where(organizationPredicate(table, scope, conditions));
+}
+
+async function selectPage<TTable extends PagedTable>(
+  db: Database,
+  scope: AuthenticatedOrganizationScope,
+  table: TTable,
+  input: PageInput,
+  order: PageOrder,
+  conditions: (SQL | undefined)[]
+): Promise<Connection<TTable["$inferSelect"]>> {
+  const { defaultLimit, maxLimit } = order.limits;
+  const first = Math.min(maxLimit, Math.max(1, Math.floor(input.first ?? defaultLimit)));
+  const list = getTableName(table);
+  const after =
+    input.after == null ? undefined : decodeCursor(input.after, list, scope.organizationId);
+  const [direction, beyond] = order.direction === "desc" ? [desc, lt] : [asc, gt];
+  let keyset: SQL | undefined;
+  if (after) {
+    const sortKey = sql`${after.sortKey}::timestamptz`;
+    keyset = or(
+      beyond(order.orderBy, sortKey),
+      and(eq(order.orderBy, sortKey), beyond(table.id, after.id))
+    );
+  }
+
+  const rows = await db
+    .select({
+      row: table,
+      sortKey: sql<string>`to_char(${order.orderBy} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      id: sql<string>`${table.id}::text`
+    })
+    .from(selectable(table))
+    .where(organizationPredicate(table, scope, [...conditions, keyset]))
+    .orderBy(direction(order.orderBy), direction(table.id))
+    .limit(first + 1);
+  const page = rows.slice(0, first);
+  const last = page.at(-1);
+
+  return {
+    items: page.map(({ row }) => row),
+    pageInfo: {
+      hasNextPage: rows.length > first,
+      endCursor: last ? encodeCursor(list, scope.organizationId, last) : null
+    }
+  };
 }
 
 function updateScoped<TTable extends OrganizationOwnedTable>(
@@ -163,6 +271,8 @@ export function createScopedData(input: {
       return insertInto(db, table);
     },
     stamp,
-    mine: (table) => eq(table.userId, requireOrganizationScope().userId)
+    mine: (table) => eq(table.userId, requireOrganizationScope().userId),
+    page: (table, input, order, ...conditions) =>
+      selectPage(db, requireOrganizationScope(), table, input, order, conditions)
   };
 }

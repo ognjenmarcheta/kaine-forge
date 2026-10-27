@@ -4,15 +4,15 @@ type Query {
   currentOrganization: Organization
   members: [OrganizationMember!]!
   invitations: [OrganizationInvitation!]!
-  todos(limit: Int, offset: Int, search: String, completed: Boolean): [Todo!]!
+  todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
   todo(id: ID!): Todo
-  notes(limit: Int, offset: Int, search: String): [Note!]!
+  notes(first: Int, after: String, search: String): NoteConnection!
   note(id: ID!): Note
   file(id: ID!): FileInfo
-  files(filter: FilesFilterInput): [FileInfo!]!
+  files(filter: FilesFilterInput, first: Int, after: String): FileInfoConnection!
   publicAssets: PublicAssets!
-  assistantMessages(conversationId: ID!, limit: Int, offset: Int): [AssistantMessage!]!
-  conversations(limit: Int, offset: Int): [AssistantConversation!]!
+  assistantMessages(conversationId: ID!, first: Int, after: String): AssistantMessageConnection!
+  conversations(first: Int, after: String): AssistantConversationConnection!
 }
 
 type Mutation {
@@ -45,6 +45,16 @@ type Subscription {
   noteUpdated: Note!
   noteDeleted: NoteDeletedPayload!
   assistantMessageDelta: AssistantMessageDelta!
+}
+
+"""
+Where a page of a list ends. Pass endCursor as the list's after argument to
+read the next page; every list field returns a <Type>Connection with items
+and this pageInfo.
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
 }
 
 type Organization {
@@ -110,6 +120,11 @@ type GenerateTodosPayload {
   message: String
 }
 
+type TodoConnection {
+  items: [Todo!]!
+  pageInfo: PageInfo!
+}
+
 type TodoDeletedPayload {
   id: ID!
   organizationId: ID!
@@ -138,6 +153,11 @@ input UpdateNoteInput {
 type NoteDeletedPayload {
   id: ID!
   organizationId: ID!
+}
+
+type NoteConnection {
+  items: [Note!]!
+  pageInfo: PageInfo!
 }
 
 enum FileStatus {
@@ -186,8 +206,11 @@ input FilesFilterInput {
   entityType: AttachmentEntityType
   entityId: ID
   status: FileStatus
-  limit: Int
-  offset: Int
+}
+
+type FileInfoConnection {
+  items: [FileInfo!]!
+  pageInfo: PageInfo!
 }
 
 enum PublicAssetKind {
@@ -256,4 +279,14 @@ input SendMessageInput {
 type AssistantMessageDelta {
   conversationId: ID!
   delta: String!
+}
+
+type AssistantMessageConnection {
+  items: [AssistantMessage!]!
+  pageInfo: PageInfo!
+}
+
+type AssistantConversationConnection {
+  items: [AssistantConversation!]!
+  pageInfo: PageInfo!
 }

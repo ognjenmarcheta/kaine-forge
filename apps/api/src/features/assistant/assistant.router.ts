@@ -15,11 +15,12 @@ import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { ASSISTANT_CONFIG } from "./assistant.config";
 import type { AssistantToolAction, SendMessageInput } from "./assistant.type";
 import type { ApiContext } from "../../context";
+import { EMPTY_CONNECTION, type PageInput } from "../../context.data";
 import { errorReporter, formatLoggableError } from "../../observability";
 import type { AssistantMessageDeltaPayload } from "../../pubsub";
 
 type ResolverContext = ApiContext;
-type AssistantMessagesArgs = { conversationId: string; limit?: number; offset?: number };
+type AssistantMessagesArgs = PageInput & { conversationId: string };
 type SendMessageArgs = { input: SendMessageInput };
 
 function createAssistantAiWorkflowForContext(ctx: ResolverContext) {
@@ -92,16 +93,12 @@ export const assistantResolvers = {
       const conversation = await getConversationById(ctx.data, args.conversationId);
 
       if (!conversation) {
-        return [];
+        return EMPTY_CONNECTION;
       }
 
       return listMessages(ctx.data, args.conversationId, args);
     },
-    async conversations(
-      _parent: unknown,
-      args: { limit?: number; offset?: number },
-      ctx: ResolverContext
-    ) {
+    async conversations(_parent: unknown, args: PageInput, ctx: ResolverContext) {
       return listConversations(ctx.data, args);
     }
   },

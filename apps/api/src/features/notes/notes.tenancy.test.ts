@@ -132,9 +132,21 @@ async function runAs(
   return response.json() as Promise<GraphqlResponse>;
 }
 
-function notesOf(response: GraphqlResponse): Array<{ id: string; todos?: Array<{ id: string }> }> {
+type NoteRow = { id: string; todos?: Array<{ id: string }> };
+
+function isNoteConnection(
+  value: unknown
+): value is { items: NoteRow[]; pageInfo?: { hasNextPage: boolean; endCursor: string | null } } {
+  return typeof value === "object" && value !== null && "items" in value;
+}
+
+function connectionOf(response: GraphqlResponse) {
   const notes = response.data?.["notes"];
-  return Array.isArray(notes) ? notes : [];
+  return isNoteConnection(notes) ? notes : null;
+}
+
+function notesOf(response: GraphqlResponse): NoteRow[] {
+  return connectionOf(response)?.items ?? [];
 }
 
 beforeAll(async () => {
@@ -244,14 +256,17 @@ describe("notes tenancy", () => {
     try {
       const first = await runAs(
         fixture.orgA,
-        '{ notes(search: "  SEARCH FIXTURE  ", limit: 50) { id } }'
+        '{ notes(search: "  SEARCH FIXTURE  ", first: 50) { items { id } pageInfo { hasNextPage endCursor } } }'
       );
       const second = await runAs(
         fixture.orgA,
-        '{ notes(search: "search fixture", limit: 50, offset: 50) { id } }'
+        'query Next($after: String) { notes(search: "search fixture", first: 50, after: $after) { items { id } pageInfo { hasNextPage endCursor } } }',
+        { after: connectionOf(first)?.pageInfo?.endCursor }
       );
       expect(first.errors).toBeUndefined();
       expect(second.errors).toBeUndefined();
+      expect(connectionOf(first)?.pageInfo?.hasNextPage).toBe(true);
+      expect(connectionOf(second)?.pageInfo?.hasNextPage).toBe(false);
       const ids = [...notesOf(first), ...notesOf(second)].map((note) => note.id);
       const expected = inserted
         .filter((note) => note.organizationId === fixture.orgA)
@@ -263,18 +278,21 @@ describe("notes tenancy", () => {
       for (const phrase of ["bUdGeT", "%_", "\\"]) {
         const response = await runAs(
           fixture.orgA,
-          `{ notes(search: ${JSON.stringify(phrase)}) { id } }`
+          `{ notes(search: ${JSON.stringify(phrase)}) { items { id } } }`
         );
         expect(response.errors).toBeUndefined();
         expect(notesOf(response).map((note) => note.id)).toEqual([inserted[0]?.id]);
       }
       const missing = await runAs(
         fixture.orgA,
-        '{ notes(search: "Foreign Search fixture") { id } }'
+        '{ notes(search: "Foreign Search fixture") { items { id } } }'
       );
       expect(notesOf(missing)).toEqual([]);
-      const empty = await runAs(fixture.orgA, '{ notes(search: "   ", limit: 100) { id } }');
-      const all = await runAs(fixture.orgA, "{ notes(limit: 100) { id } }");
+      const empty = await runAs(
+        fixture.orgA,
+        '{ notes(search: "   ", first: 100) { items { id } } }'
+      );
+      const all = await runAs(fixture.orgA, "{ notes(first: 100) { items { id } } }");
       expect(notesOf(empty)).toEqual(notesOf(all));
     } finally {
       await testDb.delete(notesTable).where(
@@ -286,8 +304,15 @@ describe("notes tenancy", () => {
     }
   });
 
+  it("refuses a malformed cursor with a GraphQL error and no rows", async () => {
+    const result = await runAs(fixture.orgA, '{ notes(after: "not a cursor") { items { id } } }');
+
+    expect(result.errors?.map((error) => error.message)).toEqual(["invalid cursor"]);
+    expect(result.data).toBeNull();
+  });
+
   it("lists only the active organization's notes", async () => {
-    const result = await runAs(fixture.orgA, "{ notes { id title } }");
+    const result = await runAs(fixture.orgA, "{ notes { items { id title } } }");
     const ids = notesOf(result).map((note) => note.id);
 
     expect(result.errors).toBeUndefined();
@@ -321,7 +346,7 @@ describe("notes tenancy", () => {
   });
 
   it("keeps the batched todos loader scoped to the active organization", async () => {
-    const result = await runAs(fixture.orgA, "{ notes { id todos { id } } }");
+    const result = await runAs(fixture.orgA, "{ notes { items { id todos { id } } } }");
 
     expect(result.errors).toBeUndefined();
     // Exactly organization A's todo: the cross-organization row hangs off this
@@ -332,14 +357,14 @@ describe("notes tenancy", () => {
   });
 
   it("refuses an organization the user is not a member of", async () => {
-    const result = await runAs(fixture.orgB, "{ notes { id } }");
+    const result = await runAs(fixture.orgB, "{ notes { items { id } } }");
 
     expect(result.errors?.[0]?.message).toBe("organization not accessible");
     expect(notesOf(result)).toEqual([]);
   });
 
   it("refuses an unauthenticated request", async () => {
-    const result = await runAs(null, "{ notes { id } }");
+    const result = await runAs(null, "{ notes { items { id } } }");
 
     expect(result.errors?.[0]?.message).toBe("authentication required");
     expect(notesOf(result)).toEqual([]);
@@ -446,11 +471,11 @@ describe("attachment entity type", () => {
     try {
       const listed = await runAs(
         fixture.orgA,
-        `query Files($type: AttachmentEntityType) { files(filter: { entityType: $type, entityId: "${fixture.todoA}", status: uploaded }) { id entityType } }`,
+        `query Files($type: AttachmentEntityType) { files(filter: { entityType: $type, entityId: "${fixture.todoA}", status: uploaded }) { items { id entityType } } }`,
         { type: "todo" }
       );
       expect(listed.errors).toBeUndefined();
-      expect(listed.data?.["files"]).toEqual([{ id: file?.id, entityType: "todo" }]);
+      expect(listed.data?.["files"]).toEqual({ items: [{ id: file?.id, entityType: "todo" }] });
     } finally {
       if (file) await testDb.delete(filesTable).where(eq(filesTable.id, file.id));
     }
