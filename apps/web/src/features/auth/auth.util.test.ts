@@ -93,3 +93,28 @@ describe("resolveReturnPath", () => {
     expect(resolveReturnPath(value)).toBe(expected);
   });
 });
+
+// The desktop app serves the web build from a Tauri origin that never matches
+// the passkey relying party, so it hides passkeys even where WebAuthn exists.
+describe("isPasskeySupported", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, "PublicKeyCredential");
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+  });
+
+  it.each([
+    { label: "a browser with WebAuthn", webAuthn: true, tauri: false, expected: true },
+    { label: "a browser without WebAuthn", webAuthn: false, tauri: false, expected: false },
+    { label: "the desktop app with WebAuthn", webAuthn: true, tauri: true, expected: false }
+  ])("is $expected in $label", async ({ webAuthn, tauri, expected }) => {
+    if (webAuthn) {
+      Object.assign(window, { PublicKeyCredential: class PublicKeyCredential {} });
+    }
+    if (tauri) {
+      Object.assign(window, { __TAURI_INTERNALS__: {} });
+    }
+    const { isPasskeySupported } = await import("./auth.util");
+
+    expect(isPasskeySupported()).toBe(expected);
+  });
+});

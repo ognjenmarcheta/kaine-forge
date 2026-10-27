@@ -68,6 +68,8 @@
   "organizations.audit.action.two_factor_enabled": "Bestätigung in zwei Schritten aktiviert",
   "organizations.audit.action.two_factor_disabled": "Bestätigung in zwei Schritten deaktiviert",
   "organizations.audit.action.password_changed": "Passwort geändert",
+  "organizations.audit.action.passkey_added": "Passkey hinzugefügt",
+  "organizations.audit.action.passkey_removed": "Passkey entfernt",
   "organizations.audit.action.attachment_deleted": "Anhang gelöscht",
   "organizations.error.roleExceedsPermissions": "Sie können keine Rolle mit Berechtigungen vergeben, die Sie selbst nicht haben.",
   "organizations.roles.title": "Eigene Rollen",

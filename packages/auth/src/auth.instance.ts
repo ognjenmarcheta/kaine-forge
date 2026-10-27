@@ -1,4 +1,8 @@
 import { expo } from "@better-auth/expo";
+import { passkey } from "@better-auth/passkey";
+// The passkey plugin's inferred types name this package; importing it here
+// lets declaration emit refer to it by name (TS2742).
+import type {} from "@simplewebauthn/server";
 import {
   accountsTable,
   db,
@@ -6,6 +10,7 @@ import {
   membersTable,
   organizationRolesTable,
   organizationsTable,
+  passkeysTable,
   sessionsTable,
   twoFactorsTable,
   usersTable,
@@ -34,6 +39,7 @@ import {
   captcha,
   emailOTP,
   haveIBeenPwned,
+  magicLink,
   organization,
   twoFactor
 } from "better-auth/plugins";
@@ -90,7 +96,8 @@ const AUTH_SCHEMA = {
   members: membersTable,
   invitations: invitationsTable,
   organizationRoles: organizationRolesTable,
-  twoFactors: twoFactorsTable
+  twoFactors: twoFactorsTable,
+  passkeys: passkeysTable
 } as const;
 
 const emailLogger = createLogger({ name: "auth.email" });
@@ -133,6 +140,34 @@ async function findLocaleByEmail(email: string): Promise<string | null> {
     .limit(1);
 
   return row?.locale ?? null;
+}
+
+// better-auth stores a magic-link token for any address and only checks for
+// an account when the link is opened. Only an existing account gets the
+// email; the request answers the same either way, and the lookup runs after
+// the response like every other auth email.
+function sendMagicLinkToAccount(email: string, url: string): void {
+  void (async () => {
+    const [account] = await db
+      .select({ locale: usersTable.locale })
+      .from(usersTable)
+      .where(eq(usersTable.email, email.toLowerCase()))
+      .limit(1);
+
+    if (account) {
+      enqueueAuthEmail(
+        email,
+        {
+          template: "magicLink",
+          url,
+          expiresInMinutes: AUTH_DEFINITIONS.MAGIC_LINK_MAX_AGE_SECONDS / 60
+        },
+        account.locale
+      );
+    }
+  })().catch(() => {
+    emailLogger.error({ template: "magicLink" }, "auth email not queued");
+  });
 }
 
 // Only a verified account proves it controls the invited address. Under soft
@@ -330,7 +365,8 @@ const AUTH_CAPTCHA_ENDPOINTS = [
   "/sign-in/email",
   "/request-password-reset",
   "/email-otp/send-verification-otp",
-  "/email-otp/request-password-reset"
+  "/email-otp/request-password-reset",
+  "/sign-in/magic-link"
 ] as const;
 
 // Captcha is opt-in like social login: Cloudflare Turnstile activates only
@@ -1037,8 +1073,12 @@ export function createAuthInstance() {
         secure: secureCookies
       },
       database: {
-        // Keep uuid primary-key continuity with the existing schema.
-        generateId: () => crypto.randomUUID()
+        // Every table has a uuid primary key with a database default. A
+        // custom generator function would make better-auth encode the
+        // deterministic ids of single-use reservations (the cleanup lock of an
+        // email-proof sign-in into an unverified account) as base64url, which
+        // a uuid column rejects.
+        generateId: "uuid"
       }
     },
     databaseHooks: {
@@ -1132,10 +1172,8 @@ export function createAuthInstance() {
           maximumRolesPerOrganization: AUTH_DEFINITIONS.CUSTOM_ROLES_PER_ORGANIZATION_MAX
         },
         invitationExpiresIn: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS,
-        // Our advanced.database.generateId is a custom function, which
-        // better-auth's heuristic treats as potentially predictable and would
-        // therefore demand a verified email before accept/reject/get by
-        // invitation id. Our ids are opaque crypto.randomUUID values and soft
+        // Off: this gate would demand a verified email before accept/reject/get
+        // by invitation id. Invitation ids are random UUIDs and soft
         // verification (ADR 0007) never guarantees a verified email, so the
         // gate stays off. The accept route still enforces that the accepting
         // user's email matches the invitation email unconditionally.
@@ -1200,8 +1238,9 @@ export function createAuthInstance() {
       organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
-      // Second factor for password sign-in only; email OTP and social sign-in
-      // are not challenged (better-auth default, ADR 0015).
+      // Second factor for password sign-in only; email OTP, magic-link,
+      // passkey, and social sign-in are not challenged (better-auth default,
+      // ADR 0015).
       twoFactor({
         issuer: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
         otpOptions: {
@@ -1239,6 +1278,23 @@ export function createAuthInstance() {
             findLocaleByEmail(accountEmail).catch(() => null)
           );
         }
+      }),
+      // Passwordless sign-in for existing accounts only, like the email code:
+      // the token is stored hashed and consumed on first use (ADR 0015).
+      magicLink({
+        expiresIn: AUTH_DEFINITIONS.MAGIC_LINK_MAX_AGE_SECONDS,
+        storeToken: "hashed",
+        disableSignUp: true,
+        sendMagicLink: ({ email, url }) => {
+          sendMagicLinkToAccount(email, url);
+        }
+      }),
+      // WebAuthn for the web app: credentials are bound to its host, and the
+      // browser ceremony must run on its origin (ADR 0015). The relying party
+      // name is appName.
+      passkey({
+        rpID: new URL(config.webAppUrl).hostname,
+        origin: new URL(config.webAppUrl).origin
       }),
       // Wraps our scrypt hash hook, so sign-up, change-password, and both
       // reset flows reject passwords found in known breaches.

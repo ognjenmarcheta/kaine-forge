@@ -151,6 +151,30 @@ export const accountApi = {
   updateName: (name: string) => authTransport.updateProfile({ name })
 };
 
+// The emailed link opens the API, which signs in and redirects back here: to
+// the return path, or to the sign-in page with an `error` when the link is
+// used or expired.
+export const magicLinkApi = {
+  send: (input: { captchaToken?: string; email: string; returnPath: string }) =>
+    authTransport.sendMagicLink({
+      email: input.email,
+      callbackUrl: new URL(input.returnPath, window.location.origin).toString(),
+      errorCallbackUrl: new URL(
+        `/auth?${AUTH_DEFINITION.magicLinkErrorParam}=1`,
+        window.location.origin
+      ).toString(),
+      ...(input.captchaToken ? { captchaToken: input.captchaToken } : {})
+    })
+};
+
+// Passkeys of the session user; sign-in runs through useAuth().completeSignIn.
+export const passkeyApi = {
+  add: (name: string) => authTransport.addPasskey(name),
+  delete: (passkeyId: string) => authTransport.deletePasskey(passkeyId),
+  list: () => authTransport.listPasskeys(),
+  signIn: () => authTransport.signInWithPasskey()
+};
+
 // Auth emails use the language stored on the user; the browser keeps its own
 // copy for the UI.
 export async function saveEmailLanguageRequest(language: string): Promise<void> {

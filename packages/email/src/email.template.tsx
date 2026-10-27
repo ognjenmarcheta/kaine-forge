@@ -30,6 +30,7 @@ export type EmailTemplate =
     }
   | { template: "twoFactorCode"; code: string }
   | { template: "emailOtp"; code: string; type: EmailOtpType; expiresInMinutes: number }
+  | { template: "magicLink"; url: string; expiresInMinutes: number }
   // No user-supplied text: anyone can sign up with another person's address
   // before it is verified.
   | { template: "welcome"; url: string }
@@ -169,6 +170,18 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
             <EmailText>{t("email.emailOtp.body", { minutes: email.expiresInMinutes })}</EmailText>
             <EmailCode code={email.code} />
             <EmailText>{t("email.emailOtp.ignore")}</EmailText>
+          </>
+        )
+      };
+    case "magicLink":
+      return {
+        subject: t("email.magicLink.subject"),
+        heading: t("email.magicLink.heading"),
+        body: (
+          <>
+            <EmailText>{t("email.magicLink.body", { minutes: email.expiresInMinutes })}</EmailText>
+            <EmailButton fallback={fallback} href={email.url} label={t("email.magicLink.action")} />
+            <EmailText>{t("email.magicLink.ignore")}</EmailText>
           </>
         )
       };

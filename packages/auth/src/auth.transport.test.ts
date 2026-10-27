@@ -21,8 +21,13 @@ vi.mock("better-auth/client", () => ({
 
 vi.mock("better-auth/client/plugins", () => ({
   emailOTPClient: () => ({ id: "email-otp" }),
+  magicLinkClient: () => ({ id: "magic-link" }),
   organizationClient: organizationClientMock,
   twoFactorClient: () => ({ id: "two-factor" })
+}));
+
+vi.mock("@better-auth/passkey/client", () => ({
+  passkeyClient: () => ({ id: "passkey" })
 }));
 
 interface StubError {
@@ -105,6 +110,8 @@ function createClientStub() {
     signIn: {
       email: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       emailOtp: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      magicLink: vi.fn(async () => stubResult({ status: true })),
+      passkey: vi.fn(async () => stubResult<Record<string, unknown>>({})),
       social: vi.fn(async () => stubResult({ url: "https://provider.example.test" }))
     },
     signUp: {
@@ -131,6 +138,13 @@ function createClientStub() {
       requestPasswordReset: vi.fn(async () => stubResult({ success: true })),
       resetPassword: vi.fn(async () => stubResult({ success: true })),
       sendVerificationOtp: vi.fn(async () => stubResult({ success: true }))
+    },
+    passkey: {
+      addPasskey: vi.fn(async () => stubResult<Record<string, unknown>>({})),
+      deletePasskey: vi.fn(async () => stubResult({ status: true })),
+      listUserPasskeys: vi.fn(async () =>
+        stubResult<{ createdAt: Date | string; id: string; name?: string }[]>([])
+      )
     },
     $fetch: vi.fn(async () => stubResult<Record<string, unknown>>({})),
     listSessions: vi.fn(async () =>
@@ -205,7 +219,9 @@ describe("createAuthTransport", () => {
     expect(options.plugins).toEqual([
       { id: "organization" },
       { id: "two-factor" },
-      { id: "email-otp" }
+      { id: "email-otp" },
+      { id: "magic-link" },
+      { id: "passkey" }
     ]);
     expect(options.fetchOptions.credentials).toBe("include");
   });
@@ -226,6 +242,8 @@ describe("createAuthTransport", () => {
       { id: "organization" },
       { id: "two-factor" },
       { id: "email-otp" },
+      { id: "magic-link" },
+      { id: "passkey" },
       expoPlugin
     ]);
   });
@@ -403,6 +421,37 @@ describe("createAuthTransport", () => {
       ]
     },
     {
+      name: "emails a sign-in link with the captcha token and both web return URLs",
+      run: (transport) =>
+        transport.sendMagicLink({
+          email: "user@example.com",
+          callbackUrl: "https://app.example.test/dashboard",
+          errorCallbackUrl: "https://app.example.test/auth?magicLinkError=1",
+          captchaToken: "turnstile-token"
+        }),
+      call: (client) => client.signIn.magicLink,
+      args: [
+        {
+          email: "user@example.com",
+          callbackURL: "https://app.example.test/dashboard",
+          errorCallbackURL: "https://app.example.test/auth?magicLinkError=1"
+        },
+        { headers: { "x-captcha-response": "turnstile-token" } }
+      ]
+    },
+    {
+      name: "registers a passkey with its name",
+      run: (transport) => transport.addPasskey("Laptop"),
+      call: (client) => client.passkey.addPasskey,
+      args: [{ name: "Laptop" }]
+    },
+    {
+      name: "deletes a passkey by its id",
+      run: (transport) => transport.deletePasskey("passkey-1"),
+      call: (client) => client.passkey.deletePasskey,
+      args: [{ id: "passkey-1" }]
+    },
+    {
       name: "signs in with an email code",
       run: (transport) => transport.signInWithOtp({ email: "user@example.com", otp: "123456" }),
       call: (client) => client.signIn.emailOtp,
@@ -477,6 +526,34 @@ describe("createAuthTransport", () => {
       });
     }
   );
+
+  it("signs in with a passkey and returns the refreshed session", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const session = await createAuthTransport({ adapter: createAdapter() }).signInWithPasskey();
+
+    expect(client.signIn.passkey).toHaveBeenCalledTimes(1);
+    expect(session).toEqual(expectedSession());
+  });
+
+  it("lists passkeys with an ISO creation time and a null name when unnamed", async () => {
+    const client = createClientStub();
+    client.passkey.listUserPasskeys.mockResolvedValue(
+      stubResult([
+        { id: "passkey-1", name: "Laptop", createdAt: new Date("2026-10-01T10:00:00.000Z") },
+        { id: "passkey-2", createdAt: "2026-10-02T10:00:00.000Z" }
+      ])
+    );
+    createAuthClientMock.mockReturnValue(client);
+
+    await expect(createAuthTransport({ adapter: createAdapter() }).listPasskeys()).resolves.toEqual(
+      [
+        { id: "passkey-1", name: "Laptop", createdAt: "2026-10-01T10:00:00.000Z" },
+        { id: "passkey-2", name: null, createdAt: "2026-10-02T10:00:00.000Z" }
+      ]
+    );
+  });
 
   it("keeps the better-auth error code so clients can show a precise message", async () => {
     const client = createClientStub();

@@ -155,6 +155,18 @@ describe("auth emails on the real auth instance", () => {
     expect(message.text).toMatch(/\d{6}/);
   });
 
+  // An email-proof sign-in into an unverified account first takes a cleanup
+  // lock in the verifications table, keyed by a deterministic uuid.
+  it("signs an unverified account in with an email code", async () => {
+    const { email, userId } = await signUp("otp-unverified");
+    await auth.api.sendVerificationOTP({ body: { email, type: "sign-in" } });
+    const otp = /\d{6}/.exec((await emailTo(email, "Your sign-in code")).text)?.[0] ?? "";
+
+    const result = await auth.api.signInEmailOTP({ body: { email, otp } });
+
+    expect(result.user).toMatchObject({ id: userId, emailVerified: true });
+  });
+
   // better-auth sends the change-email code to the new address, which has no
   // account; the requesting session names the account and its language.
   it("sends the change-email code in the requesting user's language", async () => {

@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { AUTH_DEFINITION } from "./auth.definition";
-import { resolveReturnPath } from "./auth.util";
+import { isPasskeySupported, resolveReturnPath } from "./auth.util";
 import { EmailOtpSignInForm } from "./components/email-otp-sign-in-form";
 import { LoginForm } from "./components/login-form";
+import { MagicLinkSignInForm } from "./components/magic-link-sign-in-form";
+import { PasskeySignInButton } from "./components/passkey-sign-in-button";
 import { PasswordResetForm } from "./components/password-reset-form";
 import { SignupForm } from "./components/signup-form";
 import { TwoFactorChallenge } from "./components/two-factor-challenge";
@@ -14,12 +16,13 @@ import { ThemeSelect } from "../../components/theme-select";
 import { useAuth } from "../../hooks/use-auth";
 import { useTranslation } from "../../hooks/use-translation";
 
-type AuthMode = "login" | "signup" | "email-code" | "reset" | "two-factor";
+type AuthMode = "login" | "signup" | "email-code" | "magic-link" | "reset" | "two-factor";
 
 const MODE_COPY_KEYS = {
   login: { subtitle: "auth.login.subtitle", title: "auth.login.title" },
   signup: { subtitle: "auth.signup.subtitle", title: "auth.signup.title" },
   "email-code": { subtitle: "auth.otp.subtitle", title: "auth.otp.title" },
+  "magic-link": { subtitle: "auth.magicLink.subtitle", title: "auth.magicLink.title" },
   reset: { subtitle: "auth.reset.subtitle", title: "auth.reset.title" },
   "two-factor": { subtitle: "auth.twoFactor.subtitle", title: "auth.twoFactor.title" }
 } as const satisfies Record<AuthMode, { subtitle: string; title: string }>;
@@ -30,12 +33,18 @@ export function AuthRoute() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnPath = resolveReturnPath(searchParams.get(AUTH_DEFINITION.returnPathParam));
-  const [mode, setMode] = useState<AuthMode>("login");
+  // A used or expired magic link returns here with this parameter; the error
+  // shows until the user moves to another step.
+  const [magicLinkFailed, setMagicLinkFailed] = useState(() =>
+    searchParams.has(AUTH_DEFINITION.magicLinkErrorParam)
+  );
+  const [mode, setMode] = useState<AuthMode>(magicLinkFailed ? "magic-link" : "login");
   const [twoFactorMethods, setTwoFactorMethods] = useState<readonly TwoFactorMethod[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const showMode = (next: AuthMode) => {
     setNotice(null);
+    setMagicLinkFailed(false);
     setMode(next);
   };
   const goToReturnPath = () => void navigate(returnPath);
@@ -100,7 +109,15 @@ export function AuthRoute() {
               showMode("two-factor");
             }}
           />
+          {isPasskeySupported() ? (
+            <div className="mt-[var(--ds-space-150)]">
+              <PasskeySignInButton onDone={goToReturnPath} />
+            </div>
+          ) : null}
           <div className="mt-[var(--ds-space-150)] grid gap-[var(--ds-space-050)]">
+            <Button appearance="link" type="button" onClick={() => showMode("magic-link")}>
+              {t("auth.login.useMagicLink")}
+            </Button>
             <Button appearance="link" type="button" onClick={() => showMode("email-code")}>
               {t("auth.login.useEmailCode")}
             </Button>
@@ -112,6 +129,9 @@ export function AuthRoute() {
       ) : null}
       {mode === "signup" ? <SignupForm onDone={goToReturnPath} /> : null}
       {mode === "email-code" ? <EmailOtpSignInForm onDone={goToReturnPath} /> : null}
+      {mode === "magic-link" ? (
+        <MagicLinkSignInForm linkFailed={magicLinkFailed} returnPath={returnPath} />
+      ) : null}
       {mode === "reset" ? (
         <PasswordResetForm
           onReset={() => {

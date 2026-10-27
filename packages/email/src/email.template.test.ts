@@ -18,6 +18,7 @@ const INVITE_URL = "https://app.example.com/invitations/inv-1";
 const SECURITY_URL = "https://app.example.com/security";
 const DELETE_URL = "https://app.example.com/account/delete?token=dtok-1";
 const MEMBERS_URL = "https://app.example.com/members";
+const MAGIC_LINK_URL = "https://api.example.com/api/auth/magic-link/verify?token=mtok-1";
 
 const cases: TemplateCase[] = [
   {
@@ -103,6 +104,20 @@ const cases: TemplateCase[] = [
     subject: "Vaš verifikacioni kod za prijavu",
     phrase: "Unesite ovaj kod da završite prijavu.",
     token: "731045"
+  },
+  {
+    email: { template: "magicLink", url: MAGIC_LINK_URL, expiresInMinutes: 10 },
+    locale: "en",
+    subject: "Your sign-in link",
+    phrase: "The link works once and expires in 10 minutes.",
+    token: MAGIC_LINK_URL
+  },
+  {
+    email: { template: "magicLink", url: MAGIC_LINK_URL, expiresInMinutes: 10 },
+    locale: "de",
+    subject: "Dein Anmeldelink",
+    phrase: "Der Link funktioniert einmal und läuft in 10 Minuten ab.",
+    token: MAGIC_LINK_URL
   },
   {
     email: { template: "emailOtp", code: "482913", type: "sign-in", expiresInMinutes: 5 },

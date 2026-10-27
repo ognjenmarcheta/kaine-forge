@@ -22,6 +22,8 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
   de: [
     // Auth: "Code" is the German word for a one-time code.
     "auth.json:auth.otp.codeLabel",
+    // Auth: "Passkeys" is the German term Apple, Google, and Microsoft use.
+    "auth.json:auth.passkeys.title",
     // Agent desk: brand, autonyms, issue numbers, and technical terms that German developers use as they are.
     "desk.json:desk.flow.metrics",
     "desk.json:desk.stats.column.issue",
