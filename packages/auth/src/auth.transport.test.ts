@@ -404,6 +404,12 @@ describe("createAuthTransport", () => {
       run: (transport) => transport.disableTwoFactor("secret"),
       call: (client) => client.twoFactor.disable,
       args: [{ password: "secret" }]
+    },
+    {
+      name: "stores the language of the user's emails",
+      run: (transport) => transport.updateEmailLanguage("de"),
+      call: (client) => client.$fetch,
+      args: ["/update-user", { method: "POST", body: { locale: "de" } }]
     }
   ];
 

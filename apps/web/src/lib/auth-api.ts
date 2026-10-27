@@ -115,6 +115,12 @@ export const organizationApi = {
     authTransport.updateMemberRole(input)
 };
 
+// Auth emails use the language stored on the user; the browser keeps its own
+// copy for the UI.
+export async function saveEmailLanguageRequest(language: string): Promise<void> {
+  return authTransport.updateEmailLanguage(language);
+}
+
 export async function signInWithSocialRequest(provider: AuthSocialProvider): Promise<void> {
   await authTransport.signInWithSocial(provider);
 }
