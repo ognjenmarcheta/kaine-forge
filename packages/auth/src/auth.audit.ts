@@ -1,8 +1,13 @@
 import { auditEventsTable, db } from "@repo/db";
 import { createLogger, type Logger } from "@repo/logger";
+import { and, eq } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { AUDIT_ACTION_TARGETS, type AuditEventInput } from "./auth.audit.definition";
+import {
+  AUDIT_ACTION_TARGETS,
+  type AuditAction,
+  type AuditEventInput
+} from "./auth.audit.definition";
 
 export * from "./auth.audit.definition";
 
@@ -38,9 +43,27 @@ function describeWriteError(error: unknown): { cause: string | null; name: strin
 }
 
 /**
- * Writes one Audit Event. A failed write is logged and never thrown: the
- * action it records has already happened and must not fail because of it.
+ * Logs why an Audit Event was not recorded. The action it describes has
+ * already happened, so the failure never reaches the caller.
  */
+export function logAuditFailure(fields: { action?: string; path?: string }, error: unknown): void {
+  (auditRequestStorage.getStore()?.logger ?? auditLogger).error(
+    { ...fields, error: describeWriteError(error) },
+    "audit event not recorded"
+  );
+}
+
+/** Whether an event with this action already names this target. */
+export async function hasAuditEvent(action: AuditAction, targetId: string): Promise<boolean> {
+  const [event] = await db
+    .select({ id: auditEventsTable.id })
+    .from(auditEventsTable)
+    .where(and(eq(auditEventsTable.action, action), eq(auditEventsTable.targetId, targetId)))
+    .limit(1);
+  return event !== undefined;
+}
+
+/** Writes one Audit Event. A failed write is logged and never thrown. */
 export async function recordAuditEvent(input: AuditEventInput): Promise<void> {
   const request = auditRequestStorage.getStore();
 
@@ -56,9 +79,6 @@ export async function recordAuditEvent(input: AuditEventInput): Promise<void> {
       userAgent: request?.userAgent?.slice(0, USER_AGENT_MAX_LENGTH) ?? null
     });
   } catch (error) {
-    (request?.logger ?? auditLogger).error(
-      { action: input.action, error: describeWriteError(error) },
-      "audit event write failed"
-    );
+    logAuditFailure({ action: input.action }, error);
   }
 }

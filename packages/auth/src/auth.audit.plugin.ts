@@ -1,7 +1,12 @@
-import type { BetterAuthPlugin } from "better-auth";
+import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx, isAPIError } from "better-auth/api";
 
-import { recordAuditEvent, type AuditEventInput } from "./auth.audit";
+import {
+  hasAuditEvent,
+  logAuditFailure,
+  recordAuditEvent,
+  type AuditEventInput
+} from "./auth.audit";
 
 // Routes whose success writes an Audit Event. The organization plugin's
 // organizationHooks name the target user but not the acting one, and leave
@@ -20,6 +25,17 @@ const AUDITED_PATHS = new Set([
 ]);
 
 type HookContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+type UserUpdateHook = NonNullable<
+  NonNullable<NonNullable<BetterAuthOptions["databaseHooks"]>["user"]>["update"]
+>["after"];
+// The endpoint context better-auth passes to a user update hook.
+type UserUpdateContext = NonNullable<Parameters<NonNullable<UserUpdateHook>>[1]>;
+
+// Values read before a write, so the event is skipped when nothing changed.
+// Each map is keyed by the one request's context object that both of its
+// hooks receive, and empties itself when the request ends.
+const previousOrganizationNames = new WeakMap<HookContext["context"], string>();
+const previousTwoFactorEnabled = new WeakMap<UserUpdateContext, boolean>();
 
 function readRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? { ...value } : {};
@@ -94,6 +110,15 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
         return null;
       }
 
+      // A resend extends the same Invitation; its invite is already recorded.
+      if (
+        ctx.path === "/organization/invite-member" &&
+        readRecord(ctx.body).resend === true &&
+        (await hasAuditEvent("member_invited", id))
+      ) {
+        return null;
+      }
+
       return ctx.path === "/organization/invite-member"
         ? {
             action: "member_invited",
@@ -142,7 +167,9 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
     case "/organization/update": {
       const id = readString(returned, "id");
       const name = readString(returned, "name");
-      const renamed = typeof readRecord(readRecord(ctx.body).data).name === "string";
+      const renamed =
+        typeof readRecord(readRecord(ctx.body).data).name === "string" &&
+        name !== previousOrganizationNames.get(ctx.context);
 
       return renamed && id && name
         ? {
@@ -205,6 +232,29 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
 export const auditPlugin = {
   id: "audit",
   hooks: {
+    before: [
+      {
+        matcher: (ctx) => ctx.path === "/organization/update",
+        handler: createAuthMiddleware(async (ctx) => {
+          try {
+            const session = await getSessionFromCtx(ctx);
+            const organizationId = readString(readRecord(session?.session), "activeOrganizationId");
+            const organization = organizationId
+              ? await ctx.context.adapter.findOne<{ name: string }>({
+                  model: "organization",
+                  where: [{ field: "id", value: organizationId }]
+                })
+              : null;
+
+            if (organization) {
+              previousOrganizationNames.set(ctx.context, organization.name);
+            }
+          } catch (error) {
+            logAuditFailure({ path: ctx.path }, error);
+          }
+        })
+      }
+    ],
     after: [
       {
         matcher: (ctx) => AUDITED_PATHS.has(ctx.path ?? ""),
@@ -213,10 +263,16 @@ export const auditPlugin = {
             return;
           }
 
-          const event = await auditEventFor(ctx);
+          // better-auth re-throws an after hook's error, which would fail an
+          // action that already succeeded.
+          try {
+            const event = await auditEventFor(ctx);
 
-          if (event) {
-            await recordAuditEvent(event);
+            if (event) {
+              await recordAuditEvent(event);
+            }
+          } catch (error) {
+            logAuditFailure({ path: ctx.path }, error);
           }
         })
       }
@@ -227,9 +283,31 @@ export const auditPlugin = {
       databaseHooks: {
         user: {
           update: {
+            before: async (_data, context) => {
+              const userId = context?.context.session?.user.id;
+
+              if (!context?.path?.startsWith("/two-factor/") || !userId) {
+                return;
+              }
+
+              try {
+                const current = await context.context.internalAdapter.findUserById(userId);
+                // twoFactorEnabled is a two-factor plugin field the core user type does not declare.
+                previousTwoFactorEnabled.set(
+                  context,
+                  readRecord(current).twoFactorEnabled === true
+                );
+              } catch (error) {
+                logAuditFailure({ path: context.path }, error);
+              }
+            },
             after: async (user, context) => {
-              // Every two-factor route that writes the user toggles twoFactorEnabled.
-              if (!context?.path?.startsWith("/two-factor/")) {
+              // Every two-factor route that writes the user sets twoFactorEnabled;
+              // only a change is recorded.
+              if (
+                !context?.path?.startsWith("/two-factor/") ||
+                previousTwoFactorEnabled.get(context) === (user.twoFactorEnabled === true)
+              ) {
                 return;
               }
 

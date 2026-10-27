@@ -377,6 +377,12 @@ describe("audit events", () => {
       body: { email: invitee.email, role: "member" },
       headers: shared.headers
     });
+    // A resend extends the same Invitation: no second member_invited event.
+    await post("/organization/invite-member", shared.headers, {
+      email: invitee.email,
+      resend: true,
+      role: "member"
+    });
     await post("/organization/accept-invitation", invitee.headers, {
       invitationId: invitation.id
     });
@@ -394,6 +400,8 @@ describe("audit events", () => {
       memberId: inviteeMemberId,
       role: "admin"
     });
+    await post("/organization/update", shared.headers, { data: { name: "Audited Renamed" } });
+    // The same name again changes nothing: no second organization_renamed event.
     await post("/organization/update", shared.headers, { data: { name: "Audited Renamed" } });
     const revoked = await auth.api.createInvitation({
       body: { email: "revoked@example.com", role: "admin" },
@@ -512,12 +520,21 @@ describe("audit events", () => {
     // Turning two-factor on or off replaces the session.
     const enabledHeaders = mergeCookies(user.headers, verified.headers);
     const disabled = await post("/two-factor/disable", enabledHeaders, { password });
-    const changed = await post("/change-password", mergeCookies(enabledHeaders, disabled.headers), {
-      currentPassword: password,
-      newPassword: "Changed123!Changed",
-      revokeOtherSessions: true
-    });
-    expect([verified.status, disabled.status, changed.status]).toEqual([200, 200, 200]);
+    const disabledHeaders = mergeCookies(enabledHeaders, disabled.headers);
+    // Already off: no second two_factor_disabled event.
+    const disabledAgain = await post("/two-factor/disable", disabledHeaders, { password });
+    const changed = await post(
+      "/change-password",
+      mergeCookies(disabledHeaders, disabledAgain.headers),
+      {
+        currentPassword: password,
+        newPassword: "Changed123!Changed",
+        revokeOtherSessions: true
+      }
+    );
+    expect([verified.status, disabled.status, disabledAgain.status, changed.status]).toEqual([
+      200, 200, 200, 200
+    ]);
 
     const userLevel = { actorUserId: user.userId, metadata: {}, organizationId: null };
     expect(
@@ -570,7 +587,56 @@ describe("audit events", () => {
     expect(organization?.name).toBe("Still Renamed");
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ action: "organization_renamed" }),
-      "audit event write failed"
+      "audit event not recorded"
+    );
+  });
+
+  it("logs a failed audit lookup and still completes the action", async () => {
+    const owner = await signUp("audit-lookup");
+    const shared = await createOrganization(owner.headers, "Lookup");
+    const target = await signUp("audit-lookup-target");
+    const targetMemberId = await addMember(shared.organizationId, target.userId, "member");
+    const logger = { error: vi.fn() };
+    const { adapter } = await auth.$context;
+    const findOne = adapter.findOne.bind(adapter);
+    // Only the hook reads a member through the adapter on this route.
+    const lookup = vi.spyOn(adapter, "findOne").mockImplementation((query) => {
+      if (query.model === "member") {
+        return Promise.reject(new Error("member lookup failed"));
+      }
+      return findOne(query);
+    });
+
+    let status = 0;
+    try {
+      const response = await runWithAuditRequest({ ipAddress: null, logger, userAgent: null }, () =>
+        post("/organization/transfer-ownership", shared.headers, { memberId: targetMemberId })
+      );
+      status = response.status;
+    } finally {
+      lookup.mockRestore();
+    }
+
+    expect(status).toBe(200);
+    expect(await roleOf(shared.organizationId, target.userId)).toBe("owner");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/organization/transfer-ownership" }),
+      "audit event not recorded"
+    );
+  });
+
+  it("records nothing for a transfer the server refuses", async () => {
+    const owner = await signUp("audit-refused");
+    const shared = await createOrganization(owner.headers, "Refused");
+
+    const response = await post("/organization/transfer-ownership", shared.headers, {
+      memberId: crypto.randomUUID()
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "TRANSFER_TARGET_NOT_FOUND" });
+    expect(await auditEventsOf(eq(auditEventsTable.organizationId, shared.organizationId))).toEqual(
+      []
     );
   });
 });
