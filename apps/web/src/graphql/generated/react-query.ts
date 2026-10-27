@@ -30,7 +30,8 @@ export type AuditAction =
   | "two_factor_enabled"
   | "webhook_endpoint_created"
   | "webhook_endpoint_deleted"
-  | "webhook_endpoint_updated";
+  | "webhook_endpoint_updated"
+  | "webhook_secret_rotated";
 
 export type CreateApiKeyInput = {
   expiresInDays?: number | null | undefined;
@@ -796,6 +797,12 @@ export type DeleteWebhookEndpointMutationVariables = Exact<{
 }>;
 
 export type DeleteWebhookEndpointMutation = { deleteWebhookEndpoint: boolean };
+
+export type RotateWebhookSecretMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type RotateWebhookSecretMutation = { rotateWebhookSecret: string };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -2423,3 +2430,34 @@ export const useDeleteWebhookEndpointMutation = <TError = unknown, TContext = un
 };
 
 useDeleteWebhookEndpointMutation.getKey = () => ["DeleteWebhookEndpoint"];
+
+export const RotateWebhookSecretDocument = new TypedDocumentString(`
+    mutation RotateWebhookSecret($id: ID!) {
+  rotateWebhookSecret(id: $id)
+}
+    `);
+
+export const useRotateWebhookSecretMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    RotateWebhookSecretMutation,
+    TError,
+    RotateWebhookSecretMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    RotateWebhookSecretMutation,
+    TError,
+    RotateWebhookSecretMutationVariables,
+    TContext
+  >({
+    mutationKey: ["RotateWebhookSecret"],
+    mutationFn: useGraphqlFetcher<
+      RotateWebhookSecretMutation,
+      RotateWebhookSecretMutationVariables
+    >(RotateWebhookSecretDocument),
+    ...options
+  });
+};
+
+useRotateWebhookSecretMutation.getKey = () => ["RotateWebhookSecret"];

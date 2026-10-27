@@ -57,11 +57,11 @@ A stored message to one **User** about something another person or the system di
 _Avoid_: alert, toast, inbox message
 
 **API Key**:
-A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never manages API Keys, never reads user-level data, and gets 401 once revoked or expired.
+A secret that lets a program call the GraphQL API as one **Organization**. A member with the `apiKey:create` **Permission** creates it with a name and an optional expiry; the plain key is shown once and only its hash is stored. A request with the key acts in an **Authenticated Organization Scope** for the key's Organization, as its creator, with the Permissions the key grants that the creator still holds. It never changes who or what can reach the Organization (API Keys, Webhook Endpoints, roles, members, invitations), never reads its creator's own data or other Organizations, and gets 401 once revoked or expired.
 _Avoid_: token, access token, personal access token
 
 **Webhook Endpoint**:
-An HTTPS URL that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
+An HTTPS URL on port 443 that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once, at creation or rotation. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
 _Avoid_: callback, hook URL, integration
 
 **Email Verification**:

@@ -14,3 +14,12 @@ export function signWebhookPayload(secret: string, timestamp: number, body: stri
 export function generateWebhookSecret(): string {
   return `${WEBHOOK_CONFIG.secretPrefix}${randomBytes(WEBHOOK_CONFIG.secretBytes).toString("hex")}`;
 }
+
+/**
+ * A Webhook Endpoint URL as an Audit Event records it: origin and path only.
+ * The query string can carry a receiver's own token, so it is left out.
+ */
+export function auditableWebhookUrl(value: string): string {
+  const url = new URL(value);
+  return `${url.origin}${url.pathname}`;
+}

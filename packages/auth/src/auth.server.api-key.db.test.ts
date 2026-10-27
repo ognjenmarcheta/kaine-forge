@@ -75,12 +75,12 @@ async function setRole(organizationId: string, userId: string, role: string) {
 }
 
 describe("organization API Keys", () => {
-  it("stores only a hash and resolves the key to its Organization, without key management", async () => {
+  it("stores only a hash and resolves the key to its Organization, without access changes", async () => {
     const scope = await ownerScope("key-owner");
 
     const created = await createApiKeyForScope(scope, { name: "CI", expiresInDays: null });
 
-    expect(created.key).toMatch(/^kf_/);
+    expect(created.key).toMatch(/^kf_[A-Za-z]{64}$/);
     const [row] = await testDb().select().from(apiKeysTable).where(eq(apiKeysTable.id, created.id));
     expect(row?.organizationId).toBe(scope.organizationId);
     expect(row?.start).toBe(created.key.slice(0, 7));
@@ -90,8 +90,27 @@ describe("organization API Keys", () => {
     expect(resolved?.apiKeyId).toBe(created.id);
     expect(resolved?.scope.organizationId).toBe(scope.organizationId);
     expect(resolved?.scope.userId).toBe(scope.userId);
-    expect(resolved?.scope.membership.permissions).toContain("webhook:create");
-    expect(resolved?.scope.membership.permissions).not.toContain("apiKey:create");
+    expect(resolved?.scope.apiKeyId).toBe(created.id);
+    // An owner's Permissions minus every access change that could outlive the key.
+    expect(resolved?.scope.membership.permissions).toEqual([
+      "invitation:read",
+      "team:create",
+      "team:update",
+      "team:delete",
+      "ac:read",
+      "todo:create",
+      "todo:update",
+      "todo:delete",
+      "note:create",
+      "note:update",
+      "note:delete",
+      "attachment:create",
+      "attachment:delete",
+      "logo:update",
+      "audit:read",
+      "featureFlag:update",
+      "webhook:read"
+    ]);
   });
 
   it("rejects a revoked key and an expired key", async () => {
@@ -117,7 +136,7 @@ describe("organization API Keys", () => {
     await setRole(scope.organizationId, scope.userId, "member");
     const demoted = await resolveApiKeyRequest(created.key);
     expect(demoted?.scope.membership.permissions).toContain("todo:create");
-    expect(demoted?.scope.membership.permissions).not.toContain("webhook:create");
+    expect(demoted?.scope.membership.permissions).not.toContain("audit:read");
 
     await testDb()
       .delete(membersTable)

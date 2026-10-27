@@ -5,7 +5,7 @@ import { GraphQLError } from "graphql";
 
 import { WEBHOOK_CONFIG } from "./webhooks.definition";
 import { findWebhookUrlRefusal, type ResolveHost } from "./webhooks.ssrf";
-import { generateWebhookSecret } from "./webhooks.util";
+import { auditableWebhookUrl, generateWebhookSecret } from "./webhooks.util";
 import type { Connection, PageInput, ScopedData } from "../../context.data";
 import { isWebhookEventType, WEBHOOK_EVENT_TYPES } from "../../pubsub";
 
@@ -38,6 +38,11 @@ export interface WebhookEndpoints {
   ) => Promise<{ endpoint: WebhookEndpointView; secret: string }>;
   /** Requires webhook:update; throws `webhook endpoint not found` outside the scope. */
   update: (id: string, input: WebhookEndpointInput) => Promise<WebhookEndpointView>;
+  /**
+   * Replaces the signing secret; the old one stops signing at once. Requires
+   * webhook:update; the new secret is returned here only.
+   */
+  rotateSecret: (id: string) => Promise<string>;
   /** Requires webhook:delete. */
   delete: (id: string) => Promise<boolean>;
 }
@@ -158,7 +163,10 @@ export function createWebhookEndpoints({
       await record({
         ...actorOf(),
         action: "webhook_endpoint_created",
-        metadata: { eventTypes: endpoint.eventTypes.join(","), url: endpoint.url },
+        metadata: {
+          eventTypes: endpoint.eventTypes.join(","),
+          url: auditableWebhookUrl(endpoint.url)
+        },
         targetId: endpoint.id
       });
 
@@ -182,11 +190,38 @@ export function createWebhookEndpoints({
       await record({
         ...actorOf(),
         action: "webhook_endpoint_updated",
-        metadata: { eventTypes: endpoint.eventTypes.join(","), url: endpoint.url },
+        metadata: {
+          eventTypes: endpoint.eventTypes.join(","),
+          url: auditableWebhookUrl(endpoint.url)
+        },
         targetId: endpoint.id
       });
 
       return endpoint;
+    },
+    async rotateSecret(id) {
+      data.authorize("webhook:update");
+      const secret = generateWebhookSecret();
+      const [endpoint] = await data
+        .update(
+          webhookEndpointsTable,
+          { secret, updatedAt: new Date() },
+          eq(webhookEndpointsTable.id, id)
+        )
+        .returning({ id: webhookEndpointsTable.id, url: webhookEndpointsTable.url });
+
+      if (!endpoint) {
+        throw new Error("webhook endpoint not found");
+      }
+
+      await record({
+        ...actorOf(),
+        action: "webhook_secret_rotated",
+        metadata: { url: auditableWebhookUrl(endpoint.url) },
+        targetId: endpoint.id
+      });
+
+      return secret;
     },
     async delete(id) {
       data.authorize("webhook:delete");
@@ -201,7 +236,7 @@ export function createWebhookEndpoints({
       await record({
         ...actorOf(),
         action: "webhook_endpoint_deleted",
-        metadata: { url: endpoint.url },
+        metadata: { url: auditableWebhookUrl(endpoint.url) },
         targetId: endpoint.id
       });
 

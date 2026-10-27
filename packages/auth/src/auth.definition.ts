@@ -19,6 +19,8 @@ export const AUTH_DEFINITIONS = {
   CUSTOM_ROLES_PER_ORGANIZATION_MAX: 25,
   // Leading characters of every API Key, so secret scanners and people can spot one.
   API_KEY_PREFIX: "kf_",
+  // Random letters after the prefix.
+  API_KEY_LENGTH: 64,
   // The prefix plus four characters, shown in the key list.
   API_KEY_START_LENGTH: 7,
   API_KEY_NAME_MAX_LENGTH: 64,

@@ -15,6 +15,12 @@ export interface AuthenticatedOrganizationMembership {
  * `resolveOrganizationScope` and `resolveApiKeyScope` are its only producers.
  */
 export interface AuthenticatedOrganizationScope {
+  /**
+   * Set when an API Key authenticated the request. Such a scope reaches its
+   * Organization's shared data only: never its creator's own data or their
+   * other Organizations.
+   */
+  apiKeyId?: string;
   membership: AuthenticatedOrganizationMembership;
   organizationId: string;
   user: AuthSessionUser;
@@ -125,6 +131,7 @@ export async function resolveApiKeyScope(
   const granted = new Set(apiKey.permissions);
 
   return {
+    apiKeyId: apiKey.id,
     membership: {
       id: membership.id,
       permissions: membership.permissions.filter((permission) => granted.has(permission)),

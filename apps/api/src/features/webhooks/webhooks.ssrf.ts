@@ -82,11 +82,12 @@ export async function resolvePublicAddresses(
 }
 
 export type WebhookUrlRefusal =
-  "invalid_url" | "https_required" | "blocked_address" | "unresolvable_host";
+  "invalid_url" | "https_required" | "port_not_allowed" | "blocked_address" | "unresolvable_host";
 
 /**
- * Why a Webhook Endpoint URL is refused, or null when it is an HTTPS URL
- * without credentials whose host resolves to public addresses only.
+ * Why a Webhook Endpoint URL is refused, or null when it is an HTTPS URL on
+ * port 443, without credentials, whose host resolves to public addresses only.
+ * Port 443 only, so an endpoint cannot probe other services on a public host.
  */
 export async function findWebhookUrlRefusal(
   value: string,
@@ -105,6 +106,11 @@ export async function findWebhookUrlRefusal(
 
   if (url.username || url.password) {
     return "invalid_url";
+  }
+
+  // The URL parser drops an explicit default port, so `:443` is accepted too.
+  if (url.port !== "") {
+    return "port_not_allowed";
   }
 
   try {

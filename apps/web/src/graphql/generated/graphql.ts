@@ -29,7 +29,8 @@ export type AuditAction =
   | "two_factor_enabled"
   | "webhook_endpoint_created"
   | "webhook_endpoint_deleted"
-  | "webhook_endpoint_updated";
+  | "webhook_endpoint_updated"
+  | "webhook_secret_rotated";
 
 export type CreateApiKeyInput = {
   expiresInDays?: number | null | undefined;
@@ -726,6 +727,12 @@ export type DeleteWebhookEndpointMutationVariables = Exact<{
 }>;
 
 export type DeleteWebhookEndpointMutation = { deleteWebhookEndpoint: boolean };
+
+export type RotateWebhookSecretMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type RotateWebhookSecretMutation = { rotateWebhookSecret: string };
 
 export const ApiKeyFieldsFragmentDoc = {
   kind: "Document",
@@ -3628,3 +3635,39 @@ export const DeleteWebhookEndpointDocument = {
     }
   ]
 } as unknown as DocumentNode<DeleteWebhookEndpointMutation, DeleteWebhookEndpointMutationVariables>;
+export const RotateWebhookSecretDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RotateWebhookSecret" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "rotateWebhookSecret" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<RotateWebhookSecretMutation, RotateWebhookSecretMutationVariables>;

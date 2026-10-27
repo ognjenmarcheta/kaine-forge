@@ -121,6 +121,36 @@ export const CUSTOM_ROLE_PERMISSIONS: readonly Permission[] = PERMISSIONS.filter
 
 const CUSTOM_ROLE_PERMISSION_SET: ReadonlySet<string> = new Set(CUSTOM_ROLE_PERMISSIONS);
 
+// What an API Key never grants: changing who or what can reach the
+// Organization (keys, Webhook Endpoints, roles, members, invitations, the
+// Organization itself). A leaked key must not create access that outlives it.
+const API_KEY_EXCLUDED_PERMISSIONS: ReadonlySet<string> = new Set([
+  "organization:update",
+  "organization:delete",
+  "organization:transfer",
+  "member:create",
+  "member:update",
+  "member:delete",
+  "invitation:create",
+  "invitation:cancel",
+  "ac:create",
+  "ac:update",
+  "ac:delete",
+  "apiKey:create",
+  "apiKey:read",
+  "apiKey:delete",
+  "webhook:create",
+  "webhook:update",
+  "webhook:delete"
+] satisfies Permission[]);
+
+/** The Permissions an API Key may grant out of its creator's: content and reads, never access changes. */
+export function apiKeyGrantablePermissions(
+  creatorPermissions: readonly Permission[]
+): Permission[] {
+  return creatorPermissions.filter((permission) => !API_KEY_EXCLUDED_PERMISSIONS.has(permission));
+}
+
 /** Lowercase letters, digits, and hyphens; better-auth lowercases names, and commas join roles. */
 export const CUSTOM_ROLE_NAME_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
 

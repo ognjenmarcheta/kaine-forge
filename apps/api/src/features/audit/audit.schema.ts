@@ -17,6 +17,8 @@ export const auditTypeDefs = /* GraphQL */ `
     action: AuditAction!
     # Null for a system action or an actor whose account no longer exists.
     actor: AuditActor
+    # The API Key the actor's request used; null for a Session request.
+    apiKeyId: ID
     targetType: String!
     targetId: ID!
     # An email or name that identifies the target, when the event recorded one.

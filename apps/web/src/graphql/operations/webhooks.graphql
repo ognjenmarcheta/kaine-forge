@@ -59,3 +59,7 @@ mutation UpdateWebhookEndpoint($id: ID!, $input: WebhookEndpointInput!) {
 mutation DeleteWebhookEndpoint($id: ID!) {
   deleteWebhookEndpoint(id: $id)
 }
+
+mutation RotateWebhookSecret($id: ID!) {
+  rotateWebhookSecret(id: $id)
+}

@@ -27,6 +27,7 @@ export interface AuditEventMetadataByAction {
   webhook_endpoint_created: { url: string; eventTypes: string };
   webhook_endpoint_updated: { url: string; eventTypes: string };
   webhook_endpoint_deleted: { url: string };
+  webhook_secret_rotated: { url: string };
 }
 
 export type AuditAction = keyof AuditEventMetadataByAction;
@@ -67,7 +68,8 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   api_key_revoked: "api_key",
   webhook_endpoint_created: "webhook_endpoint",
   webhook_endpoint_updated: "webhook_endpoint",
-  webhook_endpoint_deleted: "webhook_endpoint"
+  webhook_endpoint_deleted: "webhook_endpoint",
+  webhook_secret_rotated: "webhook_endpoint"
 };
 
 export function isAuditAction(value: string): value is AuditAction {

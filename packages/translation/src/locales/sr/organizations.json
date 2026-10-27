@@ -156,7 +156,7 @@
   "organizations.webhooks.edit": "Izmeni",
   "organizations.webhooks.delete": "Obriši",
   "organizations.webhooks.deleteDescription": "Ova krajnja tačka više ne prima događaje, a njen dnevnik isporuka se briše. Ovo ne možete poništiti.",
-  "organizations.webhooks.saveError": "Krajnja tačka nije sačuvana. Koristite HTTPS URL na javnoj adresi i izaberite bar jedan događaj.",
+  "organizations.webhooks.saveError": "Krajnja tačka nije sačuvana. Koristite HTTPS URL na portu 443 sa javnom adresom i izaberite bar jedan događaj.",
   "organizations.webhooks.secret": "Tajna za potpisivanje",
   "organizations.webhooks.loading": "Učitavanje vebhuk krajnjih tačaka",
   "organizations.webhooks.error": "Vebhuk krajnje tačke se nisu učitale.",
@@ -187,5 +187,9 @@
   "organizations.audit.action.api_key_revoked": "API ključ opozvan",
   "organizations.audit.action.webhook_endpoint_created": "Vebhuk krajnja tačka dodata",
   "organizations.audit.action.webhook_endpoint_updated": "Vebhuk krajnja tačka izmenjena",
-  "organizations.audit.action.webhook_endpoint_deleted": "Vebhuk krajnja tačka obrisana"
+  "organizations.audit.action.webhook_endpoint_deleted": "Vebhuk krajnja tačka obrisana",
+  "organizations.webhooks.rotateSecret": "Zameni tajnu",
+  "organizations.webhooks.rotateDescription": "Trenutna tajna za potpisivanje odmah prestaje da važi. Unesite novu tajnu u prijemnik.",
+  "organizations.webhooks.rotateError": "Tajna nije zamenjena. Pokušajte ponovo.",
+  "organizations.audit.action.webhook_secret_rotated": "Tajna vebhuka zamenjena"
 }

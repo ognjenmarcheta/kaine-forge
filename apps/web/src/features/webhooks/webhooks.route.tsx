@@ -24,6 +24,7 @@ import { OneTimeSecret } from "../../components/one-time-secret";
 import {
   useCreateWebhookEndpointMutation,
   useDeleteWebhookEndpointMutation,
+  useRotateWebhookSecretMutation,
   useUpdateWebhookEndpointMutation,
   useWebhookEventTypesQuery,
   type WebhookEndpointFieldsFragment
@@ -211,11 +212,15 @@ function EndpointItem({
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [showDeliveries, setShowDeliveries] = useState(false);
+  const [confirmingRotate, setConfirmingRotate] = useState(false);
   const update = useUpdateWebhookEndpointMutation({
     onSuccess: async () => {
       setEditing(false);
       await onChanged();
     }
+  });
+  const rotate = useRotateWebhookSecretMutation({
+    onSuccess: () => setConfirmingRotate(false)
   });
 
   return (
@@ -233,6 +238,11 @@ function EndpointItem({
           {canUpdate ? (
             <Button appearance="subtle" onClick={() => setEditing(!editing)}>
               {t("organizations.webhooks.edit")}
+            </Button>
+          ) : null}
+          {canUpdate ? (
+            <Button appearance="subtle" onClick={() => setConfirmingRotate(true)}>
+              {t("organizations.webhooks.rotateSecret")}
             </Button>
           ) : null}
           {canDelete ? (
@@ -255,7 +265,28 @@ function EndpointItem({
           onSubmit={(input) => update.mutate({ id: endpoint.id, input })}
         />
       ) : null}
+      {rotate.data ? (
+        <OneTimeSecret
+          label={t("organizations.webhooks.secret")}
+          value={rotate.data.rotateWebhookSecret}
+        />
+      ) : null}
+      {rotate.isError ? (
+        <p role="alert" className="text-body-sm text-[color:var(--ds-text-danger)]">
+          {t("organizations.webhooks.rotateError")}
+        </p>
+      ) : null}
       {showDeliveries ? <DeliveryLog endpointId={endpoint.id} /> : null}
+      <ConfirmModal
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("organizations.webhooks.rotateSecret")}
+        description={t("organizations.webhooks.rotateDescription")}
+        isConfirming={rotate.isPending}
+        open={confirmingRotate}
+        title={endpoint.url}
+        onConfirm={() => rotate.mutate({ id: endpoint.id })}
+        onOpenChange={setConfirmingRotate}
+      />
     </li>
   );
 }

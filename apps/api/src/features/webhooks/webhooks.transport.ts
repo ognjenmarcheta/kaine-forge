@@ -38,8 +38,8 @@ export async function postWebhook(
 ): Promise<number> {
   const url = new URL(request.url);
 
-  if (url.protocol !== "https:") {
-    throw new Error("webhook url must use https");
+  if (url.protocol !== "https:" || url.port !== "") {
+    throw new Error("webhook url must use https on port 443");
   }
 
   const signal = AbortSignal.timeout(request.timeoutMs);

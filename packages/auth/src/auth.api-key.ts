@@ -1,7 +1,11 @@
 import { apiKey } from "@better-auth/api-key";
 
 import { AUTH_DEFINITIONS } from "./auth.definition";
-import { permissionsOfStatements, type Permission } from "./auth.permissions";
+import {
+  apiKeyGrantablePermissions,
+  permissionsOfStatements,
+  type Permission
+} from "./auth.permissions";
 
 /**
  * Organization-owned API Keys. better-auth stores the SHA-256 hash of each key
@@ -14,6 +18,7 @@ export function apiKeyPlugin() {
     {
       references: "organization",
       defaultPrefix: AUTH_DEFINITIONS.API_KEY_PREFIX,
+      defaultKeyLength: AUTH_DEFINITIONS.API_KEY_LENGTH,
       // The prefix plus enough characters for a person to tell keys apart.
       startingCharactersConfig: { charactersLength: AUTH_DEFINITIONS.API_KEY_START_LENGTH },
       maximumNameLength: AUTH_DEFINITIONS.API_KEY_NAME_MAX_LENGTH,
@@ -48,17 +53,9 @@ export function apiKeyPlugin() {
 /** The plugin's one HTTP route; disabledPaths turns it off, server calls still work. */
 export const API_KEY_HTTP_PATHS = ["/api-key/create"];
 
-/**
- * The Permissions a new key grants: its creator's, without API Key
- * management, so a key cannot mint or revoke keys.
- */
-export function grantedApiKeyPermissions(creatorPermissions: readonly Permission[]): Permission[] {
-  return creatorPermissions.filter((permission) => !permission.startsWith("apiKey:"));
-}
-
 /** The Permissions a stored key grants, from its resource → actions map. */
 export function storedApiKeyPermissions(
   statements: Readonly<Record<string, unknown>> | null
 ): Permission[] {
-  return grantedApiKeyPermissions(permissionsOfStatements(statements ?? {}));
+  return apiKeyGrantablePermissions(permissionsOfStatements(statements ?? {}));
 }

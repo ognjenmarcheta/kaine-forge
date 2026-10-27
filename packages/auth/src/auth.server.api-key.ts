@@ -1,9 +1,9 @@
 import { db, usersTable } from "@repo/db";
 import { eq } from "drizzle-orm";
 
-import { grantedApiKeyPermissions, storedApiKeyPermissions } from "./auth.api-key";
+import { storedApiKeyPermissions } from "./auth.api-key";
 import { auth } from "./auth.instance";
-import { statementsOfPermissions } from "./auth.permissions";
+import { apiKeyGrantablePermissions, statementsOfPermissions } from "./auth.permissions";
 import {
   resolveApiKeyScope,
   type AuthenticatedOrganizationScope,
@@ -16,7 +16,7 @@ const SECONDS_PER_DAY = 60 * 60 * 24;
 
 /**
  * Creates an API Key for the scope's Organization, made by the scope's user.
- * The key grants the creator's Permissions without API Key management. The
+ * The key grants the creator's Permissions except access changes. The
  * returned `key` is the only copy of the plain key: better-auth stores its hash.
  */
 export async function createApiKeyForScope(
@@ -31,7 +31,9 @@ export async function createApiKeyForScope(
       expiresIn: input.expiresInDays === null ? null : input.expiresInDays * SECONDS_PER_DAY,
       organizationId: scope.organizationId,
       userId: scope.userId,
-      permissions: statementsOfPermissions(grantedApiKeyPermissions(scope.membership.permissions)),
+      permissions: statementsOfPermissions(
+        apiKeyGrantablePermissions(scope.membership.permissions)
+      ),
       metadata: { createdBy: scope.userId }
     }
   });

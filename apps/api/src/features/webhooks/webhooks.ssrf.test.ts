@@ -48,9 +48,14 @@ describe("findWebhookUrlRefusal", () => {
   it.each([
     ["plain http", "http://hooks.example.com/in", "https_required"],
     ["credentials in the URL", "https://user:pass@hooks.example.com/in", "invalid_url"],
-    ["not a URL", "hooks.example.com", "invalid_url"]
+    ["not a URL", "hooks.example.com", "invalid_url"],
+    ["a port other than 443", "https://hooks.example.com:8443/in", "port_not_allowed"]
   ])("refuses %s", async (_label, url, refusal) => {
     expect(await findWebhookUrlRefusal(url, PUBLIC)).toBe(refusal);
+  });
+
+  it("accepts an explicit default port", async () => {
+    expect(await findWebhookUrlRefusal("https://hooks.example.com:443/in", PUBLIC)).toBeNull();
   });
 
   it("accepts an HTTPS host that resolves to public addresses only", async () => {

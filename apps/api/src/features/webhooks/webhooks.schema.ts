@@ -39,7 +39,7 @@ export const webhooksTypeDefs = /* GraphQL */ `
   }
 
   input WebhookEndpointInput {
-    # An HTTPS URL whose host resolves to public addresses only.
+    # An HTTPS URL on port 443 whose host resolves to public addresses only.
     url: String!
     eventTypes: [String!]!
   }
@@ -58,6 +58,9 @@ export const webhooksTypeDefs = /* GraphQL */ `
     createWebhookEndpoint(input: WebhookEndpointInput!): CreatedWebhookEndpoint!
     # Requires webhook:update.
     updateWebhookEndpoint(id: ID!, input: WebhookEndpointInput!): WebhookEndpoint!
+    # Requires webhook:update. Returns the new signing secret, shown only here;
+    # the old secret stops signing at once.
+    rotateWebhookSecret(id: ID!): String!
     # Requires webhook:delete. False when no endpoint with this id is in the Organization.
     deleteWebhookEndpoint(id: ID!): Boolean!
   }

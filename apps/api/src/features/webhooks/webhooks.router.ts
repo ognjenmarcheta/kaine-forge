@@ -33,6 +33,9 @@ export const webhooksResolvers = {
     ) {
       return ctx.webhooks.update(args.id, args.input);
     },
+    rotateWebhookSecret(_parent: unknown, args: { id: string }, ctx: ApiContext) {
+      return ctx.webhooks.rotateSecret(args.id);
+    },
     deleteWebhookEndpoint(_parent: unknown, args: { id: string }, ctx: ApiContext) {
       return ctx.webhooks.delete(args.id);
     }

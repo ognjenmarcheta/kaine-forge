@@ -156,7 +156,7 @@
   "organizations.webhooks.edit": "Edit",
   "organizations.webhooks.delete": "Delete",
   "organizations.webhooks.deleteDescription": "This endpoint gets no more events, and its delivery log is deleted. You cannot undo this.",
-  "organizations.webhooks.saveError": "The endpoint was not saved. Use an HTTPS URL on a public address and select at least one event.",
+  "organizations.webhooks.saveError": "The endpoint was not saved. Use an HTTPS URL on port 443 with a public address, and select at least one event.",
   "organizations.webhooks.secret": "Signing secret",
   "organizations.webhooks.loading": "Loading webhook endpoints",
   "organizations.webhooks.error": "The webhook endpoints did not load.",
@@ -187,5 +187,9 @@
   "organizations.audit.action.api_key_revoked": "API key revoked",
   "organizations.audit.action.webhook_endpoint_created": "Webhook endpoint added",
   "organizations.audit.action.webhook_endpoint_updated": "Webhook endpoint changed",
-  "organizations.audit.action.webhook_endpoint_deleted": "Webhook endpoint deleted"
+  "organizations.audit.action.webhook_endpoint_deleted": "Webhook endpoint deleted",
+  "organizations.webhooks.rotateSecret": "Rotate secret",
+  "organizations.webhooks.rotateDescription": "The current signing secret stops working at once. Update your receiver with the new secret.",
+  "organizations.webhooks.rotateError": "The secret was not rotated. Try again.",
+  "organizations.audit.action.webhook_secret_rotated": "Webhook signing secret rotated"
 }

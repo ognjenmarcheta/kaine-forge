@@ -51,6 +51,7 @@ type Mutation {
   revokeApiKey(id: ID!): Boolean!
   createWebhookEndpoint(input: WebhookEndpointInput!): CreatedWebhookEndpoint!
   updateWebhookEndpoint(id: ID!, input: WebhookEndpointInput!): WebhookEndpoint!
+  rotateWebhookSecret(id: ID!): String!
   deleteWebhookEndpoint(id: ID!): Boolean!
 }
 
@@ -334,6 +335,7 @@ enum AuditAction {
   webhook_endpoint_created
   webhook_endpoint_updated
   webhook_endpoint_deleted
+  webhook_secret_rotated
 }
 
 type AuditActor {
@@ -346,6 +348,7 @@ type AuditEvent {
   id: ID!
   action: AuditAction!
   actor: AuditActor
+  apiKeyId: ID
   targetType: String!
   targetId: ID!
   targetLabel: String

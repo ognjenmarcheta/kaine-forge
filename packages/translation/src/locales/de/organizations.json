@@ -156,7 +156,7 @@
   "organizations.webhooks.edit": "Bearbeiten",
   "organizations.webhooks.delete": "Löschen",
   "organizations.webhooks.deleteDescription": "Dieser Endpunkt erhält keine Ereignisse mehr, und sein Zustellprotokoll wird gelöscht. Sie können das nicht rückgängig machen.",
-  "organizations.webhooks.saveError": "Der Endpunkt wurde nicht gespeichert. Verwenden Sie eine HTTPS-URL mit öffentlicher Adresse und wählen Sie mindestens ein Ereignis.",
+  "organizations.webhooks.saveError": "Der Endpunkt wurde nicht gespeichert. Verwenden Sie eine HTTPS-URL auf Port 443 mit öffentlicher Adresse und wählen Sie mindestens ein Ereignis.",
   "organizations.webhooks.secret": "Signaturgeheimnis",
   "organizations.webhooks.loading": "Webhook-Endpunkte werden geladen",
   "organizations.webhooks.error": "Die Webhook-Endpunkte wurden nicht geladen.",
@@ -187,5 +187,9 @@
   "organizations.audit.action.api_key_revoked": "API-Schlüssel widerrufen",
   "organizations.audit.action.webhook_endpoint_created": "Webhook-Endpunkt hinzugefügt",
   "organizations.audit.action.webhook_endpoint_updated": "Webhook-Endpunkt geändert",
-  "organizations.audit.action.webhook_endpoint_deleted": "Webhook-Endpunkt gelöscht"
+  "organizations.audit.action.webhook_endpoint_deleted": "Webhook-Endpunkt gelöscht",
+  "organizations.webhooks.rotateSecret": "Geheimnis erneuern",
+  "organizations.webhooks.rotateDescription": "Das aktuelle Signaturgeheimnis gilt sofort nicht mehr. Hinterlegen Sie das neue Geheimnis bei Ihrem Empfänger.",
+  "organizations.webhooks.rotateError": "Das Geheimnis wurde nicht erneuert. Versuchen Sie es erneut.",
+  "organizations.audit.action.webhook_secret_rotated": "Webhook-Signaturgeheimnis erneuert"
 }
