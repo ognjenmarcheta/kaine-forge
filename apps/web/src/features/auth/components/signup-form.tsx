@@ -25,7 +25,7 @@ interface SignupFormValues {
 
 export function SignupForm({ onDone }: SignupFormProps) {
   const { signup } = useAuth();
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
@@ -46,6 +46,8 @@ export function SignupForm({ onDone }: SignupFormProps) {
           email: value.email,
           name: value.name,
           password: value.password,
+          // Auth emails, starting with the welcome email, use this language.
+          locale: language,
           ...(captchaToken ? { captchaToken } : {})
         });
         onDone();

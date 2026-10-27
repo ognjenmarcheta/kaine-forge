@@ -5,8 +5,12 @@ export interface EmailContent {
   text: string;
 }
 
-export interface EmailMessage extends EmailContent {
+export interface EmailMessage {
   to: string;
+  subject: string;
+  /** Absent only for a text-only message. */
+  html?: string | undefined;
+  text: string;
 }
 
 export interface EmailSender {

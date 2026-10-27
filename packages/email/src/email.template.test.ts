@@ -122,17 +122,17 @@ const cases: TemplateCase[] = [
     token: "482913"
   },
   {
-    email: { template: "welcome", name: "Ada", url: "https://app.example.com" },
+    email: { template: "welcome", url: "https://app.example.com" },
     locale: "en",
     subject: "Welcome to Kaine Forge",
-    phrase: "Welcome, Ada",
+    phrase: "Your account is ready.",
     token: "https://app.example.com"
   },
   {
-    email: { template: "welcome", name: "Ada", url: "https://app.example.com" },
+    email: { template: "welcome", url: "https://app.example.com" },
     locale: "de",
     subject: "Willkommen bei Kaine Forge",
-    phrase: "Willkommen, Ada",
+    phrase: "Dein Konto ist bereit.",
     token: "https://app.example.com"
   },
   {
