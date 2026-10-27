@@ -6,10 +6,6 @@ import { z } from "zod";
 import { defineJob } from "./jobs.definition";
 import { createJobQueue, type JobQueue } from "./jobs.queue";
 
-// Starting pg-boss on PGlite can pass vitest's 10 s hook and 5 s test defaults on a
-// slow runner. The stop-budget test measures its own time with Date.now().
-vi.setConfig({ hookTimeout: 30_000, testTimeout: 30_000 });
-
 // pg-boss runs on PGlite through its own `pglite` backend profile (ADR 0018),
 // so these tests drive the real queue tables in process, without DATABASE_URL.
 const TEST_JOBS = {
