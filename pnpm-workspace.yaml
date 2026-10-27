@@ -11,6 +11,10 @@ catalog:
   "@better-auth/expo": "1.7.12"
   # Organization-owned API keys (packages/auth, #709). Keep on the better-auth line.
   "@better-auth/api-key": "1.7.12"
+  # WebAuthn passkeys (ADR 0015); same exact pin as the better-auth line it plugs into.
+  "@better-auth/passkey": "1.7.12"
+  # The passkey plugin's inferred auth types name it; @repo/auth imports its types for declaration emit (TS2742).
+  "@simplewebauthn/server": "^13.3.3"
   dotenv: "^18.0.9"
   drizzle-orm: "^0.45.4"
   graphql: "^16.14.2"

@@ -66,6 +66,14 @@ export interface SendEmailOtpInput extends CaptchaInput {
   email: string;
 }
 
+export interface SendMagicLinkInput extends CaptchaInput {
+  email: string;
+  /** Absolute web URL the link opens signed in. */
+  callbackUrl: string;
+  /** Absolute web URL a used or expired link opens; better-auth adds `error`. */
+  errorCallbackUrl: string;
+}
+
 export interface SignInWithEmailOtpInput {
   email: string;
   otp: string;
@@ -103,6 +111,13 @@ export interface AuthDeviceSession {
   createdAt: string;
   /** The session making this request. */
   current: boolean;
+}
+
+/** A passkey of the signed-in user. */
+export interface AuthPasskey {
+  id: string;
+  name: string | null;
+  createdAt: string;
 }
 
 /** A sign-in method linked to the user: "credential" (password) or a social provider id. */

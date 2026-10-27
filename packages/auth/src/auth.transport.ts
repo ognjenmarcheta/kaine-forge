@@ -1,5 +1,11 @@
+import { passkeyClient } from "@better-auth/passkey/client";
 import { createAuthClient } from "better-auth/client";
-import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
+import {
+  emailOTPClient,
+  magicLinkClient,
+  organizationClient,
+  twoFactorClient
+} from "better-auth/client/plugins";
 
 import { permissionsOfStatements, statementsOfPermissions } from "./auth.permissions";
 import type {
@@ -10,6 +16,7 @@ import type {
   AuthLinkedAccount,
   AuthOrganizationMember,
   AuthOrganizationsResult,
+  AuthPasskey,
   AuthSession,
   AuthSocialProvider,
   ChangeEmailInput,
@@ -21,6 +28,7 @@ import type {
   LoginInput,
   ResetPasswordWithEmailOtpInput,
   SendEmailOtpInput,
+  SendMagicLinkInput,
   SignInWithEmailOtpInput,
   SignupInput,
   TwoFactorEnrollment,
@@ -126,7 +134,18 @@ const AUTH_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   SESSION_NOT_FRESH: "auth.account.error.signInAgain",
   INVALID_TOKEN: "auth.account.error.invalidLink",
   SOLE_OWNER_OF_SHARED_ORGANIZATION: "auth.account.error.soleOwner",
-  PERSONAL_ORGANIZATION_HAS_MEMBERS: "auth.account.error.personalMembers"
+  PERSONAL_ORGANIZATION_HAS_MEMBERS: "auth.account.error.personalMembers",
+  // Passkeys: the browser ceremony was cancelled or timed out, or the
+  // credential is unknown to the server.
+  AUTH_CANCELLED: "auth.passkey.error.cancelled",
+  ERROR_CEREMONY_ABORTED: "auth.passkey.error.cancelled",
+  REGISTRATION_CANCELLED: "auth.passkey.error.cancelled",
+  ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: "auth.passkey.error.alreadyRegistered",
+  PREVIOUSLY_REGISTERED: "auth.passkey.error.alreadyRegistered",
+  PASSKEY_REQUIRES_VERIFIED_EMAIL: "auth.passkey.error.verifyEmail",
+  PASSKEY_NAME_TOO_LONG: "auth.passkey.error.nameTooLong",
+  PASSKEY_NOT_FOUND: "auth.passkey.error.failed",
+  AUTHENTICATION_FAILED: "auth.passkey.error.failed"
 };
 
 export function getAuthErrorMessageKey(error: unknown): string {
@@ -222,6 +241,15 @@ export interface AuthTransport extends ClientAuth {
   signInWithOtp(input: SignInWithEmailOtpInput): Promise<AuthSession>;
   requestPasswordResetOtp(input: SendEmailOtpInput): Promise<void>;
   resetPasswordWithOtp(input: ResetPasswordWithEmailOtpInput): Promise<void>;
+  /** Emails a one-time sign-in link to an existing account; same answer for any address. */
+  sendMagicLink(input: SendMagicLinkInput): Promise<void>;
+  /** Runs the browser WebAuthn ceremony and signs in with the chosen passkey. */
+  signInWithPasskey(): Promise<AuthSession>;
+  /** Registers a passkey for the signed-in user; needs a fresh session. */
+  addPasskey(name: string): Promise<void>;
+  listPasskeys(): Promise<AuthPasskey[]>;
+  /** Deletes one of the signed-in user's own passkeys. */
+  deletePasskey(passkeyId: string): Promise<void>;
 }
 
 interface CreateAuthTransportInput {
@@ -349,6 +377,8 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       organizationClient({ dynamicAccessControl: { enabled: true } }),
       twoFactorClient(),
       emailOTPClient(),
+      magicLinkClient(),
+      passkeyClient(),
       ...((adapter.clientPlugins ?? []) as never[])
     ],
     fetchOptions: {
@@ -680,6 +710,56 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
         otp: resetInput.otp,
         password: resetInput.password
       });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async sendMagicLink(linkInput: SendMagicLinkInput) {
+      const { error } = await client.signIn.magicLink(
+        {
+          email: linkInput.email,
+          callbackURL: linkInput.callbackUrl,
+          errorCallbackURL: linkInput.errorCallbackUrl
+        },
+        captchaFetchOptions(linkInput.captchaToken)
+      );
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async signInWithPasskey() {
+      const { error } = await client.signIn.passkey();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return requireSession();
+    },
+    async addPasskey(name: string) {
+      const { error } = await client.passkey.addPasskey({ name });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async listPasskeys() {
+      const { data, error } = await client.passkey.listUserPasskeys();
+
+      if (error) {
+        throw toAuthError(error);
+      }
+
+      return (data ?? []).map((passkey) => ({
+        id: passkey.id,
+        name: passkey.name ?? null,
+        createdAt: toIsoString(passkey.createdAt)
+      }));
+    },
+    async deletePasskey(passkeyId: string) {
+      const { error } = await client.passkey.deletePasskey({ id: passkeyId });
 
       if (error) {
         throw toAuthError(error);

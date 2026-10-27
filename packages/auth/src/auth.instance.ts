@@ -1,4 +1,8 @@
 import { expo } from "@better-auth/expo";
+import { passkey } from "@better-auth/passkey";
+// The passkey plugin's inferred types name this package; importing it here
+// lets declaration emit refer to it by name (TS2742).
+import type {} from "@simplewebauthn/server";
 import {
   accountsTable,
   apiKeysTable,
@@ -7,6 +11,7 @@ import {
   membersTable,
   organizationRolesTable,
   organizationsTable,
+  passkeysTable,
   sessionsTable,
   twoFactorsTable,
   usersTable,
@@ -16,7 +21,7 @@ import { renderEmail, type EmailTemplate } from "@repo/email";
 import { jobQueue } from "@repo/jobs/client";
 import { createLogger } from "@repo/logger";
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
-import type { BetterAuthPlugin, User } from "better-auth";
+import type { BetterAuthPlugin, GenericEndpointContext, User } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
   APIError,
@@ -35,6 +40,7 @@ import {
   captcha,
   emailOTP,
   haveIBeenPwned,
+  magicLink,
   organization,
   twoFactor
 } from "better-auth/plugins";
@@ -93,7 +99,8 @@ const AUTH_SCHEMA = {
   invitations: invitationsTable,
   organizationRoles: organizationRolesTable,
   twoFactors: twoFactorsTable,
-  apikeys: apiKeysTable
+  apikeys: apiKeysTable,
+  passkeys: passkeysTable
 } as const;
 
 const emailLogger = createLogger({ name: "auth.email" });
@@ -136,6 +143,34 @@ async function findLocaleByEmail(email: string): Promise<string | null> {
     .limit(1);
 
   return row?.locale ?? null;
+}
+
+// better-auth stores a magic-link token for any address and only checks for
+// an account when the link is opened. Only an existing account gets the
+// email; the request answers the same either way, and the lookup runs after
+// the response like every other auth email.
+function sendMagicLinkToAccount(email: string, url: string): void {
+  void (async () => {
+    const [account] = await db
+      .select({ locale: usersTable.locale })
+      .from(usersTable)
+      .where(eq(usersTable.email, email.toLowerCase()))
+      .limit(1);
+
+    if (account) {
+      enqueueAuthEmail(
+        email,
+        {
+          template: "magicLink",
+          url,
+          expiresInMinutes: AUTH_DEFINITIONS.MAGIC_LINK_MAX_AGE_SECONDS / 60
+        },
+        account.locale
+      );
+    }
+  })().catch(() => {
+    emailLogger.error({ template: "magicLink" }, "auth email not queued");
+  });
 }
 
 // Only a verified account proves it controls the invited address. Under soft
@@ -326,6 +361,114 @@ function createPasswordChangeAlertPlugin(webAppUrl: string) {
   } satisfies BetterAuthPlugin;
 }
 
+const PASSKEY_REGISTRATION_PATHS = new Set([
+  "/passkey/generate-register-options",
+  "/passkey/verify-registration"
+]);
+
+// Routes that store a passkey name: registration sends it in the query and
+// the body, a rename in the body.
+const PASSKEY_NAME_PATHS = new Set([...PASSKEY_REGISTRATION_PATHS, "/passkey/update-passkey"]);
+
+const passkeyRegistrationResponse = z.object({ userId: z.string() });
+
+// Under soft verification (ADR 0007) anyone can sign up with an address they
+// do not own. A passkey added to such an account would let the squatter back
+// in after the owner proves the address, so only a verified account adds
+// one. The stored row decides: a cookie-cached session can predate the
+// verification. A successful registration alerts the account's address.
+function createPasskeyPolicyPlugin(webAppUrl: string) {
+  return {
+    id: "passkey-policy",
+    hooks: {
+      before: [
+        {
+          matcher: (ctx) => PASSKEY_NAME_PATHS.has(ctx.path ?? ""),
+          handler: createAuthMiddleware(async (ctx) => {
+            const names = [readRecord(ctx.query).name, readRecord(ctx.body).name];
+
+            if (
+              names.some(
+                (name) =>
+                  typeof name === "string" && name.length > AUTH_DEFINITIONS.PASSKEY_NAME_MAX_LENGTH
+              )
+            ) {
+              throw APIError.from("BAD_REQUEST", {
+                code: "PASSKEY_NAME_TOO_LONG",
+                message: `Passkey name must be at most ${String(AUTH_DEFINITIONS.PASSKEY_NAME_MAX_LENGTH)} characters`
+              });
+            }
+
+            if (!PASSKEY_REGISTRATION_PATHS.has(ctx.path)) {
+              return;
+            }
+
+            const session = await getSessionFromCtx(ctx);
+
+            if (!session) {
+              // The route itself answers an unauthenticated request.
+              return;
+            }
+
+            const user = await ctx.context.internalAdapter.findUserById(session.user.id);
+
+            if (user?.emailVerified !== true) {
+              throw APIError.from("FORBIDDEN", {
+                code: "PASSKEY_REQUIRES_VERIFIED_EMAIL",
+                message: "Verify your email address before you add a passkey"
+              });
+            }
+          })
+        }
+      ],
+      after: [
+        {
+          matcher: (ctx) => ctx.path === "/passkey/verify-registration",
+          handler: createAuthMiddleware(async (ctx) => {
+            const response = passkeyRegistrationResponse.safeParse(ctx.context.returned);
+
+            if (!response.success) {
+              return;
+            }
+
+            // better-auth re-throws an after hook's error, which would fail a
+            // registration that already succeeded.
+            try {
+              const user = await ctx.context.internalAdapter.findUserById(response.data.userId);
+
+              if (user) {
+                enqueueAuthEmail(
+                  user.email,
+                  { template: "passkeyAdded", securityUrl: buildSecurityUrl(webAppUrl) },
+                  readUserLocale(user)
+                );
+              }
+            } catch {
+              emailLogger.error({ template: "passkeyAdded" }, "auth email not queued");
+            }
+          })
+        }
+      ]
+    }
+  } satisfies BetterAuthPlugin;
+}
+
+// Sign-ins that prove control of the email address. On these routes the only
+// user write that sets emailVerified is better-auth's promotion of an
+// unverified account (revokeUnprovenAccountAccess), which removes the
+// account's password, social links, and sessions, but not its passkeys.
+const EMAIL_PROOF_SIGN_IN_PATHS = new Set(["/magic-link/verify", "/sign-in/email-otp"]);
+
+// Requests whose user write promotes an unverified account, and those whose
+// promotion deleted a password. The hooks of one request share its context
+// object.
+const unverifiedAccountPromotions = new WeakSet<GenericEndpointContext>();
+const unverifiedPasswordRemovals = new WeakSet<GenericEndpointContext>();
+
+function buildSignInUrl(webAppUrl: string): string {
+  return new URL("/auth", webAppUrl).toString();
+}
+
 // Endpoints a bot could abuse to create accounts, guess passwords, or send
 // email. Paths are relative to the /api/auth base path.
 const AUTH_CAPTCHA_ENDPOINTS = [
@@ -333,7 +476,8 @@ const AUTH_CAPTCHA_ENDPOINTS = [
   "/sign-in/email",
   "/request-password-reset",
   "/email-otp/send-verification-otp",
-  "/email-otp/request-password-reset"
+  "/email-otp/request-password-reset",
+  "/sign-in/magic-link"
 ] as const;
 
 // Captcha is opt-in like social login: Cloudflare Turnstile activates only
@@ -1041,8 +1185,12 @@ export function createAuthInstance() {
         secure: secureCookies
       },
       database: {
-        // Keep uuid primary-key continuity with the existing schema.
-        generateId: () => crypto.randomUUID()
+        // Every table has a uuid primary key with a database default. A
+        // custom generator function would make better-auth encode the
+        // deterministic ids of single-use reservations (the cleanup lock of an
+        // email-proof sign-in into an unverified account) as base64url, which
+        // a uuid column rejects.
+        generateId: "uuid"
       }
     },
     databaseHooks: {
@@ -1064,9 +1212,29 @@ export function createAuthInstance() {
         // that change, so a stale cookie-cached session elsewhere cannot
         // trigger one.
         update: {
+          before: async (data, ctx) => {
+            if (ctx && EMAIL_PROOF_SIGN_IN_PATHS.has(ctx.path) && data.emailVerified === true) {
+              unverifiedAccountPromotions.add(ctx);
+            }
+          },
           after: async (user, ctx) => {
             if (!ctx) {
               return;
+            }
+
+            // The owner just proved the address: a passkey added before that
+            // proof may belong to whoever signed up with it.
+            if (unverifiedAccountPromotions.has(ctx)) {
+              await db.delete(passkeysTable).where(eq(passkeysTable.userId, user.id));
+
+              // Tell the now-verified address why its password stopped working.
+              if (unverifiedPasswordRemovals.delete(ctx)) {
+                enqueueAuthEmail(
+                  user.email,
+                  { template: "passwordRemoved", url: buildSignInUrl(config.webAppUrl) },
+                  readUserLocale(user)
+                );
+              }
             }
 
             const previousUser = ctx.context.session?.user;
@@ -1098,6 +1266,21 @@ export function createAuthInstance() {
                 { template: "twoFactorEnabled", securityUrl },
                 readUserLocale(user)
               );
+            }
+          }
+        }
+      },
+      account: {
+        delete: {
+          // The promotion deletes every account row before it sets
+          // emailVerified; "credential" is the password.
+          before: async (account, ctx) => {
+            if (
+              ctx &&
+              EMAIL_PROOF_SIGN_IN_PATHS.has(ctx.path) &&
+              account.providerId === "credential"
+            ) {
+              unverifiedPasswordRemovals.add(ctx);
             }
           }
         }
@@ -1136,10 +1319,8 @@ export function createAuthInstance() {
           maximumRolesPerOrganization: AUTH_DEFINITIONS.CUSTOM_ROLES_PER_ORGANIZATION_MAX
         },
         invitationExpiresIn: AUTH_DEFINITIONS.INVITATION_MAX_AGE_SECONDS,
-        // Our advanced.database.generateId is a custom function, which
-        // better-auth's heuristic treats as potentially predictable and would
-        // therefore demand a verified email before accept/reject/get by
-        // invitation id. Our ids are opaque crypto.randomUUID values and soft
+        // Off: this gate would demand a verified email before accept/reject/get
+        // by invitation id. Invitation ids are random UUIDs and soft
         // verification (ADR 0007) never guarantees a verified email, so the
         // gate stays off. The accept route still enforces that the accepting
         // user's email matches the invitation email unconditionally.
@@ -1203,10 +1384,12 @@ export function createAuthInstance() {
       userNameLimitPlugin,
       organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
+      createPasskeyPolicyPlugin(config.webAppUrl),
       bearer(),
       apiKeyPlugin(),
-      // Second factor for password sign-in only; email OTP and social sign-in
-      // are not challenged (better-auth default, ADR 0015).
+      // Second factor for password sign-in only; email OTP, magic-link,
+      // passkey, and social sign-in are not challenged (better-auth default,
+      // ADR 0015).
       twoFactor({
         issuer: AUTH_DEFINITIONS.TWO_FACTOR_ISSUER,
         otpOptions: {
@@ -1244,6 +1427,23 @@ export function createAuthInstance() {
             findLocaleByEmail(accountEmail).catch(() => null)
           );
         }
+      }),
+      // Passwordless sign-in for existing accounts only, like the email code:
+      // the token is stored hashed and consumed on first use (ADR 0015).
+      magicLink({
+        expiresIn: AUTH_DEFINITIONS.MAGIC_LINK_MAX_AGE_SECONDS,
+        storeToken: "hashed",
+        disableSignUp: true,
+        sendMagicLink: ({ email, url }) => {
+          sendMagicLinkToAccount(email, url);
+        }
+      }),
+      // WebAuthn for the web app: credentials are bound to its host, and the
+      // browser ceremony must run on its origin (ADR 0015). The relying party
+      // name is appName.
+      passkey({
+        rpID: new URL(config.webAppUrl).hostname,
+        origin: new URL(config.webAppUrl).origin
       }),
       // Wraps our scrypt hash hook, so sign-up, change-password, and both
       // reset flows reject passwords found in known breaches.

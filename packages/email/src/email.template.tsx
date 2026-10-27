@@ -30,12 +30,15 @@ export type EmailTemplate =
     }
   | { template: "twoFactorCode"; code: string }
   | { template: "emailOtp"; code: string; type: EmailOtpType; expiresInMinutes: number }
+  | { template: "magicLink"; url: string; expiresInMinutes: number }
   // No user-supplied text: anyone can sign up with another person's address
   // before it is verified.
   | { template: "welcome"; url: string }
   | { template: "passwordChanged"; securityUrl: string }
   | { template: "emailChanged"; newEmail: string; securityUrl: string }
   | { template: "twoFactorEnabled"; securityUrl: string }
+  | { template: "passkeyAdded"; securityUrl: string }
+  | { template: "passwordRemoved"; url: string }
   | { template: "emailChangeApproval"; newEmail: string; url: string; expiresInHours: number }
   | { template: "accountDeletion"; url: string; expiresInHours: number }
   | { template: "roleChanged"; url: string; organizationName: string; role: string }
@@ -58,7 +61,7 @@ interface TemplateParts {
 
 function securityAlert(
   t: Translate,
-  name: "passwordChanged" | "emailChanged" | "twoFactorEnabled",
+  name: "passwordChanged" | "emailChanged" | "twoFactorEnabled" | "passkeyAdded",
   securityUrl: string,
   values?: Record<string, string>
 ): TemplateParts {
@@ -173,6 +176,18 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
           </>
         )
       };
+    case "magicLink":
+      return {
+        subject: t("email.magicLink.subject"),
+        heading: t("email.magicLink.heading"),
+        body: (
+          <>
+            <EmailText>{t("email.magicLink.body", { minutes: email.expiresInMinutes })}</EmailText>
+            <EmailButton fallback={fallback} href={email.url} label={t("email.magicLink.action")} />
+            <EmailText>{t("email.magicLink.ignore")}</EmailText>
+          </>
+        )
+      };
     case "welcome": {
       const appName = t("common.appName");
 
@@ -197,6 +212,25 @@ function buildTemplate(email: EmailTemplate, t: Translate): TemplateParts {
       return securityAlert(t, "emailChanged", email.securityUrl, { newEmail: email.newEmail });
     case "twoFactorEnabled":
       return securityAlert(t, "twoFactorEnabled", email.securityUrl);
+    case "passkeyAdded":
+      return securityAlert(t, "passkeyAdded", email.securityUrl);
+    // The first email-proof sign-in to an unverified account removed its password.
+    case "passwordRemoved":
+      return {
+        subject: t("email.passwordRemoved.subject"),
+        heading: t("email.passwordRemoved.heading"),
+        body: (
+          <>
+            <EmailText>{t("email.passwordRemoved.body")}</EmailText>
+            <EmailText>{t("email.passwordRemoved.setPassword")}</EmailText>
+            <EmailButton
+              fallback={fallback}
+              href={email.url}
+              label={t("email.passwordRemoved.action")}
+            />
+          </>
+        )
+      };
     // Goes to the current address before the new one gets a verification link.
     case "emailChangeApproval":
       return {

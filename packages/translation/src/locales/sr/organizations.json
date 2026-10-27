@@ -70,6 +70,8 @@
   "organizations.audit.action.two_factor_enabled": "Verifikacija u dva koraka uključena",
   "organizations.audit.action.two_factor_disabled": "Verifikacija u dva koraka isključena",
   "organizations.audit.action.password_changed": "Lozinka promenjena",
+  "organizations.audit.action.passkey_added": "Pristupni ključ dodat",
+  "organizations.audit.action.passkey_removed": "Pristupni ključ uklonjen",
   "organizations.audit.action.attachment_deleted": "Prilog obrisan",
   "organizations.audit.action.feature_flag_override_changed": "Promenjeno podešavanje zastavice funkcije",
   "organizations.error.roleExceedsPermissions": "Ne možete dodeliti ulogu sa dozvolama koje nemate.",

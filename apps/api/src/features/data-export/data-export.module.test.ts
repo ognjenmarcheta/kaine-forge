@@ -11,6 +11,7 @@ import {
   membersTable,
   notesTable,
   organizationsTable,
+  passkeysTable,
   sessionsTable,
   todosTable,
   twoFactorsTable,
@@ -93,6 +94,15 @@ beforeAll(async () => {
     url: "https://hooks.example.com/acme",
     secret: "whsec_acme-signing-secret",
     eventTypes: ["todo:created"]
+  });
+  await db.insert(passkeysTable).values({
+    userId: alice.id,
+    name: "alice-laptop",
+    publicKey: "alice-passkey-public-key",
+    credentialID: "alice-passkey-credential-id",
+    counter: 0,
+    deviceType: "multiDevice",
+    backedUp: true
   });
 
   // One row of each kind per (author, Organization), named after both.
@@ -282,7 +292,7 @@ describe("data exports", () => {
   });
 
   it.each(["user", "organization"] as const)(
-    "never puts a password hash, session token, two-factor secret, API Key hash, or webhook secret in a %s export",
+    "never puts a password hash, session token, two-factor secret, passkey, API Key hash, or webhook secret in a %s export",
     async (kind) => {
       const archive = Object.values(await exportArchive(ids.alice, ids.acme, "owner", kind)).join(
         "\n"
@@ -295,7 +305,9 @@ describe("data exports", () => {
         "alice-totp-secret",
         "alice-backup-codes",
         "acme-api-key-hash",
-        "whsec_acme-signing-secret"
+        "whsec_acme-signing-secret",
+        "alice-passkey-public-key",
+        "alice-passkey-credential-id"
       ]) {
         expect(archive).not.toContain(secret);
       }

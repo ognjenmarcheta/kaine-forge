@@ -19,6 +19,9 @@ export interface AuditEventMetadataByAction {
   two_factor_enabled: Record<string, never>;
   two_factor_disabled: Record<string, never>;
   password_changed: Record<string, never>;
+  /** The name the user gave the passkey, if any. */
+  passkey_added: { name: string | null };
+  passkey_removed: { name: string | null };
   attachment_deleted: { originalName: string };
   /** `enabled` is null when the override was cleared. */
   feature_flag_override_changed: { flag: string; enabled: boolean | null };
@@ -42,12 +45,18 @@ export type AuditTargetType =
   | "invitation"
   | "member"
   | "organization"
+  | "passkey"
   | "role"
   | "user"
   | "webhook_endpoint";
 
 /** Actions about a User's own account: they belong to no Organization. */
-type UserAuditAction = "two_factor_enabled" | "two_factor_disabled" | "password_changed";
+type UserAuditAction =
+  | "two_factor_enabled"
+  | "two_factor_disabled"
+  | "password_changed"
+  | "passkey_added"
+  | "passkey_removed";
 
 /** What each action acts on; the target id names a row of this kind. */
 export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTargetType } = {
@@ -65,6 +74,8 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   two_factor_enabled: "user",
   two_factor_disabled: "user",
   password_changed: "user",
+  passkey_added: "passkey",
+  passkey_removed: "passkey",
   attachment_deleted: "attachment",
   feature_flag_override_changed: "organization",
   role_created: "role",

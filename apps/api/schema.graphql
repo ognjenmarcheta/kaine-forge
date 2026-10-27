@@ -330,6 +330,8 @@ enum AuditAction {
   two_factor_enabled
   two_factor_disabled
   password_changed
+  passkey_added
+  passkey_removed
   attachment_deleted
   feature_flag_override_changed
   role_created

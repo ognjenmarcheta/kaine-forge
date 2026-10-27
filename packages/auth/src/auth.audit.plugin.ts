@@ -25,7 +25,9 @@ const AUDITED_PATHS = new Set([
   "/organization/transfer-ownership",
   "/organization/update",
   "/organization/update-member-role",
-  "/organization/update-role"
+  "/organization/update-role",
+  "/passkey/delete-passkey",
+  "/passkey/verify-registration"
 ]);
 
 type HookContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
@@ -40,6 +42,7 @@ type UserUpdateContext = NonNullable<Parameters<NonNullable<UserUpdateHook>>[1]>
 // hooks receive, and empties itself when the request ends.
 const previousOrganizationNames = new WeakMap<HookContext["context"], string>();
 const deletedRoles = new WeakMap<HookContext["context"], CustomRoleRow>();
+const deletedPasskeyNames = new WeakMap<HookContext["context"], string | null>();
 
 interface CustomRoleRow {
   id: string;
@@ -86,6 +89,22 @@ async function memberEvent(
 
 async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> {
   const returned = readRecord(ctx.context.returned);
+
+  // A registration answers with the stored passkey row, owner included.
+  if (ctx.path === "/passkey/verify-registration") {
+    const id = readString(returned, "id");
+    const userId = readString(returned, "userId");
+
+    return id && userId
+      ? {
+          action: "passkey_added",
+          actorUserId: userId,
+          metadata: { name: readString(returned, "name") },
+          organizationId: null,
+          targetId: id
+        }
+      : null;
+  }
 
   if (ctx.path === "/change-password") {
     // With revokeOtherSessions the request's session is gone; the response names the user.
@@ -241,6 +260,20 @@ async function auditEventFor(ctx: HookContext): Promise<AuditEventInput | null> 
           }
         : null;
     }
+    case "/passkey/delete-passkey": {
+      // The route answers { status } only; the before hook read the user's own row.
+      const id = readString(readRecord(ctx.body), "id");
+
+      return id && deletedPasskeyNames.has(ctx.context)
+        ? {
+            action: "passkey_removed",
+            actorUserId,
+            metadata: { name: deletedPasskeyNames.get(ctx.context) ?? null },
+            organizationId: null,
+            targetId: id
+          }
+        : null;
+    }
     case "/organization/transfer-ownership": {
       // The route acts on the session's Active Organization only.
       const organizationId = readString(readRecord(session.session), "activeOrganizationId");
@@ -294,6 +327,32 @@ export const auditPlugin = {
 
             if (organization) {
               previousOrganizationNames.set(ctx.context, organization.name);
+            }
+          } catch (error) {
+            logAuditFailure({ path: ctx.path }, error);
+          }
+        })
+      },
+      {
+        matcher: (ctx) => ctx.path === "/passkey/delete-passkey",
+        handler: createAuthMiddleware(async (ctx) => {
+          try {
+            const session = await getSessionFromCtx(ctx);
+            const id = readString(readRecord(ctx.body), "id");
+            // Only the session user's own row: the route refuses any other.
+            const passkey =
+              session && id
+                ? await ctx.context.adapter.findOne<{ name: string | null }>({
+                    model: "passkey",
+                    where: [
+                      { field: "id", value: id },
+                      { field: "userId", value: session.user.id }
+                    ]
+                  })
+                : null;
+
+            if (passkey) {
+              deletedPasskeyNames.set(ctx.context, passkey.name ?? null);
             }
           } catch (error) {
             logAuditFailure({ path: ctx.path }, error);

@@ -81,6 +81,8 @@ describe("organization API Keys", () => {
     const created = await createApiKeyForScope(scope, { name: "CI", expiresInDays: null });
 
     expect(created.key).toMatch(/^kf_[A-Za-z]{64}$/);
+    // generateId "uuid": the row id the add-on returns is the uuid primary key.
+    expect(created.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     const [row] = await testDb().select().from(apiKeysTable).where(eq(apiKeysTable.id, created.id));
     expect(row?.organizationId).toBe(scope.organizationId);
     expect(row?.start).toBe(created.key.slice(0, 7));

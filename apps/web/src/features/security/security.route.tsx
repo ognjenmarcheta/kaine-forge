@@ -1,3 +1,4 @@
+import { PasskeySettings } from "./components/passkey-settings";
 import { TwoFactorSettings } from "./components/two-factor-settings";
 import { useTranslation } from "../../hooks/use-translation";
 
@@ -11,6 +12,7 @@ export function SecurityRoute() {
         <p className="text-[color:var(--ds-text-subtle)]">{t("auth.security.summary")}</p>
       </header>
       <TwoFactorSettings />
+      <PasskeySettings />
     </section>
   );
 }
