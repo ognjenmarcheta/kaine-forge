@@ -1,5 +1,5 @@
 {
-  "id": "b5bf6199-3251-494c-a75d-632ea4abf17f",
+  "id": "2df2bac5-0a1f-40b7-bc35-ea7ef8ce0327",
   "prevId": "757f3089-aedc-4b46-8f1f-ce90ae475b7b",
   "version": "7",
   "dialect": "postgresql",
@@ -441,66 +441,6 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.feature_flag_overrides": {
-      "name": "feature_flag_overrides",
-      "schema": "",
-      "columns": {
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "flag_key": {
-          "name": "flag_key",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "enabled": {
-          "name": "enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "feature_flag_overrides_organization_id_organizations_id_fk": {
-          "name": "feature_flag_overrides_organization_id_organizations_id_fk",
-          "tableFrom": "feature_flag_overrides",
-          "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "feature_flag_overrides_organization_id_flag_key_pk": {
-          "name": "feature_flag_overrides_organization_id_flag_key_pk",
-          "columns": ["organization_id", "flag_key"]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -1533,6 +1473,12 @@
         "locale": {
           "name": "locale",
           "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "onboarding_completed_at": {
+          "name": "onboarding_completed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

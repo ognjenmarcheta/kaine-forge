@@ -7,6 +7,8 @@ import { featureFlagsResolvers } from "../features/feature-flags/feature-flags.r
 import { featureFlagsTypeDefs } from "../features/feature-flags/feature-flags.schema";
 import { notesResolvers } from "../features/notes/notes.router";
 import { notesTypeDefs } from "../features/notes/notes.schema";
+import { notificationsResolvers } from "../features/notifications/notifications.router";
+import { notificationsTypeDefs } from "../features/notifications/notifications.schema";
 import { organizationsResolvers } from "../features/organizations/organizations.router";
 import { organizationsTypeDefs } from "../features/organizations/organizations.schema";
 import { publicAssetsResolvers } from "../features/public-assets/public-assets.router";
@@ -118,6 +120,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "feature-flags",
     typeDefs: featureFlagsTypeDefs,
     resolvers: featureFlagsResolvers
+  },
+  {
+    name: "notifications",
+    typeDefs: notificationsTypeDefs,
+    resolvers: notificationsResolvers
   }
 ];
 

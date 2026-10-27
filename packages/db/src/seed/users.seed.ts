@@ -28,7 +28,9 @@ export async function seedUsers(): Promise<void> {
     .values({
       email: TEST_USER.email,
       name: TEST_USER.name,
-      role: TEST_USER.role
+      role: TEST_USER.role,
+      // The seed user signs straight into the dashboard (e2e helpers rely on it).
+      onboardingCompletedAt: new Date()
     })
     .onConflictDoUpdate({
       target: usersTable.email,

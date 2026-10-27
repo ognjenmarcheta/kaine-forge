@@ -15,6 +15,8 @@ type Query {
   conversations(first: Int, after: String): AssistantConversationConnection!
   auditEvents(first: Int, after: String): AuditEventConnection!
   featureFlags: [FeatureFlag!]!
+  notifications(first: Int, after: String): NotificationConnection!
+  notificationPreferences: [NotificationPreference!]!
 }
 
 type Mutation {
@@ -37,6 +39,9 @@ type Mutation {
   deleteConversation(id: ID!): Boolean!
   setFeatureFlagOverride(key: FeatureFlagKey!, enabled: Boolean!): [FeatureFlag!]!
   clearFeatureFlagOverride(key: FeatureFlagKey!): [FeatureFlag!]!
+  markNotificationRead(id: ID!): Notification!
+  markAllNotificationsRead: Int!
+  updateNotificationPreference(input: NotificationPreferenceInput!): NotificationPreference!
 }
 
 type Subscription {
@@ -49,6 +54,7 @@ type Subscription {
   noteUpdated: Note!
   noteDeleted: NoteDeletedPayload!
   assistantMessageDelta: AssistantMessageDelta!
+  notificationReceived: Notification!
 }
 
 """
@@ -342,4 +348,51 @@ enum FeatureFlagKey {
 type FeatureFlag {
   key: FeatureFlagKey!
   enabled: Boolean!
+}
+
+enum NotificationType {
+  invitation_received
+  role_changed
+}
+
+type InvitationReceivedNotification {
+  invitationId: ID!
+  inviterName: String!
+  organizationName: String!
+  role: String!
+}
+
+type RoleChangedNotification {
+  organizationName: String!
+  role: String!
+}
+
+union NotificationPayload = InvitationReceivedNotification | RoleChangedNotification
+
+type Notification {
+  id: ID!
+  type: NotificationType!
+  organizationId: ID
+  payload: NotificationPayload!
+  readAt: DateTime
+  createdAt: DateTime!
+}
+
+type NotificationConnection {
+  items: [Notification!]!
+  pageInfo: PageInfo!
+  unreadCount: Int!
+}
+
+type NotificationPreference {
+  type: NotificationType!
+  inApp: Boolean!
+  email: Boolean!
+  emailAvailable: Boolean!
+}
+
+input NotificationPreferenceInput {
+  type: NotificationType!
+  inApp: Boolean!
+  email: Boolean!
 }

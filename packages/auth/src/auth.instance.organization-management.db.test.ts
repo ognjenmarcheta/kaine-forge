@@ -5,6 +5,10 @@ import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
 import { createHmac } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
+// Each test signs users up through scrypt on PGlite, which can pass vitest's
+// 5 s default on a slow runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 // The real auth instance on an in-process Postgres with every migration
 // applied, so the organization guards run through better-auth's own routes.
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
@@ -291,6 +295,37 @@ describe("creating an organization", () => {
     expect(await activeOrganizationId(mergeCookies(owner.headers, response.headers))).toBe(
       createdId
     );
+  });
+});
+
+describe("organization name length", () => {
+  // Organization names appear in other people's inboxes (invitation emails).
+  it("refuses a name over 64 characters on create and rename", async () => {
+    const owner = await signUp("name-cap");
+    const shared = await createOrganization(owner.headers, "Capped");
+    const longName = "x".repeat(65);
+
+    const created = await post("/organization/create", owner.headers, {
+      name: longName,
+      slug: `long-${crypto.randomUUID().slice(0, 8)}`
+    });
+    const renamed = await post("/organization/update", shared.headers, {
+      data: { name: longName }
+    });
+    const accepted = await post("/organization/update", shared.headers, {
+      data: { name: "y".repeat(64) }
+    });
+
+    expect(created.status).toBe(400);
+    expect(await created.json()).toMatchObject({ code: "ORGANIZATION_NAME_TOO_LONG" });
+    expect(renamed.status).toBe(400);
+    expect(await renamed.json()).toMatchObject({ code: "ORGANIZATION_NAME_TOO_LONG" });
+    expect(accepted.status).toBe(200);
+    const names = await testDatabase()
+      .db.select({ name: organizationsTable.name })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.userId, owner.userId));
+    expect(names.map((row) => row.name).sort()).toEqual(["Personal", "y".repeat(64)]);
   });
 });
 
