@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createEmailSender } from "./email.config";
 
-const message = { to: "user@example.com", subject: "Hello", text: "Body" };
+const message = { to: "user@example.com", subject: "Hello", html: "<p>Body</p>", text: "Body" };
 
 function stubFetch() {
   const fetchMock = vi.fn<typeof fetch>(async () => new Response("{}", { status: 200 }));

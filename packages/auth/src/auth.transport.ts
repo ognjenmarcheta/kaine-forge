@@ -197,6 +197,8 @@ export interface AuthTransport extends ClientAuth {
   verifyTotpEnrollment(code: string): Promise<AuthSession>;
   disableTwoFactor(password: string): Promise<AuthSession>;
   regenerateBackupCodes(password: string): Promise<string[]>;
+  /** Stores the signed-in user's language; auth emails use it. */
+  updateEmailLanguage(language: string): Promise<void>;
   sendSignInOtp(input: SendEmailOtpInput): Promise<void>;
   signInWithOtp(input: SignInWithEmailOtpInput): Promise<AuthSession>;
   requestPasswordResetOtp(input: SendEmailOtpInput): Promise<void>;
@@ -809,6 +811,17 @@ export function createAuthTransport(input: CreateAuthTransportInput): AuthTransp
       const { error } = await client.$fetch("/organization/transfer-ownership", {
         method: "POST",
         body: { memberId }
+      });
+
+      if (error) {
+        throw toAuthError(error);
+      }
+    },
+    async updateEmailLanguage(language: string) {
+      // locale is a server-side additional field the typed client does not know.
+      const { error } = await client.$fetch("/update-user", {
+        method: "POST",
+        body: { locale: language }
       });
 
       if (error) {

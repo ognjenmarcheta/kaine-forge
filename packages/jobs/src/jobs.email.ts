@@ -4,7 +4,7 @@ import { z } from "zod";
 import { defineJob } from "./jobs.definition";
 
 export const EMAIL_JOB = defineJob({
-  payload: z.object({ to: z.string(), subject: z.string(), text: z.string() }),
+  payload: z.object({ to: z.string(), subject: z.string(), html: z.string(), text: z.string() }),
   // pg-boss waits 10 s * 2^n * (1 + jitter) after failed attempt n (0-4), so
   // the job fails after about 5-10 min of provider outage. The 10 min cap is
   // a ceiling only: with 5 retries no single wait exceeds 320 s.

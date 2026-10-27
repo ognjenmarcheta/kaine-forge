@@ -103,9 +103,21 @@ async function organizationRow(organizationId: string) {
   return organization ?? null;
 }
 
-// The emails enqueued so far, as { to, subject, text }.
-function sentEmails() {
-  return enqueue.mock.calls.map(([, message]) => message);
+const SUBJECTS = {
+  approval: "Approve your email address change",
+  deletion: "Confirm your account deletion",
+  verification: "Verify your email address"
+} as const;
+
+// Hooks enqueue after rendering, without awaiting; wait for the job.
+async function emailTo(to: string, subject: string) {
+  return vi.waitFor(() => {
+    const message = enqueue.mock.calls
+      .map(([, payload]) => payload)
+      .find((payload) => payload.to === to && payload.subject === subject);
+    if (!message) throw new Error(`no email "${subject}" to ${to}`);
+    return message;
+  });
 }
 
 function tokenIn(text: string): string {
@@ -118,9 +130,10 @@ function tokenIn(text: string): string {
 
 // Requests deletion, then confirms it with the token from the emailed link.
 async function deleteAccount(headers: Headers) {
+  const { user } = (await auth.api.getSession({ headers })) ?? {};
   await auth.api.deleteUser({ body: {}, headers });
-  const [confirmation] = sentEmails().slice(-1);
-  return auth.api.deleteUser({ body: { token: tokenIn(confirmation?.text ?? "") }, headers });
+  const confirmation = await emailTo(user?.email ?? "", SUBJECTS.deletion);
+  return auth.api.deleteUser({ body: { token: tokenIn(confirmation.text) }, headers });
 }
 
 beforeEach(() => {
@@ -139,10 +152,9 @@ describe("email change", () => {
     await auth.api.changeEmail({ body: { newEmail }, headers: user.headers });
 
     expect(await userRow(user.userId)).toEqual({ email: user.email });
-    const [verification] = sentEmails();
-    expect(verification?.to).toBe(newEmail);
+    const verification = await emailTo(newEmail, SUBJECTS.verification);
 
-    await auth.api.verifyEmail({ query: { token: tokenIn(verification?.text ?? "") } });
+    await auth.api.verifyEmail({ query: { token: tokenIn(verification.text) } });
 
     expect(await userRow(user.userId)).toEqual({ email: newEmail });
   });
@@ -158,9 +170,8 @@ describe("email change", () => {
     await auth.api.changeEmail({ body: { newEmail }, headers: user.headers });
 
     expect(await userRow(user.userId)).toEqual({ email: user.email });
-    const [notice] = sentEmails();
-    expect(notice?.to).toBe(user.email);
-    expect(notice?.text).toContain(newEmail);
+    const approval = await emailTo(user.email, SUBJECTS.approval);
+    expect(approval.text).toContain(newEmail);
   });
 });
 
@@ -172,12 +183,11 @@ describe("account deletion", () => {
 
     expect(requested.message).toBe("Verification email sent");
     expect(await userRow(user.userId)).toEqual({ email: user.email });
-    const [confirmation] = sentEmails();
-    expect(confirmation?.to).toBe(user.email);
-    expect(confirmation?.text).toContain("http://localhost:3000/account/delete?token=");
+    const confirmation = await emailTo(user.email, SUBJECTS.deletion);
+    expect(confirmation.text).toContain("http://localhost:3000/account/delete?token=");
 
     await auth.api.deleteUser({
-      body: { token: tokenIn(confirmation?.text ?? "") },
+      body: { token: tokenIn(confirmation.text) },
       headers: user.headers
     });
 
@@ -193,7 +203,10 @@ describe("account deletion", () => {
     await expect(auth.api.deleteUser({ body: {}, headers: owner.headers })).rejects.toMatchObject({
       body: { code: "SOLE_OWNER_OF_SHARED_ORGANIZATION", organizationName: "Acme" }
     });
-    expect(sentEmails()).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(
+      enqueue.mock.calls.filter(([, payload]) => payload.subject === SUBJECTS.deletion)
+    ).toEqual([]);
     expect(await userRow(owner.userId)).toEqual({ email: owner.email });
   });
 
@@ -202,12 +215,12 @@ describe("account deletion", () => {
     const member = await signUp("delete-late-joiner");
     const organizationId = await createOrganization(owner.headers, "Later");
     await auth.api.deleteUser({ body: {}, headers: owner.headers });
-    const [confirmation] = sentEmails();
+    const confirmation = await emailTo(owner.email, SUBJECTS.deletion);
     await addMember(organizationId, member.userId, "member");
 
     await expect(
       auth.api.deleteUser({
-        body: { token: tokenIn(confirmation?.text ?? "") },
+        body: { token: tokenIn(confirmation.text) },
         headers: owner.headers
       })
     ).rejects.toMatchObject({ body: { code: "SOLE_OWNER_OF_SHARED_ORGANIZATION" } });
