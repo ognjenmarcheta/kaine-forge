@@ -10,6 +10,10 @@ import type { TestDatabase } from "@repo/db/testing";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Each test signs users up through scrypt on PGlite, which can pass vitest's
+// 5 s default on a slow runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 // The real auth instance on an in-process Postgres with every migration
 // applied, so account changes run through better-auth's own routes.
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
