@@ -4,6 +4,8 @@ export interface AuthUser {
   id: string;
   name: string;
   twoFactorEnabled: boolean;
+  // False until the first-run onboarding ends; unset means nothing to show.
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthSession {

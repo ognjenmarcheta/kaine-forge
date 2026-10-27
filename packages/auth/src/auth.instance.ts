@@ -49,6 +49,7 @@ import {
 } from "./auth.config";
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
+import { onboardingPlugin } from "./auth.onboarding.plugin";
 import { hashPassword, verifyPassword } from "./auth.password";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
 import {
@@ -662,6 +663,12 @@ export function createAuthInstance() {
           required: false,
           input: true,
           validator: { input: z.enum(SUPPORTED_LANGUAGES) }
+        },
+        // When the web first-run onboarding ended; only onboardingPlugin sets it.
+        onboardingCompletedAt: {
+          type: "date",
+          required: false,
+          input: false
         }
       },
       changeEmail: {
@@ -880,6 +887,7 @@ export function createAuthInstance() {
       }),
       organizationOwnershipPlugin,
       accountPlugin,
+      onboardingPlugin,
       auditPlugin,
       userNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
