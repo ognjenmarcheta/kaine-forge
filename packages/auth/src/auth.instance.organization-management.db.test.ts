@@ -1,4 +1,4 @@
-import { membersTable, organizationsTable } from "@repo/db";
+import { invitationsTable, membersTable, organizationsTable } from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -195,6 +195,26 @@ describe("active organization actions", () => {
     const nextActive = await activeOrganizationId(mergeCookies(memberHeaders, response.headers));
     expect(nextActive).not.toBe(shared.organizationId);
     expect(await roleOf(nextActive ?? "", memberAccount.userId)).toBe("owner");
+  });
+});
+
+describe("owner role", () => {
+  it("refuses an invitation with the owner role and writes no invitation", async () => {
+    const owner = await signUp("invite-owner");
+    const shared = await createOrganization(owner.headers, "OwnerInvite");
+
+    await expect(
+      auth.api.createInvitation({
+        body: { email: "second-owner@example.com", role: "owner" },
+        headers: shared.headers
+      })
+    ).rejects.toMatchObject({ body: { code: "OWNER_ROLE_REQUIRES_TRANSFER" } });
+
+    const invitations = await testDatabase()
+      .db.select({ id: invitationsTable.id })
+      .from(invitationsTable)
+      .where(eq(invitationsTable.organizationId, shared.organizationId));
+    expect(invitations).toEqual([]);
   });
 });
 

@@ -272,8 +272,11 @@ const organizationGuardHook = createAuthMiddleware(async (ctx) => {
     throw refuse(ORGANIZATION_REFUSALS.ACTIVE_ORGANIZATION_MISMATCH);
   }
 
+  // An invite or a role change gives admin or member only; the role may be a
+  // string or an array.
   if (
-    ctx.path === "/organization/update-member-role" &&
+    (ctx.path === "/organization/update-member-role" ||
+      ctx.path === "/organization/invite-member") &&
     [body.role].flat().includes(ORGANIZATION_ROLES.OWNER)
   ) {
     throw refuse(ORGANIZATION_REFUSALS.OWNER_ROLE_REQUIRES_TRANSFER);
