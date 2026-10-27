@@ -11,6 +11,8 @@ export const AUTH_DEFINITIONS = {
   EMAIL_OTP_LENGTH: 6,
   EMAIL_OTP_MAX_AGE_SECONDS: 60 * 5,
   EMAIL_OTP_ALLOWED_ATTEMPTS: 3,
+  // User names appear in other people's inboxes (invitation emails).
+  USER_NAME_MAX_LENGTH: 64,
   // Issuer label authenticator apps show next to the TOTP entry.
   TWO_FACTOR_ISSUER: "Kaine Forge"
 } as const;

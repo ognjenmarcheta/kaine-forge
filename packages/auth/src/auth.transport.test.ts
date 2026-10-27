@@ -501,6 +501,23 @@ describe("createAuthTransport", () => {
     );
   });
 
+  it("signs up with the UI language as the language of the user's emails", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    await createAuthTransport({ adapter: createAdapter() }).signupWithPassword({
+      email: "user@example.com",
+      name: "User",
+      password: "secret",
+      locale: "de"
+    });
+
+    expect(client.signUp.email).toHaveBeenCalledWith(
+      { email: "user@example.com", name: "User", password: "secret", locale: "de" },
+      undefined
+    );
+  });
+
   it("throws a stable auth request error for failed requests", async () => {
     const client = createClientStub();
     client.signIn.email.mockResolvedValue({

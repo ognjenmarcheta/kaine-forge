@@ -43,6 +43,8 @@ export interface SignupInput extends CaptchaInput {
   email: string;
   name: string;
   password: string;
+  /** Language of the user's emails; the server accepts en, sr, or de. */
+  locale?: string | undefined;
 }
 
 export type TwoFactorMethod = "totp" | "otp";

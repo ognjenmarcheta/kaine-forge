@@ -30,7 +30,7 @@
   "email.emailOtp.body": "Unesite ovaj kod da nastavite. Ističe za {{minutes}} minuta.",
   "email.emailOtp.ignore": "Ako niste tražili ovaj kod, zanemarite ovaj email.",
   "email.welcome.subject": "Dobro došli u {{appName}}",
-  "email.welcome.heading": "Dobro došli, {{name}}",
+  "email.welcome.heading": "Dobro došli u {{appName}}",
   "email.welcome.body": "Vaš nalog je spreman. Vaša lična organizacija je podešena, pa možete odmah da počnete.",
   "email.welcome.action": "Otvori {{appName}}",
   "email.securityAlert.action": "Pregledajte bezbednosna podešavanja",
