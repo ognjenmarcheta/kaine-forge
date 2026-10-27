@@ -19,6 +19,7 @@ try {
 const { db, pool } = await import("@repo/db/client");
 const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
+const { registerApiShutdown } = await import("./api.shutdown");
 const { createApiServer } = await import("./server");
 const { resolveApiStartupConfig } = await import("./startup.config");
 const { startAttachmentSweep, sweepAttachmentObjects, sweepStaleObjects, withSweepLock } =
@@ -27,7 +28,7 @@ const { PUBLIC_ASSET_CONFIG } = await import("./features/public-assets/public-as
 const { s3ObjectStore } = await import("./features/storage/attachment.store");
 const { resolveAttachmentSweepConfig } = await import("./features/storage/storage.config");
 
-await startApiRuntime({
+const { server, subscriptions, wsServer } = await startApiRuntime({
   createServer: createApiServer,
   exit: process.exit,
   logger,
@@ -43,10 +44,11 @@ await startApiRuntime({
   }
 });
 
+const stopBackgroundWork: Array<() => void | Promise<void>> = [];
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {
-  startAttachmentSweep({
+  const stopSweep = startAttachmentSweep({
     intervalMs: sweep.intervalMs,
     logger,
     sweep: async () => {
@@ -71,4 +73,16 @@ if (sweep) {
       });
     }
   });
+  stopBackgroundWork.push(stopSweep);
 }
+
+registerApiShutdown({
+  closePool: () => pool.end(),
+  exit: process.exit,
+  logger,
+  server,
+  stopBackgroundWork,
+  subscriptions,
+  timeoutMs: env.API_SHUTDOWN_TIMEOUT_MS,
+  wsServer
+});

@@ -21,6 +21,7 @@ describe("validateApiEnv", () => {
   it("applies defaults and coerces numeric values", () => {
     expect(validateApiEnv(validEnv).API_PORT).toBe(4000);
     expect(validateApiEnv({ ...validEnv, API_PORT: "5001" }).API_PORT).toBe(5001);
+    expect(validateApiEnv(validEnv).API_SHUTDOWN_TIMEOUT_MS).toBe(8000);
   });
 
   it("treats blank coerced values as unset", () => {

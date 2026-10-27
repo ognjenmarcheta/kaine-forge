@@ -213,7 +213,7 @@ export function createApiServer({
 
   const wsServer = new WebSocketServer({ server, path: "/graphql" });
 
-  useServer(
+  const subscriptions = useServer(
     {
       schema: apiSchema,
       context: async (ctx) => {
@@ -240,6 +240,7 @@ export function createApiServer({
 
   return {
     server,
+    subscriptions,
     yoga,
     wsServer
   };
