@@ -1,5 +1,12 @@
 # @repo/email
 
+## 1.2.1
+
+### Patch Changes
+
+- Updated dependencies [46d5bd6]
+  - @repo/logger@1.2.0
+
 ## 1.2.0
 
 ### Minor Changes
