@@ -17,6 +17,9 @@ try {
 }
 
 const { db, pool } = await import("@repo/db/client");
+const { createEmailSender } = await import("@repo/email");
+const { createJobHandlers } = await import("@repo/jobs");
+const { jobQueue } = await import("@repo/jobs/client");
 const { runMigrations } = await import("@repo/db/migrate");
 const { startApiRuntime } = await import("./api.runtime");
 const { registerApiShutdown } = await import("./api.shutdown");
@@ -45,6 +48,22 @@ const { server, subscriptions, wsServer } = await startApiRuntime({
 });
 
 const stopBackgroundWork: Array<() => void | Promise<void>> = [];
+
+// Called before the first event-loop turn after listen, so a request that
+// enqueues finds start() in flight and waits for it (ADR 0018).
+try {
+  await jobQueue.start();
+
+  if (env.JOBS_RUNNER_ENABLED === "true") {
+    await jobQueue.startRunner(createJobHandlers({ emailSender: createEmailSender() }));
+  } else {
+    logger.info("job runner disabled; this process only enqueues jobs");
+  }
+} catch (error) {
+  logger.error({ err: error }, "job queue failed to start");
+  process.exit(1);
+}
+stopBackgroundWork.push(() => jobQueue.stop());
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {

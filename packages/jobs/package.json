@@ -1,0 +1,43 @@
+{
+  "name": "@repo/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/jobs.client.d.ts",
+      "default": "./dist/jobs.client.js"
+    }
+  },
+  "scripts": {
+    "dev": "echo \"@repo/jobs has no dev runtime\"",
+    "build": "tsc -b tsconfig.build.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/email": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "pg-boss": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@repo/config": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

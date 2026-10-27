@@ -20,6 +20,9 @@
     },
     {
       "path": "../email/tsconfig.build.json"
+    },
+    {
+      "path": "../jobs/tsconfig.build.json"
     }
   ]
 }

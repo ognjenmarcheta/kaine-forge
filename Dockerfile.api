@@ -38,10 +38,12 @@ RUN pnpm turbo run build --filter=@repo/api... \
     packages/db/dist \
     packages/email/dist \
     packages/feature-flags/dist \
+    packages/jobs/dist \
     packages/logger/dist \
     packages/storage/dist \
     packages/translation/dist \
-  && test -f apps/api/dist/index.js
+  && test -f apps/api/dist/index.js \
+  && test -f apps/api/dist/worker.js
 
 FROM base AS runner
 WORKDIR /app
@@ -58,6 +60,7 @@ COPY --from=builder /app/packages/db/dist/ ./packages/db/dist/
 COPY --from=builder /app/packages/db/drizzle/ ./packages/db/drizzle/
 COPY --from=builder /app/packages/email/dist/ ./packages/email/dist/
 COPY --from=builder /app/packages/feature-flags/dist/ ./packages/feature-flags/dist/
+COPY --from=builder /app/packages/jobs/dist/ ./packages/jobs/dist/
 COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
 COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
@@ -78,4 +81,6 @@ USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:4000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# The job worker runs from this same image: override the command with
+# `node apps/api/dist/worker.js` and set JOBS_RUNNER_ENABLED=false on the API (ADR 0018).
 CMD ["node", "apps/api/dist/index.js"]

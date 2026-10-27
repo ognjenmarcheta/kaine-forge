@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {},
+    "tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo"
+  },
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*test-helpers*.ts"
+  ],
+  "references": [
+    {
+      "path": "../db/tsconfig.build.json"
+    },
+    {
+      "path": "../email/tsconfig.build.json"
+    },
+    {
+      "path": "../logger/tsconfig.build.json"
+    }
+  ]
+}

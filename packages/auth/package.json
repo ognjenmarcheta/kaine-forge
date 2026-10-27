@@ -76,6 +76,7 @@
     "@better-auth/expo": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/email": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"

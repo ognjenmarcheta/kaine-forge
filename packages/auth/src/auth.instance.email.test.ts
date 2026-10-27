@@ -6,17 +6,11 @@ vi.stubEnv("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/dummy");
 vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret-1234");
 vi.stubEnv("BETTER_AUTH_URL", "http://localhost:4000");
 
-const emailMocks = vi.hoisted(() => {
-  const send = vi.fn();
+const jobMocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
 
-  return {
-    send,
-    createEmailSender: vi.fn(() => ({ send }))
-  };
-});
-
-vi.mock("@repo/email", () => ({
-  createEmailSender: emailMocks.createEmailSender
+// Hooks enqueue an email job; the job runner delivers it (ADR 0018).
+vi.mock("@repo/jobs/client", () => ({
+  jobQueue: { enqueue: jobMocks.enqueue }
 }));
 
 const { AUTH_DEFINITIONS } = await import("./auth.definition");
@@ -77,33 +71,27 @@ async function sendInvitation(email: string): Promise<void> {
 
 describe("auth.instance email hooks", () => {
   beforeEach(() => {
-    emailMocks.send.mockReset();
-    emailMocks.send.mockResolvedValue(undefined);
+    jobMocks.enqueue.mockReset();
+    jobMocks.enqueue.mockResolvedValue("job-1");
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("constructs a single email sender shared by every hook", () => {
-    createAuthInstance();
-
-    expect(emailMocks.createEmailSender).toHaveBeenCalledTimes(1);
-  });
-
-  it("sends the password reset email with the url and raw token", async () => {
+  it("enqueues the password reset email with the url and raw token", async () => {
     const sendResetPassword = auth.options.emailAndPassword?.sendResetPassword;
 
     expect(sendResetPassword).toBeTypeOf("function");
 
     await sendResetPassword?.({ user, url: "http://localhost:4000/reset?token=tok", token: "tok" });
 
-    expect(emailMocks.send).toHaveBeenCalledWith({
+    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
       to: "user@example.com",
       subject: "Reset your password",
       text: expect.stringContaining("http://localhost:4000/reset?token=tok")
     });
-    expect(emailMocks.send.mock.calls[0]?.[0]?.text).toContain("tok");
+    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("tok");
   });
 
   it("mirrors the legacy password reset token lifetime", () => {
@@ -112,15 +100,15 @@ describe("auth.instance email hooks", () => {
     );
   });
 
-  it("resolves the password reset hook even when delivery fails", async () => {
-    emailMocks.send.mockRejectedValue(new Error("smtp host secret leaked"));
+  it("resolves the password reset hook even when enqueue fails", async () => {
+    jobMocks.enqueue.mockRejectedValue(new Error("database unavailable"));
 
     await expect(
       auth.options.emailAndPassword?.sendResetPassword?.({ user, url: "http://u", token: "tok" })
     ).resolves.toBeUndefined();
   });
 
-  it("sends the verification email with the url and raw token", async () => {
+  it("enqueues the verification email with the url and raw token", async () => {
     const sendVerificationEmail = auth.options.emailVerification?.sendVerificationEmail;
 
     expect(sendVerificationEmail).toBeTypeOf("function");
@@ -131,12 +119,12 @@ describe("auth.instance email hooks", () => {
       token: "vtok"
     });
 
-    expect(emailMocks.send).toHaveBeenCalledWith({
+    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
       to: "user@example.com",
       subject: "Verify your email address",
       text: expect.stringContaining("http://localhost:4000/verify?token=vtok")
     });
-    expect(emailMocks.send.mock.calls[0]?.[0]?.text).toContain("vtok");
+    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("vtok");
   });
 
   it("mirrors the legacy email verification token lifetime", () => {
@@ -145,8 +133,8 @@ describe("auth.instance email hooks", () => {
     );
   });
 
-  it("resolves the verification hook even when delivery fails", async () => {
-    emailMocks.send.mockRejectedValue(new Error("smtp host secret leaked"));
+  it("resolves the verification hook even when enqueue fails", async () => {
+    jobMocks.enqueue.mockRejectedValue(new Error("database unavailable"));
 
     await expect(
       auth.options.emailVerification?.sendVerificationEmail?.({
@@ -178,7 +166,7 @@ describe("auth.instance email hooks", () => {
   });
 
   it.each(["sign-in", "forget-password"] as const)(
-    "emails the %s one-time code to the requested address",
+    "enqueues the %s one-time code email to the requested address",
     async (type) => {
       const plugin = (auth.options.plugins ?? []).find((entry) => entry.id === "email-otp") as
         { options?: { sendVerificationOTP?: (data: EmailOtpData) => Promise<void> } } | undefined;
@@ -190,7 +178,8 @@ describe("auth.instance email hooks", () => {
       });
 
       await vi.waitFor(() => {
-        expect(emailMocks.send).toHaveBeenCalledWith(
+        expect(jobMocks.enqueue).toHaveBeenCalledWith(
+          "email.send",
           expect.objectContaining({
             to: "user@example.com",
             text: expect.stringContaining("482913")
@@ -200,7 +189,7 @@ describe("auth.instance email hooks", () => {
     }
   );
 
-  it("emails the two-factor code to the signed-in user", async () => {
+  it("enqueues the two-factor code email to the signed-in user", async () => {
     const plugin = (auth.options.plugins ?? []).find((entry) => entry.id === "two-factor") as
       | {
           options?: {
@@ -212,25 +201,26 @@ describe("auth.instance email hooks", () => {
     plugin?.options?.otpOptions?.sendOTP?.({ user, otp: "731045" });
 
     await vi.waitFor(() => {
-      expect(emailMocks.send).toHaveBeenCalledWith(
+      expect(jobMocks.enqueue).toHaveBeenCalledWith(
+        "email.send",
         expect.objectContaining({ to: "user@example.com", text: expect.stringContaining("731045") })
       );
     });
   });
 
-  it("emails the invited address with the organization name and invitation id", async () => {
+  it("enqueues the invitation email with the organization name and invitation id", async () => {
     await sendInvitation("invited@example.com");
 
-    expect(emailMocks.send).toHaveBeenCalledWith({
+    expect(jobMocks.enqueue).toHaveBeenCalledWith("email.send", {
       to: "invited@example.com",
       subject: expect.stringContaining("Acme"),
       text: expect.stringContaining("inv-1")
     });
-    expect(emailMocks.send.mock.calls[0]?.[0]?.text).toContain("Acme");
+    expect(jobMocks.enqueue.mock.calls[0]?.[1]?.text).toContain("Acme");
   });
 
-  it("resolves the invitation hook even when delivery fails", async () => {
-    emailMocks.send.mockRejectedValue(new Error("smtp host secret leaked"));
+  it("resolves the invitation hook even when enqueue fails", async () => {
+    jobMocks.enqueue.mockRejectedValue(new Error("database unavailable"));
 
     await expect(sendInvitation("invited@example.com")).resolves.toBeUndefined();
   });
