@@ -10,10 +10,14 @@ import { NotificationBell } from "./components/notification-bell";
 import { NotificationPreferences } from "./components/notification-preferences";
 
 const api = vi.hoisted(() => ({
-  calls: vi.fn<(operation: string, variables: unknown) => void>()
+  calls: vi.fn<(operation: string, variables: unknown) => void>(),
+  // How the Notifications query answers: a page, an empty `data` object (an
+  // API without the field), or a failed request.
+  inbox: "page" as "page" | "empty" | "failed"
 }));
 
 const INVITATION_PAGE = "invitation page";
+const SHELL_CONTENT = "shell content";
 
 const UNREAD_INVITATION = {
   createdAt: "2026-10-27T10:00:00.000Z",
@@ -49,6 +53,8 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
 
     switch (operation) {
       case "Notifications":
+        if (api.inbox === "empty") return Promise.resolve({});
+        if (api.inbox === "failed") return Promise.reject(new Error("Unavailable"));
         return Promise.resolve({
           notifications: {
             items: [UNREAD_INVITATION, READ_ROLE_CHANGE],
@@ -94,6 +100,7 @@ afterEach(async () => {
   client.clear();
   container.remove();
   api.calls.mockClear();
+  api.inbox = "page";
   vi.unstubAllGlobals();
 });
 
@@ -129,7 +136,7 @@ async function openInbox() {
   await act(async () => {
     bell()?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
   });
-  await settleUntil(() => document.querySelectorAll("[role='menuitem']").length > 0);
+  await settleUntil(() => document.querySelector("[role='menu']") !== null);
 }
 
 function menuItems(): string[] {
@@ -152,6 +159,29 @@ it("names the bell with the unread count and lists translated Notifications", as
     expect.stringMatching(/^Your role in Beta is now owner\.Oct 26, 2026/)
   ]);
 });
+
+it.each(["empty", "failed"] as const)(
+  "keeps the shell rendering when the inbox query answers %s",
+  async (inbox) => {
+    api.inbox = inbox;
+    await render(
+      <>
+        <NotificationBell />
+        <p>{SHELL_CONTENT}</p>
+      </>
+    );
+    await settleUntil(() =>
+      api.calls.mock.calls.some(([operation]) => operation === "Notifications")
+    );
+    await openInbox();
+
+    expect(container.textContent).toContain(SHELL_CONTENT);
+    expect(bell()?.getAttribute("aria-label")).toBe("Notifications");
+    expect(document.querySelector("[role='alert']")?.textContent).toBe(
+      "Notifications could not be loaded."
+    );
+  }
+);
 
 it("marks an Invitation Notification read and opens the Invitation", async () => {
   await render(<NotificationBell />);
