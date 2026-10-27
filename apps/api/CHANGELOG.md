@@ -1,5 +1,24 @@
 # @repo/api
 
+## 1.13.0
+
+### Minor Changes
+
+- 02548ca: Purge expired auth rows on an interval: expired sessions and verification rows, and Invitations more than 30 days past expiry. One API replica runs it at a time through a Postgres advisory lock. It is on by default; `HOUSEKEEPING_ENABLED=false` turns it off and `HOUSEKEEPING_INTERVAL_MS` changes the hourly interval.
+- 314c3dd: The API now shuts down gracefully on `SIGTERM` or `SIGINT`. It stops accepting connections, lets in-flight requests finish, closes GraphQL WebSocket clients with code 1001, stops the Attachment sweep, and closes the database pool, then exits with code 0. A new optional `API_SHUTDOWN_TIMEOUT_MS` (default 8000) bounds the drain; when it expires, the API force-closes the remaining connections and exits with code 1.
+- 46d5bd6: Every HTTP request to the API, including `/api/auth/*`, `/health`, and 429 responses, now gets a request id. The API reuses an incoming `x-request-id` of 1 to 128 characters from `[A-Za-z0-9._-]` and otherwise generates a UUID. The id comes back in the `x-request-id` response header, which CORS exposes to browser clients, and it is bound to every log line for the request. One `request completed` line per request records `method`, `path`, `status`, `durationMs`, and `requestId`; `/health` completion lines log at `debug`. Each GraphQL WebSocket connection logs a `connectionId` on connect and disconnect. The Yoga `request started` line is removed. `createLogger` now redacts `authorization`, `cookie`, and `set-cookie` header values as `[redacted]`.
+
+### Patch Changes
+
+- Updated dependencies [07b9031]
+- Updated dependencies [12ad7c5]
+- Updated dependencies [46d5bd6]
+- Updated dependencies [2ddc1a9]
+  - @repo/db@1.8.1
+  - @repo/translation@1.10.0
+  - @repo/logger@1.2.0
+  - @repo/auth@3.0.3
+
 ## 1.12.1
 
 ### Patch Changes

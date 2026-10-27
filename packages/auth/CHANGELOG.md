@@ -1,5 +1,13 @@
 # @repo/auth
 
+## 3.0.3
+
+### Patch Changes
+
+- Updated dependencies [07b9031]
+  - @repo/db@1.8.1
+  - @repo/email@1.2.1
+
 ## 3.0.2
 
 ### Patch Changes
