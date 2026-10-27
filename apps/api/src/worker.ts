@@ -19,13 +19,12 @@ try {
 }
 
 const { pool } = await import("@repo/db/client");
-const { createEmailSender } = await import("@repo/email");
-const { createJobHandlers } = await import("@repo/jobs");
 const { jobQueue } = await import("@repo/jobs/client");
+const { createApiJobHandlers } = await import("./api.jobs");
 
 try {
   await jobQueue.start();
-  await jobQueue.startRunner(createJobHandlers({ emailSender: createEmailSender() }));
+  await jobQueue.startRunner(createApiJobHandlers(logger));
 } catch (error) {
   logger.error({ err: error }, "job worker failed to start");
   process.exit(1);

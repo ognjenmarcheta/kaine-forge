@@ -80,13 +80,18 @@ const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"]
 // Fields about the caller as a user, whatever their Active Organization: they
 // require a session but no Active Organization, and take the user from the
 // session. features/notifications/notifications.tenancy.test.ts proves their rows.
+// The data export fields are user-level for kind user; for kind organization
+// they take the Active Organization, which data-export.module.test.ts proves.
 const USER_LEVEL_FIELDS = [
   "Query.notifications",
   "Query.notificationPreferences",
   "Mutation.markNotificationRead",
   "Mutation.markAllNotificationsRead",
   "Mutation.updateNotificationPreference",
-  "Subscription.notificationReceived"
+  "Subscription.notificationReceived",
+  "Query.dataExports",
+  "Mutation.requestDataExport",
+  "Mutation.dataExportDownloadUrl"
 ];
 const ORGANIZATION_ID_NAME = /organi[sz]ation|^org(?:id)?$|tenant/i;
 const USER_ID_NAME = /^user(?:id)?$|recipient/i;

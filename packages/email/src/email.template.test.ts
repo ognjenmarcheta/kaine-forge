@@ -251,6 +251,13 @@ const cases: TemplateCase[] = [
     subject: "Deine Rolle in Acme hat sich geändert",
     phrase: "Du bist jetzt Inhaber von Acme.",
     token: MEMBERS_URL
+  },
+  {
+    email: { template: "dataExportReady", url: MEMBERS_URL, expiresInDays: 7 },
+    locale: "sr",
+    subject: "Izvoz vaših podataka je spreman",
+    phrase: "Arhiva se briše za 7 dana.",
+    token: MEMBERS_URL
   }
 ];
 

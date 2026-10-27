@@ -17,6 +17,7 @@ type Query {
   auditEvents(first: Int, after: String): AuditEventConnection!
   notifications(first: Int, after: String): NotificationConnection!
   notificationPreferences: [NotificationPreference!]!
+  dataExports(kind: DataExportKind!, first: Int, after: String): DataExportConnection!
 }
 
 type Mutation {
@@ -40,6 +41,8 @@ type Mutation {
   markNotificationRead(id: ID!): Notification!
   markAllNotificationsRead: Int!
   updateNotificationPreference(input: NotificationPreferenceInput!): NotificationPreference!
+  requestDataExport(kind: DataExportKind!): DataExport!
+  dataExportDownloadUrl(id: ID!): String!
 }
 
 type Subscription {
@@ -308,6 +311,7 @@ enum AuditAction {
   ownership_transferred
   organization_renamed
   organization_deleted
+  organization_exported
   invitation_revoked
   two_factor_enabled
   two_factor_disabled
@@ -386,4 +390,32 @@ input NotificationPreferenceInput {
   type: NotificationType!
   inApp: Boolean!
   email: Boolean!
+}
+
+enum DataExportKind {
+  user
+  organization
+}
+
+enum DataExportStatus {
+  pending
+  running
+  ready
+  failed
+  expired
+}
+
+type DataExport {
+  id: ID!
+  kind: DataExportKind!
+  status: DataExportStatus!
+  sizeBytes: Int
+  createdAt: DateTime!
+  completedAt: DateTime
+  expiresAt: DateTime
+}
+
+type DataExportConnection {
+  items: [DataExport!]!
+  pageInfo: PageInfo!
 }

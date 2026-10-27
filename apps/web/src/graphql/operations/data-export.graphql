@@ -1,0 +1,28 @@
+query DataExports($kind: DataExportKind!, $first: Int) {
+  dataExports(kind: $kind, first: $first) {
+    items {
+      id
+      kind
+      status
+      sizeBytes
+      createdAt
+      completedAt
+      expiresAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+mutation RequestDataExport($kind: DataExportKind!) {
+  requestDataExport(kind: $kind) {
+    id
+    status
+  }
+}
+
+mutation DataExportDownloadUrl($id: ID!) {
+  dataExportDownloadUrl(id: $id)
+}

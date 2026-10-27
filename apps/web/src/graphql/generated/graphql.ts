@@ -16,6 +16,7 @@ export type AuditAction =
   | "member_removed"
   | "member_role_changed"
   | "organization_deleted"
+  | "organization_exported"
   | "organization_renamed"
   | "ownership_transferred"
   | "password_changed"
@@ -34,6 +35,10 @@ export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
 };
+
+export type DataExportKind = "organization" | "user";
+
+export type DataExportStatus = "expired" | "failed" | "pending" | "ready" | "running";
 
 export type FileStatus = "deleted" | "pending" | "uploaded";
 
@@ -172,6 +177,40 @@ export type AuditEventsQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type DataExportsQueryVariables = Exact<{
+  kind: DataExportKind;
+  first?: number | null | undefined;
+}>;
+
+export type DataExportsQuery = {
+  dataExports: {
+    items: Array<{
+      id: string;
+      kind: DataExportKind;
+      status: DataExportStatus;
+      sizeBytes: number | null;
+      createdAt: unknown;
+      completedAt: unknown;
+      expiresAt: unknown;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+
+export type RequestDataExportMutationVariables = Exact<{
+  kind: DataExportKind;
+}>;
+
+export type RequestDataExportMutation = {
+  requestDataExport: { id: string; status: DataExportStatus };
+};
+
+export type DataExportDownloadUrlMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+export type DataExportDownloadUrlMutation = { dataExportDownloadUrl: string };
 
 export type GetNotesQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -1039,6 +1078,163 @@ export const HealthDocument = {
     }
   ]
 } as unknown as DocumentNode<HealthQuery, HealthQueryVariables>;
+export const DataExportsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "DataExports" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "kind" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "DataExportKind" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "dataExports" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "kind" },
+                value: { kind: "Variable", name: { kind: "Name", value: "kind" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "completedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "expiresAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DataExportsQuery, DataExportsQueryVariables>;
+export const RequestDataExportDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "RequestDataExport" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "kind" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "DataExportKind" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "requestDataExport" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "kind" },
+                value: { kind: "Variable", name: { kind: "Name", value: "kind" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<RequestDataExportMutation, RequestDataExportMutationVariables>;
+export const DataExportDownloadUrlDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "DataExportDownloadUrl" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "dataExportDownloadUrl" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<DataExportDownloadUrlMutation, DataExportDownloadUrlMutationVariables>;
 export const GetNotesDocument = {
   kind: "Document",
   definitions: [

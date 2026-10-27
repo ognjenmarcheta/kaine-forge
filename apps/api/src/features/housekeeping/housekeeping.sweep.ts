@@ -5,14 +5,10 @@ import { inArray, lt, sql } from "drizzle-orm";
 
 import { HOUSEKEEPING_CONFIG } from "./housekeeping.definition";
 
-interface PurgeCounts {
-  sessions: number;
-  verifications: number;
-  invitations: number;
-}
+type PurgeCounts = Record<"sessions" | "verifications" | "invitations", number>;
 
-/** Deletes up to `limit` rows of one table and resolves how many it deleted. */
-type BatchPurge = (tx: Database, limit: number) => Promise<number>;
+/** Removes up to `limit` rows of one kind and resolves how many it removed. */
+export type BatchPurge = (tx: Database, limit: number) => Promise<number>;
 
 function batchPurges(now: Date): Array<[keyof PurgeCounts, BatchPurge]> {
   const invitationCutoff = new Date(now.getTime() - HOUSEKEEPING_CONFIG.invitationRetentionMs);
@@ -83,19 +79,34 @@ export async function purgeExpiredAuthRows({
   now: Date;
   batchSize?: number;
 }): Promise<PurgeCounts> {
-  const counts: PurgeCounts = { sessions: 0, verifications: 0, invitations: 0 };
+  return runBatchPurges(db, batchPurges(now), batchSize);
+}
 
-  for (const [table, purge] of batchPurges(now)) {
+/**
+ * Runs each purge in batches of `batchSize` until a batch comes back short.
+ * Each batch runs in its own transaction under the housekeeping advisory
+ * lock; when another replica holds the lock, the run stops and resolves the
+ * counts so far, with zero for every purge it did not reach.
+ */
+export async function runBatchPurges<TName extends string>(
+  db: Database,
+  purges: Array<[TName, BatchPurge]>,
+  batchSize: number
+): Promise<Record<TName, number>> {
+  // SAFETY: fromEntries keys are exactly the purge names, each set to 0.
+  const counts = Object.fromEntries(purges.map(([name]) => [name, 0])) as Record<TName, number>;
+
+  for (const [name, purge] of purges) {
     for (;;) {
-      const deleted = await withHousekeepingLock(db, (tx) => purge(tx, batchSize));
+      const removed = await withHousekeepingLock(db, (tx) => purge(tx, batchSize));
 
-      if (deleted === null) {
+      if (removed === null) {
         return counts;
       }
 
-      counts[table] += deleted;
+      counts[name] += removed;
 
-      if (deleted < batchSize) {
+      if (removed < batchSize) {
         break;
       }
     }
@@ -133,17 +144,18 @@ function isLockedRow(row: unknown): boolean {
 }
 
 /**
- * Purges expired auth rows every `intervalMs`, never two runs at once in this
- * process. Returns a stop function.
+ * Calls `run` every `intervalMs`, never two runs at once in this process, and
+ * logs what it removed. Returns a stop function.
  */
 export function startHousekeeping({
-  db,
   intervalMs,
-  logger
+  logger,
+  run
 }: {
-  db: Database;
   intervalMs: number;
   logger: Pick<Logger, "error" | "info">;
+  /** One housekeeping pass; resolves how many rows of each kind it removed. */
+  run: (now: Date) => Promise<Record<string, number>>;
 }): () => void {
   let running = false;
 
@@ -153,10 +165,10 @@ export function startHousekeeping({
     }
 
     running = true;
-    purgeExpiredAuthRows({ db, now: new Date() })
+    run(new Date())
       .then((counts) => {
-        if (counts.sessions > 0 || counts.verifications > 0 || counts.invitations > 0) {
-          logger.info(counts, "housekeeping purged expired auth rows");
+        if (Object.values(counts).some((count) => count > 0)) {
+          logger.info(counts, "housekeeping removed expired rows");
         }
       })
       .catch((error: unknown) => {

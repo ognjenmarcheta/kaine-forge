@@ -118,7 +118,7 @@ const SUBJECTS = {
 async function emailTo(to: string, subject: string) {
   return vi.waitFor(() => {
     const message = enqueue.mock.calls
-      .map(([, payload]) => payload)
+      .flatMap(([, payload]) => ("to" in payload ? [payload] : []))
       .find((payload) => payload.to === to && payload.subject === subject);
     if (!message) throw new Error(`no email "${subject}" to ${to}`);
     return message;
@@ -256,7 +256,9 @@ describe("account deletion", () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(
-      enqueue.mock.calls.filter(([, payload]) => payload.subject === SUBJECTS.deletion)
+      enqueue.mock.calls.filter(
+        ([, payload]) => "subject" in payload && payload.subject === SUBJECTS.deletion
+      )
     ).toEqual([]);
     expect(await userRow(owner.userId)).toEqual({ email: owner.email });
   });
