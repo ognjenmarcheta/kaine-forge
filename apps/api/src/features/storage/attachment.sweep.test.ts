@@ -291,6 +291,58 @@ describe("sweepDeletedOrganizations", () => {
       .where(eq(organizationStoragePurgesTable.organizationId, withLogo.id));
   });
 
+  it("does not let a row that keeps failing block a later organization's purge", async () => {
+    const [stuck, later] = await database.db
+      .insert(organizationsTable)
+      .values([
+        {
+          name: "Stuck",
+          slug: "sweep-stuck",
+          userId,
+          logo: "https://cdn.example.test/organization-logos/stuck-forever.webp"
+        },
+        { name: "Later", slug: "sweep-later", userId }
+      ])
+      .returning();
+    if (!stuck || !later) throw new Error("failed to seed organizations");
+    const memory = createMemoryObjectStore("uploads");
+    memory.upload(
+      { bucket: "uploads", key: `${later.id}/todo/a/a.png` },
+      { contentType: "image/png", sizeBytes: 8, lastModified: before }
+    );
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, stuck.id));
+    await database.db.delete(organizationsTable).where(eq(organizationsTable.id, later.id));
+    // The stuck row is the oldest, so a batch of one always selects it first.
+    await database.db
+      .update(organizationStoragePurgesTable)
+      .set({ createdAt: before })
+      .where(eq(organizationStoragePurgesTable.organizationId, stuck.id));
+    const sweep = () =>
+      sweepDeletedOrganizations({
+        db: database.db,
+        logger,
+        store: {
+          ...memory,
+          delete: async (ref: { bucket: string; key: string }) => {
+            if (ref.bucket === publicStorage.bucket) throw new Error("cdn bucket denied");
+            await memory.delete(ref);
+          }
+        },
+        publicStorage,
+        pendingCutoff: new Date(Date.now() + 60_000),
+        batchSize: 1
+      });
+
+    await sweep();
+    await sweep();
+
+    expect(memory.keys()).toEqual([]);
+    expect(await queuedPurges()).toEqual([{ organizationId: stuck.id }]);
+    await database.db
+      .delete(organizationStoragePurgesTable)
+      .where(eq(organizationStoragePurgesTable.organizationId, stuck.id));
+  });
+
   it("keeps the purge queued while an object delete fails", async () => {
     const [failing] = await database.db
       .insert(organizationsTable)
