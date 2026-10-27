@@ -24,6 +24,8 @@ jobs:
     name: Version and Release
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    outputs:
+      images: ${{ steps.images.outputs.matrix }}
     services:
       postgres:
         image: postgres:17
@@ -156,3 +158,172 @@ jobs:
               gh release create "$tag" --title "$tag" --generate-notes
             fi
           done <<< "$TAGS"
+
+      # Each top-level Dockerfile.<app> is a deployable app whose version tag is
+      # @repo/<app>@<version>. publish-images builds one image per such tag at HEAD;
+      # `[]` (no app tag, or a version-PR run) skips that job.
+      - name: List app images to publish
+        id: images
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2016 # Node, not the shell, expands the JS template literals.
+          git tag --points-at HEAD | node -e '
+            const fs = require("node:fs");
+            const images = fs.readFileSync(0, "utf8").split("\n").flatMap((tag) => {
+              const match = /^@repo\/([a-z0-9-]+)@(.+)$/.exec(tag);
+              return match && fs.existsSync(`Dockerfile.${match[1]}`)
+                ? [{ app: match[1], version: match[2], tag }]
+                : [];
+            });
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(images)}\n`);
+          '
+
+  # Builds the tagged app image, gates it on the same Trivy CRITICAL scan as the
+  # PR docker-images job, then pushes the scanned image to GHCR. Never runs for
+  # pull requests (no trigger here), forks, other refs, or runs without app tags.
+  publish-images:
+    name: Publish Image (${{ matrix.app }})
+    if: >-
+      needs.release.outputs.images != '' &&
+      needs.release.outputs.images != '[]' &&
+      github.ref == 'refs/heads/main' &&
+      !github.event.repository.fork
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    needs: release
+    # The only job with packages: write; it replaces the workflow-level grant.
+    permissions:
+      # Appends the digest to the GitHub Release notes and uploads the SBOM.
+      contents: write
+      # Pushes to ghcr.io with GITHUB_TOKEN.
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.release.outputs.images) }}
+    env:
+      APP: ${{ matrix.app }}
+      VERSION: ${{ matrix.version }}
+      TAG: ${{ matrix.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ matrix.tag }}
+
+      # GHCR names must be lowercase: ghcr.io/<owner>/<repo>-<app>.
+      - name: Compute image name and tags
+        id: meta
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}-${APP}"
+          {
+            echo "image=$image"
+            echo "tags<<EOF"
+            echo "$image:$VERSION"
+            echo "$image:sha-$(git rev-parse --short=7 HEAD)"
+            echo "EOF"
+            echo "revision=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Same builder choice as the PR docker-images job (docs/self-hosted-ci.md).
+      - name: Detect shared BuildKit
+        id: buildkit
+        run: echo "endpoint=${BUILDKIT_HOST:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver: ${{ steps.buildkit.outputs.endpoint && 'remote' || 'docker-container' }}
+          endpoint: ${{ steps.buildkit.outputs.endpoint }}
+
+      - name: Compute apt refresh key
+        id: apt
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      # The web image keeps VITE_API_URL and VITE_GRAPHQL_URL empty, so the app
+      # calls same-origin /graphql and nginx proxies it to API_BACKEND_URL.
+      # Reads main's layer cache (docker-cache.yml) but does not write it.
+      - name: Build ${{ matrix.app }} image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.app }}
+          build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
+          tags: ${{ steps.meta.outputs.tags }}
+          # The source label links the GHCR package to this repository.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ matrix.version }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.revision }}
+          outputs: type=docker,dest=${{ runner.temp }}/${{ matrix.app }}.tar
+          cache-from: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,scope={0}', matrix.app) || '' }}
+
+      # The PR docker-images gate: a fixable CRITICAL finding fails the job
+      # before anything is pushed.
+      - name: Fail on fixable CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          input: ${{ runner.temp }}/${{ matrix.app }}.tar
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pushes the scanned tarball itself, not a rebuild, and reads the digest
+      # back from the registry.
+      - name: Push ${{ matrix.app }} image
+        id: push
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          docker load --input "$RUNNER_TEMP/$APP.tar"
+          while IFS= read -r ref; do
+            docker push "$ref"
+          done <<< "$TAGS"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "No digest for $IMAGE:$VERSION"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # A re-run finds the digest already in the notes and leaves them as they are.
+      - name: Record the digest in the summary and the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.meta.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2016 # The backticks are Markdown code spans.
+          note="$(printf '### Container image\n\n- Image: `%s:%s`\n- Digest: `%s`\n- Pull: `docker pull %s@%s`\n' \
+            "$IMAGE" "$VERSION" "$DIGEST" "$IMAGE" "$DIGEST")"
+          echo "$note" >> "$GITHUB_STEP_SUMMARY"
+          body="$(gh release view "$TAG" --json body --jq .body)"
+          if grep -qF "$DIGEST" <<< "$body"; then
+            echo "Release $TAG already lists $DIGEST"
+          else
+            gh release edit "$TAG" --notes "$(printf '%s\n\n%s\n' "$body" "$note")"
+          fi
+
+      # Reuses the Trivy binary and vulnerability DB from the gate above.
+      - name: Generate SBOM for ${{ matrix.app }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output: sbom-${{ matrix.app }}.spdx.json
+          skip-setup-trivy: true
+          cache: false
+
+      - name: Attach SBOM to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$TAG" "sbom-$APP.spdx.json" --clobber
