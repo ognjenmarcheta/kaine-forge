@@ -20,6 +20,10 @@ catalog:
   zustand: "^5.0.16"
   # Structured logging (packages/logger); apps/api tests capture its output.
   pino: "^9.6.0"
+  # Transactional email HTML and plain text (packages/email). The renderer only:
+  # @react-email/components is deprecated and its successor, react-email, ships the
+  # preview CLI (esbuild, socket.io, tailwindcss) as runtime dependencies.
+  "@react-email/render": "^2.1.1"
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
   "@tanstack/react-query": "^5.104.5"

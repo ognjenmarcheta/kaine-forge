@@ -231,7 +231,9 @@ Important runtime variables:
 
 **`API_CORS_ORIGINS` notes:** Dual-purpose (CORS + better-auth `trustedOrigins`). Missing browser origin → sign-in fails with `403 INVALID_ORIGIN` (looks like auth, not CORS). better-auth may pattern-match origins; our CORS reflection is exact-match—do not rely on wildcards. Development may omit the var (open CORS for local DX); production never does.
 
-**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes) need no other change.
+**Adding an email provider** (for example Brevo): implement `EmailSender` in `packages/email/src/email.<provider>.ts` and send both the `html` and `text` parts of each `EmailMessage`, add a branch for its `EMAIL_PROVIDER` value in `createEmailSender` (`email.config.ts`) that reads and validates its env vars, and add those vars to `.env.example` and `apps/api/src/env.config.ts`. Auth emails (reset, verification, invitations, one-time codes, welcome, security alerts) need no other change.
+
+**Adding an email**: add a variant to `EmailTemplate` in `packages/email/src/email.template.tsx` and its copy to the `email` namespace in `packages/translation` (`en`, `sr`, `de`). Render it with `renderEmail(template, locale)` and enqueue the result as an `email.send` job; never call `EmailSender.send` from a request path.
 
 Auth is cookie-first (`kaine.session_token`). The API also accepts `Authorization: Bearer <session-token>` for desktop, webview, and cross-origin cases. Password reset uses better-auth routes (`/api/auth/request-password-reset`, `/api/auth/reset-password`). Production hardening checklist: `SECURITY.md`.
 
