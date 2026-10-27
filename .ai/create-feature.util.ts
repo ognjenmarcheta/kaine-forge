@@ -552,8 +552,16 @@ describe("create${names.pluralPascal}", () => {
   });
 
   it("pages newest first with a cursor and refuses a malformed one", async () => {
-    const pager = ${names.pluralCamel}For(await seedScope("pager"));
-    for (const title of ["First", "Second", "Third"]) await pager.create({ title });
+    const pagerScope = await seedScope("pager");
+    const pager = ${names.pluralCamel}For(pagerScope);
+    // Explicit timestamps: rows created in the same millisecond would tie on
+    // createdAt, and their random ids would decide the order.
+    const author = { organizationId: pagerScope.organizationId, userId: pagerScope.userId };
+    await database.db.insert(${names.pluralCamel}Table).values([
+      { ...author, title: "First", createdAt: new Date("2025-01-01T00:00:01Z") },
+      { ...author, title: "Second", createdAt: new Date("2025-01-01T00:00:02Z") },
+      { ...author, title: "Third", createdAt: new Date("2025-01-01T00:00:03Z") }
+    ]);
 
     const page = await pager.list({ first: 2 });
     expect(page.items.map((row) => row.title)).toEqual(["Third", "Second"]);

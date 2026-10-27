@@ -435,6 +435,14 @@ describe("ScopedData.page", () => {
     { name: "not JSON", after: () => Buffer.from("not json").toString("base64url") },
     { name: "too short", after: forged("2025-01-01T00:00:00.000000Z") },
     { name: "bad sort key", after: forged("yesterday", "00000000-0000-4000-8000-00000000000a") },
+    {
+      name: "out-of-range sort key",
+      after: forged("2025-13-45T99:99:99.000000Z", "00000000-0000-4000-8000-00000000000a")
+    },
+    {
+      name: "year zero sort key",
+      after: forged("0000-01-01T00:00:00.000000Z", "00000000-0000-4000-8000-00000000000a")
+    },
     { name: "bad id", after: forged("2025-01-01T00:00:00.000000Z", "not-a-uuid") }
   ])("refuses a malformed cursor ($name) with a GraphQL error", async ({ after }) => {
     const rejection = data.page(todosTable, { after: after() }, order);

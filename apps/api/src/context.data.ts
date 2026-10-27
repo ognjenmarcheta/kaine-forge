@@ -45,6 +45,24 @@ export const EMPTY_CONNECTION: Connection<never> = {
 const SORT_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A sort key in the cursor's exact format that names an instant Postgres
+ * accepts. The pattern alone lets `2025-13-45T99:99:99` and year 0 through,
+ * and Postgres would then fail the query; a key that does not survive a Date
+ * round trip to the millisecond, or falls before year 1, is refused instead.
+ * The microsecond tail stays as sent.
+ */
+function isSortKey(value: unknown): value is string {
+  if (typeof value !== "string" || !SORT_KEY_PATTERN.test(value)) return false;
+  const milliseconds = `${value.slice(0, 23)}Z`;
+  const parsed = Date.parse(milliseconds);
+  return (
+    !value.startsWith("0000") &&
+    !Number.isNaN(parsed) &&
+    new Date(parsed).toISOString() === milliseconds
+  );
+}
+
 interface CursorPosition {
   sortKey: string;
   id: string;
@@ -74,8 +92,7 @@ function decodeCursor(cursor: string, list: string, organizationId: string): Cur
   if (
     cursorList !== list ||
     cursorOrganizationId !== organizationId ||
-    typeof sortKey !== "string" ||
-    !SORT_KEY_PATTERN.test(sortKey) ||
+    !isSortKey(sortKey) ||
     typeof id !== "string" ||
     !UUID_PATTERN.test(id)
   ) {

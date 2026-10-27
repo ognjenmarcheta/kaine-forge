@@ -295,6 +295,14 @@ describe("buildFeatureFiles", () => {
     expect(test).toContain('from "@repo/db/testing"');
     expect(test).toContain("await createTestDatabase()");
   });
+
+  it("pages over explicit createdAt values, so tied timestamps cannot reorder the rows", () => {
+    const test = read(`${apiDir}/purchase-orders.module.test.ts`);
+
+    expect(test).toContain('createdAt: new Date("2025-01-01T00:00:01Z")');
+    expect(test).toContain('createdAt: new Date("2025-01-01T00:00:03Z")');
+    expect(test).not.toMatch(/for \(const title of .*\) await pager\.create/);
+  });
 });
 
 describe("applyCreateFeature", () => {
