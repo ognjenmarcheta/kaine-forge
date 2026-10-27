@@ -75,5 +75,9 @@
   "email.roleChanged.role.admin": "administrator",
   "email.roleChanged.role.member": "član",
   "email.roleChanged.role.custom": "član sa ulogom „{{name}}“",
-  "email.roleChanged.action": "Prikaži članove"
+  "email.roleChanged.action": "Prikaži članove",
+  "email.dataExportReady.subject": "Izvoz vaših podataka je spreman",
+  "email.dataExportReady.heading": "Izvoz podataka je spreman",
+  "email.dataExportReady.body": "Izvoz podataka koji ste zatražili je spreman za preuzimanje. Prijavite se i otvorite odeljak za izvoz da biste ga preuzeli. Arhiva se briše za {{days}} dana.",
+  "email.dataExportReady.action": "Otvori izvoz podataka"
 }

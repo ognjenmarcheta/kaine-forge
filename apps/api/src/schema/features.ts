@@ -3,6 +3,8 @@ import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
 import { auditResolvers } from "../features/audit/audit.router";
 import { auditTypeDefs } from "../features/audit/audit.schema";
+import { dataExportResolvers } from "../features/data-export/data-export.router";
+import { dataExportTypeDefs } from "../features/data-export/data-export.schema";
 import { featureFlagsResolvers } from "../features/feature-flags/feature-flags.router";
 import { featureFlagsTypeDefs } from "../features/feature-flags/feature-flags.schema";
 import { notesResolvers } from "../features/notes/notes.router";
@@ -125,6 +127,11 @@ export const apiFeatures: ApiFeature[] = [
     name: "notifications",
     typeDefs: notificationsTypeDefs,
     resolvers: notificationsResolvers
+  },
+  {
+    name: "data-export",
+    typeDefs: dataExportTypeDefs,
+    resolvers: dataExportResolvers
   }
 ];
 

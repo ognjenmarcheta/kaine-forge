@@ -88,6 +88,26 @@ const apiEnvSchema = z.object({
   HOUSEKEEPING_INTERVAL_MS: z.preprocess(
     blankAsUnset,
     z.coerce.number().int().positive().optional()
+  ),
+  RETENTION_PURGED_FILES_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  RETENTION_DATA_EXPORTS_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  RETENTION_AUDIT_EVENTS_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  RETENTION_NOTIFICATIONS_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  DATA_EXPORT_ARCHIVE_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
   )
 });
 

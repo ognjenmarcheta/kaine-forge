@@ -133,14 +133,40 @@ describe("purgeExpiredAuthRows", () => {
 });
 
 describe("resolveHousekeepingConfig", () => {
+  const defaultRetention = {
+    auditEventsMs: 365 * day,
+    dataExportsMs: 30 * day,
+    notificationsMs: 90 * day,
+    purgedFilesMs: 30 * day
+  };
+
   it("runs hourly by default, turns off on false, and takes a custom interval", () => {
-    expect(resolveHousekeepingConfig({})).toEqual({ intervalMs: 60 * 60 * 1000 });
-    expect(resolveHousekeepingConfig({ HOUSEKEEPING_ENABLED: "true" })).toEqual({
+    expect(resolveHousekeepingConfig({})).toEqual({
+      intervalMs: 60 * 60 * 1000,
+      retention: defaultRetention
+    });
+    expect(resolveHousekeepingConfig({ HOUSEKEEPING_ENABLED: "true" })).toMatchObject({
       intervalMs: 60 * 60 * 1000
     });
     expect(resolveHousekeepingConfig({ HOUSEKEEPING_ENABLED: "false" })).toBeNull();
-    expect(resolveHousekeepingConfig({ HOUSEKEEPING_INTERVAL_MS: "60000" })).toEqual({
+    expect(resolveHousekeepingConfig({ HOUSEKEEPING_INTERVAL_MS: "60000" })).toMatchObject({
       intervalMs: 60_000
+    });
+  });
+
+  it("takes each retention window in days and falls back on a missing or invalid one", () => {
+    expect(
+      resolveHousekeepingConfig({
+        RETENTION_AUDIT_EVENTS_DAYS: "730",
+        RETENTION_DATA_EXPORTS_DAYS: "7",
+        RETENTION_NOTIFICATIONS_DAYS: "0",
+        RETENTION_PURGED_FILES_DAYS: "soon"
+      })?.retention
+    ).toEqual({
+      auditEventsMs: 730 * day,
+      dataExportsMs: 7 * day,
+      notificationsMs: 90 * day,
+      purgedFilesMs: 30 * day
     });
   });
 });

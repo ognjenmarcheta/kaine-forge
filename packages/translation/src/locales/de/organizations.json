@@ -64,6 +64,8 @@
   "organizations.audit.action.ownership_transferred": "Eigentum übertragen",
   "organizations.audit.action.organization_renamed": "Organisation umbenannt",
   "organizations.audit.action.organization_deleted": "Organisation gelöscht",
+  "organizations.audit.action.organization_exported": "Organisationsdaten exportiert",
+  "organizations.audit.action.organization_export_downloaded": "Export der Organisationsdaten heruntergeladen",
   "organizations.audit.action.invitation_revoked": "Einladung widerrufen",
   "organizations.audit.action.two_factor_enabled": "Bestätigung in zwei Schritten aktiviert",
   "organizations.audit.action.two_factor_disabled": "Bestätigung in zwei Schritten deaktiviert",

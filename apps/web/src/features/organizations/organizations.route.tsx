@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { listOrganizationMembersRequest } from "../../lib/auth-api";
+import { DataExportSection } from "../data-export/components/data-export-section";
 import { PublicAssetUpload } from "../public-assets/components/public-asset-upload";
 
 export function OrganizationsRoute() {
@@ -107,6 +108,10 @@ export function OrganizationsRoute() {
       ) : null}
 
       {can("ac:create") ? <OrganizationRoles /> : null}
+
+      {can("organization:export") ? (
+        <DataExportSection kind="organization" organizationId={activeOrganizationId} />
+      ) : null}
 
       {activeOrganization && permissions ? (
         <OrganizationSettings

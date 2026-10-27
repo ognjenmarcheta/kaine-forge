@@ -17,6 +17,7 @@ describe("built-in role permissions", () => {
         "organization:update",
         "organization:delete",
         "organization:transfer",
+        "organization:export",
         "member:create",
         "member:update",
         "member:delete",
@@ -107,7 +108,7 @@ describe("resolveRolePermissions", () => {
     const tampered = {
       role: "editor",
       permission: JSON.stringify({
-        organization: ["delete", "transfer", "update"],
+        organization: ["delete", "transfer", "export", "update"],
         ac: ["create"],
         todo: ["purge"],
         billing: ["read"]

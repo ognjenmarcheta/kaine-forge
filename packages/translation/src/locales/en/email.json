@@ -75,5 +75,9 @@
   "email.roleChanged.role.admin": "an admin",
   "email.roleChanged.role.member": "a member",
   "email.roleChanged.role.custom": "a member with the “{{name}}” role",
-  "email.roleChanged.action": "View members"
+  "email.roleChanged.action": "View members",
+  "email.dataExportReady.subject": "Your data export is ready",
+  "email.dataExportReady.heading": "Your data export is ready",
+  "email.dataExportReady.body": "The data export you requested is ready to download. Sign in and open the export section to download it. The archive is deleted in {{days}} days.",
+  "email.dataExportReady.action": "Open data export"
 }

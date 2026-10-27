@@ -64,6 +64,8 @@
   "organizations.audit.action.ownership_transferred": "Ownership transferred",
   "organizations.audit.action.organization_renamed": "Organization renamed",
   "organizations.audit.action.organization_deleted": "Organization deleted",
+  "organizations.audit.action.organization_exported": "Organization data exported",
+  "organizations.audit.action.organization_export_downloaded": "Organization data export downloaded",
   "organizations.audit.action.invitation_revoked": "Invitation revoked",
   "organizations.audit.action.two_factor_enabled": "Two-step verification turned on",
   "organizations.audit.action.two_factor_disabled": "Two-step verification turned off",
