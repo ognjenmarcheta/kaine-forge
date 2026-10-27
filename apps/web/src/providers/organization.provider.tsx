@@ -57,7 +57,7 @@ interface OrganizationProviderProps {
 }
 
 export function OrganizationProvider({ children }: OrganizationProviderProps) {
-  const { session } = useAuth();
+  const { isLoading: isSessionLoading, session } = useAuth();
   const queryClient = useQueryClient();
 
   const featureFlags = useMemo(() => resolveFeatureFlags(), []);
@@ -137,6 +137,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       }
 
       await syncActiveOrganizationProvider({
+        isSessionLoading,
         lifecycle: activeOrganizationLifecycle,
         organizationsPayload: organizationsQuery.data,
         persistActiveOrganizationId: writeStoredOrganizationId,
@@ -150,6 +151,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     };
   }, [
     activeOrganizationLifecycle,
+    isSessionLoading,
     organizationsQuery.data,
     session,
     setActiveOrganizationMutation

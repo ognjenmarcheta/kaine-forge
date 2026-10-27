@@ -218,6 +218,26 @@ describe("owner role", () => {
   });
 });
 
+describe("creating an organization", () => {
+  it("makes the new organization active in the session cookie", async () => {
+    const owner = await signUp("create-owner");
+
+    const response = await post("/organization/create", owner.headers, {
+      name: "Created",
+      slug: `created-${crypto.randomUUID().slice(0, 8)}`
+    });
+    expect(response.status).toBe(200);
+    const created: unknown = await response.json();
+    const createdId =
+      typeof created === "object" && created !== null && "id" in created ? created.id : null;
+
+    expect(createdId).toEqual(expect.any(String));
+    expect(await activeOrganizationId(mergeCookies(owner.headers, response.headers))).toBe(
+      createdId
+    );
+  });
+});
+
 describe("accepting an invitation", () => {
   it("makes the invitation's organization active in the session cookie", async () => {
     const owner = await signUp("accept-owner");

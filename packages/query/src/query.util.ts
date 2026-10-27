@@ -77,6 +77,9 @@ interface SyncActiveOrganizationProviderInput<
   TSession extends ActiveOrganizationSession,
   TOrganization extends ActiveOrganizationOption
 > {
+  // While the session loads it reads as null; that is not a sign-out, so the
+  // remembered Active Organization must survive it.
+  isSessionLoading?: boolean;
   lifecycle: ActiveOrganizationLifecycle<TSession>;
   organizationsPayload:
     | {
@@ -202,13 +205,18 @@ export async function applyActiveOrganizationSession<TSession extends ActiveOrga
 export async function applyCreatedOrganizationSession<TSession extends ActiveOrganizationSession>(
   input: ApplyCreatedOrganizationSessionInput<TSession>
 ): Promise<void> {
-  await applyActiveOrganizationSession(input);
+  // Remember the new organization and reload the list before the session
+  // changes: the providers re-sync on every session change, and a list without
+  // the new organization makes sync switch back to the first listed one.
+  await input.persistActiveOrganizationId(input.session.activeOrganizationId);
 
   if (input.invalidateOrganizations ?? true) {
     await input.queryClient.invalidateQueries({
       queryKey: queryKeys.organizations()
     });
   }
+
+  await applyActiveOrganizationSession(input);
 }
 
 export function createActiveOrganizationLifecycle<TSession extends ActiveOrganizationSession>(
@@ -248,7 +256,15 @@ export function createActiveOrganizationLifecycle<TSession extends ActiveOrganiz
         return nextSession.activeOrganizationId;
       }
 
-      await input.persistActiveOrganizationId(preferredOrganizationId);
+      // A remembered organization the list does not show yet comes from a
+      // create or an accepted invitation that the list predates; keep it.
+      if (
+        rememberedOrganizationId === null ||
+        syncInput.organizations.some((organization) => organization.id === rememberedOrganizationId)
+      ) {
+        await input.persistActiveOrganizationId(preferredOrganizationId);
+      }
+
       return preferredOrganizationId;
     }
   };
@@ -273,6 +289,10 @@ export async function syncActiveOrganizationProvider<
   TSession extends ActiveOrganizationSession,
   TOrganization extends ActiveOrganizationOption
 >(input: SyncActiveOrganizationProviderInput<TSession, TOrganization>): Promise<string | null> {
+  if (input.isSessionLoading) {
+    return null;
+  }
+
   if (!input.session) {
     await input.persistActiveOrganizationId(null);
     return null;

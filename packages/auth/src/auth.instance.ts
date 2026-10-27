@@ -191,6 +191,7 @@ const ACTIVE_ORGANIZATION_PATHS = new Set([
 // Routes that change the session's Active Organization in the database
 // without refreshing the session cookie cache.
 const ACTIVE_ORGANIZATION_CHANGE_PATHS = new Set([
+  "/organization/create",
   "/organization/leave",
   "/organization/delete",
   "/organization/accept-invitation"
@@ -296,10 +297,10 @@ const organizationGuardHook = createAuthMiddleware(async (ctx) => {
   return { context: { body: { ...body, organizationId } } };
 });
 
-// Leave and delete clear the Active Organization; accept sets it. All three
-// write only the session row, so a cookie client would read the old value from
-// its cookie cache. Pick a valid Active Organization (another membership, or a
-// personal organization) and refresh the cookie.
+// Leave and delete clear the Active Organization; create and accept set it.
+// Each writes only the session row, so a cookie client would read the old
+// value from its cookie cache. Pick a valid Active Organization (another
+// membership, or a personal organization) and refresh the cookie.
 const activeOrganizationRefreshHook = createAuthMiddleware(async (ctx) => {
   if (!ACTIVE_ORGANIZATION_CHANGE_PATHS.has(ctx.path) || isAPIError(ctx.context.returned)) {
     return;
