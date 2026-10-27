@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./helpers/auth";
+import { connection } from "./helpers/connection";
 
 for (const theme of ["light", "dark"] as const) {
   test(`nested workflows and feedback remain usable in ${theme} theme`, async ({
@@ -32,7 +33,7 @@ for (const theme of ["light", "dark"] as const) {
               ? { errors: [{ message: "Unavailable" }] }
               : {
                   data: {
-                    todos:
+                    todos: connection(
                       state === "empty"
                         ? []
                         : [
@@ -63,6 +64,7 @@ for (const theme of ["light", "dark"] as const) {
                               attachments: []
                             }
                           ]
+                    )
                   }
                 }
         });

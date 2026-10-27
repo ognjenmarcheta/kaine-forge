@@ -39,8 +39,13 @@ export const todosTypeDefs = /* GraphQL */ `
     message: String
   }
 
+  type TodoConnection {
+    items: [Todo!]!
+    pageInfo: PageInfo!
+  }
+
   extend type Query {
-    todos(limit: Int, offset: Int, search: String, completed: Boolean): [Todo!]!
+    todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
     todo(id: ID!): Todo
   }
 

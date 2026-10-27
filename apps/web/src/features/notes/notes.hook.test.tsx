@@ -37,10 +37,23 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
       return (variables: GetNotesQueryVariables) => {
         api.search(variables);
         const search = variables.search?.toLowerCase() ?? "";
+        const matching = [...api.notes.values()].filter((note) =>
+          `${note.title} ${note.body}`.toLowerCase().includes(search)
+        );
+        // A fake keyset: the cursor is `cursor:<id of the last row>`.
+        const start = variables.after
+          ? matching.findIndex((note) => `cursor:${note.id}` === variables.after) + 1
+          : 0;
+        const items = matching.slice(start, start + (variables.first ?? 50));
+        const last = items.at(-1);
         return Promise.resolve({
-          notes: [...api.notes.values()]
-            .filter((note) => `${note.title} ${note.body}`.toLowerCase().includes(search))
-            .slice(variables.offset ?? 0, (variables.offset ?? 0) + (variables.limit ?? 50))
+          notes: {
+            items,
+            pageInfo: {
+              hasNextPage: start + items.length < matching.length,
+              endCursor: last ? `cursor:${last.id}` : null
+            }
+          }
         });
       };
     return ({ id }: { id: string }) => Promise.resolve({ note: api.notes.get(id) ?? null });

@@ -18,8 +18,6 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
 };
 
@@ -63,22 +61,27 @@ export type GetMobileFileQuery = {
 
 export type GetMobileFilesQueryVariables = Exact<{
   filter?: FilesFilterInput | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetMobileFilesQuery = {
-  files: Array<{
-    id: string;
-    key: string;
-    originalName: string;
-    mimeType: string;
-    sizeBytes: number;
-    status: FileStatus;
-    entityType: AttachmentEntityType | null;
-    entityId: string | null;
-    downloadUrl: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  files: {
+    items: Array<{
+      id: string;
+      key: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      status: FileStatus;
+      entityType: AttachmentEntityType | null;
+      entityId: string | null;
+      downloadUrl: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type RequestMobileUploadUrlMutationVariables = Exact<{
@@ -114,26 +117,29 @@ export type DeleteMobileFileMutationVariables = Exact<{
 export type DeleteMobileFileMutation = { deleteFile: boolean };
 
 export type GetMobileTodosQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetMobileTodosQuery = {
-  todos: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: string;
-    updatedAt: string;
-    attachments: Array<{
+  todos: {
+    items: Array<{
       id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      createdAt: string;
+      updatedAt: string;
+      attachments: Array<{
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl: string | null;
+      }>;
     }>;
-  }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type CreateMobileTodoMutationVariables = Exact<{
@@ -357,19 +363,25 @@ useGetMobileFileQuery.getKey = (variables: GetMobileFileQueryVariables) => [
 ];
 
 export const GetMobileFilesDocument = new TypedDocumentString(`
-    query GetMobileFiles($filter: FilesFilterInput) {
-  files(filter: $filter) {
-    id
-    key
-    originalName
-    mimeType
-    sizeBytes
-    status
-    entityType
-    entityId
-    downloadUrl
-    createdAt
-    updatedAt
+    query GetMobileFiles($filter: FilesFilterInput, $first: Int, $after: String) {
+  files(filter: $filter, first: $first, after: $after) {
+    items {
+      id
+      key
+      originalName
+      mimeType
+      sizeBytes
+      status
+      entityType
+      entityId
+      downloadUrl
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);
@@ -497,21 +509,27 @@ export const useDeleteMobileFileMutation = <TError = unknown, TContext = unknown
 useDeleteMobileFileMutation.getKey = () => ["DeleteMobileFile"];
 
 export const GetMobileTodosDocument = new TypedDocumentString(`
-    query GetMobileTodos($limit: Int, $offset: Int) {
-  todos(limit: $limit, offset: $offset) {
-    id
-    title
-    description
-    completed
-    attachments {
+    query GetMobileTodos($first: Int, $after: String) {
+  todos(first: $first, after: $after) {
+    items {
       id
-      originalName
-      mimeType
-      sizeBytes
-      downloadUrl
+      title
+      description
+      completed
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+        downloadUrl
+      }
+      createdAt
+      updatedAt
     }
-    createdAt
-    updatedAt
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
     `);

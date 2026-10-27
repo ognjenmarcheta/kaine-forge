@@ -14,19 +14,25 @@ query GetFile($id: ID!) {
   }
 }
 
-query GetFiles($filter: FilesFilterInput) {
-  files(filter: $filter) {
-    id
-    key
-    originalName
-    mimeType
-    sizeBytes
-    status
-    entityType
-    entityId
-    downloadUrl
-    createdAt
-    updatedAt
+query GetFiles($filter: FilesFilterInput, $first: Int, $after: String) {
+  files(filter: $filter, first: $first, after: $after) {
+    items {
+      id
+      key
+      originalName
+      mimeType
+      sizeBytes
+      status
+      entityType
+      entityId
+      downloadUrl
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 

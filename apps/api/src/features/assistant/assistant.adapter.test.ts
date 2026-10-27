@@ -75,11 +75,13 @@ describe("assistant.adapter", () => {
     const conversation = await createConversation(mine, { title: "Private" });
 
     expect(await getConversationById(colleague, conversation.id)).toBeNull();
-    expect(await listConversations(colleague, {})).toEqual([]);
+    expect((await listConversations(colleague, {})).items).toEqual([]);
     expect(await deleteConversation(colleague, conversation.id)).toBe(false);
 
     expect(await getConversationById(mine, conversation.id)).toEqual(conversation);
-    expect((await listConversations(mine, {})).map((row) => row.id)).toEqual([conversation.id]);
+    expect((await listConversations(mine, {})).items.map((row) => row.id)).toEqual([
+      conversation.id
+    ]);
     expect(await deleteConversation(mine, conversation.id)).toBe(true);
   });
 

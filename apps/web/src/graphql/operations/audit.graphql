@@ -1,6 +1,6 @@
 query AuditEvents($first: Int, $after: String) {
   auditEvents(first: $first, after: $after) {
-    events {
+    items {
       id
       action
       actor {
@@ -13,8 +13,10 @@ query AuditEvents($first: Int, $after: String) {
       ipAddress
       createdAt
     }
-    endCursor
-    hasNextPage
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 

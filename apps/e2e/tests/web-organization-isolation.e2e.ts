@@ -54,8 +54,10 @@ test("a member of one organization cannot read or mutate another organization's 
           id
         }
         todos {
-          id
-          organizationId
+          items {
+            id
+            organizationId
+          }
         }
       }
     `,
@@ -63,7 +65,8 @@ test("a member of one organization cannot read or mutate another organization's 
   );
   expect(read.errors).toEqual([]);
   expect(read.data?.todo).toBeNull();
-  const listed = Array.isArray(read.data?.todos) ? read.data.todos : [];
+  const todos = isRecord(read.data?.todos) ? read.data.todos.items : null;
+  const listed = Array.isArray(todos) ? todos : [];
   expect(listed.map((todo: unknown) => (isRecord(todo) ? todo.id : todo))).not.toContain(todoId);
   for (const todo of listed) {
     expect(isRecord(todo) ? todo.organizationId : todo).not.toBe(personalOrganizationId);
@@ -159,12 +162,16 @@ test("a member of one organization cannot read or mutate another organization's 
           id
         }
         listed: notes {
-          id
-          organizationId
+          items {
+            id
+            organizationId
+          }
         }
         searched: notes(search: $search) {
-          id
-          organizationId
+          items {
+            id
+            organizationId
+          }
         }
       }
     `,
@@ -173,7 +180,8 @@ test("a member of one organization cannot read or mutate another organization's 
   expect(read.errors).toEqual([]);
   expect(read.data?.note).toBeNull();
   for (const key of ["listed", "searched"]) {
-    const rows = Array.isArray(read.data?.[key]) ? read.data[key] : [];
+    const notes = isRecord(read.data?.[key]) ? read.data[key].items : null;
+    const rows = Array.isArray(notes) ? notes : [];
     expect(
       rows.map((note: unknown) => (isRecord(note) ? note.id : note)),
       key

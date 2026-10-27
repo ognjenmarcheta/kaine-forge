@@ -17,8 +17,6 @@ export type FileStatus = "deleted" | "pending" | "uploaded";
 export type FilesFilterInput = {
   entityId?: string | number | null | undefined;
   entityType?: AttachmentEntityType | null | undefined;
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
   status?: FileStatus | null | undefined;
 };
 
@@ -62,22 +60,27 @@ export type GetMobileFileQuery = {
 
 export type GetMobileFilesQueryVariables = Exact<{
   filter?: FilesFilterInput | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetMobileFilesQuery = {
-  files: Array<{
-    id: string;
-    key: string;
-    originalName: string;
-    mimeType: string;
-    sizeBytes: number;
-    status: FileStatus;
-    entityType: AttachmentEntityType | null;
-    entityId: string | null;
-    downloadUrl: string | null;
-    createdAt: unknown;
-    updatedAt: unknown;
-  }>;
+  files: {
+    items: Array<{
+      id: string;
+      key: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      status: FileStatus;
+      entityType: AttachmentEntityType | null;
+      entityId: string | null;
+      downloadUrl: string | null;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type RequestMobileUploadUrlMutationVariables = Exact<{
@@ -113,26 +116,29 @@ export type DeleteMobileFileMutationVariables = Exact<{
 export type DeleteMobileFileMutation = { deleteFile: boolean };
 
 export type GetMobileTodosQueryVariables = Exact<{
-  limit?: number | null | undefined;
-  offset?: number | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
 }>;
 
 export type GetMobileTodosQuery = {
-  todos: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    createdAt: unknown;
-    updatedAt: unknown;
-    attachments: Array<{
+  todos: {
+    items: Array<{
       id: string;
-      originalName: string;
-      mimeType: string;
-      sizeBytes: number;
-      downloadUrl: string | null;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      createdAt: unknown;
+      updatedAt: unknown;
+      attachments: Array<{
+        id: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        downloadUrl: string | null;
+      }>;
     }>;
-  }>;
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 export type CreateMobileTodoMutationVariables = Exact<{
@@ -352,6 +358,16 @@ export const GetMobileFilesDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "filter" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "FilesFilterInput" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -365,22 +381,52 @@ export const GetMobileFilesDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "filter" },
                 value: { kind: "Variable", name: { kind: "Name", value: "filter" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "key" } },
-                { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                { kind: "Field", name: { kind: "Name", value: "status" } },
-                { kind: "Field", name: { kind: "Name", value: "entityType" } },
-                { kind: "Field", name: { kind: "Name", value: "entityId" } },
-                { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "entityType" } },
+                      { kind: "Field", name: { kind: "Name", value: "entityId" } },
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }
@@ -533,13 +579,13 @@ export const GetMobileTodosDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "offset" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
         }
       ],
       selectionSet: {
@@ -551,38 +597,58 @@ export const GetMobileTodosDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "limit" },
-                value: { kind: "Variable", name: { kind: "Name", value: "limit" } }
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "offset" },
-                value: { kind: "Variable", name: { kind: "Name", value: "offset" } }
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "title" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "completed" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "attachments" },
+                  name: { kind: "Name", value: "items" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
-                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "completed" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "attachments" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                            { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                            { kind: "Field", name: { kind: "Name", value: "sizeBytes" } },
+                            { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                          ]
+                        }
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
                     ]
                   }
                 },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } }
+                    ]
+                  }
+                }
               ]
             }
           }

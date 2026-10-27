@@ -7,15 +7,15 @@ import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, TodoPatch, UpdateTodoInput } from "./todos.type";
 import { applyTodoPatch, ensureTodoTitle, parseOptionalDescription } from "./todos.util";
 import {
-  clampPagination,
   containsPhrase,
-  type PaginationInput,
+  type Connection,
+  type PageInput,
   type ScopedData
 } from "../../context.data";
 import { formatLoggableError } from "../../observability";
 import type { PubSubEventMap } from "../../pubsub";
 
-export interface TodoListArgs extends PaginationInput {
+export interface TodoListArgs extends PageInput {
   search?: string | null | undefined;
   completed?: boolean | null | undefined;
 }
@@ -45,7 +45,7 @@ export interface TodoModuleDeps {
  * also cleans up the Todo's Attachments.
  */
 export interface Todos {
-  list: (args: TodoListArgs) => Promise<Todo[]>;
+  list: (args: TodoListArgs) => Promise<Connection<Todo>>;
   get: (id: string) => Promise<Todo | null>;
   /** Every Todo of the given Notes, newest first, unpaginated (for the batch loader). */
   listByNoteIds: (noteIds: readonly string[]) => Promise<Todo[]>;
@@ -89,18 +89,14 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
   }
 
   return {
-    async list({ search, completed, ...page }) {
-      const { limit, offset } = clampPagination(page, TODOS_CONFIG.pagination);
-      return data
-        .selectFrom(
-          todosTable,
-          containsPhrase(search, [todosTable.title, todosTable.description]),
-          typeof completed === "boolean" ? eq(todosTable.completed, completed) : undefined
-        )
-        .orderBy(desc(todosTable.createdAt), desc(todosTable.id))
-        .limit(limit)
-        .offset(offset);
-    },
+    list: ({ search, completed, ...page }) =>
+      data.page(
+        todosTable,
+        page,
+        { orderBy: todosTable.createdAt, direction: "desc", limits: TODOS_CONFIG.pagination },
+        containsPhrase(search, [todosTable.title, todosTable.description]),
+        typeof completed === "boolean" ? eq(todosTable.completed, completed) : undefined
+      ),
     get,
     async listByNoteIds(noteIds) {
       if (noteIds.length === 0) {

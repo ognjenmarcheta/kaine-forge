@@ -1,27 +1,27 @@
 import type { Note } from "@repo/db";
 import { notesTable } from "@repo/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { NOTES_CONFIG } from "./notes.config";
 import type { NotePatch } from "./notes.type";
 import {
-  clampPagination,
   containsPhrase,
-  type PaginationInput,
+  type Connection,
+  type PageInput,
   type ScopedData
 } from "../../context.data";
 
 export async function listNotesByScope(
   data: ScopedData,
-  page: PaginationInput,
+  page: PageInput,
   search?: string | null
-): Promise<Note[]> {
-  const { limit, offset } = clampPagination(page, NOTES_CONFIG.pagination);
-  return data
-    .selectFrom(notesTable, containsPhrase(search, [notesTable.title, notesTable.body]))
-    .orderBy(desc(notesTable.createdAt), desc(notesTable.id))
-    .limit(limit)
-    .offset(offset);
+): Promise<Connection<Note>> {
+  return data.page(
+    notesTable,
+    page,
+    { orderBy: notesTable.createdAt, direction: "desc", limits: NOTES_CONFIG.pagination },
+    containsPhrase(search, [notesTable.title, notesTable.body])
+  );
 }
 
 export async function getNoteById(data: ScopedData, id: string): Promise<Note | null> {

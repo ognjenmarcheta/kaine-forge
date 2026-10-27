@@ -24,7 +24,7 @@ import {
 } from "./storage.adapter";
 import { STORAGE_CONFIG } from "./storage.definition";
 import type { FilesFilterInput, RequestUploadInput } from "./storage.type";
-import type { ScopedData } from "../../context.data";
+import type { Connection, PageInput, ScopedData } from "../../context.data";
 import { formatLoggableError } from "../../observability";
 import type { TodoAttachments } from "../todos/todos.module";
 
@@ -46,7 +46,7 @@ export interface AttachmentModuleDeps {
  */
 export interface Attachments extends TodoAttachments {
   get: (id: string) => Promise<File | null>;
-  list: (filter: FilesFilterInput) => Promise<File[]>;
+  list: (filter: FilesFilterInput, page: PageInput) => Promise<Connection<File>>;
   /** The uploaded Attachments of the given Todos, unpaginated (for the batch loader). */
   listByTodoIds: (todoIds: readonly string[]) => Promise<File[]>;
   /**
@@ -172,7 +172,7 @@ export function createAttachments({
 
   return {
     get: (id) => getFileById(data, id),
-    list: (filter) => listFiles(data, filter),
+    list: (filter, page) => listFiles(data, filter, page),
     listByTodoIds: (todoIds) =>
       listFilesByEntityIds(data, ATTACHMENT_ENTITY_TYPES.todo, [...todoIds], "uploaded"),
     async thumbnailUrl(file) {

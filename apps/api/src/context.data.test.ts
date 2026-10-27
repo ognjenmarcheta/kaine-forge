@@ -13,10 +13,11 @@ import {
   usersTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, like, sql } from "drizzle-orm";
+import { GraphQLError } from "graphql";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { clampPagination, containsPhrase, createScopedData, type ScopedData } from "./context.data";
+import { containsPhrase, createScopedData, type ScopedData } from "./context.data";
 
 let database: TestDatabase;
 let data: ScopedData;
@@ -293,13 +294,160 @@ describe("containsPhrase", () => {
   });
 });
 
-describe("clampPagination", () => {
+describe("ScopedData.page", () => {
+  const limits = { defaultLimit: 2, maxLimit: 3 };
+  const order = { orderBy: todosTable.createdAt, direction: "desc", limits } as const;
+  const paged = like(todosTable.title, "Paged %");
+  const titles = (connection: { items: { title: string }[] }) =>
+    connection.items.map((row) => row.title);
+
+  beforeAll(async () => {
+    // Microsecond timestamps in one millisecond: a cursor that kept only a JS
+    // Date (milliseconds) would skip "Paged C" and "Paged D". C and D tie on
+    // created_at, so their fixed ids decide their order.
+    await database.db.insert(todosTable).values(
+      (
+        [
+          ["Paged A", "2025-01-01T00:00:03.000000Z", "00000000-0000-4000-8000-00000000000a"],
+          ["Paged B", "2025-01-01T00:00:02.000900Z", "00000000-0000-4000-8000-00000000000b"],
+          ["Paged C", "2025-01-01T00:00:02.000400Z", "00000000-0000-4000-8000-00000000000c"],
+          ["Paged D", "2025-01-01T00:00:02.000400Z", "00000000-0000-4000-8000-00000000000d"],
+          ["Paged E", "2025-01-01T00:00:01.000000Z", "00000000-0000-4000-8000-00000000000e"]
+        ] as const
+      ).map(([title, createdAt, rowId]) => ({
+        createdAt: sql`${createdAt}::timestamptz`,
+        id: rowId,
+        organizationId: id("orgA"),
+        title,
+        userId: id("owner")
+      }))
+    );
+  });
+
   it.each([
-    { input: {}, expected: { limit: 20, offset: 0 } },
-    { input: { limit: 999, offset: -10 }, expected: { limit: 100, offset: 0 } },
-    { input: { limit: 0, offset: 2.7 }, expected: { limit: 1, offset: 2 } },
-    { input: { limit: null, offset: null }, expected: { limit: 20, offset: 0 } }
-  ])("clamps $input to $expected", ({ input, expected }) => {
-    expect(clampPagination(input, { defaultLimit: 20, maxLimit: 100 })).toEqual(expected);
+    { first: undefined, expected: ["Paged A", "Paged B"] },
+    { first: null, expected: ["Paged A", "Paged B"] },
+    { first: 0, expected: ["Paged A"] },
+    { first: 2.7, expected: ["Paged A", "Paged B"] },
+    { first: 999, expected: ["Paged A", "Paged B", "Paged D"] }
+  ])("clamps first: $first to the list's limits", async ({ first, expected }) => {
+    expect(titles(await data.page(todosTable, { first }, order, paged))).toEqual(expected);
+  });
+
+  it("pages by (sort key, id) without a skip or a duplicate when a row lands before the cursor", async () => {
+    const first = await data.page(todosTable, { first: 2 }, order, paged);
+    expect(titles(first)).toEqual(["Paged A", "Paged B"]);
+    expect(first.pageInfo.hasNextPage).toBe(true);
+    // Opaque: the cursor does not expose the raw row id.
+    expect(first.pageInfo.endCursor).not.toContain("00000000-0000-4000-8000-00000000000b");
+
+    await database.db.insert(todosTable).values({
+      createdAt: sql`'2025-01-01T00:00:04Z'::timestamptz`,
+      organizationId: id("orgA"),
+      title: "Paged New",
+      userId: id("owner")
+    });
+
+    const second = await data.page(
+      todosTable,
+      { first: 2, after: first.pageInfo.endCursor },
+      order,
+      paged
+    );
+    expect(titles(second)).toEqual(["Paged D", "Paged C"]);
+    expect(second.pageInfo.hasNextPage).toBe(true);
+
+    const third = await data.page(
+      todosTable,
+      { first: 2, after: second.pageInfo.endCursor },
+      order,
+      paged
+    );
+    expect(titles(third)).toEqual(["Paged E"]);
+    expect(third.pageInfo).toEqual({ hasNextPage: false, endCursor: expect.any(String) });
+
+    const past = await data.page(
+      todosTable,
+      { first: 2, after: third.pageInfo.endCursor },
+      order,
+      paged
+    );
+    expect(past).toEqual({ items: [], pageInfo: { hasNextPage: false, endCursor: null } });
+  });
+
+  it("pages ascending when the list sorts ascending", async () => {
+    const ascending = { ...order, direction: "asc" } as const;
+    const first = await data.page(
+      todosTable,
+      { first: 2 },
+      ascending,
+      like(todosTable.title, "Paged _")
+    );
+    const second = await data.page(
+      todosTable,
+      { first: 2, after: first.pageInfo.endCursor },
+      ascending,
+      like(todosTable.title, "Paged _")
+    );
+
+    expect([...titles(first), ...titles(second)]).toEqual([
+      "Paged E",
+      "Paged C",
+      "Paged D",
+      "Paged B"
+    ]);
+  });
+
+  it("refuses a cursor from another Organization and returns none of its rows", async () => {
+    const own = await data.page(todosTable, { first: 1 }, order);
+    const foreignData = createScopedData({
+      db: database.db,
+      requireOrganizationScope: () => scopeFor(id("orgB"), id("owner"))
+    });
+
+    // Positive control: without the cursor the same scope reads its own row.
+    expect(titles(await foreignData.page(todosTable, {}, order))).toEqual(["Todo B"]);
+    await expect(
+      foreignData.page(todosTable, { after: own.pageInfo.endCursor }, order)
+    ).rejects.toThrowError("invalid cursor");
+  });
+
+  it("refuses a cursor from another list", async () => {
+    const notes = await data.page(
+      notesTable,
+      { first: 1 },
+      { ...order, orderBy: notesTable.createdAt }
+    );
+
+    await expect(
+      data.page(todosTable, { after: notes.pageInfo.endCursor }, order)
+    ).rejects.toThrowError("invalid cursor");
+  });
+
+  const forged =
+    (...parts: string[]) =>
+    () =>
+      Buffer.from(JSON.stringify(["todos", id("orgA"), ...parts])).toString("base64url");
+
+  it.each([
+    { name: "empty string", after: () => "" },
+    { name: "not base64 JSON", after: () => "not a cursor" },
+    { name: "not JSON", after: () => Buffer.from("not json").toString("base64url") },
+    { name: "too short", after: forged("2025-01-01T00:00:00.000000Z") },
+    { name: "bad sort key", after: forged("yesterday", "00000000-0000-4000-8000-00000000000a") },
+    {
+      name: "out-of-range sort key",
+      after: forged("2025-13-45T99:99:99.000000Z", "00000000-0000-4000-8000-00000000000a")
+    },
+    {
+      name: "year zero sort key",
+      after: forged("0000-01-01T00:00:00.000000Z", "00000000-0000-4000-8000-00000000000a")
+    },
+    { name: "bad id", after: forged("2025-01-01T00:00:00.000000Z", "not-a-uuid") }
+  ])("refuses a malformed cursor ($name) with a GraphQL error", async ({ after }) => {
+    const rejection = data.page(todosTable, { after: after() }, order);
+
+    await expect(rejection).rejects.toBeInstanceOf(GraphQLError);
+    await expect(rejection).rejects.toThrowError("invalid cursor");
   });
 });

@@ -28,10 +28,13 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
     if (query.includes("query GetConversations"))
       return () =>
         Promise.resolve({
-          conversations: [
-            { id: "a", title: "First", updatedAt: "2026-09-13" },
-            { id: "b", title: "Second", updatedAt: "2026-09-13" }
-          ]
+          conversations: {
+            items: [
+              { id: "a", title: "First", updatedAt: "2026-09-13" },
+              { id: "b", title: "Second", updatedAt: "2026-09-13" }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
         });
     return api.history;
   }
@@ -100,24 +103,27 @@ const reply: SendMessageMutation = {
 };
 function savedHistory(): GetConversationQuery {
   return {
-    assistantMessages: [
-      {
-        id: "user",
-        conversationId: "a",
-        role: "user",
-        content: "Plan",
-        createdAt: "2026-09-13",
-        toolActions: []
-      },
-      {
-        id: "reply",
-        conversationId: "a",
-        role: "assistant",
-        content: "Done",
-        createdAt: "2026-09-13",
-        toolActions: reply.sendMessage.toolActions
-      }
-    ]
+    assistantMessages: {
+      items: [
+        {
+          id: "user",
+          conversationId: "a",
+          role: "user",
+          content: "Plan",
+          createdAt: "2026-09-13",
+          toolActions: []
+        },
+        {
+          id: "reply",
+          conversationId: "a",
+          role: "assistant",
+          content: "Done",
+          createdAt: "2026-09-13",
+          toolActions: reply.sendMessage.toolActions
+        }
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null }
+    }
   };
 }
 
@@ -125,7 +131,9 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   api.send.mockReset();
   api.history.mockReset();
-  api.history.mockResolvedValue({ assistantMessages: [] });
+  api.history.mockResolvedValue({
+    assistantMessages: { items: [], pageInfo: { hasNextPage: false, endCursor: null } }
+  });
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
@@ -181,7 +189,9 @@ it("keeps a streaming reply and completion in its originating conversation", asy
   expect(current.messages.at(-1)?.content).toBe("Working");
   await select("b");
   api.history.mockImplementation(async ({ conversationId }) =>
-    conversationId === "a" ? savedHistory() : { assistantMessages: [] }
+    conversationId === "a"
+      ? savedHistory()
+      : { assistantMessages: { items: [], pageInfo: { hasNextPage: false, endCursor: null } } }
   );
   await act(async () => {
     gate.resolve(reply);
