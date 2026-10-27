@@ -3,6 +3,9 @@ import type { TestDatabase } from "@repo/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
+// PGlite queries can pass vitest's 5 s default on a slow runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 const { database } = vi.hoisted(() => ({ database: { current: null as TestDatabase | null } }));
 
 // Only the schema, never the real `@repo/db` index: its client throws without
