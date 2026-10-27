@@ -20,14 +20,24 @@ export function useOrganizationPermissions(
     queryKey: createActiveOrganizationQueryKey(
       useOrganizationPermissionsQuery.getKey(),
       organizationId
-    )
+    ),
+    // The fetcher casts the response without checking it, and the app shell
+    // reads this hook. An answer without the list becomes the query's error
+    // state (no Permissions), never a throw while the shell renders.
+    select: (data) => {
+      if (!Array.isArray(data.organizationPermissions)) {
+        throw new Error("organizationPermissions response is incomplete");
+      }
+
+      return new Set(data.organizationPermissions.filter(isPermission));
+    }
   });
 
   if (!query.isSuccess) {
     return query.isError ? new Set() : null;
   }
 
-  return new Set(query.data.organizationPermissions.filter(isPermission));
+  return query.data;
 }
 
 /** The Active Organization's Custom Roles, read only with `ac:read`. */

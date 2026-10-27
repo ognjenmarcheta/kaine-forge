@@ -9,7 +9,7 @@ import { AuditLogRoute } from "./audit.route";
 import type { AuditEventsQueryVariables } from "../../graphql/generated/react-query";
 
 const api = vi.hoisted(() => ({
-  permissions: ["audit:read"],
+  permissions: ["audit:read"] as string[] | undefined,
   pages: vi.fn<(variables: AuditEventsQueryVariables) => void>()
 }));
 
@@ -132,6 +132,14 @@ it("lists each event's translated action, actor, target, and IP, then loads the 
 
 it("sends a member without audit:read to the dashboard without reading the audit log", async () => {
   api.permissions = ["todo:create", "member:update"];
+  await renderRoute();
+
+  expect(container.textContent).toBe(DASHBOARD);
+  expect(api.pages).not.toHaveBeenCalled();
+});
+
+it("sends the session to the dashboard when the permissions answer has no list", async () => {
+  api.permissions = undefined;
   await renderRoute();
 
   expect(container.textContent).toBe(DASHBOARD);
