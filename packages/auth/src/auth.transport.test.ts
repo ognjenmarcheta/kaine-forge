@@ -49,6 +49,7 @@ interface SessionData {
     emailVerified: boolean;
     id: string;
     name: string;
+    onboardingCompletedAt?: Date | string | null;
     twoFactorEnabled?: boolean;
   };
 }
@@ -88,7 +89,8 @@ function expectedSession(activeOrganizationId: string | null = "org-1"): AuthSes
       email: "user@example.com",
       emailVerified: false,
       twoFactorEnabled: false,
-      name: "User"
+      name: "User",
+      onboardingCompleted: true
     }
   };
 }
@@ -240,6 +242,7 @@ describe("createAuthTransport", () => {
           id: "user-1",
           email: "user@example.com",
           emailVerified: true,
+          onboardingCompletedAt: null,
           twoFactorEnabled: false,
           name: "User"
         }
@@ -258,9 +261,20 @@ describe("createAuthTransport", () => {
         email: "user@example.com",
         emailVerified: true,
         twoFactorEnabled: false,
-        name: "User"
+        name: "User",
+        onboardingCompleted: false
       }
     });
+  });
+
+  it("completes onboarding for the session user and returns the refreshed session", async () => {
+    const client = createClientStub();
+    createAuthClientMock.mockReturnValue(client);
+
+    const transport = createAuthTransport({ adapter: createAdapter() });
+
+    await expect(transport.completeOnboarding()).resolves.toEqual(expectedSession());
+    expect(client.$fetch.mock.calls).toEqual([["/onboarding/complete", { method: "POST" }]]);
   });
 
   it("returns null and clears the stored token when no session exists", async () => {

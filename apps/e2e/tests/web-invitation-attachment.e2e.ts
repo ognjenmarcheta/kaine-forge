@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { AUTH_LABELS, NAV_LABELS, signIn } from "./helpers/auth";
+import { AUTH_LABELS, NAV_LABELS, signIn, submitSignUp } from "./helpers/auth";
 import { createOrganization, isRecord } from "./helpers/organizations";
 
 const MEMBERS_LABELS = {
@@ -69,16 +69,13 @@ test("an invited user signs up from the invitation link and joins the organizati
     await inviteePage.goto(invitationPath);
     await expect(inviteePage).toHaveURL(/\/auth\?redirect=%2Finvitations%2F/);
 
-    await inviteePage.getByRole("button", { name: AUTH_LABELS.signup }).click();
-    await inviteePage.getByLabel(AUTH_LABELS.name).fill(invitee.name);
-    await inviteePage.getByLabel(AUTH_LABELS.email).fill(invitee.email);
-    await inviteePage.getByLabel(AUTH_LABELS.password).fill(invitee.password);
-    await inviteePage.getByLabel(AUTH_LABELS.confirmPassword).fill(invitee.password);
-    await inviteePage.locator("form").getByRole("button", { name: AUTH_LABELS.signup }).click();
+    // Onboarding does not stand between a new account and its invitation.
+    await submitSignUp(inviteePage, invitee);
     await expect(inviteePage).toHaveURL(new RegExp(`${invitationPath}$`));
 
     await expect(inviteePage.getByRole("heading", { name: organizationName })).toBeVisible();
     await inviteePage.getByRole("button", { name: MEMBERS_LABELS.accept }).click();
+    // A member has no onboarding step left to take, so onboarding ends at once.
     await expect(inviteePage).toHaveURL(/\/dashboard$/);
 
     // Accepting made the organization active.

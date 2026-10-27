@@ -50,6 +50,7 @@ import {
 import { AUTH_DEFINITIONS } from "./auth.definition";
 import { AUTH_PASSWORD_MIN_LENGTH } from "./auth.form";
 import { dispatchNotification, hasNotificationDispatcher } from "./auth.notification";
+import { onboardingPlugin } from "./auth.onboarding.plugin";
 import { hashPassword, verifyPassword } from "./auth.password";
 import { ORGANIZATION_ROLES } from "./auth.permissions";
 import {
@@ -246,6 +247,35 @@ const userNameLimitPlugin = {
             throw APIError.from("BAD_REQUEST", {
               code: "NAME_TOO_LONG",
               message: `Name must be at most ${String(AUTH_DEFINITIONS.USER_NAME_MAX_LENGTH)} characters`
+            });
+          }
+        })
+      }
+    ]
+  }
+} satisfies BetterAuthPlugin;
+
+// The organization plugin has no name limit of its own. /organization/update
+// carries its fields under `data`.
+const organizationNameLimitPlugin = {
+  id: "organization-name-limit",
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) =>
+          ctx.path === "/organization/create" || ctx.path === "/organization/update",
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = readRecord(ctx.body);
+          const fields = ctx.path === "/organization/update" ? readRecord(body.data) : body;
+          const name = fields.name;
+
+          if (
+            typeof name === "string" &&
+            name.length > AUTH_DEFINITIONS.ORGANIZATION_NAME_MAX_LENGTH
+          ) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "ORGANIZATION_NAME_TOO_LONG",
+              message: `Organization name must be at most ${String(AUTH_DEFINITIONS.ORGANIZATION_NAME_MAX_LENGTH)} characters`
             });
           }
         })
@@ -769,6 +799,12 @@ export function createAuthInstance() {
           required: false,
           input: true,
           validator: { input: z.enum(SUPPORTED_LANGUAGES) }
+        },
+        // When the web first-run onboarding ended; only onboardingPlugin sets it.
+        onboardingCompletedAt: {
+          type: "date",
+          required: false,
+          input: false
         }
       },
       changeEmail: {
@@ -992,8 +1028,10 @@ export function createAuthInstance() {
       }),
       organizationOwnershipPlugin,
       accountPlugin,
+      onboardingPlugin,
       auditPlugin,
       userNameLimitPlugin,
+      organizationNameLimitPlugin,
       createPasswordChangeAlertPlugin(config.webAppUrl),
       bearer(),
       // Second factor for password sign-in only; email OTP and social sign-in

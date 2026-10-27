@@ -6,8 +6,13 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { appRoutes } from "./router";
 
-const READY = { dashboard: "dashboard ready", todos: "todos ready" };
+const READY = {
+  dashboard: "dashboard ready",
+  onboarding: "onboarding ready",
+  todos: "todos ready"
+};
 const signedIn = vi.hoisted(() => ({ value: true }));
+const onboardingCompleted = vi.hoisted(() => ({ value: true }));
 const translation = vi.hoisted(() => {
   const listeners = new Set<() => void>();
   return {
@@ -33,7 +38,15 @@ vi.mock("./hooks/use-auth", () => ({
     return {
       isLoading: false,
       logout: vi.fn(),
-      session: signedIn.value ? { user: { email: "user@example.com", name: "User" } } : null
+      session: signedIn.value
+        ? {
+            user: {
+              email: "user@example.com",
+              name: "User",
+              onboardingCompleted: onboardingCompleted.value
+            }
+          }
+        : null
     };
   }
 }));
@@ -95,6 +108,9 @@ vi.mock("./features/notes/notes.route", () => ({ NotesRoute: () => null }));
 vi.mock("./features/notifications/components/notification-bell", () => ({
   NotificationBell: () => null
 }));
+vi.mock("./features/onboarding/onboarding.route", () => ({
+  OnboardingRoute: () => <p>{READY.onboarding}</p>
+}));
 vi.mock("./features/organizations/organizations.route", () => ({
   OrganizationsRoute: () => null
 }));
@@ -123,6 +139,7 @@ afterEach(async () => {
   container.remove();
   Object.assign(routeFailure, { auth: false, dashboard: false, shell: false, todos: false });
   signedIn.value = true;
+  onboardingCompleted.value = true;
   auditLogAccess.value = false;
   translation.language = "en";
   consoleError.mockRestore();
@@ -246,4 +263,14 @@ it("sends a signed-out visitor of the deletion link to sign in and back with the
   expect(router.state.location.search).toBe(
     "?redirect=%2Faccount%2Fdelete%3Ftoken%3Ddelete-token-1"
   );
+});
+
+it("sends a user who has not finished onboarding from the shell to onboarding", async () => {
+  onboardingCompleted.value = false;
+
+  const router = await renderAt("/dashboard");
+
+  expect(router.state.location.pathname).toBe("/onboarding");
+  expect(container.textContent).toBe(READY.onboarding);
+  expect(document.title).toBe("auth.onboarding.title · common.appName");
 });

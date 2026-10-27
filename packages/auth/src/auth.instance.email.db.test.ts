@@ -5,6 +5,10 @@ import { createEmailVerificationToken } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Each test signs users up through scrypt on PGlite, which can pass vitest's
+// 5 s default on a slow runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 // The real auth instance on an in-process Postgres, so each email comes from
 // better-auth's own routes and the stored user locale.
 const SECRET = "test-secret-test-secret-test-secret-1234";
