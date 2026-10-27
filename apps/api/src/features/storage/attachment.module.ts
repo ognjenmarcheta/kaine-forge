@@ -1,3 +1,4 @@
+import type { AuditEventInput } from "@repo/auth/audit";
 import type { AttachmentEntityType, File } from "@repo/db";
 import { todosTable } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
@@ -34,6 +35,7 @@ const ATTACHMENT_ENTITY_TYPES = {
 export interface AttachmentModuleDeps {
   data: ScopedData;
   logger: Pick<Logger, "warn">;
+  recordAuditEvent: (event: AuditEventInput) => Promise<void>;
   store: ObjectStore;
 }
 
@@ -78,7 +80,12 @@ export interface Attachments extends TodoAttachments {
   delete: (id: string) => Promise<boolean>;
 }
 
-export function createAttachments({ data, logger, store }: AttachmentModuleDeps): Attachments {
+export function createAttachments({
+  data,
+  logger,
+  recordAuditEvent,
+  store
+}: AttachmentModuleDeps): Attachments {
   async function requireFile(id: string): Promise<File> {
     const file = await getFileById(data, id);
 
@@ -264,6 +271,15 @@ export function createAttachments({ data, logger, store }: AttachmentModuleDeps)
 
       await removeObject(file, "failed to delete object from S3");
       await updateFileStatus(data, file.id, "deleted");
+      // The scope's Organization and user, never the client's.
+      const { organizationId, userId } = data.stamp("userId");
+      await recordAuditEvent({
+        action: "attachment_deleted",
+        actorUserId: userId,
+        metadata: { originalName: file.originalName },
+        organizationId,
+        targetId: file.id
+      });
       return true;
     },
     async detach(todoId) {

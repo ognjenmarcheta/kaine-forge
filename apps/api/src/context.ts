@@ -1,3 +1,4 @@
+import { recordAuditEvent } from "@repo/auth/audit";
 import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
 import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
@@ -9,6 +10,7 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
+import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
 import { createNotes, type Notes } from "./features/notes/notes.module";
 import {
   createPublicAssets,
@@ -31,6 +33,7 @@ export interface ApiContext {
   todos: Todos;
   notes: Notes;
   attachments: Attachments;
+  auditEvents: AuditEvents;
   publicAssets: PublicAssets;
   loaders: ApiLoaders;
   featureFlags: ReturnType<typeof resolveFeatureFlags>;
@@ -63,7 +66,12 @@ export async function createContextFromHeaders(
   ): void => {
     pubsub.publish(eventName, ...payload);
   };
-  const attachments = createAttachments({ data, logger: contextLogger, store: s3ObjectStore });
+  const attachments = createAttachments({
+    data,
+    logger: contextLogger,
+    recordAuditEvent,
+    store: s3ObjectStore
+  });
   const todos = createTodos({ attachments, data, logger: contextLogger, publish });
 
   return {
@@ -77,6 +85,7 @@ export async function createContextFromHeaders(
     todos,
     notes: createNotes({ data, publish }),
     attachments,
+    auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),
     publicAssets: createPublicAssets({
       db,
       logger: contextLogger,

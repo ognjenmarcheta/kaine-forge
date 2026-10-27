@@ -96,7 +96,12 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
   // An in-memory object store: an evaluation never reaches object storage.
   const logger = createLogger({ name: "eval", level: "silent" });
   const todos = createTodos({
-    attachments: createAttachments({ data, logger, store: createMemoryObjectStore() }),
+    attachments: createAttachments({
+      data,
+      logger,
+      recordAuditEvent: () => Promise.resolve(),
+      store: createMemoryObjectStore()
+    }),
     data,
     logger,
     publish: () => {}

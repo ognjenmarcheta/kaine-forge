@@ -40,6 +40,10 @@ _Avoid_: public attachment, public file
 A pending offer for an email address to join an **Organization** with a role (admin or member). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked by admins.
 _Avoid_: invite link, access request
 
+**Audit Event**:
+A record the system writes when a security-relevant or membership action succeeds: who did what to which target, from which IP address and user agent, and when. An organization action belongs to its **Organization**; an account action, such as a password change, belongs to no Organization. Owners and admins read the **Active Organization**'s Audit Events. Nobody edits one.
+_Avoid_: activity feed, log entry, history
+
 **Email Verification**:
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation
@@ -56,6 +60,7 @@ _Avoid_: account activation
 - An **Attachment** belongs to exactly one **Organization** and may be associated with a **Todo**.
 - A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only an admin or owner changes an Organization's logo.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
+- An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
 ## Example dialogue
 

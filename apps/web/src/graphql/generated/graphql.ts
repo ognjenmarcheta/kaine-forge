@@ -7,6 +7,21 @@ export type Incremental<T> =
 import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 export type AttachmentEntityType = "general" | "todo";
 
+export type AuditAction =
+  | "attachment_deleted"
+  | "invitation_revoked"
+  | "member_invited"
+  | "member_joined"
+  | "member_left"
+  | "member_removed"
+  | "member_role_changed"
+  | "organization_deleted"
+  | "organization_renamed"
+  | "ownership_transferred"
+  | "password_changed"
+  | "two_factor_disabled"
+  | "two_factor_enabled";
+
 export type CreateNoteInput = {
   body?: string | null | undefined;
   title: string;
@@ -117,6 +132,33 @@ export type OnAssistantMessageDeltaSubscriptionVariables = Exact<{ [key: string]
 
 export type OnAssistantMessageDeltaSubscription = {
   assistantMessageDelta: { conversationId: string; delta: string };
+};
+
+export type AuditEventsQueryVariables = Exact<{
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+}>;
+
+export type AuditEventsQuery = {
+  auditEvents: {
+    endCursor: string | null;
+    hasNextPage: boolean;
+    events: Array<{
+      id: string;
+      action: AuditAction;
+      targetType: string;
+      targetLabel: string | null;
+      ipAddress: string | null;
+      createdAt: unknown;
+      actor: { id: string; name: string; email: string } | null;
+    }>;
+  };
+};
+
+export type CurrentOrganizationRoleQueryVariables = Exact<{ [key: string]: never }>;
+
+export type CurrentOrganizationRoleQuery = {
+  currentOrganization: { id: string; role: string } | null;
 };
 
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
@@ -698,6 +740,109 @@ export const OnAssistantMessageDeltaDocument = {
   OnAssistantMessageDeltaSubscription,
   OnAssistantMessageDeltaSubscriptionVariables
 >;
+export const AuditEventsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "AuditEvents" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "auditEvents" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "events" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "action" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "actor" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "email" } }
+                          ]
+                        }
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "targetType" } },
+                      { kind: "Field", name: { kind: "Name", value: "targetLabel" } },
+                      { kind: "Field", name: { kind: "Name", value: "ipAddress" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+                { kind: "Field", name: { kind: "Name", value: "hasNextPage" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<AuditEventsQuery, AuditEventsQueryVariables>;
+export const CurrentOrganizationRoleDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "CurrentOrganizationRole" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "currentOrganization" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "role" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<CurrentOrganizationRoleQuery, CurrentOrganizationRoleQueryVariables>;
 export const HealthDocument = {
   kind: "Document",
   definitions: [

@@ -19,6 +19,7 @@ const translation = vi.hoisted(() => {
     }
   };
 });
+const auditLogAccess = vi.hoisted(() => ({ value: false }));
 const routeFailure = vi.hoisted(() => ({
   auth: false,
   dashboard: false,
@@ -95,6 +96,8 @@ vi.mock("./features/organizations/organizations.route", () => ({
   OrganizationsRoute: () => null
 }));
 vi.mock("./features/security/security.route", () => ({ SecurityRoute: () => null }));
+vi.mock("./features/audit/audit.hook", () => ({ useAuditLogAccess: () => auditLogAccess.value }));
+vi.mock("./features/audit/audit.route", () => ({ AuditLogRoute: () => null }));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -117,6 +120,7 @@ afterEach(async () => {
   container.remove();
   Object.assign(routeFailure, { auth: false, dashboard: false, shell: false, todos: false });
   signedIn.value = true;
+  auditLogAccess.value = false;
   translation.language = "en";
   consoleError.mockRestore();
   vi.unstubAllGlobals();
@@ -178,6 +182,19 @@ it.each([
 
     expect(findByText("h1", "error.generic")).toBeDefined();
     expect(findByText("a", "common.goToDashboard")).toBeDefined();
+  }
+);
+
+it.each([
+  { canRead: true, link: "navigation.auditLog" },
+  { canRead: false, link: undefined }
+])(
+  "shows the audit log link only to an owner or admin (can read: $canRead)",
+  async ({ canRead, link }) => {
+    auditLogAccess.value = canRead;
+    await renderAt("/dashboard");
+
+    expect(findByText("a", "navigation.auditLog")?.textContent).toBe(link);
   }
 );
 
