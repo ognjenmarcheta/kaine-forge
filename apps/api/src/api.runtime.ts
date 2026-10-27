@@ -7,8 +7,8 @@ interface ApiRuntimeServer {
   listen(port: number, hostname: string, callback: () => void): unknown;
 }
 
-export interface ApiRuntimeAdapter {
-  createServer: (input: { logger: Logger }) => { server: ApiRuntimeServer };
+export interface ApiRuntimeAdapter<T extends { server: ApiRuntimeServer }> {
+  createServer: (input: { logger: Logger }) => T;
   exit: (code: number) => never;
   logger: Logger;
   migrations: {
@@ -20,7 +20,9 @@ export interface ApiRuntimeAdapter {
   verifyDatabase: () => Promise<void>;
 }
 
-export async function startApiRuntime(adapter: ApiRuntimeAdapter): Promise<void> {
+export async function startApiRuntime<T extends { server: ApiRuntimeServer }>(
+  adapter: ApiRuntimeAdapter<T>
+): Promise<T> {
   try {
     await adapter.verifyDatabase();
     adapter.logger.info("database connection verified");
@@ -41,16 +43,18 @@ export async function startApiRuntime(adapter: ApiRuntimeAdapter): Promise<void>
     adapter.logger.info("database migrations skipped");
   }
 
-  const { server } = adapter.createServer({ logger: adapter.logger });
+  const created = adapter.createServer({ logger: adapter.logger });
+  const { server } = created;
 
   if (adapter.host) {
     server.listen(adapter.port, adapter.host, () => {
       adapter.logger.info({ host: adapter.host, port: adapter.port }, "api server started");
     });
-    return;
+    return created;
   }
 
   server.listen(adapter.port, () => {
     adapter.logger.info({ port: adapter.port }, "api server started");
   });
+  return created;
 }
