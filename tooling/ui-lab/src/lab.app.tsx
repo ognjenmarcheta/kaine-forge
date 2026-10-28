@@ -15,16 +15,27 @@ function useHashRoute(): string {
   return route;
 }
 
-/** One recreated screen under its own theme, in its reference mode or the one the route names. */
+/**
+ * One recreated screen under its own theme, in its reference mode or the one the route names.
+ * The screen is alone on the page, so the theme goes on <html>: menus, dialogs, and tooltips
+ * render in portals outside the screen and must get the same theme.
+ */
 function ScreenView({ screen, mode }: { screen: LabScreen; mode: string }) {
   const { Component } = screen;
+  const colorMode = mode === "light" || mode === "dark" ? mode : screen.mode;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset["theme"] = screen.theme.name;
+    root.dataset["colorMode"] = colorMode;
+    return () => {
+      delete root.dataset["theme"];
+      delete root.dataset["colorMode"];
+    };
+  }, [colorMode, screen.theme.name]);
 
   return (
-    <div
-      className="min-h-screen bg-ds-bg text-ds-text"
-      data-color-mode={mode === "light" || mode === "dark" ? mode : screen.mode}
-      data-theme={screen.theme.name}
-    >
+    <div className="min-h-screen bg-ds-bg text-ds-text">
       <Component />
     </div>
   );
