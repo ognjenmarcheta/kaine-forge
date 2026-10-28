@@ -32,7 +32,8 @@ export interface LabCrop {
 
 // Each screen loads on its own, so a screen another session is still writing, or one that
 // fails to compile, shows as a failure in the gallery instead of blanking the whole lab.
-const loaders = import.meta.glob<{ screen: LabScreen }>("./screens/*/*.screen.tsx");
+// A screen file that is still being written can load without its `screen` export.
+const loaders = import.meta.glob<{ screen?: LabScreen }>("./screens/*/*.screen.tsx");
 
 /** A screen whose module failed to load, by folder name. */
 export interface LabScreenFailure {
@@ -59,14 +60,19 @@ export async function loadLabCatalog(): Promise<LabCatalog> {
   const failures: LabScreenFailure[] = [];
 
   results.forEach((result, index) => {
-    if (result.status === "fulfilled") {
+    if (result.status === "fulfilled" && result.value.screen) {
       screens.push(result.value.screen);
       return;
     }
     const path = entries[index]?.[0] ?? "";
     failures.push({
       id: /screens\/([^/]+)\//.exec(path)?.[1] ?? path,
-      message: result.reason instanceof Error ? result.reason.message : String(result.reason)
+      message:
+        result.status === "fulfilled"
+          ? "The file exports no `screen`."
+          : result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason)
     });
   });
   screens.sort(byId);
