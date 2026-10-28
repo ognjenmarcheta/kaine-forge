@@ -139,6 +139,7 @@ Typography tokens define hierarchy and rhythm.
 
 | Token                      | Use                 |
 | -------------------------- | ------------------- |
+| `--ds-font-display`        | one hero figure     |
 | `--ds-font-heading-xlarge` | page heading        |
 | `--ds-font-heading-large`  | section heading     |
 | `--ds-font-heading-medium` | card/panel heading  |
@@ -236,7 +237,7 @@ Do not pair `surface-raised` with `shadow-overlay` or default surface with raise
 
 ### Motion contract
 
-Use CSS on web/desktop and Reanimated on native. Do not add an animation framework. Canonical duration tokens are `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms). Use small opacity/transform transitions, respect reduced motion, and never delay navigation. Theme changes are immediate and preserve drafts, focus, and scroll.
+Use CSS on web/desktop and Reanimated on native. Do not add an animation framework. Canonical duration tokens are `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms). On web, use them through `duration-control`, `duration-overlay`, `duration-drawer`, and `ease-standard`, with a named property: `transition-colors duration-control ease-standard`. Use small opacity/transform transitions, respect reduced motion, and never delay navigation. Theme changes are immediate and preserve drafts, focus, and scroll.
 
 - Use `--ds-motion-easing` (a quick ease-out, `cubic-bezier(0.23, 1, 0.32, 1)`) for calm transitions without bounce. Sidebar rail and spacer resize together while labels fade; interrupted width transitions reverse from the current geometry. Footer preferences stay in fixed vertical slots above a stable-height profile row.
 - Sheets enter and exit fully from their declared edge. Backdrops fade. Dialogs combine opacity with `--ds-motion-distance-dialog` (8px); anchored menus/tooltips use `--ds-motion-distance-menu` (4px). Preserve positioning transforms. Radix owns exit presence and focus restoration.
@@ -285,7 +286,9 @@ Themes live in `@repo/theme` (`packages/theme/src/themes/<name>/<name>.theme.ts`
 | `p-ds-200`, `gap-ds-100`, `h-ds-control-medium`        | `--ds-space-*` and `--ds-control-*`                                      |
 | `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl` | `--ds-radius-050`, `-100`, `-200`, `-300`                                |
 | `shadow-raised`, `shadow-overlay`, `shadow-floating`   | `--ds-shadow-*`                                                          |
-| `text-heading-sm`, `text-body`, `text-body-sm`         | the whole `--ds-font-*` step; `font-*` and `leading-*` still override it |
+| `text-display`, `text-heading-sm`, `text-body`         | the whole `--ds-font-*` step; `font-*` and `leading-*` still override it |
+| `rounded-card`, `shadow-card`, `p-card`, `font-button` | the component tokens (section 6.1)                                       |
+| `duration-control`, `ease-standard`                    | `--ds-motion-*` durations and easing                                     |
 
 `packages/config/tailwind/preset.js` gives mobile (NativeWind) the same utility names from the generated `preset.tokens.js`.
 

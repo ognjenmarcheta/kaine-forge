@@ -10,8 +10,8 @@ Write one line for each axis before you write code.
 
 | Axis    | What you choose                                                 | Moss                             |
 | ------- | --------------------------------------------------------------- | -------------------------------- |
-| Color   | a brand color and a neutral tint                                | `#2f6b4f`, warm stone            |
-| Type    | sans, heading, and mono font stacks, and the heading weight     | system sans, serif headings, 600 |
+| Color   | a brand color, a neutral tint, and how dark the dark mode is    | `#2f6b4f`, warm stone            |
+| Type    | sans, heading, and mono font stacks, the heading weight, sizes  | system sans, serif headings, 600 |
 | Shape   | the radius of buttons, fields, cards, overlays, dialogs, badges | 4–8px                            |
 | Density | `compact`, `default`, or `comfortable`                          | compact                          |
 | Depth   | `shadow` (soft card shadows) or `border` (flat cards)           | border                           |
@@ -43,6 +43,21 @@ export const harborTheme = createTheme({
 - A brand color that passes with white text, or with ink text, stays exactly as given for primary buttons.
 - Status colors keep their usual hues (green, amber, red, blue, purple) and get light and dark variants.
 - The six chart colors start from the brand hue and keep the other hues apart.
+- In dark mode, cards sit one step lighter than the page and sunken areas one step darker. A near-black brand (ink) gets a light fill in dark mode, so primary buttons stay visible.
+
+Two inputs change the derivation without exact values:
+
+```ts
+createTheme({
+  // …
+  // The dark page, in OKLCH lightness: about 0.1 is near black, 0.3 is charcoal. Default 0.165.
+  color: { brand: "#1f4e8c", darkSurface: 0.22 },
+  // Change single steps of the type scale. Steps you leave out keep the template values.
+  type: { display: { size: "3.5rem", lineHeight: "3.75rem" }, "heading-xlarge": { weight: 700 } }
+});
+```
+
+The keys are the step names in `typeStepNames` (`packages/theme/src/theme.roles.ts`), such as `display`, `heading-xlarge`, `body-large`, and `body-small`. The utilities use short names: the `heading-xlarge` step is `text-heading-xl`. Use `display` (`text-display`) for one large figure or hero title on a screen, not for section headings.
 
 To set an exact value, override it. An override wins over everything derived:
 
@@ -85,7 +100,7 @@ harbor light: text-subtle on surface is 2.52:1, needs 4.5:1; the nearest passing
 
 Fix the input or add an override, then build again. `pnpm theme:check` runs the same checks without writing, and `pnpm --filter @repo/theme test` runs them in CI. The checks cover:
 
-- 63 contrast pairs in both modes, at 4.5:1 for text and 3:1 for UI graphics and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11).
+- 93 contrast pairs in both modes, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas.
 - Control heights of at least 24px (WCAG 2.2 SC 2.5.8).
 - The `DESIGN.md` of each theme, with the pinned `@google/design.md` linter.
 

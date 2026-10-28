@@ -92,16 +92,18 @@ Reason: one emphasized action tells people what to do next.
 Reason: raw values do not follow the theme or the color mode.
 Do: `bg-ds-surface-raised`. Don't: `bg-white` or `bg-[#fff]`.
 
-**COLOR-6. Chart series take the chart colors in order.** Use `chart-1` to `chart-6` and the grid color. Show at most six series; group the rest as "Other".
-Reason: the chart colors reach 3:1 and stay apart in every theme.
+**COLOR-6. Chart series take the chart colors in order.** Use `chart-1` to `chart-6` and the grid color. Show at most six series; group the rest as "Other". Give a series a fixed `color` only when its meaning sets the color: a role such as `"success"` for a target met, or `"neutral"` for a comparison period.
+Reason: the chart colors and the role borders reach 3:1 in every theme, and a meaning-based color keeps its series recognizable when other series come and go.
+Do: `{ key: "lastYear", label: t("…"), color: "neutral" }`. Don't: `className="text-[#22c55e]"` on a chart.
 
 ## MOTION
 
 **MOTION-1. Motion explains a change.** Animate an element that enters, leaves, or changes state. Do not decorate.
 Reason: decorative motion distracts and costs battery.
 
-**MOTION-2. Use the motion tokens.** Durations `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms), with `--ds-motion-easing`. Name the properties; never `transition: all`.
-Reason: `all` animates layout properties by accident and is slow.
+**MOTION-2. Use the motion tokens.** Durations `--ds-motion-control` (120ms), `--ds-motion-overlay` (180ms), and `--ds-motion-drawer` (220ms), with `--ds-motion-easing`. In class names they are `duration-control`, `duration-overlay`, `duration-drawer`, and `ease-standard`. Name the properties; never `transition: all`.
+Reason: `all` animates layout properties by accident and is slow, and the tokens let a theme change the pace everywhere.
+Do: `transition-colors duration-control ease-standard`. Don't: `transition-all duration-300`.
 
 **MOTION-3 (MUST). Respect reduced motion.** When `prefers-reduced-motion: reduce` matches, remove the motion.
 Reason: motion can make people with vestibular disorders ill (WCAG 2.2 SC 2.3.3).
@@ -198,13 +200,14 @@ Reason: invented data misleads decisions. Demo and lab screens use clearly fixed
 
 **DATA-2. Pick the chart by the question.**
 
-| Question                       | Chart                                                              |
-| ------------------------------ | ------------------------------------------------------------------ |
-| How does it change over time?  | `LineChart` (area for volume)                                      |
-| How do items compare?          | `BarChart`                                                         |
-| What are the parts of a whole? | `BarChart stacked="percent"`, or `DonutChart` for up to five parts |
-| How far toward a goal?         | `RadialProgress` or `ProgressBar`                                  |
-| Is the trend up or down?       | `Sparkline` in a stat tile                                         |
+| Question                                     | Chart                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| How does it change over time?                | `LineChart` (area for volume)                                      |
+| How do items compare?                        | `BarChart`                                                         |
+| What are the parts of a whole?               | `BarChart stacked="percent"`, or `DonutChart` for up to five parts |
+| What share does each part have, in one line? | `ProportionBar` (one bar, with the names and values as text)       |
+| How far toward a goal?                       | `RadialProgress` or `ProgressBar`                                  |
+| Is the trend up or down?                     | `Sparkline` in a stat tile                                         |
 
 **DATA-3. Label units and ranges.** Every number shows its unit and every chart its time range. Format numbers and dates for the active language.
 
