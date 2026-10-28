@@ -98,9 +98,7 @@ export function OrganizationMembersTab() {
           />
         ) : null}
         {membersQuery.status === "success" && members.length === 0 ? (
-          <p className="text-body text-[color:var(--ds-text-subtle)]">
-            {t("organizations.members.empty")}
-          </p>
+          <p className="text-body text-ds-text-subtle">{t("organizations.members.empty")}</p>
         ) : null}
         {members.length > 0 ? (
           <OrganizationMemberList

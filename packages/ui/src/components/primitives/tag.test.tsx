@@ -6,8 +6,8 @@ import { Tag } from "./tag";
 describe("Tag", () => {
   it("applies appearance variant classes", () => {
     const markup = renderToStaticMarkup(<Tag appearance="danger">Error</Tag>);
-    expect(markup).toContain("bg-[var(--ds-background-danger)]");
-    expect(markup).toContain("text-[color:var(--ds-text-danger)]");
+    expect(markup).toContain("bg-ds-bg-danger");
+    expect(markup).toContain("text-ds-text-danger");
   });
 
   it("renders remove button with aria-label when onRemove is provided", () => {

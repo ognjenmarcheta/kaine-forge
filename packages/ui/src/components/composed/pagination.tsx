@@ -54,7 +54,7 @@ function getPageNumbers(
 }
 
 const paginationButtonClass =
-  "inline-flex h-[var(--ds-control-medium)] w-[var(--ds-control-medium)] items-center justify-center rounded-[var(--ds-radius-pill)] text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-border-focused)] disabled:pointer-events-none disabled:text-[color:var(--ds-text-disabled)] disabled:cursor-not-allowed";
+  "inline-flex h-ds-control-medium w-ds-control-medium items-center justify-center rounded-full text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused disabled:pointer-events-none disabled:text-ds-text-disabled disabled:cursor-not-allowed";
 
 const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
   (
@@ -90,7 +90,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
           disabled={currentPage <= 1}
           className={cn(
             paginationButtonClass,
-            "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
+            "text-ds-icon-subtle hover:bg-ds-bg-neutral-subtle-hovered"
           )}
           aria-label={firstPageLabel}
         >
@@ -102,7 +102,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
           disabled={currentPage <= 1}
           className={cn(
             paginationButtonClass,
-            "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
+            "text-ds-icon-subtle hover:bg-ds-bg-neutral-subtle-hovered"
           )}
           aria-label={previousPageLabel}
         >
@@ -113,7 +113,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
           page === "ellipsis" ? (
             <span
               key={`ellipsis-${i}`}
-              className="flex h-[var(--ds-control-medium)] w-[var(--ds-control-medium)] items-center justify-center text-[color:var(--ds-text-subtlest)]"
+              className="flex h-ds-control-medium w-ds-control-medium items-center justify-center text-ds-text-subtlest"
             >
               ...
             </span>
@@ -126,8 +126,8 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
               className={cn(
                 paginationButtonClass,
                 page === currentPage
-                  ? "bg-[var(--ds-background-selected-bold)] text-[color:var(--ds-text-brand-inverse)]"
-                  : "text-[color:var(--ds-text)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
+                  ? "bg-ds-bg-selected-bold text-ds-text-brand-inverse"
+                  : "text-ds-text hover:bg-ds-bg-neutral-subtle-hovered"
               )}
             >
               {page}
@@ -141,7 +141,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
           disabled={currentPage >= totalPages}
           className={cn(
             paginationButtonClass,
-            "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
+            "text-ds-icon-subtle hover:bg-ds-bg-neutral-subtle-hovered"
           )}
           aria-label={nextPageLabel}
         >
@@ -153,7 +153,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
           disabled={currentPage >= totalPages}
           className={cn(
             paginationButtonClass,
-            "text-[color:var(--ds-icon-subtle)] hover:bg-[var(--ds-background-neutral-subtle-hovered)]"
+            "text-ds-icon-subtle hover:bg-ds-bg-neutral-subtle-hovered"
           )}
           aria-label={lastPageLabel}
         >

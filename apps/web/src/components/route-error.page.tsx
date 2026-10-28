@@ -19,10 +19,10 @@ export function RouteErrorPage() {
   }, [error]);
 
   return (
-    <section className="grid content-start gap-[var(--ds-space-200)] p-[var(--ds-space-600)]">
+    <section className="grid content-start gap-ds-200 p-ds-600">
       <h1>{t("error.generic")}</h1>
-      <p className="text-[color:var(--ds-text-subtle)]">{t("error.routeSummary")}</p>
-      <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+      <p className="text-ds-text-subtle">{t("error.routeSummary")}</p>
+      <div className="flex flex-wrap gap-ds-100">
         <Button
           onClick={() => void navigate({ hash, pathname, search }, { replace: true })}
           type="button"

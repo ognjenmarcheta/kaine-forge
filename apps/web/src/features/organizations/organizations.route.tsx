@@ -25,7 +25,7 @@ export function OrganizationsRoute() {
   }
 
   return (
-    <section className="grid gap-[var(--ds-space-300)]">
+    <section className="grid gap-ds-300">
       <PageHeader eyebrow={activeOrganization?.name} title={t("navigation.organization")} />
       <SettingsTabs
         basePath="/organization"

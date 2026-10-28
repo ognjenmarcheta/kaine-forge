@@ -58,10 +58,10 @@ function AccountDeleteConfirm({ onDeleted }: { onDeleted: () => void }) {
       subtitle={t("auth.account.delete.confirmDescription")}
       title={t("auth.account.delete.confirmTitle")}
     >
-      <div className="grid gap-[var(--ds-space-150)]">
+      <div className="grid gap-ds-150">
         {token ? null : <FieldError>{t("auth.account.delete.missingToken")}</FieldError>}
         {confirm.error ? <FieldError>{getAccountErrorMessage(t, confirm.error)}</FieldError> : null}
-        <div className="grid grid-cols-2 gap-[var(--ds-space-100)]">
+        <div className="grid grid-cols-2 gap-ds-100">
           <Button
             appearance="danger"
             disabled={!token || confirm.isPending}

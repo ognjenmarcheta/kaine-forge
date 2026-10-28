@@ -51,13 +51,13 @@ Tokens are the public design API. Components should consume functional tokens in
 
 ### 3.1 Token Tiers
 
-| Tier              | Purpose                                  | Example                                                         |
-| ----------------- | ---------------------------------------- | --------------------------------------------------------------- |
-| Base tokens       | raw palette/scale values, reference only | `--ds-base-light-surface-default`                               |
-| Functional tokens | semantic UI values, primary consumer API | `--ds-text`, `--ds-background-danger-bold`                      |
-| Component tokens  | component or pattern-specific values     | `--ds-button-brand-bg-hovered` (illustrative; none defined yet) |
+| Tier              | Purpose                                                   | Example                                                         |
+| ----------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| Theme values      | the colors and scales a theme defines, in TypeScript only | `byteForgeTheme.modes.light.surface`                            |
+| Functional tokens | semantic UI values, primary consumer API                  | `--ds-text`, `--ds-background-danger-bold`                      |
+| Component tokens  | component or pattern-specific values                      | `--ds-button-brand-bg-hovered` (illustrative; none defined yet) |
 
-Base tokens should not be used directly in component classes or CSS. Functional tokens are the default choice.
+Theme values exist only in `@repo/theme`; code never reads them directly. Functional tokens are the default choice.
 
 ### 3.2 Token Foundations
 
@@ -264,7 +264,19 @@ Rules:
 
 `@repo/ui` owns React DOM primitives and composed components.
 
-Token definitions and the Tailwind v4 mapping (`@theme inline`) live in `packages/ui/src/styles/globals.css`. `packages/config/tailwind/preset.js` is the Tailwind v3 mapping for mobile (NativeWind) only.
+Themes live in `@repo/theme` (`packages/theme/src/themes/<name>/<name>.theme.ts`). `pnpm theme:build` writes `packages/ui/src/styles/tokens.generated.css`: the `--ds-*` tokens and the Tailwind v4 utilities that read them. `globals.css` imports it. Use the utilities, not arbitrary values: `bg-ds-surface-raised`, not `bg-[var(--ds-surface-raised)]`. The utilities replace the default Tailwind palette, shadows, radii, and type sizes, so `bg-red-500`, `shadow-sm`, and `text-sm` generate no CSS.
+
+| Utility                                                | Reads                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `text-ds-text-subtle`, `text-ds-icon`, `text-ds-link`  | text, icon, and link colors                                              |
+| `bg-ds-surface-raised`, `bg-ds-bg-neutral-hovered`     | surfaces and backgrounds (`--ds-background-*` becomes `ds-bg-*`)         |
+| `border-ds-border`, `ring-ds-border-focused`           | border colors                                                            |
+| `p-ds-200`, `gap-ds-100`, `h-ds-control-medium`        | `--ds-space-*` and `--ds-control-*`                                      |
+| `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl` | `--ds-radius-050`, `-100`, `-200`, `-300`                                |
+| `shadow-raised`, `shadow-overlay`, `shadow-floating`   | `--ds-shadow-*`                                                          |
+| `text-heading-sm`, `text-body`, `text-body-sm`         | the whole `--ds-font-*` step; `font-*` and `leading-*` still override it |
+
+`packages/config/tailwind/preset.js` gives mobile (NativeWind) the same utility names from the generated `preset.tokens.js`.
 
 Web app global styles should stay minimal and app-shell oriented. Feature components should prefer `@repo/ui` primitives and token utilities over custom CSS.
 
@@ -289,13 +301,13 @@ Composed component rules:
 
 ### Token pipeline (single source of truth)
 
-Canonical functional and structural tokens live in `packages/ui/src/styles/globals.css` (with web contract tests). Mobile does **not** hand-maintain a second hex palette. The same generator emits `packages/mobile-ui/src/lib/design-tokens.ts` for native navigation colors and motion durations; consume its public `@repo/mobile-ui` exports for APIs that require concrete runtime values.
+Themes in `@repo/theme` are the only token source. Mobile does **not** hand-maintain a second hex palette. The same generator emits `packages/mobile-ui/src/lib/design-tokens.ts` for native navigation colors and motion durations; consume its public `@repo/mobile-ui` exports for APIs that require concrete runtime values.
 
 Pipeline:
 
-1. Edit tokens only in `packages/ui/src/styles/globals.css`.
-2. Run `pnpm tokens:mobile` (or `node scripts/sync-mobile-design-tokens.mjs`) to regenerate the marked region in `apps/mobile/src/styles/global.css`.
-3. `pnpm tokens:mobile:check` (and the `@repo/ui` contract test) fail if mobile CSS drifts from the web source.
+1. Edit a theme in `packages/theme/src/themes/`.
+2. Run `pnpm theme:build`. It checks contrast, then writes the web tokens, the marked region in `apps/mobile/src/styles/global.css`, the native tokens, and the NativeWind preset tokens.
+3. `pnpm theme:check` and the `@repo/theme` tests fail when a theme fails contrast or a generated file is out of date.
 
 The generated block is bounded by `/* DESIGN_TOKENS_START */` / `/* DESIGN_TOKENS_END */`. Functional color tokens are resolved to concrete values because NativeWind does not chase nested `var()` chains the way web CSS does. Theme-independent structural tokens (`--ds-space-*`, `--ds-radius-*`, font weights, line heights, control sizes) are included on `:root`. Dark theme overrides land under `.dark` (paired with the mobile dark-theme class wiring).
 
@@ -313,7 +325,7 @@ Rules:
 - Do not copy DOM-specific Radix/shadcn APIs into mobile components.
 - Keep mobile component text passed by props or translations from app feature code.
 - Avoid raw color and spacing values in mobile feature components.
-- After changing web tokens, re-run `pnpm tokens:mobile` before committing.
+- After changing a theme, run `pnpm theme:build` before committing.
 
 ## 11. Layout Patterns
 

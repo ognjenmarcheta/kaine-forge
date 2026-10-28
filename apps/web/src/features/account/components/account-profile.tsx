@@ -34,7 +34,7 @@ export function AccountProfile() {
       <PublicAssetUpload kind="avatar" ownerName={session?.user.name ?? ""} />
       <SettingsSection title={t("auth.account.profile.nameTitle")}>
         <form
-          className="grid gap-[var(--ds-space-100)]"
+          className="grid gap-ds-100"
           onSubmit={(event) => {
             event.preventDefault();
             const error = validateAuthName(name);

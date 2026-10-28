@@ -50,9 +50,7 @@ export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsPr
         />
       ) : null}
       {invitationsQuery.status === "success" && invitations.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.invitations.empty")}
-        </p>
+        <p className="text-body text-ds-text-subtle">{t("organizations.invitations.empty")}</p>
       ) : null}
       {revoke.error ? <FieldError>{t(getAuthErrorMessageKey(revoke.error))}</FieldError> : null}
       {invitations.length > 0 ? (
@@ -60,13 +58,11 @@ export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsPr
           {invitations.map((invitation) => (
             <li
               key={invitation.id}
-              className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+              className="ui-work-row flex flex-wrap items-center justify-between gap-ds-150"
             >
               <div>
-                <p className="text-body font-semibold text-[color:var(--ds-text)]">
-                  {invitation.email}
-                </p>
-                <p className="flex flex-wrap gap-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-subtle)]">
+                <p className="text-body font-semibold text-ds-text">{invitation.email}</p>
+                <p className="flex flex-wrap gap-ds-100 text-body-sm text-ds-text-subtle">
                   <span>{roleLabel(invitation.role, t)}</span>
                   <span>
                     {t("organizations.invitations.expires")}{" "}

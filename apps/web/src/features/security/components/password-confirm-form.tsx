@@ -19,7 +19,7 @@ export function PasswordConfirmForm({ id, onCancel, onConfirm }: PasswordConfirm
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
 
@@ -46,7 +46,7 @@ export function PasswordConfirmForm({ id, onCancel, onConfirm }: PasswordConfirm
         />
       </Field>
       {error ? <FieldError>{error}</FieldError> : null}
-      <div className="flex gap-[var(--ds-space-100)]">
+      <div className="flex gap-ds-100">
         <Button disabled={isSubmitting} type="submit">
           {isSubmitting ? t("common.loadingShort") : t("auth.security.continue")}
         </Button>

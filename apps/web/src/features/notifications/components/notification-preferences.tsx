@@ -50,7 +50,7 @@ export function NotificationPreferences() {
         />
       ) : null}
       {update.isError ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body text-ds-text-danger">
           {t("notifications.preferences.saveError")}
         </p>
       ) : null}
@@ -62,18 +62,18 @@ export function NotificationPreferences() {
             return (
               <fieldset
                 key={preference.type}
-                className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+                className="ui-work-row flex flex-wrap items-center justify-between gap-ds-150"
               >
                 <legend className="sr-only">{typeLabel}</legend>
-                <span aria-hidden="true" className="text-body text-[color:var(--ds-text)]">
+                <span aria-hidden="true" className="text-body text-ds-text">
                   {typeLabel}
                 </span>
-                <span className="flex flex-wrap gap-[var(--ds-space-200)]">
+                <span className="flex flex-wrap gap-ds-200">
                   {(preference.emailAvailable ? CHANNELS : IN_APP_ONLY).map((channel) => {
                     const id = `notification-${preference.type}-${channel}`;
 
                     return (
-                      <span key={channel} className="flex items-center gap-[var(--ds-space-075)]">
+                      <span key={channel} className="flex items-center gap-ds-075">
                         <Checkbox
                           id={id}
                           checked={preference[channel]}
@@ -82,7 +82,7 @@ export function NotificationPreferences() {
                             toggle(preference, channel, checked === true)
                           }
                         />
-                        <label htmlFor={id} className="text-body text-[color:var(--ds-text)]">
+                        <label htmlFor={id} className="text-body text-ds-text">
                           {t(
                             channel === "inApp"
                               ? "notifications.preferences.inApp"
@@ -93,7 +93,7 @@ export function NotificationPreferences() {
                     );
                   })}
                   {preference.emailAvailable ? null : (
-                    <span className="text-body-sm text-[color:var(--ds-text-subtle)]">
+                    <span className="text-body-sm text-ds-text-subtle">
                       {t("notifications.preferences.emailAlwaysSent")}
                     </span>
                   )}

@@ -91,7 +91,7 @@ export function TwoFactorSettings() {
       title={t("auth.twoFactor.title")}
     >
       {step.kind === "idle" ? (
-        <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+        <div className="flex flex-wrap gap-ds-100">
           {isEnabled ? (
             <>
               <Button
@@ -127,14 +127,14 @@ export function TwoFactorSettings() {
 
       {step.kind === "enroll" ? (
         <form
-          className="grid gap-[var(--ds-space-150)]"
+          className="grid gap-ds-150"
           onSubmit={(event) => {
             event.preventDefault();
             void verifyEnrollment(step.enrollment);
           }}
         >
           <FieldDescription>{t("auth.security.scanQr")}</FieldDescription>
-          <div className="w-fit rounded-[var(--ds-radius-100)] bg-[var(--ds-surface)] p-[var(--ds-space-150)] text-[color:var(--ds-text)]">
+          <div className="w-fit rounded-md bg-ds-surface p-ds-150 text-ds-text">
             <QRCode
               aria-label={t("auth.security.qrLabel")}
               bgColor="transparent"
@@ -145,7 +145,7 @@ export function TwoFactorSettings() {
             />
           </div>
           <FieldDescription>{t("auth.security.setupKey")}</FieldDescription>
-          <div className="flex flex-wrap items-center gap-[var(--ds-space-100)]">
+          <div className="flex flex-wrap items-center gap-ds-100">
             <code className="break-all">{setupKey}</code>
             {setupKey ? (
               <CopyButton
@@ -162,7 +162,7 @@ export function TwoFactorSettings() {
             onChange={setCode}
           />
           {error ? <FieldError>{error}</FieldError> : null}
-          <div className="flex gap-[var(--ds-space-100)]">
+          <div className="flex gap-ds-100">
             <Button disabled={isSubmitting} type="submit">
               {isSubmitting ? t("common.loadingShort") : t("auth.security.confirm")}
             </Button>

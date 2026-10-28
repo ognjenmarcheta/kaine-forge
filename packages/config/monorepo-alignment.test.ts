@@ -295,13 +295,14 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
     ]
   },
   {
-    file: "packages/ui/src/styles/mobile-tokens.contract.test.ts",
+    file: "packages/theme/src/theme.build.test.ts",
     reason:
-      "runs scripts/sync-mobile-design-tokens.mjs, which diffs globals.css against the mobile CSS and token file",
+      "builds every generated theme file in memory and diffs it against the committed copy in its package",
     needs: [
-      "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
       "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
-      "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts"
+      "$TURBO_ROOT$/packages/config/tailwind/preset.tokens.js",
+      "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts",
+      "$TURBO_ROOT$/packages/ui/src/styles/tokens.generated.css"
     ]
   },
   {
@@ -549,6 +550,7 @@ describe("monorepo alignment", () => {
       "@repo/feature-flags": "packages/feature-flags",
       "@repo/jobs": "packages/jobs",
       "@repo/storage": "packages/storage",
+      "@repo/theme": "packages/theme",
       "@repo/translation": "packages/translation",
       "@repo/todos": "packages/todos",
       "@repo/query": "packages/query",
@@ -704,13 +706,12 @@ describe("monorepo alignment", () => {
     assertPackageHasExports("packages/storage/package.json", [".", "./client"]);
   });
 
-  it("defines token base layer with light and dark themes", () => {
+  it("loads the generated theme tokens with light and dark modes", () => {
     const globalsCss = readText("packages/ui/src/styles/globals.css");
+    const tokensCss = readText("packages/ui/src/styles/tokens.generated.css");
 
-    expect(globalsCss).toContain("--ds-base-");
-    expect(globalsCss).toContain(':root[data-theme="dark"]');
-    expect(globalsCss).not.toContain(':root[data-theme="light-high-contrast"]');
-    expect(globalsCss).not.toContain(':root[data-theme="dark-high-contrast"]');
+    expect(globalsCss).toContain('@import "./tokens.generated.css";');
+    expect(tokensCss).toContain(':root[data-theme="dark"]');
   });
 
   it("does not expose legacy flags alias exports in feature-flags package", () => {
@@ -738,6 +739,7 @@ describe("monorepo alignment", () => {
       "@repo/query": "packages/query",
       "@repo/storage": "packages/storage",
       "@repo/todos": "packages/todos",
+      "@repo/theme": "packages/theme",
       "@repo/translation": "packages/translation",
       "@repo/ui": "packages/ui"
     };
@@ -1102,6 +1104,7 @@ describe("monorepo alignment", () => {
       "packages/query",
       "packages/storage",
       "packages/todos",
+      "packages/theme",
       "packages/translation",
       "packages/ui"
     ];
@@ -1244,13 +1247,7 @@ describe("monorepo alignment", () => {
     }
 
     const uiInputs = readTestInputs("packages/ui/turbo.json");
-    for (const input of [
-      "$TURBO_DEFAULT$",
-      "$TURBO_ROOT$/DESIGN_SYSTEM.md",
-      "$TURBO_ROOT$/scripts/sync-mobile-design-tokens.mjs",
-      "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
-      "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts"
-    ]) {
+    for (const input of ["$TURBO_DEFAULT$", "$TURBO_ROOT$/DESIGN_SYSTEM.md"]) {
       expect(uiInputs, `packages/ui/turbo.json test.inputs must hash ${input}`).toContain(input);
     }
   });

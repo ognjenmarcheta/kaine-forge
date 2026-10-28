@@ -12,7 +12,7 @@ export function OneTimeSecret({ label, value }: { label: string; value: string }
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="flex gap-[var(--ds-space-100)]">
+      <div className="flex gap-ds-100">
         <Input id={id} readOnly value={value} className="font-mono" />
         <Button
           appearance="subtle"

@@ -13,5 +13,10 @@
     "src/**/*.spec.ts",
     "src/**/*.spec.tsx",
     "src/**/*test-helpers*.ts"
+  ],
+  "references": [
+    {
+      "path": "../theme/tsconfig.build.json"
+    }
   ]
 }

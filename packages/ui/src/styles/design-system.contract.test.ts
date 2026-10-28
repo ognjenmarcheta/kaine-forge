@@ -4,9 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const css = readFileSync(resolve(here, "globals.css"), "utf8");
+const css = readFileSync(resolve(here, "tokens.generated.css"), "utf8");
 const designSystemDoc = readFileSync(resolve(here, "../../../../DESIGN_SYSTEM.md"), "utf8");
-const tailwindPreset = readFileSync(resolve(here, "../../../config/tailwind/preset.js"), "utf8");
+const tailwindPreset = [
+  readFileSync(resolve(here, "../../../config/tailwind/preset.js"), "utf8"),
+  readFileSync(resolve(here, "../../../config/tailwind/preset.tokens.js"), "utf8")
+].join("\n");
 
 // DESIGN_SYSTEM.md §3.1 component-tier example; no component tokens exist yet,
 // so it stays illustrative and is exempt from the contract.

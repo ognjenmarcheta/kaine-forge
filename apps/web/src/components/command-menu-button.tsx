@@ -13,7 +13,7 @@ export function CommandMenuButton({ onOpen }: { onOpen: () => void }) {
     <Button
       appearance="subtle"
       aria-keyshortcuts={applePlatform ? "Meta+K" : "Control+K"}
-      className="gap-[var(--ds-space-100)] text-[color:var(--ds-text-subtle)]"
+      className="gap-ds-100 text-ds-text-subtle"
       onClick={onOpen}
       spacing="compact"
       type="button"

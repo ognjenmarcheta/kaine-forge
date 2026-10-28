@@ -7,7 +7,7 @@ describe("Banner", () => {
   it("renders with role alert and appearance variant", () => {
     const markup = renderToStaticMarkup(<Banner appearance="error">System down</Banner>);
     expect(markup).toContain('role="alert"');
-    expect(markup).toContain("bg-[var(--ds-background-danger-bold)]");
+    expect(markup).toContain("bg-ds-bg-danger-bold");
   });
 
   it("renders dismiss button with aria-label when onDismiss is provided", () => {

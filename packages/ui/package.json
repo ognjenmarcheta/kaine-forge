@@ -21,11 +21,13 @@
     "./styles/globals.css": "./src/styles/globals.css"
   },
   "sideEffects": [
-    "./src/styles/globals.css"
+    "./src/styles/globals.css",
+    "./src/styles/tokens.generated.css"
   ],
   "files": [
     "dist",
-    "src/styles/globals.css"
+    "src/styles/globals.css",
+    "src/styles/tokens.generated.css"
   ],
   "scripts": {
     "dev": "echo \"@repo/ui has no dev runtime\"",
@@ -43,6 +45,7 @@
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "@repo/theme": "workspace:*",
     "@tanstack/react-form": "^1.33.5",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",

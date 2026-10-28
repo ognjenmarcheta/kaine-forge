@@ -20,6 +20,6 @@ describe("ProgressBar", () => {
 
   it("applies appearance variant", () => {
     const markup = renderToStaticMarkup(<ProgressBar value={50} appearance="success" />);
-    expect(markup).toContain("bg-[var(--ds-background-success-bold)]");
+    expect(markup).toContain("bg-ds-bg-success-bold");
   });
 });

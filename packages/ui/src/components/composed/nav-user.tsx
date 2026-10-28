@@ -53,11 +53,9 @@ export function NavUser({ accountItem, className, logoutLabel, onLogout, user }:
                 {user.avatar ? <AvatarImage alt={user.name} src={user.avatar} /> : null}
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 min-w-0 text-left text-sm leading-tight">
+              <div className="grid flex-1 min-w-0 text-left text-body leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-[color:var(--ds-text-subtle)]">
-                  {user.email}
-                </span>
+                <span className="truncate text-body-sm text-ds-text-subtle">{user.email}</span>
               </div>
               <MoreVertical aria-hidden className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -69,16 +67,14 @@ export function NavUser({ accountItem, className, logoutLabel, onLogout, user }:
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-body">
                 <Avatar className="h-8 w-8 rounded-lg">
                   {user.avatar ? <AvatarImage alt={user.name} src={user.avatar} /> : null}
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 min-w-0 text-left text-sm leading-tight">
+                <div className="grid flex-1 min-w-0 text-left text-body leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-[color:var(--ds-text-subtle)]">
-                    {user.email}
-                  </span>
+                  <span className="truncate text-body-sm text-ds-text-subtle">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>

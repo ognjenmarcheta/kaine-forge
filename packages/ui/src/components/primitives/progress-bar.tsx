@@ -3,14 +3,14 @@ import * as React from "react";
 
 import { cn } from "../../lib/cn";
 
-const progressBarVariants = cva("h-full rounded-[var(--ds-radius-pill)] transition-all", {
+const progressBarVariants = cva("h-full rounded-full transition-all", {
   variants: {
     appearance: {
-      brand: "bg-[var(--ds-background-brand-bold)]",
-      success: "bg-[var(--ds-background-success-bold)]",
-      danger: "bg-[var(--ds-background-danger-bold)]",
-      warning: "bg-[var(--ds-background-warning-bold)]",
-      information: "bg-[var(--ds-background-information-bold)]"
+      brand: "bg-ds-bg-brand-bold",
+      success: "bg-ds-bg-success-bold",
+      danger: "bg-ds-bg-danger-bold",
+      warning: "bg-ds-bg-warning-bold",
+      information: "bg-ds-bg-information-bold"
     }
   },
   defaultVariants: {
@@ -33,8 +33,8 @@ const ProgressBar = React.forwardRef<HTMLDivElement, ProgressBarProps>(
       <div className={cn("w-full", className)}>
         {label && (
           <div className="mb-1 flex items-center justify-between text-body-sm">
-            <span className="text-[color:var(--ds-text)]">{label}</span>
-            <span className="text-[color:var(--ds-text-subtle)]">{Math.round(percentage)}%</span>
+            <span className="text-ds-text">{label}</span>
+            <span className="text-ds-text-subtle">{Math.round(percentage)}%</span>
           </div>
         )}
         <div
@@ -44,7 +44,7 @@ const ProgressBar = React.forwardRef<HTMLDivElement, ProgressBarProps>(
           aria-valuemin={0}
           aria-valuemax={max}
           aria-label={label}
-          className="h-2 w-full overflow-hidden rounded-[var(--ds-radius-pill)] bg-[var(--ds-background-neutral)]"
+          className="h-2 w-full overflow-hidden rounded-full bg-ds-bg-neutral"
           {...props}
         >
           <div

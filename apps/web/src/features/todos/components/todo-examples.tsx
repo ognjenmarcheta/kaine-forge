@@ -181,7 +181,7 @@ export function TodoExamples({
             </Field>
           )}
         </advancedExampleForm.Field>
-        <div className="grid grid-cols-1 gap-[var(--ds-space-150)] md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-ds-150 md:grid-cols-2">
           <advancedExampleForm.Field name="description">
             {(fieldApi) => (
               <Field>
@@ -215,10 +215,7 @@ export function TodoExamples({
         </div>
         <advancedExampleForm.Field name="markCompleted">
           {(fieldApi) => (
-            <label
-              className="flex items-center gap-[var(--ds-space-100)]"
-              htmlFor="advanced-example-complete"
-            >
+            <label className="flex items-center gap-ds-100" htmlFor="advanced-example-complete">
               <Checkbox
                 checked={fieldApi.state.value}
                 id="advanced-example-complete"

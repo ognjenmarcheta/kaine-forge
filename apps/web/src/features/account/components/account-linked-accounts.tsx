@@ -66,11 +66,9 @@ export function AccountLinkedAccounts() {
           {linked.map((account) => (
             <li
               key={account.id}
-              className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+              className="ui-work-row flex flex-wrap items-center justify-between gap-ds-150"
             >
-              <span className="text-body text-[color:var(--ds-text)]">
-                {label(account.providerId)}
-              </span>
+              <span className="text-body text-ds-text">{label(account.providerId)}</span>
               {/* better-auth refuses to unlink the last sign-in method. */}
               {linked.length > 1 ? (
                 <Button
@@ -86,7 +84,7 @@ export function AccountLinkedAccounts() {
         </ul>
       ) : null}
       {linkable.length > 0 ? (
-        <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+        <div className="flex flex-wrap gap-ds-100">
           {linkable.map((provider) => (
             <Button
               key={provider}

@@ -37,7 +37,7 @@ export function NavPreferences({
   return (
     <SidebarGroup>
       {groupLabel ? <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel> : null}
-      <SidebarGroupContent className="space-y-[var(--ds-space-100)]">
+      <SidebarGroupContent className="space-y-ds-100">
         <ShellSelectControl className="w-full min-w-0 max-w-none" icon="language" {...language} />
         <ShellSelectControl className="w-full min-w-0 max-w-none" icon="theme" {...theme} />
       </SidebarGroupContent>

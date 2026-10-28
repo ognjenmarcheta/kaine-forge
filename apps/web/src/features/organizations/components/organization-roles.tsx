@@ -46,10 +46,10 @@ function PermissionChecklist({ onChange, value }: PermissionChecklistProps) {
   return (
     <FieldSet>
       <FieldLegend variant="label">{t("organizations.roles.permissions")}</FieldLegend>
-      <div className="grid gap-[var(--ds-space-150)] sm:grid-cols-2">
+      <div className="grid gap-ds-150 sm:grid-cols-2">
         {[...PERMISSION_GROUPS].map(([resource, permissions]) => (
-          <div key={resource} className="grid gap-[var(--ds-space-050)]">
-            <p className="text-body-sm font-semibold text-[color:var(--ds-text)]">
+          <div key={resource} className="grid gap-ds-050">
+            <p className="text-body-sm font-semibold text-ds-text">
               {t(`organizations.permission.group.${resource}`)}
             </p>
             {permissions.map((permission) => {
@@ -58,7 +58,7 @@ function PermissionChecklist({ onChange, value }: PermissionChecklistProps) {
               return (
                 <label
                   key={permission}
-                  className="flex items-center gap-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text)]"
+                  className="flex items-center gap-ds-100 text-body-sm text-ds-text"
                   htmlFor={id}
                 >
                   <Checkbox
@@ -106,8 +106,8 @@ function CustomRoleItem({ role }: { role: AuthCustomRole }) {
   const error = save.error ?? remove.error;
 
   return (
-    <article className="ui-work-row grid gap-[var(--ds-space-150)]">
-      <h3 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">{role.name}</h3>
+    <article className="ui-work-row grid gap-ds-150">
+      <h3 className="text-heading-xs font-semibold text-ds-text">{role.name}</h3>
       {/* Collapsed by default; the edits stay while it is closed. */}
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="ui-disclosure-trigger">
@@ -115,7 +115,7 @@ function CustomRoleItem({ role }: { role: AuthCustomRole }) {
           {t("organizations.roles.permissionCount").replace("{count}", String(permissions.size))}
         </CollapsibleTrigger>
         <CollapsibleContent forceMount inert={!open}>
-          <div className="pt-[var(--ds-space-150)]">
+          <div className="pt-ds-150">
             <PermissionChecklist value={permissions} onChange={setPermissions} />
           </div>
         </CollapsibleContent>
@@ -124,7 +124,7 @@ function CustomRoleItem({ role }: { role: AuthCustomRole }) {
       {save.isSuccess ? (
         <FieldDescription role="status">{t("organizations.roles.saved")}</FieldDescription>
       ) : null}
-      <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+      <div className="flex flex-wrap gap-ds-100">
         <Button
           disabled={save.isPending || permissions.size === 0}
           onClick={() => save.mutate({ name: role.name, permissions: [...permissions] })}
@@ -168,7 +168,7 @@ function CustomRoleCreateForm() {
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         create.mutate({ name: name.trim().toLowerCase(), permissions: [...permissions] });
@@ -219,9 +219,7 @@ export function OrganizationRoles() {
           />
         ) : null}
         {rolesQuery.status === "success" && roles.length === 0 ? (
-          <p className="text-body text-[color:var(--ds-text-subtle)]">
-            {t("organizations.roles.empty")}
-          </p>
+          <p className="text-body text-ds-text-subtle">{t("organizations.roles.empty")}</p>
         ) : null}
         {roles.length > 0 ? (
           <div className="ui-work-list">

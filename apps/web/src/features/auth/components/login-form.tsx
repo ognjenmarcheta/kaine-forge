@@ -65,7 +65,7 @@ export function LoginForm({ onDone, onTwoFactorRequired }: LoginFormProps) {
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();

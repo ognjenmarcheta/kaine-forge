@@ -10,13 +10,13 @@ describe("Badge", () => {
         Active
       </Badge>
     );
-    expect(markup).toContain("bg-[var(--ds-background-success-bold)]");
-    expect(markup).toContain("text-[color:var(--ds-text-inverse)]");
+    expect(markup).toContain("bg-ds-bg-success-bold");
+    expect(markup).toContain("text-ds-text-inverse");
   });
 
   it("merges custom className", () => {
     const markup = renderToStaticMarkup(<Badge className="custom-badge">Default</Badge>);
     expect(markup).toContain("custom-badge");
-    expect(markup).toContain("bg-[var(--ds-background-neutral)]");
+    expect(markup).toContain("bg-ds-bg-neutral");
   });
 });

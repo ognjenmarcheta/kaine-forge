@@ -56,21 +56,21 @@ export function DataExportSection({ kind, organizationId }: DataExportSectionPro
         />
       ) : null}
       {exports.data && exports.data.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">{t("dataExport.empty")}</p>
+        <p className="text-body text-ds-text-subtle">{t("dataExport.empty")}</p>
       ) : null}
       {exports.data && exports.data.length > 0 ? (
         <ul aria-label={t("dataExport.list")} className="ui-work-list">
           {exports.data.map((item) => (
             <li
               key={item.id}
-              className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+              className="ui-work-row flex flex-wrap items-center justify-between gap-ds-150"
             >
-              <span className="grid gap-[var(--ds-space-050)]">
-                <span className="text-body text-[color:var(--ds-text)]">
+              <span className="grid gap-ds-050">
+                <span className="text-body text-ds-text">
                   {t("dataExport.requestedAt")} {date.format(new Date(item.createdAt))}
                 </span>
                 {item.status === "ready" && item.expiresAt ? (
-                  <span className="flex flex-wrap gap-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-subtle)]">
+                  <span className="flex flex-wrap gap-ds-100 text-body-sm text-ds-text-subtle">
                     <span>
                       {t("dataExport.availableUntil")} {date.format(new Date(item.expiresAt))}
                     </span>
@@ -80,12 +80,12 @@ export function DataExportSection({ kind, organizationId }: DataExportSectionPro
                   </span>
                 ) : null}
                 {item.status === "failed" ? (
-                  <span className="text-body-sm text-[color:var(--ds-text-danger)]">
+                  <span className="text-body-sm text-ds-text-danger">
                     {t(`dataExport.failure.${item.failureReason ?? "error"}`)}
                   </span>
                 ) : null}
               </span>
-              <span className="flex items-center gap-[var(--ds-space-100)]">
+              <span className="flex items-center gap-ds-100">
                 <Badge>{t(`dataExport.status.${item.status}`)}</Badge>
                 {item.status === "ready" ? (
                   <Button

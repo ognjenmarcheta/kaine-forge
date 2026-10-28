@@ -9,12 +9,10 @@ const bannerVariants = cva(
   {
     variants: {
       appearance: {
-        information:
-          "bg-[var(--ds-background-information-bold)] text-[color:var(--ds-text-inverse)]",
-        warning:
-          "bg-[var(--ds-background-warning-bold)] text-[color:var(--ds-text-warning-inverse)]",
-        error: "bg-[var(--ds-background-danger-bold)] text-[color:var(--ds-text-inverse)]",
-        announcement: "bg-[var(--ds-background-discovery-bold)] text-[color:var(--ds-text-inverse)]"
+        information: "bg-ds-bg-information-bold text-ds-text-inverse",
+        warning: "bg-ds-bg-warning-bold text-ds-text-warning-inverse",
+        error: "bg-ds-bg-danger-bold text-ds-text-inverse",
+        announcement: "bg-ds-bg-discovery-bold text-ds-text-inverse"
       }
     },
     defaultVariants: {
@@ -47,7 +45,7 @@ const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
         <button
           type="button"
           onClick={onDismiss}
-          className="shrink-0 rounded-[var(--ds-radius-100)] p-1 hover:bg-[var(--ds-background-neutral-subtle-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+          className="shrink-0 rounded-md p-1 hover:bg-ds-bg-neutral-subtle-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
           aria-label={dismissLabel}
         >
           <X className="h-4 w-4" />

@@ -54,6 +54,7 @@
       "@repo/storage/*": ["packages/storage/src/*"],
       "@repo/todos": ["packages/todos/src/index.ts"],
       "@repo/todos/*": ["packages/todos/src/*"],
+      "@repo/theme": ["packages/theme/src/index.ts"],
       "@repo/translation": ["packages/translation/src/index.ts"],
       "@repo/translation/*": ["packages/translation/src/*"],
       "@repo/ui": ["packages/ui/src/index.ts"],

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "description": "theme.build.test.ts diffs the generated theme files against the committed copies, which live in other workspaces (issue #516).",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
+        "$TURBO_ROOT$/packages/config/tailwind/preset.tokens.js",
+        "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts",
+        "$TURBO_ROOT$/packages/ui/src/styles/tokens.generated.css"
+      ]
+    }
+  }
+}

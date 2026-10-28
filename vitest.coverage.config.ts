@@ -19,6 +19,7 @@ export default defineConfig({
       "packages/query",
       "packages/storage",
       "packages/todos",
+      "packages/theme",
       "packages/translation",
       "packages/ui"
     ],

@@ -56,6 +56,10 @@
   --ds-font-weight-medium: 500;
   --ds-font-weight-regular: 400;
   --ds-font-weight-semibold: 600;
+  --ds-icon: #4a505c;
+  --ds-icon-brand: #d4421a;
+  --ds-icon-danger: #b42318;
+  --ds-icon-subtle: #646b78;
   --ds-lineHeight-default: 1.5;
   --ds-lineHeight-tight: 1;
   --ds-link: #b3360f;
@@ -150,6 +154,10 @@
   --ds-border-strong: #333943;
   --ds-border-success: #5fc791;
   --ds-border-warning: #e6b44a;
+  --ds-icon: #aab1bd;
+  --ds-icon-brand: #ff6a3d;
+  --ds-icon-danger: #ff8a7a;
+  --ds-icon-subtle: #868d99;
   --ds-link: #ff7a50;
   --ds-link-pressed: #ffa182;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;

@@ -10,7 +10,7 @@ export function AccountRoute() {
   const { t } = useTranslation();
 
   return (
-    <section className="grid gap-[var(--ds-space-300)]">
+    <section className="grid gap-ds-300">
       <PageHeader description={t("auth.account.summary")} title={t("auth.account.title")} />
       <SettingsTabs basePath="/account" label={t("navigation.accountTabs")} tabs={ACCOUNT_TABS} />
       <div>

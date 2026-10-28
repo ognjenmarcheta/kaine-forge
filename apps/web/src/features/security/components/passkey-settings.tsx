@@ -57,7 +57,7 @@ export function PasskeySettings() {
 
   return (
     <SettingsSection description={t("auth.passkeys.description")} title={t("auth.passkeys.title")}>
-      <div className="grid gap-[var(--ds-space-150)]">
+      <div className="grid gap-ds-150">
         {passkeys.status === "pending" ? <LoadingRows label={t("auth.passkeys.loading")} /> : null}
         {passkeys.status === "error" ? (
           <QueryError
@@ -67,7 +67,7 @@ export function PasskeySettings() {
           />
         ) : null}
         {passkeys.data?.length === 0 ? (
-          <p className="text-body text-[color:var(--ds-text-subtle)]">{t("auth.passkeys.empty")}</p>
+          <p className="text-body text-ds-text-subtle">{t("auth.passkeys.empty")}</p>
         ) : null}
         {passkeys.data && passkeys.data.length > 0 ? (
           <ul aria-label={t("auth.passkeys.title")} className="ui-work-list">
@@ -77,11 +77,11 @@ export function PasskeySettings() {
               return (
                 <li
                   key={passkey.id}
-                  className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-100)]"
+                  className="ui-work-row flex flex-wrap items-center justify-between gap-ds-100"
                 >
-                  <div className="grid min-w-0 gap-[var(--ds-space-050)]">
-                    <p className="break-all text-body text-[color:var(--ds-text)]">{label}</p>
-                    <p className="text-body-sm text-[color:var(--ds-text-subtle)]">
+                  <div className="grid min-w-0 gap-ds-050">
+                    <p className="break-all text-body text-ds-text">{label}</p>
+                    <p className="text-body-sm text-ds-text-subtle">
                       {t("auth.passkeys.added").replace(
                         "{date}",
                         date.format(new Date(passkey.createdAt))
@@ -89,11 +89,11 @@ export function PasskeySettings() {
                     </p>
                   </div>
                   {confirmingId === passkey.id ? (
-                    <div className="grid w-full gap-[var(--ds-space-100)]" role="group">
-                      <p className="text-body text-[color:var(--ds-text)]">
+                    <div className="grid w-full gap-ds-100" role="group">
+                      <p className="text-body text-ds-text">
                         {t("auth.passkeys.deleteConfirm").replace("{name}", label)}
                       </p>
-                      <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+                      <div className="flex flex-wrap gap-ds-100">
                         <Button
                           appearance="danger"
                           disabled={remove.isPending}
@@ -126,7 +126,7 @@ export function PasskeySettings() {
         ) : null}
         {isSupported && isVerified ? (
           <form
-            className="grid gap-[var(--ds-space-150)]"
+            className="grid gap-ds-150"
             onSubmit={(event) => {
               event.preventDefault();
               const trimmedName = name.trim();

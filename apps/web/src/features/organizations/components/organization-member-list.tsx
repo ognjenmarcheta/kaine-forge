@@ -83,14 +83,12 @@ export function OrganizationMemberList({
 
           return (
             <article key={member.id} className="ui-work-row">
-              <div className="flex flex-wrap items-start justify-between gap-[var(--ds-space-150)]">
+              <div className="flex flex-wrap items-start justify-between gap-ds-150">
                 <div>
-                  <h3 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">
-                    {member.name}
-                  </h3>
-                  <p className="text-body-sm text-[color:var(--ds-text-subtle)]">{member.email}</p>
+                  <h3 className="text-heading-xs font-semibold text-ds-text">{member.name}</h3>
+                  <p className="text-body-sm text-ds-text-subtle">{member.email}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-[var(--ds-space-100)]">
+                <div className="flex flex-wrap items-center gap-ds-100">
                   {canChangeRole ? (
                     <LabeledSelect
                       ariaLabel={`${t("organizations.role.label")}: ${member.name}`}
@@ -110,7 +108,7 @@ export function OrganizationMemberList({
                       }}
                     />
                   ) : (
-                    <span className="rounded-[var(--ds-radius-100)] bg-[var(--ds-background-neutral)] px-[var(--ds-space-100)] py-[var(--ds-space-050)] text-body-sm text-[color:var(--ds-text-subtle)]">
+                    <span className="rounded-md bg-ds-bg-neutral px-ds-100 py-ds-050 text-body-sm text-ds-text-subtle">
                       {roleLabel(member.role, t)}
                     </span>
                   )}

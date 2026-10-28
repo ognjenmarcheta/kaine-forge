@@ -5,17 +5,16 @@ import * as React from "react";
 import { cn } from "../../lib/cn";
 
 const tagVariants = cva(
-  "inline-flex items-center gap-1 rounded-[var(--ds-radius-050)] px-2 py-0.5 text-body-sm font-medium",
+  "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-body-sm font-medium",
   {
     variants: {
       appearance: {
-        default: "bg-[var(--ds-background-neutral)] text-[color:var(--ds-text)]",
-        success: "bg-[var(--ds-background-success)] text-[color:var(--ds-text-success)]",
-        warning: "bg-[var(--ds-background-warning)] text-[color:var(--ds-text-warning)]",
-        danger: "bg-[var(--ds-background-danger)] text-[color:var(--ds-text-danger)]",
-        information:
-          "bg-[var(--ds-background-information)] text-[color:var(--ds-text-information)]",
-        discovery: "bg-[var(--ds-background-discovery)] text-[color:var(--ds-text-discovery)]"
+        default: "bg-ds-bg-neutral text-ds-text",
+        success: "bg-ds-bg-success text-ds-text-success",
+        warning: "bg-ds-bg-warning text-ds-text-warning",
+        danger: "bg-ds-bg-danger text-ds-text-danger",
+        information: "bg-ds-bg-information text-ds-text-information",
+        discovery: "bg-ds-bg-discovery text-ds-text-discovery"
       }
     },
     defaultVariants: {
@@ -38,7 +37,7 @@ const Tag = React.forwardRef<HTMLSpanElement, TagProps>(
         <button
           type="button"
           onClick={onRemove}
-          className="ml-0.5 inline-flex items-center justify-center rounded-[var(--ds-radius-050)] p-0.5 text-[color:var(--ds-icon-subtle)] hover:text-[color:var(--ds-icon)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ds-border-focused)]"
+          className="ml-0.5 inline-flex items-center justify-center rounded-sm p-0.5 text-ds-icon-subtle hover:text-ds-icon focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ds-border-focused"
           aria-label={removeLabel}
         >
           <X className="h-3 w-3" />

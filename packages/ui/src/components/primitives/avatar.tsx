@@ -3,23 +3,20 @@ import * as React from "react";
 
 import { cn } from "../../lib/cn";
 
-const avatarVariants = cva(
-  "relative flex shrink-0 overflow-hidden rounded-[var(--ds-radius-round)]",
-  {
-    variants: {
-      size: {
-        xs: "h-5 w-5",
-        sm: "h-6 w-6",
-        md: "h-8 w-8",
-        lg: "h-10 w-10",
-        xl: "h-12 w-12"
-      }
-    },
-    defaultVariants: {
-      size: "md"
+const avatarVariants = cva("relative flex shrink-0 overflow-hidden rounded-full", {
+  variants: {
+    size: {
+      xs: "h-5 w-5",
+      sm: "h-6 w-6",
+      md: "h-8 w-8",
+      lg: "h-10 w-10",
+      xl: "h-12 w-12"
     }
+  },
+  defaultVariants: {
+    size: "md"
   }
-);
+});
 
 type AvatarProps = React.HTMLAttributes<HTMLSpanElement> & {
   className?: string;
@@ -58,7 +55,7 @@ const AvatarFallback = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HT
     <span
       ref={ref}
       className={cn(
-        "flex h-full w-full items-center justify-center bg-[var(--ds-background-neutral-bold)] text-[color:var(--ds-text-inverse)] text-body-sm font-medium",
+        "flex h-full w-full items-center justify-center bg-ds-bg-neutral-bold text-ds-text-inverse text-body-sm font-medium",
         className
       )}
       {...props}
@@ -81,7 +78,7 @@ const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
       <div ref={ref} className={cn("flex -space-x-2", className)} {...props}>
         {visible}
         {overflow > 0 && (
-          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ds-radius-round)] border-2 border-[var(--ds-surface)] bg-[var(--ds-background-neutral-bold)] text-[color:var(--ds-text-inverse)] text-body-sm font-medium">
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ds-surface bg-ds-bg-neutral-bold text-ds-text-inverse text-body-sm font-medium">
             +{overflow}
           </span>
         )}

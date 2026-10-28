@@ -7,6 +7,9 @@ import baseConfig from "./base.js";
 // classes), never from hardcoded values. Spread into each UI surface's
 // no-restricted-syntax rule so it composes with the i18n / native-button bans
 // instead of replacing them (flat config replaces rule values per file).
+const themeUtilityMessage =
+  "Use the theme utility for this token, such as bg-ds-surface-raised, p-ds-200, rounded-md, or text-body, not an arbitrary var(--ds-*) value. DESIGN_SYSTEM.md section 9 lists them.";
+
 const colorTokenBans = [
   {
     selector: "Literal[value=/-\\[(#|rgb|hsl)/i]",
@@ -21,6 +24,16 @@ const colorTokenBans = [
   {
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message: "Reference a --ds-* design token, not a hardcoded hex color."
+  },
+  // Motion and border-width tokens have no utility, so they may stay arbitrary values.
+  {
+    selector: "Literal[value=/-\\[(color:|length:)?var\\(--ds-(?!motion-|border-width)/]",
+    message: themeUtilityMessage
+  },
+  {
+    selector:
+      "TemplateElement[value.raw=/-\\[(color:|length:)?var\\(--ds-(?!motion-|border-width)/]",
+    message: themeUtilityMessage
   }
 ];
 
