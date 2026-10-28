@@ -76,6 +76,11 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("border-focused", "surface-sunken", GRAPHIC_CONTRAST),
   pair("border-selected", "surface", GRAPHIC_CONTRAST),
   pair("border-danger", "surface", GRAPHIC_CONTRAST),
+  // Charts draw the role borders as data marks, so each one must read on the page.
+  pair("border-success", "surface", GRAPHIC_CONTRAST),
+  pair("border-warning", "surface", GRAPHIC_CONTRAST),
+  pair("border-information", "surface", GRAPHIC_CONTRAST),
+  pair("border-discovery", "surface", GRAPHIC_CONTRAST),
   pair("field-border", "surface", GRAPHIC_CONTRAST),
   pair("icon", "surface", GRAPHIC_CONTRAST),
   pair("icon-subtle", "surface", GRAPHIC_CONTRAST),
