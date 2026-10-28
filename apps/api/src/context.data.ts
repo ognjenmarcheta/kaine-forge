@@ -10,6 +10,7 @@ import type {
   PgColumn,
   PgTable,
   PgUpdateSetSource,
+  SelectedFields,
   TableLikeHasEmptySelection
 } from "drizzle-orm/pg-core";
 import { GraphQLError } from "graphql";
@@ -139,6 +140,12 @@ export interface ScopedData {
     table: TTable,
     ...conditions: (SQL | undefined)[]
   ): ReturnType<typeof selectFromScoped<TTable>>;
+  /** One row of `fields`, such as `count()`, aggregated over the table's rows in the scope. */
+  aggregate<TTable extends OrganizationOwnedTable, TFields extends SelectedFields>(
+    table: TTable,
+    fields: TFields,
+    ...conditions: (SQL | undefined)[]
+  ): ReturnType<typeof aggregateScoped<TTable, TFields>>;
   update<TTable extends OrganizationOwnedTable>(
     table: TTable,
     set: PgUpdateSetSource<TTable>,
@@ -201,6 +208,19 @@ function selectFromScoped<TTable extends OrganizationOwnedTable>(
 ) {
   return db
     .select()
+    .from(selectable(table))
+    .where(organizationPredicate(table, scope, conditions));
+}
+
+function aggregateScoped<TTable extends OrganizationOwnedTable, TFields extends SelectedFields>(
+  db: Database,
+  scope: AuthenticatedOrganizationScope,
+  table: TTable,
+  fields: TFields,
+  conditions: (SQL | undefined)[]
+) {
+  return db
+    .select(fields)
     .from(selectable(table))
     .where(organizationPredicate(table, scope, conditions));
 }
@@ -295,6 +315,8 @@ export function createScopedData(input: {
   return {
     selectFrom: (table, ...conditions) =>
       selectFromScoped(db, requireOrganizationScope(), table, conditions),
+    aggregate: (table, fields, ...conditions) =>
+      aggregateScoped(db, requireOrganizationScope(), table, fields, conditions),
     update: (table, set, ...conditions) =>
       updateScoped(db, requireOrganizationScope(), table, set, conditions),
     delete: (table, ...conditions) =>

@@ -12,6 +12,7 @@ import {
   useCreateNoteMutation,
   useUpdateNoteMutation,
   useDeleteNoteMutation,
+  useNoteCountQuery,
   type GetNotesQuery,
   type GetNotesQueryVariables
 } from "../../graphql/generated/react-query";
@@ -22,8 +23,17 @@ import { queryRuntime } from "../../lib/query-runtime";
 queryRuntime.registerOrgScopedOperation("notes.web.list", useGetNotesQuery.getKey());
 const detailPrefix = useGetNoteQuery.getKey({ id: "" }).slice(0, 1);
 queryRuntime.registerOrgScopedOperation("notes.web.detail", detailPrefix);
+queryRuntime.registerOrgScopedOperation("notes.web.count", useNoteCountQuery.getKey());
 /** The `after` cursor of the first page: none. */
 const FIRST_PAGE: string | null = null;
+
+/** The number of Notes in the Active Organization. */
+export function useNoteCount(organizationId: string | null, enabled: boolean) {
+  return useNoteCountQuery(undefined, {
+    enabled,
+    queryKey: createActiveOrganizationQueryKey(useNoteCountQuery.getKey(), organizationId)
+  });
+}
 
 export function useNotes(organizationId: string | null, enabled: boolean, selected: string | null) {
   const client = useQueryClient();
@@ -108,7 +118,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     }
   }, [selected, serverId, detail.data, detail.isSuccess]);
 
-  const invalidationKeys = [listKey, detailKey];
+  const invalidationKeys = [listKey, detailKey, useNoteCountQuery.getKey()];
   useLiveNotes({
     enabled,
     invalidateKeys: invalidationKeys,
@@ -128,7 +138,8 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   async function refresh() {
     await Promise.all([
       client.invalidateQueries({ queryKey: useGetNotesQuery.getKey() }),
-      client.invalidateQueries({ queryKey: detailPrefix })
+      client.invalidateQueries({ queryKey: detailPrefix }),
+      client.invalidateQueries({ queryKey: useNoteCountQuery.getKey() })
     ]);
   }
   async function save(key: string) {

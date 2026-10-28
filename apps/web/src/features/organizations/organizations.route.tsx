@@ -1,52 +1,19 @@
-import type { Permission } from "@repo/auth/permissions";
-import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
-import { Button } from "@repo/ui";
-import { useQuery } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { PageHeader } from "@repo/ui";
+import { Navigate, Outlet } from "react-router-dom";
 
-import { OrganizationInvitations } from "./components/organization-invitations";
-import { OrganizationInviteForm } from "./components/organization-invite-form";
-import { OrganizationMemberList } from "./components/organization-member-list";
-import { OrganizationRoles } from "./components/organization-roles";
-import { OrganizationSettings } from "./components/organization-settings";
-import { useCustomRoles, useOrganizationPermissions } from "./organizations.hook";
+import { useOrganizationSettingsAccess } from "./organizations.hook";
 import { LoadingRows } from "../../components/loading-rows";
-import { useAuth } from "../../hooks/use-auth";
+import { SettingsTabs } from "../../components/settings-tabs";
+import { ORGANIZATION_TABS } from "../../components/shell-navigation.definition";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
-import { listOrganizationMembersRequest } from "../../lib/auth-api";
-import { DataExportSection } from "../data-export/components/data-export-section";
-import { PublicAssetUpload } from "../public-assets/components/public-asset-upload";
 
+/** The Organization settings page: its header, its tabs, and the open tab. */
 export function OrganizationsRoute() {
   const { t } = useTranslation();
-  const {
-    activeOrganizationId,
-    isLoading: isOrganizationLoading,
-    organizations,
-    organizationsVisible
-  } = useOrganization();
-  const membersQuery = useQuery({
-    queryKey: createActiveOrganizationQueryKey(
-      queryKeys.organizationMembersScope(),
-      activeOrganizationId
-    ),
-    queryFn: listOrganizationMembersRequest,
-    enabled: organizationsVisible && Boolean(activeOrganizationId) && !isOrganizationLoading
-  });
+  const { isLoading: isOrganizationLoading, organizationsVisible } = useOrganization();
+  const { activeOrganization, can } = useOrganizationSettingsAccess();
 
-  const members = membersQuery.data?.members ?? [];
-  const { session } = useAuth();
-  // The API answers with the session's Permissions and enforces each one;
-  // these only decide which controls show.
-  const permissions = useOrganizationPermissions(
-    organizationsVisible ? activeOrganizationId : null
-  );
-  const can = (permission: Permission) => permissions?.has(permission) === true;
-  const customRoleNames = (useCustomRoles(can("ac:read")).data ?? []).map((role) => role.name);
-  const activeOrganization = organizations.find(
-    (organization) => organization.id === activeOrganizationId
-  );
   // Organization UI stays hidden until the API's flags arrive; redirect only
   // once they say it is hidden.
   if (!organizationsVisible) {
@@ -59,68 +26,15 @@ export function OrganizationsRoute() {
 
   return (
     <section className="grid gap-[var(--ds-space-300)]">
-      <header>
-        <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
-          {t("organizations.members.title")}
-        </h1>
-        <p className="mt-[var(--ds-space-050)] text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.members.description")}
-        </p>
-      </header>
-
-      {can("logo:update") ? (
-        <PublicAssetUpload kind="organization_logo" ownerName={activeOrganization?.name ?? ""} />
-      ) : null}
-
-      {can("invitation:create") ? (
-        <OrganizationInviteForm customRoleNames={customRoleNames} />
-      ) : null}
-      {can("invitation:read") ? (
-        <OrganizationInvitations canRevoke={can("invitation:cancel")} />
-      ) : null}
-
-      {membersQuery.status === "pending" || isOrganizationLoading ? (
-        <LoadingRows label={t("organizations.members.loading")} />
-      ) : null}
-
-      {membersQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-          {t("organizations.members.error")}{" "}
-          <Button appearance="subtle" onClick={() => void membersQuery.refetch()}>
-            {t("common.retry")}
-          </Button>
-        </p>
-      ) : null}
-
-      {membersQuery.status === "success" && members.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.members.empty")}
-        </p>
-      ) : null}
-
-      {members.length > 0 ? (
-        <OrganizationMemberList
-          customRoleNames={customRoleNames}
-          members={members}
-          ownUserId={session?.user.id}
-          permissions={permissions ?? new Set()}
-        />
-      ) : null}
-
-      {can("ac:create") ? <OrganizationRoles /> : null}
-
-      {can("organization:export") ? (
-        <DataExportSection kind="organization" organizationId={activeOrganizationId} />
-      ) : null}
-
-      {activeOrganization && permissions ? (
-        <OrganizationSettings
-          key={activeOrganization.id}
-          canDelete={can("organization:delete")}
-          canRename={can("organization:update")}
-          organization={activeOrganization}
-        />
-      ) : null}
+      <PageHeader eyebrow={activeOrganization?.name} title={t("navigation.organization")} />
+      <SettingsTabs
+        basePath="/organization"
+        label={t("navigation.organizationTabs")}
+        tabs={ORGANIZATION_TABS.filter((tab) => !("permission" in tab) || can(tab.permission))}
+      />
+      <div>
+        <Outlet />
+      </div>
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { queryKeys } from "@repo/query";
 import { Button, ConfirmModal, FieldError, LabeledSelect } from "@repo/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import { organizationApi } from "../../../lib/auth-api";
@@ -17,7 +18,15 @@ interface OrganizationMemberListProps {
   permissions: ReadonlySet<Permission>;
 }
 
-type PendingAction = { kind: "remove" | "transfer"; member: OrganizationMember };
+type PendingAction =
+  | { kind: "remove" | "transfer"; member: OrganizationMember }
+  | { kind: "role"; member: OrganizationMember; role: string };
+
+const CONFIRM_LABEL_KEYS = {
+  remove: "organizations.members.remove",
+  role: "organizations.members.roleChangeConfirm",
+  transfer: "organizations.members.transfer"
+} as const satisfies Record<PendingAction["kind"], string>;
 
 /**
  * Members of the Active Organization. `member:update` changes roles and
@@ -36,22 +45,27 @@ export function OrganizationMemberList({
   const [pending, setPending] = useState<PendingAction | null>(null);
   const reloadMembers = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.organizationMembersScope() });
-  const updateRole = useMutation({
-    mutationFn: organizationApi.updateMemberRole,
-    onSettled: reloadMembers
-  });
+  // Every change here waits for a confirm; a role change names the old and the new role.
   const confirmAction = useMutation({
-    mutationFn: (action: PendingAction) =>
-      action.kind === "remove"
-        ? organizationApi.removeMember(action.member.id)
-        : organizationApi.transferOwnership(action.member.id),
+    mutationFn: async (action: PendingAction) => {
+      if (action.kind === "role") {
+        await organizationApi.updateMemberRole({ memberId: action.member.id, role: action.role });
+      } else if (action.kind === "remove") {
+        await organizationApi.removeMember(action.member.id);
+      } else {
+        await organizationApi.transferOwnership(action.member.id);
+      }
+    },
+    onSuccess: (_result, action) => {
+      if (action.kind === "role") toast.success(t("organizations.members.roleChanged"));
+    },
     onSettled: async () => {
-      setPending(null);
       await reloadMembers();
+      setPending(null);
     }
   });
   const roleOptions = assignableRoleOptions(customRoleNames, t);
-  const error = updateRole.error ?? confirmAction.error;
+  const error = confirmAction.error;
 
   return (
     <>
@@ -71,22 +85,27 @@ export function OrganizationMemberList({
             <article key={member.id} className="ui-work-row">
               <div className="flex flex-wrap items-start justify-between gap-[var(--ds-space-150)]">
                 <div>
-                  <h2 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">
+                  <h3 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">
                     {member.name}
-                  </h2>
+                  </h3>
                   <p className="text-body-sm text-[color:var(--ds-text-subtle)]">{member.email}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-[var(--ds-space-100)]">
                   {canChangeRole ? (
                     <LabeledSelect
                       ariaLabel={`${t("organizations.role.label")}: ${member.name}`}
-                      disabled={updateRole.isPending}
+                      disabled={confirmAction.isPending}
                       label={t("organizations.role.label")}
                       options={roleOptions}
-                      value={member.role}
+                      // The select shows the picked role while its confirm is open; a cancel restores it.
+                      value={
+                        pending?.kind === "role" && pending.member.id === member.id
+                          ? pending.role
+                          : member.role
+                      }
                       onValueChange={(role) => {
                         if (role !== member.role) {
-                          updateRole.mutate({ memberId: member.id, role });
+                          setPending({ kind: "role", member, role });
                         }
                       }}
                     />
@@ -119,15 +138,17 @@ export function OrganizationMemberList({
       </div>
       <ConfirmModal
         cancelLabel={t("button.cancel")}
-        confirmLabel={
-          pending?.kind === "transfer"
-            ? t("organizations.members.transfer")
-            : t("organizations.members.remove")
-        }
+        confirmLabel={t(CONFIRM_LABEL_KEYS[pending?.kind ?? "remove"])}
         description={
-          pending?.kind === "transfer"
-            ? t("organizations.members.transferDescription")
-            : t("organizations.members.removeDescription")
+          pending?.kind === "role"
+            ? t("organizations.members.roleChangeDescription")
+                .replace("{from}", roleLabel(pending.member.role, t))
+                .replace("{to}", roleLabel(pending.role, t))
+            : t(
+                pending?.kind === "transfer"
+                  ? "organizations.members.transferDescription"
+                  : "organizations.members.removeDescription"
+              )
         }
         isConfirming={confirmAction.isPending}
         open={pending !== null}

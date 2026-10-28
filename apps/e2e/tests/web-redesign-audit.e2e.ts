@@ -40,9 +40,9 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
   });
   await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true }).last()).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(1);
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.mouse.click(5, 5);
   await expect(dialog).toBeVisible();
@@ -50,7 +50,7 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
   await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeEnabled();
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Pending draft");
-  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toHaveCount(0);
 });
 

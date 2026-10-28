@@ -10,16 +10,15 @@ function routeTitleKey(handle: unknown): string | null {
   return null;
 }
 
-/** Sets `document.title` from the deepest matched route's `handle.titleKey`. */
+/**
+ * Sets `document.title` from every matched route's `handle.titleKey`, deepest
+ * first, so a settings tab reads "Members · Organization · App".
+ */
 export function useRouteTitle() {
   const matches = useMatches();
   const { t } = useTranslation();
-  const titleKey = matches.reduce<string | null>(
-    (key, match) => routeTitleKey(match.handle) ?? key,
-    null
-  );
-  const appName = t("common.appName");
-  const title = titleKey ? `${t(titleKey)} · ${appName}` : appName;
+  const titleKeys = matches.flatMap((match) => routeTitleKey(match.handle) ?? []).reverse();
+  const title = [...titleKeys, "common.appName"].map((key) => t(key)).join(" · ");
 
   useEffect(() => {
     document.title = title;

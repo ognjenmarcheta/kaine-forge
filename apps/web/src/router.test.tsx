@@ -111,11 +111,29 @@ vi.mock("./features/notifications/components/notification-bell", () => ({
 vi.mock("./features/onboarding/onboarding.route", () => ({
   OnboardingRoute: () => <p>{READY.onboarding}</p>
 }));
-vi.mock("./features/organizations/organizations.route", () => ({
-  OrganizationsRoute: () => null
+vi.mock("./features/organizations/organizations.route", async () => {
+  const { Outlet } = await import("react-router-dom");
+  return { OrganizationsRoute: () => <Outlet /> };
+});
+vi.mock("./features/organizations/organizations.tabs.route", () => ({
+  OrganizationDataTab: () => null,
+  OrganizationGeneralTab: () => null,
+  OrganizationMembersTab: () => null,
+  OrganizationRolesTab: () => null
 }));
-vi.mock("./features/security/security.route", () => ({ SecurityRoute: () => null }));
+vi.mock("./features/account/account.tabs.route", () => ({
+  AccountDataTab: () => null,
+  AccountProfileTab: () => null,
+  AccountSecurityTab: () => null
+}));
+vi.mock("./features/account/components/account-sessions", () => ({ AccountSessions: () => null }));
+vi.mock("./features/notifications/components/notification-preferences", () => ({
+  NotificationPreferences: () => null
+}));
 vi.mock("./features/audit/audit.hook", () => ({ useAuditLogAccess: () => auditLogAccess.value }));
+vi.mock("./features/organizations/organizations.hook", () => ({
+  useOrganizationSettingsAccess: () => ({ can: () => false })
+}));
 vi.mock("./features/audit/audit.route", () => ({ AuditLogRoute: () => null }));
 vi.mock("./features/api-keys/api-keys.hook", () => ({ useApiKeysAccess: () => null }));
 vi.mock("./features/api-keys/api-keys.route", () => ({ ApiKeysRoute: () => null }));
@@ -244,6 +262,59 @@ it("titles the document per route and follows a language change", async () => {
 
   await act(async () => translation.setLanguage("de"));
   expect(document.title).toBe("de:navigation.dashboard · de:common.appName");
+});
+
+it.each([
+  {
+    path: "/members",
+    pathname: "/organization/members",
+    tab: "navigation.members",
+    title: "navigation.members · navigation.organization · common.appName"
+  },
+  {
+    path: "/security",
+    pathname: "/account/security",
+    tab: "navigation.security",
+    title: "navigation.security · navigation.account · common.appName"
+  },
+  {
+    path: "/organization",
+    pathname: "/organization/general",
+    tab: "navigation.general",
+    title: "navigation.general · navigation.organization · common.appName"
+  },
+  {
+    path: "/account",
+    pathname: "/account/profile",
+    tab: "navigation.profile",
+    title: "navigation.profile · navigation.account · common.appName"
+  },
+  {
+    path: "/organization/no-such-tab",
+    pathname: "/organization/general",
+    tab: "navigation.general",
+    title: "navigation.general · navigation.organization · common.appName"
+  },
+  {
+    path: "/account/no-such-tab",
+    pathname: "/account/profile",
+    tab: "navigation.profile",
+    title: "navigation.profile · navigation.account · common.appName"
+  },
+  {
+    path: "/account/sessions",
+    pathname: "/account/sessions",
+    tab: "navigation.sessions",
+    title: "navigation.sessions · navigation.account · common.appName"
+  }
+])("opens $path as the settings tab $pathname", async ({ path, pathname, tab, title }) => {
+  const router = await renderAt(path);
+
+  expect(router.state.location.pathname).toBe(pathname);
+  expect(document.title).toBe(title);
+  expect(
+    container.querySelector("[aria-label='navigation.breadcrumb'] li:last-child")?.textContent
+  ).toBe(tab);
 });
 
 it.each([

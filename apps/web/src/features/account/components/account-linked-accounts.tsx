@@ -1,14 +1,8 @@
 import type { AuthSocialProvider } from "@repo/auth/transport";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  FieldError
-} from "@repo/ui";
+import { Button, ConfirmModal, FieldError, QueryError, SettingsSection } from "@repo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { LoadingRows } from "../../../components/loading-rows";
 import { useTranslation } from "../../../hooks/use-translation";
@@ -34,11 +28,16 @@ export function AccountLinkedAccounts() {
     queryKey: ACCOUNT_QUERY_KEYS.socialProviders,
     queryFn: accountApi.listSocialProviders
   });
-  // The browser leaves for the provider and comes back to /account.
+  // The browser leaves for the provider and comes back to /account/security.
   const link = useMutation({ mutationFn: accountApi.linkSocialAccount });
+  const [confirming, setConfirming] = useState<{ id: string; providerId: string } | null>(null);
   const unlink = useMutation({
     mutationFn: accountApi.unlinkAccount,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEYS.accounts })
+    onSuccess: async () => {
+      toast.success(t("auth.account.accounts.unlinked"));
+      await queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEYS.accounts });
+    },
+    onSettled: () => setConfirming(null)
   });
   const linked = accounts.data ?? [];
   const linkable = (providers.data ?? []).filter(
@@ -48,63 +47,73 @@ export function AccountLinkedAccounts() {
   const error = link.error ?? unlink.error;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("auth.account.accounts.title")}</CardTitle>
-        <CardDescription>{t("auth.account.accounts.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-[var(--ds-space-150)]">
-        {accounts.status === "pending" ? (
-          <LoadingRows label={t("auth.account.accounts.loading")} />
-        ) : null}
-        {accounts.status === "error" ? (
-          <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-            {t("auth.account.accounts.error")}
-          </p>
-        ) : null}
-        {linked.length > 0 ? (
-          <ul
-            aria-label={t("auth.account.accounts.title")}
-            className="grid gap-[var(--ds-space-100)]"
-          >
-            {linked.map((account) => (
-              <li
-                key={account.id}
-                className="flex flex-wrap items-center justify-between gap-[var(--ds-space-100)] rounded-[var(--ds-radius-100)] border border-[var(--ds-border)] p-[var(--ds-space-150)]"
-              >
-                <span className="text-body text-[color:var(--ds-text)]">
-                  {label(account.providerId)}
-                </span>
-                {/* better-auth refuses to unlink the last sign-in method. */}
-                {linked.length > 1 ? (
-                  <Button
-                    appearance="subtle"
-                    disabled={unlink.isPending}
-                    onClick={() => unlink.mutate(account.id)}
-                  >
-                    {t("auth.account.accounts.unlink")}
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {linkable.length > 0 ? (
-          <div className="flex flex-wrap gap-[var(--ds-space-100)]">
-            {linkable.map((provider) => (
-              <Button
-                key={provider}
-                appearance="secondary"
-                disabled={link.isPending}
-                onClick={() => link.mutate(provider)}
-              >
-                {t("auth.account.accounts.link").replace("{provider}", label(provider))}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-        {error ? <FieldError>{getAccountErrorMessage(t, error)}</FieldError> : null}
-      </CardContent>
-    </Card>
+    <SettingsSection
+      description={t("auth.account.accounts.description")}
+      title={t("auth.account.accounts.title")}
+    >
+      {accounts.status === "pending" ? (
+        <LoadingRows label={t("auth.account.accounts.loading")} />
+      ) : null}
+      {accounts.status === "error" ? (
+        <QueryError
+          message={t("auth.account.accounts.error")}
+          retryLabel={t("common.retry")}
+          onRetry={() => void accounts.refetch()}
+        />
+      ) : null}
+      {linked.length > 0 ? (
+        <ul aria-label={t("auth.account.accounts.title")} className="ui-work-list">
+          {linked.map((account) => (
+            <li
+              key={account.id}
+              className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+            >
+              <span className="text-body text-[color:var(--ds-text)]">
+                {label(account.providerId)}
+              </span>
+              {/* better-auth refuses to unlink the last sign-in method. */}
+              {linked.length > 1 ? (
+                <Button
+                  appearance="subtle"
+                  disabled={unlink.isPending}
+                  onClick={() => setConfirming(account)}
+                >
+                  {t("auth.account.accounts.unlink")}
+                </Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {linkable.length > 0 ? (
+        <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+          {linkable.map((provider) => (
+            <Button
+              key={provider}
+              appearance="secondary"
+              disabled={link.isPending}
+              onClick={() => link.mutate(provider)}
+            >
+              {t("auth.account.accounts.link").replace("{provider}", label(provider))}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      {error ? <FieldError>{getAccountErrorMessage(t, error)}</FieldError> : null}
+      <ConfirmModal
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("auth.account.accounts.unlink")}
+        description={t("auth.account.accounts.unlinkDescription")}
+        isConfirming={unlink.isPending}
+        open={confirming !== null}
+        title={confirming ? label(confirming.providerId) : ""}
+        onConfirm={() => {
+          if (confirming) unlink.mutate(confirming.id);
+        }}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null);
+        }}
+      />
+    </SettingsSection>
   );
 }

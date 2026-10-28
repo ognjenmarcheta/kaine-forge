@@ -1,10 +1,11 @@
-import { Button } from "@repo/ui";
+import { Button, EmptyState, PageHeader, QueryError, ShieldCheck } from "@repo/ui";
 import { Navigate } from "react-router-dom";
 
 import { useAuditEvents, useAuditLogAccess } from "./audit.hook";
 import { LoadingRows } from "../../components/loading-rows";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import { formatRelativeTime } from "../../lib/relative-time";
 
 export function AuditLogRoute() {
   const { language, t } = useTranslation();
@@ -19,70 +20,68 @@ export function AuditLogRoute() {
   const events = eventsQuery.data?.pages.flatMap((page) => page.auditEvents.items) ?? [];
 
   return (
-    <section className="grid gap-[var(--ds-space-300)]">
-      <header>
-        <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
-          {t("organizations.audit.title")}
-        </h1>
-        <p className="mt-[var(--ds-space-050)] text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.audit.description")}
-        </p>
-      </header>
+    <section className="ui-audit">
+      <PageHeader
+        title={t("organizations.audit.title")}
+        description={t("organizations.audit.description")}
+      />
 
       {canRead === null || eventsQuery.status === "pending" ? (
         <LoadingRows label={t("organizations.audit.loading")} />
       ) : null}
 
       {eventsQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-          {t("organizations.audit.error")}{" "}
-          <Button appearance="subtle" onClick={() => void eventsQuery.refetch()}>
-            {t("common.retry")}
-          </Button>
-        </p>
+        <QueryError
+          message={t("organizations.audit.error")}
+          retryLabel={t("common.retry")}
+          onRetry={() => void eventsQuery.refetch()}
+        />
       ) : null}
 
       {eventsQuery.status === "success" && events.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.audit.empty")}
-        </p>
+        <EmptyState icon={ShieldCheck} title={t("organizations.audit.empty")} />
       ) : null}
 
       {events.length > 0 ? (
         <ul aria-label={t("organizations.audit.title")} className="ui-work-list">
-          {events.map((event) => (
-            <li key={event.id} className="ui-work-row grid gap-[var(--ds-space-050)]">
-              <p className="text-body font-semibold text-[color:var(--ds-text)]">
-                {t(`organizations.audit.action.${event.action}`)}
-              </p>
-              <dl className="grid gap-x-[var(--ds-space-150)] gap-y-[var(--ds-space-025)] text-body-sm text-[color:var(--ds-text-subtle)] md:grid-cols-[auto_1fr]">
-                <dt>{t("organizations.audit.actor")}</dt>
-                <dd className="min-w-0 break-words">
-                  {event.actor
-                    ? `${event.actor.name} (${event.actor.email})`
-                    : t("organizations.audit.unknownActor")}
-                </dd>
-                {event.targetLabel ? (
-                  <>
-                    <dt>{t("organizations.audit.target")}</dt>
-                    <dd className="min-w-0 break-words">{event.targetLabel}</dd>
-                  </>
-                ) : null}
-                <dt>{t("organizations.audit.time")}</dt>
-                <dd>
-                  <time dateTime={String(event.createdAt)}>
-                    {new Date(String(event.createdAt)).toLocaleString(language)}
-                  </time>
-                </dd>
-                {event.ipAddress ? (
-                  <>
-                    <dt>{t("organizations.audit.ipAddress")}</dt>
-                    <dd>{event.ipAddress}</dd>
-                  </>
-                ) : null}
-              </dl>
-            </li>
-          ))}
+          {events.map((event) => {
+            const createdAt = String(event.createdAt);
+            return (
+              <li key={event.id} className="ui-work-row ui-audit__row">
+                <p className="ui-audit__summary">
+                  <span className="ui-audit__part ui-audit__actor">
+                    <span className="sr-only">{t("organizations.audit.actor")} </span>
+                    {event.actor
+                      ? `${event.actor.name} (${event.actor.email})`
+                      : t("organizations.audit.unknownActor")}
+                  </span>{" "}
+                  <span className="ui-audit__part">
+                    {t(`organizations.audit.action.${event.action}`)}
+                  </span>{" "}
+                  {event.targetLabel ? (
+                    <span className="ui-audit__part">
+                      <span className="sr-only">{t("organizations.audit.target")} </span>
+                      {event.targetLabel}
+                    </span>
+                  ) : null}{" "}
+                  {event.ipAddress ? (
+                    <span className="ui-audit__part">
+                      <span className="sr-only">{t("organizations.audit.ipAddress")} </span>
+                      {event.ipAddress}
+                    </span>
+                  ) : null}
+                </p>
+                <time
+                  className="ui-audit__time"
+                  dateTime={createdAt}
+                  title={new Date(createdAt).toLocaleString(language)}
+                >
+                  <span className="sr-only">{t("organizations.audit.time")} </span>
+                  {formatRelativeTime(createdAt, language)}
+                </time>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
@@ -93,7 +92,11 @@ export function AuditLogRoute() {
           disabled={eventsQuery.isFetchingNextPage}
           onClick={() => void eventsQuery.fetchNextPage()}
         >
-          {t("organizations.audit.loadMore")}
+          {t(
+            eventsQuery.isFetchingNextPage
+              ? "organizations.audit.loading"
+              : "organizations.audit.loadMore"
+          )}
         </Button>
       ) : null}
     </section>

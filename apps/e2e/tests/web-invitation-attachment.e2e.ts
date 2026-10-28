@@ -10,7 +10,7 @@ const MEMBERS_LABELS = {
 } as const;
 
 /**
- * The seeded owner invites through the /members form; the invited person opens
+ * The seeded owner invites through the Members tab form; the invited person opens
  * the accept page signed out, signs up, comes back to the same invitation, and
  * accepts it (ADR 0007: the invited email may accept before verifying it). The
  * console email adapter only logs the accept link, so the test reads the
@@ -40,7 +40,7 @@ test("an invited user signs up from the invitation link and joins the organizati
   await expect(page.getByRole("button", { name: NAV_LABELS.organization })).toContainText(
     organizationName
   );
-  await page.goto("/members");
+  await page.goto("/organization/members");
   const inviteForm = page
     .locator("form")
     .filter({ has: page.getByRole("button", { name: MEMBERS_LABELS.inviteSubmit }) });

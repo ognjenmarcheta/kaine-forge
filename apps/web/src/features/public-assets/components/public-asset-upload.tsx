@@ -1,4 +1,11 @@
-import { Avatar, AvatarFallback, AvatarImage, Button, resolveNavUserInitials } from "@repo/ui";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  SettingsSection,
+  resolveNavUserInitials
+} from "@repo/ui";
 import { useRef } from "react";
 
 import type { PublicAssetKind } from "../../../graphql/generated/react-query";
@@ -32,9 +39,7 @@ export function PublicAssetUpload({
   const title = t(COPY[kind].title);
 
   return (
-    <section className="grid gap-[var(--ds-space-100)]">
-      <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">{title}</h2>
-      <p className="text-body text-[color:var(--ds-text-subtle)]">{t(COPY[kind].description)}</p>
+    <SettingsSection description={t(COPY[kind].description)} title={title}>
       <div className="flex items-center gap-[var(--ds-space-150)]">
         <Avatar className="h-[var(--ds-space-600)] w-[var(--ds-space-600)]">
           {url ? <AvatarImage alt={title} src={url} /> : null}
@@ -68,6 +73,6 @@ export function PublicAssetUpload({
           {t("storage.publicAssets.error")}
         </p>
       ) : null}
-    </section>
+    </SettingsSection>
   );
 }

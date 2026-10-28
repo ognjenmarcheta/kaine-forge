@@ -364,6 +364,29 @@ describe("notes tenancy", () => {
     ]);
   });
 
+  it("counts only the active organization's notes and todos", async () => {
+    const { eq } = await import("drizzle-orm");
+    // A completed row in B, so a leak would also show in the completed count.
+    const [completedB] = await testDb
+      .insert(todosTable)
+      .values({
+        completed: true,
+        organizationId: fixture.orgB,
+        title: "Todo B done",
+        userId: fixture.userId
+      })
+      .returning();
+    try {
+      const result = await runAs(fixture.orgA, "{ noteCount todoCounts { open completed } }");
+
+      expect(result.errors).toBeUndefined();
+      // Organization B holds one note and three todos (one completed); none count here.
+      expect(result.data).toEqual({ noteCount: 1, todoCounts: { open: 1, completed: 0 } });
+    } finally {
+      if (completedB) await testDb.delete(todosTable).where(eq(todosTable.id, completedB.id));
+    }
+  });
+
   it("refuses an organization the user is not a member of", async () => {
     const result = await runAs(fixture.orgB, "{ notes { items { id } } }");
 

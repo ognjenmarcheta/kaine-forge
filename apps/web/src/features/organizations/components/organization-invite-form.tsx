@@ -7,7 +7,8 @@ import {
   FieldError,
   FieldLabel,
   Input,
-  LabeledSelect
+  LabeledSelect,
+  SettingsSection
 } from "@repo/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -48,10 +49,7 @@ export function OrganizationInviteForm({
   });
 
   return (
-    <section className="grid gap-[var(--ds-space-100)]">
-      <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">
-        {t("organizations.invite.title")}
-      </h2>
+    <SettingsSection title={t("organizations.invite.title")}>
       <form
         className="grid gap-[var(--ds-space-150)]"
         onSubmit={(event) => {
@@ -86,6 +84,6 @@ export function OrganizationInviteForm({
           </Button>
         </div>
       </form>
-    </section>
+    </SettingsSection>
   );
 }

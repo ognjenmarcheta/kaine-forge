@@ -63,7 +63,7 @@ for (const theme of ["light", "dark"] as const)
       fixture.finish();
       await expect(dialog.getByRole("alert")).toBeVisible();
       await shot("failed");
-      await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       await page
         .getByRole("dialog", { name: "Discard changes?" })
         .getByRole("button", { name: "Discard changes", exact: true })
@@ -91,7 +91,7 @@ test("quick creation shares details, respects IME, validates and restores focus"
   const dialog = page.getByRole("dialog", { name: "New todo" });
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("New item");
   await dialog.getByLabel("Description", { exact: true }).fill("Shared description");
-  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByText("Description added. Add Todo saves both fields.")).toBeVisible();
   await quick.press("Enter");
   await expect(quick).toHaveValue("");

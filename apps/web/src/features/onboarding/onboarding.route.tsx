@@ -86,6 +86,13 @@ function OnboardingFlow() {
       subtitle={t(step ? STEP_COPY_KEYS[step].subtitle : "auth.onboarding.loading")}
       title={t(step ? STEP_COPY_KEYS[step].title : "auth.onboarding.title")}
     >
+      {step && steps && steps.length > 1 ? (
+        <p className="mb-[var(--ds-space-200)] text-body-sm text-[color:var(--ds-text-subtle)]">
+          {t("auth.onboarding.step")
+            .replace("{current}", String(stepIndex + 1))
+            .replace("{total}", String(steps.length))}
+        </p>
+      ) : null}
       {step === "organization" ? (
         <OnboardingOrganizationStep
           initialName={activeOrganization?.name ?? ""}

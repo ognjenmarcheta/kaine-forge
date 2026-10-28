@@ -80,7 +80,7 @@ export function TodoItemRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              appearance="ghost"
+              appearance="subtle"
               disabled={busy}
               aria-label={t("todos.rowActions").replace("{title}", item.title)}
             >
@@ -107,6 +107,7 @@ export function TodoItemRow({
               {t("button.edit")}
             </DropdownMenuItem>
             <DropdownMenuItem
+              destructive
               onSelect={() => {
                 selected.current = "delete";
               }}

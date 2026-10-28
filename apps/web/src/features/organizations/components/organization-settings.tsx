@@ -8,7 +8,8 @@ import {
   FieldError,
   FieldLabel,
   Input,
-  Modal
+  Modal,
+  SettingsSection
 } from "@repo/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -66,55 +67,66 @@ export function OrganizationSettings({
   };
 
   return (
-    <section className="grid gap-[var(--ds-space-150)]">
-      <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">
-        {t("organizations.settings.title")}
-      </h2>
+    <>
       {canRename ? (
-        <form
-          className="grid gap-[var(--ds-space-100)]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            rename.mutate(name.trim());
-          }}
-        >
-          <Field>
-            <FieldLabel htmlFor={nameId}>{t("organizations.name")}</FieldLabel>
-            <Input
-              id={nameId}
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </Field>
-          {rename.error ? <FieldError>{t(getAuthErrorMessageKey(rename.error))}</FieldError> : null}
-          {rename.isSuccess ? (
-            <FieldDescription role="status">{t("organizations.settings.renamed")}</FieldDescription>
-          ) : null}
-          <div>
-            <Button disabled={rename.isPending} type="submit">
-              {t("organizations.settings.rename")}
-            </Button>
-          </div>
-        </form>
+        <SettingsSection title={t("organizations.settings.nameTitle")}>
+          <form
+            className="grid gap-[var(--ds-space-100)]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              rename.mutate(name.trim());
+            }}
+          >
+            <Field>
+              <FieldLabel htmlFor={nameId}>{t("organizations.name")}</FieldLabel>
+              <Input
+                id={nameId}
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </Field>
+            {rename.error ? (
+              <FieldError>{t(getAuthErrorMessageKey(rename.error))}</FieldError>
+            ) : null}
+            {rename.isSuccess ? (
+              <FieldDescription role="status">
+                {t("organizations.settings.renamed")}
+              </FieldDescription>
+            ) : null}
+            <div>
+              <Button
+                disabled={rename.isPending || name.trim() === organization.name}
+                type="submit"
+              >
+                {t("organizations.settings.rename")}
+              </Button>
+            </div>
+          </form>
+        </SettingsSection>
       ) : null}
-      {organization.personal ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.settings.personal")}
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-[var(--ds-space-100)]">
-          <Button appearance="subtle" onClick={() => openDialog("leave")}>
-            {t("organizations.settings.leave")}
-          </Button>
-          {canDelete ? (
-            <Button appearance="danger" onClick={() => openDialog("delete")}>
-              {t("organizations.settings.delete")}
+      <SettingsSection
+        description={
+          organization.personal
+            ? t("organizations.settings.personal")
+            : t("organizations.settings.exitDescription")
+        }
+        title={t("organizations.settings.exitTitle")}
+      >
+        {organization.personal ? null : (
+          <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+            <Button appearance="subtle" onClick={() => openDialog("leave")}>
+              {t("organizations.settings.leave")}
             </Button>
-          ) : null}
-        </div>
-      )}
-      {exit.error ? <FieldError>{t(getAuthErrorMessageKey(exit.error))}</FieldError> : null}
+            {canDelete ? (
+              <Button appearance="danger" onClick={() => openDialog("delete")}>
+                {t("organizations.settings.delete")}
+              </Button>
+            ) : null}
+          </div>
+        )}
+        {exit.error ? <FieldError>{t(getAuthErrorMessageKey(exit.error))}</FieldError> : null}
+      </SettingsSection>
       <ConfirmModal
         cancelLabel={t("button.cancel")}
         confirmLabel={t("organizations.settings.leave")}
@@ -157,6 +169,6 @@ export function OrganizationSettings({
           />
         </Field>
       </Modal>
-    </section>
+    </>
   );
 }

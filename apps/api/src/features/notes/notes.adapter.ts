@@ -1,6 +1,6 @@
 import type { Note } from "@repo/db";
 import { notesTable } from "@repo/db/schema";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 import { NOTES_CONFIG } from "./notes.config";
 import type { NotePatch } from "./notes.type";
@@ -27,6 +27,11 @@ export async function listNotesByScope(
 export async function getNoteById(data: ScopedData, id: string): Promise<Note | null> {
   const rows = await data.selectFrom(notesTable, eq(notesTable.id, id)).limit(1);
   return rows[0] ?? null;
+}
+
+export async function countNotesByScope(data: ScopedData): Promise<number> {
+  const [row] = await data.aggregate(notesTable, { notes: count() });
+  return row?.notes ?? 0;
 }
 
 export async function createNote(

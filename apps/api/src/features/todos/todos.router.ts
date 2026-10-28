@@ -57,6 +57,9 @@ export const todosResolvers = {
     },
     async todo(_parent: unknown, args: TodoByIdArgs, ctx: ResolverContext) {
       return ctx.todos.get(args.id);
+    },
+    async todoCounts(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+      return ctx.todos.counts();
     }
   },
   Mutation: {

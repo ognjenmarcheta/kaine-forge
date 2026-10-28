@@ -8,7 +8,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   Ellipsis,
-  NotebookPen
+  EmptyState,
+  NotebookPen,
+  PageHeader,
+  QueryError
 } from "@repo/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, useBlocker, useNavigate, useParams } from "react-router-dom";
@@ -163,15 +166,15 @@ function NotesWorkspace({
 
   return (
     <section className="ui-notes" data-detail={Boolean(selected)}>
-      <header className="ui-page-header">
-        <div>
-          <h1>{t("notes.title")}</h1>
-          <p className="ui-notes__meta">{t("notes.description")}</p>
-        </div>
-        <Button onClick={newNote} disabled={!enabled}>
-          {t("notes.create")}
-        </Button>
-      </header>
+      <PageHeader
+        title={t("notes.title")}
+        description={t("notes.description")}
+        actions={
+          <Button onClick={newNote} disabled={!enabled}>
+            {t("notes.create")}
+          </Button>
+        }
+      />
       <div className="ui-notes__workspace">
         <aside ref={rail} className="ui-notes__rail" aria-label={t("notes.library")}>
           <div className="ui-notes__rail-header">
@@ -202,22 +205,21 @@ function NotesWorkspace({
             </p>
             {notes.list.isPending ? <LoadingRows label={t("notes.loading")} /> : null}
             {notes.list.isError ? (
-              <div role="alert">
-                <p>{t("notes.loadFailed")}</p>
-                <Button
-                  appearance="subtle"
-                  onClick={() =>
-                    void (notes.list.isFetchNextPageError
-                      ? notes.list.fetchNextPage()
-                      : notes.list.refetch())
-                  }
-                >
-                  {t("common.retry")}
-                </Button>
-              </div>
+              <QueryError
+                message={t("notes.loadFailed")}
+                retryLabel={t("common.retry")}
+                onRetry={() =>
+                  void (notes.list.isFetchNextPageError
+                    ? notes.list.fetchNextPage()
+                    : notes.list.refetch())
+                }
+              />
             ) : null}
             {!notes.list.isPending && !notes.list.isError && notes.rows.length === 0 ? (
-              <p>{t(notes.phrase ? "notes.noResults" : "notes.empty")}</p>
+              <EmptyState
+                icon={NotebookPen}
+                title={t(notes.phrase ? "notes.noResults" : "notes.empty")}
+              />
             ) : null}
             <ul className="ui-notes__rows">
               {notes.rows
