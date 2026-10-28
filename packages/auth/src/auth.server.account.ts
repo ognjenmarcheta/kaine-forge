@@ -116,8 +116,10 @@ export async function findAccountDeletionRefusal(
 /**
  * Readies the user's Organizations for the account delete in one transaction
  * that locks them: refuses while the user is the only owner of an
- * Organization with other members; otherwise deletes the Organizations the
- * user is alone in (the delete trigger queues their storage) and hands
+ * Organization with other members; otherwise cancels the paid subscriptions
+ * of the Organizations the user is alone in through `cancelSubscriptions`
+ * (which throws to stop the delete), deletes those Organizations (the delete
+ * trigger queues their storage), and hands
  * `organizations.user_id` of a shared, non-personal one to another owner.
  * better-auth deletes the user row after this transaction, and
  * `organizations.user_id` is ON DELETE SET NULL, so an Organization that
@@ -125,7 +127,8 @@ export async function findAccountDeletionRefusal(
  * refusal, or null when the delete may go on.
  */
 export async function prepareAccountDeletion(
-  userId: string
+  userId: string,
+  cancelSubscriptions: (organizationIds: readonly string[]) => Promise<void> = async () => undefined
 ): Promise<AccountDeletionRefusal | null> {
   return db.transaction(async (tx) => {
     const plan = await planAccountDeletion(tx, userId, true);
@@ -133,6 +136,10 @@ export async function prepareAccountDeletion(
     if (plan.refusal) {
       return plan.refusal;
     }
+
+    // Before the delete, so a refused cancel rolls it back: a deleted
+    // Organization must never be billed again.
+    await cancelSubscriptions(plan.deletions);
 
     if (plan.deletions.length > 0) {
       await tx.delete(organizationsTable).where(inArray(organizationsTable.id, plan.deletions));

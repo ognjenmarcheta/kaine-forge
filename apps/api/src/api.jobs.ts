@@ -5,6 +5,8 @@ import { createJobHandlers } from "@repo/jobs";
 import { jobQueue } from "@repo/jobs/client";
 import type { Logger } from "@repo/logger";
 
+import { billingProvider } from "./features/billing/billing.provider";
+import { createSeatSync } from "./features/billing/billing.seats";
 import { resolveDataExportArchiveTtlMs } from "./features/data-export/data-export.config";
 import { createDataExportJobHandler } from "./features/data-export/data-export.job";
 import { s3ObjectStore } from "./features/storage/attachment.store";
@@ -32,6 +34,8 @@ export function createApiJobHandlers(logger: Pick<Logger, "error" | "warn">) {
       sendEmail: queueEmail,
       logger
     }),
-    deliverWebhook: createWebhookDeliveryHandler({ db, send: (request) => postWebhook(request) })
+    deliverWebhook: createWebhookDeliveryHandler({ db, send: (request) => postWebhook(request) }),
+    syncSeats: ({ organizationId }) =>
+      createSeatSync({ db, provider: billingProvider, logger }).syncOrganization(organizationId)
   });
 }

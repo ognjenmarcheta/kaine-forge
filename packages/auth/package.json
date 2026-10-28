@@ -22,6 +22,10 @@
       "types": "./dist/auth.notification.d.ts",
       "default": "./dist/auth.notification.js"
     },
+    "./billing": {
+      "types": "./dist/auth.billing.d.ts",
+      "default": "./dist/auth.billing.js"
+    },
     "./auth.definition": {
       "types": "./dist/auth.definition.d.ts",
       "default": "./dist/auth.definition.js"

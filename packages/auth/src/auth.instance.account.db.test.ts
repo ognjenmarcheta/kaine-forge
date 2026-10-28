@@ -9,7 +9,7 @@ import {
 import type { TestDatabase } from "@repo/db/testing";
 import type { EmailMessage } from "@repo/email";
 import { eq, inArray } from "drizzle-orm";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The real auth instance on an in-process Postgres with every migration
 // applied, so account changes run through better-auth's own routes.
@@ -35,6 +35,7 @@ vi.mock("@repo/db", async () => {
 vi.mock("@repo/jobs/client", () => ({ jobQueue: { enqueue: enqueue.mockResolvedValue("job-1") } }));
 
 const { createAuthInstance } = await import("./auth.instance");
+const { setBillingHooks } = await import("./auth.billing");
 const { prepareAccountDeletion } = await import("./auth.server.account");
 
 const auth = createAuthInstance();
@@ -62,6 +63,24 @@ async function signUp(label: string) {
     returnHeaders: true
   });
   return { email, headers: cookieHeaders(headers), userId: response.user.id };
+}
+
+// The organization guard reads the Active Organization from the cookie cache,
+// so the refreshed session cookie replaces the old one.
+async function setActive(headers: Headers, organizationId: string): Promise<Headers> {
+  const { headers: responseHeaders } = await auth.api.setActiveOrganization({
+    body: { organizationId },
+    headers,
+    returnHeaders: true
+  });
+  const jar = new Map<string, string>();
+  for (const pair of [
+    ...(headers.get("cookie") ?? "").split("; ").filter(Boolean),
+    ...responseHeaders.getSetCookie().map((entry) => entry.split(";")[0] ?? "")
+  ]) {
+    jar.set(pair.split("=")[0] ?? "", pair);
+  }
+  return new Headers({ cookie: [...jar.values()].join("; ") });
 }
 
 async function createOrganization(headers: Headers, name: string): Promise<string> {
@@ -361,5 +380,70 @@ describe("account deletion", () => {
     await testDatabase().db.delete(usersTable).where(eq(usersTable.id, leaver.userId));
 
     expect(await organizationRow(organizationId)).toEqual({ userId: null });
+  });
+});
+
+describe("billing hooks", () => {
+  const syncSeats = vi.fn<(organizationId: string) => void>();
+  const refuseCancel = () => Promise.reject(new Error("provider unavailable"));
+
+  afterEach(() => {
+    setBillingHooks(null);
+    syncSeats.mockClear();
+  });
+
+  it("deletes an organization only after its subscriptions are canceled", async () => {
+    const owner = await signUp("billing-delete-org");
+    const organizationId = await createOrganization(owner.headers, "Paying");
+    const headers = await setActive(owner.headers, organizationId);
+    setBillingHooks({ syncSeats, cancelSubscriptions: refuseCancel });
+
+    await expect(
+      auth.api.deleteOrganization({ body: { organizationId }, headers })
+    ).rejects.toMatchObject({ body: { code: "BILLING_CANCEL_FAILED" } });
+    expect(await organizationRow(organizationId)).toEqual({ userId: owner.userId });
+
+    const canceled: (readonly string[])[] = [];
+    setBillingHooks({
+      syncSeats,
+      cancelSubscriptions: (ids) => {
+        canceled.push(ids);
+        return Promise.resolve();
+      }
+    });
+    await auth.api.deleteOrganization({ body: { organizationId }, headers });
+
+    expect(canceled).toEqual([[organizationId]]);
+    expect(await organizationRow(organizationId)).toBeNull();
+  });
+
+  it("keeps the account and its organizations when a subscription cancel is refused", async () => {
+    const user = await signUp("billing-delete-account");
+    const personalId = await personalOrganizationId(user.userId);
+    await auth.api.deleteUser({ body: {}, headers: user.headers });
+    const confirmation = await emailTo(user.email, SUBJECTS.deletion);
+    setBillingHooks({ syncSeats, cancelSubscriptions: refuseCancel });
+
+    await expect(
+      auth.api.deleteUser({ body: { token: tokenIn(confirmation.text) }, headers: user.headers })
+    ).rejects.toThrow();
+    expect(await userRow(user.userId)).toEqual({ email: user.email });
+    expect(await organizationRow(personalId)).toEqual({ userId: user.userId });
+  });
+
+  it("queues a seat sync when a member is added and when one is removed", async () => {
+    const owner = await signUp("billing-seats-owner");
+    const member = await signUp("billing-seats-member");
+    const organizationId = await createOrganization(owner.headers, "Seats");
+    const headers = await setActive(owner.headers, organizationId);
+    setBillingHooks({ syncSeats, cancelSubscriptions: () => Promise.resolve() });
+
+    await auth.api.addMember({ body: { organizationId, userId: member.userId, role: "member" } });
+    await auth.api.removeMember({
+      body: { organizationId, memberIdOrEmail: member.email },
+      headers
+    });
+
+    expect(syncSeats.mock.calls).toEqual([[organizationId], [organizationId]]);
   });
 });

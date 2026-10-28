@@ -17,6 +17,7 @@ export default defineConfig({
         "packages/auth/src/auth.audit.definition.ts"
       ),
       "@repo/auth/audit": path.join(workspaceRoot, "packages/auth/src/auth.audit.ts"),
+      "@repo/auth/billing": path.join(workspaceRoot, "packages/auth/src/auth.billing.ts"),
       "@repo/auth/notifications": path.join(
         workspaceRoot,
         "packages/auth/src/auth.notification.ts"
