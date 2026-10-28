@@ -15,11 +15,19 @@ interface AssistantMessageListProps {
 export function AssistantMessageList({ messages, onUsePrompt }: AssistantMessageListProps) {
   const { t } = useTranslation();
   const viewport = useRef<HTMLDivElement>(null);
-  const followsLatest = useRef(true);
+  const renderedHeight = useRef(0);
   const [showLatest, setShowLatest] = useState(false);
   useLayoutEffect(() => {
-    if (viewport.current && followsLatest.current)
-      viewport.current.scrollTop = viewport.current.scrollHeight;
+    const element = viewport.current;
+    if (!element) return;
+    // Read the position now, against the height before this render's content: the scroll event
+    // that reports a reader leaving the end can arrive after a re-render, such as a keystroke.
+    if (
+      renderedHeight.current - element.scrollTop - element.clientHeight <=
+      element.clientHeight / 4
+    )
+      element.scrollTop = element.scrollHeight;
+    renderedHeight.current = element.scrollHeight;
   }, [messages]);
 
   return (
@@ -29,10 +37,10 @@ export function AssistantMessageList({ messages, onUsePrompt }: AssistantMessage
         ref={viewport}
         onScroll={(event) => {
           const element = event.currentTarget;
-          followsLatest.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight <=
-            element.clientHeight / 4;
-          setShowLatest(!followsLatest.current);
+          setShowLatest(
+            element.scrollHeight - element.scrollTop - element.clientHeight >
+              element.clientHeight / 4
+          );
         }}
       >
         {messages.length === 0 ? (
@@ -101,7 +109,6 @@ export function AssistantMessageList({ messages, onUsePrompt }: AssistantMessage
           <Button
             appearance="subtle"
             onClick={() => {
-              followsLatest.current = true;
               if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
               setShowLatest(false);
             }}
