@@ -180,7 +180,12 @@
     { "name": "wontfix", "color": "ffffff", "description": "This will not be worked on" }
   ],
   "discussions": {
-    "categories": ["announcements", "ideas", "q-a", "show-and-tell"]
+    "categories": [
+      { "slug": "announcements", "name": "Announcements", "format": "Announcement" },
+      { "slug": "ideas", "name": "Ideas", "format": "Open-ended discussion" },
+      { "slug": "q-a", "name": "Q&A", "format": "Question / Answer" },
+      { "slug": "show-and-tell", "name": "Show and tell", "format": "Open-ended discussion" }
+    ]
   },
   "project": {
     "status": ["Triage", "Ready", "In progress", "In review", "Done"],
@@ -209,11 +214,19 @@
     "workflows": [
       {
         "name": "Auto-add to project",
-        "instruction": "Turn it on for this repository with the filter `is:issue,pr is:open`."
+        "steps": [
+          "In the list on the left, click Auto-add to project, then click Edit.",
+          "Under Filters, choose this repository and enter `is:issue,pr is:open`.",
+          "Click Save and turn on workflow."
+        ]
       },
       {
         "name": "Item added to project",
-        "instruction": "Turn it on and set Status to Triage."
+        "steps": [
+          "In the list on the left, click Item added to project, then click Edit.",
+          "Under When, keep Issue and Pull request checked. Under Set, choose Status: Triage.",
+          "Click Save and turn on workflow."
+        ]
       }
     ]
   }

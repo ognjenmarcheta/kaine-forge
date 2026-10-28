@@ -21,14 +21,16 @@ A repository created from the template gets files, not settings. `.github/repo-s
    - `gh needs the project scope`: the owner runs `gh auth refresh -s project`. It opens a browser, so the owner must do it. Then run step 2 again for the `project` section.
    - `needs repository admin rights`: stop. The owner runs the command.
    - `not available for this repository or plan`: report it. Rulesets and some security features need a public repository or a paid plan.
-5. Give the owner each `manual` line as a step. GitHub has no API for them: missing discussion categories, and the board workflows (Auto-add to project, Item added to project).
-6. Run `pnpm github:setup --check`. Done when it exits 0.
+5. For each `manual` section, give the owner its printed steps as they are: the link to open, then one numbered click per line, then how to confirm. GitHub has no API for these steps: missing discussion categories, and the board workflows (Auto-add to project, Item added to project). Do not shorten the steps into one sentence, and do not do them in a browser for the owner.
+6. Wait until the owner says the steps are done. Then run `pnpm github:setup --check`. Done when it exits 0.
+7. If the check still lists a board workflow, the owner most likely did not click **Save and turn on workflow**, so the workflow stayed off. Ask the owner to open that workflow, check that it shows **On**, and click **Save and turn on workflow** again. Then run step 6 again.
 
 ## Gotchas
 
 - `pnpm preflight` fails on a fresh repository while the labeler labels are missing. `pnpm github:setup --apply --only labels` fixes it.
 - `pnpm desk labels sync --apply` creates only the three `agent:*` labels. This command creates every label in the file, and a desk test keeps both definitions equal.
 - Rulesets match by name. Rename a ruleset in `.github/rulesets/` and the command creates a second one; delete the old one by hand.
+- When the command changes the board's Status options, GitHub turns off a workflow whose Status target was removed (for example `Todo`). The command then prints the workflow steps again, even for workflows that were on before.
 
 ## Canonical commands
 

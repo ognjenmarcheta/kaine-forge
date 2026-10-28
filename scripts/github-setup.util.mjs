@@ -20,12 +20,12 @@ export const SECTIONS = ["settings", "security", "labels", "rulesets", "discussi
  *   security: Record<string, boolean>,
  *   rulesets: string[],
  *   labels: Label[],
- *   discussions: { categories: string[] },
+ *   discussions: { categories: Array<{ slug: string, name: string, format: string }> },
  *   project: {
  *     status: string[],
  *     fields: Array<{ name: string, options: string[] }>,
  *     views: Array<{ name: string, layout: string, filter: string }>,
- *     workflows: Array<{ name: string, instruction: string }>
+ *     workflows: Array<{ name: string, steps: string[] }>
  *   }
  * }} Manifest
  * @typedef {Record<string, unknown> & {
@@ -435,6 +435,24 @@ function rulesetsSection(ctx) {
   };
 }
 
+const RECHECK = "Then run `pnpm github:setup --check` again.";
+
+/**
+ * Manual steps as the owner follows them: what to open, one click per line, how to confirm.
+ * @param {string} open
+ * @param {Array<{ title: string, steps: string[] }>} tasks
+ * @param {string} confirm
+ * @returns {string[]}
+ */
+const manualSteps = (open, tasks, confirm) => [
+  `GitHub has no API for this. Open ${open}`,
+  ...tasks.flatMap((task) => [
+    `${task.title}:`,
+    ...task.steps.map((step, index) => `  ${index + 1}. ${step}`)
+  ]),
+  `${confirm} ${RECHECK}`
+];
+
 /** @param {Context} ctx @returns {SectionResult} */
 function discussionsSection(ctx) {
   const data = ctx.gh.graphql(
@@ -457,15 +475,25 @@ function discussionsSection(ctx) {
       : { section: "discussions", status: "warn", lines: ["Discussions are turned off"] };
   }
   const live = new Set(repository.discussionCategories.nodes.map((node) => node.slug));
-  const missing = ctx.manifest.discussions.categories.filter((slug) => !live.has(slug));
+  const missing = ctx.manifest.discussions.categories.filter(
+    (category) => !live.has(category.slug)
+  );
   if (missing.length === 0) return { section: "discussions", status: "ok", lines: [] };
   return {
     section: "discussions",
     status: "manual",
-    lines: [
-      `create these categories by hand (GitHub has no API for it): ${missing.join(", ")}`,
-      `https://github.com/${ctx.owner}/${ctx.name}/discussions/categories`
-    ]
+    lines: manualSteps(
+      `https://github.com/${ctx.owner}/${ctx.name}/discussions/categories and create each category:`,
+      missing.map((category) => ({
+        title: category.name,
+        steps: [
+          "Click New category.",
+          `Enter the name ${category.name} and choose the format ${category.format}.`,
+          "Click Create."
+        ]
+      })),
+      "Each category must appear in the list."
+    )
   };
 }
 
@@ -614,9 +642,17 @@ function projectSection(ctx) {
         statusChanged ||
         !board.workflows.nodes.some((node) => node.name === spec.name && node.enabled)
     )
-    .map((spec) => `${spec.name}: ${spec.instruction}`);
+    .map((spec) => ({ title: spec.name, steps: spec.steps }));
   const status = lines.length > 0 ? "change" : manual.length > 0 ? "manual" : "ok";
-  if (manual.length > 0) lines.push(`do by hand in ${board.url}/workflows:`, ...manual);
+  if (manual.length > 0) {
+    lines.push(
+      ...manualSteps(
+        `${board.url}/workflows and turn on each workflow:`,
+        manual,
+        "Each workflow must show On in the list on the left. If one does not, open it and click Save and turn on workflow again."
+      )
+    );
+  }
   return { section: "project", status, lines };
 }
 

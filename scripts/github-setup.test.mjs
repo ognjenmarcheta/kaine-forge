@@ -146,6 +146,97 @@ test("a token without the project scope skips the board and still applies the la
   ]);
 });
 
+test("manual steps give one click per line, then how to confirm and check again", () => {
+  const data = (value) => ({ status: 0, stdout: JSON.stringify({ data: value }), stderr: "" });
+  const run = (args, input) => {
+    if (args.join(" ") === "api --method GET repos/acme/app") {
+      return { status: 0, stdout: JSON.stringify({ permissions: { admin: true } }), stderr: "" };
+    }
+    const { query } = JSON.parse(input);
+    if (query.includes("hasDiscussionsEnabled")) {
+      return data({
+        repository: { hasDiscussionsEnabled: true, discussionCategories: { nodes: [] } }
+      });
+    }
+    if (query.includes("projectsV2(first")) {
+      return data({
+        repository: {
+          id: "R",
+          owner: { id: "O" },
+          projectsV2: { nodes: [{ id: "P", title: "app", closed: false }] }
+        }
+      });
+    }
+    return data({
+      node: {
+        id: "P",
+        title: "app",
+        url: "https://github.com/users/acme/projects/1",
+        items: { totalCount: 3 },
+        fields: {
+          nodes: [
+            {
+              id: "F",
+              name: "Status",
+              dataType: "SINGLE_SELECT",
+              options: [{ id: "o", name: "Done", color: "GREEN", description: "" }]
+            }
+          ]
+        },
+        views: { nodes: [] },
+        workflows: { nodes: [{ name: "Auto-add to project", enabled: false }] }
+      }
+    });
+  };
+  const { results } = runSetup({
+    manifest: {
+      ...manifest,
+      discussions: { categories: [{ slug: "q-a", name: "Q&A", format: "Question / Answer" }] },
+      project: {
+        status: ["Done"],
+        fields: [],
+        views: [],
+        workflows: [
+          {
+            name: "Auto-add to project",
+            steps: ["Click Edit.", "Click Save and turn on workflow."]
+          }
+        ]
+      }
+    },
+    readJson: () => ({ name: "unused" }),
+    run,
+    repo: "acme/app",
+    apply: false,
+    only: ["discussions", "project"]
+  });
+  assert.deepEqual(results, [
+    {
+      section: "discussions",
+      status: "manual",
+      lines: [
+        "GitHub has no API for this. Open https://github.com/acme/app/discussions/categories and create each category:",
+        "Q&A:",
+        "  1. Click New category.",
+        "  2. Enter the name Q&A and choose the format Question / Answer.",
+        "  3. Click Create.",
+        "Each category must appear in the list. Then run `pnpm github:setup --check` again."
+      ]
+    },
+    {
+      section: "project",
+      status: "manual",
+      lines: [
+        "GitHub has no API for this. Open https://github.com/users/acme/projects/1/workflows and turn on each workflow:",
+        "Auto-add to project:",
+        "  1. Click Edit.",
+        "  2. Click Save and turn on workflow.",
+        "Each workflow must show On in the list on the left. If one does not, open it and click Save and turn on workflow again. Then run `pnpm github:setup --check` again."
+      ]
+    }
+  ]);
+});
+
 test("every label that repository config applies is in repo-setup.json", () => {
   const known = new Set(manifest.labels.map((label) => label.name));
   const listed = (yaml) =>
