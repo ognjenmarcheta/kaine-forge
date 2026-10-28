@@ -42,6 +42,13 @@ query GetTodo($id: ID!) {
   }
 }
 
+query TodoCounts {
+  todoCounts {
+    open
+    completed
+  }
+}
+
 mutation CreateTodo($input: CreateTodoInput!) {
   createTodo(input: $input) {
     id

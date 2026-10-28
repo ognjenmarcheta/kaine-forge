@@ -4,7 +4,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Ellipsis
+  Ellipsis,
+  EmptyState,
+  MessageSquare,
+  QueryError
 } from "@repo/ui";
 
 import { LoadingRows } from "../../../components/loading-rows";
@@ -51,15 +54,14 @@ export function ConversationList({
       <div className="ui-assistant__conversation-scroll">
         {isLoading ? <LoadingRows label={t("common.loading")} /> : null}
         {isError ? (
-          <div role="alert">
-            <p>{t("error.generic")}</p>
-            <Button appearance="subtle" onClick={onRetry}>
-              {t("common.retry")}
-            </Button>
-          </div>
+          <QueryError
+            message={t("error.generic")}
+            retryLabel={t("common.retry")}
+            onRetry={onRetry}
+          />
         ) : null}
         {!isLoading && !isError && conversations.length === 0 ? (
-          <p className="ui-assistant__subtitle">{t("assistant.noConversations")}</p>
+          <EmptyState icon={MessageSquare} title={t("assistant.noConversations")} />
         ) : null}
         <ul className="ui-assistant__conversation-rows">
           {conversations.map((conversation) => {

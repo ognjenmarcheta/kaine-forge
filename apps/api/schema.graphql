@@ -7,8 +7,10 @@ type Query {
   organizationPermissions: [String!]!
   todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
   todo(id: ID!): Todo
+  todoCounts: TodoCounts!
   notes(first: Int, after: String, search: String): NoteConnection!
   note(id: ID!): Note
+  noteCount: Int!
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput, first: Int, after: String): FileInfoConnection!
   publicAssets: PublicAssets!
@@ -144,6 +146,11 @@ type GenerateTodosPayload {
   message: String
 }
 
+type TodoCounts {
+  open: Int!
+  completed: Int!
+}
+
 type TodoConnection {
   items: [Todo!]!
   pageInfo: PageInfo!
@@ -245,6 +252,7 @@ enum PublicAssetKind {
 type PublicAssets {
   avatarUrl: String
   organizationLogoUrl: String
+  uploadsEnabled: Boolean!
 }
 
 type PublicAssetUploadTicket {

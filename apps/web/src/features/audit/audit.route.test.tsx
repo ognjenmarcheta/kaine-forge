@@ -10,7 +10,9 @@ import type { AuditEventsQueryVariables } from "../../graphql/generated/react-qu
 
 const api = vi.hoisted(() => ({
   permissions: ["audit:read"] as string[] | undefined,
-  pages: vi.fn<(variables: AuditEventsQueryVariables) => void>()
+  pages: vi.fn<(variables: AuditEventsQueryVariables) => void>(),
+  // Holds the second page until the test releases it.
+  nextPage: Promise.resolve()
 }));
 
 const FIRST_EVENT = {
@@ -38,13 +40,14 @@ vi.mock("../../lib/graphql-codegen-fetcher", () => ({
       return () => Promise.resolve({ organizationPermissions: api.permissions });
     }
 
-    return (variables: AuditEventsQueryVariables) => {
+    return async (variables: AuditEventsQueryVariables) => {
       api.pages(variables);
-      return Promise.resolve({
+      if (variables.after) await api.nextPage;
+      return {
         auditEvents: variables.after
           ? { items: [SECOND_EVENT], pageInfo: { endCursor: "cursor-2", hasNextPage: false } }
           : { items: [FIRST_EVENT], pageInfo: { endCursor: "cursor-1", hasNextPage: true } }
-      });
+      };
     };
   }
 }));
@@ -73,6 +76,7 @@ afterEach(async () => {
   container.remove();
   api.permissions = ["audit:read"];
   api.pages.mockClear();
+  api.nextPage = Promise.resolve();
   vi.unstubAllGlobals();
 });
 
@@ -108,12 +112,16 @@ function rowTexts(): string[] {
   return Array.from(container.querySelectorAll("li"), (row) => row.textContent ?? "");
 }
 
-it("lists each event's translated action, actor, target, and IP, then loads the next page", async () => {
+it("lists each event's actor, translated action, target, IP, and time, then loads the next page", async () => {
+  let releaseNextPage = () => {};
+  api.nextPage = new Promise((resolve) => {
+    releaseNextPage = resolve;
+  });
   await renderRoute();
 
   expect(rowTexts()).toEqual([
     expect.stringMatching(
-      /^organizations\.audit\.action\.member_invitedorganizations\.audit\.actorOwner \(owner@example\.com\)organizations\.audit\.targetinvitee@example\.comorganizations\.audit\.time.+organizations\.audit\.ipAddress203\.0\.113\.9$/
+      /^organizations\.audit\.actor Owner \(owner@example\.com\) organizations\.audit\.action\.member_invited organizations\.audit\.target invitee@example\.com organizations\.audit\.ipAddress 203\.0\.113\.9organizations\.audit\.time .+$/
     )
   ]);
 
@@ -121,11 +129,17 @@ it("lists each event's translated action, actor, target, and IP, then loads the 
     (button) => button.textContent === "organizations.audit.loadMore"
   );
   await act(async () => loadMore?.click());
+  await settleUntil(() => loadMore?.textContent === "organizations.audit.loading");
+
+  expect(loadMore?.textContent).toBe("organizations.audit.loading");
+  expect(loadMore?.disabled).toBe(true);
+
+  releaseNextPage();
   await settleUntil(() => rowTexts().length > 1);
 
   expect(api.pages).toHaveBeenLastCalledWith({ after: "cursor-1", first: 20 });
   expect(rowTexts()[1]).toMatch(
-    /^organizations\.audit\.action\.attachment_deletedorganizations\.audit\.actororganizations\.audit\.unknownActororganizations\.audit\.targetreport\.pdforganizations\.audit\.time/
+    /^organizations\.audit\.actor organizations\.audit\.unknownActor organizations\.audit\.action\.attachment_deleted organizations\.audit\.target report\.pdf organizations\.audit\.time /
   );
   expect(container.textContent).not.toContain("organizations.audit.loadMore");
 });

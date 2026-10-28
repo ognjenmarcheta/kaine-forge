@@ -1,5 +1,6 @@
 import {
   Button,
+  PageHeader,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -97,26 +98,26 @@ function AssistantWorkspace({
 
   return (
     <section className="ui-assistant">
-      <header className="ui-page-header">
-        <div>
-          <h1>{t("assistant.title")}</h1>
-          <p className="ui-assistant__subtitle">{t("assistant.description")}</p>
-        </div>
-        <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-          <SheetTrigger asChild>
-            <Button appearance="subtle" className="ui-assistant__history-trigger">
-              {t("assistant.conversations")}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" closeLabel={t("common.close")}>
-            <SheetHeader>
-              <SheetTitle>{t("assistant.conversations")}</SheetTitle>
-              <SheetDescription>{t("assistant.historyDescription")}</SheetDescription>
-            </SheetHeader>
-            <div className="ui-assistant__sheet-history">{history}</div>
-          </SheetContent>
-        </Sheet>
-      </header>
+      <PageHeader
+        title={t("assistant.title")}
+        description={t("assistant.description")}
+        actions={
+          <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button appearance="subtle" className="ui-assistant__history-trigger">
+                {t("assistant.conversations")}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" closeLabel={t("common.close")}>
+              <SheetHeader>
+                <SheetTitle>{t("assistant.conversations")}</SheetTitle>
+                <SheetDescription>{t("assistant.historyDescription")}</SheetDescription>
+              </SheetHeader>
+              <div className="ui-assistant__sheet-history">{history}</div>
+            </SheetContent>
+          </Sheet>
+        }
+      />
       <div className="ui-assistant__body">
         <aside className="ui-assistant__history" aria-label={t("assistant.conversations")}>
           {history}

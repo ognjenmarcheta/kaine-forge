@@ -7,7 +7,8 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-  Input
+  Input,
+  PageHeader
 } from "@repo/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -325,14 +326,10 @@ export function WebhooksRoute() {
 
   return (
     <section className="grid gap-[var(--ds-space-300)]">
-      <header>
-        <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
-          {t("organizations.webhooks.title")}
-        </h1>
-        <p className="mt-[var(--ds-space-050)] text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.webhooks.description")}
-        </p>
-      </header>
+      <PageHeader
+        description={t("organizations.webhooks.description")}
+        title={t("organizations.webhooks.title")}
+      />
 
       {permissions?.has("webhook:create") && eventTypes.length > 0 ? (
         <div className="grid gap-[var(--ds-space-150)]">

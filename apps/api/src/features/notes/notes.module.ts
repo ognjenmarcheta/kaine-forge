@@ -1,6 +1,13 @@
 import type { Note } from "@repo/db";
 
-import { createNote, deleteNote, getNoteById, listNotesByScope, updateNote } from "./notes.adapter";
+import {
+  countNotesByScope,
+  createNote,
+  deleteNote,
+  getNoteById,
+  listNotesByScope,
+  updateNote
+} from "./notes.adapter";
 import type { CreateNoteInput, NotePatch, UpdateNoteInput } from "./notes.type";
 import { ensureNoteTitle, parseOptionalBody } from "./notes.util";
 import type { Connection, PageInput, ScopedData } from "../../context.data";
@@ -25,6 +32,8 @@ export interface NoteModuleDeps {
 export interface Notes {
   list: (args: NoteListArgs) => Promise<Connection<Note>>;
   get: (id: string) => Promise<Note | null>;
+  /** How many Notes are in the scope. */
+  count: () => Promise<number>;
   /** Throws `note title is required`/`too long` before any write. */
   create: (input: CreateNoteInput) => Promise<Note>;
   /** Throws `note not found` when no Note with this id is in the scope. */
@@ -37,6 +46,7 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
   return {
     list: ({ search, ...page }) => listNotesByScope(data, page, search),
     get: (id) => getNoteById(data, id),
+    count: () => countNotesByScope(data),
     async create(input) {
       data.authorize("note:create");
       const note = await createNote(data, {

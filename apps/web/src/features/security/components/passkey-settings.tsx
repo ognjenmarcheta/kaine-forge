@@ -2,16 +2,13 @@ import { AUTH_DEFINITIONS } from "@repo/auth/auth.definition";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
-  Input
+  Input,
+  QueryError,
+  SettingsSection
 } from "@repo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -59,30 +56,28 @@ export function PasskeySettings() {
   const isVerified = session?.user.emailVerified === true;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("auth.passkeys.title")}</CardTitle>
-        <CardDescription>{t("auth.passkeys.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-[var(--ds-space-150)]">
+    <SettingsSection description={t("auth.passkeys.description")} title={t("auth.passkeys.title")}>
+      <div className="grid gap-[var(--ds-space-150)]">
         {passkeys.status === "pending" ? <LoadingRows label={t("auth.passkeys.loading")} /> : null}
         {passkeys.status === "error" ? (
-          <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-            {t("auth.passkeys.error")}
-          </p>
+          <QueryError
+            message={t("auth.passkeys.error")}
+            retryLabel={t("common.retry")}
+            onRetry={() => void passkeys.refetch()}
+          />
         ) : null}
         {passkeys.data?.length === 0 ? (
           <p className="text-body text-[color:var(--ds-text-subtle)]">{t("auth.passkeys.empty")}</p>
         ) : null}
         {passkeys.data && passkeys.data.length > 0 ? (
-          <ul aria-label={t("auth.passkeys.title")} className="grid gap-[var(--ds-space-100)]">
+          <ul aria-label={t("auth.passkeys.title")} className="ui-work-list">
             {passkeys.data.map((passkey) => {
               const label = passkey.name ?? t("auth.passkeys.unnamed");
 
               return (
                 <li
                   key={passkey.id}
-                  className="flex flex-wrap items-center justify-between gap-[var(--ds-space-100)] rounded-[var(--ds-radius-100)] border border-[var(--ds-border)] p-[var(--ds-space-150)]"
+                  className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-100)]"
                 >
                   <div className="grid min-w-0 gap-[var(--ds-space-050)]">
                     <p className="break-all text-body text-[color:var(--ds-text)]">{label}</p>
@@ -163,7 +158,7 @@ export function PasskeySettings() {
           </form>
         ) : null}
         {isSupported ? null : <FieldDescription>{t("auth.passkeys.unsupported")}</FieldDescription>}
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }

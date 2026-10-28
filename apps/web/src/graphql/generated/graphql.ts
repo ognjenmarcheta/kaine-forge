@@ -314,6 +314,10 @@ export type GetNoteQuery = {
   } | null;
 };
 
+export type NoteCountQueryVariables = Exact<{ [key: string]: never }>;
+
+export type NoteCountQuery = { noteCount: number };
+
 export type CreateNoteMutationVariables = Exact<{
   input: CreateNoteInput;
 }>;
@@ -437,7 +441,11 @@ export type OrganizationPermissionsQuery = { organizationPermissions: Array<stri
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetPublicAssetsQuery = {
-  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  publicAssets: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type RequestPublicAssetUploadMutationVariables = Exact<{
@@ -454,7 +462,11 @@ export type ConfirmPublicAssetUploadMutationVariables = Exact<{
 }>;
 
 export type ConfirmPublicAssetUploadMutation = {
-  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  confirmPublicAssetUpload: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type GetFileQueryVariables = Exact<{
@@ -585,6 +597,10 @@ export type GetTodoQuery = {
     }>;
   } | null;
 };
+
+export type TodoCountsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type TodoCountsQuery = { todoCounts: { open: number; completed: number } };
 
 export type CreateTodoMutationVariables = Exact<{
   input: CreateTodoInput;
@@ -1822,6 +1838,20 @@ export const GetNoteDocument = {
     }
   ]
 } as unknown as DocumentNode<GetNoteQuery, GetNoteQueryVariables>;
+export const NoteCountDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "NoteCount" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "noteCount" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<NoteCountQuery, NoteCountQueryVariables>;
 export const CreateNoteDocument = {
   kind: "Document",
   definitions: [
@@ -2521,7 +2551,8 @@ export const GetPublicAssetsDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadsEnabled" } }
               ]
             }
           }
@@ -2627,7 +2658,8 @@ export const ConfirmPublicAssetUploadDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadsEnabled" } }
               ]
             }
           }
@@ -3082,6 +3114,32 @@ export const GetTodoDocument = {
     }
   ]
 } as unknown as DocumentNode<GetTodoQuery, GetTodoQueryVariables>;
+export const TodoCountsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "TodoCounts" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todoCounts" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "open" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<TodoCountsQuery, TodoCountsQueryVariables>;
 export const CreateTodoDocument = {
   kind: "Document",
   definitions: [

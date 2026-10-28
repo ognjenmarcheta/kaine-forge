@@ -58,7 +58,7 @@ export function TodoFormDialog({
       footer={
         <div className="ui-modal__actions">
           <Button appearance="subtle" disabled={pending} onClick={onClose}>
-            {t("common.close")}
+            {t("button.cancel")}
           </Button>
           <Button type="submit" form={id} disabled={!canSave}>
             {t(

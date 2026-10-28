@@ -331,6 +331,10 @@ export type GetNoteQuery = {
   } | null;
 };
 
+export type NoteCountQueryVariables = Exact<{ [key: string]: never }>;
+
+export type NoteCountQuery = { noteCount: number };
+
 export type CreateNoteMutationVariables = Exact<{
   input: CreateNoteInput;
 }>;
@@ -495,7 +499,11 @@ export type OrganizationPermissionsQuery = { organizationPermissions: Array<stri
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetPublicAssetsQuery = {
-  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  publicAssets: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type RequestPublicAssetUploadMutationVariables = Exact<{
@@ -512,7 +520,11 @@ export type ConfirmPublicAssetUploadMutationVariables = Exact<{
 }>;
 
 export type ConfirmPublicAssetUploadMutation = {
-  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  confirmPublicAssetUpload: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type GetFileQueryVariables = Exact<{
@@ -643,6 +655,10 @@ export type GetTodoQuery = {
     }>;
   } | null;
 };
+
+export type TodoCountsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type TodoCountsQuery = { todoCounts: { open: number; completed: number } };
 
 export type CreateTodoMutationVariables = Exact<{
   input: CreateTodoInput;
@@ -1448,6 +1464,31 @@ export const useGetNoteQuery = <TData = GetNoteQuery, TError = unknown>(
 
 useGetNoteQuery.getKey = (variables: GetNoteQueryVariables) => ["GetNote", variables];
 
+export const NoteCountDocument = new TypedDocumentString(`
+    query NoteCount {
+  noteCount
+}
+    `);
+
+export const useNoteCountQuery = <TData = NoteCountQuery, TError = unknown>(
+  variables?: NoteCountQueryVariables,
+  options?: Omit<UseQueryOptions<NoteCountQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<NoteCountQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<NoteCountQuery, TError, TData>({
+    queryKey: variables === undefined ? ["NoteCount"] : ["NoteCount", variables],
+    queryFn: useGraphqlFetcher<NoteCountQuery, NoteCountQueryVariables>(NoteCountDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useNoteCountQuery.getKey = (variables?: NoteCountQueryVariables) =>
+  variables === undefined ? ["NoteCount"] : ["NoteCount", variables];
+
 export const CreateNoteDocument = new TypedDocumentString(`
     mutation CreateNote($input: CreateNoteInput!) {
   createNote(input: $input) {
@@ -1834,6 +1875,7 @@ export const GetPublicAssetsDocument = new TypedDocumentString(`
   publicAssets {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }
     `);
@@ -1896,6 +1938,7 @@ export const ConfirmPublicAssetUploadDocument = new TypedDocumentString(`
   confirmPublicAssetUpload(kind: $kind, stagingKey: $stagingKey) {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }
     `);
@@ -2175,6 +2218,34 @@ export const useGetTodoQuery = <TData = GetTodoQuery, TError = unknown>(
 };
 
 useGetTodoQuery.getKey = (variables: GetTodoQueryVariables) => ["GetTodo", variables];
+
+export const TodoCountsDocument = new TypedDocumentString(`
+    query TodoCounts {
+  todoCounts {
+    open
+    completed
+  }
+}
+    `);
+
+export const useTodoCountsQuery = <TData = TodoCountsQuery, TError = unknown>(
+  variables?: TodoCountsQueryVariables,
+  options?: Omit<UseQueryOptions<TodoCountsQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<TodoCountsQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<TodoCountsQuery, TError, TData>({
+    queryKey: variables === undefined ? ["TodoCounts"] : ["TodoCounts", variables],
+    queryFn: useGraphqlFetcher<TodoCountsQuery, TodoCountsQueryVariables>(TodoCountsDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useTodoCountsQuery.getKey = (variables?: TodoCountsQueryVariables) =>
+  variables === undefined ? ["TodoCounts"] : ["TodoCounts", variables];
 
 export const CreateTodoDocument = new TypedDocumentString(`
     mutation CreateTodo($input: CreateTodoInput!) {

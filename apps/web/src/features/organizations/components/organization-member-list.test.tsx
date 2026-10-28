@@ -6,7 +6,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { OrganizationMemberList } from "./organization-member-list";
 
-vi.mock("../../../lib/auth-api", () => ({ authTransport: {}, organizationApi: {} }));
+const api = vi.hoisted(() => ({ updateMemberRole: vi.fn(() => Promise.resolve()) }));
+
+vi.mock("../../../lib/auth-api", () => ({ authTransport: {}, organizationApi: api }));
 vi.mock("../../../hooks/use-translation", () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }));
@@ -17,6 +19,10 @@ let client: QueryClient;
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  // jsdom lacks the layout APIs the Radix select calls while it opens.
+  Element.prototype.scrollIntoView = () => undefined;
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => undefined;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -76,4 +82,58 @@ it("shows roles read-only without member:update", async () => {
   expect(container.textContent).toContain("editor");
   expect(container.textContent).toContain("organizations.members.remove");
   expect(container.textContent).toContain("organizations.members.transfer");
+});
+
+async function pickRole(memberName: string, roleLabel: string) {
+  const trigger = container.querySelector<HTMLElement>(
+    `[aria-label='organizations.role.label: ${memberName}']`
+  );
+  await act(async () => trigger?.click());
+  const option = Array.from(document.querySelectorAll<HTMLElement>("[role='option']")).find(
+    (candidate) => candidate.textContent === roleLabel
+  );
+  await act(async () => option?.click());
+}
+
+function dialogButton(label: string) {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")).find(
+    (button) => button.textContent === label
+  );
+}
+
+async function renderRoleEditor() {
+  await render(
+    <OrganizationMemberList
+      customRoleNames={["editor"]}
+      members={MEMBERS}
+      ownUserId="user-1"
+      permissions={new Set(["member:update"])}
+    />
+  );
+}
+
+it("changes a member's role only after the role change is confirmed", async () => {
+  await renderRoleEditor();
+  await pickRole("Ana", "organizations.role.admin");
+
+  expect(document.querySelector("[role='dialog']")?.textContent).toContain(
+    "organizations.members.roleChangeDescription"
+  );
+  expect(api.updateMemberRole).not.toHaveBeenCalled();
+
+  await act(async () => dialogButton("organizations.members.roleChangeConfirm")?.click());
+
+  expect(api.updateMemberRole).toHaveBeenCalledWith({ memberId: "m-1", role: "admin" });
+});
+
+it("keeps the old role when the role change is cancelled", async () => {
+  await renderRoleEditor();
+  await pickRole("Ana", "organizations.role.admin");
+  await act(async () => dialogButton("button.cancel")?.click());
+
+  expect(api.updateMemberRole).not.toHaveBeenCalled();
+  expect(document.querySelector("[role='dialog']")).toBeNull();
+  expect(
+    container.querySelector("[aria-label='organizations.role.label: Ana']")?.textContent
+  ).toContain("editor");
 });

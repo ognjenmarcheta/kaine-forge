@@ -91,7 +91,21 @@ installs keep their recorded selection; drop it with an explicit selection, for 
 
 Claude desktop worktree sessions load project MCP servers from the main checkout's
 `.mcp.json`, not the worktree's. The Claude `SessionStart` hook warns when the two differ
-and names the main checkout to reinstall.
+and names the main checkout to reinstall. Serena's `--project-from-cwd` then resolves to the
+main checkout, so Serena reads and edits that checkout. The hook warns about this too, and
+the session uses ordinary file tools for the worktree.
+
+Hooks keep installed AI files current without a manual reinstall. Each `SessionStart` hook
+and the Claude `UserPromptSubmit` hook run `.ai/hooks/ai-refresh.mjs`. It runs
+`pnpm ai:install --auto` when the path, size, or mtime of a `.ai/` input changed since the
+last refresh (`.ai.local/install-stamp.json`). That catches `but pull`, branch switches,
+and source edits, which no agent hook event reports. Hand edits to generated outputs
+survive until the inputs change; the readiness warning still reports them. `--auto` refreshes
+only agents with a recorded selection and writes only untracked files. It reports tracked
+drift (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`) for the author to regenerate and
+commit. Claude sessions refresh both their checkout and `CLAUDE_PROJECT_DIR`, which is the
+main checkout in a desktop worktree. Claude reloads skills and subagents without a restart.
+An MCP config change needs `/mcp` reconnect or a restart.
 
 The generated `.claude/settings.json` allows the read-only Context7 tools, the Better Auth
 documentation tools, and Serena's read-only tools without a prompt. `serena_repl`, Serena edit and memory-write tools, and

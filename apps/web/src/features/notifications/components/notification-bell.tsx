@@ -7,7 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Skeleton
 } from "@repo/ui";
 import { useNavigate } from "react-router-dom";
 
@@ -97,9 +98,16 @@ export function NotificationBell() {
         </div>
         <DropdownMenuSeparator />
         {inbox.status === "pending" ? (
-          <p className="p-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-subtle)]">
-            {t("notifications.inbox.loading")}
-          </p>
+          <div
+            aria-busy="true"
+            role="status"
+            className="grid gap-[var(--ds-space-100)] p-[var(--ds-space-100)]"
+          >
+            <span className="sr-only">{t("notifications.inbox.loading")}</span>
+            {[0, 1, 2].map((row) => (
+              <Skeleton key={row} className="h-[var(--ds-space-400)] w-full" />
+            ))}
+          </div>
         ) : null}
         {inbox.status === "error" ? (
           <p

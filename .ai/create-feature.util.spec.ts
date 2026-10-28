@@ -373,6 +373,9 @@ describe("applyCreateFeature", () => {
     expect(read("apps/web/src/hooks/use-live-list.ts")).toContain(
       "export function useLiveScaffoldfixtures("
     );
+    expect(read("apps/web/src/components/shell-navigation.definition.ts")).toContain(
+      'group: "workspace",\n    href: "/scaffoldfixtures",'
+    );
     expect(read("packages/translation/src/translation.definition.ts")).toContain(
       '"scaffoldfixtures"'
     );

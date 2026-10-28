@@ -144,7 +144,6 @@ test("failed Assistant requests retain a prompt for explicit reuse", async ({ pa
 });
 
 test("Assistant history retries and preserves the reader's scroll position", async ({ page }) => {
-  await signIn(page);
   let historyAvailable = false;
   let replies = 0;
   await page.route("**/graphql", async (route) => {
@@ -202,6 +201,8 @@ test("Assistant history retries and preserves the reader's scroll position", asy
       });
     } else await route.continue();
   });
+  // Sign in after the mock: the dashboard caches the same conversation list.
+  await signIn(page);
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
   await page.getByRole("button", { name: /^History check/ }).click();
   const retry = page.getByRole("button", { name: "Try again", exact: true });
@@ -234,7 +235,6 @@ test("Assistant history retries and preserves the reader's scroll position", asy
 });
 
 test("deleting a conversation requires confirmation", async ({ page }) => {
-  await signIn(page);
   let deleted = false;
   await page.route("**/graphql", async (route) => {
     const query = route.request().postData() ?? "";
@@ -261,6 +261,8 @@ test("deleting a conversation requires confirmation", async ({ page }) => {
       await route.fulfill({ json: { data: { deleteConversation: true } } });
     } else await route.continue();
   });
+  // Sign in after the mock: the dashboard caches the same conversation list.
+  await signIn(page);
   await page.getByRole("link", { name: "Assistant", exact: true }).click();
   await page.getByRole("button", { name: "Conversation options: Review conversation" }).click();
   await page.getByRole("menuitem", { name: "Delete chat", exact: true }).click();
@@ -282,10 +284,16 @@ for (const theme of ["light", "dark"] as const) {
     await signIn(page);
     for (const width of [360, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const route of ["dashboard", "todos", "notes", "assistant", "members"]) {
+      for (const [link, route] of [
+        ["Dashboard", "dashboard"],
+        ["Todos", "todos"],
+        ["Notes", "notes"],
+        ["Assistant", "assistant"],
+        ["Organization", "organization/general"]
+      ] as const) {
         if (width < 768)
           await page.getByRole("button", { name: "Toggle sidebar", exact: true }).click();
-        await page.getByRole("link", { name: new RegExp("^" + route + "$", "i") }).click();
+        await page.getByRole("link", { name: link, exact: true }).click();
         if (width < 768) await expect(page.getByRole("dialog")).toHaveCount(0);
         await expect(page.locator(".ui-app-shell h1")).toBeVisible();
         await expect(page).toHaveURL(new RegExp("/" + route + "$"));
@@ -295,7 +303,7 @@ for (const theme of ["light", "dark"] as const) {
           )
           .toBe(true);
         await page.screenshot({
-          path: testInfo.outputPath(`${route}-${width}-${theme}.png`),
+          path: testInfo.outputPath(`${link.toLowerCase()}-${width}-${theme}.png`),
           fullPage: true
         });
         if (width === 1440) {

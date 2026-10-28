@@ -23,6 +23,9 @@ export const notesResolvers = {
     },
     async note(_parent: unknown, args: NoteByIdArgs, ctx: ResolverContext) {
       return ctx.notes.get(args.id);
+    },
+    async noteCount(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+      return ctx.notes.count();
     }
   },
   Mutation: {

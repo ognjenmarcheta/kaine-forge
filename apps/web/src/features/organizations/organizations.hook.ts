@@ -76,3 +76,22 @@ export function useCustomRoles(enabled: boolean) {
     enabled: enabled && Boolean(activeOrganizationId)
   });
 }
+
+/** The Active Organization and the session's Permissions in it, for an Organization settings tab. */
+export function useOrganizationSettingsAccess() {
+  const { activeOrganizationId, organizations, organizationsVisible } = useOrganization();
+  // The API answers with the session's Permissions and enforces each one;
+  // these only decide which controls show.
+  const permissions = useOrganizationPermissions(
+    organizationsVisible ? activeOrganizationId : null
+  );
+
+  return {
+    activeOrganization: organizations.find(
+      (organization) => organization.id === activeOrganizationId
+    ),
+    activeOrganizationId,
+    can: (permission: Permission) => permissions?.has(permission) === true,
+    permissions
+  };
+}

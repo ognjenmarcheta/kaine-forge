@@ -46,6 +46,7 @@
     "@tanstack/react-form": "^1.33.5",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
+    "cmdk": "catalog:",
     "lucide-react": "^0.577.0",
     "radix-ui": "^1.8.1",
     "react": "catalog:",
@@ -56,6 +57,7 @@
     "@repo/config": "workspace:*",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "jsdom": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "catalog:",
     "vitest": "catalog:"
