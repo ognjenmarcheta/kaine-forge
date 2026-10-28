@@ -46,6 +46,9 @@ test("a settings tab keeps its URL and selection across a reload", async ({ page
 
 test("Ctrl+K opens the command menu and Enter goes to the matching page", async ({ page }) => {
   await signIn(page);
+  // The URL turns /dashboard before the shell mounts; its header button means the
+  // Ctrl+K listener is attached. On a slow dev server an earlier press is lost.
+  await expect(page.getByRole("button", { name: /^Search/ })).toBeVisible();
   await page.keyboard.press("Control+k");
   const menu = page.getByRole("dialog", { name: "Command menu", exact: true });
   await expect(menu).toBeVisible();
