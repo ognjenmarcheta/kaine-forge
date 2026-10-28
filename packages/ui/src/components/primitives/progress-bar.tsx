@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "../../lib/cn";
 
 const progressBarVariants = cva(
-  "h-full w-full rounded-full transition-transform duration-[var(--ds-motion-overlay)] ease-[var(--ds-motion-easing)]",
+  "h-full w-full rounded-full transition-transform duration-overlay ease-standard",
   {
     variants: {
       appearance: {

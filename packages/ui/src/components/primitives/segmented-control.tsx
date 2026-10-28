@@ -66,7 +66,7 @@ const SegmentedControlItem = React.forwardRef<
   <ToggleGroupPrimitive.Item
     ref={ref}
     className={cn(
-      "inline-flex h-ds-control-small items-center justify-center gap-ds-075 whitespace-nowrap rounded-button px-ds-150 text-body-sm font-medium text-ds-text-subtle transition-[color,background-color,box-shadow] duration-[var(--ds-motion-control)] ease-[var(--ds-motion-easing)] hover:text-ds-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused disabled:pointer-events-none disabled:text-ds-text-disabled data-[state=on]:bg-ds-surface-raised data-[state=on]:text-ds-text data-[state=on]:shadow-raised",
+      "inline-flex h-ds-control-small items-center justify-center gap-ds-075 whitespace-nowrap rounded-button px-ds-150 text-body-sm font-medium text-ds-text-subtle transition-[color,background-color,box-shadow] duration-control ease-standard hover:text-ds-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused disabled:pointer-events-none disabled:text-ds-text-disabled data-[state=on]:bg-ds-surface-raised data-[state=on]:text-ds-text data-[state=on]:shadow-raised",
       className
     )}
     {...props}

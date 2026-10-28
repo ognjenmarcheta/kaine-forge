@@ -24,7 +24,7 @@ const nativeFiles = [
 // no-restricted-syntax rule so it composes with the i18n / native-button bans
 // instead of replacing them (flat config replaces rule values per file).
 const themeUtilityMessage =
-  "Use the theme utility for this token, such as bg-ds-surface-raised, p-ds-200, rounded-md, or text-body, not an arbitrary var(--ds-*) value. DESIGN_SYSTEM.md section 9 lists them.";
+  "Use the theme utility for this token, such as bg-ds-surface-raised, p-ds-200, rounded-md, text-body, or duration-control, not an arbitrary var(--ds-*) value. DESIGN_SYSTEM.md section 9 lists them.";
 
 const colorTokenBans = [
   {
@@ -41,14 +41,16 @@ const colorTokenBans = [
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message: "Reference a --ds-* design token, not a hardcoded hex color."
   },
-  // Motion and border-width tokens have no utility, so they may stay arbitrary values.
+  // Motion distances, the press scale, and border widths have no utility, so they may stay
+  // arbitrary values. Durations and easing use duration-control and ease-standard.
   {
-    selector: "Literal[value=/-\\[(color:|length:)?var\\(--ds-(?!motion-|border-width)/]",
+    selector:
+      "Literal[value=/-\\[(color:|length:)?var\\(--ds-(?!motion-(?:distance|press)|border-width)/]",
     message: themeUtilityMessage
   },
   {
     selector:
-      "TemplateElement[value.raw=/-\\[(color:|length:)?var\\(--ds-(?!motion-|border-width)/]",
+      "TemplateElement[value.raw=/-\\[(color:|length:)?var\\(--ds-(?!motion-(?:distance|press)|border-width)/]",
     message: themeUtilityMessage
   }
 ];
@@ -100,6 +102,7 @@ export default [
       ],
       "ui/icon-button-label": "error",
       "ui/no-outline-none": "error",
+      "ui/no-reset-default": "error",
       "ui/no-transition-all": "error",
       "ui/no-unknown-token": "error"
     }

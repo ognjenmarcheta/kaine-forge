@@ -31,6 +31,20 @@ ruleTester.run("no-unknown-token", uiRules.rules["no-unknown-token"], {
   ]
 });
 
+// Tailwind defaults that the web theme resets generate no CSS.
+ruleTester.run("no-reset-default", uiRules.rules["no-reset-default"], {
+  valid: [
+    'const a = "rounded-md rounded-t-card rounded-full shadow-raised shadow-none md:shadow-card";',
+    'const b = "text-body text-heading-sm font-semibold bg-transparent rounded-[3px]";'
+  ],
+  invalid: [
+    { code: 'const d = "size-4 rounded border";', errors: 1 },
+    { code: 'const e = "hover:shadow-md rounded-2xl";', errors: 2 },
+    { code: 'const f = "text-sm font-light";', errors: 2 },
+    { code: 'const g = "bg-red-500 text-white";', errors: 2 }
+  ]
+});
+
 ruleTester.run("no-transition-all", uiRules.rules["no-transition-all"], {
   valid: ['const a = "transition-colors transition-transform";'],
   invalid: [{ code: 'const a = "h-4 transition-all";', errors: 1 }]

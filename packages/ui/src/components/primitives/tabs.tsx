@@ -11,7 +11,7 @@ const tabsListClassName =
 
 /** The tab look; a link with `aria-current="page"` shows the same selected state as an active tab. */
 const tabsTriggerClassName =
-  "inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-body font-medium text-ds-text-subtle ring-offset-ds-surface transition-[color,background-color,border-color,box-shadow] duration-[var(--ds-motion-control)] ease-[var(--ds-motion-easing)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2 disabled:pointer-events-none disabled:text-ds-text-disabled data-[state=active]:border-b-[length:var(--ds-border-width-thick)] data-[state=active]:border-ds-border-selected data-[state=active]:text-ds-text data-[state=active]:shadow-none aria-[current=page]:border-b-[length:var(--ds-border-width-thick)] aria-[current=page]:border-ds-border-selected aria-[current=page]:text-ds-text";
+  "inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-body font-medium text-ds-text-subtle ring-offset-ds-surface transition-[color,background-color,border-color,box-shadow] duration-control ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2 disabled:pointer-events-none disabled:text-ds-text-disabled data-[state=active]:border-b-[length:var(--ds-border-width-thick)] data-[state=active]:border-ds-border-selected data-[state=active]:text-ds-text data-[state=active]:shadow-none aria-[current=page]:border-b-[length:var(--ds-border-width-thick)] aria-[current=page]:border-ds-border-selected aria-[current=page]:text-ds-text";
 
 const TabsList = React.forwardRef<
   React.ComponentRef<typeof TabsPrimitive.List>,

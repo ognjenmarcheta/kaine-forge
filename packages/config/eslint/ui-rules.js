@@ -17,17 +17,71 @@ function readThemeUtilities() {
   } catch {
     return null;
   }
-  const names = (namespace) =>
+  const names = (namespace, prefix = "ds-") =>
     new Set(
-      Array.from(css.matchAll(new RegExp(`--${namespace}-(ds-[a-z0-9-]+):`, "g")), (m) => m[1])
+      Array.from(
+        css.matchAll(new RegExp(`--${namespace}-(${prefix}[a-z0-9-]+):`, "g")),
+        (m) => m[1]
+      )
     );
-  return { colors: names("color"), spacing: names("spacing") };
+  return {
+    colors: names("color"),
+    spacing: names("spacing"),
+    radii: names("radius", ""),
+    shadows: names("shadow", ""),
+    fontWeights: names("font-weight", ""),
+    textSizes: new Set(Array.from(css.matchAll(/@utility text-([a-z0-9-]+)/g), (m) => m[1]))
+  };
 }
 
 const COLOR_UTILITY =
   /(?:^|[\s:"'`])-?(?:bg|text|border(?:-[trblxyse])?|ring(?:-offset)?|outline|fill|stroke|divide|placeholder|decoration|caret|accent|from|to|via|shadow)-(ds-[a-z0-9-]+?)(?:\/\d+)?(?=$|[\s"'`])/g;
 const SPACING_UTILITY =
   /(?:^|[\s:"'`])-?(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|w|h|size|min-w|min-h|max-w|max-h|inset(?:-[xy])?|top|bottom|left|right|start|end|translate-[xy]|basis)-(ds-[a-z0-9-]+)(?=$|[\s"'`])/g;
+
+// Tailwind's default radii, shadows, type sizes, weights, and palette. The theme resets those
+// namespaces, so a default name that the theme does not define generates no CSS and does nothing.
+const RADIUS_CLASS = /^rounded(?:-(?:t|r|b|l|s|e|tl|tr|bl|br|ss|se|es|ee))?(?:-([a-z0-9-]+))?$/;
+const SHADOW_CLASS = /^shadow(?:-([a-z0-9-]+))?$/;
+const TEXT_SIZE_CLASS = /^text-(xs|sm|base|lg|[2-9]?xl)$/;
+const FONT_WEIGHT_CLASS =
+  /^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/;
+const PALETTE_CLASS =
+  /^(?:bg|text|border(?:-[trblxyse])?|ring(?:-offset)?|outline|fill|stroke|divide|placeholder|decoration|caret|accent|from|to|via|shadow)-(?:(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}|white|black)(?:\/\d+)?$/;
+
+/** Why a class generates no CSS under the theme, or null when it does. */
+function resetDefault(className, utilities) {
+  // Arbitrary values set their own CSS; the variant prefix and important marker do not matter.
+  if (/[[(]/.test(className)) return null;
+  const name = className
+    .slice(className.lastIndexOf(":") + 1)
+    .replace(/^!|!$/g, "")
+    .replace(/^-/, "");
+  if (PALETTE_CLASS.test(name)) {
+    return `COLOR-5: "${name}" is a default Tailwind color, which the theme removes. Use a role such as bg-ds-bg-danger or text-ds-text-inverse.`;
+  }
+  if (TEXT_SIZE_CLASS.test(name) && !utilities.textSizes.has(name.slice(5))) {
+    return `TYPE-1: "${name}" is a default Tailwind size, which the theme removes. Use a type step such as text-body or text-heading-sm.`;
+  }
+  const weight = FONT_WEIGHT_CLASS.exec(name);
+  if (weight && !utilities.fontWeights.has(weight[1])) {
+    return `TYPE-1: "${name}" is not a theme weight. Use font-normal, font-medium, font-semibold, or font-bold.`;
+  }
+  const radius = RADIUS_CLASS.exec(name);
+  if (radius && !["none", "full"].includes(radius[1] ?? "") && !utilities.radii.has(radius[1])) {
+    return `"${name}" generates no CSS: the theme replaces Tailwind's default radii. Use rounded-sm to rounded-xl or a component radius such as rounded-card (DESIGN_SYSTEM.md section 9).`;
+  }
+  const shadow = SHADOW_CLASS.exec(name);
+  if (
+    shadow &&
+    !shadow[1]?.startsWith("ds-") &&
+    !["none", "inherit", "current", "transparent"].includes(shadow[1] ?? "") &&
+    !utilities.shadows.has(shadow[1] ?? "")
+  ) {
+    return `"${name}" generates no CSS: the theme replaces Tailwind's default shadows. Use shadow-raised, shadow-overlay, shadow-floating, or shadow-card (DESIGN_SYSTEM.md section 9).`;
+  }
+  return null;
+}
 
 function stringsOf(node) {
   if (node.type === "Literal" && typeof node.value === "string") return [node.value];
@@ -61,6 +115,31 @@ const noUnknownToken = {
               message: `SPACE-1: "${name}" is not a theme spacing step. Use ds-025 to ds-1000 or ds-control-*.`
             });
           }
+        }
+      }
+    };
+    return { Literal: check, TemplateElement: check };
+  }
+};
+
+// Web only: the mobile NativeWind preset extends Tailwind's defaults instead of resetting them.
+const noResetDefault = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "A Tailwind default that the web theme removes generates no CSS (COLOR-5, TYPE-1)."
+    },
+    schema: []
+  },
+  create(context) {
+    const utilities = readThemeUtilities();
+    if (!utilities) return {};
+    const check = (node) => {
+      for (const text of stringsOf(node)) {
+        for (const className of text.split(/[\s"'`]+/)) {
+          const message = className ? resetDefault(className, utilities) : null;
+          if (message) context.report({ node, message });
         }
       }
     };
@@ -169,6 +248,7 @@ export const uiRules = {
   rules: {
     "icon-button-label": iconButtonLabel,
     "no-outline-none": noOutlineNone,
+    "no-reset-default": noResetDefault,
     "no-transition-all": noTransitionAll,
     "no-unknown-token": noUnknownToken
   }
