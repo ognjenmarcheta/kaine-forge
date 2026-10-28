@@ -47,6 +47,13 @@
       "reason": "Wraps clean-deps and reinstalls the whole workspace."
     },
     {
+      "id": "github-setup-apply",
+      "decision": "ask",
+      "command": "pnpm github:setup",
+      "flag": "--apply",
+      "reason": "Changes the GitHub repository's settings, rulesets, labels, and Projects board. The dry run and --check change nothing."
+    },
+    {
       "id": "git-push-force",
       "decision": "ask",
       "command": "git push",

@@ -28,7 +28,8 @@ Use this skill when turning this template repository into a downstream product r
 4. Run `pnpm ai:install` because adoption changes canonical `.ai/` sources.
 5. Run `pnpm ai:doctor`.
 6. Run `pnpm template:adopt --check`.
-7. Use targeted searches for remaining active template identity and review each leftover:
+7. Set up the GitHub repository state with the `kaine-setup-github` skill: `pnpm github:setup`, then `pnpm github:setup --apply` after the owner's yes. A template copies files, not labels, rulesets, settings, or the Projects board.
+8. Use targeted searches for remaining active template identity and review each leftover:
 
    ```bash
    rg -n "Kaine Forge|kaine-forge|kaineforge|kaine_forge|com\\.kaine\\.forge|ognjenmarcheta" \
@@ -40,9 +41,9 @@ Use this skill when turning this template repository into a downstream product r
    `rg` skips gitignored paths, so Cargo output needs no glob: both `.tauri-target/` and the
    pre-move `apps/desktop/src-tauri/target/` are gitignored.
 
-8. Replace the mark in `media/brand/` and `media/logo.png` with your own logo, then regenerate the app icons as `media/brand/README.md` describes. Adoption already rewrites the README image alt text.
-9. Adoption empties `docs/agents/monorepo-scorecard.md` of the template's own run history and keeps the band descriptors, dimensions, and calibration heading. Record your first run with the `kaine-scorecard` skill.
-10. Commit `.ai/project/template.json`. `pnpm ai:sync` reads it to pull later upstream AI setup changes. Put project-specific AI rules, review checks, skills, and agents in `.ai/project/`, not in upstream-owned `.ai/` files.
+9. Replace the mark in `media/brand/` and `media/logo.png` with your own logo, then regenerate the app icons as `media/brand/README.md` describes. Adoption already rewrites the README image alt text.
+10. Adoption empties `docs/agents/monorepo-scorecard.md` of the template's own run history and keeps the band descriptors, dimensions, and calibration heading. Record your first run with the `kaine-scorecard` skill.
+11. Commit `.ai/project/template.json`. `pnpm ai:sync` reads it to pull later upstream AI setup changes. Put project-specific AI rules, review checks, skills, and agents in `.ai/project/`, not in upstream-owned `.ai/` files.
 
 ## Config Shape
 
