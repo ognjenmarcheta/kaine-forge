@@ -4,6 +4,8 @@ import {
   chartCellText,
   formatChartValue,
   seriesColor,
+  type ChartAnnotation,
+  type ChartAreaFill,
   type ChartColor,
   type ChartDatum,
   type ChartPaint,
@@ -57,13 +59,29 @@ interface CartesianChartProps extends ChartBaseProps {
   hideXAxis?: boolean;
   /** Hides the y-axis labels; the tooltip and the data table still give every value. */
   hideYAxis?: boolean;
+  /**
+   * `"all"` shows every index label, such as all twelve months. By default a narrow plot skips
+   * labels that would collide; pass `"all"` only when the labels fit at the narrowest width.
+   * @defaultValue "auto"
+   */
+  indexLabels?: "auto" | "all";
 }
 
 interface LineChartProps extends CartesianChartProps {
   /** The series to draw, in color order; each can be dashed or filled. Pass at most six. */
   series: LineSeries[];
-  /** Fills the area under each line; a series' own `area` overrides it. */
-  area?: boolean;
+  /**
+   * Fills the area under each line: `true` with a flat tint, `"gradient"` with a tint that fades
+   * to transparent toward the baseline. A series' own `area` overrides it.
+   */
+  area?: ChartAreaFill;
+  /** Draws a dot on `"all"` points, or on the `"last"` point only, such as today's value. */
+  dots?: "all" | "last";
+  /**
+   * Pins one point's value over the plot with a marker, such as a peak. The value and its
+   * caption stay visible without hover; the data table gives the caption after the value.
+   */
+  annotation?: ChartAnnotation;
   /** The y-axis range, such as `["auto", "auto"]` to fit the data. By default it starts at 0. */
   yDomain?: ChartYDomain;
 }
@@ -77,6 +95,11 @@ interface BarChartProps extends CartesianChartProps {
    */
   highlight?: string | number;
   /**
+   * Paints the `highlight` bar in this color and keeps the other bars in their series color,
+   * instead of muting them. Use it with one series.
+   */
+  highlightColor?: ChartColor;
+  /**
    * Prints values on the bars: on `"all"` of them, or on the `"highlight"` category only. Keep
    * `"all"` for few, wide bars; labels on narrow grouped bars collide.
    */
@@ -85,6 +108,14 @@ interface BarChartProps extends CartesianChartProps {
   referenceLine?: ChartReferenceLine;
   /** The bar thickness in pixels. By default bars fill their band up to 24px. */
   barSize?: number;
+  /**
+   * `"horizontal"` draws the bars across, one row per category, for long category names. The
+   * categories then run down the y-axis and the values along the x-axis, so `hideXAxis` hides
+   * the values. @defaultValue "vertical"
+   */
+  orientation?: "vertical" | "horizontal";
+  /** Draws a quiet track behind each bar, across the whole value range. */
+  track?: boolean;
 }
 
 interface DonutChartProps extends ChartBaseProps {
@@ -112,11 +143,13 @@ interface RadialProgressProps extends ChartBaseProps {
   /** Supporting text under the value in the center. */
   label?: string;
   /**
-   * A fixed square ring that fits inline: 48, 64, or 96px. The center shows `label` at `lg`
-   * only; the data table keeps it at every size. Without it the ring fills its container at
-   * `height`.
+   * A fixed square ring that fits inline: 40, 48, 64, or 96px, such as `xs` in a stat tile.
+   * The center shows `label` at `lg` only; the data table keeps it at every size. Without it
+   * the ring fills its container at `height`.
    */
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
+  /** The ring color. @defaultValue "chart-1" */
+  color?: ChartColor;
 }
 
 interface SparklineProps extends ChartBaseProps {
@@ -252,14 +285,24 @@ function seriesTable(
   data: ChartDatum[],
   index: string,
   series: ChartSeries[],
-  valueFormatter: ChartValueFormatter
+  valueFormatter: ChartValueFormatter,
+  annotation?: ChartAnnotation
 ) {
+  const annotatedKey = annotation?.series ?? series[0]?.key;
+  const cellText = (datum: ChartDatum, key: string) => {
+    const text = chartCellText(datum[key], valueFormatter);
+    // The annotation caption follows its value, so the table names the pinned point too.
+    return annotation?.label !== undefined && key === annotatedKey && datum[index] === annotation.at
+      ? `${text} (${annotation.label})`
+      : text;
+  };
+
   return (
     <ChartTable
       columns={series.map((item) => item.label)}
       rows={data.map((datum) => ({
         header: chartCellText(datum[index], String),
-        cells: series.map((item) => chartCellText(datum[item.key], valueFormatter))
+        cells: series.map((item) => cellText(datum, item.key))
       }))}
     />
   );
@@ -370,15 +413,18 @@ function CenterText({
 
 /** Lines over time, or filled areas with `area`. Keyboard users move the tooltip with arrow keys. */
 function LineChart({
+  annotation,
   area = false,
   className,
   data,
+  dots,
   height = 240,
   hideGrid = false,
   hideTitle = false,
   hideXAxis = false,
   hideYAxis = false,
   index,
+  indexLabels = "auto",
   series,
   title,
   valueFormatter = formatChartValue,
@@ -400,12 +446,14 @@ function LineChart({
           />
         ) : null
       }
-      table={seriesTable(data, index, series, valueFormatter)}
+      table={seriesTable(data, index, series, valueFormatter, annotation)}
     >
       <LinePlot
+        annotation={annotation}
         area={area}
-        axes={{ hideGrid, hideXAxis, hideYAxis }}
+        axes={{ hideGrid, hideXAxis, hideYAxis, indexLabels }}
         data={data}
+        dots={dots}
         index={index}
         series={series}
         title={title}
@@ -427,11 +475,15 @@ function BarChart({
   hideXAxis = false,
   hideYAxis = false,
   highlight,
+  highlightColor,
   index,
+  indexLabels = "auto",
+  orientation = "vertical",
   referenceLine,
   series,
   stacked = false,
   title,
+  track = false,
   valueFormatter = formatChartValue,
   valueLabels
 }: BarChartProps) {
@@ -448,15 +500,18 @@ function BarChart({
       table={seriesTable(data, index, series, valueFormatter)}
     >
       <BarPlot
-        axes={{ hideGrid, hideXAxis, hideYAxis }}
+        axes={{ hideGrid, hideXAxis, hideYAxis, indexLabels }}
         barSize={barSize}
         data={data}
         highlight={highlight}
+        highlightColor={highlightColor}
         index={index}
+        orientation={orientation}
         referenceLine={referenceLine}
         series={series}
         stacked={stacked}
         title={title}
+        track={track}
         valueFormatter={valueFormatter}
         valueLabels={valueLabels}
       />
@@ -532,6 +587,7 @@ const formatShare = (value: number, max: number) => `${Math.round((value / max) 
 
 /** Inline ring sizes; below 96px the hole has no room for the label. */
 const RADIAL_SIZES = {
+  xs: { box: 40, value: "text-body-xs font-semibold", label: undefined },
   sm: { box: 48, value: "text-heading-xxs", label: undefined },
   md: { box: 64, value: "text-heading-xs", label: undefined },
   lg: { box: 96, value: "text-heading-sm", label: "text-body-xs" }
@@ -540,6 +596,7 @@ const RADIAL_SIZES = {
 /** One value out of `max` as a ring; the center shows the value, a percentage by default. */
 function RadialProgress({
   className,
+  color,
   height = 160,
   hideTitle = false,
   label,
@@ -580,7 +637,7 @@ function RadialProgress({
         />
       }
     >
-      <RadialPlot max={max} value={value} />
+      <RadialPlot color={color} max={max} value={value} />
     </ChartFrame>
   );
 }
@@ -614,6 +671,8 @@ function Sparkline({
 export { BarChart, DonutChart, LineChart, RadialProgress, Sparkline, seriesColor };
 export type {
   BarChartProps,
+  ChartAnnotation,
+  ChartAreaFill,
   ChartColor,
   ChartDatum,
   ChartPaint,

@@ -31,12 +31,28 @@ export interface ChartSeries {
   color?: ChartColor;
 }
 
+/**
+ * The fill under a line: `true` for a flat tint, `"gradient"` for a tint that fades to
+ * transparent toward the baseline.
+ */
+export type ChartAreaFill = boolean | "gradient";
+
 /** A `LineChart` series, with its own line style. */
 export interface LineSeries extends ChartSeries {
   /** Draws the line dashed, such as for a comparison period or a forecast. */
   dashed?: boolean;
   /** Fills the area under this line; it overrides the chart's `area`. */
-  area?: boolean;
+  area?: ChartAreaFill;
+}
+
+/** One point of a `LineChart` whose value stays pinned over the plot, such as a peak. */
+export interface ChartAnnotation {
+  /** The index value of the point, such as `"Thu"`. */
+  at: string | number;
+  /** The key of the series that the point belongs to. By default the first series. */
+  series?: string;
+  /** A caption above the value, such as "Peak". The data table gives it after the value. */
+  label?: string;
 }
 
 /** The y-axis range: a number fixes that end, and `"auto"` fits it to the data. */

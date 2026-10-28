@@ -2,12 +2,14 @@
  * Every Recharts import lives in this module. `chart.tsx` loads it with `React.lazy`, so
  * Recharts stays out of the main bundle until a chart renders.
  */
+import * as React from "react";
 import {
   Area,
   Bar,
   BarChart,
   CartesianGrid,
   ComposedChart,
+  DefaultZIndexes,
   LabelList,
   Line,
   Pie,
@@ -16,17 +18,23 @@ import {
   RadialBar,
   RadialBarChart,
   Rectangle,
+  ReferenceDot,
   ReferenceLine,
   Sector,
   Tooltip,
   XAxis,
   YAxis,
-  type BarShapeProps
+  usePlotArea,
+  type BarShapeProps,
+  type DotItemDotProps
 } from "recharts";
 
 import {
   chartCellText,
   seriesColor,
+  type ChartAnnotation,
+  type ChartAreaFill,
+  type ChartColor,
   type ChartDatum,
   type ChartReferenceLine,
   type ChartSeries,
@@ -47,8 +55,18 @@ const PLOT_MARGIN = { top: 8, right: 8, bottom: 0, left: 0 };
 const EDGE_PLOT_MARGIN = { ...PLOT_MARGIN, left: 16, right: 16 };
 /** Value labels sit above the bars, so the plot keeps room for one line of text over the tallest. */
 const LABELLED_PLOT_MARGIN = { ...PLOT_MARGIN, top: 24 };
+/** Across, value labels sit after the bars, so the plot keeps room for them after the longest. */
+const LABELLED_ROW_MARGIN = { ...PLOT_MARGIN, right: 56 };
 /** A rounded data end and a square baseline. */
 const DATA_END_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
+/** Across, the data end is the right end. */
+const ROW_END_RADIUS: [number, number, number, number] = [0, 4, 4, 0];
+/** Room over the plot for a pinned annotation: one line of value, or a caption and the value. */
+const ANNOTATION_TOP = { value: 40, captioned: 56 };
+/** From the annotated point to the bottom of its label: the 4px marker and a 6px gap. */
+const ANNOTATION_GAP = 10;
+/** The top of a gradient area fill; it fades to transparent at the baseline. */
+const GRADIENT_TOP_OPACITY = 0.24;
 /** With round caps on a 2px line, this reads as 6px dashes and 4px gaps. */
 const LINE_DASH = "4 6";
 /** Reference lines are dashed so they never read as a grid line. */
@@ -57,11 +75,12 @@ const REFERENCE_COLOR = "var(--ds-border-bold)";
 /** The other bars when one category is highlighted; it reaches 3:1 like the chart slots. */
 const MUTED_COLOR = seriesColor(0, "neutral").color;
 
-/** Which axis parts a cartesian chart hides. */
+/** Which axis parts a cartesian chart hides, and whether it keeps every index label. */
 export interface CartesianAxes {
   hideGrid: boolean;
   hideXAxis: boolean;
   hideYAxis: boolean;
+  indexLabels: "auto" | "all";
 }
 
 interface CartesianPlotProps {
@@ -136,62 +155,194 @@ function CartesianTooltip({
   );
 }
 
-/** A solid hairline grid and quiet axes; Recharts reads them as direct chart children. */
+/**
+ * A solid hairline grid and quiet axes; Recharts reads them as direct chart children. With
+ * `across`, the index runs down the y-axis and the values along the x-axis.
+ */
 function renderCartesianAxes(
   index: string,
   tickFormatter: ChartValueFormatter,
   axes: CartesianAxes,
-  yDomain?: ChartYDomain
+  { across = false, yDomain }: { across?: boolean; yDomain?: ChartYDomain | undefined } = {}
 ) {
+  // `interval={0}` keeps every label; by default Recharts skips labels that would collide.
+  const indexAxis = { dataKey: index, ...(axes.indexLabels === "all" ? { interval: 0 } : {}) };
+  const valueAxis = { tickFormatter, ...(yDomain === undefined ? {} : { domain: yDomain }) };
+
   return (
     <>
-      {axes.hideGrid ? null : <CartesianGrid vertical={false} stroke={GRID_COLOR} />}
+      {axes.hideGrid ? null : (
+        <CartesianGrid horizontal={!across} vertical={across} stroke={GRID_COLOR} />
+      )}
       <XAxis
-        dataKey={index}
         hide={axes.hideXAxis}
         axisLine={false}
         tickLine={false}
         tick={AXIS_TICK}
         tickMargin={8}
         minTickGap={16}
+        {...(across ? { type: "number", ...valueAxis } : indexAxis)}
       />
       <YAxis
         hide={axes.hideYAxis}
         axisLine={false}
         tickLine={false}
         tick={AXIS_TICK}
-        tickFormatter={tickFormatter}
         width="auto"
-        {...(yDomain === undefined ? {} : { domain: yDomain })}
+        {...(across ? { type: "category", ...indexAxis } : valueAxis)}
       />
     </>
   );
 }
 
+/** A filled dot with a surface ring, as the hovered point, so it reads on a line and an area. */
+const markDot = (color: string, r: number) => ({
+  r,
+  fill: color,
+  stroke: MARK_SURFACE,
+  strokeWidth: 2
+});
+
+/** The `dot` of a line: none, one per point, or one on the last point only. */
+function lineDots(dots: "all" | "last" | undefined, color: string, lastPosition: number) {
+  if (dots === undefined) return false;
+  if (dots === "all") return markDot(color, 3);
+
+  return function LastDot({ cx, cy, index }: DotItemDotProps) {
+    return index === lastPosition && cx !== undefined && cy !== undefined ? (
+      <circle key={index} cx={cx} cy={cy} {...markDot(color, 4)} />
+    ) : null;
+  };
+}
+
+/**
+ * The marker and the always-visible label of an annotated point. The label slides from
+ * centered to start- or end-aligned near the plot edges, so it never leaves the plot.
+ */
+function AnnotationMark({
+  caption,
+  color,
+  cx,
+  cy,
+  value
+}: {
+  caption: string | undefined;
+  color: string;
+  cx: number | undefined;
+  cy: number | undefined;
+  value: string;
+}) {
+  const plot = usePlotArea();
+  if (cx === undefined || cy === undefined) return null;
+  // Where the point sits across the plot, from 0 at the start to 1 at the end.
+  const anchor =
+    plot === undefined || plot.width <= 0
+      ? 0.5
+      : Math.min(Math.max((cx - plot.x) / plot.width, 0), 1);
+
+  return (
+    <g aria-hidden="true">
+      <circle cx={cx} cy={cy} {...markDot(color, 4)} />
+      {plot === undefined ? null : (
+        // A box as tall as the largest label, bottom-aligned over the point.
+        <foreignObject
+          className="pointer-events-none overflow-visible"
+          x={plot.x}
+          y={cy - ANNOTATION_GAP - ANNOTATION_TOP.captioned}
+          width={plot.width}
+          height={ANNOTATION_TOP.captioned}
+        >
+          <div className="relative h-full">
+            <div
+              className="absolute bottom-0 grid justify-items-center whitespace-nowrap rounded-md border border-ds-border bg-ds-surface-overlay px-ds-100 py-ds-050 shadow-overlay"
+              style={{ left: cx - plot.x, transform: `translateX(${-anchor * 100}%)` }}
+            >
+              {caption === undefined ? null : (
+                <span className="text-body-xs text-ds-text-subtle">{caption}</span>
+              )}
+              <span className="text-body-sm font-semibold tabular-nums text-ds-text">{value}</span>
+            </div>
+          </div>
+        </foreignObject>
+      )}
+    </g>
+  );
+}
+
+/** The annotated point's value and color, or nothing when the point is not in the data. */
+function annotatedPoint(
+  annotation: ChartAnnotation,
+  data: ChartDatum[],
+  index: string,
+  series: LineSeries[]
+) {
+  const key = annotation.series ?? series[0]?.key;
+  const position = series.findIndex((item) => item.key === key);
+  const item = series[position];
+  const value = item && data.find((datum) => datum[index] === annotation.at)?.[item.key];
+
+  return item === undefined || typeof value !== "number"
+    ? undefined
+    : { color: seriesColor(position, item.color).color, value };
+}
+
 export function LinePlot({
+  annotation,
   area,
   axes,
   data,
+  dots,
   index,
   series,
   title,
   valueFormatter,
   yDomain
 }: Omit<CartesianPlotProps, "series"> & {
-  area: boolean;
+  annotation: ChartAnnotation | undefined;
+  area: ChartAreaFill;
+  dots: "all" | "last" | undefined;
   series: LineSeries[];
   yDomain: ChartYDomain | undefined;
 }) {
+  // An id per chart, so two charts on a page never share a gradient; `useId` adds colons.
+  const gradientPrefix = React.useId().replace(/[^a-zA-Z0-9-]/g, "");
+  const gradientId = (key: string) => `${gradientPrefix}-${key}-fill`;
+  const gradients = series.flatMap((item, position) =>
+    (item.area ?? area) === "gradient"
+      ? [{ id: gradientId(item.key), color: seriesColor(position, item.color).color }]
+      : []
+  );
+  const pinned =
+    annotation === undefined ? undefined : annotatedPoint(annotation, data, index, series);
+  const margin = axes.hideYAxis ? EDGE_PLOT_MARGIN : PLOT_MARGIN;
+
   return (
     <ComposedChart
       data={data}
       responsive
       width="100%"
       height="100%"
-      margin={axes.hideYAxis ? EDGE_PLOT_MARGIN : PLOT_MARGIN}
+      margin={
+        pinned === undefined
+          ? margin
+          : {
+              ...margin,
+              top: annotation?.label === undefined ? ANNOTATION_TOP.value : ANNOTATION_TOP.captioned
+            }
+      }
       title={title}
     >
-      {renderCartesianAxes(index, valueFormatter, axes, yDomain)}
+      {gradients.length === 0 ? null : (
+        <defs>
+          {gradients.map((gradient) => (
+            <linearGradient key={gradient.id} id={gradient.id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={gradient.color} stopOpacity={GRADIENT_TOP_OPACITY} />
+              <stop offset="1" stopColor={gradient.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+      )}
+      {renderCartesianAxes(index, valueFormatter, axes, { yDomain })}
       <Tooltip
         cursor={{ stroke: "var(--ds-border-bold)", strokeWidth: 1 }}
         isAnimationActive={ANIMATION}
@@ -208,6 +359,7 @@ export function LinePlot({
       />
       {series.map((item, position) => {
         const { color } = seriesColor(position, item.color);
+        const fill = item.area ?? area;
         const mark = {
           dataKey: item.key,
           name: item.label,
@@ -216,18 +368,35 @@ export function LinePlot({
           strokeWidth: 2,
           strokeLinecap: "round",
           strokeLinejoin: "round",
-          dot: false,
-          activeDot: { r: 4, fill: color, stroke: MARK_SURFACE, strokeWidth: 2 },
+          dot: lineDots(dots, color, data.length - 1),
+          activeDot: markDot(color, 4),
           isAnimationActive: ANIMATION,
           ...(item.dashed === true ? { strokeDasharray: LINE_DASH } : {})
         } as const;
 
-        return (item.area ?? area) ? (
-          <Area key={item.key} {...mark} fill={color} fillOpacity={0.1} />
+        if (fill === false) return <Line key={item.key} {...mark} />;
+        return fill === "gradient" ? (
+          <Area key={item.key} {...mark} fill={`url(#${gradientId(item.key)})`} fillOpacity={1} />
         ) : (
-          <Line key={item.key} {...mark} />
+          <Area key={item.key} {...mark} fill={color} fillOpacity={0.1} />
         );
       })}
+      {pinned === undefined || annotation === undefined ? null : (
+        <ReferenceDot
+          x={annotation.at}
+          y={pinned.value}
+          zIndex={DefaultZIndexes.label}
+          shape={({ cx, cy }) => (
+            <AnnotationMark
+              caption={annotation.label}
+              color={pinned.color}
+              cx={cx}
+              cy={cy}
+              value={valueFormatter(pinned.value)}
+            />
+          )}
+        />
+      )}
     </ComposedChart>
   );
 }
@@ -239,25 +408,40 @@ export function BarPlot({
   barSize,
   data,
   highlight,
+  highlightColor,
   index,
+  orientation,
   referenceLine,
   series,
   stacked,
   title,
+  track,
   valueFormatter,
   valueLabels
 }: CartesianPlotProps & {
   barSize: number | undefined;
   highlight: string | number | undefined;
+  highlightColor: ChartColor | undefined;
+  orientation: "vertical" | "horizontal";
   referenceLine: ChartReferenceLine | undefined;
   stacked: boolean | "percent";
+  track: boolean;
   valueLabels: "all" | "highlight" | undefined;
 }) {
+  const across = orientation === "horizontal";
+  const endRadius = across ? ROW_END_RADIUS : DATA_END_RADIUS;
   const lastPosition = series.length - 1;
   const isHighlighted = (position: number) =>
     highlight !== undefined && data[position]?.[index] === highlight;
+  // With a highlight color the other bars keep their series color; without one they turn muted.
+  const highlightPaint =
+    highlightColor === undefined ? undefined : seriesColor(0, highlightColor).color;
   // Labels on stacked segments collide; the tooltip and the data table carry those values.
   const labels = stacked === false ? valueLabels : undefined;
+  const margin =
+    labels === undefined ? PLOT_MARGIN : across ? LABELLED_ROW_MARGIN : LABELLED_PLOT_MARGIN;
+  // Across, a reference label sits over the top end of its line, so the plot keeps room for it.
+  const referenceLabelOnTop = across && referenceLine?.label !== undefined;
 
   return (
     <BarChart
@@ -265,14 +449,17 @@ export function BarPlot({
       responsive
       width="100%"
       height="100%"
-      margin={labels === undefined ? PLOT_MARGIN : LABELLED_PLOT_MARGIN}
+      margin={referenceLabelOnTop ? { ...margin, top: LABELLED_PLOT_MARGIN.top } : margin}
       title={title}
       barGap={2}
       maxBarSize={barSize ?? 24}
       stackOffset={stacked === "percent" ? "expand" : "none"}
       {...(barSize === undefined ? {} : { barSize })}
+      {...(across ? { layout: "vertical" } : {})}
     >
-      {renderCartesianAxes(index, stacked === "percent" ? formatShareTick : valueFormatter, axes)}
+      {renderCartesianAxes(index, stacked === "percent" ? formatShareTick : valueFormatter, axes, {
+        across
+      })}
       <Tooltip
         cursor={{ fill: "var(--ds-background-neutral-hovered)" }}
         isAnimationActive={ANIMATION}
@@ -289,7 +476,7 @@ export function BarPlot({
       />
       {referenceLine === undefined ? null : (
         <ReferenceLine
-          y={referenceLine.value}
+          {...(across ? { x: referenceLine.value } : { y: referenceLine.value })}
           ifOverflow="extendDomain"
           stroke={REFERENCE_COLOR}
           strokeDasharray={REFERENCE_DASH}
@@ -298,7 +485,7 @@ export function BarPlot({
             : {
                 label: {
                   value: referenceLine.label,
-                  position: "insideTopRight",
+                  position: referenceLabelOnTop ? "top" : "insideTopRight",
                   fill: "var(--ds-text-subtle)"
                 }
               })}
@@ -314,12 +501,28 @@ export function BarPlot({
             name={item.label}
             fill={color}
             isAnimationActive={ANIMATION}
-            radius={stacked === false || position === lastPosition ? DATA_END_RADIUS : 0}
+            radius={stacked === false || position === lastPosition ? endRadius : 0}
+            {...(track
+              ? {
+                  background: (slot: BarShapeProps) => (
+                    <Rectangle {...slot} fill={GRID_COLOR} radius={endRadius} />
+                  )
+                }
+              : {})}
             {...(highlight === undefined
               ? {}
               : {
                   shape: (bar: BarShapeProps) => (
-                    <Rectangle {...bar} fill={isHighlighted(bar.index) ? color : MUTED_COLOR} />
+                    <Rectangle
+                      {...bar}
+                      fill={
+                        isHighlighted(bar.index)
+                          ? (highlightPaint ?? color)
+                          : highlightPaint === undefined
+                            ? MUTED_COLOR
+                            : color
+                      }
+                    />
                   )
                 })}
             {...(stacked === false
@@ -328,7 +531,7 @@ export function BarPlot({
           >
             {labels === undefined ? null : (
               <LabelList
-                position="top"
+                position={across ? "right" : "top"}
                 offset={6}
                 className={labels === "highlight" ? "font-semibold" : undefined}
                 fill={labels === "highlight" ? "var(--ds-text)" : "var(--ds-text-subtle)"}
@@ -409,7 +612,15 @@ export function DonutPlot({
   );
 }
 
-export function RadialPlot({ max, value }: { max: number; value: number }) {
+export function RadialPlot({
+  color,
+  max,
+  value
+}: {
+  color: ChartColor | undefined;
+  max: number;
+  value: number;
+}) {
   return (
     <RadialBarChart
       data={[{ value: Math.min(Math.max(value, 0), max) }]}
@@ -425,7 +636,7 @@ export function RadialPlot({ max, value }: { max: number; value: number }) {
       <PolarAngleAxis type="number" domain={[0, max]} tick={false} axisLine={false} />
       <RadialBar
         dataKey="value"
-        fill="var(--ds-chart-1)"
+        fill={seriesColor(0, color).color}
         background={{ fill: GRID_COLOR }}
         cornerRadius="50%"
         isAnimationActive={ANIMATION}
