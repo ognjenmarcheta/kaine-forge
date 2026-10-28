@@ -375,12 +375,22 @@ Common patterns:
 
 Primitive options that screens often need:
 
-- `Button`: `appearance="outline"` is a surface fill with a bold border, for a raised button on a tinted area. `spacing="icon"` is a square icon button; give it an `aria-label` (A11Y-3).
+- `Button`: `appearance="outline"` is a surface fill with a bold border, and `appearance="raised"` a surface fill with a soft shadow and no border, for a white button on a tinted area. `spacing="icon"` is a square icon button; give it an `aria-label` (A11Y-3).
+- `FilterMenu`: a compact button that shows the chosen option of a filter (a period, a scope) and opens a menu of choices. Its name is the filter's `label` and the visible value, so a screen reader says "Period, Last 7 days". Use it instead of a full `Select` in a card or page header.
+- `CardAction`: a control at the end of a `CardHeader`, such as a `FilterMenu` or a menu button. The header becomes two columns only when it holds one.
+- `StatCard`: every part has a `data-slot` (`stat-card-label`, `stat-card-value`, …), so a screen restyles a part with `[&_[data-slot=stat-card-label]]:text-body`. `visual` puts a ring or a sparkline at the end of the value row.
 - `CardTitle`: `as="h2"` or `as="h4"` fits the title into the page outline; the default is `h3` (TYPE-2).
 - `Banner`: `emphasis="subtle"` uses the tinted fill. It is a polite `status`; `urgent` makes it an `alert` for a problem that needs attention now.
 - `Checkbox`: `checked="indeterminate"` draws a minus, for a select-all box with some rows selected. The box is 16px with a 24px hit area.
 - `Table`: a wide table scrolls inside itself; the scroller becomes a tab stop only while it overflows. `scrollLabel` names it as a region.
-- `AppSidebar`: `label` names its navigation landmark, which holds the header, the links, and the footer.
+- `AppSidebar`: `label` names its navigation landmark, which holds the header, the links, and the footer. A `SidebarGroup` with a `SidebarGroupLabel` is a named group, and a `SidebarMenuBadge` count describes its link.
+- `TopNav`: a horizontal primary navigation for apps without a sidebar. The current link has `aria-current="page"` and the selected pill; the row scrolls inside itself on a narrow screen. `renderLink` uses the app router.
+- `PageHeader`: `size="display"` sets the title in `text-display`, for a page whose title is its hero.
+- `AvatarFallback`: `tone` sets initials on a role tint (`brand`, `success`, `information`, …), each a pair the theme check measures.
+- `CopyButton`: `labelSuffix` adds hidden words after the visible label, so several copy buttons on one page get distinct names ("Copy link, Q3 report").
+- Charts: `LineChart` takes `dots`, a pinned `annotation`, and `area="gradient"`. `BarChart` takes `track`, `orientation="horizontal"`, and `highlightColor`. Both take `indexLabels="all"` to keep every category label. `RadialProgress` takes a `color` and `size="xs"`. `Gauge` is a semicircle, segmented or solid, for one value or for colored parts.
+
+A focus ring appears at once: every element holds the focus color before it takes focus, so `transition-colors` never fades the default ring in.
 
 Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
 
