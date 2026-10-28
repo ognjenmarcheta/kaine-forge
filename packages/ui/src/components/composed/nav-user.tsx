@@ -33,6 +33,10 @@ export function resolveNavUserInitials(displayName: string): string {
   }
 
   const parts = trimmed.split(/\s+/);
+  // A leading title such as "Dr." or "Prof." is not part of the name; an initial such as "J." is.
+  while (parts.length > 1 && /^\p{L}{2,}\.$/u.test(parts[0] ?? "")) {
+    parts.shift();
+  }
   const first = parts[0]?.charAt(0) ?? "";
   const second = parts[1]?.charAt(0) ?? "";
   return `${first}${second || ""}`.toUpperCase();

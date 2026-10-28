@@ -9,9 +9,14 @@ const triggerTag = (markup: string): string =>
   /<button[^>]*data-sidebar="menu-button"[^>]*>/.exec(markup)?.[0] ?? "";
 
 describe("nav-user", () => {
-  it("resolves initials for user name", () => {
-    expect(resolveNavUserInitials("Ada Lovelace")).toBe("AL");
-    expect(resolveNavUserInitials("Ada")).toBe("A");
+  it.each([
+    ["Ada Lovelace", "AL"],
+    ["Ada", "A"],
+    ["Dr. Adrian Hale", "AH"],
+    ["Prof. Dr. Lena Vogt", "LV"],
+    ["J. Smith", "JS"]
+  ])("resolves the initials of %s as %s", (name, initials) => {
+    expect(resolveNavUserInitials(name)).toBe(initials);
   });
 
   it("renders user identity in the sidebar trigger", () => {
