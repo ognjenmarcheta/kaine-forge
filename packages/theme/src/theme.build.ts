@@ -1,9 +1,11 @@
+import { lint } from "@google/design.md/linter";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format, resolveConfig } from "prettier";
 
 import { findContrastFailures, findTargetSizeFailures } from "./theme.contrast";
+import { rootDesignCopy, withDesignTokens } from "./theme.design";
 import { emitMobileCss, emitNativeTokens, emitPresetTokens, emitWebTokens } from "./theme.emit";
 import { defaultTheme, themes } from "./themes.config";
 
@@ -49,11 +51,23 @@ function withSplashColors(appJson: string): string {
     );
 }
 
+const designPath = (name: string): string => `packages/theme/src/themes/${name}/DESIGN.md`;
+
 /** Every file `pnpm theme:build` writes, formatted as committed. */
 export async function buildThemeFiles(): Promise<GeneratedFile[]> {
   const mobileCss = "apps/mobile/src/styles/global.css";
+  const designs = await Promise.all(
+    themes.map((theme) =>
+      formatted(designPath(theme.name), withDesignTokens(read(designPath(theme.name)), theme))
+    )
+  );
+  const defaultDesign = designs[themes.indexOf(defaultTheme)];
 
-  return Promise.all([
+  if (!defaultDesign) {
+    throw new Error("the default theme is not registered");
+  }
+
+  const files = await Promise.all([
     formatted("packages/ui/src/styles/tokens.generated.css", emitWebTokens(themes, defaultTheme)),
     formatted(mobileCss, emitMobileCss(defaultTheme, read(mobileCss))),
     formatted(
@@ -62,8 +76,11 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
     ),
     formatted("packages/config/tailwind/preset.tokens.js", emitPresetTokens(defaultTheme)),
     formatted("apps/web/index.html", withThemeColor(read("apps/web/index.html"))),
-    formatted("apps/mobile/app.json", withSplashColors(read("apps/mobile/app.json")))
+    formatted("apps/mobile/app.json", withSplashColors(read("apps/mobile/app.json"))),
+    formatted("DESIGN.md", rootDesignCopy(defaultDesign.content, defaultDesign.path))
   ]);
+
+  return [...files, ...designs];
 }
 
 /** One line per contrast or target-size failure across every registered theme. */
@@ -76,4 +93,20 @@ export function describeThemeFailures(): string[] {
     ),
     ...findTargetSizeFailures(theme).map((failure) => `${theme.name}: ${failure}`)
   ]);
+}
+
+/** One line per DESIGN.md lint error or warning from the pinned @google/design.md linter. */
+export function describeDesignFindings(files: readonly GeneratedFile[]): string[] {
+  return files
+    .filter((file) => file.path.endsWith("DESIGN.md"))
+    .flatMap((file) =>
+      lint(file.content)
+        .findings.filter((finding) => finding.severity !== "info")
+        .map((finding) =>
+          `${file.path}: ${finding.severity} ${finding.path ?? ""} ${finding.message}`.replace(
+            / +/g,
+            " "
+          )
+        )
+    );
 }

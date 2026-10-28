@@ -7,7 +7,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { buildThemeFiles, describeThemeFailures, repoRoot } from "./theme.build";
+import {
+  buildThemeFiles,
+  describeDesignFindings,
+  describeThemeFailures,
+  repoRoot
+} from "./theme.build";
 
 const checkOnly = process.argv.includes("--check");
 const failures = describeThemeFailures();
@@ -18,6 +23,13 @@ if (failures.length > 0) {
 }
 
 const files = await buildThemeFiles();
+const findings = describeDesignFindings(files);
+
+if (findings.length > 0) {
+  console.error(`DESIGN.md lint failed:\n${findings.map((line) => `  ${line}`).join("\n")}`);
+  process.exit(1);
+}
+
 const current = (path: string): string =>
   existsSync(path) ? readFileSync(path, "utf8").replaceAll("\r\n", "\n") : "";
 const stale = files.filter((file) => current(join(repoRoot, file.path)) !== file.content);

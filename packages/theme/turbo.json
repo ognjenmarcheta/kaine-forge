@@ -6,6 +6,7 @@
       "description": "theme.build.test.ts diffs the generated theme files against the committed copies, which live in other workspaces (issue #516).",
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/apps/mobile/app.json",
         "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
         "$TURBO_ROOT$/apps/web/index.html",

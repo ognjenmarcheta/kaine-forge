@@ -299,6 +299,7 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
     reason:
       "builds every generated theme file in memory, including the native colors in index.html and app.json, and diffs it against the committed copy",
     needs: [
+      "$TURBO_ROOT$/DESIGN.md",
       "$TURBO_ROOT$/apps/mobile/app.json",
       "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
       "$TURBO_ROOT$/apps/web/index.html",

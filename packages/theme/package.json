@@ -25,6 +25,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "devDependencies": {
+    "@google/design.md": "0.4.0",
     "@repo/config": "workspace:*",
     "@types/node": "catalog:",
     "prettier": "catalog:",
