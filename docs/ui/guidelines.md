@@ -160,6 +160,10 @@ Reason: an incomplete dialog strands keyboard and screen-reader users.
 **A11Y-7 (MUST). Charts have a name and the data as text.** The chart components render a titled `figure` and a visually hidden data table.
 Reason: a picture of numbers is invisible to screen readers.
 
+**A11Y-8 (MUST). A 3D view mirrors a real control.** The data and the selection live in a DOM control beside the canvas, such as a radio group of named regions; the canvas is `aria-hidden` and only shows that state. The viewer takes focus with a visible ring and works by keyboard, has 24px buttons that turn and zoom, announces selection changes, keeps the selected part at 3:1 against the model and the background, and shows the control alone when WebGL is missing. `Viewport3D` from `@repo/ui-3d` does the viewer part (`docs/ui/3d.md`).
+Reason: a canvas has no accessible content, and not everyone can drag (WCAG 2.2 SC 1.1.1, 1.4.11, 2.1.1, 2.5.7, 2.5.8, 4.1.3).
+Do: a "Body region" radio group drives `<Viewport3D>`, and the scene colors the checked region. Don't: let people pick a region only by clicking a mesh in the canvas.
+
 ## RESP
 
 **RESP-1. Work at 375px.** Content reflows to one column; the page never scrolls sideways. Wide tables scroll inside their own container. Give every grid a column count at its smallest size: a grid without one sizes its column to the widest child, such as a chart or a line that does not wrap.

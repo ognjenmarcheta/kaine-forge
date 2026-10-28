@@ -10,6 +10,7 @@ Kaine Forge ships one default theme, **Byte Forge**, and one example custom them
 | Check a UI change before review       | `docs/ui/quality-checklist.md`, `pnpm ui:check` |
 | See the default theme's look          | `DESIGN.md` (generated from `packages/theme`)   |
 | Look up a token or a rule's reason    | `DESIGN_SYSTEM.md`                              |
+| Add a 3D view                         | `docs/ui/3d.md`                                 |
 
 ## Build a screen
 

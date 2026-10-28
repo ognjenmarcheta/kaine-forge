@@ -16,9 +16,11 @@
   "dependencies": {
     "@repo/theme": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@repo/ui-3d": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "three": "catalog:"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
@@ -27,6 +29,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/three": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",

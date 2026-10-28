@@ -264,6 +264,7 @@ This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
 - `kaine-audit-ui`: Audit a screen, a UI diff, or a recreated screenshot against the UI guidelines and WCAG 2.2, and report findings with rule IDs; in reference mode, also score how closely a recreation matches its image.
+- `kaine-build-3d`: Add or change an interactive 3D view in the web or desktop UI with @repo/ui-3d — decide whether 3D is needed, then build an accessible, theme-colored, on-demand scene that a DOM control drives.
 - `kaine-build-ui`: Build or change a screen or component in the web, desktop, desk, or mobile UI, or recreate a screenshot or brand look, using the theme utilities, the shared components, and the UI guidelines.
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
 - `kaine-create-theme`: Create, change, or set the default for a theme in @repo/theme, from a brand color, a brand book, a DESIGN.md, or a reference image, and pass the theme checks.

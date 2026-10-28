@@ -10,6 +10,7 @@ const domFiles = [
   "apps/web/src/**/*.{tsx,jsx}",
   "apps/desktop/src/**/*.{tsx,jsx}",
   "packages/ui/src/**/*.{tsx,jsx}",
+  "packages/ui-3d/src/**/*.{tsx,jsx}",
   "tooling/desk-ui/src/**/*.{tsx,jsx}",
   "tooling/ui-lab/src/**/*.{tsx,jsx}"
 ];
@@ -183,7 +184,7 @@ export default [
     }
   },
   {
-    files: ["packages/ui/src/**/*.{tsx,jsx}"],
+    files: ["packages/ui/src/**/*.{tsx,jsx}", "packages/ui-3d/src/**/*.{tsx,jsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -209,6 +210,14 @@ export default [
     files: ["apps/desktop/src/**/*.{tsx,jsx}", "packages/mobile-ui/src/**/*.{tsx,jsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...colorTokenBans]
+    }
+  },
+  {
+    // A *.scene.tsx module draws a React Three Fiber scene: its lowercase elements (<mesh>,
+    // <ambientLight>) are three.js objects with three.js props, not DOM elements.
+    files: ["**/*.scene.tsx"],
+    rules: {
+      "react/no-unknown-property": "off"
     }
   },
   {

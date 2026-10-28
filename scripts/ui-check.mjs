@@ -87,6 +87,7 @@ for (const file of stylesheets) {
 // 3. Lint: the accessibility (jsx-a11y) and UI (ui/*) rules, per UI workspace.
 const lintWorkspaces = [
   "packages/ui",
+  "packages/ui-3d",
   "apps/web",
   "apps/desktop",
   "tooling/desk-ui",

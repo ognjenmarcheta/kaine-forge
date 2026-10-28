@@ -42,6 +42,10 @@ catalog:
   jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
   "@xyflow/react": "^12.12.0"
+  # 3D viewer (packages/ui-3d) and the scenes that use it. Exact pins; upgrade three and
+  # @types/three together, since the types track three's release number.
+  three: "0.186.1"
+  "@types/three": "0.186.0"
   "@graphql-typed-document-node/core": "^3.2.0"
   class-variance-authority: "^0.7.1"
   clsx: "^2.1.1"

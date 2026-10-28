@@ -1061,7 +1061,13 @@ describe("monorepo alignment", () => {
       return JSON.stringify(rules?.["no-restricted-imports"] ?? null);
     };
 
-    const domWorkspaces = ["apps/web", "apps/desktop", "packages/ui", "tooling/desk-ui"];
+    const domWorkspaces = [
+      "apps/web",
+      "apps/desktop",
+      "packages/ui",
+      "packages/ui-3d",
+      "tooling/desk-ui"
+    ];
     // Each config resolution loads the whole flat config; resolve them together.
     const [mobile, ...domOptions] = await Promise.all(
       ["apps/mobile", ...domWorkspaces].map((workspace) =>

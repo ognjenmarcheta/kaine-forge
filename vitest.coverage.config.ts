@@ -21,7 +21,8 @@ export default defineConfig({
       "packages/todos",
       "packages/theme",
       "packages/translation",
-      "packages/ui"
+      "packages/ui",
+      "packages/ui-3d"
     ],
     passWithNoTests: true,
     coverage: {

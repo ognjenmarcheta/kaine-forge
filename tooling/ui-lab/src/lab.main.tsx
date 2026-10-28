@@ -1,4 +1,5 @@
-import "@repo/ui/styles/globals.css";
+// The shared UI styles, plus the class names of @repo/ui-3d, which Tailwind would not scan.
+import "@repo/ui-3d/styles.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
