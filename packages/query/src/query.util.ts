@@ -101,12 +101,10 @@ interface ActiveOrganizationMutationHandlersInput {
 
 export interface OrgScopedQueryRegistry {
   getOperationKeys: () => readonly (readonly unknown[])[];
-  invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
   registerOperation: (operationName: string, queryKey: readonly unknown[]) => void;
 }
 
 export interface QueryRuntime {
-  getOrgScopedQueryKeys: () => readonly (readonly unknown[])[];
   invalidateOrgScopedQueries: (queryClient: InvalidateQueriesApi) => Promise<void>;
   registerOrgScopedOperation: (operationName: string, queryKey: readonly unknown[]) => void;
   resetAuthBoundQueries: (queryClient: RemoveQueriesApi) => void;
@@ -121,13 +119,6 @@ export function createOrgScopedQueryRegistry(): OrgScopedQueryRegistry {
 
   return {
     getOperationKeys,
-    async invalidateOrgScopedQueries(queryClient) {
-      for (const queryKey of getOperationKeys()) {
-        await queryClient.invalidateQueries({
-          queryKey
-        });
-      }
-    },
     registerOperation(operationName, queryKey) {
       operationKeys.set(operationName, queryKey);
     }
@@ -140,7 +131,6 @@ export function createQueryRuntime(registry = createOrgScopedQueryRegistry()): Q
   }
 
   return {
-    getOrgScopedQueryKeys,
     async invalidateOrgScopedQueries(queryClient) {
       for (const queryKey of getOrgScopedQueryKeys()) {
         await queryClient.invalidateQueries({
