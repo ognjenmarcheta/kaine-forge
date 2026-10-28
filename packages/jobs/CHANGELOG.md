@@ -1,5 +1,11 @@
 # @repo/jobs
 
+## 1.0.1
+
+### Patch Changes
+
+- @repo/email@1.3.1
+
 ## 1.0.0
 
 ### Major Changes

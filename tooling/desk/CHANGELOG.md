@@ -1,5 +1,11 @@
 # @repo/desk
 
+## 0.5.2
+
+### Patch Changes
+
+- 54c80df: Remove the unread `PIPELINE` constant and its `PipelineDefinition`, `PipelineNode`, `PipelineEdge`, `PipelineLoopEdge`, `HumanGate`, and `ActiveStage` types from `@repo/desk/contracts`. The flow model takes its nodes and edges from the flow snapshot.
+
 ## 0.5.1
 
 ### Patch Changes

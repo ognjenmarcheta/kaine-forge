@@ -1,5 +1,18 @@
 # @repo/mobile
 
+## 1.9.8
+
+### Patch Changes
+
+- Updated dependencies [4dcc509]
+- Updated dependencies [0100b46]
+- Updated dependencies [dd1a7c8]
+- Updated dependencies [a26fb69]
+  - @repo/storage@1.6.0
+  - @repo/translation@1.12.0
+  - @repo/query@2.0.0
+  - @repo/auth@5.0.2
+
 ## 1.9.7
 
 ### Patch Changes
