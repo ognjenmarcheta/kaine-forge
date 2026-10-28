@@ -92,16 +92,21 @@ const ZIP = [0x50, 0x4b, 0x03, 0x04];
 const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 const isText = (bytes: Uint8Array) => !bytes.includes(0);
 
-/** An ISO-BMFF `ftyp` box whose major or a compatible brand is AVIF (`avif`, or `avis` for a sequence). */
+/**
+ * An ISO-BMFF `ftyp` box for a still AVIF image that libvips decodes: major brand
+ * `avif`, or `mif1` with `avif` among the compatible brands. Image sequences
+ * (`avis`) and other major brands do not decode, so they fail here, not at render.
+ */
 function isAvif(bytes: Uint8Array): boolean {
   if (!startsWith(bytes, ascii("ftyp"), 4)) return false;
+  if (startsWith(bytes, ascii("avif"), 8)) return true;
+  if (!startsWith(bytes, ascii("mif1"), 8)) return false;
   const boxSize =
     ((bytes[0] ?? 0) << 24) | ((bytes[1] ?? 0) << 16) | ((bytes[2] ?? 0) << 8) | (bytes[3] ?? 0);
   const end = Math.min(boxSize, bytes.length);
-  // Brands sit at offset 8 (major) and from offset 16 (compatible), four bytes each.
-  for (let offset = 8; offset + 4 <= end; offset += offset === 8 ? 8 : 4) {
-    if (startsWith(bytes, ascii("avif"), offset) || startsWith(bytes, ascii("avis"), offset))
-      return true;
+  // Compatible brands start at offset 16, four bytes each.
+  for (let offset = 16; offset + 4 <= end; offset += 4) {
+    if (startsWith(bytes, ascii("avif"), offset)) return true;
   }
   return false;
 }

@@ -206,6 +206,13 @@ describe("matchesFileSignature", () => {
     expect(
       matchesFileSignature("image/avif", bytes(0, 0, 0, 0x18, "ftypheic", 0, 0, 0, 0, "mif1heic"))
     ).toBe(false);
+    // An AVIF image sequence: libvips does not decode it, so it must not pass as an upload.
+    expect(
+      matchesFileSignature(
+        "image/avif",
+        bytes(0, 0, 0, 0x1c, "ftypavis", 0, 0, 0, 0, "avifavismsf1")
+      )
+    ).toBe(false);
   });
 });
 

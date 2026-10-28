@@ -5,4 +5,4 @@
 "@repo/translation": patch
 ---
 
-Avatars and organization logos accept AVIF images. `@repo/storage` recognises the AVIF file signature and the `.avif` extension; the API decodes AVIF and publishes it as the usual square WebP. Attachments still accept only JPEG, PNG, GIF, and WebP.
+Avatars and organization logos accept AVIF images. `@repo/storage` recognises the AVIF file signature and the `.avif` extension; the API decodes AVIF and publishes it as the usual square WebP. Image Attachments still accept only JPEG, PNG, GIF, and WebP; document and spreadsheet Attachments are unchanged. AVIF image sequences (`avis`) are rejected, because the image library cannot decode them.
