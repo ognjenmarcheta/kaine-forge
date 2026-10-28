@@ -1,11 +1,19 @@
 import { findContrastFailures, findTargetSizeFailures } from "@repo/theme";
 import { describe, expect, it } from "vitest";
 
-import { labThemes } from "./lab.registry";
+import { loadLabCatalog } from "./lab.registry";
+
+const catalog = await loadLabCatalog();
+
+// The lab shows a screen that fails to load as a failure and keeps working, so the check
+// that every screen loads lives here.
+it("loads every screen", () => {
+  expect(catalog.failures).toEqual([]);
+});
 
 // A recreated screen may change the look, never the MUST rules: every lab theme passes the
 // same contrast and target-size checks as a shipped theme (docs/ui/guidelines.md, Precedence).
-describe.each(labThemes.map((theme) => [theme.name, theme] as const))("%s", (_name, theme) => {
+describe.each(catalog.themes.map((theme) => [theme.name, theme] as const))("%s", (_name, theme) => {
   it("passes every contrast pair in both modes", () => {
     expect(findContrastFailures(theme)).toEqual([]);
   });

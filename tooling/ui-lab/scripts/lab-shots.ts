@@ -22,6 +22,8 @@ const settle = async (): Promise<void> => {
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`${base}/#/`);
+// The lab loads its screens before it publishes them.
+await page.waitForFunction(() => window.labScreens !== undefined);
 const screens = await page.evaluate(() => window.labScreens ?? []);
 
 for (const screen of screens.filter((entry) => only.length === 0 || only.includes(entry.id))) {

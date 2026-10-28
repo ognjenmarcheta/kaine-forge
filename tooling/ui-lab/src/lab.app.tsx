@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { LabGallery } from "./lab.gallery";
-import { labScreens, type LabScreen } from "./lab.registry";
+import type { LabCatalog, LabScreen } from "./lab.registry";
 
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.slice(1) || "/");
@@ -69,13 +69,24 @@ function CompareView({ screen }: { screen: LabScreen }) {
   );
 }
 
-export function LabApp() {
+export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const route = useHashRoute();
   const [, view = "", id = "", mode = ""] = route.split("/");
-  const screen = labScreens.find((entry) => entry.id === id);
+  const screen = catalog.screens.find((entry) => entry.id === id);
+  const failure = catalog.failures.find((entry) => entry.id === id);
 
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
   if (screen && view === "compare") return <CompareView screen={screen} />;
+  if (failure && (view === "screens" || view === "compare")) {
+    return (
+      <main className="grid gap-ds-100 p-ds-300 text-ds-text">
+        <h1 className="m-0 text-heading-sm">{`Screen ${failure.id} did not load`}</h1>
+        <pre className="m-0 whitespace-pre-wrap text-body-sm text-ds-text-danger">
+          {failure.message}
+        </pre>
+      </main>
+    );
+  }
 
-  return <LabGallery />;
+  return <LabGallery catalog={catalog} />;
 }

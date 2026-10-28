@@ -1,6 +1,6 @@
 # Lab screens
 
-Each folder recreates one reference image with the template's components and a theme. The lab finds a screen by its file name, so a new screen never edits a shared file.
+Each folder recreates one reference image with the template's components and a theme. The lab finds a screen by its file name, so a new screen never edits a shared file. Each screen loads on its own: a screen that does not compile yet shows as "did not load" in the gallery, and the other screens keep working. `lab.registry.test.ts` still fails until every screen loads.
 
 ```text
 src/screens/<id>/

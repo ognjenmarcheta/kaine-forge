@@ -48,7 +48,7 @@ import {
 import { Inbox, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
-import { labScreens, labThemes } from "./lab.registry";
+import type { LabCatalog } from "./lab.registry";
 
 type Mode = "light" | "dark";
 
@@ -301,10 +301,12 @@ function Specimen() {
 
 function ThemePicker({
   label,
+  themes,
   value,
   onChange
 }: {
   label: string;
+  themes: LabCatalog["themes"];
   value: string;
   onChange: (name: string) => void;
 }) {
@@ -314,7 +316,7 @@ function ThemePicker({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {labThemes.map((theme) => (
+        {themes.map((theme) => (
           <SelectItem key={theme.name} value={theme.name}>
             {theme.label}
           </SelectItem>
@@ -325,7 +327,8 @@ function ThemePicker({
 }
 
 /** The gallery: one theme, or two side by side, in light or dark, plus the recreated screens. */
-export function LabGallery() {
+export function LabGallery({ catalog }: { catalog: LabCatalog }) {
+  const { failures, screens, themes: labThemes } = catalog;
   const [first, setFirst] = useState(labThemes[0]?.name ?? "");
   const [second, setSecond] = useState("none");
   const [mode, setMode] = useState<Mode>("light");
@@ -337,7 +340,7 @@ export function LabGallery() {
         <h1 className="m-0 mr-auto text-heading-sm">Kaine UI Lab</h1>
         {/* The .ui-select__trigger rule fills its container, so the containers set the width. */}
         <div className="w-56">
-          <ThemePicker label="Theme" value={first} onChange={setFirst} />
+          <ThemePicker label="Theme" themes={labThemes} value={first} onChange={setFirst} />
         </div>
         <div className="w-56">
           <Select value={second} onValueChange={setSecond}>
@@ -364,12 +367,12 @@ export function LabGallery() {
         </SegmentedControl>
       </header>
 
-      {labScreens.length > 0 ? (
+      {screens.length > 0 ? (
         <nav
           aria-label="Recreated screens"
           className="flex flex-wrap gap-ds-100 px-ds-300 pt-ds-200"
         >
-          {labScreens.map((screen) => (
+          {screens.map((screen) => (
             <a
               key={screen.id}
               className="text-body-sm text-ds-link"
@@ -379,6 +382,20 @@ export function LabGallery() {
             </a>
           ))}
         </nav>
+      ) : null}
+      {failures.length > 0 ? (
+        <section aria-label="Screens that did not load" className="px-ds-300 pt-ds-150">
+          <ul className="m-0 flex flex-wrap gap-ds-100 p-0">
+            {failures.map((failure) => (
+              <li key={failure.id} className="list-none">
+                <a
+                  className="text-body-sm text-ds-text-danger"
+                  href={`#/screens/${failure.id}`}
+                >{`${failure.id} did not load`}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <main className={panes.length > 1 ? "grid gap-ds-200 p-ds-200 xl:grid-cols-2" : "p-ds-200"}>
