@@ -178,7 +178,8 @@
   font: var(--ds-font-body-xsmall);
 }
 
-:root {
+:root,
+[data-theme="byte-forge"] {
   color-scheme: light;
   --ds-motion-control: 120ms;
   --ds-motion-overlay: 180ms;
@@ -332,7 +333,7 @@
   --ds-shadow-floating-bold: 0px 2px 4px #1214190a, 0px 32px 64px #12141929;
 }
 
-:root[data-theme="dark"] {
+[data-color-mode="dark"] {
   color-scheme: dark;
   --ds-text: #f2f3f5;
   --ds-text-subtle: #aab1bd;

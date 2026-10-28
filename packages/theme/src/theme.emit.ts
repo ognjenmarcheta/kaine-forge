@@ -103,8 +103,37 @@ function block(selector: string, lines: readonly string[]): string {
 
 const declare = ([name, value]: Entry): string => `--ds-${name}: ${value};`;
 
-/** packages/ui/src/styles/tokens.generated.css: the tokens and the Tailwind utilities that read them. */
-export function emitWebTokens(theme: ThemeDefinition): string {
+/**
+ * One theme as two rule sets: its light values with the scale, then its dark values. The
+ * default theme also owns :root, so a page with no data-theme, or an unknown one, gets it.
+ */
+function themeRules(theme: ThemeDefinition, isDefault: boolean): string[] {
+  const named = `[data-theme="${theme.name}"]`;
+  const modeNames = [...colorRoles, ...shadowRoles];
+
+  return [
+    block(isDefault ? `:root,\n${named}` : named, [
+      "color-scheme: light;",
+      ...scaleEntries(theme).map(declare),
+      ...modeEntries(theme.modes.light, modeNames).map(declare)
+    ]),
+    block(isDefault ? `[data-color-mode="dark"]` : `${named}[data-color-mode="dark"]`, [
+      "color-scheme: dark;",
+      ...modeEntries(theme.modes.dark, modeNames).map(declare)
+    ])
+  ];
+}
+
+/**
+ * packages/ui/src/styles/tokens.generated.css: every registered theme and the Tailwind
+ * utilities that read the tokens. data-theme on an element picks the theme for its subtree;
+ * data-color-mode="dark" on the same element picks its dark values.
+ */
+export function emitWebTokens(
+  themes: readonly ThemeDefinition[],
+  defaultTheme: ThemeDefinition
+): string {
+  const theme = defaultTheme;
   const reset = block("@theme", [
     "--color-*: initial;",
     "--font-weight-*: initial;",
@@ -139,17 +168,12 @@ export function emitWebTokens(theme: ThemeDefinition): string {
       `font: ${variable(`font-${step}`)};`
     ])
   );
-  const light = block(":root", [
-    "color-scheme: light;",
-    ...scaleEntries(theme).map(declare),
-    ...modeEntries(theme.modes.light, [...colorRoles, ...shadowRoles]).map(declare)
-  ]);
-  const dark = block(':root[data-theme="dark"]', [
-    "color-scheme: dark;",
-    ...modeEntries(theme.modes.dark, [...colorRoles, ...shadowRoles]).map(declare)
-  ]);
+  const rules = [
+    ...themeRules(defaultTheme, true),
+    ...themes.filter((entry) => entry !== defaultTheme).flatMap((entry) => themeRules(entry, false))
+  ];
 
-  return [`/* ${HEADER} */`, reset, utilities, typeComment, ...types, light, dark].join("\n\n");
+  return [`/* ${HEADER} */`, reset, utilities, typeComment, ...types, ...rules].join("\n\n");
 }
 
 const MOBILE_REGION = /\/\* DESIGN_TOKENS_START \*\/[\s\S]*?\/\* DESIGN_TOKENS_END \*\//;

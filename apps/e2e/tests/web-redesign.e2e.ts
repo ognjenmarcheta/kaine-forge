@@ -49,7 +49,7 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
       expect(themeBox.y).toBeGreaterThanOrEqual(languageBox.y + languageBox.height);
       await theme.click();
       await page.getByRole("menuitemradio", { name: mode, exact: true }).click();
-      await expect(page.locator("html")).toHaveAttribute("data-theme", mode.toLowerCase());
+      await expect(page.locator("html")).toHaveAttribute("data-color-mode", mode.toLowerCase());
       await page.screenshot({ path: testInfo.outputPath(`sidebar-${width}-${mode}.png`) });
     }
     await trigger.click();
@@ -67,13 +67,13 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
 test("theme follows system changes and persists an explicit choice", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/auth");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.getByRole("combobox", { name: "Theme", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "light");
+  await page.getByRole("combobox", { name: "Appearance", exact: true }).click();
   await page.getByRole("option", { name: "Dark", exact: true }).click();
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
 });
 
 test("failed Todo submission preserves the open form and its draft", async ({ page }) => {

@@ -1,5 +1,5 @@
 /* global localStorage, document, matchMedia */
-// Apply persisted appearance before the browser paints the app.
+// Apply the persisted color mode before the browser paints the app.
 (() => {
   let mode = "system";
   try {
@@ -9,7 +9,7 @@
   } catch {
     // Unavailable or invalid storage falls back to the system preference.
   }
-  document.documentElement.dataset.theme =
+  document.documentElement.dataset.colorMode =
     mode === "system"
       ? matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"

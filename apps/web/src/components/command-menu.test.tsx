@@ -32,7 +32,7 @@ vi.mock("../features/organizations/organizations.hook", () => ({
 
 const PREFERENCES = {
   language: { label: "Language", onValueChange: () => {}, options: [], value: "en" },
-  theme: { label: "Theme", onValueChange: () => {}, options: [], value: "system" }
+  theme: { label: "Appearance", onValueChange: () => {}, options: [], value: "system" }
 };
 
 let container: HTMLDivElement;

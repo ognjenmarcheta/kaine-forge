@@ -5,7 +5,7 @@
 
 @source "../components/**/*.{ts,tsx}";
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant dark (&:where([data-color-mode="dark"], [data-color-mode="dark"] *));
 
 :root {
   color: var(--ds-text);

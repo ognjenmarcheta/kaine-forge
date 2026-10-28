@@ -267,7 +267,14 @@ The agent desk (`tooling/desk-ui`) uses orange only where the person acts. The r
 
 ## 8. Theming
 
-The current template supports light, dark, and system preference behavior. Theme switching is done by setting `data-theme` at the app root and resolving tokens through CSS custom properties.
+A **theme** is a named identity, such as `byte-forge`. A **color mode** is light or dark; the stored preference can also be `system`. Two attributes on the root element select them:
+
+| Attribute         | Values                  | Set by                                                 |
+| ----------------- | ----------------------- | ------------------------------------------------------ |
+| `data-theme`      | a registered theme name | the Organization Theme; none means the default theme   |
+| `data-color-mode` | `light`, `dark`         | the Appearance preference, resolved before first paint |
+
+An unknown or missing `data-theme` falls back to the default theme through `:root`. The Tailwind `dark:` variant follows `data-color-mode`. Users see the color mode as **Appearance**.
 
 Rules:
 

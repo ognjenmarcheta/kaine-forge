@@ -41,7 +41,7 @@ for (const theme of ["light", "dark"]) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await signIn(page);
     await page.evaluate(
-      (value) => document.documentElement.setAttribute("data-theme", value),
+      (value) => document.documentElement.setAttribute("data-color-mode", value),
       theme
     );
     for (const width of [768, 1440]) {
@@ -73,7 +73,7 @@ for (const theme of ["light", "dark"]) {
         .evaluate((element) => Number(getComputedStyle(element).opacity));
       expect(labelOpacity).toBeGreaterThan(0);
       expect(labelOpacity).toBeLessThan(1);
-      for (const label of ["Language", "Theme"]) {
+      for (const label of ["Language", "Appearance"]) {
         const box = await rail
           .getByRole("button", { name: new RegExp(`^${label}\\b`) })
           .boundingBox();

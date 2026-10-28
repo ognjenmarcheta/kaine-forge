@@ -23,7 +23,7 @@ function applyTheme(mode: ThemeMode): void {
   }
 
   const resolved = mode === "system" ? resolveSystemTheme() : mode;
-  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.colorMode = resolved;
 }
 
 interface ThemeProviderProps {

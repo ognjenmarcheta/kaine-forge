@@ -30,7 +30,7 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
   const mobileCss = "apps/mobile/src/styles/global.css";
 
   return Promise.all([
-    formatted("packages/ui/src/styles/tokens.generated.css", emitWebTokens(defaultTheme)),
+    formatted("packages/ui/src/styles/tokens.generated.css", emitWebTokens(themes, defaultTheme)),
     formatted(
       mobileCss,
       emitMobileCss(defaultTheme, readFileSync(join(repoRoot, mobileCss), "utf8"))

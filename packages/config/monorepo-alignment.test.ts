@@ -711,7 +711,7 @@ describe("monorepo alignment", () => {
     const tokensCss = readText("packages/ui/src/styles/tokens.generated.css");
 
     expect(globalsCss).toContain('@import "./tokens.generated.css";');
-    expect(tokensCss).toContain(':root[data-theme="dark"]');
+    expect(tokensCss).toContain('[data-color-mode="dark"]');
   });
 
   it("does not expose legacy flags alias exports in feature-flags package", () => {

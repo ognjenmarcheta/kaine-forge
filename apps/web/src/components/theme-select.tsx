@@ -13,13 +13,13 @@ export function ThemeSelect() {
         if (value === "system" || value === "light" || value === "dark") setThemeMode(value);
       }}
     >
-      <SelectTrigger aria-label={t("navigation.theme")}>
+      <SelectTrigger aria-label={t("navigation.appearance")}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="system">{t("navigation.themeSystem")}</SelectItem>
-        <SelectItem value="light">{t("navigation.themeLight")}</SelectItem>
-        <SelectItem value="dark">{t("navigation.themeDark")}</SelectItem>
+        <SelectItem value="system">{t("navigation.appearanceSystem")}</SelectItem>
+        <SelectItem value="light">{t("navigation.appearanceLight")}</SelectItem>
+        <SelectItem value="dark">{t("navigation.appearanceDark")}</SelectItem>
       </SelectContent>
     </Select>
   );

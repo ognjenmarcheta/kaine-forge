@@ -9,7 +9,7 @@ export function ThemeOptions() {
   const { t } = useTranslation();
   return (
     <View className="gap-2">
-      <Text variant="label">{t("navigation.theme")}</Text>
+      <Text variant="label">{t("navigation.appearance")}</Text>
       <View className="flex-row flex-wrap gap-2">
         {(["system", "light", "dark"] as const).map((mode) => (
           <Button
@@ -22,10 +22,10 @@ export function ThemeOptions() {
           >
             {t(
               mode === "system"
-                ? "navigation.themeSystem"
+                ? "navigation.appearanceSystem"
                 : mode === "dark"
-                  ? "navigation.themeDark"
-                  : "navigation.themeLight"
+                  ? "navigation.appearanceDark"
+                  : "navigation.appearanceLight"
             )}
           </Button>
         ))}

@@ -90,9 +90,9 @@ import { useTranslation } from "./hooks/use-translation";
 import { saveEmailLanguageRequest } from "./lib/auth-api";
 
 const THEME_OPTIONS = [
-  { labelKey: "navigation.themeSystem", value: "system" },
-  { labelKey: "navigation.themeLight", value: "light" },
-  { labelKey: "navigation.themeDark", value: "dark" }
+  { labelKey: "navigation.appearanceSystem", value: "system" },
+  { labelKey: "navigation.appearanceLight", value: "light" },
+  { labelKey: "navigation.appearanceDark", value: "dark" }
 ] as const;
 
 function RootLayout() {
@@ -208,7 +208,7 @@ function ShellContent() {
       value: language
     },
     theme: {
-      label: t("navigation.theme"),
+      label: t("navigation.appearance"),
       onValueChange: (value) => {
         if (value === "dark" || value === "light" || value === "system") {
           setThemeMode(value);
