@@ -49,7 +49,8 @@ const SegmentedControl = React.forwardRef<HTMLDivElement, SegmentedControlProps>
           onFocus?.(event);
         }}
         className={cn(
-          "inline-flex items-center gap-ds-025 rounded-button bg-ds-bg-neutral p-ds-025",
+          // Positioned, so the sr-only text of an item stays inside a scrolling control.
+          "relative inline-flex items-center gap-ds-025 rounded-button bg-ds-bg-neutral p-ds-025",
           className
         )}
         {...props}
