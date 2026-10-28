@@ -1421,7 +1421,7 @@ export const renderCodexConfig = (source: McpSource): string => {
     "[[hooks.SessionStart.hooks]]",
     'type = "command"',
     `command = ${JSON.stringify(`${AI_CONTEXT_HOOK_COMMAND} --agent codex`)}`,
-    'statusMessage = "Loading Kaine Forge AI context"',
+    `statusMessage = ${JSON.stringify("Loading Kaine Forge AI context")}`,
     "",
     // This command policy uses Codex's canonical Bash hook name for shell tools.
     "[[hooks.PreToolUse]]",

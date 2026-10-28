@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { REPO_ROOT } from "./ai.util";
+import { REPO_ROOT, TEMPLATE_CONFIG_SRC } from "./ai.util";
 import {
   activeTemplateReferences,
   adoptionTargets,
@@ -87,6 +87,29 @@ describe("parseTemplateAdoptionConfig", () => {
         repoOwner: "not valid"
       })
     ).toThrow(/repoOwner/);
+  });
+
+  it("rejects a double quote or a backslash in the name fields, which adoption writes into quoted strings", () => {
+    const valid = { productName: "Acme Ops", desktopIdentifier: "com.acme.ops.desktop" };
+
+    for (const field of [
+      "productName",
+      "webTitle",
+      "mobileName",
+      "desktopProductName",
+      "desktopWindowTitle"
+    ]) {
+      expect(() => parseTemplateAdoptionConfig({ ...valid, [field]: 'Acme "Ops"' })).toThrow(
+        new RegExp(`'${field}' must not contain`)
+      );
+      expect(() => parseTemplateAdoptionConfig({ ...valid, [field]: "Acme\\Ops" })).toThrow(
+        new RegExp(`'${field}' must not contain`)
+      );
+    }
+    expect(
+      parseTemplateAdoptionConfig({ ...valid, compatibilityPolicy: 'Acme "Ops" follows semver.' })
+        .compatibilityPolicy
+    ).toBe('Acme "Ops" follows semver.');
   });
 });
 
@@ -438,7 +461,11 @@ describe("applyTemplateAdoption", () => {
     expect(excludedFromTemplateAdoption("README.md")).toBe(false);
   });
 
-  it("lists only tracked files the adoption does not exclude", () => {
+  // These tests check the template's own target list. An adopter has the adoption record, and
+  // `pnpm ai:sync` gives it this spec but not the `apps/` and `packages/` files the list names.
+  const inTemplateRepository = !existsSync(TEMPLATE_CONFIG_SRC);
+
+  it.runIf(inTemplateRepository)("lists only tracked files the adoption does not exclude", () => {
     const tracked = new Set(
       execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" }).split("\0")
     );
@@ -447,38 +474,49 @@ describe("applyTemplateAdoption", () => {
     expect(adoptionTargets.filter((path) => excludedFromTemplateAdoption(path))).toEqual([]);
   });
 
-  it("leaves no template identity for --check after adopting the tracked tree", () => {
-    // The files `--check` scans in a fresh clone, read into memory: the checkout is never written.
-    const scanned = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" })
-      .split("\0")
-      .filter((path) => isTextFile(path) && !excludedFromTemplateAdoption(path));
-    const tree = new Map(
-      scanned.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
-    );
-    const config = deriveTemplateAdoptionConfig({
-      productName: "Acme Widgets",
-      repoOwner: "acme-co",
-      desktopIdentifier: "com.acme.widgets"
-    });
+  it.runIf(inTemplateRepository)(
+    "leaves no template identity for --check after adopting the tracked tree",
+    () => {
+      // The files `--check` scans in a fresh clone, read into memory: the checkout is never written.
+      const scanned = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" })
+        .split("\0")
+        .filter((path) => isTextFile(path) && !excludedFromTemplateAdoption(path))
+        // A deletion that is not staged yet: `--check` walks the disk and never sees the file.
+        .filter((path) => existsSync(join(REPO_ROOT, path)));
+      const tree = new Map(
+        scanned.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
+      );
+      const config = deriveTemplateAdoptionConfig({
+        productName: "Acme Widgets",
+        repoOwner: "acme-co",
+        desktopIdentifier: "com.acme.widgets"
+      });
 
-    expect(activeTemplateReferences(applyTemplateAdoption(tree, config).files)).toEqual([]);
-  });
+      expect(activeTemplateReferences(applyTemplateAdoption(tree, config).files)).toEqual([]);
+    }
+  );
 
-  it("keeps adopted code and JSON parseable for a product name with path and regex characters", () => {
-    const tree = new Map(
-      adoptionTargets.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
-    );
-    const config = deriveTemplateAdoptionConfig({
-      productName: "Acme/Widgets (Beta)",
-      desktopIdentifier: "com.acme.widgets"
-    });
+  it.runIf(inTemplateRepository)(
+    "keeps adopted code and JSON parseable for a product name with quote, path, and regex characters",
+    () => {
+      // Like the CLI, skip a target whose deletion is not staged yet.
+      const tree = new Map(
+        adoptionTargets
+          .filter((path) => existsSync(join(REPO_ROOT, path)))
+          .map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
+      );
+      const config = deriveTemplateAdoptionConfig({
+        productName: "Acme's/Widgets (Beta)",
+        desktopIdentifier: "com.acme.widgets"
+      });
 
-    const problems = [...applyTemplateAdoption(tree, config).files].flatMap(([path, source]) =>
-      syntaxProblems(path, source)
-    );
+      const problems = [...applyTemplateAdoption(tree, config).files].flatMap(([path, source]) =>
+        syntaxProblems(path, source)
+      );
 
-    expect(problems).toEqual([]);
-  });
+      expect(problems).toEqual([]);
+    }
+  );
 });
 
 // Syntax only: a broken literal is enough to fail, and type errors need the whole program.

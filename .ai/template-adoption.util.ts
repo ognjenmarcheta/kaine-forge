@@ -178,6 +178,17 @@ const requireText = (field: string, value: string): string => {
   return normalized;
 };
 
+// Adoption writes names into double-quoted strings: JSON, TOML, HTML attributes, and code.
+const requireName = (field: string, value: string): string => {
+  const name = requireText(field, value);
+  if (/["\\]/.test(name)) {
+    throw new Error(
+      `template adoption config field '${field}' must not contain a double quote or a backslash`
+    );
+  }
+  return name;
+};
+
 const validateSlug = (field: string, value: string): string => {
   if (!SLUG_PATTERN.test(value)) {
     throw new Error(`template adoption config field '${field}' must be a lowercase URL slug`);
@@ -226,7 +237,7 @@ const validateDesktopIdentifier = (value: string): string => {
 export const deriveTemplateAdoptionConfig = (
   input: TemplateAdoptionInput
 ): TemplateAdoptionConfig => {
-  const productName = requireText("productName", input.productName ?? "");
+  const productName = requireName("productName", input.productName ?? "");
   const productSlug = slugify(productName);
 
   if (!productSlug) {
@@ -246,12 +257,12 @@ export const deriveTemplateAdoptionConfig = (
     repoOwner,
     dockerImagePrefix: requireText("dockerImagePrefix", input.dockerImagePrefix ?? repoSlug),
     s3Bucket: requireText("s3Bucket", input.s3Bucket ?? `${repoSlug}-dev`),
-    webTitle: requireText("webTitle", input.webTitle ?? productName),
-    mobileName: requireText("mobileName", input.mobileName ?? `${productName} Mobile`),
+    webTitle: requireName("webTitle", input.webTitle ?? productName),
+    mobileName: requireName("mobileName", input.mobileName ?? `${productName} Mobile`),
     mobileSlug,
     mobileScheme: validateMobileScheme(input.mobileScheme ?? repoSlug.replace(/-/g, "")),
-    desktopProductName: requireText("desktopProductName", input.desktopProductName ?? productName),
-    desktopWindowTitle: requireText(
+    desktopProductName: requireName("desktopProductName", input.desktopProductName ?? productName),
+    desktopWindowTitle: requireName(
       "desktopWindowTitle",
       input.desktopWindowTitle ?? `${productName} Desktop`
     ),
