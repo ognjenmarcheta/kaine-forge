@@ -71,8 +71,10 @@ describe("FlowEditor", () => {
 
     // The list renames a step; its card on the canvas says the new name.
     const label = within(review).getByLabelText("Label");
+    // Paste, not type: each keystroke renders the whole editor and canvas again, and on a busy
+    // runner that alone took most of the test's time budget.
     await userEvent.clear(label);
-    await userEvent.type(label, "Review it");
+    await userEvent.paste("Review it");
     expect(card("Step 5: Review it, Agent")).toBeTruthy();
 
     expect(headings()[5]).toBe("5. Review it");
@@ -155,7 +157,8 @@ describe("FlowEditor", () => {
     );
     open(() => [flowView(MINE, "local")], "mine", { saveFlow });
     const description = await screen.findByLabelText("Description");
-    await userEvent.type(description, " Mine.");
+    await userEvent.click(description);
+    await userEvent.paste(" Mine.");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(saveFlow).toHaveBeenCalledWith(

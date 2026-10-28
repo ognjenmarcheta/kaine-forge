@@ -11,8 +11,10 @@ export default mergeConfig(
       include: ["src/**/*.test.{ts,tsx}"],
       exclude: vitestExclude,
       environment: "jsdom",
-      // A test here can wait more than once at the `waitFor` budget of test.setup.ts.
-      testTimeout: 15_000,
+      // A test here can wait more than once at the `waitFor` budget of test.setup.ts, and the
+      // Release runner renders about 30 times slower than a quiet machine: the flow editor test
+      // takes about 0.5 s locally and passed 15 s there.
+      testTimeout: 30_000,
       setupFiles: ["./src/test/test.setup.ts"]
     }
   })
