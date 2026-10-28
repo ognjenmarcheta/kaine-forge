@@ -232,7 +232,8 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "border-information": information.text,
       "border-discovery": discovery.text,
       blanket: withAlpha(ink, 0.48),
-      ...createChartColors(input.brand, "light", surface, gray(0.925)),
+      // Charts also sit on sunken areas, the darkest light surface they meet.
+      ...createChartColors(input.brand, "light", sunken, gray(0.925)),
       ...shadows("light", ink)
     };
   };
