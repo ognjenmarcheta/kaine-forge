@@ -1,5 +1,26 @@
 # @repo/translation
 
+## 1.12.0
+
+### Minor Changes
+
+- a26fb69: The signed-in web app is redesigned for clearer navigation and safer actions.
+
+  `@repo/web`: the sidebar groups pages into Workspace (Dashboard, Todos, Notes, Assistant) and Organization (Organization, Audit log). Organization and Account settings are tabbed pages whose tab is in the URL: `/organization/{general,members,roles,data}` and `/account/{profile,security,sessions,notifications,data}`. The old `/members` and `/security` links redirect to the matching tab. The dashboard shows the Active Organization's open Todo, Note, and unread notification counts, a quick add for open Todos, and recent Notes, chats, and activity with "View all" links. Revoking an Invitation, changing a member's role, signing out one or all other sessions, unlinking a sign-in method, declining an Invitation, and requesting account deletion now ask for confirmation and report success. The header has a "Search…" button and a Cmd/Ctrl+K command menu to go to a page, open a settings tab, create an item, switch Organization, or change theme and language. The sign-in page's login and sign-up choice is a link pair kept in `?mode=signup`.
+
+  `@repo/api`: GraphQL adds `todoCounts` (`open`, `completed`) and `noteCount`, both counted in the Active Organization from the session.
+
+  `@repo/ui` adds `PageHeader`, `EmptyState`, `QueryError`, `SettingsSection`, `StatCard`, `CopyButton`, and `CommandMenu` (built on `cmdk`), and exports `tabsListClassName` and `tabsTriggerClassName` for link-based tab navigation. The active sidebar item uses the selected tokens with an inset start indicator.
+
+  `@repo/translation` adds the strings for the new navigation, dashboard, confirmations, and command menu.
+
+### Patch Changes
+
+- 4dcc509: Avatars and organization logos accept AVIF images. `@repo/storage` recognises the AVIF file signature and the `.avif` extension; the API decodes AVIF and publishes it as the usual square WebP. Image Attachments still accept only JPEG, PNG, GIF, and WebP; document and spreadsheet Attachments are unchanged. AVIF image sequences (`avis`) are rejected, because the image library cannot decode them.
+- 0100b46: `@repo/api` adds `uploadsEnabled: Boolean!` to the `PublicAssets` type. It is false when `S3_PUBLIC_BUCKET` or `S3_PUBLIC_BASE_URL` is unset. A Public Asset upload to such a deployment now fails with the GraphQL error code `PUBLIC_ASSETS_NOT_CONFIGURED` instead of a masked internal error.
+
+  `@repo/web` hides the "Choose image" control for the profile picture and the organization logo when uploads are off, and shows a short note instead of "The image could not be saved" for every image.
+
 ## 1.11.0
 
 ### Minor Changes

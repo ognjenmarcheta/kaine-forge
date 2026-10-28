@@ -1,5 +1,14 @@
 # @repo/email
 
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [4dcc509]
+- Updated dependencies [0100b46]
+- Updated dependencies [a26fb69]
+  - @repo/translation@1.12.0
+
 ## 1.3.0
 
 ### Minor Changes
