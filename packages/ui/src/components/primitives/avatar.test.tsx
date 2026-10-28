@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -16,9 +17,9 @@ describe("Avatar", () => {
 });
 
 describe("AvatarGroup", () => {
-  it("renders overflow count when max is exceeded", () => {
-    const markup = renderToStaticMarkup(
-      <AvatarGroup max={2}>
+  it("shows max avatars in a named group and folds the rest into the overflow label", () => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <AvatarGroup aria-label="Assignees" max={2} overflowLabel={(count) => `${count} more`}>
         <Avatar>
           <AvatarFallback>A</AvatarFallback>
         </Avatar>
@@ -33,6 +34,13 @@ describe("AvatarGroup", () => {
         </Avatar>
       </AvatarGroup>
     );
-    expect(markup).toContain("+2");
+    const group = document.querySelector('[role="group"]');
+
+    expect(group?.getAttribute("aria-label")).toBe("Assignees");
+    expect(Array.from(group?.children ?? [], (child) => child.textContent)).toEqual([
+      "A",
+      "B",
+      "2 more"
+    ]);
   });
 });

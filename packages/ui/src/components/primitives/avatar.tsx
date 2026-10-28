@@ -64,24 +64,45 @@ const AvatarFallback = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HT
 );
 AvatarFallback.displayName = "AvatarFallback";
 
-interface AvatarGroupProps extends React.HTMLAttributes<HTMLDivElement> {
-  max?: number;
-}
+type AvatarGroupProps = Omit<React.HTMLAttributes<HTMLDivElement>, "aria-label"> & {
+  /** The group's accessible name, such as "Assignees". */
+  "aria-label": string;
+  /** The overflow chip size; match it to the avatars. */
+  size?: AvatarProps["size"];
+} & (
+    | { max?: undefined; overflowLabel?: undefined }
+    | {
+        /** The most avatars to show; the rest fold into the overflow chip. */
+        max: number;
+        /** The overflow chip text for the hidden count, such as `(count) => \`+${count}\``. */
+        overflowLabel: (count: number) => string;
+      }
+  );
 
 const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
-  ({ className, children, max, ...props }, ref) => {
+  ({ className, children, max, overflowLabel, size, ...props }, ref) => {
     const childArray = React.Children.toArray(children);
-    const visible = max ? childArray.slice(0, max) : childArray;
-    const overflow = max ? childArray.length - max : 0;
+    const visible = max === undefined ? childArray : childArray.slice(0, max);
+    const overflow = childArray.length - visible.length;
 
     return (
-      <div ref={ref} className={cn("flex -space-x-2", className)} {...props}>
+      <div
+        ref={ref}
+        role="group"
+        className={cn("flex -space-x-ds-100 *:ring-2 *:ring-ds-surface", className)}
+        {...props}
+      >
         {visible}
-        {overflow > 0 && (
-          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ds-surface bg-ds-bg-neutral-bold text-ds-text-inverse text-body-sm font-medium">
-            +{overflow}
+        {overflow > 0 && overflowLabel ? (
+          <span
+            className={cn(
+              avatarVariants({ size }),
+              "items-center justify-center bg-ds-bg-neutral-bold text-body-xs font-medium text-ds-text-inverse"
+            )}
+          >
+            {overflowLabel(overflow)}
           </span>
-        )}
+        ) : null}
       </div>
     );
   }

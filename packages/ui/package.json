@@ -53,6 +53,7 @@
     "lucide-react": "^0.577.0",
     "radix-ui": "^1.8.1",
     "react": "catalog:",
+    "recharts": "3.10.1",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:"
   },
