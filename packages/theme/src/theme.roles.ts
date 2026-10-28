@@ -136,6 +136,7 @@ export const scaleTokenNames = [
 ] as const;
 
 export const typeStepNames = [
+  "display",
   "heading-xlarge",
   "heading-large",
   "heading-medium",

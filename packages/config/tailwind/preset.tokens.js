@@ -124,6 +124,13 @@ export const boxShadow = {
 };
 
 export const fontSize = {
+  display: [
+    "3rem",
+    {
+      lineHeight: "3.25rem",
+      fontWeight: "500"
+    }
+  ],
   "heading-xl": [
     "1.8125rem",
     {

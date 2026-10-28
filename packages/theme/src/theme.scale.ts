@@ -54,6 +54,7 @@ export const defaultScale: ThemeScale = {
 };
 
 export const defaultType: ThemeType = {
+  display: { weight: 500, size: "3rem", lineHeight: "3.25rem", family: "heading" },
   "heading-xlarge": { weight: 500, size: "1.8125rem", lineHeight: "2rem", family: "heading" },
   "heading-large": { weight: 500, size: "1.5rem", lineHeight: "1.75rem", family: "heading" },
   "heading-medium": { weight: 500, size: "1.25rem", lineHeight: "1.5rem", family: "heading" },

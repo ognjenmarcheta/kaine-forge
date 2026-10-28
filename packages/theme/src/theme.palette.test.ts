@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { contrastRatio, toOklch } from "./theme.color";
 import { findContrastFailures } from "./theme.contrast";
 import { createTheme } from "./theme.create";
+import { createColorModes } from "./theme.palette";
 
 describe("createTheme", () => {
   // Seeds that stress each path: a dark brand, a light brand that needs ink text, a mid tone
@@ -37,5 +39,28 @@ describe("createTheme", () => {
 
     expect(theme.modes.light["background-brand-bold"]).toBe("#ffd400");
     expect(theme.modes.light["text-brand-inverse"]).toBe(theme.modes.light.text);
+  });
+});
+
+describe("createColorModes in dark mode", () => {
+  it("turns an ink brand fill light with ink text, so the primary button shows on the page", () => {
+    const { dark } = createColorModes({ brand: "#111111" });
+
+    expect(
+      contrastRatio(dark["background-brand-bold"], dark.surface, dark.surface)
+    ).toBeGreaterThanOrEqual(3);
+    expect(dark["text-brand-inverse"]).toBe(dark["text-inverse"]);
+  });
+
+  it("puts cards one step above a sunken canvas", () => {
+    const { dark } = createColorModes({ brand: "#2f6b4f" });
+
+    expect(toOklch(dark["surface-raised"]).l).toBeGreaterThan(toOklch(dark["surface-sunken"]).l);
+  });
+
+  it("builds the dark page at the requested lightness", () => {
+    const { dark } = createColorModes({ brand: "#2f6b4f", darkSurface: 0.265 });
+
+    expect(toOklch(dark.surface).l).toBeCloseTo(0.265, 2);
   });
 });

@@ -28,6 +28,11 @@ colors:
   link: "#b3360f"
   text-subtlest: "#646b78"
 typography:
+  display:
+    fontFamily: "Geist Variable"
+    fontSize: "3rem"
+    fontWeight: 500
+    lineHeight: "3.25rem"
   heading-xlarge:
     fontFamily: "Geist Variable"
     fontSize: "1.8125rem"

@@ -28,6 +28,11 @@ colors:
   link: "#2f6b4f"
   text-subtlest: "#706b64"
 typography:
+  display:
+    fontFamily: "ui-serif"
+    fontSize: "3rem"
+    fontWeight: 600
+    lineHeight: "3.25rem"
   heading-xlarge:
     fontFamily: "ui-serif"
     fontSize: "1.8125rem"
@@ -196,7 +201,7 @@ The brand is `#2F6B4F`. White text passes on it, so primary fills use it as is. 
 | `border-focused`        | focus rings                            | `#2f6b4f` | `#6ba889` |
 | `surface`               | the page                               | `#ffffff` | `#120d09` |
 | `surface-sunken`        | wells and the sidebar                  | `#fcf6ee` | `#1a1510` |
-| `surface-raised`        | cards                                  | `#ffffff` | `#1a1510` |
+| `surface-raised`        | cards                                  | `#ffffff` | `#1e1a15` |
 | `surface-overlay`       | menus, popovers, and dialogs           | `#ffffff` | `#221d18` |
 | `text`                  | body text and headings                 | `#19130c` | `#f7f3ee` |
 | `text-subtle`           | secondary text                         | `#57514c` | `#bcb6af` |

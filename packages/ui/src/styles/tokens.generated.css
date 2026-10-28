@@ -127,6 +127,7 @@
   --spacing-card: var(--ds-card-padding);
   --font-weight-button: var(--ds-button-font-weight);
   --color-ds-field-border: var(--ds-field-border);
+  --ease-standard: var(--ds-motion-easing);
 }
 
 /*
@@ -134,6 +135,11 @@
  * that Tailwind sorts these utilities before font-* and leading-* utilities, which then
  * still override the weight and the line height.
  */
+
+@utility text-display {
+  font-family: var(--ds-font-family-heading);
+  font: var(--ds-font-display);
+}
 
 @utility text-heading-xl {
   font-family: var(--ds-font-family-heading);
@@ -183,6 +189,18 @@
 @utility text-body-xs {
   font-family: var(--ds-font-family-sans);
   font: var(--ds-font-body-xsmall);
+}
+
+@utility duration-control {
+  transition-duration: var(--ds-motion-control);
+}
+
+@utility duration-overlay {
+  transition-duration: var(--ds-motion-overlay);
+}
+
+@utility duration-drawer {
+  transition-duration: var(--ds-motion-drawer);
 }
 
 :root,
@@ -239,6 +257,7 @@
   --ds-control-medium: 32px;
   --ds-control-large: 40px;
   --ds-control-xlarge: 48px;
+  --ds-font-display: 500 3rem/3.25rem var(--ds-font-family-heading);
   --ds-font-heading-xlarge: 500 1.8125rem/2rem var(--ds-font-family-heading);
   --ds-font-heading-large: 500 1.5rem/1.75rem var(--ds-font-family-heading);
   --ds-font-heading-medium: 500 1.25rem/1.5rem var(--ds-font-family-heading);
@@ -482,6 +501,7 @@
   --ds-control-medium: 28px;
   --ds-control-large: 36px;
   --ds-control-xlarge: 44px;
+  --ds-font-display: 600 3rem/3.25rem var(--ds-font-family-heading);
   --ds-font-heading-xlarge: 600 1.8125rem/2rem var(--ds-font-family-heading);
   --ds-font-heading-large: 600 1.5rem/1.75rem var(--ds-font-family-heading);
   --ds-font-heading-medium: 600 1.25rem/1.5rem var(--ds-font-family-heading);
@@ -644,9 +664,9 @@
   --ds-surface-sunken: #1a1510;
   --ds-surface-sunken-bold: #221d18;
   --ds-surface-inverse: #2a2520;
-  --ds-surface-raised: #1a1510;
-  --ds-surface-raised-hovered: #221d18;
-  --ds-surface-raised-pressed: #28231e;
+  --ds-surface-raised: #1e1a15;
+  --ds-surface-raised-hovered: #25211b;
+  --ds-surface-raised-pressed: #2a2520;
   --ds-surface-overlay: #221d18;
   --ds-border: #2a2520;
   --ds-border-strong: #39342f;

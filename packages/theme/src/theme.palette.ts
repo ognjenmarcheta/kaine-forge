@@ -16,6 +16,11 @@ export interface PaletteInput {
   readonly neutral?: { readonly hue: number; readonly chroma: number };
   /** Status hues in OKLCH degrees, when the defaults clash with the brand. */
   readonly status?: Partial<Record<StatusName, number>>;
+  /**
+   * OKLCH lightness of the dark-mode page, from about 0.1 (near black) to 0.3 (charcoal).
+   * The other dark surfaces step up from it. Defaults to 0.165.
+   */
+  readonly darkSurface?: number;
 }
 
 type StatusName = "success" | "danger" | "warning" | "information" | "discovery";
@@ -233,16 +238,36 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
   };
 
   const dark = (): ThemeMode => {
-    const surface = gray(0.165);
-    const sunken = gray(0.2);
-    const sunkenBold = gray(0.235);
-    const overlay = gray(0.235);
+    const base = input.darkSurface ?? 0.165;
+    const step = (offset: number): string => gray(base + offset);
+    const surface = step(0);
+    const sunken = step(0.035);
+    const sunkenBold = step(0.07);
+    const overlay = step(0.07);
+    // A brand fill that disappears on the dark page, such as an ink brand, turns light with ink text.
+    const fill =
+      contrastRatio(brandFill.fill, surface, surface) >= GRAPHIC_CONTRAST
+        ? brandFill
+        : {
+            // Start from a light tone of the brand hue, so the fill can only move lighter.
+            fill: ensureContrast(
+              tone(brand.h, brand.c, Math.max(brand.l, 0.8)),
+              ink,
+              TEXT_CONTRAST
+            ),
+            text: ink
+          };
+    const [fillHovered, fillPressed] = fillStates(
+      fill.fill,
+      fill.text,
+      fill.text === WHITE ? -0.04 : 0.04
+    );
     const text = gray(0.965, neutral.chroma * 0.6);
     const textBrand = ensureContrast(tone(brand.h, brand.c, 0.72), overlay, TEXT_CONTRAST);
     const focus = ensureContrast(tone(brand.h, brand.c, 0.68), overlay, GRAPHIC_CONTRAST);
-    const selected = tone(brand.h, Math.min(0.05, brand.c), 0.26);
+    const selected = tone(brand.h, Math.min(0.05, brand.c), base + 0.095);
     const status = (name: StatusName) => {
-      const background = tone(hue(name), 0.04, 0.24);
+      const background = tone(hue(name), 0.04, base + 0.075);
       const tinted = ensureContrast(tone(hue(name), 0.12, 0.78), background, TEXT_CONTRAST);
       const bold = ensureContrast(tone(hue(name), 0.12, 0.76), ink, TEXT_CONTRAST);
       return { background, text: ensureContrast(tinted, overlay, TEXT_CONTRAST), bold };
@@ -254,7 +279,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
     const discovery = status("discovery");
     const [dangerHovered, dangerPressed] = fillStates(danger.bold, ink, 0.04);
     const [warningHovered, warningPressed] = fillStates(warning.bold, ink, 0.04);
-    const textSubtle = gray(0.78);
+    const textSubtle = ensureContrast(gray(0.78), sunkenBold, TEXT_CONTRAST);
     const textSubtlest = ensureContrast(gray(0.66), sunkenBold, TEXT_CONTRAST);
 
     return {
@@ -268,7 +293,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "text-danger": danger.text,
       "text-warning": warning.text,
       "text-warning-inverse": ink,
-      "text-brand-inverse": brandFill.text,
+      "text-brand-inverse": fill.text,
       "text-information": information.text,
       "text-discovery": discovery.text,
       "text-selected": ensureContrast(textBrand, selected, TEXT_CONTRAST),
@@ -287,9 +312,9 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "background-neutral-hovered": withAlpha(text, 0.1),
       "background-neutral-pressed": withAlpha(text, 0.16),
       "background-neutral-bold": textSubtle,
-      "background-brand-bold": brandFill.fill,
-      "background-brand-bold-hovered": brandHovered,
-      "background-brand-bold-pressed": brandPressed,
+      "background-brand-bold": fill.fill,
+      "background-brand-bold-hovered": fillHovered,
+      "background-brand-bold-pressed": fillPressed,
       "background-success": success.background,
       "background-success-bold": success.bold,
       "background-danger": danger.background,
@@ -305,17 +330,18 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "background-discovery": discovery.background,
       "background-discovery-bold": discovery.bold,
       "background-selected": selected,
-      "background-selected-bold": brandFill.fill,
+      "background-selected-bold": fill.fill,
       surface,
       "surface-sunken": sunken,
       "surface-sunken-bold": sunkenBold,
-      "surface-inverse": gray(0.27),
-      "surface-raised": sunken,
-      "surface-raised-hovered": sunkenBold,
-      "surface-raised-pressed": gray(0.26),
+      "surface-inverse": step(0.105),
+      // Cards stand one step above both the page and a sunken canvas.
+      "surface-raised": step(0.055),
+      "surface-raised-hovered": step(0.085),
+      "surface-raised-pressed": step(0.105),
       "surface-overlay": overlay,
-      border: gray(0.27),
-      "border-strong": gray(0.33),
+      border: step(0.105),
+      "border-strong": step(0.165),
       "border-bold": ensureContrast(gray(0.55), overlay, GRAPHIC_CONTRAST),
       "border-focused": focus,
       "border-selected": focus,
@@ -326,7 +352,8 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "border-information": information.text,
       "border-discovery": discovery.text,
       blanket: "#00000099",
-      ...createChartColors(input.brand, "dark", surface, gray(0.27)),
+      // Charts sit on cards, the lightest dark surface they meet.
+      ...createChartColors(input.brand, "dark", step(0.055), step(0.105)),
       ...shadows("dark", text)
     };
   };

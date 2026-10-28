@@ -12,6 +12,7 @@ const TABLE_END = "<!-- /theme:build -->";
 const FRONT_MATTER = /^---\n[\s\S]*?\n---\n/;
 
 const typeSteps: readonly TypeStepName[] = [
+  "display",
   "heading-xlarge",
   "heading-large",
   "heading-medium",

@@ -88,7 +88,26 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("chart-3", "surface", GRAPHIC_CONTRAST),
   pair("chart-4", "surface", GRAPHIC_CONTRAST),
   pair("chart-5", "surface", GRAPHIC_CONTRAST),
-  pair("chart-6", "surface", GRAPHIC_CONTRAST)
+  pair("chart-6", "surface", GRAPHIC_CONTRAST),
+  // Cards and sunken canvases carry the same text, icons, and charts as the page.
+  ...(["surface-raised", "surface-sunken"] as const).flatMap((background) => [
+    pair("text-subtlest", background, TEXT_CONTRAST),
+    pair("text-brand", background, TEXT_CONTRAST),
+    pair("link", background, TEXT_CONTRAST),
+    pair("text-success", background, TEXT_CONTRAST),
+    pair("text-danger", background, TEXT_CONTRAST),
+    pair("text-warning", background, TEXT_CONTRAST),
+    pair("text-information", background, TEXT_CONTRAST),
+    pair("text-discovery", background, TEXT_CONTRAST),
+    pair("icon", background, GRAPHIC_CONTRAST),
+    pair("icon-subtle", background, GRAPHIC_CONTRAST)
+  ]),
+  pair("chart-1", "surface-raised", GRAPHIC_CONTRAST),
+  pair("chart-2", "surface-raised", GRAPHIC_CONTRAST),
+  pair("chart-3", "surface-raised", GRAPHIC_CONTRAST),
+  pair("chart-4", "surface-raised", GRAPHIC_CONTRAST),
+  pair("chart-5", "surface-raised", GRAPHIC_CONTRAST),
+  pair("chart-6", "surface-raised", GRAPHIC_CONTRAST)
 ];
 
 const colorRoleNames: ReadonlySet<string> = new Set(colorRoles);

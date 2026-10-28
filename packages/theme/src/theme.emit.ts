@@ -21,6 +21,7 @@ type Entry = readonly [name: string, value: string];
 
 /** Web type utilities and the type step each one sets. Mobile uses the same names. */
 export const typeUtilities = {
+  display: "display",
   "heading-xl": "heading-xlarge",
   "heading-lg": "heading-large",
   "heading-md": "heading-medium",
@@ -161,7 +162,8 @@ export function emitWebTokens(
     ...shadowRoles.map((role) => `--${role}: ${variable(role)};`),
     ...colorRoles.map((role) => `--color-${colorUtilityName(role)}: ${variable(role)};`),
     ...spacingUtilities().map(([utility, token]) => `--spacing-${utility}: ${variable(token)};`),
-    ...componentUtilities.map(([utility, token]) => `${utility}: ${variable(token)};`)
+    ...componentUtilities.map(([utility, token]) => `${utility}: ${variable(token)};`),
+    `--ease-standard: ${variable("motion-easing")};`
   ]);
   const typeComment = [
     "/*",
@@ -181,7 +183,14 @@ export function emitWebTokens(
     ...themes.filter((entry) => entry !== defaultTheme).flatMap((entry) => themeRules(entry, false))
   ];
 
-  return [`/* ${HEADER} */`, reset, utilities, typeComment, ...types, ...rules].join("\n\n");
+  // Tailwind has no theme namespace for durations, so each motion token gets its own utility.
+  const durations = (["control", "overlay", "drawer"] as const).map((name) =>
+    block(`@utility duration-${name}`, [`transition-duration: ${variable(`motion-${name}`)};`])
+  );
+
+  return [`/* ${HEADER} */`, reset, utilities, typeComment, ...types, ...durations, ...rules].join(
+    "\n\n"
+  );
 }
 
 const MOBILE_REGION = /\/\* DESIGN_TOKENS_START \*\/[\s\S]*?\/\* DESIGN_TOKENS_END \*\//;
