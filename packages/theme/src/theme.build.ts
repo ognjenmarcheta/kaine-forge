@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format, resolveConfig } from "prettier";
 
-import { findContrastFailures } from "./theme.contrast";
+import { findContrastFailures, findTargetSizeFailures } from "./theme.contrast";
 import { emitMobileCss, emitNativeTokens, emitPresetTokens, emitWebTokens } from "./theme.emit";
 import { defaultTheme, themes } from "./themes.config";
 
@@ -40,13 +40,14 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
   ]);
 }
 
-/** One line per failing contrast pair across every registered theme. */
-export function describeContrastFailures(): string[] {
-  return themes.flatMap((theme) =>
-    findContrastFailures(theme).map(
+/** One line per contrast or target-size failure across every registered theme. */
+export function describeThemeFailures(): string[] {
+  return themes.flatMap((theme) => [
+    ...findContrastFailures(theme).map(
       (failure) =>
         `${theme.name} ${failure.mode}: ${failure.foreground} on ${failure.background} is ` +
         `${failure.ratio.toFixed(2)}:1, needs ${failure.minimum}:1`
-    )
-  );
+    ),
+    ...findTargetSizeFailures(theme).map((failure) => `${theme.name}: ${failure}`)
+  ]);
 }

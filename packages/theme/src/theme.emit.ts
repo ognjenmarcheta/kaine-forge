@@ -1,4 +1,10 @@
-import { colorRoles, scaleTokenNames, shadowRoles, typeStepNames } from "./theme.roles";
+import {
+  colorRoles,
+  componentTokenNames,
+  scaleTokenNames,
+  shadowRoles,
+  typeStepNames
+} from "./theme.roles";
 import type {
   ColorRole,
   ModeTokenName,
@@ -41,6 +47,20 @@ const fontWeightUtilities = {
   bold: "font-weight-bold"
 } as const satisfies Record<string, ScaleTokenName>;
 
+/** Component token utilities: rounded-card, shadow-card, p-card, font-button, border-ds-field-border. */
+const componentUtilities = [
+  ["--radius-button", "button-radius"],
+  ["--radius-field", "field-radius"],
+  ["--radius-card", "card-radius"],
+  ["--radius-overlay", "overlay-radius"],
+  ["--radius-dialog", "dialog-radius"],
+  ["--radius-badge", "badge-radius"],
+  ["--shadow-card", "card-shadow"],
+  ["--spacing-card", "card-padding"],
+  ["--font-weight-button", "button-font-weight"],
+  ["--color-ds-field-border", "field-border"]
+] as const;
+
 const variable = (name: string): string => `var(--ds-${name})`;
 
 export function fontShorthand(step: TypeStep): string {
@@ -68,7 +88,8 @@ function spacingUtilities(): Entry[] {
 function scaleEntries(theme: ThemeDefinition): Entry[] {
   return [
     ...scaleTokenNames.map((name): Entry => [name, theme.scale[name]]),
-    ...typeStepNames.map((name): Entry => [`font-${name}`, fontShorthand(theme.type[name])])
+    ...typeStepNames.map((name): Entry => [`font-${name}`, fontShorthand(theme.type[name])]),
+    ...componentTokenNames.map((name): Entry => [name, theme.components[name]])
   ];
 }
 
@@ -102,7 +123,8 @@ export function emitWebTokens(theme: ThemeDefinition): string {
     ),
     ...shadowRoles.map((role) => `--${role}: ${variable(role)};`),
     ...colorRoles.map((role) => `--color-${colorUtilityName(role)}: ${variable(role)};`),
-    ...spacingUtilities().map(([utility, token]) => `--spacing-${utility}: ${variable(token)};`)
+    ...spacingUtilities().map(([utility, token]) => `--spacing-${utility}: ${variable(token)};`),
+    ...componentUtilities.map(([utility, token]) => `${utility}: ${variable(token)};`)
   ]);
   const typeComment = [
     "/*",

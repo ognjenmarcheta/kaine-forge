@@ -39,7 +39,7 @@ const ContextMenuSubContent = React.forwardRef<
   <ContextMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
+      "z-50 min-w-[8rem] overflow-hidden rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
       className
     )}
     {...props}
@@ -55,7 +55,7 @@ const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
+        "z-50 min-w-[8rem] overflow-hidden rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
         className
       )}
       {...props}

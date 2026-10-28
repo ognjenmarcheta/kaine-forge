@@ -1,4 +1,4 @@
-import type { ThemeScale, ThemeType } from "./theme.schema";
+import type { ThemeComponents, ThemeScale, ThemeType } from "./theme.schema";
 
 // The template default scales. A theme replaces the steps it changes.
 export const defaultScale: ThemeScale = {
@@ -27,6 +27,7 @@ export const defaultScale: ThemeScale = {
     '"Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
   "font-family-mono":
     '"Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+  "font-family-heading": "var(--ds-font-family-sans)",
   "font-weight-regular": "400",
   "font-weight-medium": "500",
   "font-weight-semibold": "600",
@@ -53,21 +54,34 @@ export const defaultScale: ThemeScale = {
 };
 
 export const defaultType: ThemeType = {
-  "heading-xlarge": { weight: 500, size: "1.8125rem", lineHeight: "2rem", family: "sans" },
-  "heading-large": { weight: 500, size: "1.5rem", lineHeight: "1.75rem", family: "sans" },
-  "heading-medium": { weight: 500, size: "1.25rem", lineHeight: "1.5rem", family: "sans" },
-  "heading-small": { weight: 600, size: "1rem", lineHeight: "1.25rem", family: "sans" },
-  "heading-xsmall": { weight: 600, size: "0.875rem", lineHeight: "1rem", family: "sans" },
-  "heading-xxsmall": { weight: 600, size: "0.75rem", lineHeight: "1rem", family: "sans" },
+  "heading-xlarge": { weight: 500, size: "1.8125rem", lineHeight: "2rem", family: "heading" },
+  "heading-large": { weight: 500, size: "1.5rem", lineHeight: "1.75rem", family: "heading" },
+  "heading-medium": { weight: 500, size: "1.25rem", lineHeight: "1.5rem", family: "heading" },
+  "heading-small": { weight: 600, size: "1rem", lineHeight: "1.25rem", family: "heading" },
+  "heading-xsmall": { weight: 600, size: "0.875rem", lineHeight: "1rem", family: "heading" },
+  "heading-xxsmall": { weight: 600, size: "0.75rem", lineHeight: "1rem", family: "heading" },
   "body-large": { weight: 400, size: "1rem", lineHeight: "1.5rem", family: "sans" },
   body: { weight: 400, size: "0.875rem", lineHeight: "1.25rem", family: "sans" },
   "body-small": { weight: 400, size: "0.75rem", lineHeight: "1.125rem", family: "sans" },
   "body-xsmall": { weight: 400, size: "0.6875rem", lineHeight: "1rem", family: "sans" },
-  "heading-page": { weight: 500, size: "1.625rem", lineHeight: "1.2", family: "sans" },
-  "heading-card": { weight: 500, size: "1.1875rem", lineHeight: "1.3", family: "sans" },
-  "heading-row": { weight: 500, size: "0.96875rem", lineHeight: "1.55", family: "sans" },
+  "heading-page": { weight: 500, size: "1.625rem", lineHeight: "1.2", family: "heading" },
+  "heading-card": { weight: 500, size: "1.1875rem", lineHeight: "1.3", family: "heading" },
+  "heading-row": { weight: 500, size: "0.96875rem", lineHeight: "1.55", family: "heading" },
   "body-comfortable": { weight: 400, size: "0.9375rem", lineHeight: "1.55", family: "sans" },
   "body-snug": { weight: 400, size: "0.84375rem", lineHeight: "1.55", family: "sans" },
   "body-compact": { weight: 400, size: "0.8125rem", lineHeight: "1.55", family: "sans" },
   "code-small": { weight: 400, size: "0.78125rem", lineHeight: "1.6", family: "mono" }
+};
+
+export const defaultComponents: ThemeComponents = {
+  "button-radius": "var(--ds-radius-pill)",
+  "button-font-weight": "var(--ds-font-weight-semibold)",
+  "field-radius": "var(--ds-radius-100)",
+  "field-border": "var(--ds-border-bold)",
+  "card-radius": "var(--ds-radius-300)",
+  "card-padding": "var(--ds-space-200)",
+  "card-shadow": "var(--ds-shadow-raised)",
+  "overlay-radius": "var(--ds-radius-200)",
+  "dialog-radius": "var(--ds-radius-300)",
+  "badge-radius": "var(--ds-radius-pill)"
 };

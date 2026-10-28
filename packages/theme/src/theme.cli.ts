@@ -7,13 +7,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { buildThemeFiles, describeContrastFailures, repoRoot } from "./theme.build";
+import { buildThemeFiles, describeThemeFailures, repoRoot } from "./theme.build";
 
 const checkOnly = process.argv.includes("--check");
-const failures = describeContrastFailures();
+const failures = describeThemeFailures();
 
 if (failures.length > 0) {
-  console.error(`Theme contrast check failed:\n${failures.map((line) => `  ${line}`).join("\n")}`);
+  console.error(`Theme check failed:\n${failures.map((line) => `  ${line}`).join("\n")}`);
   process.exit(1);
 }
 

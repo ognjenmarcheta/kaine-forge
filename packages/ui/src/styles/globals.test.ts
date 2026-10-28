@@ -47,7 +47,9 @@ describe("theme utilities", () => {
     ["shadow-raised", "--tw-shadow: var(--ds-shadow-raised)"],
     ["text-heading-sm", "font: var(--ds-font-heading-small)"],
     ["text-body", "font: var(--ds-font-body)"],
-    ["font-semibold", "font-weight: var(--ds-font-weight-semibold)"]
+    ["font-semibold", "font-weight: var(--ds-font-weight-semibold)"],
+    ["rounded-card", "border-radius: var(--ds-card-radius)"],
+    ["border-ds-field-border", "border-color: var(--ds-field-border)"]
   ] as const;
   const removed = ["bg-red-500", "text-white", "text-sm", "shadow-sm", "rounded-2xl"] as const;
   let output = "";

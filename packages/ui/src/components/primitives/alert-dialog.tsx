@@ -28,7 +28,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-ds-border bg-ds-surface-overlay p-6 shadow-floating ui-motion-dialog sm:rounded-xl",
+        "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-ds-border bg-ds-surface-overlay p-6 shadow-floating ui-motion-dialog sm:rounded-dialog",
         className
       )}
       {...props}
@@ -81,7 +81,7 @@ const AlertDialogAction = React.forwardRef<
   <AlertDialogPrimitive.Action
     ref={ref}
     className={cn(
-      "inline-flex h-ds-control-medium items-center justify-center rounded-full bg-ds-bg-danger-bold px-4 text-body font-medium text-ds-text-inverse transition-colors hover:bg-ds-bg-danger-bold-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2",
+      "inline-flex h-ds-control-medium items-center justify-center rounded-button bg-ds-bg-danger-bold px-4 text-body font-button text-ds-text-inverse transition-colors hover:bg-ds-bg-danger-bold-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2",
       className
     )}
     {...props}
@@ -96,7 +96,7 @@ const AlertDialogCancel = React.forwardRef<
   <AlertDialogPrimitive.Cancel
     ref={ref}
     className={cn(
-      "inline-flex h-ds-control-medium items-center justify-center rounded-full border border-ds-border bg-ds-surface px-4 text-body font-medium text-ds-text transition-colors hover:bg-ds-bg-neutral-subtle-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2",
+      "inline-flex h-ds-control-medium items-center justify-center rounded-button border border-ds-border bg-ds-surface px-4 text-body font-button text-ds-text transition-colors hover:bg-ds-bg-neutral-subtle-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-border-focused focus-visible:ring-offset-2",
       className
     )}
     {...props}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { contrastRatio } from "./theme.color";
-import { measureContrast } from "./theme.contrast";
+import { findTargetSizeFailures, measureContrast } from "./theme.contrast";
 import { themes } from "./themes.config";
 
 describe("contrastRatio", () => {
@@ -15,7 +15,7 @@ describe("contrastRatio", () => {
 });
 
 describe.each(themes.map((theme) => [theme.name, theme] as const))(
-  "%s theme contrast",
+  "%s theme accessibility",
   (_name, theme) => {
     it.each(
       measureContrast(theme).map((result) => [
@@ -27,6 +27,10 @@ describe.each(themes.map((theme) => [theme.name, theme] as const))(
       ])
     )("%s: %s on %s meets %d:1", (_mode, _foreground, _background, minimum, ratio) => {
       expect(ratio).toBeGreaterThanOrEqual(minimum);
+    });
+
+    it("keeps every control at least 24px tall", () => {
+      expect(findTargetSizeFailures(theme)).toEqual([]);
     });
   }
 );

@@ -102,6 +102,7 @@ export const scaleTokenNames = [
   "space-1000",
   "font-family-sans",
   "font-family-mono",
+  "font-family-heading",
   "font-weight-regular",
   "font-weight-medium",
   "font-weight-semibold",
@@ -145,4 +146,18 @@ export const typeStepNames = [
   "body-snug",
   "body-compact",
   "code-small"
+] as const;
+
+/** Component tokens: the per-component knobs a theme turns for shape, density, and depth. */
+export const componentTokenNames = [
+  "button-radius",
+  "button-font-weight",
+  "field-radius",
+  "field-border",
+  "card-radius",
+  "card-padding",
+  "card-shadow",
+  "overlay-radius",
+  "dialog-radius",
+  "badge-radius"
 ] as const;

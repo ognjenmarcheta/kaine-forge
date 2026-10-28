@@ -51,11 +51,11 @@ Tokens are the public design API. Components should consume functional tokens in
 
 ### 3.1 Token Tiers
 
-| Tier              | Purpose                                                   | Example                                                         |
-| ----------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
-| Theme values      | the colors and scales a theme defines, in TypeScript only | `byteForgeTheme.modes.light.surface`                            |
-| Functional tokens | semantic UI values, primary consumer API                  | `--ds-text`, `--ds-background-danger-bold`                      |
-| Component tokens  | component or pattern-specific values                      | `--ds-button-brand-bg-hovered` (illustrative; none defined yet) |
+| Tier              | Purpose                                                   | Example                                         |
+| ----------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| Theme values      | the colors and scales a theme defines, in TypeScript only | `byteForgeTheme.modes.light.surface`            |
+| Functional tokens | semantic UI values, primary consumer API                  | `--ds-text`, `--ds-background-danger-bold`      |
+| Component tokens  | component or pattern-specific values                      | `--ds-button-radius`, `--ds-card-shadow` (§6.1) |
 
 Theme values exist only in `@repo/theme`; code never reads them directly. Functional tokens are the default choice.
 
@@ -147,7 +147,7 @@ Typography tokens define hierarchy and rhythm.
 
 Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
 
-The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
+Headings use `--ds-font-family-heading`, which Byte Forge points at the sans family; a theme can give headings their own family. The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
 
 Rules:
 
@@ -196,9 +196,26 @@ Shape:
 
 Rules:
 
-- Buttons are pills. Cards and dialogs use `--ds-radius-300`; agent desk cards use `--ds-radius-250`. Inputs and selects use `--ds-radius-100`. Do not invent radii between the steps.
+- Components take their shape from the component tokens in §6.1, so a theme can change it in one place. Agent desk cards use `--ds-radius-250`. Do not invent radii between the steps.
 - Use stable dimensions for grids, boards, toolbars, counters, icon buttons, and fixed-format UI.
 - Avoid layout shift when labels, loading states, badges, or hover states change.
+
+### 6.1 Component tokens
+
+Component tokens are the per-component values a theme sets for shape, density, and depth. Each one has a utility. The Byte Forge values are:
+
+| Token                     | Byte Forge                  | Utility                  | Use                                                                    |
+| ------------------------- | --------------------------- | ------------------------ | ---------------------------------------------------------------------- |
+| `--ds-button-radius`      | `--ds-radius-pill`          | `rounded-button`         | buttons                                                                |
+| `--ds-button-font-weight` | `--ds-font-weight-semibold` | `font-button`            | button labels                                                          |
+| `--ds-field-radius`       | `--ds-radius-100`           | `rounded-field`          | inputs, selects, textareas                                             |
+| `--ds-field-border`       | `--ds-border-bold`          | `border-ds-field-border` | field borders; must reach 3:1 against the surface (WCAG 2.2 SC 1.4.11) |
+| `--ds-card-radius`        | `--ds-radius-300`           | `rounded-card`           | cards, stat cards, the sign-in card                                    |
+| `--ds-card-padding`       | `--ds-space-200`            | `p-card`                 | card padding                                                           |
+| `--ds-card-shadow`        | `--ds-shadow-raised`        | `shadow-card`            | card elevation; `none` gives a flat, border-only theme                 |
+| `--ds-overlay-radius`     | `--ds-radius-200`           | `rounded-overlay`        | menus, popovers, select lists                                          |
+| `--ds-dialog-radius`      | `--ds-radius-300`           | `rounded-dialog`         | dialogs and the command menu                                           |
+| `--ds-badge-radius`       | `--ds-radius-pill`          | `rounded-badge`          | badges                                                                 |
 
 ## 7. Elevation
 

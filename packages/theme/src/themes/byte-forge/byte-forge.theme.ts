@@ -1,4 +1,4 @@
-import { defaultScale, defaultType } from "../../theme.scale";
+import { defaultComponents, defaultScale, defaultType } from "../../theme.scale";
 import { defineTheme } from "../../theme.schema";
 
 export const byteForgeTheme = defineTheme({
@@ -8,6 +8,7 @@ export const byteForgeTheme = defineTheme({
     "Cool white and ink-black neutrals with one red-orange for actions, selection, links, and focus.",
   scale: defaultScale,
   type: defaultType,
+  components: defaultComponents,
   modes: {
     light: {
       text: "#121419",

@@ -26,10 +26,10 @@ body {
 .ui-button {
   align-items: center;
   border: var(--ds-border-width) solid transparent;
-  border-radius: var(--ds-radius-pill);
+  border-radius: var(--ds-button-radius);
   cursor: pointer;
   display: inline-flex;
-  font-weight: 600;
+  font-weight: var(--ds-button-font-weight);
   justify-content: center;
   transition:
     background-color var(--ds-motion-control) var(--ds-motion-easing),
@@ -45,7 +45,6 @@ body {
 }
 
 .ui-button:focus-visible,
-.ui-input:focus-visible,
 .ui-textarea:focus-visible,
 .ui-select__trigger:focus-visible,
 .ui-checkbox:focus-visible {
@@ -124,31 +123,30 @@ body {
 
 .ui-button--sm {
   font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
+  font-weight: var(--ds-button-font-weight);
   height: var(--ds-control-small);
   padding: 0 var(--ds-space-150);
 }
 
 .ui-button--md {
   font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-semibold);
+  font-weight: var(--ds-button-font-weight);
   height: var(--ds-control-medium);
   padding: 0 var(--ds-space-150);
 }
 
 .ui-button--lg {
   font: var(--ds-font-body-large);
-  font-weight: var(--ds-font-weight-semibold);
+  font-weight: var(--ds-button-font-weight);
   height: var(--ds-control-large);
   padding: 0 var(--ds-space-200);
 }
 
-.ui-input,
 .ui-textarea,
 .ui-select__trigger {
   background: var(--ds-surface);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-100);
+  border: var(--ds-border-width) solid var(--ds-field-border);
+  border-radius: var(--ds-field-radius);
   color: var(--ds-text);
   font: inherit;
   padding: var(--ds-space-150) var(--ds-space-150);
@@ -350,7 +348,7 @@ body {
 .ui-select__content {
   background: var(--ds-surface-overlay);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
+  border-radius: var(--ds-overlay-radius);
   box-shadow: var(--ds-shadow-overlay);
   overflow: hidden;
   z-index: 1002;
@@ -429,7 +427,7 @@ body {
 .ui-auth-layout__card {
   background: var(--ds-surface);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-300);
+  border-radius: var(--ds-card-radius);
   max-width: 460px;
   padding: var(--ds-space-300);
   width: 100%;
@@ -462,7 +460,7 @@ body {
 .ui-modal__content {
   background: var(--ds-surface-overlay);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-300);
+  border-radius: var(--ds-dialog-radius);
   box-shadow: var(--ds-shadow-floating);
   display: grid;
   gap: var(--ds-space-200);
@@ -838,11 +836,11 @@ summary:focus-visible {
   display: grid;
   gap: var(--ds-space-100);
   min-width: 0;
-  padding: var(--ds-space-200);
+  padding: var(--ds-card-padding);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-300);
+  border-radius: var(--ds-card-radius);
   background: var(--ds-surface-raised);
-  box-shadow: var(--ds-shadow-raised);
+  box-shadow: var(--ds-card-shadow);
   color: var(--ds-text);
   text-decoration: none;
   transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
@@ -877,9 +875,9 @@ a.ui-stat-card:focus-visible {
 .ui-dashboard .ui-settings-section {
   padding: var(--ds-space-300);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-300);
+  border-radius: var(--ds-card-radius);
   background: var(--ds-surface-raised);
-  box-shadow: var(--ds-shadow-raised);
+  box-shadow: var(--ds-card-shadow);
 }
 .ui-dashboard .ui-settings-section__header {
   align-items: baseline;
@@ -2028,7 +2026,7 @@ a.ui-stat-card:focus-visible {
   animation: none;
   background: var(--ds-surface-overlay);
   border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-300);
+  border-radius: var(--ds-dialog-radius);
   box-shadow: var(--ds-shadow-floating);
   left: 50%;
   max-width: calc(var(--ds-space-800) * 10);
