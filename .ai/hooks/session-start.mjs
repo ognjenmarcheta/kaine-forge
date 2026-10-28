@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
+import { refreshAiSetup, refreshRoots } from "./ai-refresh.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "./graph-status.mjs";
 
 const args = process.argv.slice(2);
@@ -154,6 +155,8 @@ const main = async () => {
     return;
   }
 
+  // Refresh first, so the health check below describes what this session actually loads.
+  const refresh = refreshAiSetup(refreshRoots(agent, repoRoot));
   const health = aiHealth(repoRoot, agent);
   const issues = health.problems;
   const lines = [
@@ -162,6 +165,8 @@ const main = async () => {
     `- Branch: ${currentBranch(repoRoot)}`,
     `- Worktree: ${worktreeSummary(repoRoot)}`,
     `- AI installation: ${health.installation}`,
+    ...refresh.lines.map((line) => `- ${line}`),
+    ...refresh.failures.map((line) => `- Warning: ${line}`),
     "- Runtime verification: MCP and sandbox not verified at startup",
     formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot)))
   ];
@@ -185,7 +190,19 @@ const main = async () => {
     );
   }
 
-  process.stdout.write(`${lines.join("\n")}\n`);
+  const context = `${lines.join("\n")}\n`;
+  // Claude builds its skill list before SessionStart hooks finish; ask it to rescan after a refresh.
+  process.stdout.write(
+    agent === "claude" && refresh.refreshed
+      ? `${JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "SessionStart",
+            additionalContext: context,
+            reloadSkills: true
+          }
+        })}\n`
+      : context
+  );
 };
 
 main().catch(() => {

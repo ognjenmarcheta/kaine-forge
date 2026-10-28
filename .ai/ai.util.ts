@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -942,6 +950,11 @@ const PRE_TOOL_USE_HOOK_COMMAND =
 /** Short: the hook only reads and matches against a small JSON file. */
 const PRE_TOOL_USE_TIMEOUT_SECONDS = 10;
 
+const AI_REFRESH_HOOK_COMMAND = 'node "$(git rev-parse --show-toplevel)/.ai/hooks/ai-refresh.mjs"';
+
+/** Room for one `ai:install --auto` after a pull; unchanged inputs return in milliseconds. */
+const AI_REFRESH_TIMEOUT_SECONDS = 60;
+
 /**
  * Read-only MCP tools that skip the permission prompt. Serena's REPL interface exposes only
  * `initial_instructions`; the other names cover `--serena-interface tools`. Browser tools and
@@ -1005,6 +1018,17 @@ export const renderClaudeSettings = (): string => {
                 type: "command",
                 command: `${AI_CONTEXT_HOOK_COMMAND} --agent claude`,
                 statusMessage: "Loading Kaine Forge AI context"
+              }
+            ]
+          }
+        ],
+        UserPromptSubmit: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${AI_REFRESH_HOOK_COMMAND} --agent claude`,
+                timeout: AI_REFRESH_TIMEOUT_SECONDS
               }
             ]
           }
@@ -1592,7 +1616,11 @@ export const writeGenerated = (
   }
 
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, newContent);
+  // Rename into place: a concurrent auto-install or an agent's skill watcher never reads a
+  // half-written file.
+  const tempPath = `${filePath}.${String(process.pid)}.tmp`;
+  writeFileSync(tempPath, newContent);
+  renameSync(tempPath, filePath);
   results.push({
     file: filePath,
     status: existing === null ? "created" : "updated"
