@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -30,5 +31,25 @@ describe("StatCard", () => {
     const markup = renderToStaticMarkup(<StatCard delta={delta} label="Visits" value="1,204" />);
 
     expect(textOf(markup)).toBe("Visits1,204Down3%");
+  });
+
+  // Tailwind reads `_` in an arbitrary variant as a space, so the BEM class names cannot be
+  // targeted from className; the data-slot names can: `[&_[data-slot=stat-card-label]]:…`.
+  it.each([
+    ["stat-card-label", "Open invoices"],
+    ["stat-card-value", "42"],
+    ["stat-card-description", "This month"],
+    ["stat-card-visual", "Ring"]
+  ])("marks the %s part for caller styling", (slot, text) => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <StatCard
+        description="This month"
+        label="Open invoices"
+        value={42}
+        visual={<span>Ring</span>}
+      />
+    );
+
+    expect(document.querySelector(`[data-slot="${slot}"]`)?.textContent).toBe(text);
   });
 });

@@ -5,9 +5,20 @@ import { cn } from "../../lib/cn";
 import { buttonVariants } from "../../lib/variants";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  /** `outline` is a surface fill with a bold border, for a raised button on a tinted area. */
+  /**
+   * `outline` is a surface fill with a bold border, for a raised button on a tinted area.
+   * `raised` is the card fill with the raised shadow and no border, for a white button on a gray page.
+   */
   appearance?:
-    "danger" | "default" | "ghost" | "link" | "outline" | "secondary" | "subtle" | "warning";
+    | "danger"
+    | "default"
+    | "ghost"
+    | "link"
+    | "outline"
+    | "raised"
+    | "secondary"
+    | "subtle"
+    | "warning";
   asChild?: boolean;
   /** `icon` is a square at the default control height for an icon alone; name it with `aria-label`. */
   spacing?: "compact" | "default" | "icon" | "spacious";

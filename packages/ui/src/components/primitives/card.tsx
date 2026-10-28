@@ -15,9 +15,17 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** The title and description; with a `CardAction`, they take the start column and the action the end. */
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="card-header" className={cn("grid gap-ds-050 p-card", className)} {...props} />
+    <div
+      data-slot="card-header"
+      className={cn(
+        "grid gap-x-ds-150 gap-y-ds-050 p-card has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]",
+        className
+      )}
+      {...props}
+    />
   );
 }
 
@@ -48,6 +56,17 @@ function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/** One control at the end of a `CardHeader`, such as a filter menu, beside the title and description. */
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      {...props}
+    />
+  );
+}
+
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="card-content" className={cn("px-card pb-card", className)} {...props} />;
 }
@@ -62,4 +81,4 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };
+export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };

@@ -46,6 +46,22 @@ describe("CopyButton", () => {
     expect(liveRegion()).toBe("");
   });
 
+  it("tells copy buttons apart by hidden text after the visible label (WCAG 2.2 SC 2.5.3)", () => {
+    act(() =>
+      root.render(
+        <>
+          <CopyButton copiedLabel="Copied" label="Copy link" labelSuffix="Q3 report" value="a" />
+          <CopyButton copiedLabel="Copied" label="Copy link" labelSuffix="Q4 report" value="b" />
+        </>
+      )
+    );
+
+    // The icons carry no text, so the text content is the name a screen reader reads.
+    expect(
+      Array.from(container.querySelectorAll("button"), (button) => button.textContent)
+    ).toEqual(["Copy link Q3 report", "Copy link Q4 report"]);
+  });
+
   it("stays idle when the clipboard rejects the write", async () => {
     writeText.mockRejectedValueOnce(new Error("denied"));
     act(() => root.render(<CopyButton value="ABCD-1234" label="Copy" copiedLabel="Copied" />));

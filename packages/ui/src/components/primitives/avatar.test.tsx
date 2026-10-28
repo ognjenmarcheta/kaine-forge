@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { contrastPairs } from "@repo/theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -14,6 +15,31 @@ describe("Avatar", () => {
     expect(markup).toContain("h-10 w-10");
     expect(markup).toContain("AB");
   });
+});
+
+describe("AvatarFallback", () => {
+  it.each([
+    "neutral",
+    "brand",
+    "information",
+    "success",
+    "warning",
+    "danger",
+    "discovery"
+  ] as const)(
+    "draws %s initials in a fill and text pair that the theme check measures (COLOR-1)",
+    (tone) => {
+      const markup = renderToStaticMarkup(<AvatarFallback tone={tone}>AB</AvatarFallback>);
+      const classes = /class="([^"]*)"/.exec(markup)?.[1] ?? "";
+      // Utility names map to role names: bg-ds-bg-success is background-success.
+      const background = /(?:^| )bg-ds-bg-([a-z-]+)/.exec(classes)?.[1];
+      const foreground = /(?:^| )text-ds-(text-[a-z-]+)/.exec(classes)?.[1];
+
+      expect(contrastPairs).toContainEqual(
+        expect.objectContaining({ background: `background-${background}`, foreground })
+      );
+    }
+  );
 });
 
 describe("AvatarGroup", () => {

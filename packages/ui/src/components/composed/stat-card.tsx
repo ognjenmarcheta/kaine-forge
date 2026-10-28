@@ -27,6 +27,8 @@ interface StatCardContentProps {
   label: string;
   /** A count, or a value the caller formats, such as "65%". Pass `undefined` while it loads; a skeleton holds its place. */
   value: React.ReactNode;
+  /** A ring or a sparkline at the end of the value row. It brings its own name, or `aria-hidden` when the value says it all. */
+  visual?: React.ReactNode;
 }
 
 interface StatCardPlainProps extends StatCardContentProps {
@@ -60,56 +62,71 @@ export function StatCard({
   icon,
   label,
   renderLink,
-  value
+  value,
+  visual
 }: StatCardProps) {
   const DeltaIcon = delta?.direction === "down" ? ArrowDown : ArrowUp;
   const content = (
     <>
-      <div className="ui-stat-card__header">
+      <div className="ui-stat-card__header" data-slot="stat-card-header">
         {icon ? (
-          <span aria-hidden="true" className="ui-stat-card__icon">
+          <span aria-hidden="true" className="ui-stat-card__icon" data-slot="stat-card-icon">
             {icon}
           </span>
         ) : null}
-        <span className="ui-stat-card__label">{label}</span>
+        <span className="ui-stat-card__label" data-slot="stat-card-label">
+          {label}
+        </span>
         {action}
       </div>
-      <div className="ui-stat-card__body">
+      <div className="ui-stat-card__body" data-slot="stat-card-body">
         {value === undefined ? (
           <Skeleton aria-hidden="true" className="ui-stat-card__skeleton" />
         ) : (
-          <span className="ui-stat-card__value">{value}</span>
+          <span className="ui-stat-card__value" data-slot="stat-card-value">
+            {value}
+          </span>
         )}
         {delta ? (
           <Badge
             appearance={deltaAppearance[delta.tone ?? "neutral"]}
             className="relative gap-ds-050"
+            data-slot="stat-card-delta"
           >
             <DeltaIcon aria-hidden="true" className="size-ds-150 shrink-0" />
             <span className="sr-only">{delta.directionLabel}</span>
             {delta.label}
           </Badge>
         ) : null}
+        {visual ? (
+          <div className="ui-stat-card__visual" data-slot="stat-card-visual">
+            {visual}
+          </div>
+        ) : null}
       </div>
-      {description ? <span className="ui-stat-card__description">{description}</span> : null}
+      {description ? (
+        <span className="ui-stat-card__description" data-slot="stat-card-description">
+          {description}
+        </span>
+      ) : null}
     </>
   );
   const classes = cn("ui-stat-card", className);
 
   if (href === undefined)
     return (
-      <div aria-busy={value === undefined} className={classes}>
+      <div aria-busy={value === undefined} className={classes} data-slot="stat-card">
         {content}
       </div>
     );
   if (renderLink)
     return (
-      <Slot.Root aria-busy={value === undefined} className={classes}>
+      <Slot.Root aria-busy={value === undefined} className={classes} data-slot="stat-card">
         {renderLink(href, content)}
       </Slot.Root>
     );
   return (
-    <a aria-busy={value === undefined} className={classes} href={href}>
+    <a aria-busy={value === undefined} className={classes} data-slot="stat-card" href={href}>
       {content}
     </a>
   );

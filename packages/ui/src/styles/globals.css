@@ -15,8 +15,11 @@
 /* Element and component rules sit in cascade layers (theme, base, components, utilities),
    so a utility passed in `className` wins over them. */
 @layer base {
+  /* Every element carries the focus color before it takes focus, so a focus ring appears at
+     once: `transition-colors` also animates `outline-color`, and here it has no change to fade. */
   * {
     box-sizing: border-box;
+    outline-color: var(--ds-border-focused);
   }
 
   body {
@@ -78,7 +81,8 @@
 
   .ui-button:focus-visible,
   .ui-textarea:focus-visible,
-  .ui-select__trigger:focus-visible {
+  .ui-select__trigger:focus-visible,
+  [data-slot="segmented-control-item"]:focus-visible {
     outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
     outline-offset: var(--ds-space-025);
   }
@@ -164,6 +168,24 @@
 
   .ui-button--outline:active:not(:disabled) {
     background: var(--ds-surface-raised-pressed);
+  }
+
+  .ui-button--raised {
+    background: var(--ds-surface-raised);
+    box-shadow: var(--ds-shadow-raised);
+    color: var(--ds-text);
+  }
+
+  .ui-button--raised:hover:not(:disabled) {
+    background: var(--ds-surface-raised-hovered);
+  }
+
+  .ui-button--raised:active:not(:disabled) {
+    background: var(--ds-surface-raised-pressed);
+  }
+
+  .ui-button--raised:disabled {
+    box-shadow: none;
   }
 
   .ui-button--sm {
@@ -856,6 +878,13 @@
     font: var(--ds-font-body-small);
     overflow-wrap: anywhere;
   }
+  /* A ring or a sparkline at the end of the value row. */
+  .ui-stat-card__visual {
+    align-self: center;
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-inline-start: auto;
+  }
   .ui-stat-card__skeleton {
     width: var(--ds-space-600);
     height: var(--ds-space-400);
@@ -878,6 +907,8 @@
   }
   .ui-copy-button {
     gap: var(--ds-space-050);
+    /* Keeps the hidden label suffix inside the button, also in a scrolling row. */
+    position: relative;
   }
   .ui-copy-button > svg {
     width: var(--ds-space-200);

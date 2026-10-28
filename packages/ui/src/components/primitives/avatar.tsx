@@ -52,16 +52,35 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
 );
 AvatarImage.displayName = "AvatarImage";
 
-const AvatarFallback = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
-  ({ className, ...props }, ref) => (
-    <span
-      ref={ref}
-      className={cn(
-        "flex h-full w-full items-center justify-center bg-ds-bg-neutral-bold text-ds-text-inverse text-body-sm font-medium",
-        className
-      )}
-      {...props}
-    />
+// Each tone is a fill and text pair that the theme check measures in every theme and mode.
+const avatarFallbackVariants = cva(
+  "flex h-full w-full items-center justify-center text-body-sm font-medium",
+  {
+    variants: {
+      tone: {
+        neutral: "bg-ds-bg-neutral-bold text-ds-text-inverse",
+        brand: "bg-ds-bg-brand-bold text-ds-text-brand-inverse",
+        information: "bg-ds-bg-information text-ds-text-information",
+        success: "bg-ds-bg-success text-ds-text-success",
+        warning: "bg-ds-bg-warning text-ds-text-warning",
+        danger: "bg-ds-bg-danger text-ds-text-danger",
+        discovery: "bg-ds-bg-discovery text-ds-text-discovery"
+      }
+    },
+    defaultVariants: {
+      tone: "neutral"
+    }
+  }
+);
+
+type AvatarFallbackProps = React.HTMLAttributes<HTMLSpanElement> & {
+  /** The fill behind the initials: the bold neutral or brand fill, or a role tint. Defaults to `neutral`. */
+  tone?: "brand" | "danger" | "discovery" | "information" | "neutral" | "success" | "warning";
+};
+
+const AvatarFallback = React.forwardRef<HTMLSpanElement, AvatarFallbackProps>(
+  ({ className, tone, ...props }, ref) => (
+    <span ref={ref} className={cn(avatarFallbackVariants({ tone }), className)} {...props} />
   )
 );
 AvatarFallback.displayName = "AvatarFallback";
@@ -112,4 +131,4 @@ const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
 AvatarGroup.displayName = "AvatarGroup";
 
 export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, avatarVariants };
-export type { AvatarProps, AvatarGroupProps };
+export type { AvatarProps, AvatarFallbackProps, AvatarGroupProps };

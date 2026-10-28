@@ -399,26 +399,51 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Sets the id of a child part, such as a label, on its parent part. */
+type RegisterId = (id: string | undefined) => void;
+
+/** Gives `id` to the parent part while this part is mounted. */
+function useRegisterId(register: RegisterId | undefined, id: string) {
+  React.useLayoutEffect(() => {
+    if (register === undefined) return undefined;
+    register(id);
+    return () => register(undefined);
+  }, [register, id]);
+}
+
+const SidebarGroupLabelContext = React.createContext<RegisterId | undefined>(undefined);
+
 function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
+  // A group with a label is a group named by it (WCAG 2.2 SC 1.3.1); one without stays a plain div.
+  const [labelId, setLabelId] = React.useState<string>();
+
   return (
-    <div
-      data-slot="sidebar-group"
-      data-sidebar="group"
-      className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
-      {...props}
-    />
+    <SidebarGroupLabelContext.Provider value={setLabelId}>
+      <div
+        data-slot="sidebar-group"
+        data-sidebar="group"
+        {...(labelId === undefined ? {} : { role: "group", "aria-labelledby": labelId })}
+        className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
+        {...props}
+      />
+    </SidebarGroupLabelContext.Provider>
   );
 }
 
 function SidebarGroupLabel({
   className,
   asChild = false,
+  id,
   ...props
 }: React.ComponentProps<"div"> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : "div";
+  const generatedId = React.useId();
+  const labelId = id ?? generatedId;
+  useRegisterId(React.useContext(SidebarGroupLabelContext), labelId);
 
   return (
     <Comp
+      id={labelId}
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
@@ -475,14 +500,26 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
+interface SidebarMenuItemContextProps {
+  badgeId: string | undefined;
+  setBadgeId: RegisterId;
+}
+
+const SidebarMenuItemContext = React.createContext<SidebarMenuItemContextProps | null>(null);
+
 function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
+  const [badgeId, setBadgeId] = React.useState<string>();
+  const item = React.useMemo(() => ({ badgeId, setBadgeId }), [badgeId]);
+
   return (
-    <li
-      data-slot="sidebar-menu-item"
-      data-sidebar="menu-item"
-      className={cn("group/menu-item relative", className)}
-      {...props}
-    />
+    <SidebarMenuItemContext.Provider value={item}>
+      <li
+        data-slot="sidebar-menu-item"
+        data-sidebar="menu-item"
+        className={cn("group/menu-item relative", className)}
+        {...props}
+      />
+    </SidebarMenuItemContext.Provider>
   );
 }
 
@@ -523,6 +560,8 @@ function SidebarMenuButton({
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot.Root : "button";
   const { isMobile, state } = useSidebar();
+  // A badge beside the button, such as a count, describes it: it sits outside the link's name.
+  const badgeId = React.useContext(SidebarMenuItemContext)?.badgeId;
 
   const button = (
     <Comp
@@ -530,6 +569,7 @@ function SidebarMenuButton({
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
+      {...(badgeId === undefined ? {} : { "aria-describedby": badgeId })}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
       {...props}
     />
@@ -589,9 +629,14 @@ function SidebarMenuAction({
   );
 }
 
-function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarMenuBadge({ className, id, ...props }: React.ComponentProps<"div">) {
+  const generatedId = React.useId();
+  const badgeId = id ?? generatedId;
+  useRegisterId(React.useContext(SidebarMenuItemContext)?.setBadgeId, badgeId);
+
   return (
     <div
+      id={badgeId}
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(

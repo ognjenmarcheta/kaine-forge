@@ -9,6 +9,7 @@ export const buttonVariants = cva("ui-button", {
       ghost: "ui-button--ghost",
       link: "ui-button--link",
       outline: "ui-button--outline",
+      raised: "ui-button--raised",
       warning: "ui-button--warning",
       danger: "ui-button--danger"
     },
