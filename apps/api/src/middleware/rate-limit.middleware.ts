@@ -4,12 +4,15 @@ type RuntimeEnv = Record<string, string | undefined>;
 
 const DEFAULT_MAX_REQUESTS = 100;
 const DEFAULT_WINDOW_MS = 60000;
+const DEFAULT_TRUSTED_PROXY_HOPS = 1;
 const BUCKET_SWEEP_THRESHOLD = 10000;
 const MAX_BUCKETS = 100000;
 
 export interface RateLimitConfig {
   enabled: boolean;
   max: number;
+  /** Trusted proxies in front of the API, each appending one x-forwarded-for entry. */
+  trustedProxyHops: number;
   trustProxy: boolean;
   windowMs: number;
 }
@@ -39,6 +42,7 @@ export function resolveRateLimitConfig(env: RuntimeEnv): RateLimitConfig {
   return {
     enabled: env.API_RATE_LIMIT_ENABLED !== "false" && env.NODE_ENV !== "test",
     max: parsePositiveInteger(env.API_RATE_LIMIT_MAX, DEFAULT_MAX_REQUESTS),
+    trustedProxyHops: parsePositiveInteger(env.API_TRUSTED_PROXY_HOPS, DEFAULT_TRUSTED_PROXY_HOPS),
     trustProxy: env.API_TRUST_PROXY === "true",
     windowMs: parsePositiveInteger(env.API_RATE_LIMIT_WINDOW_MS, DEFAULT_WINDOW_MS)
   };
@@ -135,12 +139,12 @@ export function resolveRateLimitKey(
     headers: IncomingHttpHeaders;
     socket: { remoteAddress?: string | undefined };
   },
-  trustProxy: boolean
+  { trustProxy, trustedProxyHops }: Pick<RateLimitConfig, "trustProxy" | "trustedProxyHops">
 ): string {
   if (trustProxy) {
-    // Only the RIGHTMOST x-forwarded-for entry is proxy-controlled: the
-    // template's nginx appends the real client IP, while any leftmost
-    // entries arrive from the client and are trivially forgeable.
+    // Each trusted proxy appends the address it received the request from, so
+    // the client is `trustedProxyHops` entries from the right. Entries left of
+    // it arrive from the client and are trivially forgeable.
     const forwarded = req.headers["x-forwarded-for"];
     const flattened = Array.isArray(forwarded) ? forwarded.join(",") : forwarded;
     const entries =
@@ -148,10 +152,12 @@ export function resolveRateLimitKey(
         ?.split(",")
         .map((entry) => entry.trim())
         .filter((entry) => entry.length > 0) ?? [];
-    const rightmost = entries[entries.length - 1];
+    // Fewer entries than hops means the request skipped a proxy, so no entry
+    // is proxy-controlled; .at() of a too-large negative index is undefined.
+    const client = entries.at(-trustedProxyHops);
 
-    if (rightmost) {
-      return rightmost;
+    if (client) {
+      return client;
     }
   }
 

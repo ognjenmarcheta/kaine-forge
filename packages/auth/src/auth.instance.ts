@@ -48,7 +48,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { API_KEY_HTTP_PATHS, apiKeyPlugin } from "./auth.api-key";
-import { recordAuditEvent } from "./auth.audit";
+import { currentAuditRequest, recordAuditEvent } from "./auth.audit";
 import { auditPlugin } from "./auth.audit.plugin";
 import {
   assertProductionAuthSecret,
@@ -1299,7 +1299,13 @@ export function createAuthInstance() {
               userId: session.userId
             });
 
-            return { data: { ...session, activeOrganizationId } };
+            // better-auth reads x-forwarded-for itself and finds no IP behind
+            // two proxies, so a session takes the client IP that the API
+            // resolved for this request under its trusted-proxy rule.
+            const request = currentAuditRequest();
+            const ipAddress = request ? request.ipAddress : session.ipAddress;
+
+            return { data: { ...session, activeOrganizationId, ipAddress } };
           }
         }
       }

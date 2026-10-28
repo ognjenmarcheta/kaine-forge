@@ -212,7 +212,13 @@ beforeAll(async () => {
 
   const created = createApiServer({
     logger: createLogger({ name: "notifications-test", level: "silent" }),
-    rateLimitConfig: { enabled: false, max: 1000, windowMs: 60_000, trustProxy: true }
+    rateLimitConfig: {
+      enabled: false,
+      max: 1000,
+      windowMs: 60_000,
+      trustProxy: true,
+      trustedProxyHops: 1
+    }
   });
   server = created.server;
   wsServer = created.wsServer;

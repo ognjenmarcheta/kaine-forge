@@ -192,7 +192,7 @@ export function createApiServer({
 
     // Every Audit Event this request records, from an auth route or a
     // resolver, takes its client IP from the rate limiter's proxy rule.
-    const ipAddress = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+    const ipAddress = resolveRateLimitKey(req, rateLimitConfig);
     const auditRequest: AuditRequest = {
       ipAddress: ipAddress === "unknown" ? null : ipAddress,
       logger: requestLogger,
@@ -255,7 +255,7 @@ export function createApiServer({
       // never reaches the key lookup, a value that is not shaped like a key
       // never reaches the database, and an unknown, revoked, or expired key
       // counts against the client address and gets 401.
-      const clientKey = resolveRateLimitKey(req, rateLimitConfig.trustProxy);
+      const clientKey = resolveRateLimitKey(req, rateLimitConfig);
       const presentedApiKey =
         req.method !== "OPTIONS" && pathname === "/graphql"
           ? req.headers[API_KEYS_CONFIG.header]

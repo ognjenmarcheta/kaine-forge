@@ -208,7 +208,13 @@ let wsServer: { close: () => void };
 beforeAll(async () => {
   const created = createApiServer({
     logger: createLogger({ name: "tenancy-contract-test", level: "silent" }),
-    rateLimitConfig: { enabled: false, max: 1000, windowMs: 60_000, trustProxy: false }
+    rateLimitConfig: {
+      enabled: false,
+      max: 1000,
+      windowMs: 60_000,
+      trustProxy: false,
+      trustedProxyHops: 1
+    }
   });
   server = created.server;
   wsServer = created.wsServer;
