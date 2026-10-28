@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { REPO_ROOT } from "./ai.util";
@@ -462,4 +463,43 @@ describe("applyTemplateAdoption", () => {
 
     expect(activeTemplateReferences(applyTemplateAdoption(tree, config).files)).toEqual([]);
   });
+
+  it("keeps adopted code and JSON parseable for a product name with path and regex characters", () => {
+    const tree = new Map(
+      adoptionTargets.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
+    );
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme/Widgets (Beta)",
+      desktopIdentifier: "com.acme.widgets"
+    });
+
+    const problems = [...applyTemplateAdoption(tree, config).files].flatMap(([path, source]) =>
+      syntaxProblems(path, source)
+    );
+
+    expect(problems).toEqual([]);
+  });
 });
+
+// Syntax only: a broken literal is enough to fail, and type errors need the whole program.
+const syntaxProblems = (path: string, source: string): string[] => {
+  if (path.endsWith(".json")) {
+    try {
+      JSON.parse(source);
+      return [];
+    } catch (error) {
+      return [`${path}: ${error instanceof Error ? error.message : String(error)}`];
+    }
+  }
+  if (!/\.(?:[cm]?js|tsx?)$/.test(path)) {
+    return [];
+  }
+  const { diagnostics = [] } = ts.transpileModule(source, {
+    fileName: path,
+    reportDiagnostics: true,
+    compilerOptions: { jsx: ts.JsxEmit.Preserve }
+  });
+  return diagnostics.map(
+    (diagnostic) => `${path}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`
+  );
+};

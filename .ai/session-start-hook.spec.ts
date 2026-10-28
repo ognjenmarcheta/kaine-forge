@@ -246,7 +246,7 @@ describe("session-start hook", () => {
       expect(readFileSync(join(repo, ".claude/skills/kaine-test/SKILL.md"), "utf8")).toContain(
         "Changed verification requirement."
       );
-      expect(runHook(repo, "claude").stdout).toMatch(/^Kaine Forge AI context\n/);
+      expect(runHook(repo, "claude").stdout.split("\n")[0]).toBe("Kaine Forge AI context");
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
