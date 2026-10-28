@@ -56,5 +56,3 @@ scorecard-out/
 .serena/project.yml
 .serena/project.local.yml
 *.pkl
-# Temp dir of .ai/benchmark-crud.spec.ts; an interrupted run leaves it behind.
-.kaine-grader-*/
