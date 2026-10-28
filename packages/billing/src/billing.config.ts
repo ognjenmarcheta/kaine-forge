@@ -1,5 +1,6 @@
 import { BILLING_PROVIDERS } from "./billing.definition";
 import { createNoneBillingProvider } from "./billing.none";
+import { createPaddleBillingProvider, PADDLE_ENVIRONMENTS } from "./billing.paddle";
 import { resolvePriceCatalog } from "./billing.prices";
 import { createStripeBillingProvider } from "./billing.stripe";
 import type { BillingProvider } from "./billing.type";
@@ -45,6 +46,27 @@ export function createBillingProvider(
     return createStripeBillingProvider({
       secretKey: keys.STRIPE_SECRET_KEY,
       webhookSecret: keys.STRIPE_WEBHOOK_SECRET,
+      prices: resolvePriceCatalog(env)
+    });
+  }
+
+  if (provider === BILLING_PROVIDERS.PADDLE) {
+    const keys = requireKeys(env, provider, [
+      "PADDLE_API_KEY",
+      "PADDLE_WEBHOOK_SECRET",
+      "PADDLE_CLIENT_TOKEN"
+    ]);
+    const environment = env.PADDLE_ENVIRONMENT?.trim() || "sandbox";
+
+    if (environment !== "sandbox" && environment !== "production") {
+      throw new Error(`PADDLE_ENVIRONMENT must be one of ${PADDLE_ENVIRONMENTS.join(", ")}`);
+    }
+
+    return createPaddleBillingProvider({
+      apiKey: keys.PADDLE_API_KEY,
+      webhookSecret: keys.PADDLE_WEBHOOK_SECRET,
+      clientToken: keys.PADDLE_CLIENT_TOKEN,
+      environment,
       prices: resolvePriceCatalog(env)
     });
   }

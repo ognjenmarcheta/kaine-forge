@@ -25,6 +25,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@paddle/paddle-node-sdk": "catalog:",
     "stripe": "catalog:"
   },
   "devDependencies": {

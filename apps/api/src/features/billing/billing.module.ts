@@ -17,6 +17,7 @@ import {
   type BillingFeature,
   type BillingInterval,
   type BillingLimit,
+  type BillingClientConfig,
   type BillingProvider,
   type BillingProviderName,
   type CheckoutResult,
@@ -67,6 +68,8 @@ export interface BillingLimitUsage {
 
 export interface BillingStatus {
   provider: BillingProviderName;
+  /** What the browser needs to open the provider's checkout; null for a redirect provider. */
+  clientConfig: BillingClientConfig | null;
   plan: PlanKey;
   subscriptionStatus: SubscriptionStatus | null;
   cancelAtPeriodEnd: boolean;
@@ -211,6 +214,7 @@ export function createBilling({
 
       return {
         provider,
+        clientConfig: billingProvider.clientConfig ?? null,
         plan: current.planKey,
         subscriptionStatus: subscription?.status ?? null,
         cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,

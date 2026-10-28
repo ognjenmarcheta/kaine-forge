@@ -42,8 +42,16 @@ export interface VerifiedWebhook {
  * One payment provider behind a provider-neutral interface. Server-only:
  * implementations hold secret keys.
  */
+/** What a browser needs to open the provider's checkout; never a secret. */
+export interface BillingClientConfig {
+  clientToken: string;
+  environment: string;
+}
+
 export interface BillingProvider {
   name: BillingProviderName;
+  /** Set for a provider whose checkout runs in the browser (Paddle.js). */
+  clientConfig?: BillingClientConfig;
   /** Creates the Organization's customer at the provider and returns its id. */
   createCustomer(input: { organizationId: string; name: string; email: string }): Promise<string>;
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>;

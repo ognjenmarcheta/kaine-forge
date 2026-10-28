@@ -42,6 +42,12 @@ export const billingTypeDefs = /* GraphQL */ `
     transactionId: String
   }
 
+  # What the browser needs to open a Paddle.js checkout. Never a secret.
+  type BillingClientConfig {
+    clientToken: String!
+    environment: String!
+  }
+
   type BillingLimitUsage {
     key: String!
     # Null when the Plan has no cap.
@@ -51,6 +57,8 @@ export const billingTypeDefs = /* GraphQL */ `
 
   type BillingStatus {
     provider: BillingProviderName!
+    # Set for a provider whose checkout runs in the browser; null for a redirect.
+    clientConfig: BillingClientConfig
     plan: BillingPlan!
     # The status of the subscription that grants the Plan, else of the latest one.
     subscriptionStatus: SubscriptionStatus

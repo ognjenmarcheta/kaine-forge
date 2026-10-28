@@ -4,4 +4,5 @@ export * from "./billing.none";
 export * from "./billing.config";
 export * from "./billing.prices";
 export * from "./billing.stripe";
+export * from "./billing.paddle";
 export * from "./billing.util";

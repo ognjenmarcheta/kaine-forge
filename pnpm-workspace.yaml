@@ -24,6 +24,7 @@ catalog:
   # Payment provider SDKs (packages/billing). Exact pins: Stripe pins its API version per
   # release, and the adapter sets that version explicitly.
   stripe: "23.0.1"
+  "@paddle/paddle-node-sdk": "3.10.0"
   # Postgres job runner (packages/jobs, ADR 0018). Uses DATABASE_URL; no Redis.
   pg-boss: "^12.38.0"
   zod: "^4.6.7"
