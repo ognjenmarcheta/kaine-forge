@@ -100,7 +100,7 @@ harbor light: text-subtle on surface is 2.52:1, needs 4.5:1; the nearest passing
 
 Fix the input or add an override, then build again. `pnpm theme:check` runs the same checks without writing, and `pnpm --filter @repo/theme test` runs them in CI. The checks cover:
 
-- 113 contrast pairs in both modes, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas.
+- 115 contrast pairs in both modes, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas.
 - Control heights of at least 24px (WCAG 2.2 SC 2.5.8).
 - The `DESIGN.md` of each theme, with the pinned `@google/design.md` linter.
 

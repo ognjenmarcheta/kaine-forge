@@ -42,6 +42,9 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("text-subtle", "surface-sunken", TEXT_CONTRAST),
   pair("text-subtlest", "surface-sunken-bold", TEXT_CONTRAST),
   pair("text-surface-inverse", "surface-inverse", TEXT_CONTRAST),
+  // Raised and outline buttons keep ink text on the raised hover and pressed fills.
+  pair("text", "surface-raised-hovered", TEXT_CONTRAST),
+  pair("text", "surface-raised-pressed", TEXT_CONTRAST),
   pair("link", "surface", TEXT_CONTRAST),
   pair("link-pressed", "surface", TEXT_CONTRAST),
   pair("text-danger", "surface", TEXT_CONTRAST),
