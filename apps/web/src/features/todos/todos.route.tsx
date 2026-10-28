@@ -31,6 +31,7 @@ import { useWorkspaceNavigation } from "../../components/workspace-navigation.pr
 import { useCreateTodoMutation, useUpdateTodoMutation } from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import "./todos.styles.css";
 
 export function TodosRoute() {
   const { activeOrganizationId, isLoading } = useOrganization();

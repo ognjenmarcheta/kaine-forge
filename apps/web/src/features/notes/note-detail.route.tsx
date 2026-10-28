@@ -8,6 +8,7 @@ import { canSaveNote, isNoteDirty, NEW_NOTE } from "./notes.util";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import { LoadingRows } from "../../components/loading-rows";
 import { useTranslation } from "../../hooks/use-translation";
+import "./notes.styles.css";
 
 interface NoteEditorProps {
   selected: string;

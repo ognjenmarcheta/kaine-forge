@@ -1,0 +1,36 @@
+.ui-audit {
+  display: grid;
+  gap: var(--ds-space-300);
+  min-width: 0;
+}
+
+.ui-audit__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-150);
+  padding-block: var(--ds-space-100);
+}
+
+.ui-audit__summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--ds-text-subtle);
+}
+
+.ui-audit__actor {
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text);
+}
+
+/* The separator is decoration; the empty alt text keeps it out of screen readers. */
+.ui-audit__part + .ui-audit__part::before {
+  content: "·" / "";
+  margin-inline-end: var(--ds-space-050);
+}
+
+.ui-audit__time {
+  flex-shrink: 0;
+  font: var(--ds-font-body-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-subtle);
+}
