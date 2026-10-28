@@ -20,6 +20,9 @@
     },
     {
       "path": "../translation/tsconfig.build.json"
+    },
+    {
+      "path": "../theme/tsconfig.build.json"
     }
   ]
 }

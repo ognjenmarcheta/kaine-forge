@@ -784,6 +784,9 @@ importers:
       '@repo/logger':
         specifier: workspace:*
         version: link:../logger
+      '@repo/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@repo/translation':
         specifier: workspace:*
         version: link:../translation

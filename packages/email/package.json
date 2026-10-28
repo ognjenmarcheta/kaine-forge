@@ -27,6 +27,7 @@
   "dependencies": {
     "@react-email/render": "catalog:",
     "@repo/logger": "workspace:*",
+    "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

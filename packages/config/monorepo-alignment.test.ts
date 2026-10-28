@@ -297,9 +297,11 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
   {
     file: "packages/theme/src/theme.build.test.ts",
     reason:
-      "builds every generated theme file in memory and diffs it against the committed copy in its package",
+      "builds every generated theme file in memory, including the native colors in index.html and app.json, and diffs it against the committed copy",
     needs: [
+      "$TURBO_ROOT$/apps/mobile/app.json",
       "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
+      "$TURBO_ROOT$/apps/web/index.html",
       "$TURBO_ROOT$/packages/config/tailwind/preset.tokens.js",
       "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts",
       "$TURBO_ROOT$/packages/ui/src/styles/tokens.generated.css"
