@@ -340,6 +340,37 @@ describe("session-start hook", () => {
       rmSync(repo, { recursive: true, force: true });
     }
   }, 30_000);
+  it("warns a Claude worktree session that Serena serves the main checkout", () => {
+    const repo = makeRepo();
+    const worktree = `${repo}-wt`;
+    try {
+      execFileSync(
+        "git",
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init"],
+        { cwd: repo, stdio: "ignore" }
+      );
+      execFileSync("git", ["worktree", "add", worktree], { cwd: repo, stdio: "ignore" });
+      const serena = JSON.stringify({ mcpServers: { serena: { command: "uvx" } } });
+      writeFile(repo, ".mcp.json", serena);
+      writeFile(worktree, ".mcp.json", serena);
+      const warning = `so Serena reads and edits ${repo}, not this worktree.`;
+
+      expect(runHook(worktree, "claude").stdout).toContain(warning);
+      expect(runHook(worktree, "codex").stdout).not.toContain(warning);
+      expect(runHook(repo, "claude").stdout).not.toContain("Serena reads and edits");
+
+      writeFile(
+        repo,
+        ".mcp.json",
+        JSON.stringify({ mcpServers: { serena: { command: "uvx", disabled: true } } })
+      );
+      expect(runHook(worktree, "claude").stdout).not.toContain(warning);
+    } finally {
+      rmSync(worktree, { recursive: true, force: true });
+      rmSync(repo, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it("exits cleanly outside a git repository", () => {
     const cwd = mkdtempSync(join(tmpdir(), "kaine-hook-no-repo-"));
     try {

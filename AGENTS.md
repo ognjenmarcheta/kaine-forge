@@ -218,7 +218,7 @@ In the final response for substantive work, state what you actually verified, no
 
 ### Serena during coding work
 
-- When Serena is available, read its `initial_instructions` once before code exploration and confirm the active project matches the workspace. If it is unavailable, state that limit and use ordinary tools.
+- When Serena is available, read its `initial_instructions` once before code exploration and confirm the active project matches the workspace. If it is unavailable, state that limit and use ordinary tools. If the active project is another checkout, do not use Serena reads or edits; use ordinary tools. Claude worktree sessions start Serena from the main checkout's `.mcp.json`, so there it indexes and edits the main checkout.
 - Use scoped symbol searches or file overviews, then retrieve only the bodies needed for the task. Do not repeat a full-file read or reload instructions already in context.
 - Inspect references before changing shared code. In this monorepo, independently check callers across package boundaries: TypeScript reference results can omit other configured projects. An empty or short result does not prove that a symbol has no callers.
 - Prefer symbol edits for whole definitions and reference-aware renames when caller coverage is verified. Use ordinary tools for prose, configuration, builds, tests, and small edits that symbolic replacement does not suit.
