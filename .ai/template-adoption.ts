@@ -12,6 +12,7 @@ import {
   applyTemplateAdoption,
   deriveTemplateAdoptionConfig,
   excludedFromTemplateAdoption,
+  isTextFile,
   parseTemplateAdoptionConfig,
   slugify,
   type TemplateAdoptionConfig,
@@ -37,23 +38,6 @@ const usage = `Usage:
 
 Without --write, the command previews changes only.
 `;
-
-const textFileExtensions = new Set([
-  ".css",
-  ".graphql",
-  ".html",
-  ".json",
-  ".md",
-  ".mjs",
-  ".rs",
-  ".sql",
-  ".toml",
-  ".ts",
-  ".tsx",
-  ".txt",
-  ".yml",
-  ".yaml"
-]);
 
 const parseArgs = (): CliOptions => {
   const options: CliOptions = { write: false, check: false };
@@ -186,18 +170,6 @@ const readAdoptionTargetFiles = (): Map<string, string> => {
   }
   return files;
 };
-
-const fileExtension = (path: string): string => {
-  const match = path.match(/(\.[^./]+)$/);
-  return match?.[1] ?? "";
-};
-
-const isTextFile = (path: string): boolean =>
-  path === ".env.example" ||
-  path === ".github/CODEOWNERS" ||
-  path === "Dockerfile.api" ||
-  path === "Dockerfile.web" ||
-  textFileExtensions.has(fileExtension(path));
 
 const collectRepoTextFiles = (dir = REPO_ROOT): Map<string, string> => {
   const files = new Map<string, string>();

@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { REPO_ROOT } from "./ai.util";
@@ -8,6 +10,7 @@ import {
   applyTemplateAdoption,
   deriveTemplateAdoptionConfig,
   excludedFromTemplateAdoption,
+  isTextFile,
   parseTemplateAdoptionConfig
 } from "./template-adoption.util";
 
@@ -441,5 +444,22 @@ describe("applyTemplateAdoption", () => {
 
     expect(adoptionTargets.filter((path) => !tracked.has(path))).toEqual([]);
     expect(adoptionTargets.filter((path) => excludedFromTemplateAdoption(path))).toEqual([]);
+  });
+
+  it("leaves no template identity for --check after adopting the tracked tree", () => {
+    // The files `--check` scans in a fresh clone, read into memory: the checkout is never written.
+    const scanned = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" })
+      .split("\0")
+      .filter((path) => isTextFile(path) && !excludedFromTemplateAdoption(path));
+    const tree = new Map(
+      scanned.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
+    );
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Widgets",
+      repoOwner: "acme-co",
+      desktopIdentifier: "com.acme.widgets"
+    });
+
+    expect(activeTemplateReferences(applyTemplateAdoption(tree, config).files)).toEqual([]);
   });
 });
