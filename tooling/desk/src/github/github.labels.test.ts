@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { IssueState } from "../contracts";
+import { READY_LABEL } from "./github.issue";
 import {
   AGENT_LABELS,
   LABEL_DEFINITIONS,
@@ -154,5 +156,15 @@ describe("label definitions", () => {
       'gh label create agent:working --color 1d76db --description "The agent desk is working on this issue" --force'
     );
     for (const command of commands) expect(command).not.toMatch(/[;&|$`]/);
+  });
+
+  it("matches .github/repo-setup.json, so pnpm github:setup and labels sync agree", () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../../../../.github/repo-setup.json", import.meta.url), "utf8")
+    ) as { labels: Array<{ name: string; color: string; description: string }> };
+    const agentLabels = manifest.labels.filter((label) => label.name.startsWith("agent:"));
+    expect(agentLabels).toHaveLength(LABEL_DEFINITIONS.length);
+    expect(agentLabels).toEqual(expect.arrayContaining([...LABEL_DEFINITIONS]));
+    expect(manifest.labels.map((label) => label.name)).toContain(READY_LABEL);
   });
 });

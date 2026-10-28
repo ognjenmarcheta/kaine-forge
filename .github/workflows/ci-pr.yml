@@ -270,7 +270,7 @@ jobs:
           # scripts/* tests are not under vitest.coverage.config.ts projects.
           # scripts/pr-quality-gate.test.mjs fails when this list differs from the
           # root "test" script or from the tracked scripts/*.test.mjs files.
-          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/github-setup.test.mjs
 
   coverage:
     name: Coverage Threshold

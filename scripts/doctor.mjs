@@ -448,7 +448,8 @@ function checkTrackerLabels() {
       ok: false,
       name: "Tracker labels",
       detail: `labeler.yml references labels missing from the tracker: ${missing.join(", ")}`,
-      remediation: missing.map((label) => `gh label create "${label}" --color ededed`).join(" · ")
+      remediation:
+        "Create them from .github/repo-setup.json: `pnpm github:setup --apply --only labels`"
     };
   }
   return {

@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Ask a question
+    url: https://github.com/ognjenmarcheta/kaine-forge/discussions/categories/q-a
+    about: Ask usage questions in Discussions. Use issues for bugs and planned work.
   - name: Report a security vulnerability
     url: https://github.com/ognjenmarcheta/kaine-forge/security/advisories/new
     about: Report vulnerabilities privately. Do not open a public issue with exploit details.

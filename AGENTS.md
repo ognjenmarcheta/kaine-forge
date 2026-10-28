@@ -277,6 +277,7 @@ This index is generated from canonical skill metadata:
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
+- `kaine-setup-github`: Set up or check a repository's GitHub state (labels, Discussions, merge settings, security, rulesets, Projects board) from .github/repo-setup.json with pnpm github:setup — after creating a repo from the template, or when labels, rulesets, or the board drift.
 - `kaine-shepherd-prs`: Keep a set of open PRs reviewable and mergeable (watch CI, fix failures, resolve conflicts, triage review bots), give the owner the merge order, and watch main after merges.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-summarize-work`: Write or revise implementation handoffs for completed, partial, or blocked code, configuration, and documentation changes, ending with a plain-language explanation of results and next steps.
@@ -326,6 +327,7 @@ failure behavior are documented in `docs/agents/agent-engineering.md`.
 - **ask** `pnpm db:seed` — Rewrites the seed user's credential row in whatever DATABASE_URL points at.
 - **ask** `pnpm db:migrate` — Applies migrations to whatever DATABASE_URL points at.
 - **ask** `pnpm reinstall-deps` — Wraps clean-deps and reinstalls the whole workspace.
+- **ask** `pnpm github:setup ... --apply` — Changes the GitHub repository's settings, rulesets, labels, and Projects board. The dry run and --check change nothing.
 - **ask** `git push ... --force` — Destructive on a shared branch. kaine-rebase needs it, so it asks rather than denies. --force-with-lease is unaffected.
 - **ask** `git push ... -f` — Short form of --force.
 - **ask** `git reset --hard` — Discards uncommitted work irrecoverably.
