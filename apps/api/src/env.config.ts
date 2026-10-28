@@ -37,6 +37,7 @@ const apiEnvSchema = z.object({
     z.coerce.number().int().positive().optional()
   ),
   API_TRUST_PROXY: z.string().optional(),
+  API_TRUSTED_PROXY_HOPS: z.preprocess(blankAsUnset, z.coerce.number().int().positive().optional()),
   // Below Docker's 10 s stop grace period, so the API exits before SIGKILL.
   API_SHUTDOWN_TIMEOUT_MS: z.preprocess(
     blankAsUnset,

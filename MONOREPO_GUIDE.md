@@ -228,6 +228,7 @@ Important runtime variables:
 | `API_GRAPHQL_INTROSPECTION`                                        | force introspection; default off in production                                                                         |
 | `API_RATE_LIMIT_*`                                                 | in-memory rate limit for `/api/auth/*` and `/graphql`                                                                  |
 | `API_TRUST_PROXY`                                                  | set `true` only behind a trusted reverse proxy                                                                         |
+| `API_TRUSTED_PROXY_HOPS`                                           | trusted proxies in front of the API when `API_TRUST_PROXY=true` (default 1); see `docs/deploy.md`                      |
 | `AI_TODO_PROVIDER`                                                 | optional AI todo provider; must be exactly `openai` or `deepseek`, any other value fails startup; defaults to `openai` |
 | `AI_TODO_MODEL`                                                    | optional model override for the selected AI todo provider                                                              |
 | `AI_ASSISTANT_PROVIDER`                                            | optional assistant provider; same allowed values, falls back to `AI_TODO_PROVIDER`                                     |

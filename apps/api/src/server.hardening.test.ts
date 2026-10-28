@@ -31,7 +31,13 @@ async function listen(server: Server): Promise<string> {
 async function withApiServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
   const { server, wsServer } = createApiServer({
     logger: createLogger({ name: "api-hardening-test", level: "silent" }),
-    rateLimitConfig: { enabled: false, max: 1000, windowMs: 60000, trustProxy: false }
+    rateLimitConfig: {
+      enabled: false,
+      max: 1000,
+      windowMs: 60000,
+      trustProxy: false,
+      trustedProxyHops: 1
+    }
   });
   const baseUrl = await listen(server);
 

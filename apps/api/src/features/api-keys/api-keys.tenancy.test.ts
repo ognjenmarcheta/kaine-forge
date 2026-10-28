@@ -151,7 +151,13 @@ interface GraphqlResponse {
 async function startServer(rateLimitMax: number): Promise<string> {
   const created = createApiServer({
     logger: createLogger({ name: "api-keys-tenancy-test", level: "silent" }),
-    rateLimitConfig: { enabled: true, max: rateLimitMax, windowMs: 60_000, trustProxy: false }
+    rateLimitConfig: {
+      enabled: true,
+      max: rateLimitMax,
+      windowMs: 60_000,
+      trustProxy: false,
+      trustedProxyHops: 1
+    }
   });
   servers.push(created);
   await new Promise<void>((resolve) => {

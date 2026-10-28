@@ -49,7 +49,13 @@ describe("createApiServer rate limiting", () => {
     process.env.API_CORS_ORIGINS = allowlist;
     const { server, wsServer } = createApiServer({
       logger: createLogger({ name: "api-test", level: "silent" }),
-      rateLimitConfig: { enabled: true, max: 1, windowMs: 60000, trustProxy: false }
+      rateLimitConfig: {
+        enabled: true,
+        max: 1,
+        windowMs: 60000,
+        trustProxy: false,
+        trustedProxyHops: 1
+      }
     });
     process.env.API_CORS_ORIGINS = previous;
     const baseUrl = await listen(server);
@@ -76,7 +82,13 @@ describe("createApiServer rate limiting", () => {
   it("returns a CORS-readable 429 once the limit is exceeded, but never for preflights", async () => {
     const { server, wsServer } = createApiServer({
       logger: createLogger({ name: "api-test", level: "silent" }),
-      rateLimitConfig: { enabled: true, max: 1, windowMs: 60000, trustProxy: false }
+      rateLimitConfig: {
+        enabled: true,
+        max: 1,
+        windowMs: 60000,
+        trustProxy: false,
+        trustedProxyHops: 1
+      }
     });
 
     const baseUrl = await listen(server);
@@ -129,7 +141,13 @@ describe("createApiServer better-auth mount", () => {
 
     const { server, wsServer } = createApiServer({
       logger: createLogger({ name: "api-test", level: "silent" }),
-      rateLimitConfig: { enabled: false, max: 1000, windowMs: 60000, trustProxy: false }
+      rateLimitConfig: {
+        enabled: false,
+        max: 1000,
+        windowMs: 60000,
+        trustProxy: false,
+        trustedProxyHops: 1
+      }
     });
     const baseUrl = await listen(server);
 
@@ -218,7 +236,13 @@ async function withLoggedApiServer(
   });
   const { server, wsServer } = createApiServer({
     logger: pino({ level: "debug" }, stream),
-    rateLimitConfig: { enabled: false, max: 1000, windowMs: 60000, trustProxy: false }
+    rateLimitConfig: {
+      enabled: false,
+      max: 1000,
+      windowMs: 60000,
+      trustProxy: false,
+      trustedProxyHops: 1
+    }
   });
   const baseUrl = await listen(server);
 
