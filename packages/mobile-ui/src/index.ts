@@ -10,12 +10,14 @@ export * from "./components/primitives/input";
 export * from "./components/primitives/separator";
 export * from "./components/primitives/skeleton";
 export * from "./components/primitives/text";
+export * from "./components/primitives/theme-root";
 export * from "./lib/cn";
 export * from "./lib/fonts";
 export * from "./lib/variants";
 
 export {
-  nativeThemeTokens,
+  defaultThemeName,
+  nativeThemeFonts,
   motionDurations,
   motionEasing,
   motionDistances,

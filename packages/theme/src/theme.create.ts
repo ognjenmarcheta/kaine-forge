@@ -2,6 +2,7 @@ import { createColorModes, type PaletteInput } from "./theme.palette";
 import { typeStepNames } from "./theme.roles";
 import { defaultComponents, defaultScale, defaultType } from "./theme.scale";
 import type {
+  NativeFonts,
   ThemeComponents,
   ThemeDefinition,
   ThemeMode,
@@ -22,6 +23,8 @@ export interface CreateThemeInput<Name extends string> {
   readonly color: PaletteInput;
   /** CSS font stacks. Web fonts other than Geist need their @font-face loaded by the app. */
   readonly fonts?: { readonly sans?: string; readonly heading?: string; readonly mono?: string };
+  /** Mobile fonts. Without them mobile uses the platform fonts. */
+  readonly nativeFonts?: Partial<NativeFonts>;
   readonly headingWeight?: number;
   readonly density?: Density;
   readonly depth?: Depth;
@@ -95,6 +98,7 @@ export function createTheme<const Name extends string>(
       ...(input.depth === "border" ? { "card-shadow": "none" } : {}),
       ...input.components
     },
+    nativeFonts: { sans: "system", heading: "system", mono: "system-mono", ...input.nativeFonts },
     modes: {
       light: { ...colors.light, ...input.modes?.light },
       dark: { ...colors.dark, ...input.modes?.dark }

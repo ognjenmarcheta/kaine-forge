@@ -35,6 +35,27 @@ export type ThemeType = Readonly<Record<TypeStepName, TypeStep>>;
  */
 export type ThemeComponents = Readonly<Record<ComponentTokenName, string>>;
 
+/**
+ * A font family on iOS and Android. A set names one family per weight, as the app registers
+ * them with expo-font; the strings pick a platform font that needs no loading.
+ */
+export type NativeFontFamily =
+  | "system"
+  | "system-serif"
+  | "system-mono"
+  | {
+      readonly regular: string;
+      readonly medium: string;
+      readonly semibold: string;
+      readonly bold: string;
+    };
+
+export interface NativeFonts {
+  readonly sans: NativeFontFamily;
+  readonly heading: NativeFontFamily;
+  readonly mono: NativeFontFamily;
+}
+
 export interface ThemeDefinition<Name extends string = string> {
   /** Stable id: written to the DOM and stored per Organization. Lowercase kebab-case. */
   readonly name: Name;
@@ -44,6 +65,8 @@ export interface ThemeDefinition<Name extends string = string> {
   readonly scale: ThemeScale;
   readonly type: ThemeType;
   readonly components: ThemeComponents;
+  /** The mobile fonts. CSS font stacks do not reach React Native. */
+  readonly nativeFonts: NativeFonts;
   readonly modes: Readonly<Record<ColorMode, ThemeMode>>;
 }
 

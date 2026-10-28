@@ -1,6 +1,14 @@
 import { defaultComponents, defaultScale, defaultType } from "../../theme.scale";
 import { defineTheme } from "../../theme.schema";
 
+// The Geist families apps/mobile registers with expo-font, one per weight.
+const geist = {
+  regular: "Geist_400Regular",
+  medium: "Geist_500Medium",
+  semibold: "Geist_600SemiBold",
+  bold: "Geist_700Bold"
+};
+
 export const byteForgeTheme = defineTheme({
   name: "byte-forge",
   label: "Byte Forge",
@@ -9,6 +17,16 @@ export const byteForgeTheme = defineTheme({
   scale: defaultScale,
   type: defaultType,
   components: defaultComponents,
+  nativeFonts: {
+    sans: geist,
+    heading: geist,
+    mono: {
+      regular: "GeistMono_400Regular",
+      medium: "GeistMono_400Regular",
+      semibold: "GeistMono_400Regular",
+      bold: "GeistMono_400Regular"
+    }
+  },
   modes: {
     light: {
       text: "#121419",

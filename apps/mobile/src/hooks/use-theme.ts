@@ -7,7 +7,9 @@ interface UseThemeValue {
   isHydrating: boolean;
   resolvedTheme: "dark" | "light";
   setThemeMode: (mode: ThemeMode) => void;
+  setThemeName: (name: string | null) => void;
   themeMode: ThemeMode;
+  themeName: string;
 }
 
 export function useTheme(): UseThemeValue {

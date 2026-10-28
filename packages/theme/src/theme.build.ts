@@ -56,7 +56,10 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
   return Promise.all([
     formatted("packages/ui/src/styles/tokens.generated.css", emitWebTokens(themes, defaultTheme)),
     formatted(mobileCss, emitMobileCss(defaultTheme, read(mobileCss))),
-    formatted("packages/mobile-ui/src/lib/design-tokens.ts", emitNativeTokens(defaultTheme)),
+    formatted(
+      "packages/mobile-ui/src/lib/design-tokens.ts",
+      emitNativeTokens(themes, defaultTheme)
+    ),
     formatted("packages/config/tailwind/preset.tokens.js", emitPresetTokens(defaultTheme)),
     formatted("apps/web/index.html", withThemeColor(read("apps/web/index.html"))),
     formatted("apps/mobile/app.json", withSplashColors(read("apps/mobile/app.json")))

@@ -1,3 +1,4 @@
+import { defaultThemeName } from "@repo/mobile-ui";
 import { useColorScheme as useNativeWindColorScheme } from "nativewind";
 import { createContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useColorScheme as useSystemColorScheme } from "react-native";
@@ -8,7 +9,9 @@ interface ThemeContextValue {
   isHydrating: boolean;
   resolvedTheme: "dark" | "light";
   setThemeMode: (mode: ThemeMode) => void;
+  setThemeName: (name: string | null) => void;
   themeMode: ThemeMode;
+  themeName: string;
 }
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -22,6 +25,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [hasAppliedTheme, setHasAppliedTheme] = useState(false);
   const themeMode = useThemeStore((state) => state.themeMode);
   const setThemeMode = useThemeStore((state) => state.setThemeMode);
+  const themeName = useThemeStore((state) => state.themeName) ?? defaultThemeName;
+  const setThemeName = useThemeStore((state) => state.setThemeName);
   const systemTheme = useSystemColorScheme() === "dark" ? "dark" : "light";
   const { setColorScheme } = useNativeWindColorScheme();
 
@@ -52,9 +57,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       isHydrating: isHydrating || !hasAppliedTheme,
       resolvedTheme,
       setThemeMode,
-      themeMode
+      setThemeName,
+      themeMode,
+      themeName
     }),
-    [hasAppliedTheme, isHydrating, resolvedTheme, setThemeMode, themeMode]
+    [hasAppliedTheme, isHydrating, resolvedTheme, setThemeMode, setThemeName, themeMode, themeName]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

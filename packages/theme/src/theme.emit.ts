@@ -202,8 +202,15 @@ export function emitMobileCss(theme: ThemeDefinition, current: string): string {
   );
 }
 
-/** packages/mobile-ui/src/lib/design-tokens.ts: values React Native reads outside NativeWind. */
-export function emitNativeTokens(theme: ThemeDefinition): string {
+/**
+ * packages/mobile-ui/src/lib/design-tokens.ts: every registered theme for React Native. The
+ * CSS variables feed NativeWind vars(), so a subtree can switch theme and mode at runtime;
+ * the palettes and fonts feed APIs that need concrete values, such as navigation.
+ */
+export function emitNativeTokens(
+  themes: readonly ThemeDefinition[],
+  defaultTheme: ThemeDefinition
+): string {
   const palette = (mode: ThemeMode): Record<string, string> => ({
     background: mode["surface-sunken"],
     surface: mode.surface,
@@ -213,23 +220,45 @@ export function emitNativeTokens(theme: ThemeDefinition): string {
     primary: mode.link,
     selected: mode["background-selected"]
   });
-  const integer = (name: ScaleTokenName): number => Number.parseInt(theme.scale[name], 10);
+  const modeNames = [...colorRoles, ...shadowRoles];
+  const cssVariables = (theme: ThemeDefinition, mode: ThemeMode): Record<string, string> =>
+    Object.fromEntries(
+      [
+        ...scaleTokenNames
+          .filter((name) => MOBILE_SCALE.test(name))
+          .map((name): Entry => [name, theme.scale[name]]),
+        ...modeEntries(mode, modeNames)
+      ].map(([name, value]) => [`--ds-${name}`, value])
+    );
+  const byTheme = <T>(value: (theme: ThemeDefinition) => T): Record<string, T> =>
+    Object.fromEntries(themes.map((theme) => [theme.name, value(theme)]));
+  const integer = (name: ScaleTokenName): number => Number.parseInt(defaultTheme.scale[name], 10);
   const json = (value: unknown): string => JSON.stringify(value, null, 2);
 
   return [
     `// ${HEADER}`,
-    `export const nativeThemeTokens = ${json({ light: palette(theme.modes.light), dark: palette(theme.modes.dark) })};`,
+    `export const defaultThemeName = ${JSON.stringify(defaultTheme.name)};`,
+    `export const themeVariables = ${json(
+      byTheme((theme) => ({
+        light: cssVariables(theme, theme.modes.light),
+        dark: cssVariables(theme, theme.modes.dark)
+      }))
+    )};`,
+    `export const nativeThemeTokens = ${json(
+      byTheme((theme) => ({ light: palette(theme.modes.light), dark: palette(theme.modes.dark) }))
+    )};`,
+    `export const nativeThemeFonts = ${json(byTheme((theme) => theme.nativeFonts))} as const;`,
     `export const motionDurations = ${json({
       control: integer("motion-control"),
       overlay: integer("motion-overlay"),
       drawer: integer("motion-drawer")
     })};`,
-    `export const motionEasing = ${JSON.stringify(theme.scale["motion-easing"].match(/[\d.]+/g)?.map(Number))} as const;`,
+    `export const motionEasing = ${JSON.stringify(defaultTheme.scale["motion-easing"].match(/[\d.]+/g)?.map(Number))} as const;`,
     `export const motionDistances = ${JSON.stringify({
       dialog: integer("motion-distance-dialog"),
       menu: integer("motion-distance-menu")
     })};`,
-    `export const motionPressScale = ${Number.parseFloat(theme.scale["motion-press-scale"])};`
+    `export const motionPressScale = ${Number.parseFloat(defaultTheme.scale["motion-press-scale"])};`
   ].join("\n\n");
 }
 

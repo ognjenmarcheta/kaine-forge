@@ -13,6 +13,7 @@ export const mossTheme = createTheme({
       'ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif',
     mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
   },
+  nativeFonts: { heading: "system-serif" },
   headingWeight: 600,
   density: "compact",
   depth: "border",

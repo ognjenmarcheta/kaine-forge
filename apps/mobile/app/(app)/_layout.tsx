@@ -4,7 +4,7 @@ import {
   type DrawerContentComponentProps
 } from "@react-navigation/drawer";
 import { FEATURE_FLAGS, useFeatureFlag } from "@repo/feature-flags";
-import { Button, Text, nativeThemeTokens } from "@repo/mobile-ui";
+import { Button, Text, useThemeTokens } from "@repo/mobile-ui";
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import { Redirect } from "expo-router";
 import { Drawer } from "expo-router/drawer";
@@ -14,7 +14,6 @@ import { View } from "react-native";
 import { ThemeOptions } from "../../src/components/theme-options";
 import { useAuth } from "../../src/hooks/use-auth";
 import { useOrganization } from "../../src/hooks/use-organization";
-import { useTheme } from "../../src/hooks/use-theme";
 import { useTranslation } from "../../src/hooks/use-translation";
 
 function DrawerContent(props: DrawerContentComponentProps) {
@@ -91,10 +90,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
 export default function AppLayout() {
   const { isLoading, session } = useAuth();
-  const { resolvedTheme } = useTheme();
   const { t } = useTranslation();
   const organizationsVisible = useFeatureFlag(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE);
-  const palette = nativeThemeTokens[resolvedTheme];
+  const palette = useThemeTokens();
   if (isLoading)
     return (
       <View className="flex-1 items-center justify-center bg-ds-surface">
