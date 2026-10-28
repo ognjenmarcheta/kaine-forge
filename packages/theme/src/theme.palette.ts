@@ -222,10 +222,11 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "surface-overlay": surface,
       border: gray(0.925),
       "border-strong": gray(0.86),
-      "border-bold": ensureContrast(gray(0.62), surface, GRAPHIC_CONTRAST),
+      // Graphics meet sunken areas too, the darkest light surface, so measure against them.
+      "border-bold": ensureContrast(gray(0.62), sunken, GRAPHIC_CONTRAST),
       "border-focused": focus,
       "border-selected": focus,
-      "border-brand": ensureContrast(input.brand, surface, GRAPHIC_CONTRAST),
+      "border-brand": ensureContrast(input.brand, sunken, GRAPHIC_CONTRAST),
       "border-success": success.text,
       "border-danger": danger.text,
       "border-warning": warningText,

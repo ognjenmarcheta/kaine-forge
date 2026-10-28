@@ -105,7 +105,15 @@ export const contrastPairs: readonly ContrastPair[] = [
     pair("text-information", background, TEXT_CONTRAST),
     pair("text-discovery", background, TEXT_CONTRAST),
     pair("icon", background, GRAPHIC_CONTRAST),
-    pair("icon-subtle", background, GRAPHIC_CONTRAST)
+    pair("icon-subtle", background, GRAPHIC_CONTRAST),
+    // Charts draw a role series with these borders, so they hold on cards and panels too.
+    pair("border-bold", background, GRAPHIC_CONTRAST),
+    pair("border-brand", background, GRAPHIC_CONTRAST),
+    pair("border-success", background, GRAPHIC_CONTRAST),
+    pair("border-danger", background, GRAPHIC_CONTRAST),
+    pair("border-warning", background, GRAPHIC_CONTRAST),
+    pair("border-information", background, GRAPHIC_CONTRAST),
+    pair("border-discovery", background, GRAPHIC_CONTRAST)
   ]),
   pair("chart-1", "surface-raised", GRAPHIC_CONTRAST),
   pair("chart-2", "surface-raised", GRAPHIC_CONTRAST),
