@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { ChartsPage } from "./lab.charts";
 import { CompareView } from "./lab.compare";
 import { LabGallery } from "./lab.gallery";
 import type { LabCatalog, LabScreen } from "./lab.registry";
@@ -49,6 +50,7 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const screen = catalog.screens.find((entry) => entry.id === id);
   const failure = catalog.failures.find((entry) => entry.id === id);
 
+  if (view === "charts") return <ChartsPage catalog={catalog} />;
   if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
   if (screen && view === "compare") {

@@ -2,10 +2,11 @@ import { cn } from "@repo/ui";
 
 const links = [
   { href: "#/", label: "Components", page: "components" },
-  { href: "#/screens", label: "Screens", page: "screens" }
+  { href: "#/screens", label: "Screens", page: "screens" },
+  { href: "#/charts", label: "Charts", page: "charts" }
 ] as const;
 
-/** The lab's two pages: the component gallery and the recreated screens. */
+/** The lab's pages: the component gallery, the recreated screens, and the chart primitives. */
 export function LabNav({ current }: { current: (typeof links)[number]["page"] }) {
   return (
     <nav aria-label="Lab" className="flex items-center gap-ds-050">
