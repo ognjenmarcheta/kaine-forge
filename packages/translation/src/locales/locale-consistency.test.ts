@@ -20,6 +20,10 @@ const namespaceFiles = readdirSync(join(localesDir, "en"))
 // is scoped to a locale and a key, so it cannot exempt newly scaffolded copy.
 const identicalValues: Readonly<Record<string, readonly string[]>> = {
   de: [
+    // Billing: Plan names are product names, shown as they are in every language.
+    "billing.json:billing.plan.free",
+    "billing.json:billing.plan.pro",
+    "billing.json:billing.plan.business",
     // Auth: "Code" is the German word for a one-time code.
     "auth.json:auth.otp.codeLabel",
     // Auth: "Passkeys" is the German term Apple, Google, and Microsoft use.
@@ -101,6 +105,10 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "todos.json:todos.ai.promptLabel"
   ],
   sr: [
+    // Billing: Plan names are product names, shown as they are in every language.
+    "billing.json:billing.plan.free",
+    "billing.json:billing.plan.pro",
+    "billing.json:billing.plan.business",
     "auth.json:auth.form.emailPlaceholder",
 
     // Agent desk: brand, autonyms, issue numbers, and technical terms that Serbian developers use as they are.

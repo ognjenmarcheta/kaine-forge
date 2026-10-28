@@ -18,6 +18,7 @@ import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { listOrganizationMembersRequest } from "../../lib/auth-api";
+import { BillingSection } from "../billing/components/billing-section";
 import { DataExportSection } from "../data-export/components/data-export-section";
 import { PublicAssetUpload } from "../public-assets/components/public-asset-upload";
 
@@ -125,6 +126,13 @@ export function OrganizationRolesTab() {
       <OrganizationRoles />
     </RequirePermission>
   );
+}
+
+/** The Active Organization's Plan and usage; checkout and the portal for the owner. */
+export function OrganizationBillingTab() {
+  const { activeOrganizationId, can } = useOrganizationSettingsAccess();
+
+  return <BillingSection canManage={can("billing:manage")} organizationId={activeOrganizationId} />;
 }
 
 /** The export of the Active Organization's data. */

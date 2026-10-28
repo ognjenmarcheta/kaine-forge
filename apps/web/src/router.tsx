@@ -73,6 +73,7 @@ import { OrganizationCreateDialog } from "./features/organizations/components/or
 import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
 import {
+  OrganizationBillingTab,
   OrganizationDataTab,
   OrganizationGeneralTab,
   OrganizationMembersTab,
@@ -428,6 +429,7 @@ export const appRoutes: RouteObject[] = [
                 handle: { titleKey: "navigation.organization" },
                 path: "organization",
                 children: settingsTabRoutes("/organization", ORGANIZATION_TABS, {
+                  billing: <OrganizationBillingTab />,
                   data: <OrganizationDataTab />,
                   general: <OrganizationGeneralTab />,
                   members: <OrganizationMembersTab />,

@@ -1,0 +1,14 @@
+query GetMobileBilling {
+  billing {
+    provider
+    plan
+    subscriptionStatus
+    cancelAtPeriodEnd
+    currentPeriodEnd
+    limits {
+      key
+      max
+      used
+    }
+  }
+}

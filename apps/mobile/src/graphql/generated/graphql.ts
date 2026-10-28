@@ -7,6 +7,10 @@ export type Incremental<T> =
 import { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 export type AttachmentEntityType = "general" | "todo";
 
+export type BillingPlan = "business" | "free" | "pro" | "unlimited";
+
+export type BillingProviderName = "none" | "paddle" | "stripe";
+
 export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
@@ -28,6 +32,9 @@ export type RequestUploadInput = {
   sizeBytes: number;
 };
 
+export type SubscriptionStatus =
+  "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
+
 export type UpdateTodoInput = {
   completed?: boolean | null | undefined;
   description?: string | null | undefined;
@@ -37,6 +44,19 @@ export type UpdateTodoInput = {
 export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MobileHealthQuery = { health: string };
+
+export type GetMobileBillingQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMobileBillingQuery = {
+  billing: {
+    provider: BillingProviderName;
+    plan: BillingPlan;
+    subscriptionStatus: SubscriptionStatus | null;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: unknown;
+    limits: Array<{ key: string; max: number | null; used: number }>;
+  };
+};
 
 export type MobileOrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -298,6 +318,47 @@ export const MobileHealthDocument = {
     }
   ]
 } as unknown as DocumentNode<MobileHealthQuery, MobileHealthQueryVariables>;
+export const GetMobileBillingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetMobileBilling" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "billing" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "provider" } },
+                { kind: "Field", name: { kind: "Name", value: "plan" } },
+                { kind: "Field", name: { kind: "Name", value: "subscriptionStatus" } },
+                { kind: "Field", name: { kind: "Name", value: "cancelAtPeriodEnd" } },
+                { kind: "Field", name: { kind: "Name", value: "currentPeriodEnd" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "limits" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
+                      { kind: "Field", name: { kind: "Name", value: "max" } },
+                      { kind: "Field", name: { kind: "Name", value: "used" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<GetMobileBillingQuery, GetMobileBillingQueryVariables>;
 export const MobileOrganizationThemeDocument = {
   kind: "Document",
   definitions: [

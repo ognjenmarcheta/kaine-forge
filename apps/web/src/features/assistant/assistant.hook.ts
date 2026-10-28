@@ -21,6 +21,7 @@ import {
 import { useSubscription } from "../../hooks/use-subscription";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 import { queryRuntime } from "../../lib/query-runtime";
+import { planErrorOf } from "../billing/billing.hook";
 
 queryRuntime.registerOrgScopedOperation(
   "assistant.web.conversations",
@@ -216,16 +217,18 @@ export function useAssistant(organizationId: string | null, enabled: boolean) {
           ];
         })
       }));
-    } catch {
+    } catch (error) {
       if (!mounted.current || pending.current !== request) return;
       targetKey = request.conversationId ?? key;
+      // The Plan refused before the model ran, so nothing was written.
+      const failure = planErrorOf(error) === "PLAN_FEATURE_REQUIRED" ? "planRequired" : "failed";
       setExchanges((current) => ({
         ...current,
         [key]: (current[key] ?? [])
           .filter((message) => message.id !== userMessageId)
           .map((message) =>
             message.id === messageId
-              ? { ...message, streaming: false, error: "failed", prompt }
+              ? { ...message, streaming: false, error: failure, prompt }
               : message
           )
       }));

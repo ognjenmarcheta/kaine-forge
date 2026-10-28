@@ -68,6 +68,22 @@ _Avoid_: token, access token, personal access token
 An HTTPS URL on port 443 that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once, at creation or rotation. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
 _Avoid_: callback, hook URL, integration
 
+**Plan**:
+What an **Organization** may use: limits such as the number of Todos, and features such as the assistant. The catalog lives in code; a payment provider holds the prices.
+_Avoid_: tier, package, subscription (for the catalog entry)
+
+**Subscription**:
+An **Organization**'s paid **Plan** at the deployment's payment provider (Stripe or Paddle), mirrored from the provider by webhooks.
+_Avoid_: plan (for the provider record), license
+
+**Entitlement**:
+The limits and features an **Organization** gets now, resolved from its **Subscriptions**: the subscribed **Plan** while the provider bills it, else free, and unlimited while billing is off.
+_Avoid_: feature flag, permission
+
+**Seat**:
+One member of an **Organization** on a per-seat **Plan**; the **Subscription** quantity equals the member count.
+_Avoid_: license, user slot
+
 **Email Verification**:
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation
@@ -85,6 +101,8 @@ _Avoid_: account activation
 - A **Public Asset** belongs to exactly one **User** (avatar) or one **Organization** (logo); only a member with the `logo:update` **Permission** changes an Organization's logo.
 - A **Custom Role** belongs to exactly one **Organization**; an **Organization Membership** holds one or more roles by name.
 - An **Invitation** belongs to exactly one **Organization** and targets exactly one email address; accepting it creates an **Organization Membership** with the invited role.
+- An **Organization** has zero or more **Subscriptions** at one payment provider; its **Entitlements** come from the best one the provider still bills.
+- Only a member with the owner-only `billing:manage` Permission starts a checkout or opens the provider portal; every member reads the **Plan**.
 - An **API Key** belongs to exactly one **Organization** and was created by one **User**; it never reaches another Organization.
 - A **Webhook Endpoint** belongs to exactly one **Organization** and receives only that Organization's events.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
@@ -145,6 +163,8 @@ This repository is a multi-platform **template**. Reference features are not req
 **Mobile-supported reference features (today):** auth, dashboard, todos (CRUD and attachments), organization session/switch when the `ORGANIZATIONS_VISIBLE` feature flag is enabled (members route is thin).
 
 **Web-first / web-only reference features (API + web; not mobile UI or mobile GraphQL ops):** notes, assistant (and any new feature that does not explicitly opt into mobile).
+
+**Billing:** checkout and the provider portal are web-only. Mobile shows the **Plan** read-only and the plan-limit message on Todo create, with no purchase link, so no app store payment rule applies.
 
 **When a new feature must include mobile:** only when the task or product policy says so, or when the feature is meant to replace/extend the mobile-supported set above. Default for “add a feature” is API + web; add mobile operations and screens as an explicit follow-up, not an implied requirement.
 

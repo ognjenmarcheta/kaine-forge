@@ -41,6 +41,14 @@ export type AuditAction =
   | "webhook_endpoint_updated"
   | "webhook_secret_rotated";
 
+export type BillingCheckoutMode = "overlay" | "redirect";
+
+export type BillingInterval = "month" | "year";
+
+export type BillingPlan = "business" | "free" | "pro" | "unlimited";
+
+export type BillingProviderName = "none" | "paddle" | "stripe";
+
 export type CreateApiKeyInput = {
   expiresInDays?: number | null | undefined;
   name: string;
@@ -108,6 +116,9 @@ export type SendMessageInput = {
 };
 
 export type SendMessageStatus = "AI_NOT_CONFIGURED" | "FAILED" | "REPLIED";
+
+export type SubscriptionStatus =
+  "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
 
 export type UpdateNoteInput = {
   body?: string | null | undefined;
@@ -261,6 +272,34 @@ export type AuditEventsQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type BillingQueryVariables = Exact<{ [key: string]: never }>;
+
+export type BillingQuery = {
+  billing: {
+    provider: BillingProviderName;
+    plan: BillingPlan;
+    subscriptionStatus: SubscriptionStatus | null;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: string | null;
+    features: Array<string>;
+    clientConfig: { clientToken: string; environment: string } | null;
+    limits: Array<{ key: string; max: number | null; used: number }>;
+  };
+};
+
+export type StartCheckoutMutationVariables = Exact<{
+  plan: BillingPlan;
+  interval: BillingInterval;
+}>;
+
+export type StartCheckoutMutation = {
+  startCheckout: { mode: BillingCheckoutMode; url: string | null; transactionId: string | null };
+};
+
+export type OpenBillingPortalMutationVariables = Exact<{ [key: string]: never }>;
+
+export type OpenBillingPortalMutation = { openBillingPortal: string };
 
 export type DataExportsQueryVariables = Exact<{
   kind: DataExportKind;
@@ -1275,6 +1314,106 @@ export const useHealthQuery = <TData = HealthQuery, TError = unknown>(
 
 useHealthQuery.getKey = (variables?: HealthQueryVariables) =>
   variables === undefined ? ["Health"] : ["Health", variables];
+
+export const BillingDocument = new TypedDocumentString(`
+    query Billing {
+  billing {
+    provider
+    clientConfig {
+      clientToken
+      environment
+    }
+    plan
+    subscriptionStatus
+    cancelAtPeriodEnd
+    currentPeriodEnd
+    features
+    limits {
+      key
+      max
+      used
+    }
+  }
+}
+    `);
+
+export const useBillingQuery = <TData = BillingQuery, TError = unknown>(
+  variables?: BillingQueryVariables,
+  options?: Omit<UseQueryOptions<BillingQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<BillingQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<BillingQuery, TError, TData>({
+    queryKey: variables === undefined ? ["Billing"] : ["Billing", variables],
+    queryFn: useGraphqlFetcher<BillingQuery, BillingQueryVariables>(BillingDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useBillingQuery.getKey = (variables?: BillingQueryVariables) =>
+  variables === undefined ? ["Billing"] : ["Billing", variables];
+
+export const StartCheckoutDocument = new TypedDocumentString(`
+    mutation StartCheckout($plan: BillingPlan!, $interval: BillingInterval!) {
+  startCheckout(plan: $plan, interval: $interval) {
+    mode
+    url
+    transactionId
+  }
+}
+    `);
+
+export const useStartCheckoutMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    StartCheckoutMutation,
+    TError,
+    StartCheckoutMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<StartCheckoutMutation, TError, StartCheckoutMutationVariables, TContext>({
+    mutationKey: ["StartCheckout"],
+    mutationFn: useGraphqlFetcher<StartCheckoutMutation, StartCheckoutMutationVariables>(
+      StartCheckoutDocument
+    ),
+    ...options
+  });
+};
+
+useStartCheckoutMutation.getKey = () => ["StartCheckout"];
+
+export const OpenBillingPortalDocument = new TypedDocumentString(`
+    mutation OpenBillingPortal {
+  openBillingPortal
+}
+    `);
+
+export const useOpenBillingPortalMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    OpenBillingPortalMutation,
+    TError,
+    OpenBillingPortalMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    OpenBillingPortalMutation,
+    TError,
+    OpenBillingPortalMutationVariables,
+    TContext
+  >({
+    mutationKey: ["OpenBillingPortal"],
+    mutationFn: useGraphqlFetcher<OpenBillingPortalMutation, OpenBillingPortalMutationVariables>(
+      OpenBillingPortalDocument
+    ),
+    ...options
+  });
+};
+
+useOpenBillingPortalMutation.getKey = () => ["OpenBillingPortal"];
 
 export const DataExportsDocument = new TypedDocumentString(`
     query DataExports($kind: DataExportKind!, $first: Int) {

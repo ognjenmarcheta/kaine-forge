@@ -43,7 +43,9 @@ export const ORGANIZATION_TABS = [
   { segment: "general", titleKey: "navigation.general" },
   { segment: "members", titleKey: "navigation.members" },
   { permission: "ac:create", segment: "roles", titleKey: "navigation.roles" },
-  { permission: "organization:export", segment: "data", titleKey: "navigation.data" }
+  { permission: "organization:export", segment: "data", titleKey: "navigation.data" },
+  // Every member reads the Plan; only billing:manage offers checkout and the portal.
+  { segment: "billing", titleKey: "navigation.billing" }
 ] as const satisfies readonly ShellNavigationTab[];
 
 /** The first tab is the default that `/account` and an unknown tab open. */

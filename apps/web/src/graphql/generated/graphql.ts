@@ -40,6 +40,14 @@ export type AuditAction =
   | "webhook_endpoint_updated"
   | "webhook_secret_rotated";
 
+export type BillingCheckoutMode = "overlay" | "redirect";
+
+export type BillingInterval = "month" | "year";
+
+export type BillingPlan = "business" | "free" | "pro" | "unlimited";
+
+export type BillingProviderName = "none" | "paddle" | "stripe";
+
 export type CreateApiKeyInput = {
   expiresInDays?: number | null | undefined;
   name: string;
@@ -107,6 +115,9 @@ export type SendMessageInput = {
 };
 
 export type SendMessageStatus = "AI_NOT_CONFIGURED" | "FAILED" | "REPLIED";
+
+export type SubscriptionStatus =
+  "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
 
 export type UpdateNoteInput = {
   body?: string | null | undefined;
@@ -244,6 +255,34 @@ export type AuditEventsQuery = {
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = { health: string };
+
+export type BillingQueryVariables = Exact<{ [key: string]: never }>;
+
+export type BillingQuery = {
+  billing: {
+    provider: BillingProviderName;
+    plan: BillingPlan;
+    subscriptionStatus: SubscriptionStatus | null;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: unknown;
+    features: Array<string>;
+    clientConfig: { clientToken: string; environment: string } | null;
+    limits: Array<{ key: string; max: number | null; used: number }>;
+  };
+};
+
+export type StartCheckoutMutationVariables = Exact<{
+  plan: BillingPlan;
+  interval: BillingInterval;
+}>;
+
+export type StartCheckoutMutation = {
+  startCheckout: { mode: BillingCheckoutMode; url: string | null; transactionId: string | null };
+};
+
+export type OpenBillingPortalMutationVariables = Exact<{ [key: string]: never }>;
+
+export type OpenBillingPortalMutation = { openBillingPortal: string };
 
 export type DataExportsQueryVariables = Exact<{
   kind: DataExportKind;
@@ -1526,6 +1565,130 @@ export const HealthDocument = {
     }
   ]
 } as unknown as DocumentNode<HealthQuery, HealthQueryVariables>;
+export const BillingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "Billing" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "billing" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "provider" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "clientConfig" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "clientToken" } },
+                      { kind: "Field", name: { kind: "Name", value: "environment" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "plan" } },
+                { kind: "Field", name: { kind: "Name", value: "subscriptionStatus" } },
+                { kind: "Field", name: { kind: "Name", value: "cancelAtPeriodEnd" } },
+                { kind: "Field", name: { kind: "Name", value: "currentPeriodEnd" } },
+                { kind: "Field", name: { kind: "Name", value: "features" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "limits" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
+                      { kind: "Field", name: { kind: "Name", value: "max" } },
+                      { kind: "Field", name: { kind: "Name", value: "used" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<BillingQuery, BillingQueryVariables>;
+export const StartCheckoutDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "StartCheckout" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "plan" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "BillingPlan" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "interval" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "BillingInterval" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "startCheckout" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "plan" },
+                value: { kind: "Variable", name: { kind: "Name", value: "plan" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "interval" },
+                value: { kind: "Variable", name: { kind: "Name", value: "interval" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "mode" } },
+                { kind: "Field", name: { kind: "Name", value: "url" } },
+                { kind: "Field", name: { kind: "Name", value: "transactionId" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<StartCheckoutMutation, StartCheckoutMutationVariables>;
+export const OpenBillingPortalDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "OpenBillingPortal" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "openBillingPortal" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OpenBillingPortalMutation, OpenBillingPortalMutationVariables>;
 export const DataExportsDocument = {
   kind: "Document",
   definitions: [

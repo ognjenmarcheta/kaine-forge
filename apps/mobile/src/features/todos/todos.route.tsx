@@ -22,6 +22,7 @@ import {
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { queryRuntime } from "../../lib/query-runtime";
+import { isPlanLimitError } from "../billing/billing.util";
 
 queryRuntime.registerOrgScopedOperation("todos.mobile.list", useGetMobileTodosQuery.getKey());
 
@@ -125,7 +126,7 @@ export function TodosRoute() {
         draft
       });
     } catch (error) {
-      setActionError(t("error.generic"));
+      setActionError(t(isPlanLimitError(error) ? "billing.limitReached.todos" : "error.generic"));
       throw error;
     }
   }

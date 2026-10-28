@@ -72,7 +72,18 @@ export function AssistantMessageList({ messages, onUsePrompt }: AssistantMessage
                   ) : null}
                   {message.error ? (
                     <div role="alert" className="ui-assistant__error">
-                      <strong>{t(`assistant.ai.${message.error}`)}</strong>
+                      <strong>
+                        {t(
+                          message.error === "planRequired"
+                            ? "billing.featureRequired.assistant"
+                            : `assistant.ai.${message.error}`
+                        )}
+                      </strong>
+                      {message.error === "planRequired" ? (
+                        <div className="ui-assistant__result-links">
+                          <Link to="/organization/billing">{t("billing.viewPlans")}</Link>
+                        </div>
+                      ) : null}
                       {message.error === "failed" ? (
                         <>
                           <p>{t("assistant.ai.uncertain")}</p>

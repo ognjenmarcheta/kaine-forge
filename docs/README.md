@@ -17,6 +17,7 @@ Use this index to find the right source of truth quickly.
 - [`self-hosted-ci.md`](self-hosted-ci.md): optional private-repository runner routing, the ARC reference setup with automatic hosted fallback, validation, and rollback.
 - [`backup-and-restore.md`](backup-and-restore.md): Postgres and object storage backups, default RPO and RTO targets, bucket versioning against the storage sweeper, and the restore drill.
 - [`incident-response.md`](incident-response.md): severity levels, roles, first-hour checklist, status update template, and blameless postmortem template.
+- [`billing.md`](billing.md): Plans, Stripe and Paddle setup, webhooks, seat sync, and billing behavior.
 - [`release-checklist.md`](release-checklist.md): release validation checklist.
 - [`troubleshooting.md`](troubleshooting.md): common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - [`.env.example`](../.env.example): commented environment variable defaults (behavior detail lives in `MONOREPO_GUIDE.md` section 9).
@@ -37,6 +38,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0010-local-factory-dashboard.md`](adr/0010-local-factory-dashboard.md): local dashboard for the retired software factory (superseded by ADR 0011).
 - [`adr/0011-local-agent-desk.md`](adr/0011-local-agent-desk.md): local agent desk engine, GitHub authorization, and factory retirement.
 - [`adr/0018-postgres-job-runner.md`](adr/0018-postgres-job-runner.md): pg-boss background job runner on the app's Postgres.
+- [`adr/0019-own-billing-package.md`](adr/0019-own-billing-package.md): own provider-neutral billing package for Stripe and Paddle.
 
 ## AI assistant docs
 

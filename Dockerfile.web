@@ -54,8 +54,12 @@ ENV CSP_API_ORIGINS=""
 ENV CSP_STORAGE_ORIGINS=http://localhost:9000
 # CSP_PUBLIC_ASSET_ORIGINS: the origin of S3_PUBLIC_BASE_URL.
 ENV CSP_PUBLIC_ASSET_ORIGINS=http://localhost:9000
+# CSP_BILLING_ORIGINS: Paddle.js and its checkout frames with BILLING_PROVIDER=paddle.
+ENV CSP_BILLING_ORIGINS=""
+# BILLING_PAYMENT_ORIGINS: double-quoted origins allowed wallet payments in a checkout frame.
+ENV BILLING_PAYMENT_ORIGINS=""
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:3000/ || exit 1
-CMD ["sh", "-c", "envsubst '$API_BACKEND_URL $CSP_API_ORIGINS $CSP_STORAGE_ORIGINS $CSP_PUBLIC_ASSET_ORIGINS' < /etc/nginx/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "envsubst '$API_BACKEND_URL $CSP_API_ORIGINS $CSP_STORAGE_ORIGINS $CSP_PUBLIC_ASSET_ORIGINS $CSP_BILLING_ORIGINS $BILLING_PAYMENT_ORIGINS' < /etc/nginx/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
