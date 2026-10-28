@@ -1,11 +1,13 @@
 import {
   Card,
+  Gauge,
   Plot,
   PlotArcs,
   PlotArea,
   PlotAxis,
   PlotBand,
   PlotBars,
+  PlotCrosshair,
   PlotDots,
   PlotGrid,
   PlotHighlight,
@@ -95,6 +97,275 @@ function Demo({
       <p className="m-0 text-body-sm text-ds-text-subtle">{description}</p>
       {children}
     </Card>
+  );
+}
+
+// Fixed demo data for the interaction demos: a second week, a fortnight, and two months of cases.
+const lastWeekVisits = [98, 140, 171, 160, 205, 214, 180];
+const fortnight = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].flatMap((day) => [
+  `${day} 1`,
+  `${day} 2`
+]);
+const fortnightVisits = [88, 120, 131, 150, 142, 160, 175, 168, 190, 214, 201, 222, 236, 248];
+const diagnoses = ["Pneumonia", "Bronchitis", "Asthma", "Influenza", "Other"];
+const casesByMonth = {
+  june: [95, 72, 58, 41, 30],
+  july: [61, 88, 49, 83, 22]
+} as const;
+const projectsByWeek = {
+  now: [9, 12, 9],
+  before: [5, 10, 15]
+} as const;
+
+type Week = "this" | "last";
+
+function WeekToggle({ onChange, value }: { onChange: (week: Week) => void; value: Week }) {
+  return (
+    <SegmentedControl
+      aria-label="Week"
+      className="justify-self-start"
+      value={value}
+      onValueChange={(next) => onChange(next === "last" ? "last" : "this")}
+    >
+      <SegmentedControlItem value="this">This week</SegmentedControlItem>
+      <SegmentedControlItem value="last">Last week</SegmentedControlItem>
+    </SegmentedControl>
+  );
+}
+
+/** Hover, focus, or tap a bar for its value; click or press Enter to pin it; switch the week. */
+function HoverAndPin() {
+  const [week, setWeek] = useState<Week>("this");
+  const [pinned, setPinned] = useState<number | null>(null);
+  const data = week === "this" ? visits : lastWeekVisits;
+
+  return (
+    <Demo
+      description="Hover a bar: it gets a ring and the tooltip follows it. Click a bar, or focus the chart and press Enter, to pin it; click it again or press Escape to unpin. The arrow keys, Home, and End move the active bar. Switch the week: the bars grow and shrink to the new values."
+      title="Hover, pin, and switch data"
+    >
+      <WeekToggle onChange={setWeek} value={week} />
+      <Plot
+        height={180}
+        hideTitle
+        interaction={{ selectedIndex: pinned, onSelectedChange: setPinned }}
+        margin={{ top: 8, right: 0, bottom: 28, left: 40 }}
+        table={{
+          columns: ["Visits"],
+          rows: days.map((day, index) => ({ header: day, cells: [String(data[index])] }))
+        }}
+        title={`Visits per day, ${week === "this" ? "this" : "last"} week`}
+        x={band}
+        y={visitsScale}
+      >
+        <PlotGrid axis="y" dash="4 4" values={[0, 100, 200, 300]} />
+        <PlotBars
+          data={data}
+          fill={(_, index) =>
+            index === pinned
+              ? { type: "gradient", color: "chart-1", from: 1, to: 0.55 }
+              : { type: "solid", color: "chart-1", opacity: 0.75 }
+          }
+          radius={6}
+          x={byDay}
+          y={asValue}
+        />
+        <PlotAxis axis="y" format={countLabel} values={[0, 100, 200, 300]} />
+        <PlotAxis axis="x" format={dayLabel} />
+      </Plot>
+      <p aria-live="polite" className="m-0 text-body-sm text-ds-text-subtle">
+        {pinned === null ? "No bar pinned" : `Pinned: ${days[pinned] ?? ""}`}
+      </p>
+    </Demo>
+  );
+}
+
+/** A trend with a crosshair; switching the range changes the point count, so the lines cross-fade. */
+function CrosshairTrend() {
+  const [range, setRange] = useState<"week" | "fortnight">("week");
+  const labels = range === "week" ? days : fortnight;
+  const data = range === "week" ? visits : fortnightVisits;
+  const at = (_: unknown, index: number): string => labels[index] ?? "";
+
+  return (
+    <Demo
+      description="PlotCrosshair follows the active point, and the line marks it with a dot. Switch the range: the point count changes, so the old line fades out as the new one fades in."
+      title="PlotCrosshair and a cross-fade"
+    >
+      <SegmentedControl
+        aria-label="Range"
+        className="justify-self-start"
+        value={range}
+        onValueChange={(next) => setRange(next === "fortnight" ? "fortnight" : "week")}
+      >
+        <SegmentedControlItem value="week">7 days</SegmentedControlItem>
+        <SegmentedControlItem value="fortnight">14 half days</SegmentedControlItem>
+      </SegmentedControl>
+      <Plot
+        height={180}
+        hideTitle
+        margin={margin}
+        table={{
+          columns: ["Visits"],
+          rows: labels.map((label, index) => ({ header: label, cells: [String(data[index])] }))
+        }}
+        title={`Visits, ${range === "week" ? "per day" : "per half day"} this week`}
+        x={{ type: "point", domain: labels, padding: 0.2 }}
+        y={visitsScale}
+      >
+        <PlotGrid axis="y" values={[0, 100, 200, 300]} />
+        <PlotCrosshair />
+        <PlotArea
+          curve="monotone"
+          data={data}
+          fill={{ type: "gradient", color: "chart-2", from: 0.3, to: 0 }}
+          x={at}
+          y={asValue}
+        />
+        <PlotLine color="chart-2" curve="monotone" data={data} x={at} y={asValue} />
+        <PlotAxis axis="y" format={countLabel} values={[0, 100, 200, 300]} />
+        <PlotAxis axis="x" format={dayLabel} minSpacing={36} />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** Value-sized slices: hover or step through them; the slices tween to the other month. */
+function Donut() {
+  const [month, setMonth] = useState<"june" | "july">("june");
+  const cases = casesByMonth[month];
+  const total = cases.reduce((sum, count) => sum + count, 0);
+  const share = (count: number) => `${Math.round((count / total) * 100)}%`;
+
+  return (
+    <Demo
+      description="PlotArcs with values: slices sized by their counts. The plot picks a slice by angle and radius, so hover, the arrow keys, and Enter work as on a bar chart. Switch the month: the slices tween to the new shares."
+      title="Donut from value slices"
+    >
+      <SegmentedControl
+        aria-label="Month"
+        className="justify-self-start"
+        value={month}
+        onValueChange={(next) => setMonth(next === "july" ? "july" : "june")}
+      >
+        <SegmentedControlItem value="june">June</SegmentedControlItem>
+        <SegmentedControlItem value="july">July</SegmentedControlItem>
+      </SegmentedControl>
+      <Plot
+        height={200}
+        hideTitle
+        margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        table={{
+          columns: ["Cases", "Share"],
+          rows: diagnoses.map((name, index) => ({
+            header: name,
+            cells: [String(cases[index] ?? 0), share(cases[index] ?? 0)]
+          }))
+        }}
+        title={`Cases by diagnosis, ${month === "june" ? "June" : "July"}`}
+        tooltip={(index) => (
+          <p className="m-0 tabular-nums">
+            {diagnoses[index]} {cases[index]} cases · {share(cases[index] ?? 0)}
+          </p>
+        )}
+        overlay={
+          <p className="pointer-events-none absolute inset-0 m-0 grid place-items-center text-heading-md tabular-nums">
+            {total}
+          </p>
+        }
+      >
+        <PlotArcs
+          cornerRadius={4}
+          endAngle={2 * Math.PI}
+          fill={(index) => ({
+            type: "solid",
+            color:
+              (["chart-1", "chart-2", "chart-3", "chart-4", "neutral"] as const)[index] ?? "neutral"
+          })}
+          innerRatio={0.62}
+          padAngle={0.03}
+          startAngle={0}
+          values={cases}
+        />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** Two series side by side in each category, rounded at both ends. */
+function GroupedBars() {
+  const [week, setWeek] = useState<Week>("this");
+  const series = week === "this" ? [visits, signups] : [lastWeekVisits, signups.map((v) => v - 12)];
+
+  return (
+    <Demo
+      description="One PlotBars per series with group: a band sub-scale places them side by side, and round both rounds both ends. The active day rings both bars."
+      title="Grouped bars"
+    >
+      <WeekToggle onChange={setWeek} value={week} />
+      <PlotLegend
+        items={[
+          { key: "visits", label: "Visits", color: "chart-1", mark: "square" },
+          { key: "signups", label: "Sign-ups", color: "chart-2", mark: "square" }
+        ]}
+      />
+      <Plot
+        height={180}
+        hideTitle
+        margin={{ top: 8, right: 0, bottom: 28, left: 0 }}
+        table={{
+          columns: ["Visits", "Sign-ups"],
+          rows: days.map((day, index) => ({
+            header: day,
+            cells: series.map((values) => String(values[index]))
+          }))
+        }}
+        title={`Visits and sign-ups per day, ${week === "this" ? "this" : "last"} week`}
+        x={band}
+        y={visitsScale}
+      >
+        {series.map((values, index) => (
+          <PlotBars
+            key={index}
+            data={values}
+            fill={{ type: "solid", color: index === 0 ? "chart-1" : "chart-2" }}
+            group={{ index, count: series.length, padding: 0.2 }}
+            radius="full"
+            round="both"
+            x={byDay}
+            y={asValue}
+          />
+        ))}
+        <PlotAxis axis="x" format={dayLabel} />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** The plain SVG gauge: hover a part, step through the parts, and switch the week. */
+function GaugeDemo() {
+  const [now, setNow] = useState(true);
+  const counts = now ? projectsByWeek.now : projectsByWeek.before;
+
+  return (
+    <Demo
+      description="Gauge without Recharts: hover a part, or focus it and use the arrow keys. Switch the week: the parts fill to the new values."
+      title="Gauge"
+    >
+      <WeekToggle onChange={(week) => setNow(week === "this")} value={now ? "this" : "last"} />
+      <Gauge
+        centerValue={`${Math.round(((counts[0] ?? 0) / counts.reduce((a, b) => a + b, 0)) * 100)}%`}
+        centerLabel="Done"
+        hideTitle
+        parts={[
+          { key: "done", label: "Done", value: counts[0] ?? 0 },
+          { key: "over", label: "Over 50%", value: counts[1] ?? 0 },
+          { key: "under", label: "Under 50%", value: counts[2] ?? 0 }
+        ]}
+        title="Project completion"
+        valueFormatter={(value) => `${value} projects`}
+      />
+    </Demo>
   );
 }
 
@@ -599,6 +870,25 @@ export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
             plot is a titled figure with a hidden data table.
           </p>
         </div>
+        <section aria-labelledby="charts-interaction" className="grid gap-ds-200">
+          <h2 className="m-0 text-heading-md" id="charts-interaction">
+            Interaction and motion
+          </h2>
+          <p className="m-0 max-w-prose text-body text-ds-text-subtle">
+            Every plot with a table row per point is a slider over its points, with no wiring:
+            hover, focus, or tap shows a point and highlights its mark, and a click, a tap, or Enter
+            pins it. When the data changes, the marks tween with the motion tokens. Under reduced
+            motion (the system setting, followed live) the values snap and the tooltip moves without
+            sliding.
+          </p>
+          <div className="grid grid-cols-1 gap-ds-200 lg:grid-cols-2">
+            <HoverAndPin />
+            <CrosshairTrend />
+            <Donut />
+            <GroupedBars />
+            <GaugeDemo />
+          </div>
+        </section>
         <section aria-labelledby="charts-primitives" className="grid gap-ds-200">
           <h2 className="m-0 text-heading-md" id="charts-primitives">
             Primitives

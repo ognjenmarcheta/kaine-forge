@@ -117,6 +117,10 @@ export function paintFill(
   }
 }
 
+/** The look of a plot tooltip: a translucent overlay surface that blurs what is behind it. */
+export const PLOT_TOOLTIP_CLASS =
+  "grid gap-ds-075 rounded-overlay bg-ds-surface-overlay/85 px-ds-150 py-ds-100 text-body-sm text-ds-text shadow-overlay backdrop-blur-sm";
+
 /** A `useId` value that is safe inside `url(#…)`. */
 export function svgId(reactId: string): string {
   return `plot${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;

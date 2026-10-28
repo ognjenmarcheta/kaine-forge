@@ -25,6 +25,8 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 const projects = (value: number) => `${value} projects`;
@@ -122,5 +124,58 @@ describe("Gauge", () => {
     act(() => root.render(gauge));
 
     expect(paintRuns(container)).toEqual(runs);
+  });
+
+  it("shows the part under the pointer, and the arrow keys step through the parts", () => {
+    // The box matches the view box, so a pixel is a view box unit 4px to the right and down.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 208, 106)
+    );
+    act(() =>
+      root.render(
+        <Gauge height={106} parts={bands} title="Project completion" valueFormatter={projects} />
+      )
+    );
+    const slider = () => container.querySelector<HTMLElement>('[role="slider"]');
+
+    // 15% along the ring from its left end, mid-band: in Done, which fills the first 30%.
+    act(() => {
+      slider()?.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 28, clientY: 65, bubbles: true })
+      );
+    });
+    expect(slider()?.getAttribute("aria-valuetext")).toBe("Done: 9 projects");
+    expect(slider()?.querySelector(":scope > div[aria-hidden='true']")?.textContent).toBe(
+      "Done9 projects"
+    );
+
+    act(() => {
+      slider()?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(slider()?.getAttribute("aria-valuetext")).toBe("Over 50%: 12 projects");
+  });
+
+  it("fills to a new value over time", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined
+    }));
+    act(() => root.render(<Gauge title="Sales growth" value={20} />));
+    act(() => root.render(<Gauge title="Sales growth" value={80} />));
+
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    const filling = paintRuns(container)[0]?.[1] ?? 0;
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    // 20 of 100 fills 5 of the 24 segments, and 80 fills 19.
+    expect(filling).toBeGreaterThan(5);
+    expect(filling).toBeLessThan(19);
+    expect(paintRuns(container)[0]).toEqual(["var(--ds-chart-1)", 19]);
   });
 });

@@ -44,8 +44,18 @@ import {
 } from "./chart.series";
 import { cn } from "../../lib/cn";
 
-/** "auto" turns animation off from the first frame when prefers-reduced-motion matches. */
-const ANIMATION = "auto";
+/**
+ * The motion tokens in Recharts' terms: marks move to new data over `--ds-motion-overlay` and the
+ * tooltip follows the pointer over `--ds-motion-control`, both on `--ds-motion-easing` (MOTION-2),
+ * as the `Plot` marks and tooltip do. Recharts takes numbers, so these are the token values.
+ * "auto" turns animation off from the first frame when prefers-reduced-motion matches.
+ */
+const MARK_MOTION = {
+  isAnimationActive: "auto",
+  animationDuration: 180,
+  animationEasing: "cubic-bezier(0.23,1,0.32,1)"
+} as const;
+const TOOLTIP_MOTION = { ...MARK_MOTION, animationDuration: 120 } as const;
 const GRID_COLOR = "var(--ds-chart-grid)";
 const AXIS_TICK = { fill: "var(--ds-text-subtle)" };
 /** Charts sit on a card; marks use its surface for the ring and the stack gap, so both read as space. */
@@ -345,7 +355,7 @@ export function LinePlot({
       {renderCartesianAxes(index, valueFormatter, axes, { yDomain })}
       <Tooltip
         cursor={{ stroke: "var(--ds-border-bold)", strokeWidth: 1 }}
-        isAnimationActive={ANIMATION}
+        {...TOOLTIP_MOTION}
         content={({ active, activeIndex }) => (
           <CartesianTooltip
             active={active}
@@ -370,7 +380,7 @@ export function LinePlot({
           strokeLinejoin: "round",
           dot: lineDots(dots, color, data.length - 1),
           activeDot: markDot(color, 4),
-          isAnimationActive: ANIMATION,
+          ...MARK_MOTION,
           ...(item.dashed === true ? { strokeDasharray: LINE_DASH } : {})
         } as const;
 
@@ -462,7 +472,7 @@ export function BarPlot({
       })}
       <Tooltip
         cursor={{ fill: "var(--ds-background-neutral-hovered)" }}
-        isAnimationActive={ANIMATION}
+        {...TOOLTIP_MOTION}
         content={({ active, activeIndex }) => (
           <CartesianTooltip
             active={active}
@@ -500,7 +510,7 @@ export function BarPlot({
             dataKey={item.key}
             name={item.label}
             fill={color}
-            isAnimationActive={ANIMATION}
+            {...MARK_MOTION}
             radius={stacked === false || position === lastPosition ? endRadius : 0}
             {...(track
               ? {
@@ -563,7 +573,7 @@ export function DonutPlot({
   return (
     <PieChart responsive width="100%" height="100%" accessibilityLayer={false}>
       <Tooltip
-        isAnimationActive={ANIMATION}
+        {...TOOLTIP_MOTION}
         content={({ active, activeIndex }) => {
           const position = Number(activeIndex);
           const datum = datumAt(data, active, activeIndex);
@@ -595,7 +605,7 @@ export function DonutPlot({
         paddingAngle={2}
         stroke="none"
         rootTabIndex={-1}
-        isAnimationActive={ANIMATION}
+        {...MARK_MOTION}
         shape={(sector) => (
           <Sector
             cx={sector.cx}
@@ -639,7 +649,7 @@ export function RadialPlot({
         fill={seriesColor(0, color).color}
         background={{ fill: GRID_COLOR }}
         cornerRadius="50%"
-        isAnimationActive={ANIMATION}
+        {...MARK_MOTION}
       />
     </RadialBarChart>
   );
@@ -663,7 +673,7 @@ export function SparklinePlot({
     strokeLinecap: "round",
     strokeLinejoin: "round",
     dot: false,
-    isAnimationActive: ANIMATION
+    ...MARK_MOTION
   } as const;
 
   return (

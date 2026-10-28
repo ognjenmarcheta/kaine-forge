@@ -25,6 +25,7 @@ export * from "./components/composed/user-menu";
 export * from "./components/plot/plot";
 export * from "./components/plot/plot.marks";
 export * from "./components/plot/plot.overlay";
+export { paintFill, plotColor } from "./components/plot/plot.paint";
 export * from "./components/layouts/app-layout";
 export * from "./components/layouts/auth-layout";
 export * from "./components/primitives/accordion";
