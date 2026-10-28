@@ -37,3 +37,19 @@ describe("color mode before first paint", () => {
     expect(document.documentElement.dataset.colorMode).toBe("dark");
   });
 });
+
+describe("Organization Theme before first paint", () => {
+  it.each([
+    ["moss", "moss"],
+    ['moss" onload="x', undefined],
+    [null, undefined]
+  ])("applies the cached theme name %j as %j", (cached, expected) => {
+    const document = { documentElement: { dataset: {} as Record<string, string> } };
+    runInNewContext(source, {
+      document,
+      localStorage: { getItem: (key: string) => (key === "kaine.theme.name" ? cached : null) },
+      matchMedia: () => ({ matches: false })
+    });
+    expect(document.documentElement.dataset["theme"]).toBe(expected);
+  });
+});

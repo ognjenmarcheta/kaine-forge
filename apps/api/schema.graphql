@@ -5,6 +5,7 @@ type Query {
   members: [OrganizationMember!]!
   invitations: [OrganizationInvitation!]!
   organizationPermissions: [String!]!
+  organizationTheme: String!
   todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
   todo(id: ID!): Todo
   todoCounts: TodoCounts!
@@ -29,6 +30,7 @@ type Query {
 
 type Mutation {
   _empty: Boolean
+  setOrganizationTheme(theme: String): String!
   createTodo(input: CreateTodoInput!): Todo!
   generateTodos(input: GenerateTodosInput!): GenerateTodosPayload!
   updateTodo(id: ID!, input: UpdateTodoInput!): Todo!
@@ -331,6 +333,7 @@ enum AuditAction {
   member_role_changed
   ownership_transferred
   organization_renamed
+  organization_theme_changed
   organization_deleted
   organization_exported
   organization_export_downloaded

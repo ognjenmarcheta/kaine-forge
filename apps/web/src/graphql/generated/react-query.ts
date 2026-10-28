@@ -23,6 +23,7 @@ export type AuditAction =
   | "organization_export_downloaded"
   | "organization_exported"
   | "organization_renamed"
+  | "organization_theme_changed"
   | "ownership_transferred"
   | "passkey_added"
   | "passkey_removed"
@@ -495,6 +496,16 @@ export type UpdateNotificationPreferenceMutation = {
 export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type OrganizationPermissionsQuery = { organizationPermissions: Array<string> };
+
+export type OrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
+
+export type OrganizationThemeQuery = { organizationTheme: string };
+
+export type SetOrganizationThemeMutationVariables = Exact<{
+  theme?: string | null | undefined;
+}>;
+
+export type SetOrganizationThemeMutation = { setOrganizationTheme: string };
 
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -1869,6 +1880,61 @@ export const useOrganizationPermissionsQuery = <
 
 useOrganizationPermissionsQuery.getKey = (variables?: OrganizationPermissionsQueryVariables) =>
   variables === undefined ? ["OrganizationPermissions"] : ["OrganizationPermissions", variables];
+
+export const OrganizationThemeDocument = new TypedDocumentString(`
+    query OrganizationTheme {
+  organizationTheme
+}
+    `);
+
+export const useOrganizationThemeQuery = <TData = OrganizationThemeQuery, TError = unknown>(
+  variables?: OrganizationThemeQueryVariables,
+  options?: Omit<UseQueryOptions<OrganizationThemeQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<OrganizationThemeQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<OrganizationThemeQuery, TError, TData>({
+    queryKey: variables === undefined ? ["OrganizationTheme"] : ["OrganizationTheme", variables],
+    queryFn: useGraphqlFetcher<OrganizationThemeQuery, OrganizationThemeQueryVariables>(
+      OrganizationThemeDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useOrganizationThemeQuery.getKey = (variables?: OrganizationThemeQueryVariables) =>
+  variables === undefined ? ["OrganizationTheme"] : ["OrganizationTheme", variables];
+
+export const SetOrganizationThemeDocument = new TypedDocumentString(`
+    mutation SetOrganizationTheme($theme: String) {
+  setOrganizationTheme(theme: $theme)
+}
+    `);
+
+export const useSetOrganizationThemeMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<
+    SetOrganizationThemeMutation,
+    TError,
+    SetOrganizationThemeMutationVariables,
+    TContext
+  >
+) => {
+  return useMutation<
+    SetOrganizationThemeMutation,
+    TError,
+    SetOrganizationThemeMutationVariables,
+    TContext
+  >({
+    mutationKey: ["SetOrganizationTheme"],
+    mutationFn: useGraphqlFetcher<
+      SetOrganizationThemeMutation,
+      SetOrganizationThemeMutationVariables
+    >(SetOrganizationThemeDocument),
+    ...options
+  });
+};
+
+useSetOrganizationThemeMutation.getKey = () => ["SetOrganizationTheme"];
 
 export const GetPublicAssetsDocument = new TypedDocumentString(`
     query GetPublicAssets {

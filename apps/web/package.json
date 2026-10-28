@@ -24,6 +24,7 @@
     "@repo/persistence": "workspace:*",
     "@repo/query": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/theme": "workspace:*",
     "@repo/todos": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",

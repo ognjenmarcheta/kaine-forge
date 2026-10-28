@@ -8,3 +8,14 @@ export const themes = [byteForgeTheme, mossTheme] as const;
 export const defaultTheme = byteForgeTheme;
 
 export type ThemeName = (typeof themes)[number]["name"];
+
+const themeNames: ReadonlySet<string> = new Set(themes.map((theme) => theme.name));
+
+export function isThemeName(value: string): value is ThemeName {
+  return themeNames.has(value);
+}
+
+/** The theme to apply for a stored name: the default for none, or for a theme no longer registered. */
+export function resolveThemeName(value: string | null | undefined): ThemeName {
+  return value !== null && value !== undefined && isThemeName(value) ? value : defaultTheme.name;
+}

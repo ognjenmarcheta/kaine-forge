@@ -24,6 +24,10 @@ import {
   type Notifications
 } from "./features/notifications/notifications.module";
 import {
+  createOrganizationThemes,
+  type OrganizationThemes
+} from "./features/organizations/organizations.theme";
+import {
   createPublicAssets,
   type PublicAssets
 } from "./features/public-assets/public-assets.module";
@@ -58,6 +62,7 @@ export interface ApiContext {
   dataExports: DataExports;
   notifications: Notifications;
   publicAssets: PublicAssets;
+  organizationThemes: OrganizationThemes;
   loaders: ApiLoaders;
   /** Resolved once per request: default < environment < Active Organization override. */
   featureFlags: FeatureFlags;
@@ -185,6 +190,11 @@ export async function createContextFromHeaders(
       publicStorage: publicAssetStorage(),
       requireOrganizationScope,
       store: s3ObjectStore
+    }),
+    organizationThemes: createOrganizationThemes({
+      db,
+      recordAuditEvent,
+      requireOrganizationScope
     }),
     loaders: createApiLoaders(todos, attachments),
     featureFlags: await resolveRequestFeatureFlags(data, organizationScope),

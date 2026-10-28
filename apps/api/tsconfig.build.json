@@ -38,6 +38,9 @@
       "path": "../../packages/storage/tsconfig.build.json"
     },
     {
+      "path": "../../packages/theme/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/translation/tsconfig.build.json"
     }
   ]

@@ -329,6 +329,9 @@ importers:
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@repo/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@repo/translation':
         specifier: workspace:*
         version: link:../../packages/translation
@@ -589,6 +592,9 @@ importers:
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@repo/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@repo/todos':
         specifier: workspace:*
         version: link:../../packages/todos

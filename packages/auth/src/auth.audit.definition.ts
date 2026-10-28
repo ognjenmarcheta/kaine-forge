@@ -10,6 +10,8 @@ export interface AuditEventMetadataByAction {
   member_role_changed: { email: string | null; role: string };
   ownership_transferred: { email: string | null };
   organization_renamed: { name: string };
+  /** `theme` is null when the Organization went back to the default theme. */
+  organization_theme_changed: { theme: string | null };
   organization_deleted: { name: string };
   /** An owner requested an archive of the Organization's data. */
   organization_exported: Record<string, never>;
@@ -67,6 +69,7 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   member_role_changed: "member",
   ownership_transferred: "member",
   organization_renamed: "organization",
+  organization_theme_changed: "organization",
   organization_deleted: "organization",
   organization_exported: "organization",
   organization_export_downloaded: "organization",

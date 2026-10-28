@@ -12,6 +12,7 @@ import { useState } from "react";
 import { View } from "react-native";
 
 import { ThemeOptions } from "../../src/components/theme-options";
+import { useApplyOrganizationTheme } from "../../src/hooks/use-apply-organization-theme";
 import { useAuth } from "../../src/hooks/use-auth";
 import { useOrganization } from "../../src/hooks/use-organization";
 import { useTranslation } from "../../src/hooks/use-translation";
@@ -93,6 +94,8 @@ export default function AppLayout() {
   const { t } = useTranslation();
   const organizationsVisible = useFeatureFlag(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE);
   const palette = useThemeTokens();
+  const { activeOrganizationId } = useOrganization();
+  useApplyOrganizationTheme(session ? activeOrganizationId : null, !isLoading && !session);
   if (isLoading)
     return (
       <View className="flex-1 items-center justify-center bg-ds-surface">

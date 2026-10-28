@@ -1,3 +1,11 @@
 query OrganizationPermissions {
   organizationPermissions
 }
+
+query OrganizationTheme {
+  organizationTheme
+}
+
+mutation SetOrganizationTheme($theme: String) {
+  setOrganizationTheme(theme: $theme)
+}

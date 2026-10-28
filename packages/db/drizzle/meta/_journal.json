@@ -176,6 +176,13 @@
       "when": 1793132416013,
       "tag": "0024_greedy_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793202420874,
+      "tag": "0025_material_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

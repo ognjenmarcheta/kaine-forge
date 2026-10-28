@@ -135,6 +135,9 @@ vi.mock("./features/organizations/organizations.hook", () => ({
   useOrganizationSettingsAccess: () => ({ can: () => false })
 }));
 vi.mock("./features/audit/audit.route", () => ({ AuditLogRoute: () => null }));
+vi.mock("./features/organizations/organizations.theme", () => ({
+  useApplyOrganizationTheme: () => undefined
+}));
 vi.mock("./features/api-keys/api-keys.hook", () => ({ useApiKeysAccess: () => null }));
 vi.mock("./features/api-keys/api-keys.route", () => ({ ApiKeysRoute: () => null }));
 vi.mock("./features/webhooks/webhooks.hook", () => ({ useWebhooksAccess: () => null }));

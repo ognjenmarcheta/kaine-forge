@@ -15,6 +15,8 @@ export const organizationsTable = pgTable("organizations", {
   // The better-auth organization plugin JSON.stringifys metadata before
   // writing, so jsonb values it stores arrive double-encoded (a JSON string).
   metadata: jsonb("metadata"),
+  // The Organization Theme: a theme name from @repo/theme. Null follows the default theme.
+  theme: varchar("theme", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 

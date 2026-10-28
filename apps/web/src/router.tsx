@@ -78,6 +78,7 @@ import {
   OrganizationMembersTab,
   OrganizationRolesTab
 } from "./features/organizations/organizations.tabs.route";
+import { useApplyOrganizationTheme } from "./features/organizations/organizations.theme";
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useWebhooksAccess } from "./features/webhooks/webhooks.hook";
@@ -171,6 +172,7 @@ function ShellContent() {
   const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
   const canReadApiKeys = useApiKeysAccess(activeOrganizationId);
   const canReadWebhooks = useWebhooksAccess(activeOrganizationId);
+  useApplyOrganizationTheme(session ? activeOrganizationId : null);
 
   if (isLoading) {
     return <ShellSkeleton label={t("common.loadingSession")} />;
