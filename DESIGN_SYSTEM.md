@@ -64,7 +64,7 @@ Base tokens should not be used directly in component classes or CSS. Functional 
 | Foundation | Prefix examples                                               |
 | ---------- | ------------------------------------------------------------- |
 | Text       | `--ds-text`, `--ds-text-subtle`, `--ds-text-danger`           |
-| Icon       | `--ds-icon`, `--ds-icon-subtle`, `--ds-icon-success`          |
+| Icon       | `--ds-icon`, `--ds-icon-subtle`, `--ds-icon-danger`           |
 | Background | `--ds-background-default`, `--ds-background-brand-bold`       |
 | Border     | `--ds-border`, `--ds-border-focused`, `--ds-border-danger`    |
 | Surface    | `--ds-surface`, `--ds-surface-raised`, `--ds-surface-overlay` |
@@ -98,13 +98,12 @@ Examples:
 
 Use emphasis to control contrast:
 
-| Level                | Use                                           |
-| -------------------- | --------------------------------------------- |
-| `subtlest`           | quiet background tint                         |
-| `subtle`             | stronger tint or subdued foreground           |
-| default              | normal foreground/background role             |
-| `bold`               | strong fill, usually paired with inverse text |
-| `bolder` / `boldest` | maximum emphasis                              |
+| Level      | Use                                           |
+| ---------- | --------------------------------------------- |
+| `subtlest` | quiet background tint                         |
+| `subtle`   | stronger tint or subdued foreground           |
+| default    | normal foreground/background role             |
+| `bold`     | strong fill, usually paired with inverse text |
 
 Text on bold backgrounds must use inverse tokens when contrast requires it. Brand and selected bold fills are a deep red-orange in both themes, so text and icons on them use `--ds-text-brand-inverse` (white in both themes), not `--ds-text-inverse`, which turns dark in the dark theme. Hovered and pressed brand fills get darker, not lighter, so white text keeps AA contrast.
 
@@ -122,22 +121,11 @@ Semantic roles:
 | Success     | positive outcome or completion        |
 | Warning     | caution or pending risk               |
 | Danger      | errors or destructive actions         |
-| Attention   | non-critical notice                   |
-| Severe      | high urgency warning                  |
 | Discovery   | onboarding, new features, exploration |
-
-Workflow states:
-
-| State  | Meaning               |
-| ------ | --------------------- |
-| Open   | active or in progress |
-| Closed | rejected or closed    |
-| Done   | completed             |
 
 Rules:
 
 - Never use color as the only communicator. Pair it with text, iconography, shape, or state labels.
-- Do not use accent colors for semantic states. Use `success`, `warning`, `danger`, and related semantic roles.
 - Use tokenized interaction states such as `hovered`, `pressed`, `focused`, and `disabled`.
 - Do not use opacity hacks, `filter`, or custom hover colors for interaction states in components.
 - Do not hardcode hex, rgb, hsl, or named colors in component code.
@@ -146,19 +134,16 @@ Rules:
 
 Typography tokens define hierarchy and rhythm.
 
-| Token                       | Use                                       |
-| --------------------------- | ----------------------------------------- |
-| `--ds-font-heading-display` | largest marketing/product display heading |
-| `--ds-font-heading-xxlarge` | major page heading                        |
-| `--ds-font-heading-xlarge`  | page heading                              |
-| `--ds-font-heading-large`   | section heading                           |
-| `--ds-font-heading-medium`  | card/panel heading                        |
-| `--ds-font-heading-small`   | compact heading                           |
-| `--ds-font-body-large`      | prominent body text                       |
-| `--ds-font-body`            | default body text                         |
-| `--ds-font-body-small`      | supporting text                           |
-| `--ds-font-body-xsmall`     | metadata                                  |
-| `--ds-font-code`            | code and monospaced labels                |
+| Token                      | Use                 |
+| -------------------------- | ------------------- |
+| `--ds-font-heading-xlarge` | page heading        |
+| `--ds-font-heading-large`  | section heading     |
+| `--ds-font-heading-medium` | card/panel heading  |
+| `--ds-font-heading-small`  | compact heading     |
+| `--ds-font-body-large`     | prominent body text |
+| `--ds-font-body`           | default body text   |
+| `--ds-font-body-small`     | supporting text     |
+| `--ds-font-body-xsmall`    | metadata            |
 
 Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
 
@@ -207,7 +192,6 @@ Shape:
 | `--ds-radius-200`  | 12px   | menus, popovers, panels                           |
 | `--ds-radius-250`  | 16px   | agent desk cards and panels                       |
 | `--ds-radius-300`  | 20px   | cards, dialogs, sheets                            |
-| `--ds-radius-400`  | 28px   | large feature surfaces                            |
 | `--ds-radius-pill` | 9999px | buttons, icon buttons, toggles, pagination, pills |
 
 Rules:
@@ -365,7 +349,7 @@ Common patterns:
 
 Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
 
-Selected navigation uses the selected tokens, not the hover token. The active sidebar item uses `--ds-background-selected`, also on hover, with `--ds-text-selected` and an inset start indicator of `--ds-border-width-selected` in `--ds-border-selected`. The indicator is an inset shadow, so it does not shift the layout. Do not put `--ds-text-selected` on `--ds-background-selected-hovered`: in light theme the pair is below 4.5:1. An active tab or tab link uses a `--ds-border-width-thick` bottom border in `--ds-border-selected`.
+Selected navigation uses the selected tokens, not the hover token. The active sidebar item uses `--ds-background-selected`, also on hover, with `--ds-text-selected` and an inset start indicator of `--ds-border-width-selected` in `--ds-border-selected`. The indicator is an inset shadow, so it does not shift the layout. An active tab or tab link uses a `--ds-border-width-thick` bottom border in `--ds-border-selected`.
 
 ## 12. Accessibility
 
