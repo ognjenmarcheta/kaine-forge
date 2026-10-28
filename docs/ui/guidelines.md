@@ -162,11 +162,13 @@ Reason: a picture of numbers is invisible to screen readers.
 
 ## RESP
 
-**RESP-1. Work at 375px.** Content reflows to one column; the page never scrolls sideways. Wide tables scroll inside their own container.
+**RESP-1. Work at 375px.** Content reflows to one column; the page never scrolls sideways. Wide tables scroll inside their own container. Give every grid a column count at its smallest size: a grid without one sizes its column to the widest child, such as a chart or a line that does not wrap.
 Reason: reflow is required at 320 CSS pixels (WCAG 2.2 SC 1.4.10).
+Do: `grid grid-cols-1 md:grid-cols-3`. Don't: `grid md:grid-cols-3`.
 
-**RESP-2. Use the shared breakpoints.** 768px for tablet layouts and 1024px for split views and rails.
-Reason: one set of breakpoints keeps screens consistent.
+**RESP-2. Use the shared breakpoints.** 768px for tablet layouts and 1024px for split views and rails. Inside the app shell, the sidebar takes part of the viewport, so a layout that depends on its own width switches on its container at the same steps: mark the region `@container` and use `@3xl:` (768px) and `@5xl:` (1024px).
+Reason: one set of breakpoints keeps screens consistent, and a container query keeps the columns right whether the sidebar is open or not.
+Do: `<div className="@container"><div className="grid grid-cols-1 @3xl:grid-cols-2">`. Don't: `lg:grid-cols-3` for cards beside an open sidebar.
 
 **RESP-3. Hover is never the only way.** Anything revealed on hover is also reachable by focus or tap.
 Reason: touch screens have no hover.
