@@ -8,7 +8,7 @@ test("collapsed sidebar keeps preference controls inside the rail", async ({ pag
   await page.emulateMedia({ reducedMotion: "reduce" });
   await signIn(page);
   const sidebar = page.locator('[data-slot="sidebar-container"]');
-  const theme = sidebar.getByRole("button", { name: /^Theme\b/ });
+  const theme = sidebar.getByRole("button", { name: /^Appearance\b/ });
   const language = sidebar.getByRole("button", { name: /^Language\b/ });
   const trigger = page.locator('[data-slot="sidebar-trigger"]');
   for (const width of [768, 1440]) {
@@ -107,7 +107,7 @@ test("Note drafts survive theme changes and failed saves", async ({ page }) => {
   await expect(page).not.toHaveURL(/\/notes\/new$/);
   await expect(page).toHaveURL(/\/notes\/.+/);
   await page.locator("#note-body").fill("Unsaved work");
-  await page.getByRole("button", { name: /^Theme\b/ }).click();
+  await page.getByRole("button", { name: /^Appearance\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
   await page.route("**/graphql", async (route) => {

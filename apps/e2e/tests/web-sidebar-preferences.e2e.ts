@@ -25,7 +25,7 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   await expect(germanLanguage).toContainText("Deutsch");
   await expect(germanLanguage).toBeFocused();
   await expect(composer).toHaveValue("Preferences must preserve this draft");
-  const theme = footer.getByRole("button", { name: /^Design\b/ });
+  const theme = footer.getByRole("button", { name: /^Darstellung\b/ });
   await theme.click();
   await page.getByRole("menuitemradio", { name: "Dunkel", exact: true }).click();
   await expect(theme).toBeFocused();
@@ -73,7 +73,7 @@ test("responsive drawer keeps labeled preferences usable with reduced motion", a
     expect(box?.width).toBeGreaterThanOrEqual(44);
     await expect(control).toContainText(label);
   }
-  const theme = footer.getByRole("button", { name: /^Theme\b/ });
+  const theme = footer.getByRole("button", { name: /^Appearance\b/ });
   await theme.click();
   await expect(page.getByRole("menuitemradio", { name: "System", exact: true })).toBeChecked();
   await page.getByRole("menuitemradio", { name: "Light", exact: true }).click();

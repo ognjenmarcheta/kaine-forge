@@ -234,7 +234,7 @@ test("long content and drafts survive theme and language changes in short viewpo
   await page.screenshot({ path: testInfo.outputPath("german-short.png"), fullPage: true });
   await page.getByRole("button", { name: /^Sprache\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Srpski", exact: true }).click();
-  await page.getByRole("button", { name: /^Tema\b/ }).click();
+  await page.getByRole("button", { name: /^Izgled\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Tamna", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 540 });
   await expect(page.getByLabel("Šta treba uraditi?")).toHaveValue("Keep my draft");
