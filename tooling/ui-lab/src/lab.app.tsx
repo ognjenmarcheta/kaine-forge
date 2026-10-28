@@ -51,7 +51,10 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
 
   if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
-  if (screen && view === "compare") return <CompareView catalog={catalog} screen={screen} />;
+  if (screen && view === "compare") {
+    // The route sets the starting mode, so a new route starts a new view.
+    return <CompareView key={route} catalog={catalog} screen={screen} view={mode} />;
+  }
   if (failure && (view === "screens" || view === "compare")) {
     return (
       <main className="grid gap-ds-100 p-ds-300 text-ds-text">

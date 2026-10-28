@@ -77,7 +77,7 @@ function FitFrame({
   }, [width]);
 
   return (
-    <div ref={host} className="w-full min-w-0">
+    <div ref={host} className="w-full min-w-0" data-compare-frame="">
       <div
         className="relative overflow-hidden rounded-md border border-ds-border bg-ds-bg"
         style={{ width: width * scale, height: height * scale }}
@@ -345,12 +345,23 @@ function AlignPanel({
 }
 
 /** The reference and the recreation side by side, as a divider slider, or as an overlay. */
-export function CompareView({ screen, catalog }: { screen: LabScreen; catalog: LabCatalog }) {
-  const [mode, setMode] = useState<CompareMode>("side");
+export function CompareView({
+  screen,
+  catalog,
+  view = ""
+}: {
+  screen: LabScreen;
+  catalog: LabCatalog;
+  /** The route's mode: "slider", "overlay", or "difference"; anything else is side by side. */
+  view?: string;
+}) {
+  const [mode, setMode] = useState<CompareMode>(() =>
+    view === "slider" ? "slider" : view === "overlay" || view === "difference" ? "overlay" : "side"
+  );
   const [axis, setAxis] = useState<Axis>("x");
   const [colorMode, setColorMode] = useState<ColorMode>(screen.mode);
   const [opacity, setOpacity] = useState(50);
-  const [difference, setDifference] = useState(false);
+  const [difference, setDifference] = useState(view === "difference");
   const [crop, setCrop] = useState<LabCrop | undefined>(() => readCrop(screen));
   const [enlarged, setEnlarged] = useState(false);
   const [actualSize, setActualSize] = useState(false);

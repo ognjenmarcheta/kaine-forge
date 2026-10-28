@@ -38,6 +38,15 @@ for (const screen of screens.filter((entry) => only.length === 0 || only.include
   await page.goto(`${base}/#/compare/${screen.id}`);
   await settle();
   await page.screenshot({ path: `${out}${screen.id}.compare.png`, fullPage: true });
+  // The difference turns matching pixels black, so what is left is what still differs. It
+  // lines up only when the screen sets referenceCrop for a reference with a backdrop.
+  await page.setViewportSize({ width: screen.width + 64, height: screen.height + 400 });
+  await page.goto(`${base}/#/compare/${screen.id}/difference`);
+  await settle();
+  await page
+    .locator("[data-compare-frame]")
+    .first()
+    .screenshot({ path: `${out}${screen.id}.difference.png` });
   console.log(`shot ${screen.id}`);
 }
 
