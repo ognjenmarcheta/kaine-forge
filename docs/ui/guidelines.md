@@ -219,3 +219,10 @@ Reason: invented data misleads decisions. Demo and lab screens use clearly fixed
 **DATA-3. Label units and ranges.** Every number shows its unit and every chart its time range. Format numbers and dates for the active language.
 
 **DATA-4. Align table data.** Numbers align to the end, text to the start; long tables keep a visible header.
+
+**DATA-5. Charts answer the pointer and the keyboard.** Hover, focus, or tap on a mark shows its value as text beside it and highlights the mark. The arrow keys reach the same values, and a click or Enter pins one where the screen has a selected point. When a control switches the data, the marks move to the new values with the motion tokens; under reduced motion they snap. Build charts from the chart components or from `Plot`, which do this by default. A sparkline inside a stat tile may stay static, because the tile shows its value.
+Reason: a chart that only looks right hides its exact numbers, and keyboard and touch users need the same values as mouse users (WCAG 2.2 SC 2.1.1). Movement shows what changed when the data switches (MOTION-1).
+Do: a bar that lifts and a tooltip that reads "Fri: 58%" on hover, focus, or tap. Don't: a static SVG whose values only exist in the hidden table.
+
+**DATA-6. Every visible control works.** A filter, period, tab, or segmented control changes the data it labels, and a menu item does what it says or is not shown.
+Reason: a control that does nothing breaks trust in every other control on the screen.
