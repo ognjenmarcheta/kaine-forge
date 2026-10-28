@@ -441,7 +441,11 @@ export type OrganizationPermissionsQuery = { organizationPermissions: Array<stri
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetPublicAssetsQuery = {
-  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  publicAssets: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type RequestPublicAssetUploadMutationVariables = Exact<{
@@ -458,7 +462,11 @@ export type ConfirmPublicAssetUploadMutationVariables = Exact<{
 }>;
 
 export type ConfirmPublicAssetUploadMutation = {
-  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  confirmPublicAssetUpload: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type GetFileQueryVariables = Exact<{
@@ -2543,7 +2551,8 @@ export const GetPublicAssetsDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadsEnabled" } }
               ]
             }
           }
@@ -2649,7 +2658,8 @@ export const ConfirmPublicAssetUploadDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "avatarUrl" } },
-                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } }
+                { kind: "Field", name: { kind: "Name", value: "organizationLogoUrl" } },
+                { kind: "Field", name: { kind: "Name", value: "uploadsEnabled" } }
               ]
             }
           }

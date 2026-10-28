@@ -7,6 +7,9 @@ export const publicAssetsTypeDefs = /* GraphQL */ `
   type PublicAssets {
     avatarUrl: String
     organizationLogoUrl: String
+    # False when the deployment has no public bucket: an upload then fails with
+    # code PUBLIC_ASSETS_NOT_CONFIGURED.
+    uploadsEnabled: Boolean!
   }
 
   type PublicAssetUploadTicket {

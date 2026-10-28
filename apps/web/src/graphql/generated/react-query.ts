@@ -499,7 +499,11 @@ export type OrganizationPermissionsQuery = { organizationPermissions: Array<stri
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetPublicAssetsQuery = {
-  publicAssets: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  publicAssets: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type RequestPublicAssetUploadMutationVariables = Exact<{
@@ -516,7 +520,11 @@ export type ConfirmPublicAssetUploadMutationVariables = Exact<{
 }>;
 
 export type ConfirmPublicAssetUploadMutation = {
-  confirmPublicAssetUpload: { avatarUrl: string | null; organizationLogoUrl: string | null };
+  confirmPublicAssetUpload: {
+    avatarUrl: string | null;
+    organizationLogoUrl: string | null;
+    uploadsEnabled: boolean;
+  };
 };
 
 export type GetFileQueryVariables = Exact<{
@@ -1867,6 +1875,7 @@ export const GetPublicAssetsDocument = new TypedDocumentString(`
   publicAssets {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }
     `);
@@ -1929,6 +1938,7 @@ export const ConfirmPublicAssetUploadDocument = new TypedDocumentString(`
   confirmPublicAssetUpload(kind: $kind, stagingKey: $stagingKey) {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }
     `);
