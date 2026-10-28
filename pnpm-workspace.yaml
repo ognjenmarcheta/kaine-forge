@@ -6,6 +6,7 @@ packages:
 # Shared third-party versions. Prefer `catalog:` in package.json over duplicated ranges.
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
+  lucide-react: "^0.577.0"
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.12"
   "@better-auth/expo": "1.7.12"
