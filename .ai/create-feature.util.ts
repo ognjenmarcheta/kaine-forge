@@ -451,7 +451,13 @@ async function seedScope(slug: string): Promise<AuthenticatedOrganizationScope> 
       userId: user.id
     },
     organizationId: organization.id,
-    user: { email: user.email, emailVerified: true, id: user.id, name: user.name },
+    user: {
+      email: user.email,
+      emailVerified: true,
+      id: user.id,
+      name: user.name,
+      twoFactorEnabled: false
+    },
     userId: user.id
   };
 }

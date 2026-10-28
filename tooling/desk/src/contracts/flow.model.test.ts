@@ -11,7 +11,7 @@ import {
   type NodeStatus
 } from "./flow.model";
 import type { HistoryEvent, IssueState } from "./issue-state.contract";
-import { PIPELINE, type Stage } from "./pipeline.contract";
+import type { Stage } from "./pipeline.contract";
 import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
 const T0 = Date.parse("2026-03-01T10:00:00.000Z");
@@ -128,15 +128,22 @@ describe("buildFlowModel structure", () => {
     steps: [["intake", "intake-started"]]
   });
 
-  it("has one node per flow id with the kind from PIPELINE", () => {
+  it("has one node per flow id with the kind of its step", () => {
     expect(fresh.nodes.map((entry) => entry.id)).toEqual([...FLOW_NODE_IDS]);
-    const kinds = new Map<string, string>(PIPELINE.nodes.map((entry) => [entry.id, entry.kind]));
-    for (const entry of fresh.nodes) {
-      expect(entry.kind).toBe(kinds.get(entry.id === "ticket" ? "intake" : entry.id));
-    }
+    expect(Object.fromEntries(fresh.nodes.map((entry) => [entry.id, entry.kind]))).toEqual({
+      ticket: "source",
+      plan: "agent",
+      "plan-gate": "human",
+      build: "agent",
+      check: "script",
+      review: "agent",
+      "pr-review": "human",
+      ship: "script",
+      "pr-open": "human"
+    });
   });
 
-  it("derives the forward edges from PIPELINE and drops edges inside one node", () => {
+  it("derives the forward edges in flow step order", () => {
     const forward = fresh.edges.filter((entry) => !entry.dashed).map((entry) => entry.id);
     expect(forward).toEqual([
       "ticket->plan",
