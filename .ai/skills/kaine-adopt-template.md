@@ -10,7 +10,7 @@ Use this skill when turning this template repository into a downstream product r
 
 ## Workflow
 
-1. Read the current identity from `package.json`, `README.md`, `.env.example`, app metadata, Tauri metadata, translation locale files, and canonical `.ai/` sources. Note the downstream GitHub owner so you can set `repoOwner`.
+1. Read the current identity from `package.json`, `README.md`, `.env.example`, app metadata, Tauri metadata, translation locale files, and canonical `.ai/` sources. Note the downstream GitHub owner: adoption requires it as `repoOwner`.
 2. If a config path was provided, inspect it and run:
 
    ```bash
@@ -52,17 +52,19 @@ Use this skill when turning this template repository into a downstream product r
 ```json
 {
   "productName": "Acme Ops",
+  "repoOwner": "acme",
   "desktopIdentifier": "com.acme.ops.desktop",
   "compatibilityPolicy": "Acme Ops follows semver for public package exports and documents breaking changes in release notes.",
   "designCompatibilityPolicy": "Acme Ops treats token and component contract changes as product design decisions documented before release."
 }
 ```
 
+`repoOwner` is the GitHub user or organization. Adoption writes it into badge URLs, repo links, and `CODEOWNERS`.
+
 Optional fields can override derived defaults:
 
 - `packageName`
 - `repoSlug`
-- `repoOwner` (GitHub user or org; rewrites badge URLs, repo links, and `CODEOWNERS`)
 - `dockerImagePrefix`
 - `s3Bucket`
 - `webTitle`

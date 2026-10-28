@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./helpers/auth";
+import { documentTitle } from "./helpers/title";
 
 const NOT_FOUND_TITLE = /^(Page not found|notFound\.title)$/;
-const NOT_FOUND_DOCUMENT_TITLE =
-  /^(Page not found|notFound\.title) · (Kaine Forge|common\.appName)$/;
+const NOT_FOUND_DOCUMENT_TITLE = documentTitle("Page not found", "notFound.title");
 const GO_TO_DASHBOARD = /^(Go to dashboard|common\.goToDashboard)$/;
 
 test("shows the not-found page for an unknown path and links back to the dashboard", async ({

@@ -12,6 +12,7 @@ import {
   applyTemplateAdoption,
   deriveTemplateAdoptionConfig,
   excludedFromTemplateAdoption,
+  isTextFile,
   parseTemplateAdoptionConfig,
   slugify,
   type TemplateAdoptionConfig,
@@ -37,23 +38,6 @@ const usage = `Usage:
 
 Without --write, the command previews changes only.
 `;
-
-const textFileExtensions = new Set([
-  ".css",
-  ".graphql",
-  ".html",
-  ".json",
-  ".md",
-  ".mjs",
-  ".rs",
-  ".sql",
-  ".toml",
-  ".ts",
-  ".tsx",
-  ".txt",
-  ".yml",
-  ".yaml"
-]);
 
 const parseArgs = (): CliOptions => {
   const options: CliOptions = { write: false, check: false };
@@ -113,17 +97,6 @@ const promptString = async (
   return result;
 };
 
-const promptOptionalString = async (message: string, placeholder: string): Promise<string> => {
-  const result = await text({ message, placeholder, defaultValue: "" });
-
-  if (isCancel(result)) {
-    cancel("Cancelled.");
-    process.exit(0);
-  }
-
-  return result.trim();
-};
-
 const defaultDesktopIdentifier = (productName: string): string => {
   const slug = slugify(productName);
   const parts = slug.split("-").filter(Boolean);
@@ -144,7 +117,7 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
 
   const packageName = await promptString("Root package name", initial.packageName);
   const repoSlug = await promptString("Repository slug", initial.repoSlug);
-  const repoOwner = await promptOptionalString("GitHub owner (user or org), optional", "acme");
+  const repoOwner = await promptString("GitHub owner (user or org)", undefined, "acme");
   const desktopIdentifier = await promptString(
     "Desktop reverse-DNS identifier",
     initial.desktopIdentifier
@@ -162,7 +135,7 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
     productName,
     packageName,
     repoSlug,
-    ...(repoOwner ? { repoOwner } : {}),
+    repoOwner: repoOwner.trim(),
     desktopIdentifier,
     compatibilityPolicy,
     designCompatibilityPolicy
@@ -172,7 +145,14 @@ const promptConfig = async (): Promise<TemplateAdoptionConfig> => {
 const readConfig = (configPath: string): TemplateAdoptionConfig => {
   const absolutePath = isAbsolute(configPath) ? configPath : join(REPO_ROOT, configPath);
   const parsed: unknown = JSON.parse(readFileSync(absolutePath, "utf8"));
-  return parseTemplateAdoptionConfig(parsed);
+  const config = parseTemplateAdoptionConfig(parsed);
+  // Required here, not in the parser: pnpm ai:sync parses older adoption records without one.
+  if (config.repoOwner === undefined) {
+    throw new Error(
+      "template adoption config field 'repoOwner' is required: adoption writes it into CODEOWNERS and the GitHub links"
+    );
+  }
+  return config;
 };
 
 const readAdoptionTargetFiles = (): Map<string, string> => {
@@ -186,18 +166,6 @@ const readAdoptionTargetFiles = (): Map<string, string> => {
   }
   return files;
 };
-
-const fileExtension = (path: string): string => {
-  const match = path.match(/(\.[^./]+)$/);
-  return match?.[1] ?? "";
-};
-
-const isTextFile = (path: string): boolean =>
-  path === ".env.example" ||
-  path === ".github/CODEOWNERS" ||
-  path === "Dockerfile.api" ||
-  path === "Dockerfile.web" ||
-  textFileExtensions.has(fileExtension(path));
 
 const collectRepoTextFiles = (dir = REPO_ROOT): Map<string, string> => {
   const files = new Map<string, string>();
