@@ -83,7 +83,12 @@ function LessonsTable({
   const t = useT();
   const { language } = useLanguage();
   return (
-    <div className="desk-table-scroll" tabIndex={0} aria-label={t("desk.lessons.title")}>
+    <div
+      className="desk-table-scroll"
+      role="region"
+      tabIndex={0}
+      aria-label={t("desk.lessons.title")}
+    >
       <table className="desk-table" aria-label={t("desk.lessons.title")}>
         <thead>
           <tr>

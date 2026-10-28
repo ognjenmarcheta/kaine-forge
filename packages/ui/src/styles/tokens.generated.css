@@ -220,8 +220,8 @@
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
   --ds-font-weight-bold: 700;
-  --ds-lineHeight-default: 1.5;
-  --ds-lineHeight-tight: 1;
+  --ds-line-height-default: 1.5;
+  --ds-line-height-tight: 1;
   --ds-letter-spacing-heading: -0.015em;
   --ds-border-width: 1px;
   --ds-border-width-selected: 2px;
@@ -463,8 +463,8 @@
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
   --ds-font-weight-bold: 700;
-  --ds-lineHeight-default: 1.5;
-  --ds-lineHeight-tight: 1;
+  --ds-line-height-default: 1.5;
+  --ds-line-height-tight: 1;
   --ds-letter-spacing-heading: -0.015em;
   --ds-border-width: 1px;
   --ds-border-width-selected: 2px;

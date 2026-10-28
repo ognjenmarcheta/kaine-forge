@@ -342,7 +342,7 @@ body {
 .ui-select__icon {
   color: var(--ds-text-subtle);
   font: var(--ds-font-body-xsmall);
-  line-height: var(--ds-lineHeight-tight);
+  line-height: var(--ds-line-height-tight);
 }
 
 .ui-select__content {
@@ -684,7 +684,7 @@ h2 {
   margin: 0;
 }
 p {
-  line-height: var(--ds-lineHeight-default);
+  line-height: var(--ds-line-height-default);
 }
 a:focus-visible,
 summary:focus-visible {

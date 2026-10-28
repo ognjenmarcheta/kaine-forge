@@ -111,6 +111,7 @@ export function RouteLink({
 }: Omit<ComponentPropsWithRef<"a">, "href"> & { readonly to: Route }) {
   const { navigate } = useRouter();
   return (
+    // eslint-disable-next-line jsx-a11y/anchor-has-content -- the children arrive in rest
     <a
       {...rest}
       href={routeHref(to)}

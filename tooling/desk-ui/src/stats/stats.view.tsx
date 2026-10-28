@@ -67,7 +67,12 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
   const count = (value: number): string => formatCount(value, language);
   const usd = (value: number): string => formatUsd(value, language);
   return (
-    <div className="desk-table-scroll" tabIndex={0} aria-label={t("desk.stats.groups")}>
+    <div
+      className="desk-table-scroll"
+      role="region"
+      tabIndex={0}
+      aria-label={t("desk.stats.groups")}
+    >
       <table className="desk-table" aria-label={t("desk.stats.groups")}>
         <thead>
           <tr>
@@ -119,7 +124,12 @@ function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
     return summary?.readable === true ? issueFlowOf(summary) : null;
   };
   return (
-    <div className="desk-table-scroll" tabIndex={0} aria-label={t("desk.stats.issues")}>
+    <div
+      className="desk-table-scroll"
+      role="region"
+      tabIndex={0}
+      aria-label={t("desk.stats.issues")}
+    >
       <table className="desk-table" aria-label={t("desk.stats.issues")}>
         <thead>
           <tr>

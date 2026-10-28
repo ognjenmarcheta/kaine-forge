@@ -3,20 +3,23 @@ import * as React from "react";
 
 import { cn } from "../../lib/cn";
 
-const progressBarVariants = cva("h-full rounded-full transition-all", {
-  variants: {
-    appearance: {
-      brand: "bg-ds-bg-brand-bold",
-      success: "bg-ds-bg-success-bold",
-      danger: "bg-ds-bg-danger-bold",
-      warning: "bg-ds-bg-warning-bold",
-      information: "bg-ds-bg-information-bold"
+const progressBarVariants = cva(
+  "h-full w-full rounded-full transition-transform duration-[var(--ds-motion-overlay)] ease-[var(--ds-motion-easing)]",
+  {
+    variants: {
+      appearance: {
+        brand: "bg-ds-bg-brand-bold",
+        success: "bg-ds-bg-success-bold",
+        danger: "bg-ds-bg-danger-bold",
+        warning: "bg-ds-bg-warning-bold",
+        information: "bg-ds-bg-information-bold"
+      }
+    },
+    defaultVariants: {
+      appearance: "brand"
     }
-  },
-  defaultVariants: {
-    appearance: "brand"
   }
-});
+);
 
 interface ProgressBarProps
   extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof progressBarVariants> {
@@ -49,7 +52,7 @@ const ProgressBar = React.forwardRef<HTMLDivElement, ProgressBarProps>(
         >
           <div
             className={cn(progressBarVariants({ appearance }))}
-            style={{ width: `${percentage}%` }}
+            style={{ transform: `translateX(-${100 - percentage}%)` }}
           />
         </div>
       </div>

@@ -40,9 +40,11 @@ interface AvatarImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 }
 
 const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
-  ({ className, ...props }, ref) => (
+  // An empty alt marks the photo as decorative: the person's name sits beside it.
+  ({ alt = "", className, ...props }, ref) => (
     <img
       ref={ref}
+      alt={alt}
       className={cn("aspect-square h-full w-full object-cover", className)}
       {...props}
     />

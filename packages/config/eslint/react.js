@@ -1,7 +1,23 @@
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactPlugin from "eslint-plugin-react";
 
 import baseConfig from "./base.js";
+import { uiRules } from "./ui-rules.js";
+
+// React DOM surfaces. Mobile is React Native, where the DOM accessibility rules do not apply.
+const domFiles = [
+  "apps/web/src/**/*.{tsx,jsx}",
+  "apps/desktop/src/**/*.{tsx,jsx}",
+  "packages/ui/src/**/*.{tsx,jsx}",
+  "tooling/desk-ui/src/**/*.{tsx,jsx}",
+  "tooling/ui-lab/src/**/*.{tsx,jsx}"
+];
+const nativeFiles = [
+  "apps/mobile/app/**/*.{tsx,jsx}",
+  "apps/mobile/src/**/*.{tsx,jsx}",
+  "packages/mobile-ui/src/**/*.{tsx,jsx}"
+];
 
 // Token-only styling: color must come from --ds-* design tokens (Tailwind token
 // classes), never from hardcoded values. Spread into each UI surface's
@@ -61,6 +77,39 @@ export default [
       ...reactPlugin.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off"
+    }
+  },
+  // The UI rules of docs/ui/guidelines.md that lint can check. Messages name the rule ID.
+  {
+    files: domFiles,
+    plugins: { "jsx-a11y": jsxA11y, ui: uiRules },
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // Off: jsx-a11y 6.10.2 calls minimatch 3, and the minimatch ^10 security override in
+      // pnpm-workspace.yaml makes the rule crash. Field and FieldLabel cover FORM-1.
+      "jsx-a11y/label-has-associated-control": "off",
+      // A focusable scroll region lets keyboard users scroll it (WCAG 2.2 SC 2.1.1).
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        { tags: ["pre"], roles: ["tabpanel", "region", "log"], allowExpressionValues: true }
+      ],
+      // Containers may handle keys for roving focus and Escape; clicks still need a control.
+      "jsx-a11y/no-noninteractive-element-interactions": [
+        "error",
+        { handlers: ["onClick", "onMouseDown", "onMouseUp", "onKeyPress"] }
+      ],
+      "ui/icon-button-label": "error",
+      "ui/no-outline-none": "error",
+      "ui/no-transition-all": "error",
+      "ui/no-unknown-token": "error"
+    }
+  },
+  {
+    files: nativeFiles,
+    plugins: { ui: uiRules },
+    rules: {
+      "ui/no-transition-all": "error",
+      "ui/no-unknown-token": "error"
     }
   },
   {
@@ -141,6 +190,14 @@ export default [
         },
         ...colorTokenBans
       ]
+    }
+  },
+  {
+    // The UI lab recreates screens with fixed fixture text, so it skips the i18n rules,
+    // but it must be token-only like the product UI.
+    files: ["tooling/ui-lab/src/**/*.{tsx,jsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...colorTokenBans]
     }
   },
   {

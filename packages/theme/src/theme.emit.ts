@@ -185,7 +185,7 @@ export function emitWebTokens(
 }
 
 const MOBILE_REGION = /\/\* DESIGN_TOKENS_START \*\/[\s\S]*?\/\* DESIGN_TOKENS_END \*\//;
-const MOBILE_SCALE = /^(space-|radius-|font-weight-|lineHeight-|border-width|control-)/;
+const MOBILE_SCALE = /^(space-|radius-|font-weight-|line-height-|border-width|control-)/;
 
 /** Replaces the generated region of apps/mobile/src/styles/global.css. NativeWind needs concrete values. */
 export function emitMobileCss(theme: ThemeDefinition, current: string): string {

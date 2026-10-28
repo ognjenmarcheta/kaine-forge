@@ -21,8 +21,8 @@ export default {
         bold: "var(--ds-font-weight-bold)"
       },
       lineHeight: {
-        default: "var(--ds-lineHeight-default)",
-        tight: "var(--ds-lineHeight-tight)"
+        default: "var(--ds-line-height-default)",
+        tight: "var(--ds-line-height-tight)"
       },
       borderRadius: {
         none: "0",
