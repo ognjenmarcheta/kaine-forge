@@ -1,6 +1,6 @@
 import { formatAttachmentSize } from "@repo/todos";
 import { Button } from "@repo/ui";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { useTranslation } from "../../../hooks/use-translation";
 import type { TodoItem } from "../todos.type";
@@ -47,14 +47,7 @@ export function TodoAttachments({
         <ul>
           {item.attachments.map((file) => (
             <li key={file.id}>
-              {file.thumbnailUrl ? (
-                <img
-                  alt=""
-                  className="ui-todos__thumbnail"
-                  loading="lazy"
-                  src={file.thumbnailUrl}
-                />
-              ) : null}
+              {file.thumbnailUrl ? <AttachmentThumbnail src={file.thumbnailUrl} /> : null}
               <span className="ui-todos__filename">
                 {file.originalName} <small>{formatAttachmentSize(file.sizeBytes)}</small>
               </span>
@@ -78,5 +71,21 @@ export function TodoAttachments({
         </ul>
       )}
     </div>
+  );
+}
+
+// An image uploaded before thumbnails existed has no thumbnail object, so its
+// signed URL returns 404; show the file row without a broken image.
+function AttachmentThumbnail({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      alt=""
+      className="ui-todos__thumbnail"
+      loading="lazy"
+      src={src}
+      onError={() => setFailed(true)}
+    />
   );
 }
