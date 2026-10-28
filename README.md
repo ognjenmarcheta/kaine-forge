@@ -8,6 +8,14 @@
   <a href="docs/agents/day-one.md"><img alt="Agent harnesses" src="https://img.shields.io/badge/agents-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Grok-8A2BE2"></a>
 </p>
 
+<!-- TEMPLATE_ONLY_START -->
+
+<p align="center">
+  <a href="https://hub.xerj.org/contributors/ognjenmarcheta"><img alt="XERJ Corpus Hub contributor" src="https://hub.xerj.org/contributors/ognjenmarcheta/badge.svg"></a>
+</p>
+
+<!-- TEMPLATE_ONLY_END -->
+
 <p align="center">
   <a href="https://youtu.be/j-iqv4mJD_M">▶ Watch the 40-second tour</a>
 </p>
@@ -60,6 +68,14 @@ Agents get the same encoded rules as people. The rules are generated, linted, an
 - **Learning loop.** Repeated agent failures become lint rules, tests, or skills ([ADR 0009](docs/adr/0009-domain-knowledge-as-agent-infra.md)).
 
 New to the repository with an agent? Start with [`docs/agents/day-one.md`](docs/agents/day-one.md).
+
+<!-- TEMPLATE_ONLY_START -->
+
+## Featured on the XERJ Corpus Hub
+
+We did not apply. The XERJ team found Kaine Forge on their own, trusted the work, reached out to us, and selected it for the [XERJ Corpus Hub](https://hub.xerj.org/contributors/ognjenmarcheta). The hub is an open reference memory that AI coding agents search before they write code. The team picked the agent desk fix that runs builds and checks on Linux from a Windows host. When an agent meets the same problem, it gets this code back as a worked example, with credit to this repository.
+
+<!-- TEMPLATE_ONLY_END -->
 
 <!-- TEMPLATE_ONLY_START -->
 
