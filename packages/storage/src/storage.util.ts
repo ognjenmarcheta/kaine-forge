@@ -92,6 +92,20 @@ const ZIP = [0x50, 0x4b, 0x03, 0x04];
 const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 const isText = (bytes: Uint8Array) => !bytes.includes(0);
 
+/** An ISO-BMFF `ftyp` box whose major or a compatible brand is AVIF (`avif`, or `avis` for a sequence). */
+function isAvif(bytes: Uint8Array): boolean {
+  if (!startsWith(bytes, ascii("ftyp"), 4)) return false;
+  const boxSize =
+    ((bytes[0] ?? 0) << 24) | ((bytes[1] ?? 0) << 16) | ((bytes[2] ?? 0) << 8) | (bytes[3] ?? 0);
+  const end = Math.min(boxSize, bytes.length);
+  // Brands sit at offset 8 (major) and from offset 16 (compatible), four bytes each.
+  for (let offset = 8; offset + 4 <= end; offset += offset === 8 ? 8 : 4) {
+    if (startsWith(bytes, ascii("avif"), offset) || startsWith(bytes, ascii("avis"), offset))
+      return true;
+  }
+  return false;
+}
+
 /**
  * How the first bytes of each allowlisted type look. Office Open XML files are
  * ZIP archives and legacy Office files are OLE compound files, so those formats
@@ -102,6 +116,7 @@ const FILE_SIGNATURES: Readonly<Record<string, (bytes: Uint8Array) => boolean>> 
   "image/png": (bytes) => startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   "image/gif": (bytes) => startsWith(bytes, ascii("GIF87a")) || startsWith(bytes, ascii("GIF89a")),
   "image/webp": (bytes) => startsWith(bytes, ascii("RIFF")) && startsWith(bytes, ascii("WEBP"), 8),
+  "image/avif": isAvif,
   "application/pdf": (bytes) => startsWith(bytes, ascii("%PDF-")),
   "application/msword": (bytes) => startsWith(bytes, OLE),
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (bytes) =>
