@@ -14,7 +14,20 @@ export interface LabScreen {
   height: number;
   /** File name in public/references/, which is gitignored. */
   reference: string;
+  /**
+   * The part of the reference that shows the app, in the image's own pixels, when the image
+   * has a backdrop or a device frame around it. The compare view scales it to the frame.
+   */
+  referenceCrop?: LabCrop;
   Component: ComponentType;
+}
+
+/** A rectangle in the reference image's own pixels. */
+export interface LabCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 // Each screen loads on its own, so a screen another session is still writing, or one that

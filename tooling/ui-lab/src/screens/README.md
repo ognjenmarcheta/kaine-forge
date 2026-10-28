@@ -11,6 +11,16 @@ src/screens/<id>/
 
 `<id>` is the reference number and a short name, such as `10-medspa`. The reference image goes in `public/references/` (gitignored); never commit it.
 
+## Compare
+
+`#/screens` lists every screen. A card opens `#/compare/<id>`, which has three modes:
+
+- **Side by side**: the reference and the recreation at the frame size. Click the reference to see it large.
+- **Slider**: the reference over the recreation, split by a divider. Drag it, or focus it and use the arrow keys (Shift moves 10%). Switch between a vertical and a horizontal line.
+- **Overlay**: the reference over the recreation, with an opacity, or as a **Difference** that turns matching pixels black. Use it to find the last misplaced pixels.
+
+Slider and overlay only line up when the reference shows the app at the frame size. When the image has a backdrop, a browser window, or a device around the app, set `referenceCrop` on the screen: the rectangle of the app in the image's own pixels. The "Align reference" panel finds the numbers and gives the line to paste.
+
 ## Rules
 
 - Follow `kaine-build-ui` in reference-image mode and `docs/ui/guidelines.md`.
@@ -40,6 +50,8 @@ export const screen: LabScreen = {
   width: 1440,
   height: 900,
   reference: "00-example.png",
+  // Only when the image has a backdrop or a frame around the app.
+  referenceCrop: { x: 64, y: 108, width: 896, height: 560 },
   Component: ExampleScreen
 };
 ```

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { CompareView } from "./lab.compare";
 import { LabGallery } from "./lab.gallery";
 import type { LabCatalog, LabScreen } from "./lab.registry";
+import { ScreensIndex } from "./lab.screens";
 
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.slice(1) || "/");
@@ -41,42 +43,15 @@ function ScreenView({ screen, mode }: { screen: LabScreen; mode: string }) {
   );
 }
 
-/** The reference and the recreation side by side, at the reference's frame size. */
-function CompareView({ screen }: { screen: LabScreen }) {
-  const frame = { width: screen.width, height: screen.height };
-
-  return (
-    <main className="flex gap-ds-200 bg-ds-surface-sunken p-ds-200 text-ds-text">
-      <figure className="m-0 grid gap-ds-100">
-        <figcaption className="text-heading-xs">Reference</figcaption>
-        <img
-          alt={`Reference for ${screen.title}`}
-          className="block border border-ds-border object-contain object-top"
-          src={`/references/${screen.reference}`}
-          style={frame}
-        />
-      </figure>
-      <figure className="m-0 grid gap-ds-100">
-        <figcaption className="text-heading-xs">Recreation</figcaption>
-        <iframe
-          className="block border border-ds-border bg-ds-bg"
-          src={`#/screens/${screen.id}`}
-          style={frame}
-          title={`Recreation of ${screen.title}`}
-        />
-      </figure>
-    </main>
-  );
-}
-
 export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const route = useHashRoute();
   const [, view = "", id = "", mode = ""] = route.split("/");
   const screen = catalog.screens.find((entry) => entry.id === id);
   const failure = catalog.failures.find((entry) => entry.id === id);
 
+  if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
-  if (screen && view === "compare") return <CompareView screen={screen} />;
+  if (screen && view === "compare") return <CompareView catalog={catalog} screen={screen} />;
   if (failure && (view === "screens" || view === "compare")) {
     return (
       <main className="grid gap-ds-100 p-ds-300 text-ds-text">

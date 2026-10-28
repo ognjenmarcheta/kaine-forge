@@ -48,6 +48,7 @@ import {
 import { Inbox, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
+import { LabNav } from "./lab.nav";
 import type { LabCatalog } from "./lab.registry";
 
 type Mode = "light" | "dark";
@@ -337,7 +338,10 @@ export function LabGallery({ catalog }: { catalog: LabCatalog }) {
   return (
     <div className="min-h-screen bg-ds-surface-sunken text-ds-text">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-ds-150 border-b border-ds-border bg-ds-surface px-ds-300 py-ds-150">
-        <h1 className="m-0 mr-auto text-heading-sm">Kaine UI Lab</h1>
+        <h1 className="m-0 text-heading-sm">Kaine UI Lab</h1>
+        <div className="mr-auto">
+          <LabNav current="components" />
+        </div>
         {/* The .ui-select__trigger rule fills its container, so the containers set the width. */}
         <div className="w-56">
           <ThemePicker label="Theme" themes={labThemes} value={first} onChange={setFirst} />
@@ -367,36 +371,10 @@ export function LabGallery({ catalog }: { catalog: LabCatalog }) {
         </SegmentedControl>
       </header>
 
-      {screens.length > 0 ? (
-        <nav
-          aria-label="Recreated screens"
-          className="flex flex-wrap gap-ds-100 px-ds-300 pt-ds-200"
-        >
-          {screens.map((screen) => (
-            <a
-              key={screen.id}
-              className="text-body-sm text-ds-link"
-              href={`#/compare/${screen.id}`}
-            >
-              {screen.title}
-            </a>
-          ))}
-        </nav>
-      ) : null}
-      {failures.length > 0 ? (
-        <section aria-label="Screens that did not load" className="px-ds-300 pt-ds-150">
-          <ul className="m-0 flex flex-wrap gap-ds-100 p-0">
-            {failures.map((failure) => (
-              <li key={failure.id} className="list-none">
-                <a
-                  className="text-body-sm text-ds-text-danger"
-                  href={`#/screens/${failure.id}`}
-                >{`${failure.id} did not load`}</a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <p className="m-0 px-ds-300 pt-ds-200 text-body-sm text-ds-text-subtle">
+        <a className="text-ds-link" href="#/screens">{`${screens.length} recreated screens`}</a>
+        {failures.length > 0 ? ` · ${failures.length} did not load` : null}
+      </p>
 
       <main className={panes.length > 1 ? "grid gap-ds-200 p-ds-200 xl:grid-cols-2" : "p-ds-200"}>
         {panes.map((theme) => (
