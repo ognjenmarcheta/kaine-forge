@@ -21,9 +21,10 @@ import {
   type MockInstance
 } from "vitest";
 
-import { createTodos, type TodoAttachments, type Todos } from "./todos.module";
+import { countTodos, createTodos, type TodoAttachments, type Todos } from "./todos.module";
 import { createScopedData, type ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
+import { createBilling } from "../billing/billing.module";
 import { createAttachments } from "../storage/attachment.module";
 import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 
@@ -50,10 +51,48 @@ function todosWith(attachments?: TodoAttachments): Todos {
       }),
     data,
     logger,
+    // Billing off: the 61 fixture Todos are past the free limit, and no limit applies.
+    plan: createBilling({ data, provider: "none", usage: { todos: () => countTodos(data) } }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
     }
   });
+}
+
+/** Todos of a new Organization on the free Plan that already has `existing` Todos. */
+async function freePlanTodos(
+  existing: number
+): Promise<{ todos: Todos; total: () => Promise<number> }> {
+  const { db } = database;
+  const [organization] = await db
+    .insert(organizationsTable)
+    .values({ name: "Free", slug: `free-${crypto.randomUUID()}`, userId: scope.userId })
+    .returning();
+  if (!organization) throw new Error("failed to seed organization");
+  await db.insert(todosTable).values(
+    Array.from({ length: existing }, (_, index) => ({
+      title: `Existing ${index + 1}`,
+      organizationId: organization.id,
+      userId: scope.userId
+    }))
+  );
+  const freeData = createScopedData({
+    db,
+    requireOrganizationScope: () => ({ ...scope, organizationId: organization.id })
+  });
+  const todos = createTodos({
+    attachments: { detach: () => Promise.resolve({ purge: () => Promise.resolve() }) },
+    data: freeData,
+    logger,
+    // A provider is set and the Organization has no subscription: the free Plan.
+    plan: createBilling({
+      data: freeData,
+      provider: "stripe",
+      usage: { todos: () => countTodos(freeData) }
+    }),
+    publish: () => {}
+  });
+  return { todos, total: () => countTodos(freeData) };
 }
 
 beforeAll(async () => {
@@ -306,5 +345,31 @@ describe("createTodos", () => {
 
     expect((await todos.listByNoteIds([note.id])).map((todo) => todo.id)).toEqual([linked.id]);
     expect(await todos.listByNoteIds([])).toEqual([]);
+  });
+});
+
+describe("the free Plan's todo limit", () => {
+  it("creates the 50th Todo and refuses the 51st with PLAN_LIMIT_REACHED", async () => {
+    const { todos, total } = await freePlanTodos(49);
+
+    await todos.create({ title: "Fiftieth" });
+    const refused = todos.create({ title: "Fifty-first" });
+
+    await expect(refused).rejects.toMatchObject({
+      extensions: { code: "PLAN_LIMIT_REACHED", feature: "todos", limit: 50, requiredPlan: "pro" }
+    });
+    expect(await total()).toBe(50);
+  });
+
+  it("lets exactly one of two parallel creates take the last free slot", async () => {
+    const { todos, total } = await freePlanTodos(49);
+
+    const results = await Promise.allSettled([
+      todos.create({ title: "First" }),
+      todos.create({ title: "Second" })
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(["fulfilled", "rejected"]);
+    expect(await total()).toBe(50);
   });
 });

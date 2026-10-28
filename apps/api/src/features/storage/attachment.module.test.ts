@@ -265,7 +265,13 @@ describe("createAttachments", () => {
 
   it("leaves no object of a deleted Todo in the store", async () => {
     const attachments = attachmentsWith();
-    const todos = createTodos({ attachments, data, logger, publish: () => {} });
+    const todos = createTodos({
+      attachments,
+      data,
+      logger,
+      plan: { withinLimit: (_limit, _count, create) => create(data) },
+      publish: () => {}
+    });
     const todo = await todos.create({ title: "With photos" });
     for (const name of ["a.png", "b.png"]) {
       const requested = await attachments.request({

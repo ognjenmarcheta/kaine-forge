@@ -5,6 +5,8 @@ import { assistantResolvers } from "../features/assistant/assistant.router";
 import { assistantTypeDefs } from "../features/assistant/assistant.schema";
 import { auditResolvers } from "../features/audit/audit.router";
 import { auditTypeDefs } from "../features/audit/audit.schema";
+import { billingResolvers } from "../features/billing/billing.router";
+import { billingTypeDefs } from "../features/billing/billing.schema";
 import { dataExportResolvers } from "../features/data-export/data-export.router";
 import { dataExportTypeDefs } from "../features/data-export/data-export.schema";
 import { featureFlagsResolvers } from "../features/feature-flags/feature-flags.router";
@@ -121,6 +123,11 @@ const apiFeatures: ApiFeature[] = [
     name: "audit",
     typeDefs: auditTypeDefs,
     resolvers: auditResolvers
+  },
+  {
+    name: "billing",
+    typeDefs: billingTypeDefs,
+    resolvers: billingResolvers
   },
   {
     name: "feature-flags",

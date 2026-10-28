@@ -25,6 +25,7 @@
     "@ai-sdk/openai": "^4.0.101",
     "@graphql-yoga/plugin-csrf-prevention": "^4.0.1",
     "@repo/auth": "workspace:*",
+    "@repo/billing": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/email": "workspace:*",
     "@repo/feature-flags": "workspace:*",

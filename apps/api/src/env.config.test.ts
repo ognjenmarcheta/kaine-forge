@@ -31,6 +31,12 @@ describe("validateApiEnv", () => {
     );
   });
 
+  it("rejects a billing provider the API does not implement", () => {
+    expect(() => validateApiEnv({ ...validEnv, BILLING_PROVIDER: "braintree" })).toThrow(
+      /BILLING_PROVIDER/
+    );
+  });
+
   it("rejects a feature flag variable other than true or false", () => {
     expect(() =>
       validateApiEnv({ ...validEnv, FEATURE_FLAG_ORGANIZATIONS_VISIBLE: "maybe" })

@@ -35,6 +35,7 @@ RUN pnpm turbo run build --filter=@repo/api... \
   && node scripts/fix-esm-extensions.mjs \
     apps/api/dist \
     packages/auth/dist \
+    packages/billing/dist \
     packages/db/dist \
     packages/email/dist \
     packages/feature-flags/dist \
@@ -56,6 +57,7 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
 COPY --from=builder /app/packages/auth/dist/ ./packages/auth/dist/
+COPY --from=builder /app/packages/billing/dist/ ./packages/billing/dist/
 COPY --from=builder /app/packages/db/dist/ ./packages/db/dist/
 COPY --from=builder /app/packages/db/drizzle/ ./packages/db/drizzle/
 COPY --from=builder /app/packages/email/dist/ ./packages/email/dist/

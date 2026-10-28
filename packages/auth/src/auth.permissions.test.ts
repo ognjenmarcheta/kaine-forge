@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  apiKeyGrantablePermissions,
   CUSTOM_ROLE_PERMISSIONS,
   findUngrantablePermissions,
   resolveRolePermissions
@@ -48,7 +49,8 @@ describe("built-in role permissions", () => {
         "webhook:create",
         "webhook:read",
         "webhook:update",
-        "webhook:delete"
+        "webhook:delete",
+        "billing:manage"
       ]
     ],
     [
@@ -125,7 +127,7 @@ describe("resolveRolePermissions", () => {
         organization: ["delete", "transfer", "export", "update"],
         ac: ["create"],
         todo: ["purge"],
-        billing: ["read"]
+        billing: ["read", "manage"]
       })
     };
 
@@ -175,5 +177,13 @@ describe("findUngrantablePermissions", () => {
     }
 
     expect(findUngrantablePermissions(statements)).toEqual([]);
+  });
+});
+
+describe("apiKeyGrantablePermissions", () => {
+  it("never lets an owner's API Key manage billing", () => {
+    expect(apiKeyGrantablePermissions(resolveRolePermissions("owner", []))).not.toContain(
+      "billing:manage"
+    );
   });
 });

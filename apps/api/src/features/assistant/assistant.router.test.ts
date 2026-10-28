@@ -17,6 +17,7 @@ vi.mock("./assistant.ai-runtime", () => ({
 }));
 
 import * as assistantAdapter from "./assistant.adapter";
+import { createAssistantAiRuntime } from "./assistant.ai-runtime";
 import { assistantResolvers } from "./assistant.router";
 import type { PubSubEventMap } from "../../pubsub";
 
@@ -55,5 +56,17 @@ describe("assistant.router", () => {
     expect(result).toEqual({ items: [], pageInfo: { hasNextPage: false, endCursor: null } });
     expect(assistantAdapter.getConversationById).toHaveBeenCalledWith(data, "conversation-1");
     expect(assistantAdapter.listMessages).not.toHaveBeenCalled();
+  });
+
+  it("refuses a message on a Plan without the assistant before any model call", async () => {
+    const planError = Object.assign(new Error("the current plan does not include assistant"), {
+      extensions: { code: "PLAN_FEATURE_REQUIRED" }
+    });
+    const freeCtx = { ...ctx, billing: { requireFeature: () => Promise.reject(planError) } };
+
+    await expect(
+      assistantResolvers.Mutation.sendMessage({}, { input: { message: "Hello" } }, freeCtx as never)
+    ).rejects.toBe(planError);
+    expect(createAssistantAiRuntime).not.toHaveBeenCalled();
   });
 });
