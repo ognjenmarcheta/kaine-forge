@@ -376,7 +376,7 @@ Common patterns:
 Primitive options that screens often need:
 
 - `Button`: `appearance="outline"` is a surface fill with a bold border, and `appearance="raised"` a surface fill with a soft shadow and no border, for a white button on a tinted area. `spacing="icon"` is a square icon button; give it an `aria-label` (A11Y-3).
-- `FilterMenu`: a compact button that shows the chosen option of a filter (a period, a scope) and opens a menu of choices. Its name is the filter's `label` and the visible value, so a screen reader says "Period, Last 7 days". Use it instead of a full `Select` in a card or page header.
+- `FilterMenu`: a compact button that shows the chosen option of a filter (a period, a scope) and opens a menu of choices. Its name is the filter's `label` and the visible value, so a screen reader says "Period Last 7 days". Use it instead of a full `Select` in a card or page header.
 - `CardAction`: a control at the end of a `CardHeader`, such as a `FilterMenu` or a menu button. The header becomes two columns only when it holds one.
 - `StatCard`: every part has a `data-slot` (`stat-card-label`, `stat-card-value`, …), so a screen restyles a part with `[&_[data-slot=stat-card-label]]:text-body`. `visual` puts a ring or a sparkline at the end of the value row.
 - `CardTitle`: `as="h2"` or `as="h4"` fits the title into the page outline; the default is `h3` (TYPE-2).
