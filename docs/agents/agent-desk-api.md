@@ -369,7 +369,7 @@ same result.
   Each has `kind`, `role`, `status` (`idle`, `running`, `waiting`, `passed`, `looped`,
   `failed`), `current`, a fixed `x` and `y`, `metrics` (runs, last duration), `activity`,
   and `badge` (`needs-you` with the first line of the reason, or `cancelled`).
-- Edges: forward edges from `PIPELINE`, and dashed loop-backs. Each has `state`
+- Edges: forward edges in flow step order, and dashed loop-backs. Each has `state`
   (`idle`, `traversed`, `active`), `tone` (`neutral`, `warn`, `bad`), handles, an `arc`,
   `loopKind`, and counts (`count` for automatic loops, `feedbackCount` for the
   engineer's feedback, `blocking` for the latest review loop).
