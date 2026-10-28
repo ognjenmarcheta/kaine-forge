@@ -1620,7 +1620,12 @@ export const writeGenerated = (
   // half-written file.
   const tempPath = `${filePath}.${String(process.pid)}.tmp`;
   writeFileSync(tempPath, newContent);
-  renameSync(tempPath, filePath);
+  try {
+    renameSync(tempPath, filePath);
+  } catch (error) {
+    rmSync(tempPath, { force: true });
+    throw error;
+  }
   results.push({
     file: filePath,
     status: existing === null ? "created" : "updated"

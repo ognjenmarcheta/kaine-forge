@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
@@ -94,23 +94,30 @@ prints only what changed. The agent session hooks run it.
 `;
 
 const listTrackedFiles = (): Set<string> => {
-  try {
-    const output = execFileSync("git", ["ls-files", "-z"], {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      windowsHide: true
-    });
-    return new Set(
-      output
-        .split("\0")
-        .filter(Boolean)
-        .map((file) => join(REPO_ROOT, file))
-    );
-  } catch {
-    // Outside git nothing is tracked, so nothing can leak into a branch.
-    return new Set();
-  }
+  // Outside git nothing is tracked. Inside a checkout a git failure must stop --auto,
+  // not let it treat tracked outputs as untracked and overwrite them.
+  if (!existsSync(join(REPO_ROOT, ".git"))) return new Set();
+  const output = execFileSync("git", ["ls-files", "-z"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  return new Set(
+    output
+      .split("\0")
+      .filter(Boolean)
+      .map((file) => join(REPO_ROOT, file))
+  );
+};
+
+/** Under --auto, names tracked files at or under `path` so cleanup keeps them. */
+const keepTracked = (path: string): boolean => {
+  const tracked = [...(trackedFiles ?? [])].filter(
+    (file) => file === path || file.startsWith(`${path}${sep}`)
+  );
+  trackedDrift.push(...tracked.map((file) => relative(REPO_ROOT, file)));
+  return tracked.length > 0;
 };
 
 const writeOutput = (file: string, content: string, results: WriteResult[]): void => {
@@ -437,10 +444,7 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
         if (!readFileSync(filePath, "utf8").includes("GENERATED FILE")) {
           continue;
         }
-        if (trackedFiles?.has(filePath)) {
-          trackedDrift.push(relative(REPO_ROOT, filePath));
-          continue;
-        }
+        if (keepTracked(filePath)) continue;
         rmSync(filePath, { force: true });
       }
     }
@@ -483,6 +487,7 @@ const installAgent = (
         continue;
       }
 
+      if (keepTracked(join(dirAbs, entry.name))) continue;
       rmSync(join(dirAbs, entry.name), { recursive: true, force: true });
       removedSkills.push(`${agent}: ${entry.name}`);
     }
@@ -532,6 +537,7 @@ const installAgent = (
           continue;
         }
 
+        if (keepTracked(join(agentsDirAbs, entry.name))) continue;
         rmSync(join(agentsDirAbs, entry.name), { force: true });
         removedSkills.push(`${agent}: ${entry.name}`);
       }
@@ -674,9 +680,13 @@ const main = async (): Promise<void> => {
         );
     if (addedSkills.length && !options.auto)
       console.log(chalk.cyan(`${agent}: added new team skills: ${addedSkills.join(", ")}`));
+    // A recorded skill the team has since retired drops out; an explicit unknown name still fails.
+    const keptSkills = options.skills.length
+      ? skillChoice.names
+      : skillChoice.names.filter((name) => allSkills.some((skill) => skill.name === name));
     const agentOptions = {
       ...options,
-      skills: [...skillChoice.names, ...addedSkills],
+      skills: [...keptSkills, ...addedSkills],
       exactSkillSelection: skillChoice.exact,
       mcps: mcpChoice.names,
       exactMcpSelection: mcpChoice.exact,

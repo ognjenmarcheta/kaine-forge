@@ -252,23 +252,49 @@ describe("session-start hook", () => {
     }
   });
 
-  it("never writes tracked files during a refresh and names them instead", () => {
+  it("never writes or deletes tracked files during a refresh and names them instead", () => {
     const repo = makeRepo();
     try {
       makeHealthyAiInstall(repo);
-      execFileSync("git", ["add", "AGENTS.md"], { cwd: repo });
+      const trackedSkill = ".claude/skills/kaine-test/SKILL.md";
+      execFileSync("git", ["add", "-f", "AGENTS.md", trackedSkill], { cwd: repo });
       runHook(repo, "codex");
       const agentsDoc = readFileSync(join(repo, "AGENTS.md"), "utf8");
-      writeFileSync(
-        join(repo, ".ai/guide.md"),
-        `${readFileSync(join(repo, ".ai/guide.md"), "utf8")}\nNew rule.\n`
-      );
+      // A pull that retires a skill changes the tracked index and orphans the tracked copy.
+      rmSync(join(repo, ".ai/skills/kaine-test.md"));
 
       const context = runHook(repo, "codex").stdout;
 
       expect(context).toContain(
-        "- Tracked AI files are out of date: AGENTS.md. Run pnpm ai:install and commit.\n"
+        `- Tracked AI files are out of date: AGENTS.md, ${trackedSkill}. Run pnpm ai:install and commit.\n`
       );
+      expect(readFileSync(join(repo, "AGENTS.md"), "utf8")).toBe(agentsDoc);
+      expect(existsSync(join(repo, trackedSkill))).toBe(true);
+      expect(existsSync(join(repo, ".agents/skills/kaine-test"))).toBe(false);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("stops a refresh when git cannot list tracked files", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      execFileSync("git", ["add", "AGENTS.md"], { cwd: repo });
+      const agentsDoc = readFileSync(join(repo, "AGENTS.md"), "utf8");
+      writeFile(
+        repo,
+        ".ai/guide.md",
+        `${readFileSync(join(repo, ".ai/guide.md"), "utf8")}\nNew rule.\n`
+      );
+      writeFile(repo, ".git/index", "corrupt");
+
+      const result = spawnSync(process.execPath, ["--import", "tsx", ".ai/install.ts", "--auto"], {
+        cwd: repo,
+        encoding: "utf8"
+      });
+
+      expect(result.status).toBe(1);
       expect(readFileSync(join(repo, "AGENTS.md"), "utf8")).toBe(agentsDoc);
     } finally {
       rmSync(repo, { recursive: true, force: true });
