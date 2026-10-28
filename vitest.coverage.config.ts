@@ -37,6 +37,7 @@ export default defineConfig({
         "**/*.test.*",
         "**/*.spec.*",
         "**/*.d.ts",
+        "**/*.graphql",
         "**/dist/**",
         "**/.turbo/**",
         "**/.worktrees/**",
