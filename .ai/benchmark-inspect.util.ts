@@ -69,8 +69,7 @@ export function unexpectedWorkflowFiles(
         ) ||
         file === "apps/api/schema.graphql" ||
         /^(apps\/api|apps\/web)\/src\/features\/memos\/.*\.test\.tsx?$/.test(file) ||
-        file === "apps/e2e/tests/web-memos-flows.e2e.ts" ||
-        file === "apps/api/src/schema/features.test.ts"
+        file === "apps/e2e/tests/web-memos-flows.e2e.ts"
       );
     }
     return true;

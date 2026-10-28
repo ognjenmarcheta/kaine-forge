@@ -650,7 +650,6 @@ export const wiringTargets = [
   "apps/api/src/pubsub.ts",
   "apps/api/src/context.ts",
   "apps/api/src/schema/features.ts",
-  "apps/api/src/schema/features.test.ts",
   "packages/translation/src/translation.definition.ts",
   "packages/translation/src/translation.config.ts",
   "packages/translation/src/locales/en/navigation.json",
@@ -868,22 +867,11 @@ const wireApiFeatures = (source: string, names: FeatureNames): string => {
   return insertBeforeClose(
     path,
     withSchema,
-    "export const apiFeatures: ApiFeature[] = [",
+    "const apiFeatures: ApiFeature[] = [",
     "\n];",
     `,\n  {\n    name: "${names.pluralKebab}",\n    typeDefs: ${names.pluralCamel}TypeDefs,\n    resolvers: ${names.pluralCamel}Resolvers\n  }`
   );
 };
-
-// The generated router reaches data only through ctx, so the registry test
-// needs no module mock for it.
-const wireApiFeaturesTest = (source: string, names: FeatureNames): string =>
-  insertBeforeClose(
-    "apps/api/src/schema/features.test.ts",
-    source,
-    "expect(apiFeatures.map((feature) => feature.name)).toEqual([",
-    "\n    ]);",
-    `,\n      "${names.pluralKebab}"`
-  );
 
 const wireTranslationDefinition = (source: string, names: FeatureNames): string =>
   insertBeforeClose(
@@ -946,9 +934,6 @@ const wireTarget = (path: string, source: string, names: FeatureNames): string =
   }
   if (path === "apps/api/src/schema/features.ts") {
     return wireApiFeatures(source, names);
-  }
-  if (path === "apps/api/src/schema/features.test.ts") {
-    return wireApiFeaturesTest(source, names);
   }
   if (path === "packages/translation/src/translation.definition.ts") {
     return wireTranslationDefinition(source, names);

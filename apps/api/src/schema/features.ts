@@ -86,7 +86,7 @@ const baseResolvers: ResolverMap = {
   }
 };
 
-export const apiFeatures: ApiFeature[] = [
+const apiFeatures: ApiFeature[] = [
   {
     name: "organizations",
     typeDefs: organizationsTypeDefs,
@@ -149,7 +149,7 @@ export const apiFeatures: ApiFeature[] = [
   }
 ];
 
-export function composeApiFeatures(features: ApiFeature[]): ComposedApiFeatures {
+function composeApiFeatures(features: ApiFeature[]): ComposedApiFeatures {
   return {
     resolvers: mergeResolverMaps([baseResolvers, ...features.map((feature) => feature.resolvers)]),
     typeDefs: [baseTypeDefs, ...features.map((feature) => feature.typeDefs)]
