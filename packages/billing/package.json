@@ -24,6 +24,9 @@
     "test:watch": "vitest --passWithNoTests",
     "clean": "rm -rf dist .turbo"
   },
+  "dependencies": {
+    "stripe": "catalog:"
+  },
   "devDependencies": {
     "@repo/config": "workspace:*",
     "vitest": "catalog:"

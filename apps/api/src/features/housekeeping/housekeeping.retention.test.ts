@@ -1,5 +1,6 @@
 import {
   auditEventsTable,
+  billingEventsTable,
   dataExportsTable,
   filesTable,
   notificationsTable,
@@ -67,6 +68,7 @@ beforeEach(async () => {
   await database.db.delete(auditEventsTable);
   await database.db.delete(notificationsTable);
   await database.db.delete(webhookDeliveriesTable);
+  await database.db.delete(billingEventsTable);
   await database.db.delete(dataExportsTable);
   warnings.length = 0;
 });
@@ -114,6 +116,10 @@ async function seedDelivery(eventType: string, createdAt: Date) {
   });
 }
 
+async function seedBillingEvent(eventId: string, receivedAt: Date) {
+  await database.db.insert(billingEventsTable).values({ provider: "stripe", eventId, receivedAt });
+}
+
 async function seedExport(
   name: string,
   values: Partial<typeof dataExportsTable.$inferInsert> &
@@ -146,6 +152,10 @@ async function remaining() {
     .select({ eventType: webhookDeliveriesTable.eventType })
     .from(webhookDeliveriesTable)
     .orderBy(asc(webhookDeliveriesTable.eventType));
+  const billingEvents = await database.db
+    .select({ eventId: billingEventsTable.eventId })
+    .from(billingEventsTable)
+    .orderBy(asc(billingEventsTable.eventId));
   const exports = await database.db
     .select({ key: dataExportsTable.key, status: dataExportsTable.status })
     .from(dataExportsTable)
@@ -155,6 +165,7 @@ async function remaining() {
     auditEvents: auditEvents.map((row) => row.targetType),
     notifications: notifications.map((row) => row.type),
     deliveries: deliveries.map((row) => row.eventType),
+    billingEvents: billingEvents.map((row) => row.eventId),
     exports
   };
 }
@@ -173,6 +184,8 @@ describe("applyRetention", () => {
     await seedNotification("recent", at(-89 * day));
     await seedDelivery("old", at(-31 * day));
     await seedDelivery("recent", at(-29 * day));
+    await seedBillingEvent("old", at(-31 * day));
+    await seedBillingEvent("recent", at(-29 * day));
     for (const name of ["expired-archive", "live-archive", "orphan-archive"]) {
       await store.put(
         { bucket: "memory", key: `exports/users/${name}.zip` },
@@ -228,6 +241,7 @@ describe("applyRetention", () => {
       auditEvents: 1,
       notifications: 1,
       webhookDeliveries: 1,
+      billingEvents: 1,
       stalledExports: 1,
       exportArchives: 2,
       dataExports: 2
@@ -238,6 +252,7 @@ describe("applyRetention", () => {
       auditEvents: ["recent"],
       notifications: ["recent"],
       deliveries: ["recent"],
+      billingEvents: ["recent"],
       exports: [
         { key: null, status: "expired" },
         { key: "exports/users/live-archive.zip", status: "ready" },
@@ -278,6 +293,7 @@ describe("applyRetention", () => {
         auditEvents: 0,
         notifications: 0,
         webhookDeliveries: 0,
+        billingEvents: 0,
         stalledExports: 0,
         exportArchives: 0,
         dataExports: 0

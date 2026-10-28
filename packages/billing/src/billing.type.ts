@@ -44,10 +44,10 @@ export interface VerifiedWebhook {
  */
 export interface BillingProvider {
   name: BillingProviderName;
-  /** Returns the provider's customer id for the Organization, creating it when absent. */
-  ensureCustomer(input: { organizationId: string; name: string; email: string }): Promise<string>;
+  /** Creates the Organization's customer at the provider and returns its id. */
+  createCustomer(input: { organizationId: string; name: string; email: string }): Promise<string>;
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>;
-  createPortalSession(customerRef: string): Promise<{ url: string }>;
+  createPortalSession(input: { customerRef: string; returnUrl: string }): Promise<{ url: string }>;
   /** The provider's current state; webhooks refetch instead of trusting event order. */
   fetchSubscription(subscriptionRef: string): Promise<NormalizedSubscription>;
   updateQuantity(subscriptionRef: string, quantity: number): Promise<void>;

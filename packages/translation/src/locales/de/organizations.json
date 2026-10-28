@@ -211,5 +211,8 @@
   "organizations.webhooks.rotateSecret": "Geheimnis erneuern",
   "organizations.webhooks.rotateDescription": "Das aktuelle Signaturgeheimnis gilt sofort nicht mehr. Hinterlegen Sie das neue Geheimnis bei Ihrem Empfänger.",
   "organizations.webhooks.rotateError": "Das Geheimnis wurde nicht erneuert. Versuchen Sie es erneut.",
-  "organizations.audit.action.webhook_secret_rotated": "Webhook-Signaturgeheimnis erneuert"
+  "organizations.audit.action.webhook_secret_rotated": "Webhook-Signaturgeheimnis erneuert",
+  "organizations.audit.action.billing_checkout_started": "Bezahlvorgang gestartet",
+  "organizations.audit.action.billing_portal_opened": "Abrechnungsportal geöffnet",
+  "organizations.audit.action.billing_subscription_changed": "Abonnement geändert"
 }

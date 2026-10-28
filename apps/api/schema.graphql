@@ -48,6 +48,8 @@ type Mutation {
   confirmPublicAssetUpload(kind: PublicAssetKind!, stagingKey: String!): PublicAssets!
   sendMessage(input: SendMessageInput!): SendMessagePayload!
   deleteConversation(id: ID!): Boolean!
+  startCheckout(plan: BillingPlan!, interval: BillingInterval!): BillingCheckout!
+  openBillingPortal: String!
   setFeatureFlagOverride(key: FeatureFlagKey!, enabled: Boolean!): [FeatureFlag!]!
   clearFeatureFlagOverride(key: FeatureFlagKey!): [FeatureFlag!]!
   markNotificationRead(id: ID!): Notification!
@@ -355,6 +357,9 @@ enum AuditAction {
   webhook_endpoint_updated
   webhook_endpoint_deleted
   webhook_secret_rotated
+  billing_checkout_started
+  billing_portal_opened
+  billing_subscription_changed
 }
 
 type AuditActor {
@@ -403,6 +408,22 @@ enum SubscriptionStatus {
   paused
   incomplete
   expired
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+enum BillingCheckoutMode {
+  redirect
+  overlay
+}
+
+type BillingCheckout {
+  mode: BillingCheckoutMode!
+  url: String
+  transactionId: String
 }
 
 type BillingLimitUsage {

@@ -211,5 +211,8 @@
   "organizations.webhooks.rotateSecret": "Zameni tajnu",
   "organizations.webhooks.rotateDescription": "Trenutna tajna za potpisivanje odmah prestaje da važi. Unesite novu tajnu u prijemnik.",
   "organizations.webhooks.rotateError": "Tajna nije zamenjena. Pokušajte ponovo.",
-  "organizations.audit.action.webhook_secret_rotated": "Tajna vebhuka zamenjena"
+  "organizations.audit.action.webhook_secret_rotated": "Tajna vebhuka zamenjena",
+  "organizations.audit.action.billing_checkout_started": "Plaćanje pokrenuto",
+  "organizations.audit.action.billing_portal_opened": "Portal za naplatu otvoren",
+  "organizations.audit.action.billing_subscription_changed": "Pretplata promenjena"
 }

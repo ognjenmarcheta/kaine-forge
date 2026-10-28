@@ -2,7 +2,6 @@ import { recordAuditEvent } from "@repo/auth/audit";
 import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
 import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
-import { createBillingProvider } from "@repo/billing";
 import { db } from "@repo/db";
 import type { FeatureFlags } from "@repo/feature-flags";
 import { createChildLogger, createLogger, type Logger } from "@repo/logger";
@@ -14,6 +13,7 @@ import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createApiKeys, type ApiKeys } from "./features/api-keys/api-keys.module";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
 import { createBilling, type Billing } from "./features/billing/billing.module";
+import { billingPrices, billingProvider } from "./features/billing/billing.provider";
 import { createDataExports, type DataExports } from "./features/data-export/data-export.module";
 import {
   createFeatureFlagOverrides,
@@ -82,9 +82,6 @@ export interface ApiKeyRequest {
   apiKeyId: string;
   scope: AuthenticatedOrganizationScope;
 }
-
-// One provider per deployment, chosen by BILLING_PROVIDER (default none).
-const billingProvider = createBillingProvider();
 
 // Every organization event also goes to the Organization's Webhook Endpoints.
 const dispatchWebhookEvent = createWebhookDispatcher({
@@ -163,7 +160,12 @@ export async function createContextFromHeaders(
   });
   const billing = createBilling({
     data,
-    provider: billingProvider.name,
+    db,
+    provider: billingProvider,
+    prices: billingPrices,
+    requireOrganizationScope,
+    recordAuditEvent,
+    webAppUrl: process.env.WEB_APP_URL,
     usage: { todos: () => countTodos(data) }
   });
   const todos = createTodos({ attachments, data, logger: contextLogger, plan: billing, publish });

@@ -37,6 +37,12 @@ export interface AuditEventMetadataByAction {
   webhook_endpoint_updated: { url: string; eventTypes: string };
   webhook_endpoint_deleted: { url: string };
   webhook_secret_rotated: { url: string };
+  /** An owner started a provider checkout for a Plan. */
+  billing_checkout_started: { plan: string; interval: string };
+  /** An owner opened the provider's billing portal. */
+  billing_portal_opened: Record<string, never>;
+  /** A provider webhook changed a subscription; the actor is null. */
+  billing_subscription_changed: { plan: string; status: string };
 }
 
 export type AuditAction = keyof AuditEventMetadataByAction;
@@ -89,7 +95,10 @@ export const AUDIT_ACTION_TARGETS: { readonly [TAction in AuditAction]: AuditTar
   webhook_endpoint_created: "webhook_endpoint",
   webhook_endpoint_updated: "webhook_endpoint",
   webhook_endpoint_deleted: "webhook_endpoint",
-  webhook_secret_rotated: "webhook_endpoint"
+  webhook_secret_rotated: "webhook_endpoint",
+  billing_checkout_started: "organization",
+  billing_portal_opened: "organization",
+  billing_subscription_changed: "organization"
 };
 
 export function isAuditAction(value: string): value is AuditAction {

@@ -211,5 +211,8 @@
   "organizations.webhooks.rotateSecret": "Rotate secret",
   "organizations.webhooks.rotateDescription": "The current signing secret stops working at once. Update your receiver with the new secret.",
   "organizations.webhooks.rotateError": "The secret was not rotated. Try again.",
-  "organizations.audit.action.webhook_secret_rotated": "Webhook signing secret rotated"
+  "organizations.audit.action.webhook_secret_rotated": "Webhook signing secret rotated",
+  "organizations.audit.action.billing_checkout_started": "Checkout started",
+  "organizations.audit.action.billing_portal_opened": "Billing portal opened",
+  "organizations.audit.action.billing_subscription_changed": "Subscription changed"
 }

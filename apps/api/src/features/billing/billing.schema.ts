@@ -24,6 +24,24 @@ export const billingTypeDefs = /* GraphQL */ `
     expired
   }
 
+  enum BillingInterval {
+    month
+    year
+  }
+
+  enum BillingCheckoutMode {
+    # Send the browser to url.
+    redirect
+    # Open the provider's overlay checkout for transactionId.
+    overlay
+  }
+
+  type BillingCheckout {
+    mode: BillingCheckoutMode!
+    url: String
+    transactionId: String
+  }
+
   type BillingLimitUsage {
     key: String!
     # Null when the Plan has no cap.
@@ -47,5 +65,15 @@ export const billingTypeDefs = /* GraphQL */ `
     # A create past a limit fails with code PLAN_LIMIT_REACHED; a feature the
     # Plan lacks fails with code PLAN_FEATURE_REQUIRED.
     billing: BillingStatus!
+  }
+
+  extend type Mutation {
+    # Starts a checkout of a Plan for the Active Organization. Requires
+    # billing:manage and a signed-in owner. Fails with code BAD_USER_INPUT for
+    # a Plan that is not for sale or when the Organization already has a paid
+    # Plan, which the billing portal changes instead.
+    startCheckout(plan: BillingPlan!, interval: BillingInterval!): BillingCheckout!
+    # A short-lived URL of the provider's billing portal. Requires billing:manage.
+    openBillingPortal: String!
   }
 `;

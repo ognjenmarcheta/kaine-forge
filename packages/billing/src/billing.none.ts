@@ -9,7 +9,7 @@ function notConfigured(): never {
 export function createNoneBillingProvider(): BillingProvider {
   return {
     name: BILLING_PROVIDERS.NONE,
-    ensureCustomer: async () => notConfigured(),
+    createCustomer: async () => notConfigured(),
     createCheckout: async () => notConfigured(),
     createPortalSession: async () => notConfigured(),
     fetchSubscription: async () => notConfigured(),
