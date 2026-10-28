@@ -206,9 +206,22 @@ describe("createPublicAssets", () => {
     expect(memory.keys()).toEqual([]);
   });
 
+  it.each([
+    { publicStorage: { bucket: "public", baseUrl: BASE_URL }, uploadsEnabled: true },
+    { publicStorage: null, uploadsEnabled: false }
+  ])(
+    "reports uploadsEnabled $uploadsEnabled for the public bucket config",
+    async ({ publicStorage, uploadsEnabled }) => {
+      expect(await assetsFor(owner, publicStorage).current()).toMatchObject({ uploadsEnabled });
+    }
+  );
+
   it("is off when no public bucket is configured", async () => {
     await expect(
       assetsFor(owner, null).request({ kind: "avatar", mimeType: "image/png", sizeBytes: 10 })
-    ).rejects.toThrow("public assets are not configured");
+    ).rejects.toMatchObject({
+      message: "public assets are not configured",
+      extensions: { code: "PUBLIC_ASSETS_NOT_CONFIGURED" }
+    });
   });
 });

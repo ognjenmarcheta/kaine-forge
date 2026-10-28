@@ -14,9 +14,14 @@ import {
   type PublicAssetConfig
 } from "@repo/storage";
 import { eq } from "drizzle-orm";
+import { GraphQLError } from "graphql";
 import { randomUUID } from "node:crypto";
 
-import { PUBLIC_ASSET_CONFIG, type PublicAssetKind } from "./public-assets.definition";
+import {
+  PUBLIC_ASSET_CONFIG,
+  PUBLIC_ASSETS_NOT_CONFIGURED,
+  type PublicAssetKind
+} from "./public-assets.definition";
 import { ownedPublicAssetKey, publicAssetKey } from "./public-assets.util";
 import { formatLoggableError } from "../../observability";
 import { renderSquareWebp } from "../storage/attachment.image";
@@ -34,6 +39,8 @@ export interface PublicAssetsDeps {
 export interface PublicAssetUrls {
   avatarUrl: string | null;
   organizationLogoUrl: string | null;
+  /** False when the deployment has no public bucket, so no upload can succeed. */
+  uploadsEnabled: boolean;
 }
 
 /**
@@ -67,7 +74,9 @@ export function createPublicAssets({
 }: PublicAssetsDeps): PublicAssets {
   function requireStorage(): PublicAssetConfig {
     if (!publicStorage) {
-      throw new Error("public assets are not configured");
+      throw new GraphQLError("public assets are not configured", {
+        extensions: { code: PUBLIC_ASSETS_NOT_CONFIGURED }
+      });
     }
 
     return publicStorage;
@@ -116,7 +125,11 @@ export function createPublicAssets({
         .where(eq(organizationsTable.id, scope.organizationId))
     ]);
 
-    return { avatarUrl: user?.image ?? null, organizationLogoUrl: organization?.logo ?? null };
+    return {
+      avatarUrl: user?.image ?? null,
+      organizationLogoUrl: organization?.logo ?? null,
+      uploadsEnabled: publicStorage !== null
+    };
   }
 
   /** Why the staged object cannot be published, or null when it can. */
