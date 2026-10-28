@@ -145,7 +145,7 @@ pnpm ai:doctor
 pnpm template:adopt --check
 ```
 
-Non-interactive: create `template-adoption.json` with at least `productName`, `desktopIdentifier`, `compatibilityPolicy`, and `designCompatibilityPolicy`. Add `repoOwner` (recommended) to rewrite the GitHub owner in badge URLs, links, and `CODEOWNERS`. Then:
+Non-interactive: create `template-adoption.json` with at least `productName`, `repoOwner`, `desktopIdentifier`, `compatibilityPolicy`, and `designCompatibilityPolicy`. Adoption sets the GitHub owner in badge URLs, links, and `CODEOWNERS` from `repoOwner`. Then:
 
 ```bash
 pnpm template:adopt --config template-adoption.json --write
