@@ -275,6 +275,7 @@ function ShellContent() {
       }
       sidebar={
         <AppSidebar
+          label={t("navigation.sidebarTitle")}
           mobileSheetCloseLabel={t("common.close")}
           mobileSheetDescription={t("navigation.mobileSidebarDescription")}
           mobileSheetTitle={t("navigation.sidebarTitle")}

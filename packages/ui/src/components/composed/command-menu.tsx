@@ -1,6 +1,7 @@
 import { Command, defaultFilter } from "cmdk";
 import { SearchIcon, type LucideIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
+import { useRef } from "react";
 
 export interface CommandMenuItem {
   /** Unique within the menu; never matched by the search. */
@@ -39,7 +40,8 @@ function filterByLabel(_value: string, search: string, keywords?: string[]): num
 
 /**
  * A searchable list of commands in a dialog. It opens from the keyboard many
- * times a day, so it has no open or close animation.
+ * times a day, so it has no open or close animation. When it closes, focus goes
+ * back to the element that had it when the menu opened (A11Y-4).
  */
 export function CommandMenu({
   emptyLabel,
@@ -49,11 +51,27 @@ export function CommandMenu({
   open,
   placeholder
 }: CommandMenuProps) {
+  const returnFocus = useRef<HTMLElement | null>(null);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-command-menu__overlay" />
-        <Dialog.Content aria-describedby={undefined} className="ui-command-menu">
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="ui-command-menu"
+          onOpenAutoFocus={() => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            // The menu is controlled and has no Radix Trigger to restore focus to.
+            if (returnFocus.current?.isConnected) {
+              event.preventDefault();
+              returnFocus.current.focus();
+            }
+          }}
+        >
           <Dialog.Title className="sr-only">{label}</Dialog.Title>
           <Command filter={filterByLabel} label={label} loop vimBindings={false}>
             <div className="ui-command-menu__search">

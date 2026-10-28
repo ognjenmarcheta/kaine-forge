@@ -117,7 +117,7 @@ export function ShellSelectControl({
       className={cn(
         "data-[state=open]:bg-ds-bg-neutral-hovered data-[state=open]:text-ds-text",
         isIconDisplay && "size-8 justify-center p-0 bg-ds-bg-neutral text-ds-text-subtle",
-        isCompact && "ui-shell-select-compact",
+        isCompact && "ui-shell-select-compact max-md:h-ds-control-xlarge",
         className
       )}
       disabled={disabled}

@@ -24,4 +24,25 @@ describe("app-sidebar", () => {
     expect(markup.indexOf("Preferences")).toBeLessThan(markup.indexOf("User"));
     expect(markup).toContain('data-slot="sidebar-rail"');
   });
+
+  it("holds its header, content, and footer in one named navigation landmark", () => {
+    const markup = renderToStaticMarkup(
+      <SidebarProvider>
+        <AppSidebar
+          label="Sidebar"
+          navMain={<div>Main</div>}
+          navPreferences={<div>Preferences</div>}
+          organizationSwitcher={<div>Organization</div>}
+          user={<div>User</div>}
+        />
+      </SidebarProvider>
+    );
+    const start = markup.indexOf('<nav aria-label="Sidebar"');
+    const landmark = markup.slice(start, markup.indexOf("</nav>", start));
+
+    expect(start).toBeGreaterThan(-1);
+    expect(landmark).toContain("Organization");
+    expect(landmark).toContain("Main");
+    expect(landmark).toContain("User");
+  });
 });

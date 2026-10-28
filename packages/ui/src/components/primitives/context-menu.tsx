@@ -74,7 +74,7 @@ const ContextMenuItem = React.forwardRef<
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-body outline-none transition-colors focus:bg-ds-bg-neutral-subtle-hovered data-[disabled]:pointer-events-none data-[disabled]:text-ds-text-disabled data-[disabled]:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+      "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-body outline-none focus:bg-ds-bg-neutral-subtle-hovered data-[disabled]:pointer-events-none data-[disabled]:text-ds-text-disabled data-[disabled]:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       inset && "pl-8",
       destructive && "text-ds-text-danger focus:text-ds-text-danger",
       className
@@ -114,7 +114,7 @@ const ContextMenuRadioItem = React.forwardRef<
   <ContextMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-md py-1.5 pl-8 pr-2 text-body outline-none transition-colors focus:bg-ds-bg-neutral-subtle-hovered data-[disabled]:pointer-events-none data-[disabled]:text-ds-text-disabled data-[disabled]:cursor-not-allowed",
+      "relative flex cursor-default select-none items-center rounded-md py-1.5 pl-8 pr-2 text-body outline-none focus:bg-ds-bg-neutral-subtle-hovered data-[disabled]:pointer-events-none data-[disabled]:text-ds-text-disabled data-[disabled]:cursor-not-allowed",
       className
     )}
     {...props}

@@ -9,6 +9,8 @@ import {
 } from "../primitives/sidebar";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  /** Names the sidebar's navigation landmark, for example "Sidebar". */
+  label?: string;
   mobileSheetCloseLabel?: string;
   mobileSheetDescription?: string;
   mobileSheetTitle?: string;
@@ -22,6 +24,7 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({
   collapsible = "icon",
+  label,
   mobileSheetCloseLabel,
   mobileSheetDescription,
   mobileSheetTitle,
@@ -43,13 +46,16 @@ export function AppSidebar({
       {...(mobileSheetTitle ? { mobileSheetTitle } : {})}
       {...props}
     >
-      <SidebarHeader>{organizationSwitcher}</SidebarHeader>
-      <SidebarContent>{navMain}</SidebarContent>
-      <SidebarFooter>
-        {navPreferences}
-        {user ? <div className="ui-sidebar-user">{user}</div> : null}
-      </SidebarFooter>
-      <SidebarRail {...(resolvedRailLabel ? { label: resolvedRailLabel } : {})} />
+      {/* One landmark holds the whole sidebar, so its header and footer are not outside every landmark. */}
+      <nav aria-label={label} className="flex min-h-0 flex-1 flex-col">
+        <SidebarHeader>{organizationSwitcher}</SidebarHeader>
+        <SidebarContent>{navMain}</SidebarContent>
+        <SidebarFooter>
+          {navPreferences}
+          {user ? <div className="ui-sidebar-user">{user}</div> : null}
+        </SidebarFooter>
+        <SidebarRail {...(resolvedRailLabel ? { label: resolvedRailLabel } : {})} />
+      </nav>
     </Sidebar>
   );
 }

@@ -21,15 +21,20 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function CardTitle({ children, className, ...props }: React.ComponentProps<"h3">) {
+interface CardTitleProps extends React.ComponentProps<"h3"> {
+  /** The heading level, so the title fits the page outline. Defaults to `h3`. */
+  as?: "h2" | "h3" | "h4";
+}
+
+function CardTitle({ as: Heading = "h3", children, className, ...props }: CardTitleProps) {
   return (
-    <h3
+    <Heading
       data-slot="card-title"
       className={cn("m-0 text-heading-sm text-ds-text", className)}
       {...props}
     >
       {children}
-    </h3>
+    </Heading>
   );
 }
 

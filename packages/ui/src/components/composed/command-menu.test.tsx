@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CommandMenu } from "./command-menu";
+import { Button } from "../primitives/button";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -92,5 +93,36 @@ describe("CommandMenu", () => {
     await type(input, "page");
     expect(optionLabels()).toEqual([]);
     expect(document.body.textContent).toContain("No results");
+  });
+
+  it("returns focus to the element that opened it when it closes", async () => {
+    const render = (open: boolean) =>
+      root.render(
+        <>
+          <Button type="button">Search</Button>
+          <CommandMenu
+            emptyLabel="No results"
+            groups={[
+              { heading: "Go to", items: [{ id: "todos", label: "Todos", onSelect: () => {} }] }
+            ]}
+            label="Command menu"
+            onOpenChange={() => {}}
+            open={open}
+            placeholder="Search"
+          />
+        </>
+      );
+    await act(async () => render(false));
+    const opener = container.querySelector("button");
+    if (!opener) throw new Error("the opener did not render");
+    opener.focus();
+
+    await act(async () => render(true));
+    expect(document.activeElement).not.toBe(opener);
+
+    await act(async () => render(false));
+    // Radix moves focus on close in a timeout.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.activeElement).toBe(opener);
   });
 });

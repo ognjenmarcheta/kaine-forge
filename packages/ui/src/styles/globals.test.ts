@@ -23,7 +23,42 @@ async function buildUtilities(candidates: string[]): Promise<string> {
   return compiler.build(candidates);
 }
 
+/** The selectors of the top-level rules that sit outside every cascade layer. */
+function unlayeredSelectors(output: string): string[] {
+  const source = output.replace(/\/\*[\s\S]*?\*\//g, "");
+  const selectors: string[] = [];
+  let index = 0;
+  while (source.indexOf("{", index) !== -1) {
+    const open = source.indexOf("{", index);
+    const statement = source.indexOf(";", index);
+    if (statement !== -1 && statement < open) {
+      index = statement + 1;
+      continue;
+    }
+    let depth = 1;
+    let close = open + 1;
+    for (; depth > 0; close += 1) {
+      if (source[close] === "{") depth += 1;
+      if (source[close] === "}") depth -= 1;
+    }
+    const prelude = source.slice(index, open).trim();
+    if (!prelude.startsWith("@layer")) selectors.push(prelude);
+    index = close;
+  }
+  return selectors;
+}
+
 describe("globals.css", () => {
+  it("keeps element and component rules in cascade layers, so a utility in className wins", async () => {
+    const output = await buildUtilities(["h-ds-control-large"]);
+    // Token scopes may stay unlayered; Sonner's injected stylesheet is unlayered, so its override is too.
+    const outside = unlayeredSelectors(output).filter(
+      (selector) => !/^(:root|\[data-(theme|color-mode)=)/.test(selector)
+    );
+
+    expect(outside).toEqual([".ui-toaster[data-sonner-toaster][data-sonner-theme]"]);
+  });
+
   it("does not contain shadcn bridge variable definitions", () => {
     expect(css).not.toContain("--background: var(--ds-");
     expect(css).not.toContain("--foreground: var(--ds-");

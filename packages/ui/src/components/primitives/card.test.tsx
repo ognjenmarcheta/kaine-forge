@@ -17,4 +17,14 @@ describe("Card", () => {
     expect(markup).toContain("custom-header");
     expect(markup).toContain("custom-title");
   });
+
+  it.each([
+    [undefined, "h3"],
+    ["h2", "h2"],
+    ["h4", "h4"]
+  ] as const)("renders the title as=%s at heading level %s", (as, heading) => {
+    const markup = renderToStaticMarkup(<CardTitle {...(as ? { as } : {})}>Visits</CardTitle>);
+
+    expect(markup).toMatch(new RegExp(`^<${heading}[^>]*>Visits</${heading}>$`));
+  });
 });

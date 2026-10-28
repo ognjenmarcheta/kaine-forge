@@ -16,40 +16,44 @@ body {
   box-sizing: border-box;
 }
 
-a {
-  color: var(--ds-link);
-  text-underline-offset: var(--ds-space-050);
-}
-
-a:hover {
-  color: var(--ds-link-pressed);
-}
-
 :focus-visible {
   outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
   outline-offset: var(--ds-space-025);
 }
 
-h1,
-h2,
-h3,
-p {
-  margin-block: var(--ds-space-100);
-}
+/* Element rules sit in the base layer, like the @repo/ui ones, so a component class such as
+   .ui-button--subtle or .ui-modal__title still sets the color and margins of its own element. */
+@layer base {
+  a {
+    color: var(--ds-link);
+    text-underline-offset: var(--ds-space-050);
+  }
 
-h1 {
-  font: var(--ds-font-heading-page);
-  letter-spacing: var(--ds-letter-spacing-heading);
-}
+  a:hover {
+    color: var(--ds-link-pressed);
+  }
 
-h2 {
-  font: var(--ds-font-heading-medium);
-  letter-spacing: var(--ds-letter-spacing-heading);
-}
+  h1,
+  h2,
+  h3,
+  p {
+    margin-block: var(--ds-space-100);
+  }
 
-h3 {
-  font: var(--ds-font-heading-small);
-  margin-block-end: var(--ds-space-050);
+  h1 {
+    font: var(--ds-font-heading-page);
+    letter-spacing: var(--ds-letter-spacing-heading);
+  }
+
+  h2 {
+    font: var(--ds-font-heading-medium);
+    letter-spacing: var(--ds-letter-spacing-heading);
+  }
+
+  h3 {
+    font: var(--ds-font-heading-small);
+    margin-block-end: var(--ds-space-050);
+  }
 }
 
 code {
@@ -990,6 +994,15 @@ main:focus {
 
 .desk-picker__item.ui-button:hover:not(:disabled) {
   border-color: var(--ds-border-bold);
+}
+
+/* The ghost button's hover and press fills, which the background above would otherwise hide. */
+.desk-picker__item.ui-button:not([aria-pressed="true"]):hover:not(:disabled) {
+  background: var(--ds-background-neutral-hovered);
+}
+
+.desk-picker__item.ui-button:not([aria-pressed="true"]):active:not(:disabled) {
+  background: var(--ds-background-neutral-pressed);
 }
 
 .desk-picker__item.ui-button[aria-pressed="true"] {
@@ -2841,6 +2854,15 @@ main:focus {
   font: var(--ds-font-code-small);
   overflow-wrap: anywhere;
   cursor: pointer;
+}
+
+/* The ghost button's hover and press fills, which the background above would otherwise hide. */
+.desk-diff__name.ui-button:hover:not(:disabled) {
+  background: var(--ds-background-neutral-hovered);
+}
+
+.desk-diff__name.ui-button:active:not(:disabled) {
+  background: var(--ds-background-neutral-pressed);
 }
 
 .desk-diff__file[data-viewed="true"] .desk-diff__name {

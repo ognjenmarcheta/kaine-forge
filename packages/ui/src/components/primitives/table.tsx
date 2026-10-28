@@ -5,10 +5,39 @@ import { cn } from "../../lib/cn";
 /** Numeric columns align to the end with equal-width digits, so values line up by place. */
 const numericClassName = "text-end tabular-nums";
 
-/** A semantic table in its own horizontal scroller, so a wide table never scrolls the page. */
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+interface TableProps extends React.ComponentProps<"table"> {
+  /** Names the scroller. While the table is wider than its container, keyboard users can focus and scroll it. */
+  scrollLabel?: string;
+}
+
+/**
+ * A semantic table in its own horizontal scroller, so a wide table never scrolls the page.
+ * The scroller is positioned, so hidden (`sr-only`) text in a cell stays inside it.
+ */
+function Table({ className, scrollLabel, ...props }: TableProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = React.useState(false);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const update = () => setScrolls(container.scrollWidth > container.clientWidth);
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    if (container.firstElementChild) observer.observe(container.firstElementChild);
+    update();
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div data-slot="table-container" className="w-full overflow-x-auto">
+    <div
+      ref={containerRef}
+      data-slot="table-container"
+      className="focus-ring relative w-full overflow-x-auto"
+      {...(scrolls
+        ? { tabIndex: 0, ...(scrollLabel ? { "aria-label": scrollLabel, role: "region" } : {}) }
+        : {})}
+    >
       <table
         data-slot="table"
         className={cn("w-full border-collapse text-body text-ds-text", className)}
@@ -83,4 +112,4 @@ function TableCaption({ className, ...props }: React.ComponentProps<"caption">) 
 }
 
 export { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow };
-export type { TableCellProps, TableHeadProps };
+export type { TableCellProps, TableHeadProps, TableProps };
