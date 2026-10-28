@@ -11,7 +11,8 @@ export default defineConfig({
       // Tests run against a typed DOM stub that mirrors the React Native
       // prop contracts used by these primitives (see src/test/react-native.stub.tsx).
       "react-native": path.join(packageRoot, "src/test/react-native.stub.tsx"),
-      nativewind: path.join(packageRoot, "src/test/nativewind.stub.ts")
+      nativewind: path.join(packageRoot, "src/test/nativewind.stub.ts"),
+      "react-native-svg": path.join(packageRoot, "src/test/react-native-svg.stub.tsx")
     }
   },
   test: {

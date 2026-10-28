@@ -125,6 +125,14 @@ function themeRules(theme: ThemeDefinition, isDefault: boolean): string[] {
 }
 
 /**
+ * CSS for a theme that is not registered, such as a lab theme, under [data-theme="<name>"].
+ * The utilities already read the tokens, so injecting this CSS is enough to apply the theme.
+ */
+export function emitThemeCss(theme: ThemeDefinition): string {
+  return themeRules(theme, false).join("\n\n");
+}
+
+/**
  * packages/ui/src/styles/tokens.generated.css: every registered theme and the Tailwind
  * utilities that read the tokens. data-theme on an element picks the theme for its subtree;
  * data-color-mode="dark" on the same element picks its dark values.
@@ -211,14 +219,25 @@ export function emitNativeTokens(
   themes: readonly ThemeDefinition[],
   defaultTheme: ThemeDefinition
 ): string {
-  const palette = (mode: ThemeMode): Record<string, string> => ({
+  const palette = (mode: ThemeMode) => ({
     background: mode["surface-sunken"],
     surface: mode.surface,
     text: mode.text,
     subtle: mode["text-subtle"],
     border: mode.border,
     primary: mode.link,
-    selected: mode["background-selected"]
+    selected: mode["background-selected"],
+    // Native SVG cannot read CSS variables, so charts take these concrete colors.
+    chart: [
+      mode["chart-1"],
+      mode["chart-2"],
+      mode["chart-3"],
+      mode["chart-4"],
+      mode["chart-5"],
+      mode["chart-6"]
+    ],
+    chartGrid: mode["chart-grid"],
+    track: mode["background-neutral-pressed"]
   });
   const modeNames = [...colorRoles, ...shadowRoles];
   const cssVariables = (theme: ThemeDefinition, mode: ThemeMode): Record<string, string> =>

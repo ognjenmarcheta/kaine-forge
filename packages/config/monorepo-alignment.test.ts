@@ -854,6 +854,7 @@ describe("monorepo alignment", () => {
       "react-native-css-interop",
       "react-native-reanimated",
       "react-native-safe-area-context",
+      "react-native-svg",
       "react-native-worklets"
     ]);
 

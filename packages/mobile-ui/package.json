@@ -28,7 +28,8 @@
     "nativewind": "^4.0.0",
     "react": "^19.0.0",
     "react-native": ">=0.81.0",
-    "react-native-reanimated": "^4.2.1"
+    "react-native-reanimated": "^4.2.1",
+    "react-native-svg": "^15.0.0"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
@@ -44,6 +45,7 @@
     "react-native-css-interop": "catalog:mobile",
     "react-native-reanimated": "catalog:mobile",
     "react-native-safe-area-context": "catalog:mobile",
+    "react-native-svg": "catalog:mobile",
     "react-native-worklets": "catalog:mobile",
     "tailwindcss": "catalog:mobile",
     "vitest": "catalog:"

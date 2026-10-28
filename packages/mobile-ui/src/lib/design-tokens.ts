@@ -486,7 +486,10 @@ export const nativeThemeTokens = {
       subtle: "#4a505c",
       border: "#e3e6eb",
       primary: "#b3360f",
-      selected: "#fde6de"
+      selected: "#fde6de",
+      chart: ["#d4421a", "#4081d2", "#00967c", "#8e6ac7", "#a77600", "#bc598c"],
+      chartGrid: "#e3e6eb",
+      track: "#e3e6eb"
     },
     dark: {
       background: "#14171d",
@@ -495,7 +498,10 @@ export const nativeThemeTokens = {
       subtle: "#aab1bd",
       border: "#23272f",
       primary: "#ff7a50",
-      selected: "#2e140c"
+      selected: "#2e140c",
+      chart: ["#ff6a3d", "#65a7fa", "#00c0a0", "#b28fef", "#d29922", "#e57db1"],
+      chartGrid: "#23272f",
+      track: "#f2f3f529"
     }
   },
   moss: {
@@ -506,7 +512,10 @@ export const nativeThemeTokens = {
       subtle: "#57514c",
       border: "#ece5de",
       primary: "#2f6b4f",
-      selected: "#d5f8e5"
+      selected: "#d5f8e5",
+      chart: ["#009866", "#4081d2", "#8e6ac7", "#a77600", "#bc598c", "#0090a2"],
+      chartGrid: "#ece5de",
+      track: "#19130c1c"
     },
     dark: {
       background: "#1a1510",
@@ -515,7 +524,10 @@ export const nativeThemeTokens = {
       subtle: "#bcb6af",
       border: "#2a2520",
       primary: "#78b495",
-      selected: "#072b1c"
+      selected: "#072b1c",
+      chart: ["#3cbf88", "#65a7fa", "#b28fef", "#d29922", "#e57db1", "#00b9cf"],
+      chartGrid: "#2a2520",
+      track: "#f7f3ee29"
     }
   }
 };
