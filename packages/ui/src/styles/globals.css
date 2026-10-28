@@ -78,8 +78,7 @@
 
   .ui-button:focus-visible,
   .ui-textarea:focus-visible,
-  .ui-select__trigger:focus-visible,
-  .ui-checkbox:focus-visible {
+  .ui-select__trigger:focus-visible {
     outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
     outline-offset: var(--ds-space-025);
   }
@@ -645,46 +644,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--ds-space-100);
-  }
-
-  .ui-checkbox {
-    align-items: center;
-    background: var(--ds-surface);
-    border: var(--ds-border-width) solid var(--ds-border);
-    border-radius: var(--ds-radius-050);
-    color: var(--ds-text-brand-inverse);
-    cursor: pointer;
-    display: inline-flex;
-    height: var(--ds-space-200);
-    justify-content: center;
-    line-height: 1;
-    padding: 0;
-    width: var(--ds-space-200);
-  }
-
-  .ui-checkbox[data-state="checked"],
-  .ui-checkbox[data-state="indeterminate"] {
-    background: var(--ds-background-brand-bold);
-    border-color: var(--ds-border-brand);
-  }
-
-  .ui-checkbox[data-disabled] {
-    cursor: not-allowed;
-    color: var(--ds-text-disabled);
-    border-color: var(--ds-border);
-    background: var(--ds-background-neutral-subtle);
-  }
-
-  .ui-checkbox__indicator {
-    align-items: center;
-    color: var(--ds-text-brand-inverse);
-    display: inline-flex;
-    justify-content: center;
-  }
-
-  .ui-checkbox__icon {
-    height: var(--ds-space-150);
-    width: var(--ds-space-150);
   }
 
   .focus-ring:focus-visible {
