@@ -126,11 +126,15 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
       ...drift.orphan.map((name) => `Orphan agent definition: ${name}`)
     );
   }
-  const servers = installedServers(agent);
+  // A missing MCP config is one problem; it must not hide the skill and hook drift above.
+  const configured = existsSync(path.join(REPO_ROOT, facts.mcpConfig.path));
+  if (!configured) problems.push(`Missing ${agent} MCP configuration`);
+  const servers = configured ? installedServers(agent) : {};
+  const allServers = configured ? installedServers(agent, REPO_ROOT, true) : undefined;
   if (!selection) problems.push(`Missing ${agent} installation selection; rerun ai:install`);
-  for (const name of selection?.mcps ?? [])
-    if (!(name in installedServers(agent, REPO_ROOT, true)))
-      problems.push(`Missing selected MCP: ${name}`);
+  if (allServers)
+    for (const name of selection?.mcps ?? [])
+      if (!(name in allServers)) problems.push(`Missing selected MCP: ${name}`);
   const merged = mergeMcpSources(readMcpSource(), readPersonalMcpSource());
   const source = merged.source;
   const localEnv = readLocalMcpEnv();
@@ -139,7 +143,7 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
     if (missing.length) problems.push(`${skill.name}: missing ${missing.join(", ")}`);
   }
   for (const name of selection?.schemaVersion === 2 ? selection.ownedMcps : []) {
-    if (!source.mcpServers[name] && name in installedServers(agent, REPO_ROOT, true))
+    if (!source.mcpServers[name] && allServers && name in allServers)
       problems.push(`${name}: removed team MCP remains installed; rerun ai:install`);
   }
   for (const [name, server] of Object.entries(servers)) {
@@ -232,11 +236,12 @@ export async function runReadinessCommand() {
         : `${agent}: ${report.installation}\n${report.problems.join("\n")}\nMCP runtime: ${output.runtime.mcp}; sandbox: not-verified`
     );
     if (failed) process.exitCode = 1;
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? ` (${error.message})` : "";
     const result = {
       installation: "not-verified",
       problems: [
-        "Inspection failed. Check --agent and configuration; run pnpm ai:install for the selected agent."
+        `Inspection failed${reason}. Check --agent and configuration; run pnpm ai:install for the selected agent.`
       ],
       runtime: { mcp: "not-verified", sandbox: "not-verified" }
     };

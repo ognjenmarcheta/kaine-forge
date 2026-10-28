@@ -16,6 +16,7 @@
         ".ai/scorecard-render.ts",
         ".ai/template-adoption.ts",
         ".ai/template-sync.ts",
+        ".ai/hooks/ai-refresh.mjs",
         ".ai/hooks/pre-tool-use.mjs",
         ".ai/hooks/session-start.mjs",
         ".ai/**/*.spec.ts",

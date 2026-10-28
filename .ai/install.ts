@@ -2,9 +2,10 @@
 
 import { cancel, intro, isCancel, multiselect, outro } from "@clack/prompts";
 import chalk from "chalk";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
@@ -14,6 +15,7 @@ import {
   discoverAgentDefinitions,
   discoverSkills,
   ensureLocalMcpEnv,
+  generatedTextEqual,
   managedNamePredicate,
   LOCAL_MCP_SRC,
   MCP_JSON_EXAMPLE_SRC,
@@ -61,6 +63,7 @@ interface InstallOptions {
   agents: Agent[];
   skills: string[];
   mcps: string[];
+  auto: boolean;
   nonInteractive: boolean;
   prepareSerena: boolean;
   serenaInterface?: SerenaInterface;
@@ -71,9 +74,13 @@ interface InstallOptions {
 let localMcpEnv: Record<string, string> = {};
 // Template `kaine-*` and project `<repoSlug>-*` outputs; stale ones are removed on install.
 const isManagedName = managedNamePredicate();
+// Set by --auto: git-tracked outputs belong to whoever changes the `.ai/` sources.
+let trackedFiles: Set<string> | undefined;
+const trackedDrift: string[] = [];
 
 const usage = `Usage:
   pnpm ai:install [--agent claude|codex|cursor|opencode|grok] [--skill <name|all>] [--mcp <name|all>] [--non-interactive] [--prepare-serena] [--serena-interface tools|REPL]
+  pnpm ai:install --auto
 
 Without selection flags and on a TTY, prompts interactively.
 Otherwise defaults to: --agent claude --agent codex. Skills and MCPs keep the recorded
@@ -81,7 +88,74 @@ selection for each agent; new default skills added to the team since then are in
 A first install uses all default skills and all default-eligible MCPs.
 Claude and Codex launch Serena with the REPL interface unless --serena-interface tools
 is recorded. REPL code runs outside the guarded-command hooks.
+
+--auto refreshes every agent with a recorded selection, writes only untracked files, and
+prints only what changed. The agent session hooks run it.
 `;
+
+const listTrackedFiles = (): Set<string> => {
+  // Outside git nothing is tracked. Inside a checkout a git failure must stop --auto,
+  // not let it treat tracked outputs as untracked and overwrite them.
+  if (!existsSync(join(REPO_ROOT, ".git"))) return new Set();
+  const output = execFileSync("git", ["ls-files", "-z"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  return new Set(
+    output
+      .split("\0")
+      .filter(Boolean)
+      .map((file) => join(REPO_ROOT, file))
+  );
+};
+
+/** Under --auto, names tracked files at or under `path` so cleanup keeps them. */
+const keepTracked = (path: string): boolean => {
+  const tracked = [...(trackedFiles ?? [])].filter(
+    (file) => file === path || file.startsWith(`${path}${sep}`)
+  );
+  trackedDrift.push(...tracked.map((file) => relative(REPO_ROOT, file)));
+  return tracked.length > 0;
+};
+
+const writeOutput = (file: string, content: string, results: WriteResult[]): void => {
+  if (!trackedFiles?.has(file)) {
+    writeGenerated(file, content, results);
+    return;
+  }
+  if (!existsSync(file) || !generatedTextEqual(readFileSync(file, "utf8"), content)) {
+    trackedDrift.push(relative(REPO_ROOT, file));
+  }
+};
+
+/** Plain lines that a session hook passes on to the agent; nothing when all is current. */
+const autoSummary = (agents: Agent[], results: WriteResult[], removed: string[]): string[] => {
+  const changes = new Set<string>();
+  for (const result of results.filter((entry) => entry.status !== "unchanged")) {
+    const path = relative(REPO_ROOT, result.file);
+    const skill = /skills[\\/]([^\\/]+)[\\/]SKILL\.md$/.exec(path)?.[1];
+    changes.add(`${result.status === "created" ? "+" : "~"}${skill ?? path}`);
+  }
+  for (const entry of removed) changes.add(`-${entry.slice(entry.indexOf(": ") + 2)}`);
+  const mcpConfigs = agents.map((agent) => join(REPO_ROOT, AGENT_REGISTRY[agent].mcpConfig.path));
+  const changedMcp = results
+    .filter((entry) => entry.status !== "unchanged" && mcpConfigs.includes(entry.file))
+    .map((entry) => relative(REPO_ROOT, entry.file));
+  const lines: string[] = [];
+  if (changes.size > 0)
+    lines.push(`AI setup refreshed (${agents.join(", ")}): ${[...changes].join(", ")}`);
+  if (changedMcp.length > 0)
+    lines.push(
+      `MCP config changed (${changedMcp.join(", ")}): reconnect MCP servers or restart the session.`
+    );
+  if (trackedDrift.length > 0)
+    lines.push(
+      `Tracked AI files are out of date: ${[...new Set(trackedDrift)].join(", ")}. Run pnpm ai:install and commit.`
+    );
+  return lines;
+};
 
 const isAgent = (value: string): value is Agent => AGENTS.some((agent) => agent === value);
 
@@ -194,6 +268,7 @@ const parseArgs = (): InstallOptions => {
   const agents: Agent[] = [];
   const skills: string[] = [];
   const mcps: string[] = [];
+  let auto = false;
   let nonInteractive = false;
   let prepareSerena = false;
   let serenaInterface: SerenaInterface | undefined;
@@ -223,6 +298,11 @@ const parseArgs = (): InstallOptions => {
       continue;
     }
     if (arg === "--non-interactive" || arg === "--no-interactive") {
+      nonInteractive = true;
+      continue;
+    }
+    if (arg === "--auto") {
+      auto = true;
       nonInteractive = true;
       continue;
     }
@@ -266,6 +346,7 @@ const parseArgs = (): InstallOptions => {
     agents: [...new Set(agents)],
     skills,
     mcps,
+    auto,
     nonInteractive,
     prepareSerena,
     ...(serenaInterface ? { serenaInterface } : {})
@@ -319,11 +400,11 @@ const selectSkills = (
 
 const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void => {
   const guide = readGuideSource();
-  writeGenerated(join(REPO_ROOT, "AGENTS.md"), renderAgentDoc(guide, allSkills), results);
-  writeGenerated(join(REPO_ROOT, "CLAUDE.md"), renderClaudeImport(), results);
+  writeOutput(join(REPO_ROOT, "AGENTS.md"), renderAgentDoc(guide, allSkills), results);
+  writeOutput(join(REPO_ROOT, "CLAUDE.md"), renderClaudeImport(), results);
 
   if (existsSync(REVIEW_SRC)) {
-    writeGenerated(REVIEW_OUT, renderReviewDoc(readFileSync(REVIEW_SRC, "utf8")), results);
+    writeOutput(REVIEW_OUT, renderReviewDoc(readFileSync(REVIEW_SRC, "utf8")), results);
   }
 
   if (existsSync(SERENA_PROJECT_SRC)) {
@@ -331,7 +412,7 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
     // keys and missing canonical workspace roots to existing projects.
     const serenaProjectPath = join(REPO_ROOT, ".serena", "project.yml");
     const seed = readFileSync(SERENA_PROJECT_SRC, "utf8");
-    writeGenerated(
+    writeOutput(
       serenaProjectPath,
       existsSync(serenaProjectPath)
         ? mergeSerenaProjectSeed(seed, readFileSync(serenaProjectPath, "utf8"))
@@ -346,7 +427,7 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
       file.endsWith(".md")
     )) {
       seen.add(fileName);
-      writeGenerated(
+      writeOutput(
         join(REPO_ROOT, ".serena", "memories", fileName),
         renderSerenaMemory(readFileSync(join(SERENA_MEMORIES_SRC_DIR, fileName), "utf8")),
         results
@@ -363,6 +444,7 @@ const writeSharedOutputs = (allSkills: Skill[], results: WriteResult[]): void =>
         if (!readFileSync(filePath, "utf8").includes("GENERATED FILE")) {
           continue;
         }
+        if (keepTracked(filePath)) continue;
         rmSync(filePath, { force: true });
       }
     }
@@ -395,7 +477,7 @@ const installAgent = (
     }
 
     const file = join(REPO_ROOT, skillsDir, skill.name, "SKILL.md");
-    writeGenerated(file, facts.renderSkill(skill), results);
+    writeOutput(file, facts.renderSkill(skill), results);
   }
 
   const dirAbs = join(REPO_ROOT, skillsDir);
@@ -405,6 +487,7 @@ const installAgent = (
         continue;
       }
 
+      if (keepTracked(join(dirAbs, entry.name))) continue;
       rmSync(join(dirAbs, entry.name), { recursive: true, force: true });
       removedSkills.push(`${agent}: ${entry.name}`);
     }
@@ -432,7 +515,7 @@ const installAgent = (
             (message) => console.warn(chalk.yellow(`${relative(REPO_ROOT, file)}: ${message}`))
           )
         : content;
-    writeGenerated(file, updated, output);
+    writeOutput(file, updated, output);
   };
   const installAgentDefinitions = (
     agentsDirAbs: string,
@@ -440,7 +523,7 @@ const installAgent = (
   ) => {
     const expectedAgentDefs = new Set(agentDefinitions.map((definition) => definition.name));
     for (const definition of agentDefinitions) {
-      writeGenerated(join(agentsDirAbs, `${definition.name}.md`), render(definition), results);
+      writeOutput(join(agentsDirAbs, `${definition.name}.md`), render(definition), results);
     }
 
     if (existsSync(agentsDirAbs)) {
@@ -454,6 +537,7 @@ const installAgent = (
           continue;
         }
 
+        if (keepTracked(join(agentsDirAbs, entry.name))) continue;
         rmSync(join(agentsDirAbs, entry.name), { force: true });
         removedSkills.push(`${agent}: ${entry.name}`);
       }
@@ -505,6 +589,12 @@ const main = async (): Promise<void> => {
       options.mcps = [...defaultMcps, ...optInPicks];
     }
     outro(chalk.gray("Installing..."));
+  } else if (options.auto) {
+    // The first install is a person's choice; --auto only keeps recorded installs current.
+    if (options.agents.length === 0)
+      options.agents = AGENTS.filter((agent) => readInstallSelection(agent) !== null);
+    if (options.agents.length === 0) return;
+    trackedFiles = listTrackedFiles();
   } else if (options.agents.length === 0) {
     options.agents = ["claude", "codex"];
   }
@@ -588,11 +678,15 @@ const main = async (): Promise<void> => {
           defaultSkills,
           previous?.schemaVersion === 2 ? previous.knownSkills : undefined
         );
-    if (addedSkills.length)
+    if (addedSkills.length && !options.auto)
       console.log(chalk.cyan(`${agent}: added new team skills: ${addedSkills.join(", ")}`));
+    // A recorded skill the team has since retired drops out; an explicit unknown name still fails.
+    const keptSkills = options.skills.length
+      ? skillChoice.names
+      : skillChoice.names.filter((name) => allSkills.some((skill) => skill.name === name));
     const agentOptions = {
       ...options,
-      skills: [...skillChoice.names, ...addedSkills],
+      skills: [...keptSkills, ...addedSkills],
       exactSkillSelection: skillChoice.exact,
       mcps: mcpChoice.names,
       exactMcpSelection: mcpChoice.exact,
@@ -615,6 +709,11 @@ const main = async (): Promise<void> => {
     )) {
       skippedMcps.add(skipped);
     }
+  }
+
+  if (options.auto) {
+    for (const line of autoSummary(options.agents, results, removedSkills)) console.log(line);
+    return;
   }
 
   if (!interactive) {
