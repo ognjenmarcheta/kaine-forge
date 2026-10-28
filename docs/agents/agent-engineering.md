@@ -91,7 +91,9 @@ installs keep their recorded selection; drop it with an explicit selection, for 
 
 Claude desktop worktree sessions load project MCP servers from the main checkout's
 `.mcp.json`, not the worktree's. The Claude `SessionStart` hook warns when the two differ
-and names the main checkout to reinstall.
+and names the main checkout to reinstall. Serena's `--project-from-cwd` then resolves to the
+main checkout, so Serena reads and edits that checkout. The hook warns about this too, and
+the session uses ordinary file tools for the worktree.
 
 Hooks keep installed AI files current without a manual reinstall. Each `SessionStart` hook
 and the Claude `UserPromptSubmit` hook run `.ai/hooks/ai-refresh.mjs`. It runs
