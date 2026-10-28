@@ -1,4 +1,10 @@
-import { auditEventsTable, invitationsTable, membersTable, organizationsTable } from "@repo/db";
+import {
+  auditEventsTable,
+  invitationsTable,
+  membersTable,
+  organizationsTable,
+  sessionsTable
+} from "@repo/db";
 import type { TestDatabase } from "@repo/db/testing";
 import type { EmailMessage } from "@repo/email";
 import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
@@ -632,6 +638,27 @@ describe("audit events", () => {
       .from(auditEventsTable)
       .where(eq(auditEventsTable.organizationId, shared.organizationId));
     expect(event?.metadata).toEqual({ apiKeyId, name: "Key Renamed" });
+  });
+
+  it("records a new session with the request's IP address, not a forwarded one", async () => {
+    const owner = await signUp("session-ip");
+
+    // The forged chain would give better-auth no IP; the request's IP is the API's proxy rule.
+    const signIn = await runWithAuditRequest({ ipAddress: "203.0.113.7", userAgent: null }, () =>
+      post("/sign-in/email", new Headers({ "x-forwarded-for": "198.51.100.66, 10.0.1.12" }), {
+        email: owner.email,
+        password: "Secret123!Secret"
+      })
+    );
+
+    expect(signIn.status).toBe(200);
+    expect(
+      await testDatabase()
+        .db.select({ ipAddress: sessionsTable.ipAddress })
+        .from(sessionsTable)
+        .where(eq(sessionsTable.userId, owner.userId))
+        .orderBy(asc(sessionsTable.ipAddress))
+    ).toEqual([{ ipAddress: "" }, { ipAddress: "203.0.113.7" }]);
   });
 
   it("logs a failed audit write and still completes the action", async () => {

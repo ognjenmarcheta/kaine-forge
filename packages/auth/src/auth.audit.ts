@@ -31,6 +31,11 @@ export function runWithAuditRequest<TResult>(request: AuditRequest, fn: () => TR
   return auditRequestStorage.run(request, fn);
 }
 
+/** The current request, or undefined outside one (scripts, tests, the worker). */
+export function currentAuditRequest(): AuditRequest | undefined {
+  return auditRequestStorage.getStore();
+}
+
 // A failed query's message carries its parameters (emails, IPs), so only the
 // error names and the driver's own message reach the log.
 function describeWriteError(error: unknown): { cause: string | null; name: string } {

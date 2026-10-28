@@ -6,10 +6,18 @@ import {
   resolveRateLimitKey
 } from "./rate-limit.middleware";
 
+const ONE_HOP = { trustProxy: true, trustedProxyHops: 1 };
+
 describe("resolveRateLimitConfig", () => {
   it("is enabled by default outside test env with sane defaults", () => {
     const config = resolveRateLimitConfig({ NODE_ENV: "production" });
-    expect(config).toEqual({ enabled: true, max: 100, windowMs: 60000, trustProxy: false });
+    expect(config).toEqual({
+      enabled: true,
+      max: 100,
+      trustedProxyHops: 1,
+      trustProxy: false,
+      windowMs: 60000
+    });
   });
 
   it("is disabled in test env and when explicitly turned off", () => {
@@ -34,6 +42,15 @@ describe("resolveRateLimitConfig", () => {
     expect(resolveRateLimitConfig({ API_TRUST_PROXY: "false" }).trustProxy).toBe(false);
     expect(resolveRateLimitConfig({}).trustProxy).toBe(false);
   });
+
+  it.each([
+    [undefined, 1],
+    ["2", 2],
+    ["0", 1],
+    ["two", 1]
+  ])("reads API_TRUSTED_PROXY_HOPS %s as %i hops", (value, hops) => {
+    expect(resolveRateLimitConfig({ API_TRUSTED_PROXY_HOPS: value }).trustedProxyHops).toBe(hops);
+  });
 });
 
 describe("createRateLimiter", () => {
@@ -42,7 +59,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 2,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     expect(limiter.check("ip-1", 0).allowed).toBe(true);
@@ -58,7 +76,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 1,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     expect(limiter.check("ip-1", 0).allowed).toBe(true);
@@ -71,7 +90,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 1,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     expect(limiter.check("ip-1", 0).allowed).toBe(true);
@@ -83,7 +103,8 @@ describe("createRateLimiter", () => {
       enabled: false,
       max: 1,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     expect(limiter.check("ip-1", 0).allowed).toBe(true);
@@ -95,7 +116,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 1,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     expect(limiter.check("ip-1", 0).firstRejection).toBe(false);
@@ -114,7 +136,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 5,
       windowMs: 1000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     // Fill to the sweep threshold; every bucket's window starts at t=0.
@@ -142,7 +165,8 @@ describe("createRateLimiter", () => {
       enabled: true,
       max: 1,
       windowMs: 60000,
-      trustProxy: false
+      trustProxy: false,
+      trustedProxyHops: 1
     });
 
     for (let i = 0; i < 100000; i += 1) {
@@ -167,7 +191,7 @@ describe("resolveRateLimitKey", () => {
         headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },
         socket: { remoteAddress: "9.9.9.9" }
       },
-      false
+      { trustProxy: false, trustedProxyHops: 1 }
     );
     expect(key).toBe("9.9.9.9");
   });
@@ -180,7 +204,7 @@ describe("resolveRateLimitKey", () => {
         headers: { "x-forwarded-for": "spoofed, 9.9.9.9" },
         socket: { remoteAddress: "10.0.0.1" }
       },
-      true
+      ONE_HOP
     );
     expect(key).toBe("9.9.9.9");
   });
@@ -191,15 +215,36 @@ describe("resolveRateLimitKey", () => {
         headers: { "x-forwarded-for": ["spoofed, 1.1.1.1", "2.2.2.2"] },
         socket: { remoteAddress: "10.0.0.1" }
       },
-      true
+      ONE_HOP
     );
     expect(key).toBe("2.2.2.2");
   });
 
   it("falls back to the socket address, then unknown", () => {
-    expect(resolveRateLimitKey({ headers: {}, socket: { remoteAddress: "9.9.9.9" } }, true)).toBe(
-      "9.9.9.9"
+    expect(
+      resolveRateLimitKey({ headers: {}, socket: { remoteAddress: "9.9.9.9" } }, ONE_HOP)
+    ).toBe("9.9.9.9");
+    expect(resolveRateLimitKey({ headers: {}, socket: {} }, ONE_HOP)).toBe("unknown");
+  });
+
+  // Traefik -> web nginx -> API: Traefik appends the client, nginx appends Traefik.
+  it.each([
+    ["203.0.113.5, 10.0.1.12", "203.0.113.5"],
+    ["forged, 203.0.113.5, 10.0.1.12", "203.0.113.5"]
+  ])("with two hops, takes the second entry from the right of %s", (header, expected) => {
+    const key = resolveRateLimitKey(
+      { headers: { "x-forwarded-for": header }, socket: { remoteAddress: "10.0.1.20" } },
+      { trustProxy: true, trustedProxyHops: 2 }
     );
-    expect(resolveRateLimitKey({ headers: {}, socket: {} }, true)).toBe("unknown");
+    expect(key).toBe(expected);
+  });
+
+  it("falls back to the socket address when the header has fewer entries than hops", () => {
+    // A client that reaches nginx directly sends one entry; it must not become the key.
+    const key = resolveRateLimitKey(
+      { headers: { "x-forwarded-for": "198.51.100.66" }, socket: { remoteAddress: "10.0.1.20" } },
+      { trustProxy: true, trustedProxyHops: 2 }
+    );
+    expect(key).toBe("10.0.1.20");
   });
 });
