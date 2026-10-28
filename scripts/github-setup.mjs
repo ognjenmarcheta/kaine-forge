@@ -17,7 +17,9 @@ import { exitCodeFor, runSetup, SECTIONS } from "./github-setup.util.mjs";
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 /** @param {string} path */
-const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
+const readText = (path) => readFileSync(join(repoRoot, path), "utf8");
+/** @param {string} path */
+const readJson = (path) => JSON.parse(readText(path));
 
 /** @type {import("./github-setup.util.mjs").Run} */
 const runGh = (args, input) => {
@@ -75,6 +77,7 @@ function main() {
   const { repo, results } = runSetup({
     manifest: readJson(".github/repo-setup.json"),
     readJson,
+    readText,
     run: runGh,
     repo: values.repo,
     apply: mode === "apply",

@@ -22,9 +22,17 @@ export const SECTIONS = ["settings", "security", "labels", "rulesets", "discussi
  *   labels: Label[],
  *   discussions: { categories: Array<{ slug: string, name: string, format: string }> },
  *   project: {
+ *     shortDescription?: string,
+ *     readme?: string,
  *     status: string[],
  *     fields: Array<{ name: string, options: string[] }>,
- *     views: Array<{ name: string, layout: string, filter: string }>,
+ *     views: Array<{
+ *       name: string,
+ *       layout: string,
+ *       filter: string,
+ *       fields?: string[],
+ *       sort?: { field: string, direction: string, steps: string[] }
+ *     }>,
  *     workflows: Array<{ name: string, steps: string[] }>
  *   }
  * }} Manifest
@@ -61,8 +69,11 @@ function classify(result) {
   const text = `${result.stderr}\n${result.stdout}`;
   const detail = result.stderr.trim().split("\n").slice(-2).join(" ").slice(-300);
   if (/INSUFFICIENT_SCOPES|required scopes/i.test(text)) return new GhError("scope", detail);
-  if (/HTTP 404/.test(text)) return new GhError("notFound", detail);
-  if (/HTTP 40[13]|HTTP 422/.test(text)) return new GhError("forbidden", detail);
+  // gh prints "HTTP 404" for most errors, but a validation error shows only its message and
+  // keeps the status in the JSON body: `"status":"422"`.
+  const httpStatus = (text.match(/HTTP (\d{3})/) ?? text.match(/"status":\s*"?(\d{3})/))?.[1];
+  if (httpStatus === "404") return new GhError("notFound", detail);
+  if (["401", "403", "422"].includes(httpStatus ?? "")) return new GhError("forbidden", detail);
   return new GhError("other", detail || `gh exited with ${result.status}`);
 }
 
@@ -219,13 +230,6 @@ export function planOptions(desired, live, dropExtras) {
 }
 
 /**
- * @param {Error} error
- * @returns {Status}
- */
-const failureStatus = (error) =>
-  error instanceof GhError && ["notFound", "forbidden"].includes(error.kind) ? "warn" : "fail";
-
-/**
  * @typedef {{
  *   gh: ReturnType<typeof createGh>,
  *   owner: string,
@@ -234,6 +238,7 @@ const failureStatus = (error) =>
  *   repo: RepoInfo,
  *   manifest: Manifest,
  *   readJson: (path: string) => Ruleset,
+ *   readText: (path: string) => string,
  *   apply: boolean
  * }} Context
  */
@@ -252,54 +257,103 @@ function needsAdmin(ctx) {
  */
 const changeLine = (key, from, to) => `${key}: ${JSON.stringify(from)} → ${JSON.stringify(to)}`;
 
+/**
+ * True for errors GitHub returns when a feature does not exist for this repository: private
+ * repositories have no fork approval or private vulnerability reporting, and plans differ.
+ * @param {unknown} error
+ */
+const isUnavailable = (error) =>
+  error instanceof GhError && (error.kind === "notFound" || error.kind === "forbidden");
+
+const UNAVAILABLE = "not available for this repository or plan";
+
+/**
+ * A group of settings read from and written to one endpoint.
+ * @typedef {{
+ *   prefix: string,
+ *   keys: string[],
+ *   read: () => Record<string, unknown>,
+ *   write: (live: Record<string, unknown>, patch: Record<string, unknown>) => void
+ * }} SettingsGroup
+ */
+
 /** @param {Context} ctx @returns {SectionResult} */
 function settingsSection(ctx) {
   const denied = needsAdmin(ctx);
   if (denied) return { section: "settings", status: "warn", lines: [denied] };
   const { gh, base, apply } = ctx;
-  const { fork_pr_contributor_approval: forkPolicy, ...workflow } = ctx.manifest.actions;
+  const desired = { ...ctx.manifest.repository, ...ctx.manifest.actions };
+  /** @type {SettingsGroup[]} */
+  const groups = [
+    {
+      prefix: "",
+      keys: Object.keys(ctx.manifest.repository),
+      read: () => ctx.repo,
+      write: (_live, patch) => gh.api("PATCH", base, patch)
+    },
+    {
+      prefix: "actions.",
+      keys: ["sha_pinning_required"],
+      read: () => gh.api("GET", `${base}/actions/permissions`),
+      // PUT replaces the policy, so it repeats the two values this file does not manage.
+      write: (live, patch) =>
+        gh.api("PUT", `${base}/actions/permissions`, {
+          enabled: live.enabled,
+          allowed_actions: live.allowed_actions,
+          ...patch
+        })
+    },
+    {
+      prefix: "actions.",
+      keys: ["default_workflow_permissions", "can_approve_pull_request_reviews"],
+      read: () => gh.api("GET", `${base}/actions/permissions/workflow`),
+      write: (live, patch) =>
+        gh.api("PUT", `${base}/actions/permissions/workflow`, { ...live, ...patch })
+    },
+    {
+      prefix: "actions.",
+      keys: ["fork_pr_contributor_approval"],
+      read: () => ({
+        fork_pr_contributor_approval: gh.api(
+          "GET",
+          `${base}/actions/permissions/fork-pr-contributor-approval`
+        ).approval_policy
+      }),
+      write: (_live, patch) =>
+        gh.api("PUT", `${base}/actions/permissions/fork-pr-contributor-approval`, {
+          approval_policy: patch.fork_pr_contributor_approval
+        })
+    }
+  ];
+
   const lines = [];
-  let status = /** @type {Status} */ ("ok");
-
-  const repoPatch = planSettings(ctx.manifest.repository, ctx.repo);
-  for (const [key, value] of Object.entries(repoPatch)) {
-    lines.push(changeLine(key, ctx.repo[key], value));
-  }
-  const liveWorkflow = gh.api("GET", `${base}/actions/permissions/workflow`);
-  const workflowPatch = planSettings(workflow, liveWorkflow);
-  for (const [key, value] of Object.entries(workflowPatch)) {
-    lines.push(changeLine(`actions.${key}`, liveWorkflow[key], value));
-  }
-  /** @type {string | null} */
-  let liveFork = null;
-  try {
-    liveFork = gh.api(
-      "GET",
-      `${base}/actions/permissions/fork-pr-contributor-approval`
-    ).approval_policy;
-  } catch (error) {
-    if (!(error instanceof GhError) || error.kind !== "notFound") throw error;
-    lines.push("actions.fork_pr_contributor_approval: not available for this repository");
-    status = "warn";
-  }
-  const forkChange = liveFork !== null && liveFork !== forkPolicy;
-  if (forkChange)
-    lines.push(changeLine("actions.fork_pr_contributor_approval", liveFork, forkPolicy));
-
-  const changed =
-    Object.keys(repoPatch).length > 0 || Object.keys(workflowPatch).length > 0 || forkChange;
-  if (changed && apply) {
-    if (Object.keys(repoPatch).length > 0) gh.api("PATCH", base, repoPatch);
-    if (Object.keys(workflowPatch).length > 0) {
-      gh.api("PUT", `${base}/actions/permissions/workflow`, { ...liveWorkflow, ...workflowPatch });
+  let changed = false;
+  let unavailable = false;
+  for (const group of groups) {
+    const wanted = Object.fromEntries(
+      group.keys.filter((key) => key in desired).map((key) => [key, desired[key]])
+    );
+    if (Object.keys(wanted).length === 0) continue;
+    /** @type {Record<string, unknown>} */
+    let live;
+    try {
+      live = group.read();
+    } catch (error) {
+      if (!isUnavailable(error)) throw error;
+      lines.push(`${group.prefix}${Object.keys(wanted).join(", ")}: ${UNAVAILABLE}`);
+      unavailable = true;
+      continue;
     }
-    if (forkChange) {
-      gh.api("PUT", `${base}/actions/permissions/fork-pr-contributor-approval`, {
-        approval_policy: forkPolicy
-      });
+    const patch = planSettings(wanted, live);
+    if (Object.keys(patch).length === 0) continue;
+    changed = true;
+    for (const [key, value] of Object.entries(patch)) {
+      lines.push(changeLine(`${group.prefix}${key}`, live[key], value));
     }
+    if (apply) group.write(live, patch);
   }
-  return { section: "settings", status: changed ? "change" : status, lines };
+  const status = changed ? "change" : unavailable ? "warn" : "ok";
+  return { section: "settings", status, lines };
 }
 
 /** @param {Context} ctx @returns {SectionResult} */
@@ -311,10 +365,16 @@ function securitySection(ctx) {
   const analysis = ctx.repo.security_and_analysis ?? {};
   /** @param {string} path */
   const enabledFlag = (path) => gh.api("GET", `${base}/${path}`)?.enabled === true;
-  /** @type {Array<{ key: string, live: () => boolean, set: (on: boolean) => void }>} */
-  const toggles = [
-    {
-      key: "vulnerability_alerts",
+  /** @param {string} path */
+  const endpoint = (path) => ({
+    live: () => enabledFlag(path),
+    /** @param {boolean} on */
+    set: (on) => gh.api(on ? "PUT" : "DELETE", `${base}/${path}`)
+  });
+  /** @type {Record<string, { live: () => boolean, set: (on: boolean) => void }>} */
+  const toggles = {
+    vulnerability_alerts: {
+      // 204 means on. 404 means off, so it is not "unavailable" here.
       live: () => {
         try {
           gh.api("GET", `${base}/vulnerability-alerts`);
@@ -326,44 +386,47 @@ function securitySection(ctx) {
       },
       set: (on) => gh.api(on ? "PUT" : "DELETE", `${base}/vulnerability-alerts`)
     },
-    {
-      key: "automated_security_fixes",
-      live: () => enabledFlag("automated-security-fixes"),
-      set: (on) => gh.api(on ? "PUT" : "DELETE", `${base}/automated-security-fixes`)
-    },
-    {
-      key: "private_vulnerability_reporting",
-      live: () => enabledFlag("private-vulnerability-reporting"),
-      set: (on) => gh.api(on ? "PUT" : "DELETE", `${base}/private-vulnerability-reporting`)
-    },
-    ...["secret_scanning", "secret_scanning_push_protection"].map((key) => ({
-      key,
-      live: () => analysis[key]?.status === "enabled",
-      /** @param {boolean} on */
-      set: (on) =>
-        gh.api("PATCH", base, {
-          security_and_analysis: { [key]: { status: on ? "enabled" : "disabled" } }
-        })
-    }))
-  ];
+    automated_security_fixes: endpoint("automated-security-fixes"),
+    private_vulnerability_reporting: endpoint("private-vulnerability-reporting"),
+    immutable_releases: endpoint("immutable-releases"),
+    ...Object.fromEntries(
+      ["secret_scanning", "secret_scanning_push_protection"].map((key) => [
+        key,
+        {
+          // GitHub leaves out a feature the repository cannot use (a private repository on a
+          // free plan has no `security_and_analysis` at all).
+          live: () => {
+            if (!analysis[key]) throw new GhError("notFound", UNAVAILABLE);
+            return analysis[key].status === "enabled";
+          },
+          /** @param {boolean} on */
+          set: (on) =>
+            gh.api("PATCH", base, {
+              security_and_analysis: { [key]: { status: on ? "enabled" : "disabled" } }
+            })
+        }
+      ])
+    )
+  };
 
   const lines = [];
-  let status = /** @type {Status} */ ("ok");
-  for (const toggle of toggles) {
-    if (!(toggle.key in desired)) continue;
-    const want = desired[toggle.key] === true;
-    if (toggle.live() === want) continue;
-    lines.push(changeLine(toggle.key, !want, want));
-    status = "change";
-    if (!apply) continue;
+  let changed = false;
+  let unavailable = false;
+  for (const [key, want] of Object.entries(desired)) {
+    const toggle = toggles[key];
+    if (!toggle) throw new Error(`Unknown security setting: ${key}`);
     try {
-      toggle.set(want);
+      if (toggle.live() === want) continue;
+      lines.push(changeLine(key, !want, want));
+      changed = true;
+      if (apply) toggle.set(want);
     } catch (error) {
-      if (failureStatus(/** @type {Error} */ (error)) === "fail") throw error;
-      lines.push(`${toggle.key}: not available for this repository or plan`);
-      status = "warn";
+      if (!isUnavailable(error)) throw error;
+      lines.push(`${key}: ${UNAVAILABLE}`);
+      unavailable = true;
     }
   }
+  const status = changed ? "change" : unavailable ? "warn" : "ok";
   return { section: "security", status, lines };
 }
 
@@ -410,7 +473,7 @@ function rulesetsSection(ctx) {
   try {
     summaries = gh.api("GET", `${base}/rulesets?includes_parents=false`);
   } catch (error) {
-    if (failureStatus(/** @type {Error} */ (error)) === "fail") throw error;
+    if (!isUnavailable(error)) throw error;
     return {
       section: "rulesets",
       status: "warn",
@@ -502,6 +565,8 @@ const PROJECT_QUERY = `query($id: ID!) {
     ... on ProjectV2 {
       id
       title
+      shortDescription
+      readme
       url
       items(first: 1) { totalCount }
       fields(first: 50) {
@@ -510,7 +575,18 @@ const PROJECT_QUERY = `query($id: ID!) {
           ... on ProjectV2SingleSelectField { options { id name color description } }
         }
       }
-      views(first: 50) { nodes { id name layout filter } }
+      views(first: 50) {
+        nodes {
+          id
+          name
+          layout
+          filter
+          fields(first: 30) { nodes { ... on ProjectV2FieldCommon { name } } }
+          sortByFields(first: 5) {
+            nodes { direction field { ... on ProjectV2FieldCommon { name } } }
+          }
+        }
+      }
       workflows(first: 30) { nodes { name enabled } }
     }
   }
@@ -562,8 +638,8 @@ function projectSection(ctx) {
     ).createProjectV2.projectV2;
   }
 
-  const board = gh.graphql(PROJECT_QUERY, { id: project.id }).node;
-  const fields = board.fields.nodes.filter((field) => field.name);
+  let board = gh.graphql(PROJECT_QUERY, { id: project.id }).node;
+  let fields = board.fields.nodes.filter((field) => field.name);
   const emptyBoard = created || board.items.totalCount === 0;
   let statusChanged = false;
 
@@ -579,10 +655,33 @@ function projectSection(ctx) {
     }
   }
 
+  /** @type {Record<string, string>} */
+  const about = {};
+  if (
+    desired.shortDescription !== undefined &&
+    board.shortDescription !== desired.shortDescription
+  ) {
+    about.shortDescription = desired.shortDescription;
+  }
+  const readme = desired.readme ? ctx.readText(desired.readme).trim() : undefined;
+  if (readme !== undefined && (board.readme ?? "").trim() !== readme) about.readme = readme;
+  if (Object.keys(about).length > 0) {
+    lines.push(`update board ${Object.keys(about).join(" and ")}`);
+    if (apply) {
+      gh.graphql(
+        `mutation($input: UpdateProjectV2Input!) { updateProjectV2(input: $input) { clientMutationId } }`,
+        { input: { projectId: board.id, ...about } }
+      );
+    }
+  }
+
+  let fieldsCreated = false;
+
   for (const spec of [{ name: "Status", options: desired.status }, ...desired.fields]) {
     const field = fields.find((candidate) => candidate.name === spec.name);
     if (!field) {
       lines.push(`create field ${spec.name}`);
+      fieldsCreated = true;
       if (apply) {
         gh.graphql(
           `mutation($input: CreateProjectV2FieldInput!) { createProjectV2Field(input: $input) { clientMutationId } }`,
@@ -614,25 +713,65 @@ function projectSection(ctx) {
     }
   }
 
+  // Views show fields by id, so read the ids of fields this run created.
+  if (apply && fieldsCreated) {
+    board = gh.graphql(PROJECT_QUERY, { id: board.id }).node;
+    fields = board.fields.nodes.filter((field) => field.name);
+  }
+  /** @param {{ name: string, fields?: string[] }} spec */
+  const visibleFieldIds = (spec) =>
+    spec.fields?.map((name) => {
+      const field = fields.find((candidate) => candidate.name === name);
+      if (!field) throw new Error(`View ${spec.name} shows an unknown field: ${name}`);
+      return field.id;
+    });
+
   for (const spec of desired.views) {
     const view = board.views.nodes.find((candidate) => candidate.name === spec.name);
-    if (view && view.layout === spec.layout && (view.filter ?? "") === spec.filter) continue;
+    const shown = view?.fields.nodes.map((node) => node.name).filter(Boolean) ?? [];
+    // GitHub stores visible fields in its own order (built-in fields first), so compare the set.
+    const fieldsDiffer =
+      spec.fields !== undefined &&
+      (shown.length !== spec.fields.length || spec.fields.some((name) => !shown.includes(name)));
+    if (
+      view &&
+      view.layout === spec.layout &&
+      (view.filter ?? "") === spec.filter &&
+      !fieldsDiffer
+    ) {
+      continue;
+    }
     lines.push(`${view ? "update" : "create"} view ${spec.name}`);
     if (!apply) continue;
+    const configuration = spec.fields ? { visibleFieldIds: visibleFieldIds(spec) } : undefined;
     const viewId =
       view?.id ??
       gh.graphql(
         `mutation($input: CreateProjectV2ViewInput!) { createProjectV2View(input: $input) { projectV2View { id } } }`,
-        { input: { projectId: board.id, name: spec.name, layout: spec.layout } }
+        { input: { projectId: board.id, name: spec.name, layout: spec.layout, configuration } }
       ).createProjectV2View.projectV2View.id;
     // A new view only needs a second call to set its filter.
     if (view || spec.filter) {
       gh.graphql(
         `mutation($input: UpdateProjectV2ViewInput!) { updateProjectV2View(input: $input) { clientMutationId } }`,
-        { input: { viewId, layout: spec.layout, filter: spec.filter } }
+        { input: { viewId, layout: spec.layout, filter: spec.filter, configuration } }
       );
     }
   }
+
+  // GitHub can read a view's sort but not set it, so the owner sorts by hand.
+  const sorts = desired.views
+    .filter((spec) => {
+      if (!spec.sort) return false;
+      const live = board.views.nodes.find((candidate) => candidate.name === spec.name)?.sortByFields
+        .nodes;
+      return !(
+        live?.length === 1 &&
+        live[0].field?.name === spec.sort.field &&
+        live[0].direction === spec.sort.direction
+      );
+    })
+    .map((spec) => ({ title: `${spec.name} view`, steps: spec.sort?.steps ?? [] }));
 
   // A workflow that sets Status keeps pointing at an option this run removed, and the API cannot
   // read or change its target, so a Status change repeats every workflow step.
@@ -643,7 +782,16 @@ function projectSection(ctx) {
         !board.workflows.nodes.some((node) => node.name === spec.name && node.enabled)
     )
     .map((spec) => ({ title: spec.name, steps: spec.steps }));
-  const status = lines.length > 0 ? "change" : manual.length > 0 ? "manual" : "ok";
+  const status = lines.length > 0 ? "change" : manual.length + sorts.length > 0 ? "manual" : "ok";
+  if (sorts.length > 0) {
+    lines.push(
+      ...manualSteps(
+        `${board.url} and sort each view:`,
+        sorts,
+        "Each view must keep its sort after you reload the page."
+      )
+    );
+  }
   if (manual.length > 0) {
     lines.push(
       ...manualSteps(
@@ -670,6 +818,7 @@ const RUNNERS = {
  * @param {{
  *   manifest: Manifest,
  *   readJson: (path: string) => Ruleset,
+ *   readText?: (path: string) => string,
  *   run: Run,
  *   repo?: string,
  *   apply: boolean,
@@ -677,7 +826,15 @@ const RUNNERS = {
  * }} options
  * @returns {{ repo: string, results: SectionResult[] }}
  */
-export function runSetup({ manifest, readJson, run, repo, apply, only = SECTIONS }) {
+export function runSetup({
+  manifest,
+  readJson,
+  readText = () => "",
+  run,
+  repo,
+  apply,
+  only = SECTIONS
+}) {
   const unknown = only.filter((section) => !SECTIONS.includes(section));
   if (unknown.length > 0) {
     throw new Error(`Unknown section: ${unknown.join(", ")}. Use ${SECTIONS.join(", ")}.`);
@@ -687,7 +844,17 @@ export function runSetup({ manifest, readJson, run, repo, apply, only = SECTIONS
   const [owner, name] = nameWithOwner.split("/");
   const base = `repos/${owner}/${name}`;
   /** @type {Context} */
-  const ctx = { gh, owner, name, base, repo: gh.api("GET", base), manifest, readJson, apply };
+  const ctx = {
+    gh,
+    owner,
+    name,
+    base,
+    repo: gh.api("GET", base),
+    manifest,
+    readJson,
+    readText,
+    apply
+  };
   const results = SECTIONS.filter((section) => only.includes(section)).map((section) => {
     try {
       return RUNNERS[/** @type {keyof typeof RUNNERS} */ (section)](ctx);

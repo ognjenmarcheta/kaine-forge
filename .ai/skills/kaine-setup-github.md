@@ -21,9 +21,9 @@ A repository created from the template gets files, not settings. `.github/repo-s
    - `gh needs the project scope`: the owner runs `gh auth refresh -s project`. It opens a browser, so the owner must do it. Then run step 2 again for the `project` section.
    - `needs repository admin rights`: stop. The owner runs the command.
    - `not available for this repository or plan`: report it. Rulesets and some security features need a public repository or a paid plan.
-5. For each `manual` section, give the owner its printed steps as they are: the link to open, then one numbered click per line, then how to confirm. GitHub has no API for these steps: missing discussion categories, and the board workflows (Auto-add to project, Item added to project). Do not shorten the steps into one sentence, and do not do them in a browser for the owner.
+5. For each `manual` section, give the owner its printed steps as they are: the link to open, then one numbered click per line, then how to confirm. GitHub has no API for these steps: missing discussion categories, the sort of a board view, and the board workflows (Auto-add to project, Item added to project, Item reopened, Auto-archive items). Do not shorten the steps into one sentence, and do not do them in a browser for the owner.
 6. Wait until the owner says the steps are done. Then run `pnpm github:setup --check`. Done when it exits 0.
-7. If the check still lists a board workflow, the owner most likely did not click **Save and turn on workflow**, so the workflow stayed off. Ask the owner to open that workflow, check that it shows **On**, and click **Save and turn on workflow** again. Then run step 6 again.
+7. If the check still lists a step, the owner most likely did not save it. A workflow stays off until **Save and turn on workflow**; a view forgets its sort until **Save**. Ask the owner to open that workflow or view and save it again. Then run step 6 again.
 
 ## Gotchas
 

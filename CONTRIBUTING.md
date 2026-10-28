@@ -154,7 +154,7 @@ pnpm ai:install && pnpm ai:doctor && pnpm template:adopt --check
 
 After adoption: rotate secrets, rewrite `.env.example` defaults, review remaining `--check` findings, and keep org-specific MCP/skills only in the downstream project.
 
-Repository settings the template cannot carry over (GitHub copies files, not settings) are in `.github/repo-setup.json`: labels, Discussions, squash-only merging, Actions permissions, security features, both branch rulesets, and the Projects board. Confirm that the owner is the only repository administrator, then apply them with the `gh` CLI:
+Repository settings the template cannot carry over (GitHub copies files, not settings) are in `.github/repo-setup.json`: labels, Discussions, squash-only merging, Actions permissions (including actions pinned to a full commit SHA), security features (including immutable releases), both branch rulesets, and the Projects board with its README (`.github/project-board.md`), fields, and views. Confirm that the owner is the only repository administrator, then apply them with the `gh` CLI:
 
 ```bash
 pnpm github:setup            # dry run: shows each change

@@ -17,14 +17,16 @@
   "actions": {
     "default_workflow_permissions": "read",
     "can_approve_pull_request_reviews": true,
-    "fork_pr_contributor_approval": "all_external_contributors"
+    "fork_pr_contributor_approval": "all_external_contributors",
+    "sha_pinning_required": true
   },
   "security": {
     "vulnerability_alerts": true,
     "automated_security_fixes": true,
     "private_vulnerability_reporting": true,
     "secret_scanning": true,
-    "secret_scanning_push_protection": true
+    "secret_scanning_push_protection": true,
+    "immutable_releases": true
   },
   "rulesets": [".github/rulesets/main.json", ".github/rulesets/main-owner.json"],
   "labels": [
@@ -188,27 +190,52 @@
     ]
   },
   "project": {
+    "shortDescription": "Open issues and pull requests by status. Labels drive the Triage, Ready, and Agent desk views.",
+    "readme": ".github/project-board.md",
     "status": ["Triage", "Ready", "In progress", "In review", "Done"],
     "fields": [
-      { "name": "Priority", "options": ["P0", "P1", "P2"] },
-      { "name": "Size", "options": ["XS", "S", "M", "L", "XL"] }
+      {
+        "name": "Priority",
+        "options": ["P0", "P1", "P2"]
+      },
+      {
+        "name": "Size",
+        "options": ["XS", "S", "M", "L", "XL"]
+      }
     ],
     "views": [
-      { "name": "Board", "layout": "BOARD_LAYOUT", "filter": "" },
+      {
+        "name": "Board",
+        "layout": "BOARD_LAYOUT",
+        "filter": "",
+        "fields": ["Title", "Assignees", "Labels", "Priority", "Size", "Linked pull requests"]
+      },
       {
         "name": "Triage",
         "layout": "TABLE_LAYOUT",
-        "filter": "is:open label:needs-triage,needs-info,needs-spec"
+        "filter": "is:open label:needs-triage,needs-info,needs-spec",
+        "fields": ["Title", "Labels", "Priority", "Size", "Created"]
       },
       {
         "name": "Ready",
         "layout": "TABLE_LAYOUT",
-        "filter": "is:open label:ready-for-agent,ready-for-human"
+        "filter": "is:open label:ready-for-agent,ready-for-human",
+        "fields": ["Title", "Labels", "Priority", "Size", "Assignees"],
+        "sort": {
+          "field": "Priority",
+          "direction": "ASC",
+          "steps": [
+            "Click the Ready tab.",
+            "Click the arrow next to the tab name, then click Sort by and choose Priority.",
+            "Click Save next to the view tabs. A view forgets unsaved changes."
+          ]
+        }
       },
       {
         "name": "Agent desk",
         "layout": "TABLE_LAYOUT",
-        "filter": "is:open label:\"agent:working\",\"agent:needs-you\",\"agent:pr-open\""
+        "filter": "is:open label:\"agent:working\",\"agent:needs-you\",\"agent:pr-open\"",
+        "fields": ["Title", "Labels", "Linked pull requests", "Updated"]
       }
     ],
     "workflows": [
@@ -225,6 +252,22 @@
         "steps": [
           "In the list on the left, click Item added to project, then click Edit.",
           "Under When, keep Issue and Pull request checked. Under Set, choose Status: Triage.",
+          "Click Save and turn on workflow."
+        ]
+      },
+      {
+        "name": "Item reopened",
+        "steps": [
+          "In the list on the left, click Item reopened, then click Edit.",
+          "Under When, keep Issue and Pull request checked. Under Set, choose Status: Triage.",
+          "Click Save and turn on workflow."
+        ]
+      },
+      {
+        "name": "Auto-archive items",
+        "steps": [
+          "In the list on the left, click Auto-archive items, then click Edit.",
+          "In the filter box, enter `is:issue,pr is:closed updated:<@today-2w`.",
           "Click Save and turn on workflow."
         ]
       }

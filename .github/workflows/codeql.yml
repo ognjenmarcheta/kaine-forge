@@ -55,3 +55,29 @@ jobs:
         with:
           category: "/language:javascript-typescript"
           upload: ${{ (github.event.repository.visibility == 'public' || vars.ENABLE_GITHUB_CODE_SCANNING == 'true') && 'always' || 'never' }}
+
+  # Not a required check. Scans the workflow files themselves for injection and unsafe
+  # triggers, such as untrusted input in `pull_request_target` jobs (labeler.yml).
+  analyze-actions:
+    name: Analyze Actions
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: actions
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: "/language:actions"
+          upload: ${{ (github.event.repository.visibility == 'public' || vars.ENABLE_GITHUB_CODE_SCANNING == 'true') && 'always' || 'never' }}

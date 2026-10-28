@@ -5,6 +5,7 @@ import { URL } from "node:url";
 
 import { labelerLabelNames } from "./doctor.mjs";
 import {
+  exitCodeFor,
   isSubset,
   planLabels,
   planOptions,
@@ -146,6 +147,71 @@ test("a token without the project scope skips the board and still applies the la
   ]);
 });
 
+test("a private repository passes the check when GitHub lacks a feature there", () => {
+  const ok = (value) => ({
+    status: 0,
+    stdout: value === undefined ? "" : JSON.stringify(value),
+    stderr: ""
+  });
+  // Responses recorded from a private repository on a free plan.
+  const replies = {
+    "repos/acme/app": ok({
+      ...manifest.repository,
+      permissions: { admin: true },
+      security_and_analysis: null
+    }),
+    "repos/acme/app/actions/permissions": ok({
+      enabled: true,
+      allowed_actions: "all",
+      sha_pinning_required: true
+    }),
+    "repos/acme/app/actions/permissions/workflow": ok({
+      default_workflow_permissions: "read",
+      can_approve_pull_request_reviews: true
+    }),
+    "repos/acme/app/actions/permissions/fork-pr-contributor-approval": {
+      status: 1,
+      stdout: '{"message":"Validation Failed","status":"422"}',
+      stderr: "gh: Fork PR approval is not allowed for private repositories. (Validation Failed)"
+    },
+    "repos/acme/app/vulnerability-alerts": ok(),
+    "repos/acme/app/automated-security-fixes": ok({ enabled: true, paused: false }),
+    "repos/acme/app/private-vulnerability-reporting": {
+      status: 1,
+      stdout: '{"message":"Not Found","status":"404"}',
+      stderr: "gh: Not Found (HTTP 404)"
+    },
+    "repos/acme/app/immutable-releases": ok({ enabled: true, enforced_by_owner: false })
+  };
+  const run = (args) =>
+    replies[args[3]] ?? { status: 1, stdout: "", stderr: `unexpected: gh ${args.join(" ")}` };
+  const { results } = runSetup({
+    manifest,
+    readJson: () => ({ name: "unused" }),
+    run,
+    repo: "acme/app",
+    apply: false,
+    only: ["settings", "security"]
+  });
+  assert.deepEqual(results, [
+    {
+      section: "settings",
+      status: "warn",
+      lines: ["actions.fork_pr_contributor_approval: not available for this repository or plan"]
+    },
+    {
+      section: "security",
+      status: "warn",
+      lines: [
+        "private_vulnerability_reporting: not available for this repository or plan",
+        "secret_scanning: not available for this repository or plan",
+        "secret_scanning_push_protection: not available for this repository or plan"
+      ]
+    }
+  ]);
+  assert.equal(exitCodeFor(results, "check"), 0);
+});
+
 test("manual steps give one click per line, then how to confirm and check again", () => {
   const data = (value) => ({ status: 0, stdout: JSON.stringify({ data: value }), stderr: "" });
   const run = (args, input) => {
@@ -183,7 +249,18 @@ test("manual steps give one click per line, then how to confirm and check again"
             }
           ]
         },
-        views: { nodes: [] },
+        views: {
+          nodes: [
+            {
+              id: "V",
+              name: "Ready",
+              layout: "TABLE_LAYOUT",
+              filter: null,
+              fields: { nodes: [] },
+              sortByFields: { nodes: [] }
+            }
+          ]
+        },
         workflows: { nodes: [{ name: "Auto-add to project", enabled: false }] }
       }
     });
@@ -195,7 +272,18 @@ test("manual steps give one click per line, then how to confirm and check again"
       project: {
         status: ["Done"],
         fields: [],
-        views: [],
+        views: [
+          {
+            name: "Ready",
+            layout: "TABLE_LAYOUT",
+            filter: "",
+            sort: {
+              field: "Priority",
+              direction: "ASC",
+              steps: ["Click the Ready tab.", "Click Save."]
+            }
+          }
+        ],
         workflows: [
           {
             name: "Auto-add to project",
@@ -227,6 +315,11 @@ test("manual steps give one click per line, then how to confirm and check again"
       section: "project",
       status: "manual",
       lines: [
+        "GitHub has no API for this. Open https://github.com/users/acme/projects/1 and sort each view:",
+        "Ready view:",
+        "  1. Click the Ready tab.",
+        "  2. Click Save.",
+        "Each view must keep its sort after you reload the page. Then run `pnpm github:setup --check` again.",
         "GitHub has no API for this. Open https://github.com/users/acme/projects/1/workflows and turn on each workflow:",
         "Auto-add to project:",
         "  1. Click Edit.",
