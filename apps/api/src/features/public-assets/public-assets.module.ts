@@ -7,7 +7,6 @@ import type { Database } from "@repo/db/types";
 import type { Logger } from "@repo/logger";
 import {
   buildPublicAssetUrl,
-  COMMON_MIME_TYPES,
   matchesFileSignature,
   STORAGE_DEFAULTS,
   validateFile,
@@ -19,6 +18,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   PUBLIC_ASSET_CONFIG,
+  PUBLIC_ASSET_MIME_TYPES,
   PUBLIC_ASSETS_NOT_CONFIGURED,
   type PublicAssetKind
 } from "./public-assets.definition";
@@ -143,7 +143,7 @@ export function createPublicAssets({
     const mimeType = metadata.contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
     const validation = validateFile(
       { mimeType, sizeBytes: metadata.sizeBytes ?? 0 },
-      { allowedMimeTypes: COMMON_MIME_TYPES.images }
+      { allowedMimeTypes: PUBLIC_ASSET_MIME_TYPES }
     );
 
     if (!validation.valid) {
@@ -165,7 +165,7 @@ export function createPublicAssets({
       requireStorage();
       const validation = validateFile(
         { mimeType, sizeBytes },
-        { allowedMimeTypes: COMMON_MIME_TYPES.images }
+        { allowedMimeTypes: PUBLIC_ASSET_MIME_TYPES }
       );
 
       if (!validation.valid) {

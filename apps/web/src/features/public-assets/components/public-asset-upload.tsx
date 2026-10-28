@@ -53,7 +53,7 @@ export function PublicAssetUpload({
           <>
             <input
               aria-label={t("storage.publicAssets.choose")}
-              accept="image/jpeg,image/png,image/gif,image/webp"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
               hidden
               ref={input}
               type="file"

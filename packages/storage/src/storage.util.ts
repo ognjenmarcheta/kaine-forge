@@ -93,6 +93,25 @@ const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 const isText = (bytes: Uint8Array) => !bytes.includes(0);
 
 /**
+ * An ISO-BMFF `ftyp` box for a still AVIF image that libvips decodes: major brand
+ * `avif`, or `mif1` with `avif` among the compatible brands. Image sequences
+ * (`avis`) and other major brands do not decode, so they fail here, not at render.
+ */
+function isAvif(bytes: Uint8Array): boolean {
+  if (!startsWith(bytes, ascii("ftyp"), 4)) return false;
+  if (startsWith(bytes, ascii("avif"), 8)) return true;
+  if (!startsWith(bytes, ascii("mif1"), 8)) return false;
+  const boxSize =
+    ((bytes[0] ?? 0) << 24) | ((bytes[1] ?? 0) << 16) | ((bytes[2] ?? 0) << 8) | (bytes[3] ?? 0);
+  const end = Math.min(boxSize, bytes.length);
+  // Compatible brands start at offset 16, four bytes each.
+  for (let offset = 16; offset + 4 <= end; offset += 4) {
+    if (startsWith(bytes, ascii("avif"), offset)) return true;
+  }
+  return false;
+}
+
+/**
  * How the first bytes of each allowlisted type look. Office Open XML files are
  * ZIP archives and legacy Office files are OLE compound files, so those formats
  * share a signature; text formats have none and only must not contain NUL.
@@ -102,6 +121,7 @@ const FILE_SIGNATURES: Readonly<Record<string, (bytes: Uint8Array) => boolean>> 
   "image/png": (bytes) => startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   "image/gif": (bytes) => startsWith(bytes, ascii("GIF87a")) || startsWith(bytes, ascii("GIF89a")),
   "image/webp": (bytes) => startsWith(bytes, ascii("RIFF")) && startsWith(bytes, ascii("WEBP"), 8),
+  "image/avif": isAvif,
   "application/pdf": (bytes) => startsWith(bytes, ascii("%PDF-")),
   "application/msword": (bytes) => startsWith(bytes, OLE),
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (bytes) =>

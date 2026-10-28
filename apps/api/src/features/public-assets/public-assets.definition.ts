@@ -1,4 +1,15 @@
+import { COMMON_MIME_TYPES } from "@repo/storage";
+
 export const PUBLIC_ASSET_KINDS = ["avatar", "organization_logo"] as const;
+
+/**
+ * Upload types for avatars and logos. AVIF is accepted here, not for Attachments:
+ * a Public Asset is always re-encoded to WebP, so AVIF is only ever decoded.
+ */
+export const PUBLIC_ASSET_MIME_TYPES: readonly string[] = [
+  ...COMMON_MIME_TYPES.images,
+  "image/avif"
+];
 
 export type PublicAssetKind = (typeof PUBLIC_ASSET_KINDS)[number];
 

@@ -18,6 +18,7 @@ let owner: AuthenticatedOrganizationScope;
 let member: AuthenticatedOrganizationScope;
 let memory: ReturnType<typeof createMemoryObjectStore>;
 let jpeg: Uint8Array;
+let avif: Uint8Array;
 
 function scopeFor(
   user: { id: string; email: string; name: string },
@@ -81,6 +82,11 @@ beforeAll(async () => {
       .withMetadata({ orientation: 6 })
       .toBuffer()
   );
+  avif = new Uint8Array(
+    await sharp({ create: { width: 600, height: 400, channels: 3, background: "#36c" } })
+      .avif()
+      .toBuffer()
+  );
   database = await createTestDatabase();
   const users = await database.db
     .insert(usersTable)
@@ -135,6 +141,21 @@ describe("createPublicAssets", () => {
     expect(second.avatarUrl).not.toBe(first.avatarUrl);
     expect(memory.keys()).toEqual([second.avatarUrl?.slice(BASE_URL.length + 1)]);
     expect(await assets.current()).toMatchObject({ avatarUrl: second.avatarUrl });
+  });
+
+  it("publishes an AVIF avatar as a square WebP", async () => {
+    const assets = assetsFor(owner);
+
+    const result = await assets.confirm(
+      "avatar",
+      await staged(assets, "avatar", avif, "image/avif")
+    );
+
+    const publishedKey = result.avatarUrl?.slice(BASE_URL.length + 1) ?? "";
+    const published = await sharp(
+      memory.stat({ bucket: "public", key: publishedKey })?.bytes
+    ).metadata();
+    expect([published.format, published.width, published.height]).toEqual(["webp", 256, 256]);
   });
 
   it("lets only an admin or owner change the organization logo", async () => {

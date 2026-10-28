@@ -184,6 +184,9 @@ describe("matchesFileSignature", () => {
     ["image/png", png],
     ["image/gif", bytes("GIF89a")],
     ["image/webp", bytes("RIFF", 0, 0, 0, 0, "WEBPVP8 ")],
+    ["image/avif", bytes(0, 0, 0, 0x14, "ftypavif", 0, 0, 0, 0, "mif1")],
+    // Major brand mif1 with avif among the compatible brands, as some encoders write it.
+    ["image/avif", bytes(0, 0, 0, 0x1c, "ftypmif1", 0, 0, 0, 0, "mif1miafavif")],
     ["application/pdf", bytes("%PDF-1.7")],
     ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip],
     ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", zip],
@@ -199,6 +202,17 @@ describe("matchesFileSignature", () => {
     expect(matchesFileSignature("image/png", bytes("<html>"))).toBe(false);
     expect(matchesFileSignature("text/plain", bytes("MZ", 0x90, 0))).toBe(false);
     expect(matchesFileSignature("video/mp4", png)).toBe(false);
+    // A HEIC photo is the same container, but not AVIF.
+    expect(
+      matchesFileSignature("image/avif", bytes(0, 0, 0, 0x18, "ftypheic", 0, 0, 0, 0, "mif1heic"))
+    ).toBe(false);
+    // An AVIF image sequence: libvips does not decode it, so it must not pass as an upload.
+    expect(
+      matchesFileSignature(
+        "image/avif",
+        bytes(0, 0, 0, 0x1c, "ftypavis", 0, 0, 0, 0, "avifavismsf1")
+      )
+    ).toBe(false);
   });
 });
 
