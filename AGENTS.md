@@ -277,6 +277,7 @@ This index is generated from canonical skill metadata:
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
+- `kaine-shepherd-prs`: Keep a set of open PRs reviewable and mergeable (watch CI, fix failures, resolve conflicts, triage review bots), give the owner the merge order, and watch main after merges.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
 - `kaine-summarize-work`: Write or revise implementation handoffs for completed, partial, or blocked code, configuration, and documentation changes, ending with a plain-language explanation of results and next steps.
 - `kaine-sync-docs`: Reinstall and validate AI assistant files from canonical .ai sources.

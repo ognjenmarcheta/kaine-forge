@@ -15,6 +15,13 @@ Use this skill when a GitHub Actions check fails or when local validation differ
 - Reproduce locally with the closest scoped command. When the cause is not obvious from the log, continue with `kaine-debug`.
 - Check whether failures come from generated drift, missing lockfile updates, GraphQL generation, formatting, or environment assumptions.
 
+## Known causes in this repo
+
+- TS2307 for a new `@repo/*` subpath export: add its `paths` entry to `tsconfig.base.json`.
+- An E2E shell crash after a new shell-level GraphQL query: specs mock `/graphql`, so mock the query in the E2E helpers. Make the shell degrade quietly when the query fails.
+- A migration or `drizzle/meta` conflict after merging `main`: regenerate with `pnpm db:generate`. Do not hand-merge the snapshots.
+- A PGlite or jsdom test that times out only on the Release runner: give the suite a longer timeout (`vi.setConfig({ testTimeout })` or the package's `testTimeout`).
+
 ## Common Commands
 
 - AI tooling doctor: `pnpm ai:doctor`
