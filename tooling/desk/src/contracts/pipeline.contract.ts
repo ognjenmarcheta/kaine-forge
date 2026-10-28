@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * The fixed layout of the built-in `kaine-default` flow. The engine, the CLI, and the
- * browser UI all read stages, node kinds, edges, and loop limits from here.
+ * Stage names, node kinds, and default loop limits of the built-in `kaine-default` flow. The
+ * flow model takes its nodes and edges from the flow snapshot, not from this file.
  */
 export const STAGES = [
   "intake",
@@ -53,7 +53,6 @@ export const HUMAN_GATES = [
   "pr-review",
   "pr-open"
 ] as const satisfies readonly Stage[];
-export type HumanGate = (typeof HUMAN_GATES)[number];
 
 /**
  * Stages that accept no further triggers. `shipped`: the desk saw the PR merged. `finished`: a
@@ -75,7 +74,6 @@ export const ACTIVE_STAGES = [
   "review",
   "ship"
 ] as const satisfies readonly Stage[];
-export type ActiveStage = (typeof ACTIVE_STAGES)[number];
 
 /** Where human feedback can send the issue. */
 export const FEEDBACK_TARGETS = ["plan", "build", "review"] as const;
@@ -93,62 +91,3 @@ export type LoopLimits = Readonly<Record<LoopName, number>> & {
 
 /** Loop-backs to `build` that the engine allows before it asks the engineer. */
 export const DEFAULT_LOOP_LIMITS: LoopLimits = { check: 3, review: 2, prRounds: 3 };
-
-export interface PipelineNode {
-  readonly id: ActiveStage | HumanGate;
-  readonly kind: NodeKind;
-}
-
-export interface PipelineEdge {
-  readonly from: Stage;
-  readonly to: Stage;
-}
-
-export interface PipelineLoopEdge extends PipelineEdge {
-  /** Counter that this loop-back increments. Human-driven loops have none. */
-  readonly counter: LoopName | null;
-}
-
-export interface PipelineDefinition {
-  readonly nodes: readonly PipelineNode[];
-  readonly forwardEdges: readonly PipelineEdge[];
-  readonly humanGates: readonly HumanGate[];
-  readonly loopEdges: readonly PipelineLoopEdge[];
-}
-
-export const PIPELINE: PipelineDefinition = {
-  nodes: [
-    { id: "intake", kind: "source" },
-    { id: "setup", kind: "script" },
-    { id: "plan", kind: "agent" },
-    { id: "plan-gate", kind: "human" },
-    { id: "build", kind: "agent" },
-    { id: "check", kind: "script" },
-    { id: "review", kind: "agent" },
-    { id: "pr-review", kind: "human" },
-    { id: "ship", kind: "script" },
-    { id: "pr-open", kind: "human" }
-  ],
-  forwardEdges: [
-    { from: "intake", to: "setup" },
-    { from: "setup", to: "plan" },
-    { from: "plan", to: "plan-gate" },
-    { from: "plan-gate", to: "build" },
-    { from: "build", to: "check" },
-    { from: "check", to: "review" },
-    { from: "review", to: "pr-review" },
-    { from: "pr-review", to: "ship" },
-    { from: "ship", to: "pr-open" },
-    { from: "pr-open", to: "shipped" }
-  ],
-  humanGates: [...HUMAN_GATES],
-  loopEdges: [
-    { from: "plan-gate", to: "plan", counter: null },
-    { from: "check", to: "build", counter: "check" },
-    { from: "review", to: "build", counter: "review" },
-    { from: "pr-review", to: "build", counter: null },
-    { from: "pr-review", to: "review", counter: null },
-    { from: "pr-review", to: "plan", counter: null },
-    { from: "pr-open", to: "build", counter: null }
-  ]
-};
