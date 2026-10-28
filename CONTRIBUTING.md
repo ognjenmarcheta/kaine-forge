@@ -154,10 +154,16 @@ pnpm ai:install && pnpm ai:doctor && pnpm template:adopt --check
 
 After adoption: rotate secrets, rewrite `.env.example` defaults, review remaining `--check` findings, and keep org-specific MCP/skills only in the downstream project.
 
-Repository settings the template cannot carry over (GitHub copies files, not settings):
+Repository settings the template cannot carry over (GitHub copies files, not settings) are in `.github/repo-setup.json`: labels, Discussions, squash-only merging, Actions permissions, security features, both branch rulesets, and the Projects board. Confirm that the owner is the only repository administrator, then apply them with the `gh` CLI:
 
-- Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, or the Release workflow cannot open version pull requests.
-- Import both branch rulesets from `.github/rulesets/main.json` and `.github/rulesets/main-owner.json`, after confirming the owner is the only repository administrator.
+```bash
+pnpm github:setup            # dry run: shows each change
+pnpm github:setup --apply    # applies it; needs admin rights
+pnpm github:setup --check    # exits 1 while anything differs
+```
+
+- The Release workflow needs **Allow GitHub Actions to create and approve pull requests** to open version pull requests. The command turns it on.
+- The board needs `gh auth refresh -s project` once. The command prints the steps GitHub has no API for: board workflows and missing discussion categories.
 - CI caches Turbo task results with no setup (see [CI speed](#ci-speed-maintainers)).
 
 ### Stay up to date with the template AI setup
@@ -242,12 +248,7 @@ Create release metadata:
 pnpm changeset
 ```
 
-CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required until the ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, no bypass actors or merge queue) is imported. The owner remains the only account with merge authority. Import it once per repository (public repositories, or GitHub Pro and up); update the existing ruleset by ID instead of creating a duplicate:
-
-```bash
-gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
-gh api -X POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main-owner.json
-```
+CI checks for pull requests are defined in `.github/workflows/ci-pr.yml`. Nothing makes them required until the ruleset in `.github/rulesets/main.json` (required checks, squash-only pull requests, no bypass actors or merge queue) is imported. The owner remains the only account with merge authority. Import it once per repository (public repositories, or GitHub Pro and up). `pnpm github:setup --apply --only rulesets` imports both rulesets and updates an existing ruleset by name instead of creating a duplicate.
 
 The owner-only ruleset exempts only the repository administrator from its update
 restriction. Keep the owner as the only administrator. This exception applies

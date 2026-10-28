@@ -1,0 +1,220 @@
+{
+  "$comment": "Desired GitHub repository state. A template copies files, not settings: `pnpm github:setup` shows the difference and `pnpm github:setup --apply` applies it. See the kaine-setup-github skill.",
+  "repository": {
+    "has_issues": true,
+    "has_discussions": true,
+    "has_projects": true,
+    "has_wiki": false,
+    "allow_squash_merge": true,
+    "allow_merge_commit": false,
+    "allow_rebase_merge": false,
+    "allow_auto_merge": false,
+    "allow_update_branch": true,
+    "delete_branch_on_merge": true,
+    "squash_merge_commit_title": "PR_TITLE",
+    "squash_merge_commit_message": "COMMIT_MESSAGES"
+  },
+  "actions": {
+    "default_workflow_permissions": "read",
+    "can_approve_pull_request_reviews": true,
+    "fork_pr_contributor_approval": "all_external_contributors"
+  },
+  "security": {
+    "vulnerability_alerts": true,
+    "automated_security_fixes": true,
+    "private_vulnerability_reporting": true,
+    "secret_scanning": true,
+    "secret_scanning_push_protection": true
+  },
+  "rulesets": [".github/rulesets/main.json", ".github/rulesets/main-owner.json"],
+  "labels": [
+    {
+      "name": "agent:needs-you",
+      "color": "fbca04",
+      "description": "The agent desk waits for the repository owner"
+    },
+    {
+      "name": "agent:pr-open",
+      "color": "0e8a16",
+      "description": "The agent desk opened a draft pull request"
+    },
+    {
+      "name": "agent:working",
+      "color": "1d76db",
+      "description": "The agent desk is working on this issue"
+    },
+    { "name": "area:api", "color": "c5def5", "description": "GraphQL API (apps/api)" },
+    {
+      "name": "area:auth",
+      "color": "c5def5",
+      "description": "Authentication and organizations (packages/auth)"
+    },
+    {
+      "name": "area:ci",
+      "color": "c5def5",
+      "description": "GitHub Actions workflows and CI configuration"
+    },
+    {
+      "name": "area:config",
+      "color": "c5def5",
+      "description": "Shared lint, TypeScript and test config (packages/config)"
+    },
+    {
+      "name": "area:db",
+      "color": "c5def5",
+      "description": "Drizzle schema, migrations and seeds (packages/db)"
+    },
+    {
+      "name": "area:desktop",
+      "color": "c5def5",
+      "description": "Tauri desktop app (apps/desktop)"
+    },
+    {
+      "name": "area:docs",
+      "color": "c5def5",
+      "description": "Documentation (docs/, README, CONTRIBUTING, SECURITY)"
+    },
+    {
+      "name": "area:e2e",
+      "color": "c5def5",
+      "description": "Playwright end-to-end tests (apps/e2e)"
+    },
+    { "name": "area:mobile", "color": "c5def5", "description": "Expo mobile app (apps/mobile)" },
+    {
+      "name": "area:tooling",
+      "color": "c5def5",
+      "description": "Repository tooling and the agent desk (tooling/)"
+    },
+    {
+      "name": "area:translation",
+      "color": "c5def5",
+      "description": "Translations and i18n (packages/translation)"
+    },
+    { "name": "area:ui", "color": "c5def5", "description": "Shared UI components (packages/ui)" },
+    { "name": "area:web", "color": "c5def5", "description": "React web app (apps/web)" },
+    { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+    { "name": "dependencies", "color": "0366d6", "description": "Dependency or lockfile update" },
+    {
+      "name": "graphql:breaking-approved",
+      "color": "b60205",
+      "description": "Owner accepts an intended breaking GraphQL schema change"
+    },
+    {
+      "name": "needs-info",
+      "color": "fef2c0",
+      "description": "Waiting on reporter for more information"
+    },
+    { "name": "needs-spec", "color": "d4c5f9", "description": "Requires a reviewed specification" },
+    {
+      "name": "needs-triage",
+      "color": "d4c5f9",
+      "description": "Maintainer needs to evaluate this issue"
+    },
+    {
+      "name": "platform:api",
+      "color": "f9d0c4",
+      "description": "API platform concerns (apps/api)"
+    },
+    {
+      "name": "platform:desktop",
+      "color": "f9d0c4",
+      "description": "Desktop platform concerns (apps/desktop)"
+    },
+    {
+      "name": "platform:mobile",
+      "color": "f9d0c4",
+      "description": "Mobile platform concerns (apps/mobile)"
+    },
+    {
+      "name": "platform:web",
+      "color": "f9d0c4",
+      "description": "Web platform concerns (apps/web)"
+    },
+    {
+      "name": "ready-for-agent",
+      "color": "c2e0c6",
+      "description": "Fully specified, ready for an AFK agent"
+    },
+    {
+      "name": "ready-for-human",
+      "color": "bfdadc",
+      "description": "Requires human implementation"
+    },
+    {
+      "name": "release:changeset",
+      "color": "6a737d",
+      "description": "Pull request adds a changeset"
+    },
+    {
+      "name": "release:skip-changeset",
+      "color": "6a737d",
+      "description": "Marks changes that do not require a changeset"
+    },
+    {
+      "name": "type:build",
+      "color": "bfe5bf",
+      "description": "Build system or external dependency change"
+    },
+    {
+      "name": "type:chore",
+      "color": "bfe5bf",
+      "description": "Maintenance that changes no behavior"
+    },
+    { "name": "type:ci", "color": "bfe5bf", "description": "CI configuration change" },
+    { "name": "type:docs", "color": "bfe5bf", "description": "Documentation change" },
+    { "name": "type:feat", "color": "bfe5bf", "description": "New feature" },
+    { "name": "type:fix", "color": "bfe5bf", "description": "Bug fix" },
+    { "name": "type:perf", "color": "bfe5bf", "description": "Performance improvement" },
+    {
+      "name": "type:refactor",
+      "color": "bfe5bf",
+      "description": "Code change that neither fixes a bug nor adds a feature"
+    },
+    { "name": "type:revert", "color": "bfe5bf", "description": "Reverts an earlier commit" },
+    {
+      "name": "type:style",
+      "color": "bfe5bf",
+      "description": "Formatting change with no code effect"
+    },
+    { "name": "type:test", "color": "bfe5bf", "description": "Adds or corrects tests" },
+    { "name": "wontfix", "color": "ffffff", "description": "This will not be worked on" }
+  ],
+  "discussions": {
+    "categories": ["announcements", "ideas", "q-a", "show-and-tell"]
+  },
+  "project": {
+    "status": ["Triage", "Ready", "In progress", "In review", "Done"],
+    "fields": [
+      { "name": "Priority", "options": ["P0", "P1", "P2"] },
+      { "name": "Size", "options": ["XS", "S", "M", "L", "XL"] }
+    ],
+    "views": [
+      { "name": "Board", "layout": "BOARD_LAYOUT", "filter": "" },
+      {
+        "name": "Triage",
+        "layout": "TABLE_LAYOUT",
+        "filter": "is:open label:needs-triage,needs-info,needs-spec"
+      },
+      {
+        "name": "Ready",
+        "layout": "TABLE_LAYOUT",
+        "filter": "is:open label:ready-for-agent,ready-for-human"
+      },
+      {
+        "name": "Agent desk",
+        "layout": "TABLE_LAYOUT",
+        "filter": "is:open label:\"agent:working\",\"agent:needs-you\",\"agent:pr-open\""
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Auto-add to project",
+        "instruction": "Turn it on for this repository with the filter `is:issue,pr is:open`."
+      },
+      {
+        "name": "Item added to project",
+        "instruction": "Turn it on and set Status to Triage."
+      }
+    ]
+  }
+}

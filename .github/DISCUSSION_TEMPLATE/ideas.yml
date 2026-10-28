@@ -1,0 +1,23 @@
+# Form for the Ideas discussion category. The file name must match the category slug.
+# An idea that is ready for work becomes an issue in the six-heading format of
+# docs/agents/issue-format.md.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What gap or friction do you see? Who does it affect?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What would you change? Describe the outcome, not only the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways to solve it, including "do nothing".

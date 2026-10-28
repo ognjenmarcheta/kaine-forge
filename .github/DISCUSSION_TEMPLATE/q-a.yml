@@ -1,0 +1,21 @@
+# Form for the Q&A discussion category. The file name must match the category slug.
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What do you want to know? Name the command, file, or feature.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: Commands you ran and what happened. Paste output as text, not screenshots.
+      render: shell
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node version, and pnpm version.
+      placeholder: e.g. Ubuntu 24.04, Node 22.11, pnpm 10.6
