@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -17,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import { installedServers } from "./readiness";
 
 const hookScript = join(process.cwd(), ".ai", "hooks", "session-start.mjs");
+const refreshScript = join(process.cwd(), ".ai", "hooks", "ai-refresh.mjs");
 
 const makeRepo = (): string => {
   const repo = mkdtempSync(join(tmpdir(), "kaine-hook-"));
@@ -49,12 +51,41 @@ const makeHealthyAiInstall = (repo: string): void => {
   );
 };
 
+// A hook-provided CLAUDE_PROJECT_DIR would point the refresh at a real checkout.
+const hookEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => name !== "CLAUDE_PROJECT_DIR")
+);
+
 const runHook = (cwd: string, agent: "codex" | "claude" | "grok") =>
   spawnSync("node", [hookScript, "--agent", agent], {
     cwd,
+    env: hookEnv,
     input: JSON.stringify({ cwd, hook_event_name: "SessionStart", source: "startup" }),
     encoding: "utf8"
   });
+
+const runPromptHook = (cwd: string) =>
+  spawnSync("node", [refreshScript, "--agent", "claude"], {
+    cwd,
+    env: hookEnv,
+    input: JSON.stringify({ cwd, hook_event_name: "UserPromptSubmit", prompt: "hi" }),
+    encoding: "utf8"
+  });
+
+const runReadiness = (cwd: string): { problems: string[] } =>
+  JSON.parse(
+    spawnSync(
+      process.execPath,
+      ["--import", "tsx", ".ai/readiness.ts", "--agent", "claude", "--local", "--json"],
+      { cwd, encoding: "utf8" }
+    ).stdout
+  );
+
+/** A pull that changes one canonical skill. */
+const changeCanonicalSkill = (repo: string): void => {
+  const file = join(repo, ".ai/skills/kaine-test.md");
+  writeFileSync(file, `${readFileSync(file, "utf8")}\nChanged verification requirement.\n`);
+};
 
 describe("session-start hook", () => {
   it("emits only current selected Serena cache content without a Serena startup command", () => {
@@ -179,28 +210,129 @@ describe("session-start hook", () => {
     }
   });
 
-  it("detects changed canonical content even with unchanged timestamps", () => {
+  it("reports content drift without timestamps or an MCP config, as in a worktree", () => {
     const repo = makeRepo();
     try {
       makeHealthyAiInstall(repo);
-      const file = join(repo, ".ai/skills/kaine-test.md");
-      const content = readFileSync(file, "utf8");
-      writeFileSync(file, `${content}\nChanged verification requirement.\n`);
+      changeCanonicalSkill(repo);
       const same = new Date("2024-01-01T00:00:00.000Z");
-      utimesSync(file, same, same);
-      utimesSync(join(repo, ".agents/skills/kaine-test/SKILL.md"), same, same);
+      utimesSync(join(repo, ".ai/skills/kaine-test.md"), same, same);
+      utimesSync(join(repo, ".claude/skills/kaine-test/SKILL.md"), same, same);
+      rmSync(join(repo, ".mcp.json"));
 
-      const result = runHook(repo, "codex");
+      const { problems } = runReadiness(repo);
 
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("Stale skill: kaine-test");
-      execFileSync(
-        process.execPath,
-        ["--import", "tsx", ".ai/install.ts", "--agent", "codex", "--non-interactive"],
-        { cwd: repo, stdio: "pipe" }
+      expect(problems).toContain("Stale skill: kaine-test");
+      expect(problems).toContain("Missing claude MCP configuration");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("refreshes skills changed by a pull at session start and asks Claude to reload them", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      runHook(repo, "claude");
+      changeCanonicalSkill(repo);
+
+      const output = JSON.parse(runHook(repo, "claude").stdout).hookSpecificOutput;
+
+      expect(output.reloadSkills).toBe(true);
+      expect(output.additionalContext).toContain(
+        "- AI setup refreshed (claude, codex, grok): ~kaine-test\n"
       );
-      expect(runHook(repo, "codex").stdout).toContain("AI installation: ready");
-      expect(result.stdout).toContain("pnpm ai:install --agent codex");
+      expect(output.additionalContext).toContain("AI installation: ready");
+      expect(readFileSync(join(repo, ".claude/skills/kaine-test/SKILL.md"), "utf8")).toContain(
+        "Changed verification requirement."
+      );
+      expect(runHook(repo, "claude").stdout).toMatch(/^Kaine Forge AI context\n/);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("never writes or deletes tracked files during a refresh and names them instead", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      const trackedSkill = ".claude/skills/kaine-test/SKILL.md";
+      execFileSync("git", ["add", "-f", "AGENTS.md", trackedSkill], { cwd: repo });
+      runHook(repo, "codex");
+      const agentsDoc = readFileSync(join(repo, "AGENTS.md"), "utf8");
+      // A pull that retires a skill changes the tracked index and orphans the tracked copy.
+      rmSync(join(repo, ".ai/skills/kaine-test.md"));
+
+      const context = runHook(repo, "codex").stdout;
+
+      expect(context).toContain(
+        `- Tracked AI files are out of date: AGENTS.md, ${trackedSkill}. Run pnpm ai:install and commit.\n`
+      );
+      expect(readFileSync(join(repo, "AGENTS.md"), "utf8")).toBe(agentsDoc);
+      expect(existsSync(join(repo, trackedSkill))).toBe(true);
+      expect(existsSync(join(repo, ".agents/skills/kaine-test"))).toBe(false);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("stops a refresh when git cannot list tracked files", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      execFileSync("git", ["add", "AGENTS.md"], { cwd: repo });
+      const agentsDoc = readFileSync(join(repo, "AGENTS.md"), "utf8");
+      writeFile(
+        repo,
+        ".ai/guide.md",
+        `${readFileSync(join(repo, ".ai/guide.md"), "utf8")}\nNew rule.\n`
+      );
+      writeFile(repo, ".git/index", "corrupt");
+
+      const result = spawnSync(process.execPath, ["--import", "tsx", ".ai/install.ts", "--auto"], {
+        cwd: repo,
+        encoding: "utf8"
+      });
+
+      expect(result.status).toBe(1);
+      expect(readFileSync(join(repo, "AGENTS.md"), "utf8")).toBe(agentsDoc);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves a checkout without a recorded install untouched", () => {
+    const repo = makeRepo();
+    try {
+      cpSync(join(process.cwd(), ".ai"), join(repo, ".ai"), { recursive: true });
+      symlinkSync(join(process.cwd(), "node_modules"), join(repo, "node_modules"), "junction");
+
+      runHook(repo, "claude");
+
+      expect(existsSync(join(repo, ".claude"))).toBe(false);
+      expect(existsSync(join(repo, "AGENTS.md"))).toBe(false);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("refreshes from the prompt hook only after .ai inputs change", () => {
+    const repo = makeRepo();
+    try {
+      makeHealthyAiInstall(repo);
+      runPromptHook(repo);
+      const installed = join(repo, ".claude/skills/kaine-test");
+      rmSync(installed, { recursive: true });
+
+      expect(runPromptHook(repo).stdout).toBe("");
+      expect(existsSync(installed)).toBe(false);
+
+      changeCanonicalSkill(repo);
+
+      expect(runPromptHook(repo).stdout).toContain("AI setup refreshed (claude, codex, grok):");
+      expect(readFileSync(join(installed, "SKILL.md"), "utf8")).toContain(
+        "Changed verification requirement."
+      );
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
@@ -234,6 +366,37 @@ describe("session-start hook", () => {
       rmSync(repo, { recursive: true, force: true });
     }
   }, 30_000);
+  it("warns a Claude worktree session that Serena serves the main checkout", () => {
+    const repo = makeRepo();
+    const worktree = `${repo}-wt`;
+    try {
+      execFileSync(
+        "git",
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init"],
+        { cwd: repo, stdio: "ignore" }
+      );
+      execFileSync("git", ["worktree", "add", worktree], { cwd: repo, stdio: "ignore" });
+      const serena = JSON.stringify({ mcpServers: { serena: { command: "uvx" } } });
+      writeFile(repo, ".mcp.json", serena);
+      writeFile(worktree, ".mcp.json", serena);
+      const warning = `so Serena reads and edits ${repo}, not this worktree.`;
+
+      expect(runHook(worktree, "claude").stdout).toContain(warning);
+      expect(runHook(worktree, "codex").stdout).not.toContain(warning);
+      expect(runHook(repo, "claude").stdout).not.toContain("Serena reads and edits");
+
+      writeFile(
+        repo,
+        ".mcp.json",
+        JSON.stringify({ mcpServers: { serena: { command: "uvx", disabled: true } } })
+      );
+      expect(runHook(worktree, "claude").stdout).not.toContain(warning);
+    } finally {
+      rmSync(worktree, { recursive: true, force: true });
+      rmSync(repo, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it("exits cleanly outside a git repository", () => {
     const cwd = mkdtempSync(join(tmpdir(), "kaine-hook-no-repo-"));
     try {

@@ -73,6 +73,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.ai/hooks/ai-refresh.mjs\" --agent claude",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

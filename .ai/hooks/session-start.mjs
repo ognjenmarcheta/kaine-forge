@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
+import { refreshAiSetup, refreshRoots } from "./ai-refresh.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "./graph-status.mjs";
 
 const args = process.argv.slice(2);
@@ -93,8 +94,8 @@ const readMcpServers = (root) => {
   }
 };
 
-/** Claude worktree sessions load project MCP servers from the main checkout's `.mcp.json`. */
-const staleMainCheckoutMcp = (repoRoot) => {
+/** The main checkout's root when `repoRoot` is a linked worktree, otherwise `null`. */
+const mainCheckoutRoot = (repoRoot) => {
   try {
     const commonDir = execGit(repoRoot, [
       "rev-parse",
@@ -103,13 +104,24 @@ const staleMainCheckoutMcp = (repoRoot) => {
     ]);
     const gitDir = execGit(repoRoot, ["rev-parse", "--path-format=absolute", "--git-dir"]);
     if (commonDir === gitDir || basename(commonDir) !== ".git") return null;
-    const mainRoot = resolve(dirname(commonDir));
-    const mainServers = readMcpServers(mainRoot);
-    // A missing main config warns too: the session then gets none of this checkout's servers.
-    return mainServers !== undefined && mainServers !== readMcpServers(repoRoot) ? mainRoot : null;
+    return resolve(dirname(commonDir));
   } catch {
     return null;
   }
+};
+
+/** Claude worktree sessions load project MCP servers from the main checkout's `.mcp.json`. */
+const staleMainCheckoutMcp = (repoRoot, mainRoot) => {
+  const mainServers = readMcpServers(mainRoot);
+  // A missing main config warns too: the session then gets none of this checkout's servers.
+  return mainServers !== undefined && mainServers !== readMcpServers(repoRoot);
+};
+
+/** Serena's `--project-from-cwd` resolves to the main checkout that Claude starts it from. */
+const mainCheckoutSerena = (mainRoot) => {
+  const servers = readMcpServers(mainRoot);
+  const serena = typeof servers === "string" ? JSON.parse(servers)?.serena : undefined;
+  return Boolean(serena) && serena.disabled !== true && serena.enabled !== false;
 };
 
 const aiHealth = (repoRoot, hookAgent) => {
@@ -154,6 +166,8 @@ const main = async () => {
     return;
   }
 
+  // Refresh first, so the health check below describes what this session actually loads.
+  const refresh = refreshAiSetup(refreshRoots(agent, repoRoot));
   const health = aiHealth(repoRoot, agent);
   const issues = health.problems;
   const lines = [
@@ -162,6 +176,8 @@ const main = async () => {
     `- Branch: ${currentBranch(repoRoot)}`,
     `- Worktree: ${worktreeSummary(repoRoot)}`,
     `- AI installation: ${health.installation}`,
+    ...refresh.lines.map((line) => `- ${line}`),
+    ...refresh.failures.map((line) => `- Warning: ${line}`),
     "- Runtime verification: MCP and sandbox not verified at startup",
     formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot)))
   ];
@@ -172,10 +188,14 @@ const main = async () => {
     !["ready", "disabled", "not-applicable"].includes(health.serenaPrompt)
   )
     lines.push("- Serena prompt unavailable; run pnpm ai:install --agent claude --prepare-serena");
-  const mainRoot = agent === "claude" ? staleMainCheckoutMcp(repoRoot) : null;
-  if (mainRoot)
+  const mainRoot = agent === "claude" ? mainCheckoutRoot(repoRoot) : null;
+  if (mainRoot && staleMainCheckoutMcp(repoRoot, mainRoot))
     lines.push(
       `- Warning: this worktree session may load MCP servers from ${join(mainRoot, ".mcp.json")}, which is missing or differs from this checkout; run pnpm ai:install --agent claude in ${mainRoot}`
+    );
+  if (mainRoot && mainCheckoutSerena(mainRoot))
+    lines.push(
+      `- Warning: Claude starts Serena from ${join(mainRoot, ".mcp.json")}, so Serena reads and edits ${mainRoot}, not this worktree. Check its active project; when it is not this worktree, use Read, Grep, and Edit instead of Serena.`
     );
   if (health.startupContext) lines.push(health.startupContext);
   if (issues.length > 0) {
@@ -185,7 +205,19 @@ const main = async () => {
     );
   }
 
-  process.stdout.write(`${lines.join("\n")}\n`);
+  const context = `${lines.join("\n")}\n`;
+  // Claude builds its skill list before SessionStart hooks finish; ask it to rescan after a refresh.
+  process.stdout.write(
+    agent === "claude" && refresh.refreshed
+      ? `${JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "SessionStart",
+            additionalContext: context,
+            reloadSkills: true
+          }
+        })}\n`
+      : context
+  );
 };
 
 main().catch(() => {
