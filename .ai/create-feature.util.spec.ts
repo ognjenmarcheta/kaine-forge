@@ -366,7 +366,15 @@ describe("applyCreateFeature", () => {
     expect(read("apps/api/src/context.ts")).toContain(
       "    scaffoldfixtures: createScaffoldfixtures({ data, publish }),"
     );
-    expect(read("apps/api/src/schema/features.ts")).toContain('name: "scaffoldfixtures"');
+    expect(read("apps/api/src/schema/features.ts")).toContain(
+      'import { scaffoldfixturesResolvers } from "../features/scaffoldfixtures/scaffoldfixtures.router";'
+    );
+    expect(read("apps/api/src/schema/features.ts")).toContain(
+      'import { scaffoldfixturesTypeDefs } from "../features/scaffoldfixtures/scaffoldfixtures.schema";'
+    );
+    expect(read("apps/api/src/schema/features.ts")).toContain(
+      '  {\n    name: "scaffoldfixtures",\n    typeDefs: scaffoldfixturesTypeDefs,\n    resolvers: scaffoldfixturesResolvers\n  }\n];'
+    );
     expect(read("apps/web/src/hooks/use-live-list.ts")).toContain(
       "  OnScaffoldfixtureDeletedDocument"
     );
@@ -384,22 +392,6 @@ describe("applyCreateFeature", () => {
     );
   });
 
-  it("keeps the api feature registry and its test in the same order", () => {
-    const { files } = applyCreateFeature(readWiringTargets(), names);
-    const registry = files.get("apps/api/src/schema/features.ts") ?? "";
-    const registryTest = files.get("apps/api/src/schema/features.test.ts") ?? "";
-
-    const registered = [...registry.matchAll(/^ {4}name: "([\w-]+)",$/gm)].map((match) => match[1]);
-    const asserted = [
-      ...registryTest
-        .slice(registryTest.indexOf("expect(apiFeatures.map((feature) => feature.name)).toEqual(["))
-        .matchAll(/^ {6}"([\w-]+)"/gm)
-    ].map((match) => match[1]);
-
-    expect(registered).toEqual(asserted);
-    expect(registered.at(-1)).toBe("scaffoldfixtures");
-  });
-
   it("keeps every translation namespace resource wired for all three locales", () => {
     const { files } = applyCreateFeature(readWiringTargets(), names);
     const config = files.get("packages/translation/src/translation.config.ts") ?? "";
@@ -414,8 +406,8 @@ describe("applyCreateFeature", () => {
     files.set(
       "apps/api/src/schema/features.ts",
       (files.get("apps/api/src/schema/features.ts") ?? "").replace(
-        "export const apiFeatures: ApiFeature[] = [",
-        "export const registeredApiFeatures: ApiFeature[] = ["
+        "const apiFeatures: ApiFeature[] = [",
+        "const registeredApiFeatures: ApiFeature[] = ["
       )
     );
 

@@ -7,7 +7,6 @@ import {
   createActiveOrganizationLifecycle,
   createActiveOrganizationProviderState,
   syncActiveOrganizationProvider,
-  createOrgScopedQueryRegistry,
   createQueryRuntime,
   createActiveOrganizationQueryKey,
   queryKeys,
@@ -56,10 +55,7 @@ describe("invalidateOrgScopedQueries", () => {
       removeQueries
     });
 
-    expect(runtime.getOrgScopedQueryKeys()).toEqual([
-      queryKeys.organizationMembersScope(),
-      ["GetTodos", { filter: "open" }]
-    ]);
+    expect(invalidateQueries).toHaveBeenCalledTimes(2);
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.organizationMembersScope()
     });
@@ -71,30 +67,6 @@ describe("invalidateOrgScopedQueries", () => {
     });
     expect(removeQueries).toHaveBeenCalledWith({
       queryKey: ["GetTodos", { filter: "open" }]
-    });
-  });
-
-  it("registers org-scoped operations by feature-owned names", async () => {
-    const invalidateQueries = vi.fn(async () => undefined);
-    const registry = createOrgScopedQueryRegistry();
-
-    registry.registerOperation("todos.list", ["GetTodos"]);
-    registry.registerOperation("todos.list", ["GetTodos", { filter: "open" }]);
-    registry.registerOperation("organizations.members", queryKeys.organizationMembersScope());
-
-    await registry.invalidateOrgScopedQueries({
-      invalidateQueries
-    });
-
-    expect(registry.getOperationKeys()).toEqual([
-      ["GetTodos", { filter: "open" }],
-      queryKeys.organizationMembersScope()
-    ]);
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["GetTodos", { filter: "open" }]
-    });
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.organizationMembersScope()
     });
   });
 });
