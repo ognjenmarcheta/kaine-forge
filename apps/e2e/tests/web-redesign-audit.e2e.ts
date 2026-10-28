@@ -3,6 +3,21 @@ import { expect, test } from "@playwright/test";
 import { signIn, NAV_LABELS } from "./helpers/auth";
 
 test("Organization menus scroll within a short viewport", async ({ page }) => {
+  // The menu must overflow whatever Organizations earlier specs created, so the
+  // list always carries extra entries after the user's real ones.
+  await page.route("**/api/auth/organization/list*", async (route) => {
+    const response = await route.fetch();
+    const organizations: unknown = await response.json();
+    const extra = Array.from({ length: 6 }, (_, index) => ({
+      id: `menu-overflow-${index}`,
+      name: `Overflow Organization ${index + 1}`,
+      slug: `menu-overflow-${index}`
+    }));
+    await route.fulfill({
+      response,
+      json: [...(Array.isArray(organizations) ? organizations : []), ...extra]
+    });
+  });
   await signIn(page);
   await page.setViewportSize({ width: 1440, height: 128 });
   const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
