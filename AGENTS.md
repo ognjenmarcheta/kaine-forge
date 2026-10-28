@@ -5,9 +5,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 ## Required Reading
 
 - Read `MONOREPO_GUIDE.md` before generating, modifying, or reviewing code.
-- Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work.
+- Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work. For a screen, also read `docs/ui/guidelines.md` and the active theme's `DESIGN.md` (the root `DESIGN.md` for the default theme).
 - Treat `MONOREPO_GUIDE.md` as authoritative for architecture, package boundaries, naming, data rules, GraphQL flow, and engineering conventions.
-- Treat `DESIGN_SYSTEM.md` as authoritative for visual language, tokens, theming, and component behavior.
+- Treat `DESIGN_SYSTEM.md` as authoritative for tokens, theming, and component behavior, and `docs/ui/guidelines.md` for the UI rules and their precedence. A theme's look lives in its `DESIGN.md` under `packages/theme/src/themes/`.
 - Read `CONTEXT.md` before naming domain concepts or shaping organization-scoped APIs.
 - Read `REVIEW.md` before reviewing code or when acting as a reviewer (canonical source `.ai/review.md`).
 - Read `docs/agents/day-one.md` when contributing with an agent for the first time or with little repo context.
@@ -263,7 +263,10 @@ Selection uses each agent's native discovery and model judgment. These instructi
 This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
+- `kaine-audit-ui`: Audit a screen, a UI diff, or a recreated screenshot against the UI guidelines and WCAG 2.2, and report findings with rule IDs; in reference mode, also score how closely a recreation matches its image.
+- `kaine-build-ui`: Build or change a screen or component in the web, desktop, desk, or mobile UI, or recreate a screenshot or brand look, using the theme utilities, the shared components, and the UI guidelines.
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
+- `kaine-create-theme`: Create, change, or set the default for a theme in @repo/theme, from a brand color, a brand book, a DESIGN.md, or a reference image, and pass the theme checks.
 - `kaine-debug`: Find and fix the root cause of a local failure — a failing test, broken build, runtime error, or regression — by reproducing, localizing, and reducing it before changing code.
 - `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.

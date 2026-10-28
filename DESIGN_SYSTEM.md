@@ -2,6 +2,8 @@
 
 This document is the visual authority for Kaine Forge. It defines the token model, theme rules, component styling expectations, accessibility baseline, and the split between web/desktop UI and mobile UI. For architecture, package boundaries, data flow, and engineering conventions, use `MONOREPO_GUIDE.md`.
 
+The look of a theme lives in its own `DESIGN.md` (the default theme: `packages/theme/src/themes/byte-forge/DESIGN.md`, copied to the root `DESIGN.md`). Start with `docs/ui/README.md`. The rules with IDs are in `docs/ui/guidelines.md`, the steps to build a theme in `docs/ui/create-a-theme.md`, the review list in `docs/ui/quality-checklist.md`, and the product rules of the template's own screens in `docs/ui/workspaces.md`.
+
 <!-- TEMPLATE_POLICY_BLOCK_START -->
 
 Kaine Forge is a boilerplate template. This design system defines current default patterns for new products, not compatibility promises for old visual conventions.
@@ -26,7 +28,7 @@ Kaine Forge has two UI packages because web/desktop and mobile have different ru
 
 | Surface               | Package           | Runtime      | Styling pipeline                                       |
 | --------------------- | ----------------- | ------------ | ------------------------------------------------------ |
-| Web, desktop, desk UI | `@repo/ui`        | React DOM    | Tailwind CSS v4, shadcn/Radix, CSS custom properties   |
+| Web, desktop, desk UI | `@repo/ui`        | React DOM    | Tailwind CSS v4, Radix, generated theme utilities      |
 | Mobile                | `@repo/mobile-ui` | React Native | NativeWind, Tailwind CSS v3-compatible mobile pipeline |
 
 Rules:
@@ -105,23 +107,24 @@ Use emphasis to control contrast:
 | default    | normal foreground/background role             |
 | `bold`     | strong fill, usually paired with inverse text |
 
-Text on bold backgrounds must use inverse tokens when contrast requires it. Brand and selected bold fills are a deep red-orange in both themes, so text and icons on them use `--ds-text-brand-inverse` (white in both themes), not `--ds-text-inverse`, which turns dark in the dark theme. Hovered and pressed brand fills get darker, not lighter, so white text keeps AA contrast.
+Text on bold backgrounds must use inverse tokens when contrast requires it. Text and icons on brand and selected bold fills use `--ds-text-brand-inverse`, not `--ds-text-inverse`. The theme picks white or ink for the brand fill and keeps it in both modes, while `--ds-text-inverse` flips with the mode. Hovered and pressed fills move away from their text, so the text keeps its contrast.
 
 ## 4. Color Rules
 
-The default palette is the Byteforge brand: one red-orange for actions, selection, links, and focus (`#d4421a` fills in both themes, with `#b3360f` light and `#ff7a50` dark for text and links), on cool white and ink-black neutrals. Light and dark values come from the Byteforge website tokens. The `pnpm --filter @repo/ui test` contrast contract checks the key text and control pairs in both themes against the WCAG AA baseline in §12.
+The active theme sets every color; its `DESIGN.md` describes the palette. Components use the roles below and never a raw value, so the same screen works in every theme and mode. `pnpm theme:check` and the `@repo/theme` tests measure every text, control, and chart color pair in both modes of every registered theme against the WCAG 2.2 AA baseline in §12.
 
 Semantic roles:
 
-| Role        | Meaning                               |
-| ----------- | ------------------------------------- |
-| Neutral     | default chrome, text, dividers        |
-| Brand       | primary actions and product identity  |
-| Information | help, guidance, neutral notices       |
-| Success     | positive outcome or completion        |
-| Warning     | caution or pending risk               |
-| Danger      | errors or destructive actions         |
-| Discovery   | onboarding, new features, exploration |
+| Role        | Meaning                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Neutral     | default chrome, text, dividers                                                              |
+| Brand       | primary actions and product identity                                                        |
+| Information | help, guidance, neutral notices                                                             |
+| Success     | positive outcome or completion                                                              |
+| Warning     | caution or pending risk                                                                     |
+| Danger      | errors or destructive actions                                                               |
+| Discovery   | onboarding, new features, exploration                                                       |
+| Chart       | `--ds-chart-1` to `--ds-chart-6` for data series in order, `--ds-chart-grid` for grid lines |
 
 Rules:
 
@@ -147,7 +150,7 @@ Typography tokens define hierarchy and rhythm.
 
 Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
 
-Headings use `--ds-font-family-heading`, which Byte Forge points at the sans family; a theme can give headings their own family. The typefaces are Geist and Geist Mono, self-hosted with the app so desktop works offline. Web and desktop load the variable fonts from `@repo/ui`; mobile loads the static weights with `expo-font`. Headings use weight 500, except the small heading sizes, which keep 600.
+The theme sets the families: `--ds-font-family-sans`, `--ds-font-family-heading`, and `--ds-font-family-mono`. Web fonts are self-hosted from `@repo/ui`, so desktop works offline; mobile registers its fonts with `expo-font` and takes them from the theme's native fonts. The default theme, Byte Forge, uses Geist and Geist Mono.
 
 Rules:
 
@@ -243,28 +246,6 @@ Use CSS on web/desktop and Reanimated on native. Do not add an animation framewo
 - Follow device reduced motion, including runtime changes. Remove motion immediately rather than adding an app override. The native drawer keeps its clamped gesture animation, with a pnpm patch replacing its explicit reduced-motion opt-out in both source and compiled module. Remove that patch when the upstream package honors the system preference itself.
 - Test intermediate browser geometry and entry/exit lifetimes, not only final screenshots. Keep short motion recordings for review. Bundle exports cannot verify physical-device motion or accessibility.
 
-### Workflow visual direction
-
-Use cool white and ink-black surfaces with one Byteforge orange for primary actions, selection, and links. Use Geist and the §6 shape scale: pill buttons, 8px inputs, 20px cards and dialogs. Use aligned rows and dividers for work lists. The dashboard shows real Active Organization counts (open Todos, Notes, unread notifications) and recent items that link to the existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
-
-Web/desktop sidebar preferences use two neutral, labeled footer rows: Language, then Theme, with muted current values. Collapsing keeps both controls mounted in the same vertical positions and shows icon tooltips with their current values. Expanded menus open upward; collapsed menus open to the right, with viewport collision handling. Use native language names and radio selection semantics. The responsive web drawer keeps full labels and 48px control heights. `ShellSelectControl` supports an optional `compact` display and `NavPreferences` supports a `footer` layout; existing defaults remain available.
-
-The web/desktop AI Assistant uses a viewport-height split workspace. A 256px conversation rail appears from 1024px; narrower screens use a history Sheet. History and transcript scroll independently, with the conversation header and composer kept visible. User messages use the selected surface; assistant replies use the neutral surface, with a maximum 768px reading column. The labeled composer grows from two to six lines, with a two-line ceiling on short viewports. Starter prompts fill the composer without sending. Status text announces thinking and responding without announcing every streamed token. Reading older messages suspends scroll following until the user selects “Jump to latest.” Confirmed Todo and Note results link to the existing workflows; a collapsed Activity disclosure contains the returned action list. Failures retain the prompt and distinguish unavailable configuration from uncertain actions. Theme and language changes preserve drafts and scroll; Active Organization changes reset route-local state.
-
-The web/desktop Notes workspace shows a 288px searchable note rail from 1024px. Narrower screens show the list or editor according to the URL, with Back to Notes restoring list focus. The rail and document scroll independently; the workspace header and Save action remain visible. The plain-text writing column has a maximum width of 768px. New note opens a local draft; its first successful Save creates a saved URL. Title/body edits require Save (Ctrl/Cmd+S), while linked Todo checklist changes save immediately. Unsaved drafts remain reachable above search results and survive note, theme, and language changes within the workspace. Leaving with drafts requires an explicit discard decision; Organization changes wait for pending mutations. External changes never replace a dirty draft, and deleted notes retain recoverable draft text. Search covers saved titles and bodies across the Active Organization, with 50-note pages and Load more. Search does not include unsaved text. Drafts are in memory only and clear when the workspace or Active Organization changes.
-
-The web/desktop Todos workspace uses a single list with a maximum width of 1024px. Quick creation shares its title and optional description with the Add details dialog. A labeled search and All/Open/Completed controls filter saved titles and descriptions across the Active Organization, with 50-item pages and Load more. Search and status live in the URL; All is the default. The toolbar remains visible above an independently scrolling list from 768px on viewports at least 640px tall. Smaller or shorter screens use normal document scrolling. Rows separate completion checkboxes from title buttons, show a description preview and localized update date, and disclose attachments on demand. Menus contain deletion, AI generation, and form examples. Completion changes wait for confirmation; title/description saves never resend completion. Drafts survive filtering, theme, and language changes; leaving warns about unsaved text and waits for pending operations. Attachment uploads remain attached to their originating Todo even when filtered out. Errors stay beside the affected action, and uncertain creation is never retried automatically. Counts describe loaded results, not Organization-wide totals. The shared shell navigation guard preserves the same protection for Notes.
-
-### Agent desk calm accent
-
-The agent desk (`tooling/desk-ui`) uses orange only where the person acts. The rule keeps the eye on the next decision.
-
-- Use orange for the logo mark, primary action buttons, links, and a count of items that need the person. Make a count quiet (`.desk-count--quiet`, or `data-empty` for zero) when it asks for nothing.
-- Show selection in ink, not orange: the active page is a raised neutral pill (`--ds-surface-raised`, `--ds-border-strong`), and the active tab and the selected stage use `--ds-text`.
-- Frame cards with a `--ds-border` hairline, `--ds-radius-250`, and 20px padding. Do not add a shadow. Use `--ds-surface-sunken-bold` for quiet fills such as tags and neutral counts, and `--ds-surface-inverse` with `--ds-text-surface-inverse` for terminal output and toasts.
-- Give each status chip a glyph as well as its words (`.desk-chip__glyph`), so a status reads without color.
-- Remove animation and transitions when the person asks for reduced motion.
-
 ## 8. Theming
 
 A **theme** is a named identity, such as `byte-forge`. A **color mode** is light or dark; the stored preference can also be `system`. Two attributes on the root element select them:
@@ -275,6 +256,12 @@ A **theme** is a named identity, such as `byte-forge`. A **color mode** is light
 | `data-color-mode` | `light`, `dark`         | the Appearance preference, resolved before first paint |
 
 An unknown or missing `data-theme` falls back to the default theme through `:root`. The Tailwind `dark:` variant follows `data-color-mode`. Users see the color mode as **Appearance**.
+
+Themes live in `@repo/theme`, one folder each under `packages/theme/src/themes/`, and `themes.config.ts` registers them and names the default. A theme is data: colors for both modes, the scales, the type steps, the component tokens (§6.1), and the mobile fonts. `createTheme` derives a full theme from a brand color, a neutral tint, fonts, density, and depth; `docs/ui/create-a-theme.md` walks through it.
+
+The **Organization Theme** picks the theme for everyone in an Organization (`CONTEXT.md`). Members with `organization:update` change it in Organization settings. The web shell applies it as `data-theme` and caches it for the next first paint; mobile applies it through `ThemeRoot`. Signed-out pages use the default theme.
+
+A subtree can carry its own theme: put `data-theme` and `data-color-mode` on the same element, as the UI lab does to compare themes side by side.
 
 Rules:
 
@@ -391,7 +378,9 @@ Selected navigation uses the selected tokens, not the hover token. The active si
 
 Baseline:
 
-- WCAG 2.1 AA contrast: 4.5:1 for normal text, 3:1 for large text and UI graphics.
+- WCAG 2.2 AA. Contrast: 4.5:1 for text (SC 1.4.3), 3:1 for UI graphics such as field borders, focus rings, icons, and chart series (SC 1.4.11). The theme check enforces the token pairs.
+- Pointer targets are at least 24x24px (SC 2.5.8); the theme check enforces control heights.
+- Focus is never hidden behind sticky headers or overlays (SC 2.4.11).
 - Focus indicators use `--ds-border-focused` and are visible on every surface.
 - Keyboard order follows DOM order.
 - Composite widgets support arrow keys where expected.
@@ -399,12 +388,13 @@ Baseline:
 - Dynamic status changes use live regions where needed.
 - Icons are either decorative with `aria-hidden` or have accessible names.
 - Forms pair labels and controls with `htmlFor`/`id` or native equivalents.
-- Touch targets should be at least 44x44px for mobile primary interactions.
+- Touch targets are at least 44x44px for mobile primary interactions.
+- `docs/ui/guidelines.md` lists the full rules; the A11Y, COLOR, and FORM rules marked MUST always hold.
 
 ## 13. Asset and Visual Rules
 
 - Do not use decorative gradient orbs, bokeh blobs, or one-note palettes.
-- Avoid dominant purple/purple-blue gradients, beige/cream/sand/tan, dark blue/slate, and brown/orange/espresso themes unless a product-specific design decision overrides the template. The Byteforge brand is that decision for the orange accent: orange marks actions and selection only, never whole surfaces.
+- Without a brand or a reference to follow, avoid dominant purple/purple-blue gradients, beige/cream/sand/tan, dark blue/slate, and brown/orange/espresso palettes. A brand, a theme, or a requested look overrides this taste rule (precedence in `docs/ui/guidelines.md`); the brand color then marks actions and selection, not whole surfaces.
 - Use real images only when the experience calls for them; do not add marketing imagery to app/tool screens by default.
 - Avoid generic AI-generated frontend defaults: vague glassmorphism, context-free gradients, dramatic blur, fake stock atmosphere, and ornamental effects that do not explain the product.
 - Visual detail should come from the product domain, data, workflow, or brand direction rather than decoration.
@@ -412,14 +402,4 @@ Baseline:
 
 ## 14. Implementation Checklist
 
-Before shipping UI work:
-
-- All visible strings are translated.
-- Components use `@repo/ui` or `@repo/mobile-ui` as appropriate.
-- Visual values use `--ds-*` tokens or mapped Tailwind utilities.
-- Focus, keyboard, touch, loading, empty, disabled, error, and success states are covered.
-- Layout remains stable as content and state change.
-- UI composition has a clear audience, task, tone, and product-specific design choice.
-- Motion, imagery, and visual effects have a functional or domain-specific purpose.
-- Tests cover behavior that can regress.
-- `pnpm format:check`, `pnpm lint`, and relevant type/tests pass.
+Before shipping UI work, go through `docs/ui/quality-checklist.md` and run `pnpm ui:check`.

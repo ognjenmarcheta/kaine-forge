@@ -12,7 +12,7 @@ For each request, follow `AGENTS.md` → **AI Skills** for skill selection and *
 Before code changes:
 
 - Read `MONOREPO_GUIDE.md`.
-- Read `DESIGN_SYSTEM.md` for UI, styling, theming, tokens, or component work.
+- Read `DESIGN_SYSTEM.md` for UI, styling, theming, tokens, or component work, and `docs/ui/guidelines.md` for the UI rules. Style with the theme utilities (`bg-ds-*`, `text-ds-*`, `p-ds-*`, `text-body`), never raw colors or arbitrary `[var(--ds-*)]` values.
 - Prefer `.ai/guide.md` and generated `AGENTS.md` for assistant workflow guidance.
 
 Behavioral guidelines:
