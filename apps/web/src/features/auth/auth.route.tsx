@@ -1,5 +1,12 @@
 import type { TwoFactorMethod } from "@repo/auth/transport";
-import { AuthLayout, Button, FieldDescription } from "@repo/ui";
+import {
+  AuthLayout,
+  Button,
+  FieldDescription,
+  tabsListClassName,
+  tabsTriggerClassName,
+  cn
+} from "@repo/ui";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -17,6 +24,11 @@ import { useAuth } from "../../hooks/use-auth";
 import { useTranslation } from "../../hooks/use-translation";
 
 type AuthMode = "login" | "signup" | "email-code" | "magic-link" | "reset" | "two-factor";
+type PrimaryMode = "login" | "signup";
+type SecondaryMode = Exclude<AuthMode, PrimaryMode>;
+
+/** The login/signup choice lives in the URL so refresh and back keep it. */
+const MODE_PARAM = "mode";
 
 const MODE_COPY_KEYS = {
   login: { subtitle: "auth.login.subtitle", title: "auth.login.title" },
@@ -38,14 +50,30 @@ export function AuthRoute() {
   const [magicLinkFailed, setMagicLinkFailed] = useState(() =>
     searchParams.has(AUTH_DEFINITION.magicLinkErrorParam)
   );
-  const [mode, setMode] = useState<AuthMode>(magicLinkFailed ? "magic-link" : "login");
+  const primaryMode: PrimaryMode = searchParams.get(MODE_PARAM) === "signup" ? "signup" : "login";
+  const [secondaryMode, setSecondaryMode] = useState<SecondaryMode | null>(() =>
+    magicLinkFailed ? "magic-link" : null
+  );
+  const mode: AuthMode = secondaryMode ?? primaryMode;
   const [twoFactorMethods, setTwoFactorMethods] = useState<readonly TwoFactorMethod[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const modeSearch = (value: PrimaryMode) => {
+    const params = new URLSearchParams(searchParams);
+    if (value === "signup") params.set(MODE_PARAM, "signup");
+    else params.delete(MODE_PARAM);
+    const search = params.toString();
+    return search ? `?${search}` : "";
+  };
   const showMode = (next: AuthMode) => {
     setNotice(null);
     setMagicLinkFailed(false);
-    setMode(next);
+    if (next !== "login" && next !== "signup") {
+      setSecondaryMode(next);
+      return;
+    }
+    setSecondaryMode(null);
+    if (next !== primaryMode) void navigate({ search: modeSearch(next) });
   };
   const goToReturnPath = () => void navigate(returnPath);
 
@@ -78,20 +106,22 @@ export function AuthRoute() {
         <ThemeSelect />
       </div>
       {isPrimaryMode ? (
-        <div className="mb-[var(--ds-space-150)] grid grid-cols-2 gap-[var(--ds-space-100)]">
-          <Button
-            appearance={mode === "login" ? "default" : "subtle"}
-            onClick={() => showMode("login")}
-          >
-            {t("auth.login.title")}
-          </Button>
-          <Button
-            appearance={mode === "signup" ? "default" : "subtle"}
-            onClick={() => showMode("signup")}
-          >
-            {t("auth.signup.title")}
-          </Button>
-        </div>
+        <nav
+          aria-label={t("auth.modeSwitch")}
+          className={cn(tabsListClassName, "mb-[var(--ds-space-150)] flex w-full")}
+        >
+          {(["login", "signup"] as const).map((value) => (
+            <Link
+              key={value}
+              to={{ search: modeSearch(value) }}
+              aria-current={mode === value ? "page" : undefined}
+              className={cn(tabsTriggerClassName, "flex-1")}
+              onClick={() => setNotice(null)}
+            >
+              {t(MODE_COPY_KEYS[value].title)}
+            </Link>
+          ))}
+        </nav>
       ) : null}
 
       {notice ? (

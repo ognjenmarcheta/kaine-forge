@@ -13,7 +13,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.goto("/auth");
     await expect(page.getByRole("textbox", { name: "Email", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`auth-${theme}.png`), fullPage: true });
-    await page.getByRole("button", { name: "Create account", exact: true }).click();
+    await page.getByRole("link", { name: "Create account", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Full name", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`signup-${theme}.png`), fullPage: true });
     await signIn(page);

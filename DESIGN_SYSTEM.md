@@ -244,7 +244,7 @@ Use CSS on web/desktop and Reanimated on native. Do not add an animation framewo
 
 ### Workflow visual direction
 
-Use cool white and ink-black surfaces with one Byteforge orange for primary actions, selection, and links. Use Geist and the §6 shape scale: pill buttons, 8px inputs, 20px cards and dialogs. Use aligned rows and dividers for work lists. The dashboard links to existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
+Use cool white and ink-black surfaces with one Byteforge orange for primary actions, selection, and links. Use Geist and the §6 shape scale: pill buttons, 8px inputs, 20px cards and dialogs. Use aligned rows and dividers for work lists. The dashboard shows real Active Organization counts (open Todos, Notes, unread notifications) and recent items that link to the existing workflows; it does not show invented analytics. Web/desktop use a full-height sidebar; mobile retains a drawer with explicit preferences. All existing platform capabilities stay available.
 
 Web/desktop sidebar preferences use two neutral, labeled footer rows: Language, then Theme, with muted current values. Collapsing keeps both controls mounted in the same vertical positions and shows icon tooltips with their current values. Expanded menus open upward; collapsed menus open to the right, with viewport collision handling. Use native language names and radio selection semantics. The responsive web drawer keeps full labels and 48px control heights. `ShellSelectControl` supports an optional `compact` display and `NavPreferences` supports a `footer` layout; existing defaults remain available.
 
@@ -350,6 +350,22 @@ Common patterns:
 - Banner/flag: semantic role color plus text/icon.
 - Data table: semantic headers, loading skeletons, empty state, responsive fallback.
 - Form: visible labels, helper/error text, disabled pending state, translated strings.
+
+### 11.1 Composed page parts
+
+`@repo/ui` ships these composed parts. They take translated text from the caller and import no translations.
+
+- `PageHeader`: the page's only `h1`, with an optional eyebrow, description, and right-aligned `actions`. Every shell page starts with it.
+- `EmptyState`: a quiet panel for a list with no items. Give it a title, an optional description and icon, and one `action` that starts the first item.
+- `QueryError`: a `role="alert"` message with a retry button. Use it for every failed read, beside the data that failed. Do not use it for a failed write; keep that error beside its action.
+- `SettingsSection`: a flat, full-width block with a title, an optional description, and `actions`. A divider separates consecutive sections. Do not wrap a section in a Card.
+- `StatCard`: a label and a count. With `href` it is a link; pass `renderLink` to use the app router. While the count loads, pass `undefined` and a skeleton holds its place. Show only real counts.
+- `CopyButton`: copies a value to the clipboard, shows a check icon for a short time, and announces the copied label in a polite live region. A denied clipboard keeps the idle state.
+- `CommandMenu`: a searchable command dialog (cmdk in a Radix dialog). It matches labels first, then keywords. It opens from the keyboard (Cmd+K on Apple platforms, Ctrl+K elsewhere) many times a day, so it has no open or close animation.
+
+Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
+
+Selected navigation uses the selected tokens, not the hover token. The active sidebar item uses `--ds-background-selected`, also on hover, with `--ds-text-selected` and an inset start indicator of `--ds-border-width-selected` in `--ds-border-selected`. The indicator is an inset shadow, so it does not shift the layout. Do not put `--ds-text-selected` on `--ds-background-selected-hovered`: in light theme the pair is below 4.5:1. An active tab or tab link uses a `--ds-border-width-thick` bottom border in `--ds-border-selected`.
 
 ## 12. Accessibility
 

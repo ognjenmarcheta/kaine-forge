@@ -22,8 +22,7 @@ export const NAV_LABELS = {
   notes: /^(Notes|navigation\.notes)$/,
   // Named by its visible text: "<organization name> Organization" (#545).
   organization: /(Organization|navigation\.organization)$/,
-  organizationCreate: /^(Create organization|navigation\.organizationCreate)$/,
-  security: /^(Security|navigation\.security)$/
+  organizationCreate: /^(Create organization|navigation\.organizationCreate)$/
 } as const;
 
 export async function signIn(
@@ -49,8 +48,8 @@ export async function submitSignUp(
   page: Page,
   account: { email: string; name: string; password: string }
 ): Promise<void> {
-  // In login mode the only "Create account" button is the mode switcher.
-  await page.getByRole("button", { name: AUTH_LABELS.signup }).click();
+  // The mode switcher is a link; the form's submit is the only "Create account" button.
+  await page.getByRole("link", { name: AUTH_LABELS.signup }).click();
   await page.getByLabel(AUTH_LABELS.name).fill(account.name);
   await page.getByLabel(AUTH_LABELS.email).fill(account.email);
   await page.getByLabel(AUTH_LABELS.password).fill(account.password);

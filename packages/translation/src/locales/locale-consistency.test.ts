@@ -96,6 +96,7 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "organizations.json:organizations.apiKeys.name",
     "organizations.json:organizations.webhooks.title",
     "organizations.json:organizations.permission.group.webhook",
+    "navigation.json:navigation.commandMenu.shortcutMac",
     "storage.json:storage.status",
     "todos.json:todos.ai.promptLabel"
   ],
@@ -160,6 +161,8 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "navigation.json:navigation.languageName.en",
     "navigation.json:navigation.languageName.de",
     "navigation.json:navigation.languageName.sr",
+    "navigation.json:navigation.commandMenu.shortcutMac",
+    "navigation.json:navigation.commandMenu.shortcutOther",
     "storage.json:storage.status",
     "todos.json:todos.ai.promptLabel"
   ]

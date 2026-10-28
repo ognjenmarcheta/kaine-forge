@@ -1,15 +1,12 @@
 import { validateAuthName } from "@repo/auth/form";
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
-  Input
+  Input,
+  SettingsSection
 } from "@repo/ui";
 import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -33,12 +30,9 @@ export function AccountProfile() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("auth.account.profile.title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-[var(--ds-space-300)]">
-        <PublicAssetUpload kind="avatar" ownerName={session?.user.name ?? ""} />
+    <>
+      <PublicAssetUpload kind="avatar" ownerName={session?.user.name ?? ""} />
+      <SettingsSection title={t("auth.account.profile.nameTitle")}>
         <form
           className="grid gap-[var(--ds-space-100)]"
           onSubmit={(event) => {
@@ -71,7 +65,7 @@ export function AccountProfile() {
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </SettingsSection>
+    </>
   );
 }

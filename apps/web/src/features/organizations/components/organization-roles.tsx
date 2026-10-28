@@ -4,6 +4,10 @@ import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import {
   Button,
   Checkbox,
+  ChevronRight,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   ConfirmModal,
   Field,
   FieldDescription,
@@ -11,7 +15,9 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-  Input
+  Input,
+  QueryError,
+  SettingsSection
 } from "@repo/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -83,6 +89,7 @@ function CustomRoleItem({ role }: { role: AuthCustomRole }) {
     () => new Set(role.permissions)
   );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [open, setOpen] = useState(false);
   const reloadRoles = () =>
     queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_DEFINITION.customRolesScope });
   const save = useMutation({
@@ -101,7 +108,18 @@ function CustomRoleItem({ role }: { role: AuthCustomRole }) {
   return (
     <article className="ui-work-row grid gap-[var(--ds-space-150)]">
       <h3 className="text-heading-xs font-semibold text-[color:var(--ds-text)]">{role.name}</h3>
-      <PermissionChecklist value={permissions} onChange={setPermissions} />
+      {/* Collapsed by default; the edits stay while it is closed. */}
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger className="ui-disclosure-trigger">
+          <ChevronRight aria-hidden className="size-4" />
+          {t("organizations.roles.permissionCount").replace("{count}", String(permissions.size))}
+        </CollapsibleTrigger>
+        <CollapsibleContent forceMount inert={!open}>
+          <div className="pt-[var(--ds-space-150)]">
+            <PermissionChecklist value={permissions} onChange={setPermissions} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
       {error ? <FieldError>{t(getAuthErrorMessageKey(error))}</FieldError> : null}
       {save.isSuccess ? (
         <FieldDescription role="status">{t("organizations.roles.saved")}</FieldDescription>
@@ -188,33 +206,34 @@ export function OrganizationRoles() {
   const roles = rolesQuery.data ?? [];
 
   return (
-    <section className="grid gap-[var(--ds-space-150)]">
-      <header>
-        <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">
-          {t("organizations.roles.title")}
-        </h2>
-        <p className="text-body-sm text-[color:var(--ds-text-subtle)]">
-          {t("organizations.roles.description")}
-        </p>
-      </header>
-      {rolesQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-          {t("organizations.roles.error")}
-        </p>
-      ) : null}
-      {rolesQuery.status === "success" && roles.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.roles.empty")}
-        </p>
-      ) : null}
-      {roles.length > 0 ? (
-        <div className="ui-work-list">
-          {roles.map((role) => (
-            <CustomRoleItem key={role.id} role={role} />
-          ))}
-        </div>
-      ) : null}
-      <CustomRoleCreateForm />
-    </section>
+    <>
+      <SettingsSection
+        description={t("organizations.roles.description")}
+        title={t("organizations.roles.title")}
+      >
+        {rolesQuery.status === "error" ? (
+          <QueryError
+            message={t("organizations.roles.error")}
+            retryLabel={t("common.retry")}
+            onRetry={() => void rolesQuery.refetch()}
+          />
+        ) : null}
+        {rolesQuery.status === "success" && roles.length === 0 ? (
+          <p className="text-body text-[color:var(--ds-text-subtle)]">
+            {t("organizations.roles.empty")}
+          </p>
+        ) : null}
+        {roles.length > 0 ? (
+          <div className="ui-work-list">
+            {roles.map((role) => (
+              <CustomRoleItem key={role.id} role={role} />
+            ))}
+          </div>
+        ) : null}
+      </SettingsSection>
+      <SettingsSection title={t("organizations.roles.create")}>
+        <CustomRoleCreateForm />
+      </SettingsSection>
+    </>
   );
 }

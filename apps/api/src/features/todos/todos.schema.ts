@@ -39,6 +39,11 @@ export const todosTypeDefs = /* GraphQL */ `
     message: String
   }
 
+  type TodoCounts {
+    open: Int!
+    completed: Int!
+  }
+
   type TodoConnection {
     items: [Todo!]!
     pageInfo: PageInfo!
@@ -47,6 +52,7 @@ export const todosTypeDefs = /* GraphQL */ `
   extend type Query {
     todos(first: Int, after: String, search: String, completed: Boolean): TodoConnection!
     todo(id: ID!): Todo
+    todoCounts: TodoCounts!
   }
 
   extend type Mutation {

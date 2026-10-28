@@ -4,6 +4,9 @@ import { signIn, signUp } from "./helpers/auth";
 
 const ACCOUNT_LABELS = {
   menuItem: /^(Account|navigation\.account)$/,
+  tabs: /^(Account settings|navigation\.accountTabs)$/,
+  securityTab: /^(Security|navigation\.security)$/,
+  sessionsTab: /^(Sessions|navigation\.sessions)$/,
   name: /^(Name|auth\.account\.profile\.nameLabel)$/,
   saveName: /^(Save name|auth\.account\.profile\.save)$/,
   currentPassword: /^(Current password|auth\.account\.password\.currentLabel)$/,
@@ -34,13 +37,15 @@ test("changes the name and password, then signs out another session", async ({
   // The account page opens from the sidebar user menu.
   await page.getByRole("button", { name: account.name }).click();
   await page.getByRole("menuitem", { name: ACCOUNT_LABELS.menuItem }).click();
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(page).toHaveURL(/\/account\/profile$/);
+  const tabs = page.getByRole("navigation", { name: ACCOUNT_LABELS.tabs });
 
   // The sidebar shows the new name without a reload.
   await page.getByLabel(ACCOUNT_LABELS.name).fill(newName);
   await page.getByRole("button", { name: ACCOUNT_LABELS.saveName }).click();
   await expect(page.getByRole("button", { name: new RegExp(newName) })).toBeVisible();
 
+  await tabs.getByRole("link", { name: ACCOUNT_LABELS.securityTab }).click();
   await page.getByLabel(ACCOUNT_LABELS.currentPassword).fill(account.password);
   await page.getByLabel(ACCOUNT_LABELS.newPassword).fill(newPassword);
   await page.getByRole("button", { name: ACCOUNT_LABELS.changePassword }).click();
@@ -53,7 +58,7 @@ test("changes the name and password, then signs out another session", async ({
   try {
     await signIn(otherPage, { email: account.email, password: newPassword });
 
-    await page.reload();
+    await tabs.getByRole("link", { name: ACCOUNT_LABELS.sessionsTab }).click();
     const sessions = page
       .getByRole("list", { name: ACCOUNT_LABELS.sessions })
       .getByRole("listitem");
@@ -66,6 +71,8 @@ test("changes the name and password, then signs out another session", async ({
       .filter({ hasNot: thisDevice })
       .getByRole("button", { name: ACCOUNT_LABELS.signOut })
       .click();
+    // Signing out a device waits for the confirm in the dialog.
+    await page.getByRole("dialog").getByRole("button", { name: ACCOUNT_LABELS.signOut }).click();
     await expect(sessions).toHaveCount(1);
 
     // The revoked session is gone from the database; the cookie cache may

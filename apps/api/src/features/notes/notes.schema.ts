@@ -32,6 +32,7 @@ export const notesTypeDefs = /* GraphQL */ `
   extend type Query {
     notes(first: Int, after: String, search: String): NoteConnection!
     note(id: ID!): Note
+    noteCount: Int!
   }
 
   extend type Mutation {

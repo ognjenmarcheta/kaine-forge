@@ -657,7 +657,8 @@ export const wiringTargets = [
   "packages/translation/src/locales/de/navigation.json",
   "packages/translation/src/locales/sr/navigation.json",
   "apps/web/src/hooks/use-live-list.ts",
-  "apps/web/src/router.tsx"
+  "apps/web/src/router.tsx",
+  "apps/web/src/components/shell-navigation.definition.ts"
 ] as const;
 
 const anchorIndex = (path: string, source: string, anchor: string): number => {
@@ -963,6 +964,9 @@ const wireTarget = (path: string, source: string, names: FeatureNames): string =
   }
   if (path === "apps/web/src/router.tsx") {
     return wireWebRouter(source, names);
+  }
+  if (path === "apps/web/src/components/shell-navigation.definition.ts") {
+    return wireShellNavigation(source, names);
   }
   throw new CreateFeatureError(`${path}: no wiring rule for this target`);
 };
@@ -1513,7 +1517,6 @@ const appendJsonEntry = (path: string, source: string, key: string, value: strin
 
 const wireWebRouter = (source: string, names: FeatureNames): string => {
   const path = "apps/web/src/router.tsx";
-  const activeConst = `is${names.pluralPascal}Active`;
 
   let next = insertSortedLine(
     path,
@@ -1528,28 +1531,6 @@ const wireWebRouter = (source: string, names: FeatureNames): string => {
     `import { ${names.pluralPascal}Route } from "./features/${names.pluralKebab}/${names.pluralKebab}.route";`
   );
 
-  next = insertObjectEntry(
-    path,
-    next,
-    /^ {2}"\/[\w-]+": "navigation\.[\w.-]+",?$/,
-    `  "/${names.pluralKebab}": "navigation.${names.pluralKebab}"`
-  );
-
-  next = insertBefore(
-    path,
-    next,
-    "  const currentRouteKey = isBreadcrumbRoute(location.pathname)",
-    `  const ${activeConst} =\n    location.pathname === "/${names.pluralKebab}" ||\n      location.pathname.startsWith("/${names.pluralKebab}/");\n`
-  );
-
-  // The organizationsVisible spread stays last in the nav list.
-  next = insertBefore(
-    path,
-    next,
-    "                ...(organizationsVisible",
-    `                  {\n                    href: "/${names.pluralKebab}",\n                    isActive: ${activeConst},\n                    title: t("navigation.${names.pluralKebab}")\n                  },\n`
-  );
-
   return insertBeforeClose(
     path,
     next,
@@ -1558,3 +1539,13 @@ const wireWebRouter = (source: string, names: FeatureNames): string => {
     `,\n      {\n        element: <${names.pluralPascal}Route />,\n        path: "${names.pluralKebab}"\n      },\n      {\n        element: <${names.singularPascal}DetailRoute />,\n        path: "${names.pluralKebab}/:id"\n      }`
   );
 };
+
+// One entry drives the sidebar link, its active state, the breadcrumbs, and the
+// command menu. It joins the Workspace group, after the existing Workspace pages.
+const wireShellNavigation = (source: string, names: FeatureNames): string =>
+  insertBefore(
+    "apps/web/src/components/shell-navigation.definition.ts",
+    source,
+    '  {\n    group: "organization",',
+    `  {\n    group: "workspace",\n    href: "/${names.pluralKebab}",\n    icon: FileText,\n    id: "${names.pluralKebab}",\n    match: "prefix",\n    titleKey: "navigation.${names.pluralKebab}"\n  },\n`
+  );

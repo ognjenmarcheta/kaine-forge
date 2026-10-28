@@ -5,10 +5,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  EmptyState,
   Field,
   FieldLabel,
   Input,
   FormModal,
+  ListTodo,
+  PageHeader,
+  QueryError,
   Textarea
 } from "@repo/ui";
 import { useEffect, useRef, useState } from "react";
@@ -212,48 +216,59 @@ function TodosWorkspace({
       : "todos.empty";
   return (
     <section className="ui-todos">
-      <header className="ui-page-header">
-        <h1>{t("todos.title")}</h1>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button appearance="subtle">{t("todos.moreActions")}</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            onCloseAutoFocus={() => {
-              const action = menuAction.current;
-              menuAction.current = null;
-              if (action)
-                requestAnimationFrame(() => {
-                  if (action === "ai") setAiOpen(true);
-                  else setExample(action);
-                });
-            }}
-          >
-            <DropdownMenuItem
-              onSelect={() => {
-                menuAction.current = "ai";
-              }}
+      <PageHeader
+        title={t("todos.title")}
+        actions={
+          <>
+            <Button
+              appearance="subtle"
+              className="ui-todos__ai-action"
+              onClick={() => setAiOpen(true)}
             >
               {t("todos.ai.title")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                menuAction.current = "simple";
-              }}
-            >
-              {t("todos.examples.simple.open")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                menuAction.current = "advanced";
-              }}
-            >
-              {t("todos.examples.advanced.open")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button appearance="subtle">{t("todos.moreActions")}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                onCloseAutoFocus={() => {
+                  const action = menuAction.current;
+                  menuAction.current = null;
+                  if (action)
+                    requestAnimationFrame(() => {
+                      if (action === "ai") setAiOpen(true);
+                      else setExample(action);
+                    });
+                }}
+              >
+                <DropdownMenuItem
+                  onSelect={() => {
+                    menuAction.current = "ai";
+                  }}
+                >
+                  {t("todos.ai.title")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    menuAction.current = "simple";
+                  }}
+                >
+                  {t("todos.examples.simple.open")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    menuAction.current = "advanced";
+                  }}
+                >
+                  {t("todos.examples.advanced.open")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
       <div className="ui-todos__toolbar">
         <form
           className="ui-todos__quick"
@@ -384,30 +399,29 @@ function TodosWorkspace({
         </h2>
         {todos.list.isPending ? <LoadingRows label={t("todos.loading")} /> : null}
         {todos.list.isError ? (
-          <div role="alert">
-            <p>
-              {t(todos.list.isFetchNextPageError ? "todos.loadMoreFailed" : "todos.loadFailed")}
-            </p>
-            <Button
-              appearance="subtle"
-              onClick={() => {
-                if (todos.list.isFetchNextPageError) void todos.list.fetchNextPage();
-                else void todos.list.refetch();
-              }}
-            >
-              {t("common.retry")}
-            </Button>
-          </div>
+          <QueryError
+            message={t(
+              todos.list.isFetchNextPageError ? "todos.loadMoreFailed" : "todos.loadFailed"
+            )}
+            retryLabel={t("common.retry")}
+            onRetry={() => {
+              if (todos.list.isFetchNextPageError) void todos.list.fetchNextPage();
+              else void todos.list.refetch();
+            }}
+          />
         ) : null}
         {!todos.list.isPending && !todos.list.isError && todos.rows.length === 0 ? (
-          <div className="ui-empty-state">
-            <p>{t(emptyKey)}</p>
-            {status !== "all" || urlSearch ? (
-              <Button appearance="subtle" onClick={clearFilters}>
-                {t("todos.showAll")}
-              </Button>
-            ) : null}
-          </div>
+          <EmptyState
+            icon={ListTodo}
+            title={t(emptyKey)}
+            action={
+              status !== "all" || urlSearch ? (
+                <Button appearance="subtle" onClick={clearFilters}>
+                  {t("todos.showAll")}
+                </Button>
+              ) : null
+            }
+          />
         ) : null}
         <TodoList
           items={todos.rows}

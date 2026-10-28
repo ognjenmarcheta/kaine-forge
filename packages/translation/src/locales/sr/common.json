@@ -51,5 +51,6 @@
   "dataExport.error.download": "Link za preuzimanje nije mogao da se napravi. Pokušajte ponovo.",
   "dataExport.error.list": "Izvozi nisu mogli da se učitaju.",
   "dataExport.failure.too_large": "Ovaj izvoz je veći od ograničenja arhive. Uklonite stare podatke ili kontaktirajte podršku.",
-  "dataExport.failure.error": "Ovaj izvoz nije uspeo. Zatražite novi."
+  "dataExport.failure.error": "Ovaj izvoz nije uspeo. Zatražite novi.",
+  "common.copied": "Kopirano"
 }

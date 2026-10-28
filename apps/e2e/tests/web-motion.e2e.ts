@@ -130,13 +130,13 @@ test("dialog exits and live reduced motion settle correctly", async ({ page }) =
   await dialog.getByLabel("Title", { exact: true }).fill("Motion draft");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Motion draft");
-  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await trigger.click();
   await finish(dialog);
-  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   expect((await midpoint(dialog)).opacity).toBeLessThan(1);
   await finish(dialog);
   await expect(dialog).toHaveCount(0);
@@ -148,6 +148,8 @@ test("Attachment disclosure interpolates and keeps its mounted upload control", 
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
+  // The dashboard has a quick add with the same label; fill the Todos page's one.
+  await expect(page.getByRole("heading", { level: 1, name: "Todos", exact: true })).toBeVisible();
   const title = `Attachment motion ${crypto.randomUUID()}`;
   await page.getByRole("textbox", { name: "What needs to be done?", exact: true }).fill(title);
   await page.getByRole("button", { name: "Add Todo", exact: true }).click();
@@ -252,7 +254,7 @@ test.describe("motion review captures", () => {
       await page.getByRole("button", { name: "Add details", exact: true }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Motion preview");
-      await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(dialog).toHaveCount(0);
     });
   }

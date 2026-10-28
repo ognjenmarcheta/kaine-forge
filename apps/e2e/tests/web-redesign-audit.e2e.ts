@@ -3,6 +3,21 @@ import { expect, test } from "@playwright/test";
 import { signIn, NAV_LABELS } from "./helpers/auth";
 
 test("Organization menus scroll within a short viewport", async ({ page }) => {
+  // The menu must overflow whatever Organizations earlier specs created, so the
+  // list always carries extra entries after the user's real ones.
+  await page.route("**/api/auth/organization/list*", async (route) => {
+    const response = await route.fetch();
+    const organizations: unknown = await response.json();
+    const extra = Array.from({ length: 6 }, (_, index) => ({
+      id: `menu-overflow-${index}`,
+      name: `Overflow Organization ${index + 1}`,
+      slug: `menu-overflow-${index}`
+    }));
+    await route.fulfill({
+      response,
+      json: [...(Array.isArray(organizations) ? organizations : []), ...extra]
+    });
+  });
   await signIn(page);
   await page.setViewportSize({ width: 1440, height: 128 });
   const switcher = page.getByRole("button", { name: NAV_LABELS.organization });
@@ -40,9 +55,9 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
   });
   await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true }).last()).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(1);
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.mouse.click(5, 5);
   await expect(dialog).toBeVisible();
@@ -50,7 +65,7 @@ test("pending Todo forms prevent edits and dismissal, then retain failed drafts"
   await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeEnabled();
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Pending draft");
-  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toHaveCount(0);
 });
 

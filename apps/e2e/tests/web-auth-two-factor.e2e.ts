@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { AUTH_LABELS, NAV_LABELS, signUp } from "./helpers/auth";
+import { AUTH_LABELS, signUp } from "./helpers/auth";
 import { generateTotp } from "./helpers/totp";
 
 const SECURITY_LABELS = {
@@ -34,7 +34,7 @@ test("enrolls TOTP two-factor and requires a second factor on the next sign-in",
   await signUp(page, account);
 
   // Enroll: confirm the password, read the setup key, prove the app is linked.
-  await page.getByRole("link", { name: NAV_LABELS.security }).click();
+  await page.goto("/account/security");
   await page.getByRole("button", { name: SECURITY_LABELS.enable }).click();
   await page.getByLabel(SECURITY_LABELS.passwordPrompt).fill(account.password);
   await page.getByRole("button", { name: SECURITY_LABELS.continue }).click();

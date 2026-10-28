@@ -142,6 +142,12 @@ async function seedAttachments(todoId: string, keys: string[]) {
 }
 
 describe("createTodos", () => {
+  // First, before any case writes a Todo: the fixture's 61 rows alternate open
+  // and completed, starting open.
+  it("counts open and completed Todos separately", async () => {
+    expect(await todosWith().counts()).toEqual({ open: 31, completed: 30 });
+  });
+
   it("searches title and description before pagination, combined with the completed filter", async () => {
     const todos = todosWith();
     const titles = async (filters: { search?: string; completed?: boolean }) =>

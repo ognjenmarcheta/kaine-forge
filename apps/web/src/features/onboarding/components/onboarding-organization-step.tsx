@@ -67,7 +67,7 @@ export function OnboardingOrganizationStep({
           {t("auth.onboarding.organization.rename")}
         </Button>
         <Button
-          appearance="subtle"
+          appearance="link"
           disabled={save.isPending || trimmedName === ""}
           type="button"
           onClick={() => save.mutate("create")}

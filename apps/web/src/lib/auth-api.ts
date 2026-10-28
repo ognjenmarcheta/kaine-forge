@@ -126,21 +126,21 @@ export const onboardingApi = {
   complete: () => authTransport.completeOnboarding()
 };
 
-// The account page sends links back to itself after a verification or a
-// provider sign-in.
-function accountPageUrl(): string | undefined {
-  return typeof window === "undefined" ? undefined : `${window.location.origin}/account`;
+// The account page sends links back to the tab that started a verification
+// or a provider sign-in.
+function accountPageUrl(tab: "profile" | "security"): string | undefined {
+  return typeof window === "undefined" ? undefined : `${window.location.origin}/account/${tab}`;
 }
 
 // Account settings of the session user; nothing here takes a user id.
 export const accountApi = {
   changeEmail: (newEmail: string) =>
-    authTransport.changeEmail({ newEmail, callbackUrl: accountPageUrl() }),
+    authTransport.changeEmail({ newEmail, callbackUrl: accountPageUrl("profile") }),
   changePassword: (input: Parameters<typeof authTransport.changePassword>[0]) =>
     authTransport.changePassword(input),
   confirmDeletion: (token: string) => authTransport.confirmAccountDeletion(token),
   linkSocialAccount: (provider: AuthSocialProvider) =>
-    authTransport.linkSocialAccount({ provider, callbackUrl: accountPageUrl() }),
+    authTransport.linkSocialAccount({ provider, callbackUrl: accountPageUrl("security") }),
   listAccounts: () => authTransport.listAccounts(),
   listSessions: () => authTransport.listSessions(),
   listSocialProviders: () => authTransport.listSocialProviders(),

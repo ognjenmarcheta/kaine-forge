@@ -1,7 +1,10 @@
+import type { AuthInvitation } from "@repo/auth/auth.type";
 import { getAuthErrorMessageKey } from "@repo/auth/transport";
 import { createActiveOrganizationQueryKey } from "@repo/query";
-import { Button, FieldError } from "@repo/ui";
+import { Button, ConfirmModal, FieldError, QueryError, SettingsSection } from "@repo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { useOrganization } from "../../../hooks/use-organization";
 import { useTranslation } from "../../../hooks/use-translation";
@@ -26,22 +29,25 @@ export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsPr
     queryFn: organizationApi.listInvitations,
     enabled: Boolean(activeOrganizationId)
   });
+  const [confirming, setConfirming] = useState<AuthInvitation | null>(null);
   const revoke = useMutation({
     mutationFn: organizationApi.cancelInvitation,
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_DEFINITION.invitationsScope })
+    onSuccess: () => toast.success(t("organizations.invitations.revoked")),
+    onSettled: async () => {
+      setConfirming(null);
+      await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_DEFINITION.invitationsScope });
+    }
   });
   const invitations = invitationsQuery.data ?? [];
 
   return (
-    <section className="grid gap-[var(--ds-space-100)]">
-      <h2 className="text-heading-sm font-semibold text-[color:var(--ds-text)]">
-        {t("organizations.invitations.title")}
-      </h2>
+    <SettingsSection title={t("organizations.invitations.title")}>
       {invitationsQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
-          {t("organizations.invitations.error")}
-        </p>
+        <QueryError
+          message={t("organizations.invitations.error")}
+          retryLabel={t("common.retry")}
+          onRetry={() => void invitationsQuery.refetch()}
+        />
       ) : null}
       {invitationsQuery.status === "success" && invitations.length === 0 ? (
         <p className="text-body text-[color:var(--ds-text-subtle)]">
@@ -72,7 +78,7 @@ export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsPr
                 <Button
                   appearance="subtle"
                   disabled={revoke.isPending}
-                  onClick={() => revoke.mutate(invitation.id)}
+                  onClick={() => setConfirming(invitation)}
                 >
                   {t("organizations.invitations.revoke")}
                 </Button>
@@ -81,6 +87,20 @@ export function OrganizationInvitations({ canRevoke }: OrganizationInvitationsPr
           ))}
         </ul>
       ) : null}
-    </section>
+      <ConfirmModal
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("organizations.invitations.revoke")}
+        description={t("organizations.invitations.revokeDescription")}
+        isConfirming={revoke.isPending}
+        open={confirming !== null}
+        title={confirming?.email ?? ""}
+        onConfirm={() => {
+          if (confirming) revoke.mutate(confirming.id);
+        }}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null);
+        }}
+      />
+    </SettingsSection>
   );
 }

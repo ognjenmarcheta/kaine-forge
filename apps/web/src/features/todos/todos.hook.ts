@@ -15,6 +15,7 @@ import {
   useDeleteTodoMutation,
   useGenerateTodosMutation,
   useDeleteFileMutation,
+  useTodoCountsQuery,
   type GetTodosQuery,
   type GetTodosQueryVariables
 } from "../../graphql/generated/react-query";
@@ -25,6 +26,15 @@ import { queryRuntime } from "../../lib/query-runtime";
 queryRuntime.registerOrgScopedOperation("todos.web.list", useGetTodosQuery.getKey());
 const detailPrefix = useGetTodoQuery.getKey({ id: "" }).slice(0, 1);
 queryRuntime.registerOrgScopedOperation("todos.web.detail", detailPrefix);
+queryRuntime.registerOrgScopedOperation("todos.web.counts", useTodoCountsQuery.getKey());
+
+/** The Active Organization's open and completed Todo totals. */
+export function useTodoCounts(organizationId: string | null, enabled: boolean) {
+  return useTodoCountsQuery(undefined, {
+    enabled,
+    queryKey: createActiveOrganizationQueryKey(useTodoCountsQuery.getKey(), organizationId)
+  });
+}
 const EMPTY_DRAFT: TodoDraft = { title: "", description: "" };
 /** The `after` cursor of the first page: none. */
 const FIRST_PAGE: string | null = null;
@@ -81,7 +91,7 @@ export function useTodos(
   const remove = useDeleteTodoMutation({ retry: false });
   const generate = useGenerateTodosMutation({ retry: false });
   const removeFile = useDeleteFileMutation({ retry: false });
-  const invalidationKeys = [listKey, detailKey];
+  const invalidationKeys = [listKey, detailKey, useTodoCountsQuery.getKey()];
   useLiveTodos({
     enabled,
     invalidateKeys: invalidationKeys,
@@ -106,7 +116,8 @@ export function useTodos(
   async function refresh() {
     await Promise.all([
       client.invalidateQueries({ queryKey: useGetTodosQuery.getKey() }),
-      client.invalidateQueries({ queryKey: detailPrefix })
+      client.invalidateQueries({ queryKey: detailPrefix }),
+      client.invalidateQueries({ queryKey: useTodoCountsQuery.getKey() })
     ]);
   }
   function clearError(key: string) {

@@ -51,5 +51,6 @@
   "dataExport.error.download": "The download link could not be created. Try again.",
   "dataExport.error.list": "Exports could not be loaded.",
   "dataExport.failure.too_large": "This export is larger than the archive limit. Remove old data or contact support.",
-  "dataExport.failure.error": "This export failed. Request a new one."
+  "dataExport.failure.error": "This export failed. Request a new one.",
+  "common.copied": "Copied"
 }

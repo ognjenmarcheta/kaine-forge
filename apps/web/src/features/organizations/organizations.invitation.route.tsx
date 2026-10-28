@@ -1,7 +1,9 @@
 import { AuthRequestError, getAuthErrorMessageKey } from "@repo/auth/transport";
-import { AuthLayout, Button, FieldError } from "@repo/ui";
+import { AuthLayout, Button, ConfirmModal, FieldError, Skeleton } from "@repo/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { useAuth } from "../../hooks/use-auth";
 import { useOrganization } from "../../hooks/use-organization";
@@ -35,9 +37,14 @@ export function OrganizationInvitationRoute() {
       void navigate("/dashboard");
     }
   });
+  const [confirmingDecline, setConfirmingDecline] = useState(false);
   const decline = useMutation({
     mutationFn: () => organizationApi.rejectInvitation(invitationId),
-    onSuccess: () => void navigate("/dashboard")
+    onSuccess: () => {
+      toast.success(t("organizations.invitation.declined"));
+      void navigate("/dashboard");
+    },
+    onError: () => setConfirmingDecline(false)
   });
 
   if (isLoading) {
@@ -64,7 +71,14 @@ export function OrganizationInvitationRoute() {
       title={invitation?.organizationName ?? t("organizations.invitation.title")}
     >
       {invitationQuery.status === "pending" ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">{t("common.loadingShort")}</p>
+        <div aria-busy="true" role="status" className="grid gap-[var(--ds-space-150)]">
+          <span className="sr-only">{t("common.loadingShort")}</span>
+          <Skeleton className="h-[var(--ds-space-400)] w-1/2" />
+          <div className="grid grid-cols-2 gap-[var(--ds-space-100)]">
+            <Skeleton className="h-[var(--ds-control-medium)]" />
+            <Skeleton className="h-[var(--ds-control-medium)]" />
+          </div>
+        </div>
       ) : null}
       {invitationQuery.status === "error" ? (
         <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
@@ -92,11 +106,21 @@ export function OrganizationInvitationRoute() {
             <Button
               appearance="subtle"
               disabled={accept.isPending || decline.isPending}
-              onClick={() => decline.mutate()}
+              onClick={() => setConfirmingDecline(true)}
             >
               {t("organizations.invitation.decline")}
             </Button>
           </div>
+          <ConfirmModal
+            cancelLabel={t("button.cancel")}
+            confirmLabel={t("organizations.invitation.decline")}
+            description={t("organizations.invitation.declineDescription")}
+            isConfirming={decline.isPending}
+            open={confirmingDecline}
+            title={invitation.organizationName}
+            onConfirm={() => decline.mutate()}
+            onOpenChange={setConfirmingDecline}
+          />
         </div>
       ) : null}
       {invitationQuery.status === "error" ? (

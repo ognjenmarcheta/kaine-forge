@@ -1,7 +1,7 @@
 import type { Todo } from "@repo/db";
 import { notesTable, todosTable } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { TODOS_CONFIG } from "./todos.config";
 import type { CreateTodoInput, TodoPatch, UpdateTodoInput } from "./todos.type";
@@ -47,6 +47,8 @@ export interface TodoModuleDeps {
 export interface Todos {
   list: (args: TodoListArgs) => Promise<Connection<Todo>>;
   get: (id: string) => Promise<Todo | null>;
+  /** How many Todos in the scope are open and how many are completed, in one query. */
+  counts: () => Promise<{ open: number; completed: number }>;
   /** Every Todo of the given Notes, newest first, unpaginated (for the batch loader). */
   listByNoteIds: (noteIds: readonly string[]) => Promise<Todo[]>;
   /** Throws `todo title is required`/`too long`, or `note not found` for a Note outside the scope. */
@@ -98,6 +100,13 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
         typeof completed === "boolean" ? eq(todosTable.completed, completed) : undefined
       ),
     get,
+    async counts() {
+      const [row] = await data.aggregate(todosTable, {
+        open: count(sql`case when not ${todosTable.completed} then 1 end`),
+        completed: count(sql`case when ${todosTable.completed} then 1 end`)
+      });
+      return row ?? { open: 0, completed: 0 };
+    },
     async listByNoteIds(noteIds) {
       if (noteIds.length === 0) {
         return [];

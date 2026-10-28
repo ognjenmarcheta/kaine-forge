@@ -5,6 +5,7 @@ import {
   FieldError,
   FieldLabel,
   Input,
+  PageHeader,
   Select,
   SelectContent,
   SelectItem,
@@ -122,14 +123,10 @@ export function ApiKeysRoute() {
 
   return (
     <section className="grid gap-[var(--ds-space-300)]">
-      <header>
-        <h1 className="text-heading-lg font-semibold text-[color:var(--ds-text)]">
-          {t("organizations.apiKeys.title")}
-        </h1>
-        <p className="mt-[var(--ds-space-050)] text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.apiKeys.description")}
-        </p>
-      </header>
+      <PageHeader
+        description={t("organizations.apiKeys.description")}
+        title={t("organizations.apiKeys.title")}
+      />
 
       {permissions?.has("apiKey:create") ? <CreateApiKeyForm onCreated={refresh} /> : null}
 

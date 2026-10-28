@@ -1,27 +1,23 @@
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   AppSidebar,
-  FileText,
-  KeyRound,
-  LayoutDashboard,
-  ListTodo,
-  NotebookPen,
-  MessageSquare,
-  Users,
   AppLayout,
   Breadcrumbs,
   NavMain,
   NavPreferences,
   NavUser,
+  type NavPreferencesProps,
   Separator,
   OrganizationSwitcher,
-  ShieldCheck,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-  Webhook
+  Skeleton
 } from "@repo/ui";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import {
   Navigate,
   NavLink,
@@ -32,14 +28,34 @@ import {
   type RouteObject
 } from "react-router-dom";
 
+import { ShellCommandMenu } from "./components/command-menu";
+import { CommandMenuButton } from "./components/command-menu-button";
 import { NotFoundPage } from "./components/not-found.page";
 import { RouteErrorPage } from "./components/route-error.page";
+import {
+  ACCOUNT_TABS,
+  ORGANIZATION_TABS,
+  SHELL_NAVIGATION_GROUP_LABEL_KEYS,
+  type ShellNavigationTab
+} from "./components/shell-navigation.definition";
+import {
+  buildShellBreadcrumbs,
+  findActiveShellTab,
+  groupShellNavigation,
+  isNavItemActive
+} from "./components/shell-navigation.util";
 import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
 } from "./components/workspace-navigation.provider";
 import { AccountDeleteRoute } from "./features/account/account.delete.route";
 import { AccountRoute } from "./features/account/account.route";
+import {
+  AccountDataTab,
+  AccountProfileTab,
+  AccountSecurityTab
+} from "./features/account/account.tabs.route";
+import { AccountSessions } from "./features/account/components/account-sessions";
 import { useApiKeysAccess } from "./features/api-keys/api-keys.hook";
 import { ApiKeysRoute } from "./features/api-keys/api-keys.route";
 import { AssistantRoute } from "./features/assistant/assistant.route";
@@ -50,13 +66,19 @@ import { DashboardRoute } from "./features/dashboard/dashboard.route";
 import { LegalRoute } from "./features/legal/legal.route";
 import { NotesRoute } from "./features/notes/notes.route";
 import { NotificationBell } from "./features/notifications/components/notification-bell";
+import { NotificationPreferences } from "./features/notifications/components/notification-preferences";
 import { OnboardingRoute } from "./features/onboarding/onboarding.route";
 import { needsOnboarding } from "./features/onboarding/onboarding.util";
 import { OrganizationCreateDialog } from "./features/organizations/components/organization-create-dialog";
 import { OrganizationInvitationRoute } from "./features/organizations/organizations.invitation.route";
 import { OrganizationsRoute } from "./features/organizations/organizations.route";
+import {
+  OrganizationDataTab,
+  OrganizationGeneralTab,
+  OrganizationMembersTab,
+  OrganizationRolesTab
+} from "./features/organizations/organizations.tabs.route";
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
-import { SecurityRoute } from "./features/security/security.route";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useWebhooksAccess } from "./features/webhooks/webhooks.hook";
 import { WebhooksRoute } from "./features/webhooks/webhooks.route";
@@ -73,23 +95,6 @@ const THEME_OPTIONS = [
   { labelKey: "navigation.themeDark", value: "dark" }
 ] as const;
 
-const ROUTE_TO_BREADCRUMB = {
-  "/account": "navigation.account",
-  "/api-keys": "navigation.apiKeys",
-  "/assistant": "navigation.assistant",
-  "/audit-log": "navigation.auditLog",
-  "/dashboard": "navigation.dashboard",
-  "/members": "navigation.members",
-  "/notes": "navigation.notes",
-  "/security": "navigation.security",
-  "/todos": "navigation.todos",
-  "/webhooks": "navigation.webhooks"
-} as const;
-
-function isBreadcrumbRoute(pathname: string): pathname is keyof typeof ROUTE_TO_BREADCRUMB {
-  return pathname in ROUTE_TO_BREADCRUMB;
-}
-
 function RootLayout() {
   useRouteTitle();
   return <Outlet />;
@@ -100,6 +105,47 @@ function ShellLayout() {
     <WorkspaceNavigationProvider>
       <ShellContent />
     </WorkspaceNavigationProvider>
+  );
+}
+
+/** Holds the shell's layout while the session loads, so the page does not jump. */
+function ShellSkeleton({ label }: { label: string }) {
+  return (
+    <SidebarProvider defaultOpen>
+      <AppLayout
+        header={
+          <header className="ui-app-shell__header">
+            <div className="flex flex-1 items-center gap-[var(--ds-space-150)] px-[var(--ds-space-200)]">
+              <Skeleton className="size-[var(--ds-space-300)]" />
+              <Skeleton className="h-[var(--ds-space-200)] w-1/4" />
+            </div>
+          </header>
+        }
+        main={
+          <SidebarInset className="ui-app-shell__content">
+            <div aria-busy="true" className="grid gap-[var(--ds-space-200)]" role="status">
+              <span className="sr-only">{label}</span>
+              <Skeleton className="h-[var(--ds-space-500)] w-1/3" />
+              {[0, 1, 2].map((row) => (
+                <Skeleton key={row} className="h-[var(--ds-space-800)] w-full" />
+              ))}
+            </div>
+          </SidebarInset>
+        }
+        sidebar={
+          <Sidebar collapsible="icon">
+            <SidebarHeader>
+              <Skeleton className="h-[var(--ds-space-600)] w-full" />
+            </SidebarHeader>
+            <SidebarContent className="gap-[var(--ds-space-150)] p-[var(--ds-space-200)]">
+              {[0, 1, 2, 3].map((row) => (
+                <Skeleton key={row} className="h-[var(--ds-space-400)] w-full" />
+              ))}
+            </SidebarContent>
+          </Sidebar>
+        }
+      />
+    </SidebarProvider>
   );
 }
 
@@ -121,16 +167,13 @@ function ShellContent() {
   const { setThemeMode, themeMode } = useTheme();
   const { assets: publicAssets } = usePublicAssets();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
   const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
   const canReadApiKeys = useApiKeysAccess(activeOrganizationId);
   const canReadWebhooks = useWebhooksAccess(activeOrganizationId);
 
   if (isLoading) {
-    return (
-      <p className="p-[var(--ds-space-300)] text-[color:var(--ds-text-subtle)]">
-        {t("common.loadingSession")}
-      </p>
-    );
+    return <ShellSkeleton label={t("common.loadingSession")} />;
   }
 
   if (!session) {
@@ -143,20 +186,41 @@ function ShellContent() {
 
   const currentSession = session;
 
-  const isDashboardActive = location.pathname === "/dashboard";
-  const isMembersActive = location.pathname === "/members";
-  const isTodosActive = location.pathname === "/todos";
-  const isNotesActive = location.pathname === "/notes" || location.pathname.startsWith("/notes/");
-  const isAssistantActive = location.pathname === "/assistant";
-  const isSecurityActive = location.pathname === "/security";
-  const isAuditLogActive = location.pathname === "/audit-log";
-  const isApiKeysActive = location.pathname === "/api-keys";
-  const isWebhooksActive = location.pathname === "/webhooks";
-  const currentRouteKey = isBreadcrumbRoute(location.pathname)
-    ? ROUTE_TO_BREADCRUMB[location.pathname]
-    : isNotesActive
-      ? "navigation.notes"
-      : "navigation.dashboard";
+  const navigationContext = {
+    canReadApiKeys: canReadApiKeys === true,
+    canReadAuditLog: canReadAuditLog === true,
+    canReadWebhooks: canReadWebhooks === true,
+    organizationsVisible
+  };
+  const navigationGroups = groupShellNavigation(navigationContext);
+  const preferences: Pick<NavPreferencesProps, "language" | "theme"> = {
+    language: {
+      label: t("navigation.language"),
+      onValueChange: (value) => {
+        void setLanguage(value);
+        // A failed write keeps the old email language; the UI still switches.
+        saveEmailLanguageRequest(value).catch(() => undefined);
+      },
+      options: SUPPORTED_LANGUAGES.map((value) => ({
+        label: t(`navigation.languageName.${value}`),
+        value
+      })),
+      value: language
+    },
+    theme: {
+      label: t("navigation.theme"),
+      onValueChange: (value) => {
+        if (value === "dark" || value === "light" || value === "system") {
+          setThemeMode(value);
+        }
+      },
+      options: THEME_OPTIONS.map((themeOption) => ({
+        label: t(themeOption.labelKey),
+        value: themeOption.value
+      })),
+      value: themeMode
+    }
+  };
   const organizationOptions =
     organizations.length > 0
       ? organizations.map((organization) => ({
@@ -177,28 +241,26 @@ function ShellContent() {
         ];
   const activeOrganizationValue =
     activeOrganizationId ?? organizations[0]?.id ?? organizationOptions[0]?.value;
-  const breadcrumbItems = [
-    {
-      href: "/dashboard",
-      label: t("common.appName")
-    },
-    {
-      label: t(currentRouteKey)
-    }
-  ];
+  const activeTab = findActiveShellTab(location.pathname);
+  const breadcrumbItems = buildShellBreadcrumbs(
+    t,
+    location.pathname,
+    activeTab ? t(activeTab.titleKey) : undefined
+  );
 
   const layout = (
     <AppLayout
       header={
         <header className="ui-app-shell__header">
-          <div className="flex items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
+          <div className="flex w-full items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
             <SidebarTrigger className="-ml-1" label={t("navigation.toggleSidebar")} />
             <Separator
               orientation="vertical"
               className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
             />
             <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-[var(--ds-space-100)]">
+              <CommandMenuButton onOpen={() => setIsCommandMenuOpen(true)} />
               <NotificationBell />
             </div>
           </div>
@@ -214,114 +276,24 @@ function ShellContent() {
           mobileSheetCloseLabel={t("common.close")}
           mobileSheetDescription={t("navigation.mobileSidebarDescription")}
           mobileSheetTitle={t("navigation.sidebarTitle")}
-          navMain={
+          navMain={navigationGroups.map(({ group, items }) => (
             <NavMain
-              groupLabel={t("common.appName")}
-              items={[
-                {
-                  href: "/dashboard",
-                  icon: LayoutDashboard,
-                  isActive: isDashboardActive,
-                  title: t("navigation.dashboard")
-                },
-                {
-                  href: "/todos",
-                  icon: ListTodo,
-                  isActive: isTodosActive,
-                  title: t("navigation.todos")
-                },
-                {
-                  href: "/notes",
-                  icon: NotebookPen,
-                  isActive: isNotesActive,
-                  title: t("navigation.notes")
-                },
-                {
-                  href: "/assistant",
-                  icon: MessageSquare,
-                  isActive: isAssistantActive,
-                  title: t("navigation.assistant")
-                },
-                ...(organizationsVisible
-                  ? [
-                      {
-                        href: "/members",
-                        icon: Users,
-                        isActive: isMembersActive,
-                        title: t("navigation.members")
-                      }
-                    ]
-                  : []),
-                ...(canReadAuditLog
-                  ? [
-                      {
-                        href: "/audit-log",
-                        icon: FileText,
-                        isActive: isAuditLogActive,
-                        title: t("navigation.auditLog")
-                      }
-                    ]
-                  : []),
-                ...(canReadApiKeys
-                  ? [
-                      {
-                        href: "/api-keys",
-                        icon: KeyRound,
-                        isActive: isApiKeysActive,
-                        title: t("navigation.apiKeys")
-                      }
-                    ]
-                  : []),
-                ...(canReadWebhooks
-                  ? [
-                      {
-                        href: "/webhooks",
-                        icon: Webhook,
-                        isActive: isWebhooksActive,
-                        title: t("navigation.webhooks")
-                      }
-                    ]
-                  : []),
-                {
-                  href: "/security",
-                  icon: ShieldCheck,
-                  isActive: isSecurityActive,
-                  title: t("navigation.security")
-                }
-              ]}
+              key={group}
+              groupLabel={t(SHELL_NAVIGATION_GROUP_LABEL_KEYS[group])}
+              items={items.map((item) => ({
+                href: item.href,
+                icon: item.icon,
+                isActive: isNavItemActive(location.pathname, item),
+                title: t(item.titleKey)
+              }))}
               renderLink={(item, content) => <NavLink to={item.href ?? "#"}>{content}</NavLink>}
             />
-          }
+          ))}
           navPreferences={
             <NavPreferences
               groupLabel={t("navigation.settings")}
               layout="footer"
-              language={{
-                label: t("navigation.language"),
-                onValueChange: (value) => {
-                  void setLanguage(value);
-                  // A failed write keeps the old email language; the UI still switches.
-                  saveEmailLanguageRequest(value).catch(() => undefined);
-                },
-                options: SUPPORTED_LANGUAGES.map((value) => ({
-                  label: t(`navigation.languageName.${value}`),
-                  value
-                })),
-                value: language
-              }}
-              theme={{
-                label: t("navigation.theme"),
-                onValueChange: (value) => {
-                  if (value === "dark" || value === "light" || value === "system") {
-                    setThemeMode(value);
-                  }
-                },
-                options: THEME_OPTIONS.map((themeOption) => ({
-                  label: t(themeOption.labelKey),
-                  value: themeOption.value
-                })),
-                value: themeMode
-              }}
+              {...preferences}
             />
           }
           railLabel={t("navigation.toggleSidebar")}
@@ -368,6 +340,12 @@ function ShellContent() {
   return (
     <>
       <SidebarProvider defaultOpen>{layout}</SidebarProvider>
+      <ShellCommandMenu
+        navigationContext={navigationContext}
+        onOpenChange={setIsCommandMenuOpen}
+        open={isCommandMenuOpen}
+        preferences={preferences}
+      />
       <OrganizationCreateDialog
         isOpen={isCreateOrganizationOpen}
         onClose={() => setIsCreateOrganizationOpen(false)}
@@ -375,6 +353,28 @@ function ShellContent() {
       />
     </>
   );
+}
+
+/**
+ * The tab routes of a settings page. The page path and an unknown tab open the
+ * first tab, so the URL always names the open tab.
+ */
+function settingsTabRoutes<Segment extends string>(
+  basePath: string,
+  tabs: readonly [ShellNavigationTab<NoInfer<Segment>>, ...ShellNavigationTab<NoInfer<Segment>>[]],
+  elements: Record<Segment, ReactElement>
+): RouteObject[] {
+  const toFirstTab = <Navigate replace to={`${basePath}/${tabs[0].segment}`} />;
+
+  return [
+    { element: toFirstTab, index: true },
+    ...tabs.map((tab) => ({
+      element: elements[tab.segment],
+      handle: { titleKey: tab.titleKey },
+      path: tab.segment
+    })),
+    { element: toFirstTab, path: "*" }
+  ];
 }
 
 export const appRoutes: RouteObject[] = [
@@ -416,14 +416,33 @@ export const appRoutes: RouteObject[] = [
                 path: "assistant"
               },
               {
-                element: <OrganizationsRoute />,
-                handle: { titleKey: "navigation.members" },
+                // The page moved into an Organization tab; old links still land there.
+                element: <Navigate replace to="/organization/members" />,
                 path: "members"
               },
               {
+                element: <OrganizationsRoute />,
+                handle: { titleKey: "navigation.organization" },
+                path: "organization",
+                children: settingsTabRoutes("/organization", ORGANIZATION_TABS, {
+                  data: <OrganizationDataTab />,
+                  general: <OrganizationGeneralTab />,
+                  members: <OrganizationMembersTab />,
+                  roles: <OrganizationRolesTab />
+                })
+              },
+              {
+                // `/account/delete` is a top-level route; its static path wins over the tabs' `*`.
                 element: <AccountRoute />,
                 handle: { titleKey: "navigation.account" },
-                path: "account"
+                path: "account",
+                children: settingsTabRoutes("/account", ACCOUNT_TABS, {
+                  data: <AccountDataTab />,
+                  notifications: <NotificationPreferences />,
+                  profile: <AccountProfileTab />,
+                  security: <AccountSecurityTab />,
+                  sessions: <AccountSessions />
+                })
               },
               {
                 element: <AuditLogRoute />,
@@ -441,8 +460,8 @@ export const appRoutes: RouteObject[] = [
                 path: "webhooks"
               },
               {
-                element: <SecurityRoute />,
-                handle: { titleKey: "navigation.security" },
+                // The page moved into an Account tab; old links still land there.
+                element: <Navigate replace to="/account/security" />,
                 path: "security"
               }
             ]

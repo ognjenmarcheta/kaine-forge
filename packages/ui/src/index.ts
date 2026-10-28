@@ -1,14 +1,21 @@
 export * from "./components/composed/app-sidebar";
 export * from "./components/composed/breadcrumbs";
+export * from "./components/composed/command-menu";
+export * from "./components/composed/copy-button";
+export * from "./components/composed/empty-state";
 export * from "./components/composed/header";
 export * from "./components/composed/labeled-select";
 export * from "./components/composed/nav-main";
 export * from "./components/composed/nav-preferences";
 export * from "./components/composed/nav-user";
+export * from "./components/composed/page-header";
 export * from "./components/composed/pagination";
+export * from "./components/composed/query-error";
+export * from "./components/composed/settings-section";
 export * from "./components/composed/shell-select-control";
 export * from "./components/composed/shell-user-menu";
 export * from "./components/composed/sidebar";
+export * from "./components/composed/stat-card";
 export * from "./components/composed/organization-switcher";
 export * from "./components/composed/user-menu";
 export * from "./components/layouts/app-layout";
@@ -57,6 +64,7 @@ export {
   ArrowRight,
   Bell,
   Bot,
+  Building2,
   Check,
   CircleHelp,
   Clock,
@@ -68,17 +76,21 @@ export {
   GitBranch,
   GitPullRequest,
   KeyRound,
+  Languages,
   LayoutDashboard,
   ListTodo,
   NotebookPen,
   MessageSquare,
   Minus,
+  Monitor,
+  Moon,
   Plus,
   RotateCcw,
   Search,
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  Sun,
   Terminal,
   TriangleAlert,
   User,

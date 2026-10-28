@@ -317,8 +317,9 @@ pnpm release:apps --apps all
 
 Web/desktop shell:
 
-- Header: stable sidebar trigger and route breadcrumbs.
-- Sidebar: optional Organization switcher above dashboard, todos, notes, assistant, and members navigation. Organization controls and members are gated by `ORGANIZATIONS_VISIBLE`.
+- Header: stable sidebar trigger, route breadcrumbs, and a "Search…" button that opens the Cmd/Ctrl+K command menu.
+- Sidebar: optional Organization switcher above two groups: Workspace (dashboard, todos, notes, assistant) and Organization (organization settings, audit log). `apps/web/src/components/shell-navigation.definition.ts` is the one list that drives the sidebar, its active state, the breadcrumbs, and the command menu. Organization controls and settings are gated by `ORGANIZATIONS_VISIBLE`.
+- Organization and Account settings are tabbed pages; each tab is a route (`/organization/members`, `/account/security`), and the old `/members` and `/security` paths redirect.
 - Language, theme, and user controls sit below navigation. Preferences stack in the collapsed icon rail. Below 768px, navigation uses a drawer.
 - Main content renders the active route, keyed by Active Organization. Theme and language changes preserve route drafts; successful Organization switches reset scoped route state.
 
