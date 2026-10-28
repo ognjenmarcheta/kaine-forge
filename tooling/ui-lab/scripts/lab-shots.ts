@@ -12,6 +12,13 @@ const only = process.argv.slice(2);
 
 mkdirSync(out, { recursive: true });
 
+// A dev server never goes network-idle, so wait for the load event, then give the lazy
+// chart chunks a moment to render.
+const settle = async (): Promise<void> => {
+  await page.waitForLoadState("load");
+  await page.waitForTimeout(1500);
+};
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`${base}/#/`);
@@ -22,12 +29,12 @@ for (const screen of screens.filter((entry) => only.length === 0 || only.include
   for (const mode of ["light", "dark"] as const) {
     await page.setViewportSize({ width: screen.width, height: screen.height });
     await page.goto(`${base}/#/screens/${screen.id}/${mode}`);
-    await page.waitForLoadState("networkidle");
+    await settle();
     await page.screenshot({ path: `${out}${screen.id}.${mode}.png` });
   }
   await page.setViewportSize({ width: screen.width * 2 + 64, height: screen.height + 96 });
   await page.goto(`${base}/#/compare/${screen.id}`);
-  await page.waitForLoadState("networkidle");
+  await settle();
   await page.screenshot({ path: `${out}${screen.id}.compare.png`, fullPage: true });
   console.log(`shot ${screen.id}`);
 }
