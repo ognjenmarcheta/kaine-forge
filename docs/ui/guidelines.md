@@ -139,8 +139,9 @@ Reason: double submits create duplicates.
 
 ## A11Y
 
-**A11Y-1 (MUST). Keyboard and visible focus.** Every interactive element is reachable by keyboard in DOM order and shows a focus ring.
-Reason: keyboard and switch users cannot act otherwise (WCAG 2.2 SC 2.1.1, 2.4.7).
+**A11Y-1 (MUST). Keyboard and visible focus.** Every interactive element is reachable by keyboard in DOM order and shows a focus ring. The ring uses `border-focused`, which the theme check measures on the page, cards, overlays, and sunken areas. On `surface-inverse` it is not measured, so draw the ring in `text-surface-inverse` there.
+Reason: keyboard and switch users cannot act otherwise (WCAG 2.2 SC 2.1.1, 2.4.7), and a ring in the brand color can fade on a dark inverse bar.
+Do: `focus-visible:outline-ds-text-surface-inverse` on a button in a `bg-ds-surface-inverse` tab bar. Don't: rely on the default ring there.
 
 **A11Y-2 (MUST). Targets are at least 24px.** Primary touch actions are 44px. The theme check enforces the control heights.
 Reason: small targets cause misses (WCAG 2.2 SC 2.5.8).
