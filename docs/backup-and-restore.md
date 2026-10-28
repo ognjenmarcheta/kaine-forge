@@ -157,6 +157,27 @@ Cloudflare documents `PutBucketVersioning` and `GetBucketVersioning` as **not im
 
 If you cannot keep a second copy, set `STORAGE_SWEEP_ENABLED=false`. The API then never deletes the objects of deleted Attachments, so a restored database never points at a missing object. The cost is storage for data that users deleted. Choose this on purpose, and delete old objects with a reviewed manual job.
 
+### RustFS (self-hosted)
+
+RustFS is the S3-compatible store that local development uses (`docker-compose.yml`). You can also run it as a production store, for example as a Docker app on your own server. With RustFS 1.0.3, versioning and lifecycle rules work with the same commands as Amazon S3 (checked 2026-10-28). Use the Amazon S3 steps above against your RustFS endpoint:
+
+```bash
+aws s3api put-bucket-versioning --endpoint-url "$S3_ENDPOINT" \
+  --bucket "$S3_BUCKET" --versioning-configuration Status=Enabled
+aws s3api put-bucket-lifecycle-configuration --endpoint-url "$S3_ENDPOINT" \
+  --bucket "$S3_BUCKET" --lifecycle-configuration file://lifecycle.json
+```
+
+Repeat both commands for `$S3_PUBLIC_BUCKET`.
+
+Notes:
+
+- The check proved that RustFS stores the lifecycle rules and keeps noncurrent versions. It did not prove that RustFS expires them after 30 days. After the first 30 days, run `list-object-versions` and confirm that old noncurrent versions are gone.
+- RustFS needs an explicit bucket CORS rule for browser uploads (`put-bucket-cors`). Allow only your web origin, with `GET`, `PUT`, and `HEAD`.
+- Give the public bucket a policy with `s3:GetObject` only. Give the private bucket no policy.
+- Pin the image by digest, and do not publish the console port (9001).
+- One RustFS node keeps all data in one volume on one server. Versioning does not protect you from the loss of that server. Keep a second copy on another server or provider, as in steps 1 to 3 of the R2 section.
+
 ### Other S3-compatible providers
 
 Wasabi, Backblaze B2, and Hetzner each have their own versioning and lifecycle settings. Use the same rule: noncurrent versions kept for at least the oldest database restore point. If the provider has no versioning, follow the R2 steps.
