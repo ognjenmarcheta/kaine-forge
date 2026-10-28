@@ -47,6 +47,13 @@
   --ds-border-width-focused: 2px;
   --ds-border-width-selected: 2px;
   --ds-border-width-thick: 3px;
+  --ds-chart-1: #d4421a;
+  --ds-chart-2: #4081d2;
+  --ds-chart-3: #00967c;
+  --ds-chart-4: #8e6ac7;
+  --ds-chart-5: #a77600;
+  --ds-chart-6: #bc598c;
+  --ds-chart-grid: #e3e6eb;
   --ds-control-large: 40px;
   --ds-control-medium: 32px;
   --ds-control-small: 28px;
@@ -154,6 +161,13 @@
   --ds-border-strong: #333943;
   --ds-border-success: #5fc791;
   --ds-border-warning: #e6b44a;
+  --ds-chart-1: #ff6a3d;
+  --ds-chart-2: #65a7fa;
+  --ds-chart-3: #00c0a0;
+  --ds-chart-4: #b28fef;
+  --ds-chart-5: #d29922;
+  --ds-chart-6: #e57db1;
+  --ds-chart-grid: #23272f;
   --ds-icon: #aab1bd;
   --ds-icon-brand: #ff6a3d;
   --ds-icon-danger: #ff8a7a;

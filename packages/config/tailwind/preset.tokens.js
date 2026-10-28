@@ -82,6 +82,15 @@ export const colors = {
   },
   "ds-blanket": {
     DEFAULT: "var(--ds-blanket)"
+  },
+  "ds-chart": {
+    1: "var(--ds-chart-1)",
+    2: "var(--ds-chart-2)",
+    3: "var(--ds-chart-3)",
+    4: "var(--ds-chart-4)",
+    5: "var(--ds-chart-5)",
+    6: "var(--ds-chart-6)",
+    grid: "var(--ds-chart-grid)"
   }
 };
 

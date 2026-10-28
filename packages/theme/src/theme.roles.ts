@@ -68,7 +68,14 @@ export const colorRoles = [
   "border-warning",
   "border-information",
   "border-discovery",
-  "blanket"
+  "blanket",
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  "chart-6",
+  "chart-grid"
 ] as const;
 
 export const shadowRoles = [

@@ -100,7 +100,14 @@ export const byteForgeTheme = defineTheme({
       "shadow-overlay": "0px 1px 2px #1214190a, 0px 12px 32px #12141914",
       "shadow-floating": "0px 2px 4px #1214190a, 0px 32px 64px #1214191f",
       "shadow-floating-bold": "0px 2px 4px #1214190a, 0px 32px 64px #12141929",
-      blanket: "#1214197a"
+      blanket: "#1214197a",
+      "chart-1": "#d4421a",
+      "chart-2": "#4081d2",
+      "chart-3": "#00967c",
+      "chart-4": "#8e6ac7",
+      "chart-5": "#a77600",
+      "chart-6": "#bc598c",
+      "chart-grid": "#e3e6eb"
     },
     dark: {
       text: "#f2f3f5",
@@ -174,7 +181,14 @@ export const byteForgeTheme = defineTheme({
       "shadow-overlay": "0px 1px 2px #00000080, 0px 12px 32px #00000073",
       "shadow-floating": "0px 2px 4px #00000080, 0px 32px 64px #00000099",
       "shadow-floating-bold": "0px 2px 4px #00000080, 0px 32px 64px #00000099",
-      blanket: "#00000099"
+      blanket: "#00000099",
+      "chart-1": "#ff6a3d",
+      "chart-2": "#65a7fa",
+      "chart-3": "#00c0a0",
+      "chart-4": "#b28fef",
+      "chart-5": "#d29922",
+      "chart-6": "#e57db1",
+      "chart-grid": "#23272f"
     }
   }
 });

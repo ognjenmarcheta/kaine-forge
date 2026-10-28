@@ -72,6 +72,43 @@ function shadows(mode: ColorMode, ink: string): Pick<ThemeMode, ShadowRole> {
   };
 }
 
+const CHART_HUES = [255, 175, 300, 80, 145, 350, 210, 25];
+
+/**
+ * Six categorical series colors that start from the brand hue and keep the other hues apart,
+ * each moved until it reaches 3:1 against the surface (WCAG 2.2 SC 1.4.11), plus a grid color.
+ */
+export function createChartColors(
+  brand: string,
+  mode: ColorMode,
+  surface: string,
+  grid: string
+): Pick<ThemeMode, `chart-${1 | 2 | 3 | 4 | 5 | 6}` | "chart-grid"> {
+  const seed = toOklch(brand);
+  const hues: number[] = [seed.h];
+  const apart = (hue: number): boolean =>
+    hues.every((taken) => Math.min(Math.abs(taken - hue), 360 - Math.abs(taken - hue)) >= 35);
+
+  for (const hue of CHART_HUES) {
+    if (hues.length < 6 && apart(hue)) hues.push(hue);
+  }
+
+  const series = hues.map((hue) =>
+    ensureContrast(tone(hue, 0.14, mode === "light" ? 0.6 : 0.72), surface, GRAPHIC_CONTRAST)
+  );
+  const [one = brand, two = brand, three = brand, four = brand, five = brand, six = brand] = series;
+
+  return {
+    "chart-1": one,
+    "chart-2": two,
+    "chart-3": three,
+    "chart-4": four,
+    "chart-5": five,
+    "chart-6": six,
+    "chart-grid": grid
+  };
+}
+
 /**
  * Derives every color role in both modes from a brand color and a neutral tint. Each role is
  * placed on a lightness target and then moved, if needed, until its contrast pairs pass, so a
@@ -190,6 +227,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "border-information": information.text,
       "border-discovery": discovery.text,
       blanket: withAlpha(ink, 0.48),
+      ...createChartColors(input.brand, "light", surface, gray(0.925)),
       ...shadows("light", ink)
     };
   };
@@ -288,6 +326,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "border-information": information.text,
       "border-discovery": discovery.text,
       blanket: "#00000099",
+      ...createChartColors(input.brand, "dark", surface, gray(0.27)),
       ...shadows("dark", text)
     };
   };

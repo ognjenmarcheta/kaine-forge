@@ -82,7 +82,13 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("icon-danger", "surface", GRAPHIC_CONTRAST),
   pair("border-bold", "surface", GRAPHIC_CONTRAST),
   pair("border-brand", "surface", GRAPHIC_CONTRAST),
-  pair("icon-brand", "surface", GRAPHIC_CONTRAST)
+  pair("icon-brand", "surface", GRAPHIC_CONTRAST),
+  pair("chart-1", "surface", GRAPHIC_CONTRAST),
+  pair("chart-2", "surface", GRAPHIC_CONTRAST),
+  pair("chart-3", "surface", GRAPHIC_CONTRAST),
+  pair("chart-4", "surface", GRAPHIC_CONTRAST),
+  pair("chart-5", "surface", GRAPHIC_CONTRAST),
+  pair("chart-6", "surface", GRAPHIC_CONTRAST)
 ];
 
 const colorRoleNames: ReadonlySet<string> = new Set(colorRoles);
