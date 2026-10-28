@@ -8,24 +8,31 @@ import {
   BarChart,
   CartesianGrid,
   ComposedChart,
+  LabelList,
   Line,
   Pie,
   PieChart,
   PolarAngleAxis,
   RadialBar,
   RadialBarChart,
+  Rectangle,
+  ReferenceLine,
   Sector,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  type BarShapeProps
 } from "recharts";
 
 import {
   chartCellText,
   seriesColor,
   type ChartDatum,
+  type ChartReferenceLine,
   type ChartSeries,
-  type ChartValueFormatter
+  type ChartValueFormatter,
+  type ChartYDomain,
+  type LineSeries
 } from "./chart.series";
 import { cn } from "../../lib/cn";
 
@@ -36,10 +43,29 @@ const AXIS_TICK = { fill: "var(--ds-text-subtle)" };
 /** Charts sit on a card; marks use its surface for the ring and the stack gap, so both read as space. */
 const MARK_SURFACE = "var(--ds-surface-raised)";
 const PLOT_MARGIN = { top: 8, right: 8, bottom: 0, left: 0 };
+/** Without a y-axis the first and last points sit on the plot edges; this leaves their x labels room. */
+const EDGE_PLOT_MARGIN = { ...PLOT_MARGIN, left: 16, right: 16 };
+/** Value labels sit above the bars, so the plot keeps room for one line of text over the tallest. */
+const LABELLED_PLOT_MARGIN = { ...PLOT_MARGIN, top: 24 };
 /** A rounded data end and a square baseline. */
 const DATA_END_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
+/** With round caps on a 2px line, this reads as 6px dashes and 4px gaps. */
+const LINE_DASH = "4 6";
+/** Reference lines are dashed so they never read as a grid line. */
+const REFERENCE_DASH = "4 4";
+const REFERENCE_COLOR = "var(--ds-border-bold)";
+/** The other bars when one category is highlighted; it reaches 3:1 like the chart slots. */
+const MUTED_COLOR = seriesColor(0, "neutral").color;
+
+/** Which axis parts a cartesian chart hides. */
+export interface CartesianAxes {
+  hideGrid: boolean;
+  hideXAxis: boolean;
+  hideYAxis: boolean;
+}
 
 interface CartesianPlotProps {
+  axes: CartesianAxes;
   data: ChartDatum[];
   index: string;
   series: ChartSeries[];
@@ -90,7 +116,7 @@ function CartesianTooltip({
   index,
   series,
   valueFormatter
-}: Omit<CartesianPlotProps, "title"> & {
+}: Omit<CartesianPlotProps, "axes" | "title"> & {
   active: boolean;
   activeIndex: string | null | undefined;
 }) {
@@ -104,19 +130,25 @@ function CartesianTooltip({
         key: item.key,
         label: item.label,
         value: chartCellText(datum[item.key], valueFormatter),
-        swatch: seriesColor(position).swatch
+        swatch: seriesColor(position, item.color).swatch
       }))}
     />
   );
 }
 
 /** A solid hairline grid and quiet axes; Recharts reads them as direct chart children. */
-function renderCartesianAxes(index: string, tickFormatter: ChartValueFormatter) {
+function renderCartesianAxes(
+  index: string,
+  tickFormatter: ChartValueFormatter,
+  axes: CartesianAxes,
+  yDomain?: ChartYDomain
+) {
   return (
     <>
-      <CartesianGrid vertical={false} stroke={GRID_COLOR} />
+      {axes.hideGrid ? null : <CartesianGrid vertical={false} stroke={GRID_COLOR} />}
       <XAxis
         dataKey={index}
+        hide={axes.hideXAxis}
         axisLine={false}
         tickLine={false}
         tick={AXIS_TICK}
@@ -124,11 +156,13 @@ function renderCartesianAxes(index: string, tickFormatter: ChartValueFormatter) 
         minTickGap={16}
       />
       <YAxis
+        hide={axes.hideYAxis}
         axisLine={false}
         tickLine={false}
         tick={AXIS_TICK}
         tickFormatter={tickFormatter}
         width="auto"
+        {...(yDomain === undefined ? {} : { domain: yDomain })}
       />
     </>
   );
@@ -136,22 +170,28 @@ function renderCartesianAxes(index: string, tickFormatter: ChartValueFormatter) 
 
 export function LinePlot({
   area,
+  axes,
   data,
   index,
   series,
   title,
-  valueFormatter
-}: CartesianPlotProps & { area: boolean }) {
+  valueFormatter,
+  yDomain
+}: Omit<CartesianPlotProps, "series"> & {
+  area: boolean;
+  series: LineSeries[];
+  yDomain: ChartYDomain | undefined;
+}) {
   return (
     <ComposedChart
       data={data}
       responsive
       width="100%"
       height="100%"
-      margin={PLOT_MARGIN}
+      margin={axes.hideYAxis ? EDGE_PLOT_MARGIN : PLOT_MARGIN}
       title={title}
     >
-      {renderCartesianAxes(index, valueFormatter)}
+      {renderCartesianAxes(index, valueFormatter, axes, yDomain)}
       <Tooltip
         cursor={{ stroke: "var(--ds-border-bold)", strokeWidth: 1 }}
         isAnimationActive={ANIMATION}
@@ -167,7 +207,7 @@ export function LinePlot({
         )}
       />
       {series.map((item, position) => {
-        const { color } = seriesColor(position);
+        const { color } = seriesColor(position, item.color);
         const mark = {
           dataKey: item.key,
           name: item.label,
@@ -178,10 +218,11 @@ export function LinePlot({
           strokeLinejoin: "round",
           dot: false,
           activeDot: { r: 4, fill: color, stroke: MARK_SURFACE, strokeWidth: 2 },
-          isAnimationActive: ANIMATION
+          isAnimationActive: ANIMATION,
+          ...(item.dashed === true ? { strokeDasharray: LINE_DASH } : {})
         } as const;
 
-        return area ? (
+        return (item.area ?? area) ? (
           <Area key={item.key} {...mark} fill={color} fillOpacity={0.1} />
         ) : (
           <Line key={item.key} {...mark} />
@@ -194,14 +235,29 @@ export function LinePlot({
 const formatShareTick: ChartValueFormatter = (share) => `${Math.round(share * 100)}%`;
 
 export function BarPlot({
+  axes,
+  barSize,
   data,
+  highlight,
   index,
+  referenceLine,
   series,
   stacked,
   title,
-  valueFormatter
-}: CartesianPlotProps & { stacked: boolean | "percent" }) {
+  valueFormatter,
+  valueLabels
+}: CartesianPlotProps & {
+  barSize: number | undefined;
+  highlight: string | number | undefined;
+  referenceLine: ChartReferenceLine | undefined;
+  stacked: boolean | "percent";
+  valueLabels: "all" | "highlight" | undefined;
+}) {
   const lastPosition = series.length - 1;
+  const isHighlighted = (position: number) =>
+    highlight !== undefined && data[position]?.[index] === highlight;
+  // Labels on stacked segments collide; the tooltip and the data table carry those values.
+  const labels = stacked === false ? valueLabels : undefined;
 
   return (
     <BarChart
@@ -209,13 +265,14 @@ export function BarPlot({
       responsive
       width="100%"
       height="100%"
-      margin={PLOT_MARGIN}
+      margin={labels === undefined ? PLOT_MARGIN : LABELLED_PLOT_MARGIN}
       title={title}
       barGap={2}
-      maxBarSize={24}
+      maxBarSize={barSize ?? 24}
       stackOffset={stacked === "percent" ? "expand" : "none"}
+      {...(barSize === undefined ? {} : { barSize })}
     >
-      {renderCartesianAxes(index, stacked === "percent" ? formatShareTick : valueFormatter)}
+      {renderCartesianAxes(index, stacked === "percent" ? formatShareTick : valueFormatter, axes)}
       <Tooltip
         cursor={{ fill: "var(--ds-background-neutral-hovered)" }}
         isAnimationActive={ANIMATION}
@@ -230,17 +287,61 @@ export function BarPlot({
           />
         )}
       />
-      {series.map((item, position) => (
-        <Bar
-          key={item.key}
-          dataKey={item.key}
-          name={item.label}
-          fill={seriesColor(position).color}
-          isAnimationActive={ANIMATION}
-          radius={stacked === false || position === lastPosition ? DATA_END_RADIUS : 0}
-          {...(stacked === false ? {} : { stackId: "stack", stroke: MARK_SURFACE, strokeWidth: 2 })}
+      {referenceLine === undefined ? null : (
+        <ReferenceLine
+          y={referenceLine.value}
+          ifOverflow="extendDomain"
+          stroke={REFERENCE_COLOR}
+          strokeDasharray={REFERENCE_DASH}
+          {...(referenceLine.label === undefined
+            ? {}
+            : {
+                label: {
+                  value: referenceLine.label,
+                  position: "insideTopRight",
+                  fill: "var(--ds-text-subtle)"
+                }
+              })}
         />
-      ))}
+      )}
+      {series.map((item, position) => {
+        const { color } = seriesColor(position, item.color);
+
+        return (
+          <Bar
+            key={item.key}
+            dataKey={item.key}
+            name={item.label}
+            fill={color}
+            isAnimationActive={ANIMATION}
+            radius={stacked === false || position === lastPosition ? DATA_END_RADIUS : 0}
+            {...(highlight === undefined
+              ? {}
+              : {
+                  shape: (bar: BarShapeProps) => (
+                    <Rectangle {...bar} fill={isHighlighted(bar.index) ? color : MUTED_COLOR} />
+                  )
+                })}
+            {...(stacked === false
+              ? {}
+              : { stackId: "stack", stroke: MARK_SURFACE, strokeWidth: 2 })}
+          >
+            {labels === undefined ? null : (
+              <LabelList
+                position="top"
+                offset={6}
+                className={labels === "highlight" ? "font-semibold" : undefined}
+                fill={labels === "highlight" ? "var(--ds-text)" : "var(--ds-text-subtle)"}
+                valueAccessor={(entry, position) =>
+                  typeof entry.value === "number" && (labels === "all" || isHighlighted(position))
+                    ? valueFormatter(entry.value)
+                    : null
+                }
+              />
+            )}
+          </Bar>
+        );
+      })}
     </BarChart>
   );
 }
@@ -253,7 +354,7 @@ export function DonutPlot({
 }: {
   data: ChartDatum[];
   index: string;
-  series: ChartSeries;
+  series: Pick<ChartSeries, "key" | "label">;
   valueFormatter: ChartValueFormatter;
 }) {
   return (
@@ -342,7 +443,7 @@ export function SparklinePlot({
   data: ChartDatum[];
   series: ChartSeries;
 }) {
-  const { color } = seriesColor(0);
+  const { color } = seriesColor(0, series.color);
   const mark = {
     dataKey: series.key,
     type: "monotone",

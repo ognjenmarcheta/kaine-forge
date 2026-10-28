@@ -3,7 +3,7 @@ import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BarChart, DonutChart, RadialProgress } from "./chart";
+import { BarChart, DonutChart, RadialProgress, seriesColor, type ChartColor } from "./chart";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -91,4 +91,58 @@ describe("charts", () => {
       ).toEqual(rows);
     }
   );
+});
+
+describe("seriesColor", () => {
+  // Color follows the series, not its rank: an own color wins over the position, and the six
+  // slots never cycle, so a seventh series without a color takes the neutral.
+  it.each<[number, ChartColor | undefined, { color: string; swatch: string }]>([
+    [0, undefined, { color: "var(--ds-chart-1)", swatch: "bg-ds-chart-1" }],
+    [0, "chart-5", { color: "var(--ds-chart-5)", swatch: "bg-ds-chart-5" }],
+    [3, "success", { color: "var(--ds-border-success)", swatch: "bg-ds-border-success" }],
+    [6, undefined, { color: "var(--ds-border-bold)", swatch: "bg-ds-border-bold" }]
+  ])("paints position %i with color %s", (position, color, paint) => {
+    expect(seriesColor(position, color)).toEqual(paint);
+  });
+});
+
+describe("BarChart value labels", () => {
+  const visits = [
+    { month: "Jan", visits: 120 },
+    { month: "Feb", visits: 310 },
+    { month: "Mar", visits: 180 }
+  ];
+
+  it.each<["all" | "highlight", string[]]>([
+    ["highlight", ["310 users"]],
+    ["all", ["120 users", "310 users", "180 users"]]
+  ])('valueLabels="%s" prints the formatted values of those bars', async (valueLabels, labels) => {
+    // With reduced motion, Recharts draws the bars and their labels at once, not after animating.
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined
+    }));
+    act(() =>
+      root.render(
+        <BarChart
+          title="Visits by month"
+          data={visits}
+          index="month"
+          series={[{ key: "visits", label: "Visits" }]}
+          highlight="Feb"
+          valueLabels={valueLabels}
+          valueFormatter={users}
+          hideXAxis
+          hideYAxis
+        />
+      )
+    );
+    await act(() => import("./chart.recharts"));
+
+    // The axes are hidden, so the value labels are the only text in the plot.
+    expect(Array.from(container.querySelectorAll("svg text"), (text) => text.textContent)).toEqual(
+      labels
+    );
+  });
 });

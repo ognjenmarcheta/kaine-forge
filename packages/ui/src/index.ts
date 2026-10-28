@@ -45,6 +45,7 @@ export * from "./components/primitives/segmented-control";
 export * from "./components/primitives/form-modal";
 export * from "./components/primitives/modal";
 export * from "./components/primitives/progress-bar";
+export * from "./components/primitives/proportion-bar";
 export * from "./components/primitives/select";
 export * from "./components/primitives/separator";
 export * from "./components/primitives/sheet";
