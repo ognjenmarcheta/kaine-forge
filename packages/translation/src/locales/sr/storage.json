@@ -24,5 +24,6 @@
   "storage.publicAssets.organizationLogo.description": "Prikazuje se svim clanovima ove organizacije. Koristi JPEG, PNG, GIF ili WebP sliku do 10 MB.",
   "storage.publicAssets.choose": "Izaberi sliku",
   "storage.publicAssets.uploading": "Otpremanje...",
-  "storage.publicAssets.error": "Slika nije sacuvana. Pokusaj sa drugom slikom."
+  "storage.publicAssets.error": "Slika nije sacuvana. Pokusaj sa drugom slikom.",
+  "storage.publicAssets.disabled": "Otpremanje slika nije podeseno na ovom serveru."
 }
