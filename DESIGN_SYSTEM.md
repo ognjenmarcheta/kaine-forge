@@ -183,8 +183,8 @@ Control sizes:
 | --------------------- | ------ | --------------------- |
 | `--ds-control-xsmall` | 24px   | compact toolbars      |
 | `--ds-control-small`  | 28px   | dense UI              |
-| `--ds-control-medium` | 32px   | default web controls  |
-| `--ds-control-large`  | 40px   | prominent controls    |
+| `--ds-control-medium` | 32px   | web buttons           |
+| `--ds-control-large`  | 40px   | web fields, selects   |
 | `--ds-control-xlarge` | 48px   | mobile/touch controls |
 
 Shape:
@@ -276,7 +276,7 @@ Rules:
 
 `@repo/ui` owns React DOM primitives and composed components.
 
-Themes live in `@repo/theme` (`packages/theme/src/themes/<name>/<name>.theme.ts`). `pnpm theme:build` writes `packages/ui/src/styles/tokens.generated.css`: the `--ds-*` tokens and the Tailwind v4 utilities that read them. `globals.css` imports it. Use the utilities, not arbitrary values: `bg-ds-surface-raised`, not `bg-[var(--ds-surface-raised)]`. The utilities replace the default Tailwind palette, shadows, radii, and type sizes, so `bg-red-500`, `shadow-sm`, and `text-sm` generate no CSS.
+Themes live in `@repo/theme` (`packages/theme/src/themes/<name>/<name>.theme.ts`). `pnpm theme:build` writes `packages/ui/src/styles/tokens.generated.css`: the `--ds-*` tokens and the Tailwind v4 utilities that read them. `globals.css` imports it. Use the utilities, not arbitrary values: `bg-ds-surface-raised`, not `bg-[var(--ds-surface-raised)]`. The utilities replace the default Tailwind palette, shadows, radii, and type sizes, so `bg-red-500`, `shadow-sm`, `rounded`, and `text-sm` generate no CSS; the `ui/no-reset-default` lint rule reports them. Component CSS sits in `@layer components` and element defaults in `@layer base`, so a utility in `className` always wins over them.
 
 | Utility                                                | Reads                                                                    |
 | ------------------------------------------------------ | ------------------------------------------------------------------------ |
@@ -369,9 +369,18 @@ Common patterns:
 - `EmptyState`: a quiet panel for a list with no items. Give it a title, an optional description and icon, and one `action` that starts the first item.
 - `QueryError`: a `role="alert"` message with a retry button. Use it for every failed read, beside the data that failed. Do not use it for a failed write; keep that error beside its action.
 - `SettingsSection`: a flat, full-width block with a title, an optional description, and `actions`. A divider separates consecutive sections. Do not wrap a section in a Card.
-- `StatCard`: a label and a count. With `href` it is a link; pass `renderLink` to use the app router. While the count loads, pass `undefined` and a skeleton holds its place. Show only real counts.
+- `StatCard`: a label and a value, with an optional decorative `icon`, a `delta` badge (its direction also in words, for COLOR-2), a `description`, and one `action` control. With `href` it is a link and takes no `action`; pass `renderLink` to use the app router. While the value loads, pass `undefined` and a skeleton holds its place. Show only real values.
 - `CopyButton`: copies a value to the clipboard, shows a check icon for a short time, and announces the copied label in a polite live region. A denied clipboard keeps the idle state.
 - `CommandMenu`: a searchable command dialog (cmdk in a Radix dialog). It matches labels first, then keywords. It opens from the keyboard (Cmd+K on Apple platforms, Ctrl+K elsewhere) many times a day, so it has no open or close animation.
+
+Primitive options that screens often need:
+
+- `Button`: `appearance="outline"` is a surface fill with a bold border, for a raised button on a tinted area. `spacing="icon"` is a square icon button; give it an `aria-label` (A11Y-3).
+- `CardTitle`: `as="h2"` or `as="h4"` fits the title into the page outline; the default is `h3` (TYPE-2).
+- `Banner`: `emphasis="subtle"` uses the tinted fill. It is a polite `status`; `urgent` makes it an `alert` for a problem that needs attention now.
+- `Checkbox`: `checked="indeterminate"` draws a minus, for a select-all box with some rows selected. The box is 16px with a 24px hit area.
+- `Table`: a wide table scrolls inside itself; the scroller becomes a tab stop only while it overflows. `scrollLabel` names it as a region.
+- `AppSidebar`: `label` names its navigation landmark, which holds the header, the links, and the footer.
 
 Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
 

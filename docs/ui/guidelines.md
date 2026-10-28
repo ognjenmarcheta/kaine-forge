@@ -148,7 +148,7 @@ Reason: small targets cause misses (WCAG 2.2 SC 2.5.8).
 
 **A11Y-3 (MUST). Icon-only buttons have a name.** Pass a translated `aria-label`.
 Reason: an unnamed button reads as "button".
-Do: `<Button appearance="ghost" aria-label={t("todos.delete")}><Trash2 aria-hidden /></Button>`.
+Do: `<Button appearance="ghost" spacing="icon" aria-label={t("todos.delete")}><Trash2 aria-hidden /></Button>`.
 
 **A11Y-4 (MUST). Dialogs are complete.** A title, focus trapped inside, Escape closes, and focus returns to the trigger. Use `Modal` or `ConfirmModal`.
 Reason: an incomplete dialog strands keyboard and screen-reader users.
