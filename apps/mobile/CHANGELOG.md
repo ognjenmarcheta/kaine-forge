@@ -1,5 +1,12 @@
 # @repo/mobile
 
+## 1.9.7
+
+### Patch Changes
+
+- Updated dependencies [5f59692]
+  - @repo/auth@5.0.1
+
 ## 1.9.6
 
 ### Patch Changes

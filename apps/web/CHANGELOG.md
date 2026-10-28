@@ -1,5 +1,13 @@
 # @repo/web
 
+## 1.13.1
+
+### Patch Changes
+
+- 531038d: Hide a Todo attachment thumbnail that fails to load, so an image uploaded before thumbnails existed no longer shows as a broken image.
+- Updated dependencies [5f59692]
+  - @repo/auth@5.0.1
+
 ## 1.13.0
 
 ### Minor Changes
