@@ -390,6 +390,12 @@ Primitive options that screens often need:
 - `CopyButton`: `labelSuffix` adds hidden words after the visible label, so several copy buttons on one page get distinct names ("Copy link, Q3 report").
 - Charts: `LineChart` takes `dots`, a pinned `annotation`, and `area="gradient"`. `BarChart` takes `track`, `orientation="horizontal"`, and `highlightColor`. Both take `indexLabels="all"` to keep every category label. `RadialProgress` takes a `color` and `size="xs"`. `Gauge` is a semicircle, segmented or solid, for one value or for colored parts.
 
+### 11.2 Plot primitives and 3D
+
+When a chart design needs a mark that the chart components have no option for, build it from the plot primitives in `@repo/ui`. `Plot` measures its width, holds explicit margins, provides d3 scales through `usePlot()`, and renders a titled figure with a hidden data table (A11Y-7). With `scrub`, it is a slider that the arrow keys and the pointer move. Its children are SVG marks, painted back to front: `PlotGrid`, `PlotStems`, `PlotArea`, `PlotBand`, `PlotBars`, `PlotHighlight`, `PlotLine`, `PlotDots`, `PlotArcs`, and `PlotAxis`. A `PlotFill` is solid, a gradient, or a hatch, and every color is a token. HTML goes in `overlay`: `PlotTooltip`, `PlotAnchor`, and `PlotLegend`. The UI lab's `#/charts` page shows each primitive.
+
+3D views live in `@repo/ui-3d`, never in the `@repo/ui` barrel, so three.js loads only on screens that use it. `docs/ui/3d.md` and the `kaine-build-3d` skill cover when 3D is worth it and how `Viewport3D` keeps it accessible (A11Y-8).
+
 A focus ring appears at once: every element holds the focus color before it takes focus, so `transition-colors` never fades the default ring in.
 
 Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
