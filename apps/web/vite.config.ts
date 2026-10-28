@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       proxy: {
-        "/api": {
+        "/api/": {
           target: apiProxyTarget,
           changeOrigin: true,
           secure: false
