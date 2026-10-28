@@ -2,6 +2,7 @@ query GetPublicAssets {
   publicAssets {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }
 
@@ -17,5 +18,6 @@ mutation ConfirmPublicAssetUpload($kind: PublicAssetKind!, $stagingKey: String!)
   confirmPublicAssetUpload(kind: $kind, stagingKey: $stagingKey) {
     avatarUrl
     organizationLogoUrl
+    uploadsEnabled
   }
 }

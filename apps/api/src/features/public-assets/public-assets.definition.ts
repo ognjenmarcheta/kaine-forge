@@ -2,6 +2,9 @@ export const PUBLIC_ASSET_KINDS = ["avatar", "organization_logo"] as const;
 
 export type PublicAssetKind = (typeof PUBLIC_ASSET_KINDS)[number];
 
+/** GraphQL error code of an upload to a deployment without a public bucket. */
+export const PUBLIC_ASSETS_NOT_CONFIGURED = "PUBLIC_ASSETS_NOT_CONFIGURED";
+
 export const PUBLIC_ASSET_CONFIG = {
   /** Square WebP size and public key prefix of each kind. */
   kinds: {
