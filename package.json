@@ -76,6 +76,7 @@
     "theme:check": "tsx packages/theme/src/theme.cli.ts --check",
     "ui:check": "node scripts/ui-check.mjs",
     "lab": "pnpm --filter @repo/ui-lab dev",
+    "lab:diff": "pnpm --filter @repo/ui-lab diff",
     "lab:shots": "pnpm --filter @repo/ui-lab shots",
     "generate": "pnpm --filter @repo/api run schema:generate && pnpm --filter @repo/graphql-codegen run generate",
     "db:generate": "pnpm --filter @repo/db run db:generate",

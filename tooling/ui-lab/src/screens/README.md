@@ -19,7 +19,9 @@ src/screens/<id>/
 - **Slider**: the reference over the recreation, split by a divider. Drag it, or focus it and use the arrow keys (Shift moves 10%). Switch between a vertical and a horizontal line.
 - **Overlay**: the reference over the recreation, with an opacity, or as a **Difference** that turns matching pixels black. Use it to find the last misplaced pixels.
 
-Slider and overlay only line up when the reference shows the app at the frame size. When the image has a backdrop, a browser window, or a device around the app, set `referenceCrop` on the screen: the rectangle of the app in the image's own pixels. The "Align reference" panel finds the numbers and gives the line to paste.
+`pnpm lab:diff [id …]` prints the share of pixels that still differ from the reference (gray values more than 40 apart) and writes `shots/<id>.diffmap.png` with them in red. Agents use it to measure each change.
+
+Slider, overlay, and `lab:diff` only line up when the reference shows the app at the frame size. When the image has a backdrop, a browser window, or a device around the app, set `referenceCrop` on the screen: the rectangle of the app in the image's own pixels. The "Align reference" panel finds the numbers and gives the line to paste.
 
 ## Rules
 

@@ -16,7 +16,16 @@ if (!root) {
 void loadLabCatalog().then((catalog) => {
   installLabThemes(catalog);
   // The screenshot script reads the screens from the page, since it cannot glob TSX.
-  window.labScreens = catalog.screens.map(({ id, width, height }) => ({ id, width, height }));
+  window.labScreens = catalog.screens.map(
+    ({ id, width, height, mode, reference, referenceCrop }) => ({
+      id,
+      width,
+      height,
+      mode,
+      reference,
+      referenceCrop
+    })
+  );
   createRoot(root).render(
     <StrictMode>
       <LabApp catalog={catalog} />
