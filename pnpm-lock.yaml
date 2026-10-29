@@ -204,6 +204,7 @@ overrides:
   shell-quote: ^1.11.0
   launch-editor: ^2.14.2
   solid-js: ^1.9.17
+  solid-js>seroval: ^1.7.2
   source-map-js: ^1.2.2
   compression: ^1.8.2
   '@expo/cli>zod': ^4.6.7
@@ -217,6 +218,7 @@ overrides:
   brace-expansion@5: ^5.0.11
   browserslist: ^4.28.7
   fast-uri@3: ^3.1.6
+  decode-uri-component: ^0.5.1
   flatted: ^3.4.2
   js-yaml@3: ^3.15.1
   js-yaml@4: ^4.3.2
@@ -232,6 +234,9 @@ patchedDependencies:
   metro@0.83.7:
     hash: 5f2f051104caa53bf1b0e68107ce1d1b2cd1c0ef616ea5a4dd9d24bc5739bb9e
     path: patches/metro@0.83.7.patch
+  query-string@7.1.3:
+    hash: fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5
+    path: patches/query-string@7.1.3.patch
   react-native-drawer-layout@4.2.9:
     hash: 0096e775b90baf7020a8543d50fb108e4040648489f411ad77fdf5232cf18fcf
     path: patches/react-native-drawer-layout@4.2.9.patch
@@ -6857,9 +6862,9 @@ packages:
   decode-named-character-reference@1.3.0:
     resolution: {integrity: sha512-GtpQYB283KrPp6nRw50q3U9/VfOutZOe103qlN7BPP6Ad27xYnOIWv4lPzo8HCAL+mMZofJ9KEy30fq6MfaK6Q==}
 
-  decode-uri-component@0.2.2:
-    resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
-    engines: {node: '>=0.10'}
+  decode-uri-component@0.5.1:
+    resolution: {integrity: sha512-vWHQkXgg2cE3BB4rR0c+PYw9BCQzLoNIRMI7AunIkZst74tw/vpPp7VLoYtsR/cy1f55g3XDWUslfeCZjiZJyA==}
+    engines: {node: '>=14.16'}
 
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
@@ -10028,9 +10033,9 @@ packages:
     peerDependencies:
       seroval: ^1.0
 
-  seroval@1.6.9:
-    resolution: {integrity: sha512-UeEzHwAK+yl0YLbsvROV1t5yMYEwZZ0CfKYxDvUgS2fO9Vxdf8djqVIB+OuVpuawRNPqw68LE1Du/GMsW2ZPqA==}
-    engines: {node: '>=10'}
+  seroval@1.7.2:
+    resolution: {integrity: sha512-NPOYrDVbvtuTo5m9InqKE7O6wBASON46OabjyqLUGPvoXNDYp0pReuFYkqOQwGsoj1OpZVj6mIdnRRgt5O1/gQ==}
+    engines: {node: '>=20'}
 
   serve-static@1.16.3:
     resolution: {integrity: sha512-x0RTqQel6g5SY7Lg6ZreMmsOzncHFU7nhnRWkKgWuMTu5NN0DR5oruckMqRvacAN9d5w6ARnRBXl9xhDCgfMeA==}
@@ -15986,7 +15991,7 @@ snapshots:
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
       nanoid: 3.3.19
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5)
       react: 19.2.0
       react-is: 19.3.0
       use-latest-callback: 0.2.6(react@19.2.0)
@@ -15998,7 +16003,7 @@ snapshots:
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
       nanoid: 3.3.19
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5)
       react: 19.2.8
       react-is: 19.3.0
       use-latest-callback: 0.2.6(react@19.2.8)
@@ -18062,7 +18067,7 @@ snapshots:
     dependencies:
       character-entities: 2.0.2
 
-  decode-uri-component@0.2.2: {}
+  decode-uri-component@0.5.1: {}
 
   deep-is@0.1.4: {}
 
@@ -18751,7 +18756,7 @@ snapshots:
       fast-deep-equal: 3.1.3
       invariant: 2.2.4
       nanoid: 3.3.18
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5)
       react: 19.2.0
       react-fast-compare: 3.2.2
       react-native: 0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0)
@@ -18799,7 +18804,7 @@ snapshots:
       fast-deep-equal: 3.1.3
       invariant: 2.2.4
       nanoid: 3.3.18
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5)
       react: 19.2.8
       react-fast-compare: 3.2.2
       react-native: 0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8)
@@ -21302,9 +21307,9 @@ snapshots:
 
   qrcode-generator@2.0.4: {}
 
-  query-string@7.1.3:
+  query-string@7.1.3(patch_hash=fe47b885269a14c517ab79b9f7e5d0b46666cf13e5a80856685262c20aa00da5):
     dependencies:
-      decode-uri-component: 0.2.2
+      decode-uri-component: 0.5.1
       filter-obj: 1.1.0
       split-on-first: 1.1.0
       strict-uri-encode: 2.0.0
@@ -22069,11 +22074,11 @@ snapshots:
 
   serialize-error@2.1.0: {}
 
-  seroval-plugins@1.6.9(seroval@1.6.9):
+  seroval-plugins@1.6.9(seroval@1.7.2):
     dependencies:
-      seroval: 1.6.9
+      seroval: 1.7.2
 
-  seroval@1.6.9: {}
+  seroval@1.7.2: {}
 
   serve-static@1.16.3:
     dependencies:
@@ -22237,8 +22242,8 @@ snapshots:
   solid-js@1.9.17:
     dependencies:
       csstype: 3.2.3
-      seroval: 1.6.9
-      seroval-plugins: 1.6.9(seroval@1.6.9)
+      seroval: 1.7.2
+      seroval-plugins: 1.6.9(seroval@1.7.2)
 
   solid-presence@0.2.0(solid-js@1.9.17):
     dependencies:
