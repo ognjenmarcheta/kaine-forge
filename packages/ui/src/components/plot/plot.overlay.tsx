@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { usePlot, usePlotRegistry } from "./plot.context";
 import { paintFill, PLOT_TOOLTIP_CLASS, plotColor, svgId, type PlotFill } from "./plot.paint";
@@ -116,11 +116,15 @@ function placeCentered(
 }
 
 /** The content's box, measured before paint and again whenever its size changes. */
-function useSize(): [{ width: number; height: number }, (element: HTMLDivElement | null) => void] {
-  const [size, setSize] = useState({ width: 0, height: 0 });
+function useSize(): [
+  { width: number; height: number; measured: boolean },
+  (element: HTMLDivElement | null) => void
+] {
+  const [size, setSize] = useState({ width: 0, height: 0, measured: false });
   const measure = useCallback((element: HTMLDivElement | null) => {
     if (element === null) return undefined;
-    const read = () => setSize({ width: element.offsetWidth, height: element.offsetHeight });
+    const read = () =>
+      setSize({ width: element.offsetWidth, height: element.offsetHeight, measured: true });
     read();
     if (typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver(read);
@@ -149,6 +153,14 @@ export function PlotAnchor({
   const plot = usePlot();
   const registry = usePlotRegistry();
   const [size, measure] = useSize();
+  // Reading the content's size paints it at the place computed before the size was known. It
+  // glides only from the next frame on, so it never sweeps in from that place or past the plot.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!size.measured || settled) return undefined;
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, [size.measured, settled]);
   const follows =
     x === undefined ||
     typeof x === "function" ||
@@ -209,7 +221,10 @@ export function PlotAnchor({
     <div
       ref={measure}
       aria-hidden="true"
-      className="pointer-events-none absolute left-0 top-0 w-max transition-transform duration-control ease-standard"
+      className={cn(
+        "pointer-events-none absolute left-0 top-0 w-max",
+        settled && "transition-transform duration-control ease-standard"
+      )}
       style={style}
     >
       <div

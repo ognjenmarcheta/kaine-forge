@@ -368,6 +368,21 @@ describe("Plot", () => {
       expect(anchored()?.transform).toBe(transform);
     });
 
+    it("glides only once its first measured place is on screen", () => {
+      vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+      renderAnchor({ x: 380, y: 60 }, { animate: true });
+      const box = () =>
+        container.querySelector<HTMLElement>("figure [aria-hidden='true']:not(svg)");
+
+      // Measuring paints the first place, so a transition then would sweep in from it.
+      expect(box()?.className).not.toContain("transition-transform");
+      act(() => {
+        vi.advanceTimersByTime(16);
+      });
+      expect(box()?.className).toContain("transition-transform");
+      vi.useRealTimers();
+    });
+
     it("caps the content at maxWidth, so longer text wraps", () => {
       renderAnchor({ x: 200, y: 60 }, { maxWidth: 80 });
 
