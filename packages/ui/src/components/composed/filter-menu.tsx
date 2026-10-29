@@ -28,6 +28,8 @@ interface FilterMenuBaseProps<Value extends string> {
   className?: string;
   /** A decorative icon before the value. */
   icon?: React.ReactNode;
+  /** `end` puts the icon after the text, before any chevron, such as a Filter button's funnel. Defaults to `start`. */
+  iconPlacement?: "end" | "start";
   /** The filter's name, such as "Period". It heads the menu and, hidden, starts the button's name. */
   label: string;
   options: readonly FilterMenuOption<Value>[];
@@ -73,6 +75,7 @@ export function FilterMenu<Value extends string>(props: FilterMenuProps<Value>) 
     chevron = true,
     className,
     icon,
+    iconPlacement = "start",
     label,
     options,
     show = "value",
@@ -88,6 +91,7 @@ export function FilterMenu<Value extends string>(props: FilterMenuProps<Value>) 
       {icon}
     </span>
   ) : null;
+  const startIcon = iconPlacement === "start" ? iconSlot : null;
 
   return (
     <DropdownMenu>
@@ -101,7 +105,7 @@ export function FilterMenu<Value extends string>(props: FilterMenuProps<Value>) 
         >
           {showsLabel ? (
             <>
-              {iconSlot}
+              {startIcon}
               <span id={labelId}>{label}</span>
               <span className="sr-only" id={valueId}>
                 {options
@@ -115,7 +119,7 @@ export function FilterMenu<Value extends string>(props: FilterMenuProps<Value>) 
               <span className="sr-only" id={labelId}>
                 {label}
               </span>
-              {iconSlot}
+              {startIcon}
               {width === "widest" ? (
                 // Every option in one grid cell: the cell is as wide as the longest, and only the
                 // chosen one shows.
@@ -143,6 +147,7 @@ export function FilterMenu<Value extends string>(props: FilterMenuProps<Value>) 
               )}
             </>
           )}
+          {iconPlacement === "end" ? iconSlot : null}
           {chevron ? (
             <ChevronDown aria-hidden="true" className="size-ds-200 shrink-0 text-ds-icon" />
           ) : null}

@@ -27,17 +27,21 @@ interface StatCardContentProps {
   className?: string;
   /** A change badge beside the value. */
   delta?: StatCardDelta;
-  /** `below` puts the change on a line under the value, before the description. Defaults to `beside`. */
-  deltaPlacement?: "below" | "beside";
+  /**
+   * `below` puts the change on a line under the value, before the description; `end` puts the
+   * description and then the change at the end of the value's line. Defaults to `beside`.
+   */
+  deltaPlacement?: "below" | "beside" | "end";
   /** A short note under the value, for example the period it covers. */
   description?: React.ReactNode;
   /** A decorative icon before the label. */
   icon?: React.ReactNode;
   /**
-   * Where the icon goes: `start` (default) before the label, `end` at the end of the label row, or
-   * `leading`, a large icon in a round well beside the label and the value.
+   * Where the icon goes: `start` (default) before the label, `end` at the end of the label row,
+   * `top` on its own row above the label with the `action` at its end, or `leading`, a large icon
+   * in a round well beside the label and the value.
    */
-  iconPlacement?: "end" | "leading" | "start";
+  iconPlacement?: "end" | "leading" | "start" | "top";
   label: string;
   /** A count, or a value the caller formats, such as "65%". Pass `undefined` while it loads; a skeleton holds its place. */
   value: React.ReactNode;
@@ -137,7 +141,7 @@ export function StatCard({
     <>
       {iconPlacement === "leading" ? iconSlot : null}
       <div className="ui-stat-card__header" data-slot="stat-card-header">
-        {iconPlacement === "start" ? iconSlot : null}
+        {iconPlacement === "start" || iconPlacement === "top" ? iconSlot : null}
         <span className="ui-stat-card__label" data-slot="stat-card-label">
           {label}
         </span>
@@ -153,6 +157,12 @@ export function StatCard({
           </span>
         )}
         {deltaPlacement === "beside" ? change : null}
+        {deltaPlacement === "end" && (change ?? descriptionSlot) ? (
+          <div className="ui-stat-card__end" data-slot="stat-card-end">
+            {descriptionSlot}
+            {change}
+          </div>
+        ) : null}
         {visual ? (
           <div className="ui-stat-card__visual" data-slot="stat-card-visual">
             {visual}
@@ -165,7 +175,7 @@ export function StatCard({
           {change}
           {descriptionSlot}
         </div>
-      ) : (
+      ) : deltaPlacement === "end" ? null : (
         descriptionSlot
       )}
     </>
@@ -173,6 +183,7 @@ export function StatCard({
   const classes = cn(
     "ui-stat-card",
     iconPlacement === "leading" && iconSlot !== null && "ui-stat-card--icon-leading",
+    iconPlacement === "top" && iconSlot !== null && "ui-stat-card--icon-top",
     !wrap && "ui-stat-card--nowrap",
     className
   );

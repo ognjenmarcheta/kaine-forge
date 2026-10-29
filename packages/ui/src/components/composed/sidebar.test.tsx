@@ -84,6 +84,24 @@ describe("sidebar", () => {
   });
 });
 
+describe("sidebar trigger", () => {
+  it("draws the icon it is given in place of the panel icon, and keeps its name", () => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <SidebarProvider>
+        <SidebarTrigger label="Collapse navigation">
+          <svg className="chevrons" />
+        </SidebarTrigger>
+      </SidebarProvider>
+    );
+    const trigger = document.querySelector('[data-slot="sidebar-trigger"]');
+
+    expect(
+      Array.from(trigger?.querySelectorAll("svg") ?? [], (svg) => svg.getAttribute("class"))
+    ).toEqual(["chevrons"]);
+    expect(trigger?.textContent).toBe("Collapse navigation");
+  });
+});
+
 describe("sidebar landmark", () => {
   it("holds its parts in a navigation landmark named by label, and adds none without it", () => {
     const container = mount(
@@ -155,6 +173,36 @@ describe("sidebar menu badge", () => {
     expect(container.querySelector('a[href="/sent"]')?.hasAttribute("aria-describedby")).toBe(
       false
     );
+  });
+
+  it("lets the caller's place and text color hold in every state of its link", () => {
+    const container = mount(
+      <SidebarProvider>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive>
+              <a href="/inbox">Inbox</a>
+            </SidebarMenuButton>
+            <SidebarMenuBadge className="end-ds-200 top-ds-100 translate-y-0 text-ds-text-inverse">
+              3
+            </SidebarMenuBadge>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarProvider>
+    );
+    // Every class that places the badge or colors its text, with or without a state variant. The
+    // fallback for an item that holds a submenu does not apply to this one.
+    const placing = (
+      container.querySelector('[data-slot="sidebar-menu-badge"]')?.getAttribute("class") ?? ""
+    )
+      .split(" ")
+      .filter(
+        (name) =>
+          !name.startsWith("group-has-data-[sidebar=menu-sub]") &&
+          /(?:^|:)-?(?:end|left|right|top|translate-y|text-ds-text)(?:-|$)/.test(name)
+      );
+
+    expect(placing).toEqual(["end-ds-200", "top-ds-100", "translate-y-0", "text-ds-text-inverse"]);
   });
 });
 

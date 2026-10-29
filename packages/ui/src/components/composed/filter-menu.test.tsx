@@ -37,7 +37,10 @@ afterEach(() => {
 
 function renderMenu(
   onValueChange: (value: "7d" | "30d") => void = () => undefined,
-  extra: Pick<FilterMenuProps<"7d" | "30d">, "chevron" | "show" | "size" | "width"> = {}
+  extra: Pick<
+    FilterMenuProps<"7d" | "30d">,
+    "chevron" | "icon" | "iconPlacement" | "show" | "size" | "width"
+  > = {}
 ) {
   act(() =>
     root.render(
@@ -137,6 +140,23 @@ describe("FilterMenu", () => {
     const trigger = renderMenu(undefined, chevron === undefined ? {} : { chevron });
 
     expect(trigger.querySelectorAll("svg")).toHaveLength(count);
+  });
+
+  it.each([
+    [undefined, ["icon", "Last 7 days", "chevron"]],
+    ["end", ["Last 7 days", "icon", "chevron"]]
+  ] as const)("with the icon placed %s, draws %j in that order", (iconPlacement, order) => {
+    const trigger = renderMenu(undefined, {
+      icon: <svg className="funnel" />,
+      ...(iconPlacement ? { iconPlacement } : {})
+    });
+    const drawn = Array.from(trigger.children, (part) => {
+      if (part.querySelector(".funnel")) return "icon";
+      if (part.classList.contains("lucide-chevron-down")) return "chevron";
+      return part.classList.contains("sr-only") ? "" : visibleText(part);
+    }).filter((part) => part !== "");
+
+    expect(drawn).toEqual(order);
   });
 
   it.each([

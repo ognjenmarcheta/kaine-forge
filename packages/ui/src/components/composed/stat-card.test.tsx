@@ -110,23 +110,32 @@ describe("StatCard", () => {
   });
 
   it.each([
-    [undefined, "stat-card-body"],
-    ["below", "stat-card-footer"]
-  ] as const)("with the change placed %s, puts it in the %s row", (deltaPlacement, row) => {
-    const delta = slotOf(
-      {
-        delta: rise,
-        description: "This month",
-        label: "Visits",
-        value: 9,
-        ...(deltaPlacement ? { deltaPlacement } : {})
-      },
-      "stat-card-delta"
-    );
+    [undefined, ["stat-card-body"], "Visits9Up12%This month"],
+    ["below", ["stat-card-footer"], "Visits9Up12%This month"],
+    ["end", ["stat-card-end", "stat-card-body"], "Visits9This monthUp12%"]
+  ] as const)(
+    "with the change placed %s, puts it in the %j rows and reads %s",
+    (deltaPlacement, rows, text) => {
+      const delta = slotOf(
+        {
+          delta: rise,
+          description: "This month",
+          label: "Visits",
+          value: 9,
+          ...(deltaPlacement ? { deltaPlacement } : {})
+        },
+        "stat-card-delta"
+      );
+      const around: (string | null)[] = [];
+      for (let row = delta?.parentElement; row?.dataset.slot !== "stat-card";) {
+        around.push(row?.dataset.slot ?? null);
+        row = row?.parentElement;
+      }
 
-    expect(delta?.parentElement?.getAttribute("data-slot")).toBe(row);
-    expect(document.body.textContent).toBe("Visits9Up12%This month");
-  });
+      expect(around).toEqual(rows);
+      expect(document.body.textContent).toBe(text);
+    }
+  );
 
   it.each([
     [undefined, "stat-card-header", ["stat-card-icon", "stat-card-label"]],
@@ -154,6 +163,7 @@ describe("StatCard", () => {
   it.each([
     [{}, ["ui-stat-card"]],
     [{ iconPlacement: "leading" }, ["ui-stat-card", "ui-stat-card--icon-leading"]],
+    [{ iconPlacement: "top" }, ["ui-stat-card", "ui-stat-card--icon-top"]],
     [{ wrap: false }, ["ui-stat-card", "ui-stat-card--nowrap"]]
   ] as const)("with %j takes the layouts %j from globals.css", (layout, classes) => {
     const card = slotOf({ icon: <svg />, label: "Visits", value: 9, ...layout }, "stat-card");

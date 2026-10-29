@@ -928,6 +928,23 @@
     flex-wrap: wrap;
     gap: var(--ds-space-050) var(--ds-space-100);
   }
+  /* `deltaPlacement="end"`: the note and then the change at the end of the value's line. */
+  .ui-stat-card__end {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-050) var(--ds-space-100);
+    margin-inline-start: auto;
+  }
+  /* `iconPlacement="top"`: the icon on its own row, the action at the end of it, the label under. */
+  .ui-stat-card--icon-top .ui-stat-card__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ui-stat-card--icon-top .ui-stat-card__label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
   /* `iconPlacement="leading"`: a large icon in a round well beside the label and the value. */
   .ui-stat-card--icon-leading {
     align-items: center;

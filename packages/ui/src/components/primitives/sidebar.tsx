@@ -280,7 +280,9 @@ function Sidebar({
   );
 }
 
+/** Opens and closes the sidebar. `children` replaces the panel icon, such as a chevron that turns with the state. */
 function SidebarTrigger({
+  children,
   className,
   label,
   onClick,
@@ -304,7 +306,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon className="size-4" />
+      {children ?? <PanelLeftIcon className="size-4" />}
       {label ? <span className="sr-only">{label}</span> : null}
     </button>
   );
@@ -661,11 +663,11 @@ function SidebarMenuBadge({ className, id, ...props }: React.ComponentProps<"div
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        "text-ds-text pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-body-sm font-medium tabular-nums select-none",
-        "peer-hover/menu-button:text-ds-text peer-data-[active=true]/menu-button:text-ds-text",
-        "peer-data-[size=sm]/menu-button:top-1",
-        "peer-data-[size=default]/menu-button:top-1.5",
-        "peer-data-[size=lg]/menu-button:top-2.5",
+        // Centered on its row at the end, with no state variants, so a caller's end-*, top-*, and
+        // text color hold whatever the state of the link.
+        "text-ds-text pointer-events-none absolute end-1 top-1/2 flex h-5 min-w-5 -translate-y-1/2 items-center justify-center rounded-md px-1 text-body-sm font-medium tabular-nums select-none",
+        // An item that holds a submenu is taller than its link: center on a default-size link.
+        "group-has-data-[sidebar=menu-sub]/menu-item:top-ds-200",
         "group-data-[collapsible=icon]:hidden",
         className
       )}
