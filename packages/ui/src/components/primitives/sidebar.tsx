@@ -134,12 +134,27 @@ function SidebarProvider({
   );
 }
 
+type SidebarSurface = "default" | "raised" | "sunken";
+
+const SIDEBAR_SURFACE_CLASS: Record<SidebarSurface, string> = {
+  default: "bg-ds-surface",
+  raised: "bg-ds-surface-raised",
+  sunken: "bg-ds-surface-sunken"
+};
+
 type SidebarProps = React.ComponentProps<"div"> & {
   collapsible?: "offcanvas" | "icon" | "none";
+  /**
+   * Names a navigation landmark that holds the whole sidebar, so its header and footer are not
+   * outside every landmark. Give it for a sidebar of links; AppSidebar has its own.
+   */
+  label?: string;
   mobileSheetCloseLabel?: string;
   mobileSheetDescription?: string;
   mobileSheetTitle?: string;
   side?: "left" | "right";
+  /** The panel's fill: `sunken` (the default), the page's `default`, or `raised`. */
+  surface?: SidebarSurface;
   variant?: "sidebar" | "floating" | "inset";
 };
 
@@ -147,27 +162,37 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  label,
   mobileSheetCloseLabel,
   mobileSheetDescription,
   mobileSheetTitle,
+  surface = "sunken",
   className,
   children,
   ...props
 }: SidebarProps) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
-  const mobileReturnFocus = React.useRef<HTMLElement | null>(null);
+  const content =
+    label === undefined ? (
+      children
+    ) : (
+      <nav aria-label={label} className="flex min-h-0 flex-1 flex-col">
+        {children}
+      </nav>
+    );
 
   if (collapsible === "none") {
     return (
       <div
         data-slot="sidebar"
         className={cn(
-          "bg-ds-surface-sunken text-ds-text flex h-full w-(--sidebar-width) flex-col",
+          SIDEBAR_SURFACE_CLASS[surface],
+          "text-ds-text flex h-full w-(--sidebar-width) flex-col",
           className
         )}
         {...props}
       >
-        {children}
+        {content}
       </div>
     );
   }
@@ -181,7 +206,8 @@ function Sidebar({
           data-slot="sidebar"
           data-mobile="true"
           className={cn(
-            "bg-ds-surface-sunken text-ds-text w-(--sidebar-width) p-0 [&>button]:hidden",
+            SIDEBAR_SURFACE_CLASS[surface],
+            "text-ds-text w-(--sidebar-width) p-0 [&>button]:hidden",
             className
           )}
           style={
@@ -192,17 +218,6 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
-          onOpenAutoFocus={() => {
-            mobileReturnFocus.current =
-              document.activeElement instanceof HTMLElement ? document.activeElement : null;
-          }}
-          onCloseAutoFocus={(event) => {
-            // This controlled Sheet has no Radix Trigger to restore focus to.
-            if (mobileReturnFocus.current?.isConnected) {
-              event.preventDefault();
-              mobileReturnFocus.current.focus();
-            }
-          }}
         >
           <SheetHeader className="sr-only">
             {mobileSheetTitle ? <SheetTitle>{mobileSheetTitle}</SheetTitle> : null}
@@ -210,7 +225,7 @@ function Sidebar({
               <SheetDescription>{mobileSheetDescription}</SheetDescription>
             ) : null}
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full w-full flex-col">{content}</div>
         </SheetContent>
       </Sheet>
     );
@@ -253,9 +268,12 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-ds-surface-sunken group-data-[variant=floating]:border-ds-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-raised"
+          className={cn(
+            SIDEBAR_SURFACE_CLASS[surface],
+            "group-data-[variant=floating]:border-ds-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-raised"
+          )}
         >
-          {children}
+          {content}
         </div>
       </div>
     </div>
@@ -529,6 +547,10 @@ const sidebarMenuButtonVariants = cva(
     variants: {
       variant: {
         default: "hover:bg-ds-bg-neutral-hovered hover:text-ds-text",
+        // The current item takes a neutral fill and no start indicator, for a sidebar whose
+        // brand color is not the selection color.
+        neutral:
+          "hover:bg-ds-bg-neutral-hovered hover:text-ds-text data-[active=true]:bg-ds-bg-neutral data-[active=true]:text-ds-text data-[active=true]:shadow-none data-[active=true]:hover:bg-ds-bg-neutral-hovered data-[active=true]:hover:text-ds-text",
         outline:
           "bg-ds-bg shadow-[0_0_0_1px_var(--ds-border)] hover:bg-ds-bg-neutral-hovered hover:text-ds-text hover:shadow-[0_0_0_1px_var(--ds-background-neutral-hovered)]"
       },
@@ -689,27 +711,49 @@ function SidebarMenuSkeleton({
   );
 }
 
-function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
+const SidebarMenuSubTreeContext = React.createContext(false);
+
+function SidebarMenuSub({
+  className,
+  tree = false,
+  ...props
+}: React.ComponentProps<"ul"> & {
+  /** Draws tree lines: the rail ends at the last item, and a branch reaches each item. */
+  tree?: boolean;
+}) {
   return (
-    <ul
-      data-slot="sidebar-menu-sub"
-      data-sidebar="menu-sub"
-      className={cn(
-        "border-ds-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
-        "group-data-[collapsible=icon]:hidden",
-        className
-      )}
-      {...props}
-    />
+    <SidebarMenuSubTreeContext.Provider value={tree}>
+      <ul
+        data-slot="sidebar-menu-sub"
+        data-sidebar="menu-sub"
+        className={cn(
+          "border-ds-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
+          // Each item draws its piece of the rail instead.
+          tree && "border-transparent",
+          "group-data-[collapsible=icon]:hidden",
+          className
+        )}
+        {...props}
+      />
+    </SidebarMenuSubTreeContext.Provider>
   );
 }
 
 function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<"li">) {
+  const tree = React.useContext(SidebarMenuSubTreeContext);
+
   return (
     <li
       data-slot="sidebar-menu-sub-item"
       data-sidebar="menu-sub-item"
-      className={cn("group/menu-sub-item relative", className)}
+      className={cn(
+        "group/menu-sub-item relative",
+        // On the list's rail line: from above the item, past the gap, down to a rounded branch at
+        // its middle. The next item's piece continues the rail, so the last one ends in an elbow.
+        tree &&
+          "before:border-ds-border before:absolute before:start-[calc(-1*(--spacing(2.5))-1px)] before:top-[calc(-50%-var(--ds-space-100))] before:bottom-1/2 before:w-ds-100 before:rounded-es-sm before:border-s before:border-b first:before:top-0",
+        className
+      )}
       {...props}
     />
   );

@@ -47,21 +47,43 @@ const ContextMenuSubContent = React.forwardRef<
 ));
 ContextMenuSubContent.displayName = "ContextMenuSubContent";
 
+// The element that had focus before each open context menu. A context menu has no trigger
+// button, so a dialog opened from one of its items returns focus here (see useDialogReturnFocus).
+const contextMenuOpeners = new WeakMap<Element, HTMLElement>();
+
+/** The element that had focus before `menu`, the content of an open context menu, opened. */
+function contextMenuOpener(menu: Element): HTMLElement | undefined {
+  return contextMenuOpeners.get(menu);
+}
+
 const ContextMenuContent = React.forwardRef<
   React.ComponentRef<typeof ContextMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <ContextMenuPrimitive.Portal>
-    <ContextMenuPrimitive.Content
-      ref={ref}
-      className={cn(
-        "z-[1002] min-w-[8rem] overflow-hidden rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
-        className
-      )}
-      {...props}
-    />
-  </ContextMenuPrimitive.Portal>
-));
+>(({ className, ...props }, ref) => {
+  // The menu element attaches before Radix moves focus into it, so focus is still on the opener.
+  const rememberOpener = React.useCallback(
+    (menu: HTMLDivElement | null) => {
+      const opener = document.activeElement;
+      if (menu !== null && opener instanceof HTMLElement) contextMenuOpeners.set(menu, opener);
+      if (typeof ref === "function") ref(menu);
+      else if (ref !== null) ref.current = menu;
+    },
+    [ref]
+  );
+
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.Content
+        ref={rememberOpener}
+        className={cn(
+          "z-[1002] min-w-[8rem] overflow-hidden rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
+          className
+        )}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  );
+});
 ContextMenuContent.displayName = "ContextMenuContent";
 
 const ContextMenuItem = React.forwardRef<
@@ -182,5 +204,6 @@ export {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-  ContextMenuRadioGroup
+  ContextMenuRadioGroup,
+  contextMenuOpener
 };

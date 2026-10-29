@@ -83,6 +83,30 @@ describe("sidebar", () => {
   });
 });
 
+describe("sidebar landmark", () => {
+  it("holds its parts in a navigation landmark named by label, and adds none without it", () => {
+    const container = mount(
+      <SidebarProvider>
+        <Sidebar label="Main">
+          <SidebarContent>
+            <a href="/home">Home</a>
+          </SidebarContent>
+        </Sidebar>
+        <Sidebar>
+          <SidebarContent>
+            <a href="/help">Help</a>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>
+    );
+    const landmarks = container.querySelectorAll("nav");
+
+    expect(landmarks).toHaveLength(1);
+    expect(landmarks[0]?.getAttribute("aria-label")).toBe("Main");
+    expect(landmarks[0]?.querySelector('a[href="/home"]')).not.toBeNull();
+  });
+});
+
 describe("sidebar group", () => {
   it("is a group named by its label, and a group without a label stays unnamed", () => {
     const container = mount(

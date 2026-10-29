@@ -360,7 +360,7 @@ Composition rules:
 Common patterns:
 
 - App shell: header, sidebar/drawer, main content.
-- Dialog/modal: focus-trapped, escape-close, focus returns to trigger.
+- Dialog/modal: focus-trapped, escape-close, focus returns to trigger. `Modal`, `AlertDialogContent`, and `SheetContent` return focus to the element that opened them, also without a Radix trigger. A dialog opened from a menu item returns focus to the menu's trigger, or for a context menu to the element focused before the menu opened.
 - Popover/menu: keyboard navigable, touch-friendly spacing.
 - Banner/flag: semantic role color plus text/icon.
 - Data table: semantic headers, loading skeletons, empty state, responsive fallback.
@@ -376,7 +376,7 @@ Common patterns:
 - `SettingsSection`: a flat, full-width block with a title, an optional description, and `actions`. A divider separates consecutive sections. Do not wrap a section in a Card.
 - `StatCard`: a label and a value, with an optional decorative `icon`, a `delta` badge (its direction also in words, for COLOR-2), a `description`, and one `action` control. With `href` it is a link and takes no `action`; pass `renderLink` to use the app router. While the value loads, pass `undefined` and a skeleton holds its place. Show only real values.
 - `CopyButton`: copies a value to the clipboard, shows a check icon for a short time, and announces the copied label in a polite live region. A denied clipboard keeps the idle state.
-- `CommandMenu`: a searchable command dialog (cmdk in a Radix dialog). It matches labels first, then keywords. It opens from the keyboard (Cmd+K on Apple platforms, Ctrl+K elsewhere) many times a day, so it has no open or close animation.
+- `CommandMenu`: a searchable command dialog (cmdk in a Radix dialog). It matches labels first, then keywords. It opens from the keyboard (Cmd+K on Apple platforms, Ctrl+K elsewhere) many times a day, so it has no open or close animation. Picking a command closes the menu and gives focus back to its opener before the command runs, so a command can open a dialog or move focus without a timer.
 
 Primitive options that screens often need:
 
@@ -410,7 +410,7 @@ A focus ring appears at once: every element holds the focus color before it take
 
 Settings pages with tabs (Organization, Account) use link navigation, not Radix `Tabs`. Each tab is a route (`/organization/members`), so refresh, back, and deep links keep the open tab. Render the links inside a labeled `nav` with `tabsListClassName` and `tabsTriggerClassName`; the active link has `aria-current="page"` and shows the same selected state as an active tab. On a narrow screen the tab row scrolls inside itself.
 
-Selected navigation uses the selected tokens, not the hover token. The active sidebar item uses `--ds-background-selected`, also on hover, with `--ds-text-selected` and an inset start indicator of `--ds-border-width-selected` in `--ds-border-selected`. The indicator is an inset shadow, so it does not shift the layout. An active tab or tab link uses a `--ds-border-width-thick` bottom border in `--ds-border-selected`.
+Selected navigation uses the selected tokens, not the hover token. The active sidebar item uses `--ds-background-selected`, also on hover, with `--ds-text-selected` and an inset start indicator of `--ds-border-width-selected` in `--ds-border-selected`. The indicator is an inset shadow, so it does not shift the layout. A sidebar whose brand color does not mark selection uses `variant="neutral"`: the current item takes `--ds-background-neutral` with `--ds-text` and no indicator, and its medium weight still marks it. An active tab or tab link uses a `--ds-border-width-thick` bottom border in `--ds-border-selected`.
 
 ## 12. Accessibility
 
