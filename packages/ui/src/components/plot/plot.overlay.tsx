@@ -153,8 +153,8 @@ export function PlotAnchor({
   const plot = usePlot();
   const registry = usePlotRegistry();
   const [size, measure] = useSize();
-  // Reading the content's size paints it at the place computed before the size was known. It
-  // glides only from the next frame on, so it never sweeps in from that place or past the plot.
+  // The first measured place must reach the screen before the content glides, so it never
+  // sweeps in from the origin where it was measured.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (!size.measured || settled) return undefined;
@@ -198,8 +198,13 @@ export function PlotAnchor({
       : placeCorner(side, { left, top, dx, dy }, size, plot);
   const content = typeof children === "function" ? children(point) : children;
   const widest = typeof maxWidth === "function" ? maxWidth(point) : maxWidth;
+  // Until its size is known, the content waits hidden at the plot's origin: a place computed
+  // without the size can reach past the plot, and a phone browser that lays the page out with it
+  // there widens the page for good.
   const style = {
-    transform: `${horizontal} ${vertical}`,
+    ...(size.measured
+      ? { transform: `${horizontal} ${vertical}` }
+      : { visibility: "hidden" as const }),
     ...(widest === undefined ? {} : { maxWidth: widest })
   };
   const moving = animate ?? follows;

@@ -368,6 +368,23 @@ describe("Plot", () => {
       expect(anchored()?.transform).toBe(transform);
     });
 
+    it("measures its content hidden at the plot's origin, before it places it", () => {
+      const measuredAt: string[] = [];
+      vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+        this: HTMLElement
+      ) {
+        measuredAt.push(`${this.style.transform || "none"} ${this.style.visibility || "visible"}`);
+        return 100;
+      });
+      renderAnchor({ x: 380, y: 60 }, { animate: true });
+
+      // A place computed without the size can reach past the plot, and a phone browser that lays
+      // the page out with it there widens the page for good.
+      expect(measuredAt[0]).toBe("none hidden");
+      expect(anchored()?.transform).toMatch(/^translateX/);
+      expect(anchored()?.visibility).toBe("");
+    });
+
     it("glides only once its first measured place is on screen", () => {
       vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
       renderAnchor({ x: 380, y: 60 }, { animate: true });
