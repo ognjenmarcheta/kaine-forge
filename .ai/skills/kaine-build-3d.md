@@ -6,7 +6,7 @@ argument-hint: screen and the spatial question the 3D view answers
 
 # Build a 3D view
 
-Read `docs/ui/3d.md` first, and rule A11Y-8 in `docs/ui/guidelines.md`. Follow `kaine-build-ui` for the rest of the screen. Example: `tooling/ui-lab/src/screens/07b-anatomy-3d/`.
+Read `docs/ui/3d.md` first, and rule A11Y-8 in `docs/ui/guidelines.md`. Follow `kaine-build-ui` for the rest of the screen.
 
 ## Goal and non-goals
 

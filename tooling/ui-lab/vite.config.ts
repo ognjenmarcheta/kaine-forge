@@ -25,16 +25,13 @@ function restartOnNewScreen(): Plugin {
   };
 }
 
-// The lab reads @repo/ui, @repo/ui-3d, and @repo/theme from source, so a change shows without a
+// The lab reads @repo/ui and @repo/theme from source, so a change shows without a
 // build. A subpath comes before its package: an alias also matches the paths under it.
 export default defineConfig({
   plugins: [react(), tailwindcss(), restartOnNewScreen()],
   resolve: {
     alias: {
       "@repo/ui/styles/globals.css": path.join(root, "packages/ui/src/styles/globals.css"),
-      "@repo/ui-3d/styles.css": path.join(root, "packages/ui-3d/src/styles.css"),
-      "@repo/ui-3d/scene": path.join(root, "packages/ui-3d/src/scene.ts"),
-      "@repo/ui-3d": path.join(root, "packages/ui-3d/src/index.ts"),
       "@repo/ui": path.join(root, "packages/ui/src/index.ts"),
       "@repo/theme": path.join(root, "packages/theme/src/index.ts")
     }

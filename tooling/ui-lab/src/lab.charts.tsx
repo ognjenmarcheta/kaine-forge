@@ -35,25 +35,8 @@ import { useState, type ReactNode } from "react";
 
 import { LabNav } from "./lab.nav";
 import type { LabCatalog } from "./lab.registry";
-import {
-  PriceTrendPlot,
-  SavingsBarsPlot,
-  TargetsGaugePlot
-} from "./screens/23-price-tracker/23-price-tracker.charts";
-import {
-  DAY_MS,
-  LAST_DAY,
-  OPENING_DAY,
-  aura,
-  priceChecks,
-  savedPerMonth,
-  targetPeriods
-} from "./screens/23-price-tracker/23-price-tracker.data";
 
 type Mode = "light" | "dark";
-
-/** The theme the page opens on: reference 23 is the look the primitives were built for. */
-const DEFAULT_THEME = "lab-23-price-tracker";
 
 // Fixed demo data: one week of visits and sign-ups, and a day of requests per 20 minutes.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -1374,89 +1357,9 @@ function CustomMark() {
   );
 }
 
-const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-const monthNames = [
-  "August 2025",
-  "September 2025",
-  "October 2025",
-  "November 2025",
-  "December 2025",
-  "January 2026",
-  "February 2026",
-  "March 2026",
-  "April 2026",
-  "May 2026",
-  "June 2026",
-  "July 2026"
-];
-
-/** The three charts of reference 23, as the screen draws them. */
-function Reference23() {
-  const [day, setDay] = useState(OPENING_DAY);
-  const [month, setMonth] = useState(6);
-  const from = LAST_DAY - 39 * DAY_MS;
-  const period = targetPeriods[0];
-
-  return (
-    <div className="grid grid-cols-1 gap-ds-200 lg:grid-cols-[minmax(0,17fr)_minmax(0,40fr)]">
-      <Card className="grid gap-ds-150 p-card lg:col-span-2">
-        <h3 className="m-0 text-heading-sm">Price trend</h3>
-        <p className="m-0 text-body-sm text-ds-text-subtle">
-          PlotBand with a hatch fill, PlotHighlight, two PlotDots series, PlotAxis, and PlotTooltip.
-        </p>
-        <PriceTrendPlot
-          data={{
-            average: priceChecks(aura, "average"),
-            best: priceChecks(aura, "best"),
-            from,
-            to: LAST_DAY
-          }}
-          onSelect={(index) => setDay(from + index * DAY_MS)}
-          selectedIndex={Math.round((day - from) / DAY_MS)}
-          title={`${aura.name} prices, last 40 days to July 10, 2026`}
-        />
-      </Card>
-      <Card className="grid content-start gap-ds-150 p-card">
-        <h3 className="m-0 text-heading-sm">Price targets</h3>
-        <p className="m-0 text-body-sm text-ds-text-subtle">
-          PlotArcs: 14 rounded segments that shade from violet to pale.
-        </p>
-        {period === undefined ? null : (
-          <TargetsGaugePlot
-            caption="Targets reached"
-            reached={period.reached}
-            set={period.set}
-            title="Price targets reached, last 12 months"
-          />
-        )}
-      </Card>
-      <Card className="grid content-start gap-ds-150 p-card">
-        <h3 className="m-0 text-heading-sm">Monthly savings</h3>
-        <p className="m-0 text-body-sm text-ds-text-subtle">
-          PlotBars with gradient fills, rounded tops, and a 3:1 edge on the pale bars.
-        </p>
-        <SavingsBarsPlot
-          onSelect={setMonth}
-          points={savedPerMonth.map((saved, index) => ({
-            period: months[index] ?? "",
-            long: monthNames[index] ?? "",
-            saved
-          }))}
-          selectedIndex={month}
-          title="Savings per month, August 2025 – July 2026"
-        />
-      </Card>
-    </div>
-  );
-}
-
-/** Every SVG chart primitive at work, and the charts of reference 23 built from them. */
+/** Every SVG chart primitive at work. */
 export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
-  const [theme, setTheme] = useState(
-    catalog.themes.some((entry) => entry.name === DEFAULT_THEME)
-      ? DEFAULT_THEME
-      : (catalog.themes[0]?.name ?? "")
-  );
+  const [theme, setTheme] = useState(catalog.themes[0]?.name ?? "");
   const [mode, setMode] = useState<Mode>("light");
 
   return (
@@ -1557,12 +1460,6 @@ export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
             </div>
             <CustomMark />
           </div>
-        </section>
-        <section aria-labelledby="charts-reference" className="grid gap-ds-200">
-          <h2 className="m-0 text-heading-md" id="charts-reference">
-            Reference 23, built from the primitives
-          </h2>
-          <Reference23 />
         </section>
       </main>
     </div>
