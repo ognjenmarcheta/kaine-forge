@@ -115,6 +115,11 @@ export interface PlotTweenConfig {
    * top. Without it a change of count cross-fades the old values into the new ones.
    */
   enter?: PlotTweenOptions["enter"];
+  /**
+   * A name for each number, so a number tweens from the old number of the same name: marks that
+   * change order, such as sorted bars, move to their new places.
+   */
+  keys?: PlotTweenOptions["keys"];
 }
 
 export type { PlotPace, PlotTweenFrame } from "./plot.motion";
@@ -127,7 +132,7 @@ export type { PlotPace, PlotTweenFrame } from "./plot.motion";
  */
 export function usePlotTween(
   target: readonly number[],
-  { enter, pace, reset = "" }: PlotTweenConfig = {}
+  { enter, keys, pace, reset = "" }: PlotTweenConfig = {}
 ): PlotTweenFrame {
   const plot = usePlot();
   const { element } = usePlotRegistry();
@@ -136,6 +141,7 @@ export function usePlotTween(
     element,
     reset: `${plot.width}x${plot.height} ${reset}`,
     ...(enter === undefined ? {} : { enter }),
+    ...(keys === undefined ? {} : { keys }),
     ...(pace === undefined ? {} : { pace })
   });
 }
@@ -672,9 +678,19 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
     valueScale.position(value(datum, index)),
     valueScale.position(typeof from === "function" ? from(datum, index) : from)
   ]);
+  // Each bar is named by its category, and by its place in a stack, so bars that change order,
+  // such as sorted ones, slide to their new places.
+  const seen = new Map<string, number>();
+  const keys = data.flatMap((datum, index) => {
+    const name = String(category(datum, index));
+    const nth = seen.get(name) ?? 0;
+    seen.set(name, nth + 1);
+    return Array.from({ length: BAR_VALUES }, (_, part) => `${name}\u0000${nth}\u0000${part}`);
+  });
   const frame = usePlotTween(target, {
     // A new bar grows from its baseline.
-    enter: (index, next) => (index % BAR_VALUES === 2 ? (target[index + 1] ?? next) : next)
+    enter: (index, next) => (index % BAR_VALUES === 2 ? (target[index + 1] ?? next) : next),
+    keys
   });
   const shape = round === "both" ? roundedBarPath : barPath;
   // The far edge of the value axis, where a track ends.

@@ -584,6 +584,10 @@ function SidebarMenuButton({
   const { isMobile, state } = useSidebar();
   // A badge beside the button, such as a count, describes it: it sits outside the link's name.
   const badgeId = React.useContext(SidebarMenuItemContext)?.badgeId;
+  // The tooltip shows only on the collapsed desktop rail. Hidden, it must not open either: an
+  // open tooltip is the top layer and takes the first Escape, such as in the phone sheet.
+  const tooltipHidden = state !== "collapsed" || isMobile;
+  const [tooltipOpen, setTooltipOpen] = React.useState(false);
 
   const button = (
     <Comp
@@ -608,14 +612,9 @@ function SidebarMenuButton({
   }
 
   return (
-    <Tooltip>
+    <Tooltip open={!tooltipHidden && tooltipOpen} onOpenChange={setTooltipOpen}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
-      />
+      <TooltipContent side="right" align="center" hidden={tooltipHidden} {...tooltip} />
     </Tooltip>
   );
 }

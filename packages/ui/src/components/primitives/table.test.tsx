@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("Table", () => {
   it.each([
-    [800, "0", "region", "Patients"],
+    [800, "0", "group", "Patients"],
     [400, null, null, null]
   ] as const)(
     "with content %ipx wide in a 400px scroller has tabindex %s, role %s, and name %s",

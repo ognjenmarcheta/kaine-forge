@@ -17,6 +17,7 @@ import {
   SidebarRail,
   SidebarTrigger
 } from "./sidebar";
+import { Sheet, SheetContent, SheetTitle } from "../primitives/sheet";
 
 let root: Root | undefined;
 
@@ -154,5 +155,43 @@ describe("sidebar menu badge", () => {
     expect(container.querySelector('a[href="/sent"]')?.hasAttribute("aria-describedby")).toBe(
       false
     );
+  });
+});
+
+describe("sidebar menu tooltip", () => {
+  it("lets the first Escape close the sheet around it while the tooltip is hidden", () => {
+    // The tooltip's positioning watches its size.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const onOpenChange = vi.fn();
+    mount(
+      <Sheet open onOpenChange={onOpenChange}>
+        <SheetContent aria-describedby={undefined}>
+          <SheetTitle>Navigation</SheetTitle>
+          <SidebarProvider>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Orders">Orders</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarProvider>
+        </SheetContent>
+      </Sheet>
+    );
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (element) => element.textContent === "Orders"
+    );
+    act(() => button?.focus());
+    act(() => {
+      button?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

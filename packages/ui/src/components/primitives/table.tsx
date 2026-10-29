@@ -8,7 +8,11 @@ import { cn } from "../../lib/cn";
 const numericClassName = "text-end tabular-nums";
 
 interface TableProps extends React.ComponentProps<"table"> {
-  /** Names the scroller. While the table is wider than its container, keyboard users can focus and scroll it. */
+  /**
+   * Names the scroller. While the table is wider than its container, keyboard users can focus and
+   * scroll it. The scroller is a group, not a landmark, so a name like its card's adds no second
+   * landmark of that name (axe `landmark-unique`).
+   */
   scrollLabel?: string;
 }
 
@@ -37,7 +41,7 @@ function Table({ className, scrollLabel, ...props }: TableProps) {
       data-slot="table-container"
       className="focus-ring relative w-full overflow-x-auto"
       {...(scrolls
-        ? { tabIndex: 0, ...(scrollLabel ? { "aria-label": scrollLabel, role: "region" } : {}) }
+        ? { tabIndex: 0, ...(scrollLabel ? { "aria-label": scrollLabel, role: "group" } : {}) }
         : {})}
     >
       <table

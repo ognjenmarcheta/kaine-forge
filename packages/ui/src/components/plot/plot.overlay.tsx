@@ -14,9 +14,11 @@ export interface PlotAnchorProps {
   x?: PlotValue | ((index: number) => PlotValue);
   /**
    * The y value of the anchor point, the top or bottom edge of the drawing area, or a function of
-   * the point index. By default the top edge, or the active row on a plot of rows.
+   * the point index. On a band y scale the value is a category, the center of its row, so one
+   * anchor per row labels every bar of a row chart. By default the top edge, or the active row on
+   * a plot of rows.
    */
-  y?: number | "top" | "bottom" | ((index: number) => number);
+  y?: "top" | "bottom" | PlotValue | ((index: number) => PlotValue);
   /** Pixels from the anchor to the content's near corner: right of it, and down. */
   offset?: { x?: number; y?: number };
   /**
@@ -186,9 +188,9 @@ export function PlotAnchor({
         ? plot.inner.bottom
         : y === "top"
           ? plot.inner.top
-          : typeof y === "number"
-            ? (plot.y?.position(y) ?? Number.NaN)
-            : (base?.y ?? plot.inner.top);
+          : y === undefined
+            ? (base?.y ?? plot.inner.top)
+            : (plot.y?.position(y) ?? Number.NaN);
   if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
   const dx = offset?.x ?? 0;
   const dy = offset?.y ?? 0;
@@ -279,7 +281,7 @@ function LegendSwatch({ item }: { item: PlotLegendItem }) {
   const shape = cn(
     "shrink-0",
     mark === "line" && "h-ds-025 w-ds-200 rounded-full",
-    mark === "square" && "size-ds-100 rounded-sm",
+    mark === "square" && "size-ds-100",
     mark === "dot" && "size-ds-100 rounded-full"
   );
   if (item.fill === undefined) {

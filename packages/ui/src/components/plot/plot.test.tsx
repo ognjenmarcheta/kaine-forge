@@ -368,6 +368,29 @@ describe("Plot", () => {
       expect(anchored()?.transform).toBe(transform);
     });
 
+    it("labels a row of a band y scale by its category, such as each bar of a row chart", () => {
+      act(() =>
+        root.render(
+          <Plot
+            height={128}
+            interaction={false}
+            overlay={
+              <PlotAnchor offset={{ x: 8 }} side="beside" x={100} y="Bo">
+                12
+              </PlotAnchor>
+            }
+            table={{ columns: [], rows: [] }}
+            title="Rows"
+            x={{ type: "linear", domain: [0, 400] }}
+            y={{ type: "band", domain: ["Ann", "Bo"], paddingInner: 0 }}
+          />
+        )
+      );
+
+      // Bo's band runs from 64 to 128: the 40px label sits 8px after x = 100, centered on 96.
+      expect(anchored()?.transform).toBe("translateX(108px) translateY(76px)");
+    });
+
     it("measures its content hidden at the plot's origin, before it places it", () => {
       const measuredAt: string[] = [];
       vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
@@ -931,6 +954,52 @@ describe("Plot", () => {
       expect(halfway).toBeGreaterThan(24);
       expect(halfway).toBeLessThan(72);
       expect(barTop()).toBeCloseTo(24, 6);
+    });
+
+    it("slides each bar to its new place when sorting reorders the data", () => {
+      reducedMotion(false);
+      const render = (rows: readonly (readonly [string, number])[]) =>
+        act(() =>
+          root.render(
+            <Plot
+              height={120}
+              interaction={false}
+              table={{ columns: [], rows: [] }}
+              title="Sorted bars"
+              x={{ type: "band", domain: rows.map(([name]) => name), paddingInner: 0 }}
+              y={{ type: "linear", domain: [0, 25] }}
+            >
+              <PlotBars
+                data={rows}
+                fill={{ type: "solid", color: "chart-1" }}
+                x={([name]) => name}
+                y={([, value]) => value}
+              />
+            </Plot>
+          )
+        );
+      render([
+        ["a", 10],
+        ["b", 20]
+      ]);
+      render([
+        ["b", 20],
+        ["a", 10]
+      ]);
+
+      act(() => {
+        vi.advanceTimersByTime(64);
+      });
+      // Each path is "M<left>,<base>V<top>…", in data order: b, then a.
+      const bars = Array.from(container.querySelectorAll("svg path"), (path) => {
+        const [, left, top] = /^M([\d.]+),[\d.]+V([\d.]+)/.exec(path.getAttribute("d") ?? "") ?? [];
+        return { left: Number(left), top: Number(top) };
+      });
+
+      // b keeps its height (24) and a its height (72) while both move between the two slots.
+      expect(bars[0]?.top).toBeCloseTo(24, 6);
+      expect(bars[1]?.top).toBeCloseTo(72, 6);
+      expect(bars.every((bar) => bar.left > 0 && bar.left < 200)).toBe(true);
     });
 
     it.each<[string, boolean, boolean]>([

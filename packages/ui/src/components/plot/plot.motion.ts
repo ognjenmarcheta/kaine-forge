@@ -123,10 +123,38 @@ export interface PlotTweenOptions {
    * top. Without it a change of count cross-fades the old values into the new ones.
    */
   enter?: (index: number, target: number) => number;
+  /**
+   * A name for each value of `target`. A value then tweens from the old value of the same name,
+   * wherever it was, so marks that change order move to their new places instead of each place
+   * morphing into another mark, such as bars sorted by size. A new name starts at `enter`.
+   */
+  keys?: readonly string[];
 }
 
 const same = (a: readonly number[], b: readonly number[]) =>
   a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
+
+/**
+ * Where each value of `target` starts: the old value of the same name with `keys`, or of the same
+ * place without them; a value with no finite old value starts at `enter`, else at its target.
+ */
+function startValues(
+  old: readonly number[],
+  oldKeys: readonly string[] | null,
+  target: readonly number[],
+  keys: readonly string[] | undefined,
+  enter: PlotTweenOptions["enter"]
+): number[] {
+  const named =
+    keys === undefined || oldKeys === null
+      ? null
+      : new Map(oldKeys.map((key, index) => [key, old[index]] as const));
+  return target.map((value, index) => {
+    const before = named === null ? old[index] : named.get(keys?.[index] ?? "");
+    if (before !== undefined && Number.isFinite(before)) return before;
+    return before === undefined && enter !== undefined ? enter(index, value) : value;
+  });
+}
 
 /**
  * Tweens numbers from their old values to `target` with requestAnimationFrame and the motion
@@ -137,7 +165,7 @@ const same = (a: readonly number[], b: readonly number[]) =>
  */
 export function useTween(
   target: readonly number[],
-  { animate, element, enter, pace = "overlay", reset = "" }: PlotTweenOptions
+  { animate, element, enter, keys, pace = "overlay", reset = "" }: PlotTweenOptions
 ): PlotTweenFrame {
   const [frame, setFrame] = React.useState<PlotTweenFrame>(() => ({
     values: target,
@@ -147,14 +175,19 @@ export function useTween(
   const shown = React.useRef(frame);
   shown.current = frame;
   const goal = React.useRef(target);
+  // The names of the values on screen: those of the target the frame moves to.
+  const shownKeys = React.useRef(keys ?? null);
   const lastReset = React.useRef(reset);
   const request = React.useRef(0);
 
   // The target as text, so a new array with the same values starts nothing.
-  const key = target.join(",");
+  const key = `${target.join(",")} ${keys?.join(",") ?? ""}`;
   React.useLayoutEffect(() => {
     const from = shown.current;
-    if (same(goal.current, target) && lastReset.current === reset) return;
+    const fromKeys = shownKeys.current;
+    shownKeys.current = keys ?? null;
+    const reordered = keys !== undefined && keys.join(",") !== fromKeys?.join(",");
+    if (same(goal.current, target) && !reordered && lastReset.current === reset) return;
     goal.current = target;
     const snap = !animate || lastReset.current !== reset;
     lastReset.current = reset;
@@ -163,14 +196,9 @@ export function useTween(
       setFrame({ values: target, previous: null, fade: 1 });
       return;
     }
-    const counted = from.values.length === target.length || enter !== undefined;
-    const start = counted
-      ? target.map((value, index) => {
-          const old = from.values[index];
-          if (old !== undefined && Number.isFinite(old)) return old;
-          return old === undefined && enter !== undefined ? enter(index, value) : value;
-        })
-      : from.values;
+    const counted =
+      from.values.length === target.length || enter !== undefined || keys !== undefined;
+    const start = counted ? startValues(from.values, fromKeys, target, keys, enter) : from.values;
     const motion = readMotion(element.current, pace);
     let began: number | undefined;
     const tick = (now: number) => {
@@ -192,18 +220,23 @@ export function useTween(
       if (progress < 1) request.current = requestAnimationFrame(tick);
     };
     request.current = requestAnimationFrame(tick);
-    // `key` stands for `target`: the effect runs when the values change, not the array.
+    // `key` stands for `target` and `keys`: the effect runs when they change, not the arrays.
   }, [key, animate, reset, pace]);
   React.useEffect(() => () => cancelAnimationFrame(request.current), []);
 
-  // Until the first frame, a changed count starts the fade from the old values; without
+  // Until the first frame, a changed count or order starts from the old values; without
   // animation the effect above snaps before paint.
-  if (frame.values.length !== target.length && frame.previous === null) {
+  const moved =
+    keys !== undefined &&
+    shownKeys.current !== null &&
+    keys.join(",") !== shownKeys.current.join(",");
+  if ((frame.values.length !== target.length || moved) && frame.previous === null) {
     if (!animate) return { values: target, previous: null, fade: 1 };
-    if (enter === undefined) return { values: target, previous: frame.values, fade: 0 };
-    const old = frame.values;
+    if (enter === undefined && keys === undefined) {
+      return { values: target, previous: frame.values, fade: 0 };
+    }
     return {
-      values: target.map((value, index) => old[index] ?? enter(index, value)),
+      values: startValues(frame.values, shownKeys.current, target, keys, enter),
       previous: null,
       fade: 1
     };
