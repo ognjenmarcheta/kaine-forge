@@ -637,14 +637,13 @@ function SidebarMenuAction({
       data-slot="sidebar-menu-action"
       data-sidebar="menu-action"
       className={cn(
-        "text-ds-text ring-ds-border-focused hover:bg-ds-bg-neutral-hovered hover:text-ds-text peer-hover/menu-button:text-ds-text absolute top-ds-050 right-1 flex aspect-square w-ds-control-xsmall items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        // Centered on its row at the end, as the badge is, with no state variants of the link.
+        "text-ds-text ring-ds-border-focused hover:bg-ds-bg-neutral-hovered hover:text-ds-text absolute end-1 top-1/2 flex aspect-square w-ds-control-xsmall -translate-y-1/2 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "after:absolute after:-inset-2 md:after:hidden",
-        "peer-data-[size=sm]/menu-button:top-ds-025",
-        "peer-data-[size=default]/menu-button:top-ds-050",
-        "peer-data-[size=lg]/menu-button:top-ds-150",
+        "group-has-data-[sidebar=menu-sub]/menu-item:top-ds-200",
         "group-data-[collapsible=icon]:hidden",
         showOnHover &&
-          "peer-data-[active=true]/menu-button:text-ds-text group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 md:opacity-0",
+          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 md:opacity-0",
         className
       )}
       {...props}

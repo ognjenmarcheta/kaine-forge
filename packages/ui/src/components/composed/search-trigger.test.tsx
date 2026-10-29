@@ -61,4 +61,21 @@ describe("SearchTrigger", () => {
     expect(onClick).toHaveBeenCalledOnce();
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("with show icon, draws only the magnifier and keeps the label as its name", () => {
+    act(() =>
+      root.render(
+        <SearchTrigger label="Search" shortcut={{ apple: "⌘K", other: "Ctrl K" }} show="icon" />
+      )
+    );
+    const button = container.querySelector("button");
+    if (button === null) throw new Error("No button");
+
+    expect(readText(button)).toBe("Search");
+    expect(button.textContent).toBe("Search");
+    expect(button.querySelector(".ui-search-trigger__label")?.classList.contains("sr-only")).toBe(
+      true
+    );
+    expect(button.classList.contains("ui-search-trigger--icon")).toBe(true);
+  });
 });

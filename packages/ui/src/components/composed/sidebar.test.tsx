@@ -10,6 +10,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -175,35 +176,62 @@ describe("sidebar menu badge", () => {
     );
   });
 
-  it("lets the caller's place and text color hold in every state of its link", () => {
-    const container = mount(
-      <SidebarProvider>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive>
-              <a href="/inbox">Inbox</a>
-            </SidebarMenuButton>
-            <SidebarMenuBadge className="end-ds-200 top-ds-100 translate-y-0 text-ds-text-inverse">
-              3
-            </SidebarMenuBadge>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarProvider>
-    );
-    // Every class that places the badge or colors its text, with or without a state variant. The
-    // fallback for an item that holds a submenu does not apply to this one.
-    const placing = (
-      container.querySelector('[data-slot="sidebar-menu-badge"]')?.getAttribute("class") ?? ""
-    )
-      .split(" ")
-      .filter(
-        (name) =>
-          !name.startsWith("group-has-data-[sidebar=menu-sub]") &&
-          /(?:^|:)-?(?:end|left|right|top|translate-y|text-ds-text)(?:-|$)/.test(name)
+  it.each([
+    [
+      "badge",
+      "sidebar-menu-badge",
+      <SidebarMenuBadge
+        key="badge"
+        className="end-ds-200 top-ds-100 translate-y-0 text-ds-text-inverse"
+      >
+        3
+      </SidebarMenuBadge>
+    ],
+    [
+      "action",
+      "sidebar-menu-action",
+      <SidebarMenuAction
+        key="action"
+        aria-label="Add"
+        className="end-ds-200 top-ds-100 translate-y-0 text-ds-text-inverse"
+      />
+    ]
+  ])(
+    "lets a %s keep the caller's place and text color in every state of its link",
+    (_part, slot, part) => {
+      const container = mount(
+        <SidebarProvider>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive>
+                <a href="/inbox">Inbox</a>
+              </SidebarMenuButton>
+              {part}
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarProvider>
       );
+      // Every class that places the part or colors its text, with or without a state variant of its
+      // link. Its own hover and the fallback for an item that holds a submenu do not count.
+      const placing = (
+        container.querySelector(`[data-slot="${slot}"]`)?.getAttribute("class") ?? ""
+      )
+        .split(" ")
+        .filter(
+          (name) =>
+            !name.startsWith("group-has-data-[sidebar=menu-sub]") &&
+            !name.startsWith("hover:") &&
+            /(?:^|:)-?(?:end|left|right|top|translate-y|text-ds-text)(?:-|$)/.test(name)
+        );
 
-    expect(placing).toEqual(["end-ds-200", "top-ds-100", "translate-y-0", "text-ds-text-inverse"]);
-  });
+      expect(placing).toEqual([
+        "end-ds-200",
+        "top-ds-100",
+        "translate-y-0",
+        "text-ds-text-inverse"
+      ]);
+    }
+  );
 });
 
 describe("sidebar menu tooltip", () => {

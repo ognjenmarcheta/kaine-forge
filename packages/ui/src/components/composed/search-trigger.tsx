@@ -18,6 +18,11 @@ export interface SearchTriggerProps extends Omit<
    * it; give them the keys with `aria-keyshortcuts`, which `useApplePlatform` helps to pick.
    */
   shortcut?: KbdShortcut;
+  /**
+   * `icon` draws only the magnifier in a square button, with the label as its hidden name and no
+   * shortcut hint, for a narrow bar. Defaults to `label`.
+   */
+  show?: "icon" | "label";
   /** The height: `default` is the medium control, `compact` and `spacious` the steps around it. */
   spacing?: "compact" | "default" | "spacious";
 }
@@ -27,17 +32,28 @@ export interface SearchTriggerProps extends Omit<
  * its visible text names it, and the menu holds the real search input.
  */
 export const SearchTrigger = React.forwardRef<HTMLButtonElement, SearchTriggerProps>(
-  ({ appearance = "outline", className, label, shortcut, type = "button", ...props }, ref) => (
+  (
+    {
+      appearance = "outline",
+      className,
+      label,
+      shortcut,
+      show = "label",
+      type = "button",
+      ...props
+    },
+    ref
+  ) => (
     <Button
       ref={ref}
       appearance={appearance}
-      className={cn("ui-search-trigger", className)}
+      className={cn("ui-search-trigger", show === "icon" && "ui-search-trigger--icon", className)}
       type={type}
       {...props}
     >
       <Search aria-hidden="true" className="ui-search-trigger__icon" />
-      <span className="ui-search-trigger__label">{label}</span>
-      {shortcut ? (
+      <span className={cn("ui-search-trigger__label", show === "icon" && "sr-only")}>{label}</span>
+      {shortcut && show === "label" ? (
         <Kbd aria-hidden="true" className="ui-search-trigger__shortcut" shortcut={shortcut} />
       ) : null}
     </Button>

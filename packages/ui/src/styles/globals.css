@@ -1007,6 +1007,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* `show="icon"`: only the magnifier, in a square button. */
+  .ui-search-trigger--icon {
+    aspect-ratio: 1;
+    justify-content: center;
+    padding-inline: 0;
+  }
   .ui-search-trigger__shortcut {
     flex-shrink: 0;
     margin-inline-start: auto;

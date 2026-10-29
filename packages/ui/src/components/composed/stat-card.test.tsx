@@ -109,6 +109,23 @@ describe("StatCard", () => {
     expect(delta?.textContent).toBe("Up12%");
   });
 
+  it("with an icon change, draws a round chip with only the icon and reads the change", () => {
+    const delta = slotOf(
+      { delta: { ...rise, appearance: "icon", tone: "success" }, label: "Visits", value: 9 },
+      "stat-card-delta"
+    );
+    const shown = Array.from(delta?.childNodes ?? [], (node) =>
+      node instanceof Element && node.classList.contains("sr-only") ? "" : node.textContent
+    ).join("");
+
+    expect(delta?.textContent).toBe("Up12%");
+    expect(shown).toBe("");
+    expect(delta?.querySelectorAll("svg")).toHaveLength(1);
+    expect(delta?.getAttribute("class")?.split(" ")).toEqual(
+      expect.arrayContaining(["rounded-full", "justify-center"])
+    );
+  });
+
   it.each([
     [undefined, ["stat-card-body"], "Visits9Up12%This month"],
     ["below", ["stat-card-footer"], "Visits9Up12%This month"],

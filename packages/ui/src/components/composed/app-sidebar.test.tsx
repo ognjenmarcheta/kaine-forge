@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -44,5 +45,26 @@ describe("app-sidebar", () => {
     expect(landmark).toContain("Organization");
     expect(landmark).toContain("Main");
     expect(landmark).toContain("User");
+  });
+
+  it("gives its header and footer the classes it is passed, after their own padding", () => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <SidebarProvider>
+        <AppSidebar
+          footerClassName="pb-ds-300"
+          headerClassName="px-ds-250"
+          navMain={<div>Main</div>}
+          organizationSwitcher={<div>Organization</div>}
+        />
+      </SidebarProvider>
+    );
+    const classes = (slot: string) =>
+      document.querySelector(`[data-slot="${slot}"]`)?.getAttribute("class")?.split(" ") ?? [];
+
+    expect(classes("sidebar-header").slice(-1)).toEqual(["px-ds-250"]);
+    expect(classes("sidebar-footer").slice(-1)).toEqual(["pb-ds-300"]);
+    expect(document.querySelector('[data-slot="sidebar"]')?.hasAttribute("headerclassname")).toBe(
+      false
+    );
   });
 });

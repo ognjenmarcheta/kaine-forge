@@ -9,6 +9,10 @@ import {
 } from "../primitives/sidebar";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  /** Classes for the footer, after its own padding, such as the insets a screen measures. */
+  footerClassName?: string;
+  /** Classes for the header, after its own padding. */
+  headerClassName?: string;
   /** Names the sidebar's navigation landmark, for example "Sidebar". */
   label?: string;
   mobileSheetCloseLabel?: string;
@@ -24,6 +28,8 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({
   collapsible = "icon",
+  footerClassName,
+  headerClassName,
   label,
   mobileSheetCloseLabel,
   mobileSheetDescription,
@@ -48,9 +54,9 @@ export function AppSidebar({
     >
       {/* One landmark holds the whole sidebar, so its header and footer are not outside every landmark. */}
       <nav aria-label={label} className="flex min-h-0 flex-1 flex-col">
-        <SidebarHeader>{organizationSwitcher}</SidebarHeader>
+        <SidebarHeader className={headerClassName}>{organizationSwitcher}</SidebarHeader>
         <SidebarContent>{navMain}</SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className={footerClassName}>
           {navPreferences}
           {user ? <div className="ui-sidebar-user">{user}</div> : null}
         </SidebarFooter>

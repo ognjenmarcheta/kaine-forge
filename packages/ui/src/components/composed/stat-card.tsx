@@ -7,8 +7,12 @@ import { Badge } from "../primitives/badge";
 import { Skeleton } from "../primitives/skeleton";
 
 export interface StatCardDelta {
-  /** `badge` (default) is a tinted pill; `text` is the change in its tone's text color, with no fill. */
-  appearance?: "badge" | "text";
+  /**
+   * `badge` (default) is a tinted pill; `text` is the change in its tone's text color, with no
+   * fill; `icon` is a round tinted chip with only the icon, and the change is read, not shown, for a
+   * row that shows it elsewhere.
+   */
+  appearance?: "badge" | "icon" | "text";
   direction: "down" | "up";
   /** The direction in words, read by screen readers, for example "Up" (COLOR-2). */
   directionLabel: string;
@@ -91,7 +95,7 @@ function StatCardChange({ delta }: { delta: StatCardDelta }) {
         </span>
       )}
       <span className="sr-only">{delta.directionLabel}</span>
-      {delta.label}
+      {delta.appearance === "icon" ? <span className="sr-only">{delta.label}</span> : delta.label}
     </>
   );
   const tone = delta.tone ?? "neutral";
@@ -103,7 +107,10 @@ function StatCardChange({ delta }: { delta: StatCardDelta }) {
   ) : (
     <Badge
       appearance={deltaAppearance[tone]}
-      className="relative gap-ds-050"
+      className={cn(
+        "relative gap-ds-050",
+        delta.appearance === "icon" && "size-ds-250 justify-center rounded-full p-ds-0"
+      )}
       data-slot="stat-card-delta"
     >
       {children}
