@@ -371,22 +371,23 @@ export function LabGallery({ catalog }: { catalog: LabCatalog }) {
         </SegmentedControl>
       </header>
 
-      <p className="m-0 px-ds-300 pt-ds-200 text-body-sm text-ds-text-subtle">
-        <a className="text-ds-link" href="#/screens">{`${screens.length} recreated screens`}</a>
-        {failures.length > 0 ? ` · ${failures.length} did not load` : null}
-      </p>
-
-      <main className={panes.length > 1 ? "grid gap-ds-200 p-ds-200 xl:grid-cols-2" : "p-ds-200"}>
-        {panes.map((theme) => (
-          <div
-            key={theme}
-            className="rounded-card bg-ds-bg p-ds-300 text-ds-text"
-            data-color-mode={mode}
-            data-theme={theme}
-          >
-            <Specimen />
-          </div>
-        ))}
+      <main>
+        <p className="m-0 px-ds-300 pt-ds-200 text-body-sm text-ds-text-subtle">
+          <a className="text-ds-link" href="#/screens">{`${screens.length} recreated screens`}</a>
+          {failures.length > 0 ? ` · ${failures.length} did not load` : null}
+        </p>
+        <div className={panes.length > 1 ? "grid gap-ds-200 p-ds-200 xl:grid-cols-2" : "p-ds-200"}>
+          {panes.map((theme) => (
+            <div
+              key={theme}
+              className="rounded-card bg-ds-bg p-ds-300 text-ds-text"
+              data-color-mode={mode}
+              data-theme={theme}
+            >
+              <Specimen />
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );
