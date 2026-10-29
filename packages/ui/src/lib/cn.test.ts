@@ -9,7 +9,9 @@ describe("cn", () => {
     ["rounded-field", "rounded-sm", "rounded-sm"],
     ["rounded-badge", "rounded-dialog", "rounded-dialog"],
     ["shadow-raised", "shadow-none", "shadow-none"],
-    ["shadow-none", "shadow-card", "shadow-card"]
+    ["shadow-none", "shadow-card", "shadow-card"],
+    ["p-card", "p-0", "p-0"],
+    ["p-ds-200", "p-card", "p-card"]
   ])("keeps only the later class of %s then %s", (earlier, later, expected) => {
     expect(cn(earlier, later)).toBe(expected);
   });
