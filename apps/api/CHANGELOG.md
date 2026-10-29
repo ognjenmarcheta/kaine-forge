@@ -1,5 +1,28 @@
 # @repo/api
 
+## 2.3.0
+
+### Minor Changes
+
+- e64ae54: Add the Organization Theme: every member of an Organization sees the theme it picks. The `organizations` table gains a nullable `theme` column (migration `0025`). The API adds the `organizationTheme` query and the `setOrganizationTheme(theme: String)` mutation. The mutation needs the `organization:update` Permission, accepts only registered theme names, and records an `organization_theme_changed` Audit Event when the value changes. Organization settings show a Theme section when more than one theme is registered. The web and mobile apps apply the theme at runtime, and signed-out pages use the default theme.
+
+### Patch Changes
+
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+  - @repo/theme@0.1.0
+  - @repo/db@2.1.0
+  - @repo/auth@5.1.0
+  - @repo/translation@1.13.0
+  - @repo/email@1.3.2
+  - @repo/jobs@1.0.2
+  - @repo/feature-flags@1.2.0
+  - @repo/logger@1.2.1
+  - @repo/storage@1.6.0
+
 ## 2.2.0
 
 ### Minor Changes

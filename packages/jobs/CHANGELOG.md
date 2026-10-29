@@ -1,5 +1,15 @@
 # @repo/jobs
 
+## 1.0.2
+
+### Patch Changes
+
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+  - @repo/db@2.1.0
+  - @repo/email@1.3.2
+  - @repo/logger@1.2.1
+
 ## 1.0.1
 
 ### Patch Changes

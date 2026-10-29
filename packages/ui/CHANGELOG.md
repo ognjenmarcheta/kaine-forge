@@ -1,5 +1,162 @@
 # @repo/ui
 
+## 2.0.0
+
+### Major Changes
+
+- e64ae54: Themes are now data in the new `@repo/theme` package. Byte Forge stays the default with unchanged colors, and Moss is an example custom theme. `pnpm theme:build` writes the web tokens and utilities, the mobile tokens, the NativeWind preset tokens, and each theme's `DESIGN.md`. It fails when a theme misses WCAG 2.2 AA contrast or the 24px target size. `createTheme` derives a full theme from a brand color, a neutral tint, fonts, density, and depth. `pnpm ui:check` runs the accessibility and UI lint rules, and `pnpm lab` previews themes and components.
+
+  Breaking changes:
+
+  - `@repo/ui`: the web gets theme utilities (`bg-ds-surface-raised`, `p-ds-200`, `text-body`, `rounded-card`, `shadow-card`), and the default Tailwind palette, font sizes, radii, and shadows generate no CSS. Replace `text-sm` with `text-body`, `text-xs` with `text-body-sm`, and `bg-[var(--ds-*)]` with the matching utility.
+  - `@repo/ui` and `@repo/config`: 127 unused tokens are removed, including the accent hues and the attention, severe, open, closed, and done families. `--ds-lineHeight-*` is renamed `--ds-line-height-*`, and the `--ds-base-*` tier is gone.
+  - The root element now carries `data-color-mode="light|dark"`, and `data-theme` names the theme. The Tailwind `dark:` variant follows `data-color-mode`.
+  - `@repo/mobile-ui`: `nativeThemeTokens` is keyed by theme name, and the `fontFamilies` export is removed. Wrap the app in `ThemeRoot` and read colors with `useThemeTokens()`.
+  - `@repo/translation`: `navigation.theme*` and `desk.prefs.theme*` are now `navigation.appearance*` and `desk.prefs.appearance*`, and the label reads "Appearance".
+  - `@repo/ui`: `AvatarGroup` requires an `aria-label`, and with `max` an `overflowLabel`.
+
+  New components: `Table`, `SegmentedControl`, `Kbd`, `ProportionBar`, and the charts `LineChart`, `BarChart`, `DonutChart`, `RadialProgress`, and `Sparkline` in `@repo/ui`; `ProgressBar`, `DonutChart`, and `BarChart` in `@repo/mobile-ui`. Chart series take a fixed `color` (a chart slot, a role, or `"neutral"`), and the charts add dashed lines, reference lines, value labels, a highlighted bar, legend positions, and hidden axes.
+
+  Shared components gain what designs kept rebuilding. `Button` has `appearance="outline"` and `spacing="icon"`. `CardTitle` takes `as`. `StatCard` takes any value node, an `icon`, a `delta` badge, a `description`, and an `action`. `Checkbox` draws the indeterminate state and has a 24px hit area. `Banner` has `emphasis="subtle"`, and it is a polite `status` unless `urgent`. `Table` scrolls by keyboard when it overflows and takes `scrollLabel`. `AppSidebar` holds its parts in one navigation landmark named by `label`. `CommandMenu` returns focus to where it opened. Web fields and selects are 40px high.
+
+  The `@repo/ui` CSS now sits in cascade layers, so a utility in `className` wins over a component's own CSS. The new `ui/no-reset-default` lint rule reports Tailwind defaults that the theme removes, such as `rounded`, `text-sm`, and `bg-red-500`, and the motion tokens are used through `duration-*` and `ease-standard` instead of arbitrary values.
+
+  A second round added `appearance="raised"` on `Button`, `FilterMenu`, `CardAction`, `TopNav`, `StatCard` part slots and a `visual` slot, `AvatarFallback` tones, `PageHeader size="display"`, `CopyButton labelSuffix`, chart dots, annotations, gradient areas, bar tracks, horizontal bars and highlight colors, a colored `RadialProgress`, and `Gauge`. A focus ring no longer fades in, a labelled sidebar group is a named group, a sidebar count describes its link, and the contrast check now covers role borders, chart colors, and raised fills on cards and sunken areas.
+
+  Themes gain a `display` type step (`text-display`), per-step `type` changes and a `color.darkSurface` lightness in `createTheme`, and the motion utilities `duration-control`, `duration-overlay`, `duration-drawer`, and `ease-standard`. In dark mode, derived cards sit one step above the page and sunken areas one step below it, and the contrast check also measures text, charts, and role borders on cards and sunken areas. Field borders now reach 3:1 against the surface, and the email fallback link now reaches 4.5:1.
+
+### Minor Changes
+
+- e64ae54: Each chart color has a tint and a text color, for category tiles, tags, and avatars.
+
+  - Twelve color roles: `background-chart-1` to `background-chart-6`, a pale fill in each chart color's hue (`bg-ds-bg-chart-N`), and `text-chart-1` to `text-chart-6`, its text color (`text-ds-text-chart-N`). They reach web, mobile, and NativeWind like every role.
+  - `createTheme` derives them from the final chart colors, so a theme that sets its own chart colors keeps its tints in step. A tint the theme sets wins, and its text color is derived against it. `createCategoryColors` derives them for a theme built by hand.
+  - `contrastPairs` adds 36 pairs, which lab themes pass too: ink, `text-subtle`, and the text color on each tint, and each text color on the page, cards, and sunken areas. The chart color is not measured on its tint, so a theme can set a mid-tone pastel; an icon or a mark on a tint takes the text color.
+  - `AvatarFallback`'s chart tones draw the tint with its text color, not the chart color at 20% with ink.
+  - A `PlotFill` of `{ type: "tint", color: "chart-N" }` paints a mark in the tint, such as a bar that carries ink text. `RadialProgress`'s `fill` draws a chart slot's tint.
+
+- e64ae54: The last small component options that designs had to restyle by hand.
+
+  - `SidebarMenuButton` takes `variant="brand"`: the current link in brand text and icon on the neutral fill, with no start indicator.
+  - `CardAction` takes `wrap={false}`, which keeps a short action, such as a period pill, on the title row in a narrow `@container/card`.
+  - Every theme now passes brand text on the neutral fill (`text-brand` on `background-neutral`, 4.5:1), the pair the brand variant draws.
+
+- e64ae54: More component options that designs had to restyle by hand.
+
+  - `SearchTrigger` takes `show="icon"`: only the magnifier in a square button, with the label as its hidden name and no shortcut hint.
+  - `AppSidebar` takes `headerClassName` and `footerClassName`, after their own padding.
+  - A `StatCard` `delta` takes `appearance="icon"`: a round tinted chip with only the icon, and the change read, not shown.
+  - `SegmentedControl` takes `appearance="brand"` for a bold brand surface. Its items keep 4.5:1 at rest, on hover, and chosen.
+  - `SidebarMenuAction` centers on its row at the logical end with no state variants of its link, as `SidebarMenuBadge` does. An action that set `right-*` or a `peer-data-[size=…]` top now needs only `end-*`.
+
+- e64ae54: Component options that designs had to restyle by hand.
+
+  - `FilterMenu` takes `iconPlacement="end"`, which puts the icon after the text, before any chevron.
+  - `StatCard` takes `iconPlacement="top"`, the icon on its own row above the label with the action at its end, and `deltaPlacement="end"`, the description and then the change at the end of the value's line.
+  - `SidebarTrigger` draws its children in place of the panel icon.
+  - `SidebarMenuBadge` centers on its row at the logical end, with no state variants, so a caller's `end-*`, `top-*`, and text color hold on hover and on the current link. In an item that holds a submenu, it centers on a default-size link. A badge that set `right-*` or `top-*` for a centered count now needs only `end-*`.
+
+- e64ae54: Common composed parts take the options that designs rebuilt locally. Every option is opt-in, so current screens render as before.
+
+  - `StatCard`: a `delta` takes `appearance="text"` and an `icon` (`null` for none). `deltaPlacement="below"`, `iconPlacement` (`start`, `end`, `leading`), and `wrap={false}` set the layout.
+  - `TopNav`: `appearance="filled"`, `itemWidth="equal"`, and `size` (`medium`, `large`, `xlarge`).
+  - `FilterMenu`: `show="label"`, `chevron={false}`, `size`, `width="widest"`, and `multiple` for checkboxes.
+  - `Badge`: `emphasis="outline"` and `appearance="selected"`.
+  - `Avatar`: sizes 28, 36, and 44. `AvatarFallback` takes the `chart-1` to `chart-6` tones. `AvatarGroup` takes `overlap="sm"` and `overflowTone`.
+  - `Card`: `CardIcon` puts an icon well before the title. In a card marked `@container/card`, `CardAction` moves under the title when the card is narrow.
+  - `NavUser`: `user.role`, `avatarTone`, a `status` dot, and `trailingIcon="chevrons"`.
+  - `PageHeader`: `descriptionSize`. A wide actions bar now wraps or scrolls inside the header instead of widening the page.
+  - `TableHead`: `onSort` and `sort` make a sort button with `aria-sort`.
+  - `Kbd`: `shortcut={{ apple, other }}` shows ⌘ on Apple devices and Ctrl elsewhere, with stable server rendering. `useApplePlatform` is exported.
+  - New `SearchTrigger`: a button that looks like a search field, with the shortcut hint, to open a `CommandMenu`.
+
+- e64ae54: Dialogs, the command menu, and radios fix three focus and contrast bugs, and the sidebar primitives take four opt-in options.
+
+  - `Modal` (so also `ConfirmModal`, `FormModal`, and `ConfigFormModal`), `AlertDialogContent`, and `SheetContent` return focus to the element that opened them. A dialog opened from a menu item returned focus to the page body, because the item goes away with its menu; it now returns focus to the menu's trigger, through sub-menus, or for a context menu to the element focused before the menu opened. `useDialogReturnFocus` gives the same behavior to another Radix dialog.
+  - `CommandMenu` closes itself when a command is picked, gives focus back to its opener, and then runs the command. A command can open a dialog, whose focus then returns to the opener, or move focus, which the menu no longer takes back. A screen no longer waits on a timer for the menu to close.
+  - `RadioGroupItem` draws its ring in the field border, which reaches 3:1 on every surface; the old border was about 1.3:1 (WCAG 2.2 SC 1.4.11).
+  - `Sidebar` takes `label`, which wraps the sidebar in a named navigation landmark, and `surface` (`sunken`, `default`, or `raised`) for its fill. `SidebarMenuButton` takes `variant="neutral"` for a current item in the neutral fill without the start indicator. `SidebarMenuSub` takes `tree` for tree lines.
+
+- e64ae54: `RadialProgress`, `Gauge`, `ProportionBar`, and `ProgressBar` cover more designs without local copies. The new options are opt-in, so current screens render as before.
+
+  - `RadialProgress` draws in plain SVG, without loading the chart library, and sweeps to a new value on the motion tokens. It takes a number `size` for any ring size, `valuePosition="end"`, a `fill` disc, `innerRatio`, and `interaction`.
+  - `Gauge` takes `center` for your own middle, `legend={false}`, `innerRatio` for the ring's thickness, and `segmentCaps="butt"`. Each part has a `data-slot`.
+  - `ProportionBar` answers the pointer and the keyboard as the charts do (DATA-5): hover, focus, or a tap rings a part and shows its name and value, the arrow keys walk the parts, a click or Enter pins one, and Escape lets it go. Parts grow to new values on the motion tokens. `interaction={false}` keeps the old still bar; `tooltip={false}` and `onActiveChange` let a screen show the active part itself. A segment's `fill="hatch"` draws it as lines, and `height` sets any thickness.
+  - `ProgressBar` takes `height`, `track` (`neutral`, `sunken`, `hatch`, or `none`), several `parts`, and `gap`.
+  - The `bg-hatch` utility draws a hatched part in HTML, in the text color.
+
+- e64ae54: The plot primitives cover more chart designs without custom marks. All new options are opt-in, so current plots render as before.
+
+  - `PlotBars` draws horizontal rows with `orientation="horizontal"`, and stacks segments when `y0` or `x0` reads a start per bar. A stack rings as one column or row.
+  - `PlotLine` takes `extend`, which runs the line to the edges of the drawing area.
+  - `PlotArcs` takes `stroke` (an edge or an even gap), `offset` (moves a slice out), and `label` (text on each slice).
+  - `PlotAxis` takes `align="start"` for y labels, a `\n` in a label for a second line, and `highlight` for the active label.
+  - `interaction.spans` picks parts of unequal size by the part under the pointer. `interaction.rest` sets what a pinned point shows at rest: `"highlight"` holds its tooltip until people use the plot, and `"none"` shows neither ring nor tooltip.
+  - `PlotAnchor` and `PlotTooltip` take `side="above"`, `"below"`, and `"beside"`, which center, flip, and stay inside the plot, and `maxWidth`. A `PlotLegend` item's `fill` draws a tint or hatch swatch with an edge in its color.
+  - Custom marks use `usePlotTween` to move on the motion tokens and `PLOT_RING` to draw the active ring.
+
+  The UI lab's charts page shows each option.
+
+- e64ae54: Chart pieces that designs had to build locally.
+
+  - `PlotArcs` takes `radii`: how far each slice reaches, as a share of the ring's radius. Equal slices with their own reach make a polar area chart; the reach tweens, and labels sit halfway out on each slice.
+  - A gradient `PlotFill` takes `stops` through several colors, such as a flow from yellow through green to teal.
+  - A hatch `PlotFill` takes a `base`, a solid color or a chart tint under its lines, so a hatched part on a pale base is one fill instead of two layers.
+  - `PlotBars` takes `trackPad`, which grows the track around the bar and before its baseline into a row.
+  - `PlotColor` adds `"sunken"`, the well color, where every chart color keeps 3:1.
+
+- e64ae54: `@repo/ui` gains plot primitives for charts that a design draws its own way: `Plot`, with d3 scales, SVG marks (grid, stems, lines, areas, bands, bars with tracks, capsule highlights, dots, segmented arcs) and HTML overlays (tooltip, anchor, legend). A plot is interactive by default: hover, focus, or tap shows a mark's value, a click pins it, the arrow keys walk the points, and marks tween to new data on the motion tokens and snap under reduced motion. `Gauge` parts answer hover and keys, and the Recharts charts animate on the token durations.
+
+  `@repo/ui-3d` is a new package for accessible 3D views. `Viewport3D` loads three.js lazily, mirrors a DOM control, turns and zooms by keys and buttons, respects reduced motion, renders on demand, and falls back when WebGL is missing. `useThemeColors` and `useThemeMaterials` color a scene from the theme tokens.
+
+  The UI lab compares a screen with its reference side by side, with a slider, or as an overlay or a difference, enlarges the reference, aligns it with `referenceCrop`, lists screens on their own page, and saves a difference image in `pnpm lab:shots`.
+
+- e64ae54: Two plot kit options that designs had to build locally.
+
+  - `PlotAxis` takes `shortFormat`. It measures the x labels, and when one full label does not fit its room, every label takes the short form, such as the first three letters of a name. The full labels come back when the room grows.
+  - `usePlotRing` gives a custom mark the ring that `PlotArcs` draws: its center, radii, `angleAt`, and `pointAt`, such as for a knob where a gauge's value ends.
+
+- e64ae54: Fixes for gaps that new designs found in the kit.
+
+  - `PlotBars` names each bar by its category, so bars that change order, such as sorted ones, slide to their new places instead of each place morphing into another bar. `usePlotTween` takes the same `keys` for custom marks.
+  - `PlotAnchor`'s `y` takes a category on a band y scale, the center of that row, so one anchor per row labels every bar of a row chart.
+  - A `SidebarMenuButton` tooltip that is hidden (an expanded sidebar, or a phone) no longer opens on focus. Open and hidden, it was the top layer and took the first Escape, so the phone sheet needed two.
+  - A `Table`'s `scrollLabel` names its scroller as a group, not a region landmark, so a name like its card's no longer duplicates the card's landmark (axe `landmark-unique`).
+  - `PlotLegend`'s `square` swatch is square, not rounded.
+
+- e64ae54: Small chart options that designs had to build locally.
+
+  - `PlotBars` takes `gap`, which starts each bar a few pixels from its baseline, so stacked segments and the rises and falls of a diverging chart sit apart.
+  - A tint `PlotFill` takes `opacity`.
+  - `PlotAxis` takes `ticks` (short tick marks in the bold border color), `side="top"` for x labels above the drawing area, and `align="end"`.
+  - `PlotFrame` draws hairlines along the sides of the drawing area that you name.
+  - `PlotStems` takes `highlight`, which draws the active stem in the text color.
+  - A `PlotLegend` swatch takes `"ink"` for a series drawn in the text color.
+
+- e64ae54: Themes cover more of what screens had to set by hand, and the theme check measures more of what components draw.
+
+  - Dark cards stand apart. A derived dark card now reaches 1.1:1 against both the page and a sunken canvas, and its hovered and pressed fills, overlays, and borders move up with it. Byte Forge's dark cards move from `#14171d` (equal to the sunken canvas) to `#1d2128`.
+  - Every type step has a `text-*` utility, including the 13px `text-body-compact`, `text-body-snug`, `text-heading-page`, and `text-code-sm`.
+  - Letter spacing is a theme input: `letterSpacing` in `createTheme` for every step, or per step in `type`. Each step emits `--ds-letter-spacing-<step>`, and its `text-*` utility sets it.
+  - `--ds-shadow-glow` (`shadow-glow`) is a glow in the brand fill color: cast below in light mode, spread evenly and stronger in dark mode. `color.glow` tunes it, and `0` turns it off.
+  - `findTargetSizeFailures` reads rem control heights at 16px.
+  - `shippedThemePairs` adds 45 pairs that a registered theme must pass: chart and status fills on their tracks on each surface, the dark brand fill on its track, chart colors on `chart-grid`, the marks on a selected row, and the dark card step. Lab themes keep `contrastPairs`.
+  - To pass the new pairs, Byte Forge's light `chart-3` moves from `#00967c` to `#00947b`. A warning ProgressBar draws in `border-warning`, so the amber warning fill of badges, banners, and buttons stays as it was. A derived dark brand fill that cannot show on its track gets lighter and keeps white text.
+
+### Patch Changes
+
+- e64ae54: `resolveNavUserInitials` skips a leading title, so "Dr. Adrian Hale" gives "AH", not "DA". A single-letter initial such as "J." still counts.
+- e64ae54: `Pagination` keeps focus when First, Previous, Next, or Last reaches the edge and disables itself: focus moves to the current page instead of dropping to the page body.
+- e64ae54: A moving `PlotAnchor` or `PlotTooltip` glides only from the frame after its first measured place, so it no longer sweeps in from a wrong place or widens a narrow page on first show.
+- e64ae54: A `PlotAnchor` or `PlotTooltip` now measures its content hidden at the plot's origin before it places it. A place computed without the size could reach past the plot, and a phone browser that laid the page out with it there widened the page for good.
+- e64ae54: `Textarea` accepts a `ref`, so a caller can move focus to it, as with `Input`. Its props type was the plain HTML attributes, which left `ref` out.
+- e64ae54: `TopNav` keys each link by its address and label, so placeholder links that share an address no longer collide.
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+- Updated dependencies [e64ae54]
+  - @repo/theme@0.1.0
+
 ## 1.10.0
 
 ### Minor Changes
