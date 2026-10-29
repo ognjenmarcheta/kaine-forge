@@ -17,9 +17,11 @@ function slotOf(props: StatCardProps, slot: string): Element | null {
   return document.querySelector(`[data-slot="${slot}"]`);
 }
 
-/** The text a screen reader reads, in order. */
+/** The text a screen reader reads, in order, parsed by the DOM rather than a tag pattern. */
 function textOf(markup: string): string {
-  return markup.replace(/<[^>]+>/g, "");
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  return template.content.textContent;
 }
 
 describe("StatCard", () => {
