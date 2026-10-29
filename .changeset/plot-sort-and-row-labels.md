@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-Fixes for what four new lab screens found in the kit.
+Fixes for gaps that new designs found in the kit.
 
 - `PlotBars` names each bar by its category, so bars that change order, such as sorted ones, slide to their new places instead of each place morphing into another bar. `usePlotTween` takes the same `keys` for custom marks.
 - `PlotAnchor`'s `y` takes a category on a band y scale, the center of that row, so one anchor per row labels every bar of a row chart.

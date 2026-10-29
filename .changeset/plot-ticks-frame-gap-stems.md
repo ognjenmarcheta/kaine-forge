@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-Small chart options that the lab screens built locally.
+Small chart options that designs had to build locally.
 
 - `PlotBars` takes `gap`, which starts each bar a few pixels from its baseline, so stacked segments and the rises and falls of a diverging chart sit apart.
 - A tint `PlotFill` takes `opacity`.

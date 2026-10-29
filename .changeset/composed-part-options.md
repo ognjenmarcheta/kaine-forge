@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-Common composed parts take the options that screens rebuilt locally. Every option is opt-in, so current screens render as before.
+Common composed parts take the options that designs rebuilt locally. Every option is opt-in, so current screens render as before.
 
 - `StatCard`: a `delta` takes `appearance="text"` and an `icon` (`null` for none). `deltaPlacement="below"`, `iconPlacement` (`start`, `end`, `leading`), and `wrap={false}` set the layout.
 - `TopNav`: `appearance="filled"`, `itemWidth="equal"`, and `size` (`medium`, `large`, `xlarge`).

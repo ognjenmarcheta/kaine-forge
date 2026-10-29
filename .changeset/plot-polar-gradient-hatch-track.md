@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-Chart pieces that the new lab screens had to build locally.
+Chart pieces that designs had to build locally.
 
 - `PlotArcs` takes `radii`: how far each slice reaches, as a share of the ring's radius. Equal slices with their own reach make a polar area chart; the reach tweens, and labels sit halfway out on each slice.
 - A gradient `PlotFill` takes `stops` through several colors, such as a flow from yellow through green to teal.

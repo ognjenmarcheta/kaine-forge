@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-More component options that the lab screens had to restyle by hand.
+More component options that designs had to restyle by hand.
 
 - `SearchTrigger` takes `show="icon"`: only the magnifier in a square button, with the label as its hidden name and no shortcut hint.
 - `AppSidebar` takes `headerClassName` and `footerClassName`, after their own padding.

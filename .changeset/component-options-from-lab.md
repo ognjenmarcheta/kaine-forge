@@ -2,7 +2,7 @@
 "@repo/ui": minor
 ---
 
-Component options that the new lab screens had to restyle by hand.
+Component options that designs had to restyle by hand.
 
 - `FilterMenu` takes `iconPlacement="end"`, which puts the icon after the text, before any chevron.
 - `StatCard` takes `iconPlacement="top"`, the icon on its own row above the label with the action at its end, and `deltaPlacement="end"`, the description and then the change at the end of the value's line.
