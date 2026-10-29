@@ -41,6 +41,11 @@ Use this mode when the request gives a screenshot, a mockup, or a brand book to 
 5. **Apply the precedence rule**: the MUST rules win, then the reference's look, then the template defaults. List every forced change as a deviation: rule ID, what changed, why.
 6. **Verify in a loop.** Run `pnpm lab:diff <id>` for the share of pixels that still differ (record it before your first change, so you can show the gain) and read `shots/<id>.diffmap.png`, where the differing pixels are red. `pnpm lab:shots <id>` adds the side-by-side and the difference view. Check five things: proportion and spacing, geometry and strokes, color, type and alignment, and the position of overlays. Fix the largest difference, shoot again, and repeat until every remaining difference is a listed deviation or a reported template gap. Then check the behavior in a browser: hover, focus, and tap each chart (its value shows and its mark highlights), switch each control (the numbers change and the marks move smoothly), walk the screen by keyboard, and repeat with reduced motion (changes snap). A screen that only looks right is not done.
 
+## Gotchas
+
+- With a `DropdownMenu` or `FilterMenu` open, axe reports `aria-hidden-focus`. The menu is modal: it hides the page from assistive technology and traps focus, so nothing hidden can take focus. This is expected; run axe with menus closed. A non-modal default was tried and broke menus in the sidebar.
+- `CommandMenu` returns focus to its trigger after it closes. A dialog opened from one of its items must open after that, or it closes at once.
+
 ## Report
 
 List the components used, any new component, the strings added, the checks run with their results, and the deviations with rule IDs.
