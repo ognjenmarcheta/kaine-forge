@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Table, TableBody, TableCell, TableRow } from "./table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -58,6 +58,41 @@ describe("Table", () => {
       expect(scroller?.getAttribute("tabindex")).toBe(tabIndex);
       expect(scroller?.getAttribute("role")).toBe(role);
       expect(scroller?.getAttribute("aria-label")).toBe(name);
+    }
+  );
+});
+
+describe("TableHead", () => {
+  it.each([
+    [undefined, null],
+    ["ascending", "ascending"],
+    ["descending", "descending"]
+  ] as const)(
+    "sorted %s, a sortable header says aria-sort %s and sorts from a button in the cell",
+    async (sort, ariaSort) => {
+      const onSort = vi.fn<() => void>();
+      await act(async () =>
+        root.render(
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead onSort={onSort} {...(sort ? { sort } : {})}>
+                  Budget
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+          </Table>
+        )
+      );
+      const header = container.querySelector("th");
+      const button = header?.querySelector("button");
+
+      expect(header?.getAttribute("aria-sort")).toBe(ariaSort);
+      expect(button?.textContent).toBe("Budget");
+
+      act(() => button?.click());
+
+      expect(onSort).toHaveBeenCalledOnce();
     }
   );
 });

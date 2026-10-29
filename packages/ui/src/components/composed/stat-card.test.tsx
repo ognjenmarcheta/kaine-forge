@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
+import { colorRoles, contrastRatio, resolveColor, themes, type ColorRole } from "@repo/theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { StatCard, type StatCardDelta } from "./stat-card";
+import { StatCard, type StatCardDelta, type StatCardProps } from "./stat-card";
+
+const rise: StatCardDelta = { direction: "up", directionLabel: "Up", label: "12%" };
+
+const roleNames: ReadonlySet<string> = new Set(colorRoles);
+const isColorRole = (name: string | undefined): name is ColorRole =>
+  name !== undefined && roleNames.has(name);
+
+/** Renders a card into the document and returns the element of one slot. */
+function slotOf(props: StatCardProps, slot: string): Element | null {
+  document.body.innerHTML = renderToStaticMarkup(<StatCard {...props} />);
+  return document.querySelector(`[data-slot="${slot}"]`);
+}
 
 /** The text a screen reader reads, in order. */
 function textOf(markup: string): string {
@@ -51,5 +64,100 @@ describe("StatCard", () => {
     );
 
     expect(document.querySelector(`[data-slot="${slot}"]`)?.textContent).toBe(text);
+  });
+
+  it.each(["danger", "neutral", "success"] as const)(
+    "draws a plain %s change with no fill, at 4.5:1 on the card in every theme and mode (COLOR-1)",
+    (tone) => {
+      const classes =
+        slotOf(
+          { delta: { ...rise, appearance: "text", tone }, label: "Visits", value: 9 },
+          "stat-card-delta"
+        )?.getAttribute("class") ?? "";
+      const ink = /(?:^| )text-ds-(text[a-z-]*)/.exec(classes)?.[1];
+      if (!isColorRole(ink)) throw new Error(`No text role in: ${classes}`);
+      const lowest = Math.min(
+        ...themes.flatMap((theme) =>
+          (["light", "dark"] as const).map((mode) =>
+            contrastRatio(
+              resolveColor(theme, mode, ink),
+              resolveColor(theme, mode, "surface-raised"),
+              resolveColor(theme, mode, "surface")
+            )
+          )
+        )
+      );
+
+      expect(classes).not.toMatch(/(?:^| )bg-/);
+      expect(lowest).toBeGreaterThanOrEqual(4.5);
+    }
+  );
+
+  it.each([
+    ["the arrow", undefined, [expect.stringContaining("lucide-arrow-up")]],
+    ["no icon", null, []],
+    ["a given icon", <svg key="icon" className="trend" />, ["trend"]]
+  ])("draws %s before the change, hidden from screen readers", (_icon, icon, svgs) => {
+    const delta = slotOf(
+      { delta: { ...rise, ...(icon === undefined ? {} : { icon }) }, label: "Visits", value: 9 },
+      "stat-card-delta"
+    );
+    const drawn = Array.from(delta?.querySelectorAll("svg") ?? []);
+
+    expect(drawn.map((svg) => svg.getAttribute("class"))).toEqual(svgs);
+    expect(drawn.filter((svg) => svg.closest('[aria-hidden="true"]') === null)).toEqual([]);
+    expect(delta?.textContent).toBe("Up12%");
+  });
+
+  it.each([
+    [undefined, "stat-card-body"],
+    ["below", "stat-card-footer"]
+  ] as const)("with the change placed %s, puts it in the %s row", (deltaPlacement, row) => {
+    const delta = slotOf(
+      {
+        delta: rise,
+        description: "This month",
+        label: "Visits",
+        value: 9,
+        ...(deltaPlacement ? { deltaPlacement } : {})
+      },
+      "stat-card-delta"
+    );
+
+    expect(delta?.parentElement?.getAttribute("data-slot")).toBe(row);
+    expect(document.body.textContent).toBe("Visits9Up12%This month");
+  });
+
+  it.each([
+    [undefined, "stat-card-header", ["stat-card-icon", "stat-card-label"]],
+    ["end", "stat-card-header", ["stat-card-label", "stat-card-icon"]],
+    ["leading", "stat-card", ["stat-card-icon", "stat-card-header", "stat-card-body"]]
+  ] as const)(
+    "with the icon placed %s, orders the %s parts as %j",
+    (iconPlacement, parent, order) => {
+      const container = slotOf(
+        {
+          icon: <svg />,
+          label: "Visits",
+          value: 9,
+          ...(iconPlacement ? { iconPlacement } : {})
+        },
+        parent
+      );
+
+      expect(
+        Array.from(container?.children ?? [], (child) => child.getAttribute("data-slot"))
+      ).toEqual(order);
+    }
+  );
+
+  it.each([
+    [{}, ["ui-stat-card"]],
+    [{ iconPlacement: "leading" }, ["ui-stat-card", "ui-stat-card--icon-leading"]],
+    [{ wrap: false }, ["ui-stat-card", "ui-stat-card--nowrap"]]
+  ] as const)("with %j takes the layouts %j from globals.css", (layout, classes) => {
+    const card = slotOf({ icon: <svg />, label: "Visits", value: 9, ...layout }, "stat-card");
+
+    expect(card?.getAttribute("class")?.split(" ")).toEqual(classes);
   });
 });

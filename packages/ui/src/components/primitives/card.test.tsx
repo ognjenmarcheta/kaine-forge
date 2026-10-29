@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { Card, CardHeader, CardTitle } from "./card";
+import { Card, CardHeader, CardIcon, CardTitle } from "./card";
 
 describe("Card", () => {
   it("merges class names for root and sections", () => {
@@ -26,5 +26,18 @@ describe("Card", () => {
     const markup = renderToStaticMarkup(<CardTitle {...(as ? { as } : {})}>Visits</CardTitle>);
 
     expect(markup).toMatch(new RegExp(`^<${heading}[^>]*>Visits</${heading}>$`));
+  });
+
+  it("hides the header icon from screen readers, so the title alone names the card", () => {
+    const markup = renderToStaticMarkup(
+      <CardHeader>
+        <CardIcon>
+          <svg />
+        </CardIcon>
+        <CardTitle>Vaccinations</CardTitle>
+      </CardHeader>
+    );
+
+    expect(markup).toMatch(/^<div[^>]*><span aria-hidden="true" data-slot="card-icon"[^>]*><svg>/);
   });
 });

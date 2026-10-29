@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -36,4 +37,50 @@ describe("nav-user", () => {
     // WCAG 2.5.3: the name comes from the visible text, not a replacing aria-label (#545).
     expect(triggerTag(markup)).not.toContain("aria-label=");
   });
+
+  it("shows a role line in place of the email, and names a status dot in words (COLOR-2)", () => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <SidebarProvider>
+        <NavUser
+          logoutLabel="Log out"
+          onLogout={() => {}}
+          status={{ label: "Online", tone: "success" }}
+          user={{ email: "ada@example.com", name: "Ada Lovelace", role: "Head nurse" }}
+        />
+      </SidebarProvider>
+    );
+    const trigger = document.querySelector('[data-sidebar="menu-button"]');
+    const hidden = Array.from(trigger?.querySelectorAll('[aria-hidden="true"]') ?? [], (node) =>
+      node.tagName.toLowerCase()
+    );
+
+    expect(trigger?.textContent).toBe("ALAda LovelaceHead nurseOnline");
+    expect(hidden).toEqual(["span", "svg"]);
+  });
+
+  it.each([
+    [undefined, undefined, "lucide-ellipsis-vertical", "bg-ds-bg-neutral-bold"],
+    ["chevrons", "brand", "lucide-chevrons-up-down", "bg-ds-bg-brand-bold"]
+  ] as const)(
+    "with the %s icon and %s tone, ends with %s on a %s avatar",
+    (trailingIcon, avatarTone, icon, fill) => {
+      document.body.innerHTML = renderToStaticMarkup(
+        <SidebarProvider>
+          <NavUser
+            logoutLabel="Log out"
+            onLogout={() => {}}
+            user={{ email: "ada@example.com", name: "Ada Lovelace" }}
+            {...(trailingIcon ? { trailingIcon } : {})}
+            {...(avatarTone ? { avatarTone } : {})}
+          />
+        </SidebarProvider>
+      );
+      const trigger = document.querySelector('[data-sidebar="menu-button"]');
+
+      expect(trigger?.lastElementChild?.classList.contains(icon)).toBe(true);
+      expect(trigger?.querySelector('[data-slot="avatar"] > span')?.classList.contains(fill)).toBe(
+        true
+      );
+    }
+  );
 });

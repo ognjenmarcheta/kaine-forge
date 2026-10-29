@@ -1,9 +1,35 @@
 // @vitest-environment jsdom
-import { contrastPairs } from "@repo/theme";
+import {
+  colorRoles,
+  contrastPairs,
+  contrastRatio,
+  defaultTheme,
+  resolveColor,
+  themes,
+  withAlpha,
+  type ColorRole
+} from "@repo/theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { Avatar, AvatarFallback, AvatarGroup } from "./avatar";
+
+const classOf = (markup: string): string => /class="([^"]*)"/.exec(markup)?.[1] ?? "";
+
+const roleNames: ReadonlySet<string> = new Set(colorRoles);
+const isColorRole = (name: string | undefined): name is ColorRole =>
+  name !== undefined && roleNames.has(name);
+
+/** The pixel width a `size-[calc(var(--ds-space-a)+var(--ds-space-b))]` class resolves to. */
+function calcPixels(classes: string): number | undefined {
+  const match = /size-\[calc\(var\(--ds-(space-\d+)\)\+var\(--ds-(space-\d+)\)\)\]/.exec(classes);
+  if (!match) return undefined;
+  const rem = (step: string | undefined) =>
+    Number.parseFloat(
+      Object.entries(defaultTheme.scale).find(([name]) => name === step)?.[1] ?? ""
+    );
+  return (rem(match[1]) + rem(match[2])) * 16;
+}
 
 describe("Avatar", () => {
   it("applies size variant classes", () => {
@@ -14,6 +40,12 @@ describe("Avatar", () => {
     );
     expect(markup).toContain("h-10 w-10");
     expect(markup).toContain("AB");
+  });
+
+  it.each([28, 36, 44] as const)("is %ipx wide at size %i, from the space tokens", (size) => {
+    const markup = renderToStaticMarkup(<Avatar size={size} />);
+
+    expect(calcPixels(classOf(markup))).toBe(size);
   });
 });
 
@@ -38,6 +70,35 @@ describe("AvatarFallback", () => {
       expect(contrastPairs).toContainEqual(
         expect.objectContaining({ background: `background-${background}`, foreground })
       );
+    }
+  );
+
+  it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6"] as const)(
+    "keeps %s initials at 4.5:1 on every surface, theme, and mode (COLOR-1)",
+    (tone) => {
+      const classes = classOf(
+        renderToStaticMarkup(<AvatarFallback tone={tone}>AB</AvatarFallback>)
+      );
+      const [, fill, percent] = /(?:^| )bg-ds-(chart-\d)\/(\d+)/.exec(classes) ?? [];
+      const ink = /(?:^| )text-ds-(text[a-z-]*)/.exec(classes)?.[1];
+      if (!isColorRole(fill) || !isColorRole(ink))
+        throw new Error(`Unexpected classes: ${classes}`);
+      const surfaces = ["surface", "surface-raised", "surface-sunken", "surface-overlay"] as const;
+      const lowest = Math.min(
+        ...themes.flatMap((theme) =>
+          (["light", "dark"] as const).flatMap((mode) =>
+            surfaces.map((surface) =>
+              contrastRatio(
+                resolveColor(theme, mode, ink),
+                withAlpha(resolveColor(theme, mode, fill), Number(percent) / 100),
+                resolveColor(theme, mode, surface)
+              )
+            )
+          )
+        )
+      );
+
+      expect(lowest).toBeGreaterThanOrEqual(4.5);
     }
   );
 });
@@ -68,5 +129,42 @@ describe("AvatarGroup", () => {
       "B",
       "2 more"
     ]);
+  });
+
+  it("draws the overflow chip in the chosen tone's measured pair (COLOR-1)", () => {
+    document.body.innerHTML = renderToStaticMarkup(
+      <AvatarGroup
+        aria-label="On shift"
+        max={1}
+        overflowLabel={(count) => `+${count}`}
+        overflowTone="brand"
+      >
+        <Avatar>
+          <AvatarFallback>A</AvatarFallback>
+        </Avatar>
+        <Avatar>
+          <AvatarFallback>B</AvatarFallback>
+        </Avatar>
+      </AvatarGroup>
+    );
+    const chip = document.querySelector('[role="group"]')?.lastElementChild;
+    const classes = chip?.getAttribute("class") ?? "";
+
+    expect(chip?.textContent).toBe("+1");
+    expect(/(?:^| )bg-ds-bg-([a-z-]+)/.exec(classes)?.[1]).toBe("brand-bold");
+    expect(/(?:^| )text-ds-(text-[a-z-]+)/.exec(classes)?.[1]).toBe("text-brand-inverse");
+  });
+
+  it.each([
+    [undefined, "-space-x-ds-100"],
+    ["sm", "-space-x-ds-050"]
+  ] as const)("with overlap %s slides each avatar over the last one with %s", (overlap, step) => {
+    const markup = renderToStaticMarkup(
+      <AvatarGroup aria-label="Attendees" {...(overlap ? { overlap } : {})}>
+        <Avatar />
+      </AvatarGroup>
+    );
+
+    expect(classOf(markup).split(" ")).toContain(step);
   });
 });

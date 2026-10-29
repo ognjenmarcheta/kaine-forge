@@ -14,6 +14,7 @@ export * from "./components/composed/nav-user";
 export * from "./components/composed/page-header";
 export * from "./components/composed/pagination";
 export * from "./components/composed/query-error";
+export * from "./components/composed/search-trigger";
 export * from "./components/composed/settings-section";
 export * from "./components/composed/shell-select-control";
 export * from "./components/composed/shell-user-menu";

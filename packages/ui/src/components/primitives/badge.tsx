@@ -13,11 +13,14 @@ const badgeVariants = cva(
         warning: "",
         danger: "",
         information: "",
-        discovery: ""
+        discovery: "",
+        selected: ""
       },
       emphasis: {
         subtle: "",
-        bold: ""
+        bold: "",
+        // A hairline in the role's border color and no fill; the inset ring keeps the badge's size.
+        outline: "ring-1 ring-inset"
       }
     },
     compoundVariants: [
@@ -80,6 +83,48 @@ const badgeVariants = cva(
         appearance: "discovery",
         emphasis: "bold",
         className: "bg-ds-bg-discovery-bold text-ds-text-inverse"
+      },
+      {
+        appearance: "selected",
+        emphasis: "subtle",
+        className: "bg-ds-bg-selected text-ds-text-selected"
+      },
+      {
+        appearance: "selected",
+        emphasis: "bold",
+        className: "bg-ds-bg-selected-bold text-ds-text-brand-inverse"
+      },
+      { appearance: "default", emphasis: "outline", className: "text-ds-text ring-ds-border" },
+      {
+        appearance: "success",
+        emphasis: "outline",
+        className: "text-ds-text-success ring-ds-border-success"
+      },
+      {
+        appearance: "warning",
+        emphasis: "outline",
+        className: "text-ds-text-warning ring-ds-border-warning"
+      },
+      {
+        appearance: "danger",
+        emphasis: "outline",
+        className: "text-ds-text-danger ring-ds-border-danger"
+      },
+      {
+        appearance: "information",
+        emphasis: "outline",
+        className: "text-ds-text-information ring-ds-border-information"
+      },
+      {
+        appearance: "discovery",
+        emphasis: "outline",
+        className: "text-ds-text-discovery ring-ds-border-discovery"
+      },
+      // The theme check measures text-brand on the page, not text-selected.
+      {
+        appearance: "selected",
+        emphasis: "outline",
+        className: "text-ds-text-brand ring-ds-border-selected"
       }
     ],
     defaultVariants: {
@@ -89,6 +134,10 @@ const badgeVariants = cva(
   }
 );
 
+/**
+ * `appearance="selected"` marks the chosen item in a set, in the selected role. `emphasis="outline"`
+ * draws the role's text and border on the surface behind, with no fill.
+ */
 interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {}
 

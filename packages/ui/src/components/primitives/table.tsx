@@ -1,5 +1,7 @@
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import * as React from "react";
 
+import { Button } from "./button";
 import { cn } from "../../lib/cn";
 
 /** Numeric columns align to the end with equal-width digits, so values line up by place. */
@@ -70,11 +72,27 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 interface TableHeadProps extends React.ComponentProps<"th"> {
   /** Aligns the column header to the end, over numeric cells. */
   numeric?: boolean;
+  /** Makes the header a button that sorts by this column. The caller sorts the rows. */
+  onSort?: () => void;
+  /** The order the rows are in by this column. Leave it out on the columns that do not sort them now. */
+  sort?: "ascending" | "descending";
 }
 
-function TableHead({ className, numeric = false, ...props }: TableHeadProps) {
+const sortIcons = { ascending: ArrowUp, descending: ArrowDown, none: ChevronsUpDown } as const;
+
+function TableHead({
+  children,
+  className,
+  numeric = false,
+  onSort,
+  sort,
+  ...props
+}: TableHeadProps) {
+  const SortIcon = sortIcons[sort ?? "none"];
+
   return (
     <th
+      aria-sort={sort}
       data-slot="table-head"
       className={cn(
         "h-ds-control-large whitespace-nowrap px-ds-150 text-start align-middle text-body-sm font-medium text-ds-text-subtle",
@@ -82,7 +100,24 @@ function TableHead({ className, numeric = false, ...props }: TableHeadProps) {
         className
       )}
       {...props}
-    />
+    >
+      {onSort ? (
+        // The header cell keeps its name; the button inside it sorts, and `aria-sort` on the
+        // cell says the order (WAI-ARIA sortable table pattern).
+        <Button
+          appearance="ghost"
+          className="-mx-ds-050 h-auto min-h-ds-control-xsmall gap-ds-050 rounded-sm px-ds-050 font-medium text-current hover:text-ds-text"
+          onClick={onSort}
+          spacing="compact"
+          type="button"
+        >
+          {children}
+          <SortIcon aria-hidden="true" className="size-ds-150 shrink-0" />
+        </Button>
+      ) : (
+        children
+      )}
+    </th>
   );
 }
 

@@ -15,13 +15,34 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-/** The title and description; with a `CardAction`, they take the start column and the action the end. */
+/**
+ * The title and description; with a `CardAction`, they take the start column and the action the
+ * end. A `CardIcon` first takes a column before them. In a card marked `@container/card`, the
+ * action moves under the title when the card is narrower than 24rem, so it never squeezes it.
+ */
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
       className={cn(
         "grid gap-x-ds-150 gap-y-ds-050 p-card has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]",
+        "has-data-[slot=card-icon]:grid-cols-[auto_minmax(0,1fr)] has-data-[slot=card-icon]:has-data-[slot=card-action]:grid-cols-[auto_minmax(0,1fr)_auto]",
+        "@max-sm/card:has-data-[slot=card-action]:grid-cols-1 @max-sm/card:has-data-[slot=card-icon]:has-data-[slot=card-action]:grid-cols-[auto_minmax(0,1fr)]",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+/** A decorative icon in a well before the title, which names the same thing. Put it first in a `CardHeader`. */
+function CardIcon({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      aria-hidden="true"
+      data-slot="card-icon"
+      className={cn(
+        "row-span-2 inline-flex size-ds-500 shrink-0 items-center justify-center self-center rounded-lg bg-ds-bg-neutral text-ds-icon [&>svg]:size-ds-250",
         className
       )}
       {...props}
@@ -61,7 +82,12 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        "in-[[data-slot=card-header]:has(>[data-slot=card-icon])]:col-start-3",
+        "@max-sm/card:col-span-full @max-sm/card:row-auto @max-sm/card:justify-self-start",
+        className
+      )}
       {...props}
     />
   );
@@ -81,4 +107,13 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };
+export {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardIcon,
+  CardTitle
+};

@@ -758,6 +758,9 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--ds-space-100);
+    /* On its own line it shrinks to the header's width, so a wide bar wraps or scrolls inside it
+       instead of widening the page (RESP-1). */
+    min-width: 0;
   }
   .ui-toolbar {
     display: flex;
@@ -901,6 +904,96 @@
   .ui-stat-card__skeleton {
     width: var(--ds-space-600);
     height: var(--ds-space-400);
+  }
+  /* A plain-text change: the tone's text color and no fill. */
+  .ui-stat-card__delta {
+    align-items: center;
+    display: inline-flex;
+    font: var(--ds-font-body-small);
+    font-weight: var(--ds-font-weight-medium);
+    gap: var(--ds-space-050);
+  }
+  .ui-stat-card__delta-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .ui-stat-card__delta-icon > svg {
+    height: var(--ds-space-150);
+    width: var(--ds-space-150);
+  }
+  /* `deltaPlacement="below"`: the change and the note on one line under the value. */
+  .ui-stat-card__footer {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-050) var(--ds-space-100);
+  }
+  /* `iconPlacement="leading"`: a large icon in a round well beside the label and the value. */
+  .ui-stat-card--icon-leading {
+    align-items: center;
+    column-gap: var(--ds-space-150);
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: var(--ds-space-050);
+  }
+  .ui-stat-card--icon-leading > :not(.ui-stat-card__icon) {
+    grid-column: 2;
+  }
+  .ui-stat-card--icon-leading > .ui-stat-card__icon {
+    align-items: center;
+    background: var(--ds-background-neutral);
+    border-radius: var(--ds-radius-round);
+    color: var(--ds-icon);
+    grid-row: 1 / span 2;
+    height: var(--ds-space-500);
+    justify-content: center;
+    width: var(--ds-space-500);
+  }
+  .ui-stat-card--icon-leading > .ui-stat-card__icon > svg {
+    height: var(--ds-space-250);
+    width: var(--ds-space-250);
+  }
+  /* `wrap={false}`: the value row stays on one line in a narrow tile. */
+  .ui-stat-card--nowrap .ui-stat-card__body {
+    flex-wrap: nowrap;
+  }
+  .ui-stat-card--nowrap .ui-stat-card__value {
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+  .ui-stat-card--nowrap [data-slot="stat-card-delta"] {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* A button that looks like a search field and opens the command menu. */
+  .ui-search-trigger {
+    color: var(--ds-text-subtle);
+    font-weight: var(--ds-font-weight-regular);
+    gap: var(--ds-space-100);
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .ui-search-trigger.ui-button--outline {
+    border-color: var(--ds-field-border);
+    border-radius: var(--ds-field-radius);
+  }
+  .ui-search-trigger__icon {
+    color: var(--ds-icon-subtle);
+    flex-shrink: 0;
+    height: var(--ds-space-200);
+    width: var(--ds-space-200);
+  }
+  .ui-search-trigger__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ui-search-trigger__shortcut {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    white-space: nowrap;
   }
   a.ui-stat-card:focus-visible {
     outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
