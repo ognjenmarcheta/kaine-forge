@@ -31,7 +31,8 @@ export interface PlotContextValue {
   id: string;
   /**
    * The point that marks and overlays show: the one under the pointer, the keyboard, or a
-   * touch, else the selected one; null when there is none.
+   * touch, else the selected one (not with `rest: "none"`); null when there is none. A custom
+   * mark rings it with `PLOT_RING` while `highlight` is true.
    */
   activeIndex: number | null;
   /** The pinned point, from a click, a tap, Enter, or Space; null when there is none. */

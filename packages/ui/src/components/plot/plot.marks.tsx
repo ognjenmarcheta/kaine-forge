@@ -16,8 +16,8 @@ import * as React from "react";
 
 import { usePlot, usePlotRegistry, useStopValues, type PlotContextValue } from "./plot.context";
 import { sliceAngles, type PlotRing } from "./plot.interaction";
-import { useTween, type PlotPace, type PlotTweenOptions } from "./plot.motion";
-import { paintFill, plotColor, type PlotColor, type PlotFill } from "./plot.paint";
+import { useTween, type PlotPace, type PlotTweenFrame, type PlotTweenOptions } from "./plot.motion";
+import { paintFill, PLOT_RING, plotColor, type PlotColor, type PlotFill } from "./plot.paint";
 import type { PlotScale, PlotValue } from "./plot.scales";
 import { cn } from "../../lib/cn";
 
@@ -84,19 +84,9 @@ function strokeProps({
   };
 }
 
-/**
- * The ring around an active bar or capsule: the text color, which reaches 4.5:1 on every
- * surface, with a gap of surface between it and the mark, so it reads at 3:1 against the mark,
- * its neighbors, and the card in every theme (COLOR-1). Dimming the other marks could not: a
- * chart color dimmed to 30% is only 2.9:1 from itself in the light themes.
- */
-const ACTIVE_RING = { width: 1.5, gap: 1.75 };
-const RING_OFFSET = ACTIVE_RING.gap + ACTIVE_RING.width / 2;
-const ringProps = {
-  fill: "none",
-  stroke: plotColor("ink"),
-  strokeWidth: ACTIVE_RING.width
-} as const;
+/** The ring around an active bar or capsule (`PLOT_RING`), and how far outside the mark it sits. */
+const ringProps = PLOT_RING.paint;
+const RING_OFFSET = PLOT_RING.offset;
 
 /** The x and y scales of the plot; a cartesian mark cannot draw without both. */
 function useCartesian(mark: string): PlotContextValue & { x: PlotScale; y: PlotScale } {
@@ -114,15 +104,31 @@ function useFill(fill: PlotFill, key = "fill") {
   return paintFill(fill, `${id}-${React.useId().replace(/[^a-zA-Z0-9_-]/g, "")}-${key}`);
 }
 
-/** Tweens a mark's numbers with the plot's motion; a new plot size snaps. */
-function useMarkTween(
+/** How a mark's numbers tween; the plot sets the motion tokens and reduced motion. */
+export interface PlotTweenConfig {
+  /** `"overlay"` for data that changes, `"control"` for a mark that follows the pointer. @defaultValue "overlay" */
+  pace?: PlotPace;
+  /** A change of this key snaps instead of tweening, such as a new layout. A new plot size always snaps. */
+  reset?: string;
+  /**
+   * Where a value that is new on a change of count starts, such as the baseline for a new bar's
+   * top. Without it a change of count cross-fades the old values into the new ones.
+   */
+  enter?: PlotTweenOptions["enter"];
+}
+
+export type { PlotPace, PlotTweenFrame } from "./plot.motion";
+
+/**
+ * Tweens a custom mark's numbers, such as its pixel positions, the way the plot's own marks
+ * move: on the motion tokens, from what is on screen, and snapping under reduced motion, with
+ * `animate={false}`, and on a new plot size. Draw `values` each frame; when the number of values
+ * changes and `enter` is not set, also draw `previous` at `1 - fade` and `values` at `fade`.
+ */
+export function usePlotTween(
   target: readonly number[],
-  {
-    enter,
-    pace,
-    reset = ""
-  }: { pace?: PlotPace; enter?: PlotTweenOptions["enter"]; reset?: string } = {}
-) {
+  { enter, pace, reset = "" }: PlotTweenConfig = {}
+): PlotTweenFrame {
   const plot = usePlot();
   const { element } = usePlotRegistry();
   return useTween(target, {
@@ -254,12 +260,37 @@ export interface PlotLineProps<Datum> extends PlotSeries<Datum>, PlotStroke {
    * surface. `false` opts out. @defaultValue the plot's `highlight`
    */
   highlight?: boolean;
+  /**
+   * Continues the line from its first point to the left edge of the drawing area and from its
+   * last point to the right edge, along its first and last segments, for a series that goes on
+   * past the days the plot shows. @defaultValue false
+   */
+  extend?: boolean;
+}
+
+/** The value at `px` on the straight line through two pixel points; flat through one. */
+function lineAt([ax, ay]: [number, number], [bx, by]: [number, number], px: number): number {
+  return ax === bx ? ay : ay + ((by - ay) * (px - ax)) / (bx - ax);
+}
+
+/** Pixel points with the line continued to `left` and `right` along its end segments. */
+function extendTo(points: [number, number][], left: number, right: number): [number, number][] {
+  const placed = points.filter(([px, py]) => Number.isFinite(px) && Number.isFinite(py));
+  const first = placed[0];
+  const last = placed.at(-1);
+  if (first === undefined || last === undefined) return points;
+  const start: [number, number][] =
+    first[0] > left ? [[left, lineAt(first, placed[1] ?? first, left)]] : [];
+  const end: [number, number][] =
+    last[0] < right ? [[right, lineAt(placed.at(-2) ?? last, last, right)]] : [];
+  return [...start, ...points, ...end];
 }
 
 /** A line through a series, solid, dashed, or dotted. It tweens to new data. */
 export function PlotLine<Datum>({
   curve = "linear",
   data,
+  extend = false,
   highlight,
   x,
   y,
@@ -268,29 +299,26 @@ export function PlotLine<Datum>({
   const plot = useCartesian("PlotLine");
   useSeriesStops(data, x, y);
   const target = pixelsOf({ data, x, y }, plot.x, plot.y);
-  const frame = useMarkTween(target.flat());
+  const frame = usePlotTween(target.flat());
   const shown = pairsOf(frame.values);
   const activeAt = useActiveAt(highlight);
   const active = target.findIndex(([px, py]) => activeAt(px, py));
   const dot = shown[active];
   const paint = strokeProps(stroke);
+  const through = (points: [number, number][]) =>
+    pathThroughPixels(extend ? extendTo(points, plot.inner.left, plot.inner.right) : points, curve);
 
   return (
     <>
       {frame.previous === null ? null : (
         <path
-          d={pathThroughPixels(pairsOf(frame.previous), curve)}
+          d={through(pairsOf(frame.previous))}
           fill="none"
           opacity={1 - frame.fade}
           {...paint}
         />
       )}
-      <path
-        d={pathThroughPixels(shown, curve)}
-        fill="none"
-        opacity={fadeOpacity(frame)}
-        {...paint}
-      />
+      <path d={through(shown)} fill="none" opacity={fadeOpacity(frame)} {...paint} />
       {dot === undefined || !dot.every(Number.isFinite) ? null : (
         <circle
           cx={dot[0]}
@@ -328,7 +356,7 @@ export function PlotArea<Datum>({ curve = "linear", data, fill, x, y, y0 }: Plot
   useSeriesStops(data, x, y);
   const paint = useFill(fill);
   const baseline = y0 === undefined ? plot.inner.bottom : plot.y.position(y0);
-  const frame = useMarkTween([baseline, ...pixelsOf({ data, x, y }, plot.x, plot.y).flat()]);
+  const frame = usePlotTween([baseline, ...pixelsOf({ data, x, y }, plot.x, plot.y).flat()]);
   const shape = (values: readonly number[]) =>
     areaPath(pairsOf(values.slice(1)), values[0] ?? baseline, curve);
   const path = shape(frame.values);
@@ -376,7 +404,7 @@ export function PlotBand<Upper, Lower>({
   const paint = useFill(fill);
   const upperCount = upper.data.length;
   // A new split between the edges snaps: its values would not line up with the old ones.
-  const frame = useMarkTween(
+  const frame = usePlotTween(
     [
       upperCount,
       ...pixelsOf(upper, plot.x, plot.y).flat(),
@@ -417,14 +445,48 @@ export function PlotBand<Upper, Lower>({
   );
 }
 
+/**
+ * Writes a bar's path in band and value coordinates: `u` across the band, `v` along the value
+ * axis. Columns draw them as x and y; rows swap the two, which also turns each arc the other way.
+ */
+interface BarPen {
+  point: (u: number, v: number) => string;
+  /** A line along the value axis to `v`. */
+  along: (v: number) => string;
+  /** A line across the band to `u`. */
+  across: (u: number) => string;
+  sweep: (flag: 0 | 1) => 0 | 1;
+}
+
+const COLUMN_PEN: BarPen = {
+  point: (u, v) => `${u},${v}`,
+  along: (v) => `V${v}`,
+  across: (u) => `H${u}`,
+  sweep: (flag) => flag
+};
+
+const ROW_PEN: BarPen = {
+  point: (u, v) => `${v},${u}`,
+  along: (v) => `H${v}`,
+  across: (u) => `V${u}`,
+  sweep: (flag) => (flag === 1 ? 0 : 1)
+};
+
 /** A bar's path with its data end rounded by `radius`, from `base` to `end` in pixels. */
-function barPath(left: number, width: number, end: number, base: number, radius: number): string {
+function barPath(
+  left: number,
+  width: number,
+  end: number,
+  base: number,
+  radius: number,
+  pen: BarPen = COLUMN_PEN
+): string {
   const r = Math.min(radius, width / 2, Math.abs(base - end));
   const right = left + width;
   // Above the baseline the rounded end is the top; below it, the bottom.
-  const sweep = end < base ? 1 : 0;
+  const sweep = pen.sweep(end < base ? 1 : 0);
   const near = end < base ? end + r : end - r;
-  return `M${left},${base}V${near}A${r},${r} 0 0 ${sweep} ${left + r},${end}H${right - r}A${r},${r} 0 0 ${sweep} ${right},${near}V${base}Z`;
+  return `M${pen.point(left, base)}${pen.along(near)}A${r},${r} 0 0 ${sweep} ${pen.point(left + r, end)}${pen.across(right - r)}A${r},${r} 0 0 ${sweep} ${pen.point(right, near)}${pen.along(base)}Z`;
 }
 
 /** A bar's path with both ends rounded by `radius`, such as a capsule. */
@@ -433,22 +495,31 @@ function roundedBarPath(
   width: number,
   end: number,
   base: number,
-  radius: number
+  radius: number,
+  pen: BarPen = COLUMN_PEN
 ): string {
   const top = Math.min(end, base);
   const bottom = Math.max(end, base);
   const r = Math.min(radius, width / 2, (bottom - top) / 2);
   const right = left + width;
-  return `M${left},${top + r}A${r},${r} 0 0 1 ${left + r},${top}H${right - r}A${r},${r} 0 0 1 ${right},${top + r}V${bottom - r}A${r},${r} 0 0 1 ${right - r},${bottom}H${left + r}A${r},${r} 0 0 1 ${left},${bottom - r}Z`;
+  const sweep = pen.sweep(1);
+  return `M${pen.point(left, top + r)}A${r},${r} 0 0 ${sweep} ${pen.point(left + r, top)}${pen.across(right - r)}A${r},${r} 0 0 ${sweep} ${pen.point(right, top + r)}${pen.along(bottom - r)}A${r},${r} 0 0 ${sweep} ${pen.point(right - r, bottom)}${pen.across(left + r)}A${r},${r} 0 0 ${sweep} ${pen.point(left, bottom - r)}Z`;
 }
 
 /** Only the rounded data end of a bar, for a cap stroke. */
-function capPath(left: number, width: number, end: number, base: number, radius: number): string {
+function capPath(
+  left: number,
+  width: number,
+  end: number,
+  base: number,
+  radius: number,
+  pen: BarPen
+): string {
   const r = Math.min(radius, width / 2, Math.abs(base - end));
   const right = left + width;
-  const sweep = end < base ? 1 : 0;
+  const sweep = pen.sweep(end < base ? 1 : 0);
   const near = end < base ? end + r : end - r;
-  return `M${left},${near}A${r},${r} 0 0 ${sweep} ${left + r},${end}H${right - r}A${r},${r} 0 0 ${sweep} ${right},${near}`;
+  return `M${pen.point(left, near)}A${r},${r} 0 0 ${sweep} ${pen.point(left + r, end)}${pen.across(right - r)}A${r},${r} 0 0 ${sweep} ${pen.point(right, near)}`;
 }
 
 function BarFill({
@@ -471,7 +542,7 @@ function BarFill({
 
 /** A place among the bars of one category, for bars grouped by series. */
 export interface PlotBarGroup {
-  /** The position of this series among the group, from 0 at the left. */
+  /** The position of this series among the group, from 0 at the left, or at the top of a row. */
   index: number;
   /** The number of series in the group. */
   count: number;
@@ -479,15 +550,10 @@ export interface PlotBarGroup {
   padding?: number;
 }
 
-export interface PlotBarsProps<Datum> {
+interface PlotBarsBase<Datum> {
   data: readonly Datum[];
-  /** The category of each bar, on a band x scale. */
-  x: PlotAccessor<Datum, PlotValue>;
-  y: PlotAccessor<Datum, number>;
   /** The fill of every bar, or of each bar, such as the selected one in a stronger fill. */
   fill: PlotFill | PlotAccessor<Datum, PlotFill>;
-  /** The value the bars grow from. @defaultValue 0 */
-  y0?: number;
   /** Rounds the data end of each bar by this many pixels; `"full"` makes it a half circle. */
   radius?: number | "full";
   /**
@@ -502,43 +568,90 @@ export interface PlotBarsProps<Datum> {
    * series, each with its `index` in the group. A band sub-scale divides each category's band.
    */
   group?: PlotBarGroup;
-  /** A quiet bar behind each bar, across the whole value range. */
+  /**
+   * A quiet bar behind each bar, across the whole value range. Stacked bars draw one track per
+   * category, behind its first bar.
+   */
   track?: PlotFill;
   /** A stroke along the data end, so a pale bar still shows where its value is. */
   cap?: PlotStroke | PlotAccessor<Datum, PlotStroke | undefined>;
   /**
-   * Rings the bar at the active stop in the text color, with a gap of surface. `false` opts
-   * out. @defaultValue the plot's `highlight`
+   * Rings the bar at the active stop in the text color, with a gap of surface; stacked bars ring
+   * the whole column or row as one. `false` opts out. @defaultValue the plot's `highlight`
    */
   highlight?: boolean;
 }
 
-/** The values each bar tweens: its left edge, width, and data end, after the shared baseline. */
-const BAR_VALUES = 3;
+/** Columns: each category on a band x scale, its value up the y axis. */
+interface PlotColumnBars<Datum> {
+  /** @defaultValue "vertical" */
+  orientation?: "vertical";
+  /** The category of each bar, on a band x scale. */
+  x: PlotAccessor<Datum, PlotValue>;
+  y: PlotAccessor<Datum, number>;
+  /**
+   * The value the bars grow from, or the value each bar starts at, so bars of one category stack
+   * as segments, such as running totals. @defaultValue 0
+   */
+  y0?: number | PlotAccessor<Datum, number>;
+}
+
+/** Rows: each category on a band y scale, its value along the x axis. */
+interface PlotRowBars<Datum> {
+  orientation: "horizontal";
+  /** The category of each bar, on a band y scale. */
+  y: PlotAccessor<Datum, PlotValue>;
+  x: PlotAccessor<Datum, number>;
+  /** The value the bars grow from, or the value each bar starts at, so bars stack. @defaultValue 0 */
+  x0?: number | PlotAccessor<Datum, number>;
+}
+
+export type PlotBarsProps<Datum> = PlotBarsBase<Datum> &
+  (PlotColumnBars<Datum> | PlotRowBars<Datum>);
+
+/** The values each bar tweens: its leading edge, width, data end, and baseline. */
+const BAR_VALUES = 4;
+
+/** One bar as drawn on this frame, in band and value pixels. */
+interface ShownBar {
+  left: number;
+  barWidth: number;
+  end: number;
+  base: number;
+  corner: number;
+  /** False while a value has no position, such as an unknown category. */
+  shown: boolean;
+  flat: boolean;
+  center: number;
+}
+
+/** Whether a stop on the value axis falls inside a stacked bar, which owns its data end. */
+function holds(base: number, end: number, pixel: number): boolean {
+  return end < base
+    ? pixel >= end - 0.5 && pixel < base - 0.5
+    : pixel > base + 0.5 && pixel <= end + 0.5;
+}
 
 /**
- * Vertical bars with rounded data ends, a track, and flat or gradient fills, alone or grouped by
- * series. They tween to new data by height and position; a new bar grows from the baseline.
+ * Bars with rounded data ends, a track, and flat or gradient fills, alone, grouped by series, or
+ * stacked: vertical by default, or horizontal rows with `orientation="horizontal"`, whose rows
+ * the plot picks by the pointer's height. They tween to new data by length and position; a new
+ * bar grows from its baseline.
  */
-export function PlotBars<Datum>({
-  cap,
-  data,
-  fill,
-  group,
-  highlight,
-  radius = 0,
-  round = "end",
-  size,
-  track,
-  x,
-  y,
-  y0 = 0
-}: PlotBarsProps<Datum>) {
+export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
+  const { cap, data, fill, group, highlight, radius = 0, round = "end", size, track } = props;
   const plot = useCartesian("PlotBars");
-  useSeriesStops(data, x, y);
-  const activeAt = useActiveAt(highlight);
-  const base = plot.y.position(y0);
-  const band = plot.x.bandwidth;
+  useSeriesStops(data, props.x, props.y);
+  const horizontal = props.orientation === "horizontal";
+  const category: PlotAccessor<Datum, PlotValue> =
+    props.orientation === "horizontal" ? props.y : props.x;
+  const value: PlotAccessor<Datum, number> = props.orientation === "horizontal" ? props.x : props.y;
+  const from = (props.orientation === "horizontal" ? props.x0 : props.y0) ?? 0;
+  const stacked = typeof from === "function";
+  const bandScale = horizontal ? plot.y : plot.x;
+  const valueScale = horizontal ? plot.x : plot.y;
+  const pen = horizontal ? ROW_PEN : COLUMN_PEN;
+  const band = bandScale.bandwidth;
   const slot =
     group === undefined
       ? undefined
@@ -552,65 +665,103 @@ export function PlotBars<Datum>({
     slot === undefined || group === undefined
       ? -width / 2
       : -band / 2 + (slot(group.index) ?? 0) + (slotWidth - width) / 2;
-  const centers = data.map((datum, index) => plot.x.position(x(datum, index)));
-  const frame = useMarkTween(
-    [
-      base,
-      ...data.flatMap((datum, index) => [
-        (centers[index] ?? Number.NaN) + offset,
-        width,
-        plot.y.position(y(datum, index))
-      ])
-    ],
-    // A new bar grows from the baseline.
-    { enter: (index, value) => (index > 0 && (index - 1) % BAR_VALUES === 2 ? base : value) }
-  );
-  const shownBase = frame.values[0] ?? base;
+  const centers = data.map((datum, index) => bandScale.position(category(datum, index)));
+  const target = data.flatMap((datum, index) => [
+    (centers[index] ?? Number.NaN) + offset,
+    width,
+    valueScale.position(value(datum, index)),
+    valueScale.position(typeof from === "function" ? from(datum, index) : from)
+  ]);
+  const frame = usePlotTween(target, {
+    // A new bar grows from its baseline.
+    enter: (index, next) => (index % BAR_VALUES === 2 ? (target[index + 1] ?? next) : next)
+  });
   const shape = round === "both" ? roundedBarPath : barPath;
+  // The far edge of the value axis, where a track ends.
+  const far = horizontal ? plot.inner.right : plot.inner.top;
+  const { activeStop } = plot;
+  const bandAxis = horizontal ? "y" : "x";
+  const isActive = (center: number, base: number, end: number): boolean => {
+    if (!(highlight ?? plot.highlight) || activeStop === null) return false;
+    if (activeStop.axis === bandAxis) return Math.abs(center - activeStop.pixel) < 0.5;
+    return stacked ? holds(base, end, activeStop.pixel) : Math.abs(end - activeStop.pixel) < 0.5;
+  };
+  const bars = data.map((_, index): ShownBar => {
+    const at = index * BAR_VALUES;
+    const left = frame.values[at] ?? Number.NaN;
+    const barWidth = frame.values[at + 1] ?? width;
+    const end = frame.values[at + 2] ?? Number.NaN;
+    const base = frame.values[at + 3] ?? Number.NaN;
+    const corner = radius === "full" ? barWidth / 2 : radius;
+    const shown = Number.isFinite(left) && Number.isFinite(end) && Number.isFinite(base);
+    const flat = Math.abs(end - base) < 0.01;
+    const center = centers[index] ?? Number.NaN;
+    return { left, barWidth, end, base, corner, shown, flat, center };
+  });
+  const ringed = bars.flatMap((bar, index) =>
+    bar.shown && !bar.flat && isActive(bar.center, bar.base, bar.end) ? [index] : []
+  );
+  /** The ring around one bar, or around every ringed bar of a stack as one. */
+  const ringPath = (parts: readonly ShownBar[]): string | null => {
+    const [first, ...rest] = parts;
+    if (first === undefined) return null;
+    const up = first.end <= first.base ? 1 : -1;
+    // A stack's ring spans the bars it holds, rounded at the end of its outermost bar.
+    const lead = Math.min(first.left, ...rest.map((bar) => bar.left));
+    const trail = Math.max(
+      first.left + first.barWidth,
+      ...rest.map((bar) => bar.left + bar.barWidth)
+    );
+    const ends = parts.flatMap((bar) => [bar.end, bar.base]);
+    const end = rest.length === 0 ? first.end : up === 1 ? Math.min(...ends) : Math.max(...ends);
+    const base = rest.length === 0 ? first.base : up === 1 ? Math.max(...ends) : Math.min(...ends);
+    const across = rest.length === 0 ? first.barWidth : trail - lead;
+    const corner = rest.length === 0 || radius !== "full" ? first.corner : across / 2;
+    return shape(
+      lead - RING_OFFSET,
+      across + 2 * RING_OFFSET,
+      end - up * RING_OFFSET,
+      base + up * RING_OFFSET,
+      corner + RING_OFFSET,
+      pen
+    );
+  };
+  const stackRing = stacked ? ringPath(ringed.flatMap((index) => bars[index] ?? [])) : null;
 
   return (
     <g>
       {data.map((datum, index) => {
-        const at = 1 + index * BAR_VALUES;
-        const left = frame.values[at] ?? Number.NaN;
-        const barWidth = frame.values[at + 1] ?? width;
-        const end = frame.values[at + 2] ?? Number.NaN;
-        const corner = radius === "full" ? barWidth / 2 : radius;
+        const bar = bars[index];
+        if (bar === undefined || !bar.shown) return null;
+        const { barWidth, base, corner, end, flat, left } = bar;
         const barFill = typeof fill === "function" ? fill(datum, index) : fill;
         const barCap = typeof cap === "function" ? cap(datum, index) : cap;
-        if (!Number.isFinite(left) || !Number.isFinite(end)) return null;
-        const flat = Math.abs(end - shownBase) < 0.01;
-        const up = end <= shownBase ? 1 : -1;
+        const tracked =
+          !stacked ||
+          bars.findIndex((other) => Math.abs(other.center - bar.center) < 0.5) === index;
+        const ring = !ringed.includes(index)
+          ? null
+          : stacked
+            ? ringed.at(-1) === index
+              ? stackRing
+              : null
+            : ringPath([bar]);
         return (
           <g key={index}>
-            {track === undefined ? null : (
-              <BarFill
-                fill={track}
-                path={shape(left, barWidth, plot.inner.top, shownBase, corner)}
-              />
+            {track === undefined || !tracked ? null : (
+              <BarFill fill={track} path={shape(left, barWidth, far, base, corner, pen)} />
             )}
             {flat ? null : (
-              <BarFill fill={barFill} path={shape(left, barWidth, end, shownBase, corner)} />
+              <BarFill fill={barFill} path={shape(left, barWidth, end, base, corner, pen)} />
             )}
             {barCap === undefined || flat ? null : (
               <path
-                d={capPath(left, barWidth, end, shownBase, corner)}
+                d={capPath(left, barWidth, end, base, corner, pen)}
                 fill="none"
                 {...strokeProps({ width: 1.5, ...barCap })}
               />
             )}
-            {flat || !activeAt(centers[index] ?? Number.NaN, end) ? null : (
-              <path
-                {...ringProps}
-                d={shape(
-                  left - RING_OFFSET,
-                  barWidth + 2 * RING_OFFSET,
-                  end - up * RING_OFFSET,
-                  shownBase + up * RING_OFFSET,
-                  corner + RING_OFFSET
-                )}
-              />
-            )}
+            {ring === null ? null : <path {...ringProps} d={ring} />}
           </g>
         );
       })}
@@ -676,7 +827,7 @@ export function PlotHighlight({
   const size = width ?? (plot.x.bandwidth > 0 ? plot.x.bandwidth : 16);
   const ends = [end(y1, plot.inner.top), end(y2, plot.inner.bottom)];
   const center = follows ? (last.current?.pixel ?? Number.NaN) : plot.x.position(x);
-  const frame = useMarkTween(
+  const frame = usePlotTween(
     [center, Math.min(...ends) - pad, Math.max(...ends) + pad, size],
     follows ? { pace: "control" } : {}
   );
@@ -732,7 +883,7 @@ export function PlotCrosshair(stroke: PlotCrosshairProps) {
   const { activeIndex, activeStop, inner } = usePlot();
   const last = React.useRef<{ axis: "x" | "y"; pixel: number } | null>(null);
   if (activeStop !== null) last.current = { axis: activeStop.axis, pixel: activeStop.pixel };
-  const frame = useMarkTween([last.current?.pixel ?? Number.NaN], { pace: "control" });
+  const frame = usePlotTween([last.current?.pixel ?? Number.NaN], { pace: "control" });
   const pixel = frame.values[0] ?? Number.NaN;
   if (last.current === null || !Number.isFinite(pixel)) return null;
   const paint = strokeProps({ color: "neutral", width: 1, cap: "butt", ...stroke });
@@ -784,7 +935,7 @@ export function PlotDots<Datum>({
   useSeriesStops(data, x, y);
   const activeAt = useActiveAt(highlight);
   const target = pixelsOf({ data, x, y }, plot.x, plot.y);
-  const frame = useMarkTween(target.flat());
+  const frame = usePlotTween(target.flat());
   const paint = hollow
     ? { fill: plotColor("surface"), stroke: plotColor(color), strokeWidth: 1.5 }
     : { fill: plotColor(color) };
@@ -841,6 +992,21 @@ export interface PlotArcsProps {
    * per slice. `false` opts out. @defaultValue the plot's `highlight`
    */
   highlight?: boolean;
+  /**
+   * An edge around each slice, or around some: the series color around a pale slice, so it
+   * reads at 3:1 (COLOR-1), or the surface color for a gap of even width between slices.
+   */
+  stroke?: PlotStroke | ((index: number) => PlotStroke | undefined);
+  /**
+   * Moves a slice out from the center by this many pixels, such as the chosen slice of a pie, or
+   * the active one with `(_, active) => (active ? 6 : 0)`. It tweens on the motion tokens.
+   */
+  offset?: (index: number, active: boolean) => number;
+  /**
+   * The text on each slice, such as its share, centered between the inner and outer edge with a
+   * halo of surface so it reads on any fill. Empty slices and empty text show none.
+   */
+  label?: (index: number) => string;
 }
 
 /** The box that a ring of radius 1 around (0, 0) covers between two angles. */
@@ -865,8 +1031,8 @@ function ringBounds(start: number, end: number, innerRatio: number) {
   };
 }
 
-/** The values each slice tweens: its start and end angles and its solid fill opacity. */
-const SLICE_VALUES = 3;
+/** The values each slice tweens: its start and end angles, solid fill opacity, and offset. */
+const SLICE_VALUES = 4;
 
 /**
  * A ring of equal segments, such as a half-circle gauge, or of value-sized slices, such as a
@@ -881,8 +1047,11 @@ export function PlotArcs({
   fill,
   highlight,
   innerRatio = 0.6,
+  label,
+  offset,
   padAngle = 0.02,
   startAngle = -Math.PI / 2,
+  stroke,
   values
 }: PlotArcsProps) {
   const plot = usePlot();
@@ -917,16 +1086,24 @@ export function PlotArcs({
     return () => registerRing(key, null);
   }, [key, ringKey, registerRing]);
 
-  const frame = useMarkTween(
+  const activeSlice = registry.stopAxis === "ring" ? plot.activeIndex : null;
+  const frame = usePlotTween(
     slices.flatMap((slice, index) => {
       const sliceFill = fills[index];
-      return [slice.start, slice.end, sliceFill?.type === "solid" ? (sliceFill.opacity ?? 1) : 1];
+      return [
+        slice.start,
+        slice.end,
+        sliceFill?.type === "solid" ? (sliceFill.opacity ?? 1) : 1,
+        offset?.(index, index === activeSlice) ?? 0
+      ];
     }),
-    // A new slice opens from the end of the ring.
-    { enter: (index, value) => (index % SLICE_VALUES === 2 ? value : endAngle) }
+    // A new slice opens from the end of the ring, at the center.
+    {
+      enter: (index, value) =>
+        index % SLICE_VALUES === 2 ? value : index % SLICE_VALUES === 3 ? 0 : endAngle
+    }
   );
-  const reacts =
-    (highlight ?? plot.highlight) && registry.stopAxis === "ring" && plot.activeIndex !== null;
+  const reacts = (highlight ?? plot.highlight) && activeSlice !== null;
   const grow = Math.max(3, radius * 0.06);
   const segment = arc<{ start: number; end: number; outer: number }>()
     .innerRadius(radius * innerRatio)
@@ -936,39 +1113,108 @@ export function PlotArcs({
     .startAngle(({ start }) => start)
     .endAngle(({ end }) => end);
 
+  const shown = fills.map((_, index) => {
+    const at = index * SLICE_VALUES;
+    const start = frame.values[at] ?? 0;
+    const end = frame.values[at + 1] ?? 0;
+    const middle = (start + end) / 2;
+    const out = frame.values[at + 3] ?? 0;
+    return {
+      start,
+      end,
+      middle,
+      opacity: frame.values[at + 2] ?? 1,
+      // The slice moves out along its middle angle.
+      shift:
+        out === 0 ? undefined : `translate(${out * Math.sin(middle)} ${-out * Math.cos(middle)})`
+    };
+  });
+  // Labels sit halfway between the inner and the outer edge.
+  const labelRadius = (radius * (innerRatio + 1)) / 2;
+
   return (
     <g transform={`translate(${centerX} ${centerY})`}>
       {fills.map((sliceFill, index) => {
-        const at = index * SLICE_VALUES;
-        const start = frame.values[at] ?? 0;
-        const end = frame.values[at + 1] ?? 0;
-        const opacity = frame.values[at + 2] ?? 1;
+        const slice = shown[index];
+        if (slice === undefined) return null;
         const active = reacts && plot.activeIndex === index;
+        const edge = typeof stroke === "function" ? stroke(index) : stroke;
         return (
           <ArcSegment
             key={index}
-            fill={sliceFill.type === "solid" ? { ...sliceFill, opacity } : sliceFill}
-            path={segment({ start, end, outer: active ? radius + grow : radius }) ?? ""}
+            fill={sliceFill.type === "solid" ? { ...sliceFill, opacity: slice.opacity } : sliceFill}
+            path={
+              segment({
+                start: slice.start,
+                end: slice.end,
+                outer: active ? radius + grow : radius
+              }) ?? ""
+            }
+            stroke={edge}
+            transform={slice.shift}
           />
         );
       })}
+      {label === undefined ? null : (
+        <g className="fill-ds-text text-body-xs font-medium tabular-nums">
+          {shown.map((slice, index) => {
+            const text = slice.end - slice.start > 1e-3 ? label(index) : "";
+            if (text === "") return null;
+            return (
+              <text
+                key={index}
+                dominantBaseline="central"
+                paintOrder="stroke"
+                stroke={plotColor("surface")}
+                strokeLinejoin="round"
+                strokeWidth={3}
+                textAnchor="middle"
+                transform={slice.shift}
+                x={labelRadius * Math.sin(slice.middle)}
+                y={-labelRadius * Math.cos(slice.middle)}
+              >
+                {text}
+              </text>
+            );
+          })}
+        </g>
+      )}
     </g>
   );
 }
 
-function ArcSegment({ fill, path }: { fill: PlotFill; path: string }) {
+function ArcSegment({
+  fill,
+  path,
+  stroke,
+  transform
+}: {
+  fill: PlotFill;
+  path: string;
+  stroke: PlotStroke | undefined;
+  transform: string | undefined;
+}) {
   const paint = useFill(fill);
   return (
     <>
       <defs>{paint.definition}</defs>
-      <path d={path} fill={paint.fill} fillOpacity={paint.fillOpacity} />
+      <path
+        d={path}
+        fill={paint.fill}
+        fillOpacity={paint.fillOpacity}
+        transform={transform}
+        {...(stroke === undefined ? {} : strokeProps({ width: 1, ...stroke }))}
+      />
     </>
   );
 }
 
 export interface PlotAxisProps {
   axis: "x" | "y";
-  /** Formats each label, such as a short date. */
+  /**
+   * Formats each label, such as a short date. A line break (`\n`) splits a label into lines, such
+   * as a long category name on two lines.
+   */
   format: (value: PlotValue) => string;
   /** The values to label; by default the scale's ticks. */
   values?: readonly PlotValue[];
@@ -978,14 +1224,20 @@ export interface PlotAxisProps {
   offset?: number;
   /**
    * `"edges"` aligns the first x label to its start and the last to its end, so both stay
-   * inside the plot. @defaultValue "center"
+   * inside the plot. `"start"` aligns y labels to their start at the plot's left edge, so they
+   * line up in the margin, and starts each x label at its value. @defaultValue "center"
    */
-  align?: "center" | "edges";
+  align?: "center" | "edges" | "start";
   /**
    * Leaves out a label that sits closer than this many pixels to the one before it, so a narrow
    * plot stays readable. The first and the last label always stay.
    */
   minSpacing?: number;
+  /**
+   * Sets the label at the active stop in the text color and a medium weight, such as the active
+   * day under a trend. @defaultValue false
+   */
+  highlight?: boolean;
   className?: string;
 }
 
@@ -1015,6 +1267,11 @@ function spacedOut(
   return kept;
 }
 
+/** The step from one line of a label to the next. */
+const LABEL_LINE = 1.2;
+/** An emphasized label fades to and from the text color. */
+const LABEL_MOTION = "transition-colors duration-control ease-standard";
+
 /** Tick labels along one edge. They are SVG text, so they move with the scale. */
 export function PlotAxis({
   align = "center",
@@ -1022,33 +1279,61 @@ export function PlotAxis({
   className,
   count = 5,
   format,
+  highlight = false,
   minSpacing,
   offset = 8,
   values
 }: PlotAxisProps) {
-  const { inner, x, y } = useCartesian("PlotAxis");
+  const { activeStop, inner, x, y } = useCartesian("PlotAxis");
   const scale = axis === "x" ? x : y;
   const at = spacedOut(values ?? scale.ticks(count), scale, minSpacing);
   const anchorOf = (index: number): "start" | "middle" | "end" => {
+    if (align === "start") return "start";
     if (axis === "y") return "end";
     if (align === "edges" && index === 0) return "start";
     if (align === "edges" && index === at.length - 1) return "end";
     return "middle";
   };
+  const isActive = (pixel: number): boolean =>
+    highlight &&
+    activeStop !== null &&
+    activeStop.axis === axis &&
+    Math.abs(pixel - activeStop.pixel) < 0.5;
 
   return (
     <g className={cn("fill-ds-text-subtle text-body-sm", className)}>
-      {at.map((value, index) => (
-        <text
-          key={index}
-          dominantBaseline={axis === "x" ? "hanging" : "middle"}
-          textAnchor={anchorOf(index)}
-          x={axis === "x" ? scale.position(value) : inner.left - offset}
-          y={axis === "x" ? inner.bottom + offset : scale.position(value)}
-        >
-          {format(value)}
-        </text>
-      ))}
+      {at.map((value, index) => {
+        const pixel = scale.position(value);
+        const left = axis === "x" ? pixel : align === "start" ? 0 : inner.left - offset;
+        const lines = format(value).split("\n");
+        return (
+          <text
+            key={index}
+            {...(!highlight
+              ? {}
+              : isActive(pixel)
+                ? { className: LABEL_MOTION + " font-medium", fill: plotColor("ink") }
+                : { className: LABEL_MOTION })}
+            dominantBaseline={axis === "x" ? "hanging" : "middle"}
+            textAnchor={anchorOf(index)}
+            x={left}
+            y={axis === "x" ? inner.bottom + offset : pixel}
+          >
+            {lines.length === 1
+              ? lines[0]
+              : lines.map((line, row) => (
+                  <tspan
+                    key={row}
+                    // A y label's lines center on its value; an x label's run down from it.
+                    dy={`${row > 0 ? LABEL_LINE : axis === "y" ? (-(lines.length - 1) * LABEL_LINE) / 2 : 0}em`}
+                    x={left}
+                  >
+                    {line}
+                  </tspan>
+                ))}
+          </text>
+        );
+      })}
     </g>
   );
 }

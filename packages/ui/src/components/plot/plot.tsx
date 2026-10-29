@@ -24,6 +24,7 @@ import { svgId } from "./plot.paint";
 import {
   createPlotScale,
   nearestStop,
+  spanAt,
   type PlotScale,
   type PlotScaleConfig,
   type PlotValue
@@ -90,6 +91,22 @@ export interface PlotInteraction {
   onSelectedChange?: (index: number | null) => void;
   /** Called when the active point changes: hover, focus, touch, or the selection. */
   onActiveChange?: (index: number | null) => void;
+  /**
+   * The extent of each point on the axis that holds them, from its start to its end, such as
+   * the parts of a stacked bar. The pointer then picks the point whose extent it is over, so a
+   * short part next to a long one gets the pixels it covers; elsewhere it picks the nearest
+   * point. By default the stops are the middles of the extents.
+   */
+  spans?: readonly (readonly [number, number])[];
+  /**
+   * What the pinned point shows while nobody points at, touches, or focuses the plot. `"all"`:
+   * its highlight and its tooltip. `"highlight"`: its highlight, and its tooltip only once
+   * people used this plot since the selection last changed elsewhere, for plots that share one
+   * selection. `"none"`: neither, for a pinned mark that has its own look; the active point is
+   * then only the one under the pointer, the keyboard, or a touch.
+   * @defaultValue "all"
+   */
+  rest?: "all" | "highlight" | "none";
 }
 
 export interface PlotProps {
@@ -281,17 +298,21 @@ export function Plot({
   }, []);
   const axis = config?.axis ?? (isCategorical(y) && !isCategorical(x) ? "y" : "x");
   const axisScale = axis === "x" ? xScale : yScale;
+  const spans = config?.spans;
   // The first ring a mark reports holds the slices.
-  const ring = config?.stops === undefined ? [...rings.values()][0] : undefined;
+  const ring =
+    config?.stops === undefined && spans === undefined ? [...rings.values()][0] : undefined;
   const wantsStops =
     config !== null &&
     config.stops === undefined &&
+    spans === undefined &&
     ring === undefined &&
     !isCategorical(axis === "x" ? x : y);
   const stops: readonly PlotValue[] =
     config === null || ring !== undefined
       ? []
       : (config.stops ??
+        spans?.map(([from, to]) => (from + to) / 2) ??
         (wantsStops ? markedStops(marked, axisScale) : (axisScale?.ticks() ?? [])));
   const count =
     ring !== undefined ? ring.slices.length : axisScale === undefined ? 0 : stops.length;
@@ -302,6 +323,10 @@ export function Plot({
     config !== null && count > 0 && (config.explicit || table.rows.length === count);
   const stopAxis = !interactive ? null : ring !== undefined ? "ring" : axis;
   const mode = config?.mode ?? "pin";
+  const rest = config?.rest ?? "all";
+  /** The point that marks and overlays show: with `rest: "none"`, never the pinned one at rest. */
+  const shownOf = (state: PlotPick): number | null =>
+    rest === "none" ? state.transient : activeOf(state);
 
   // The active and selected points.
   const [transient, setTransient] = React.useState<number | null>(null);
@@ -317,7 +342,16 @@ export function Plot({
   };
   const latest = React.useRef(pick);
   latest.current = pick;
-  const active = interactive ? activeOf(pick) : null;
+  const active = interactive ? shownOf(pick) : null;
+
+  // The selection when people last used this plot; a selection made elsewhere clears it.
+  const [usedAt, setUsedAt] = React.useState<{ selected: number | null } | null>(null);
+  const [seenSelected, setSeenSelected] = React.useState(pick.selected);
+  if (rest === "highlight" && seenSelected !== pick.selected) {
+    setSeenSelected(pick.selected);
+    if (usedAt !== null && usedAt.selected !== pick.selected) setUsedAt(null);
+  }
+  const used = usedAt !== null && usedAt.selected === pick.selected;
 
   const dispatch = (...events: PlotPickEvent[]): void => {
     if (config === null || !interactive) return;
@@ -325,19 +359,27 @@ export function Plot({
     const after = events.reduce((state, event) => nextPick(state, event, { count, mode }), before);
     latest.current = after;
     if (after.transient !== before.transient) setTransient(after.transient);
+    if (rest === "highlight" && events.some((event) => event.type !== "leave")) {
+      setUsedAt((previous) =>
+        previous?.selected === after.selected ? previous : { selected: after.selected }
+      );
+    }
     if (after.selected !== before.selected) {
       if (!controlled) setOwnSelected(after.selected);
       config.onSelectedChange?.(after.selected);
     }
-    if (activeOf(after) !== activeOf(before)) config.onActiveChange?.(activeOf(after));
+    if (shownOf(after) !== shownOf(before)) config.onActiveChange?.(shownOf(after));
   };
   const hit = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const px = event.clientX - bounds.left;
     const py = event.clientY - bounds.top;
     if (ring !== undefined) return sliceAt(ring, px, py);
+    if (axisScale === undefined) return -1;
+    const pixel = axis === "x" ? px : py;
+    const inside = spans === undefined ? -1 : spanAt(axisScale, spans, pixel);
     // On a band scale the nearest band center is the band under the pointer.
-    return axisScale === undefined ? -1 : nearestStop(axisScale, stops, axis === "x" ? px : py);
+    return inside >= 0 ? inside : nearestStop(axisScale, stops, pixel);
   };
   const onPointer = (event: React.PointerEvent<HTMLDivElement>): void => {
     const index = hit(event);
@@ -385,7 +427,9 @@ export function Plot({
     }
   };
   const showTooltip = interactive && (tooltip ?? overlay === undefined) !== false;
-  const shownIndex = active ?? 0;
+  // The tooltip of a plot that shares its selection waits until people use this plot.
+  const tooltipIndex = rest === "highlight" && pick.transient === null && !used ? null : active;
+  const shownIndex = activeOf(pick) ?? 0;
 
   return (
     <figure aria-labelledby={titleId} className={cn("m-0 grid gap-ds-150", className)}>
@@ -438,11 +482,15 @@ export function Plot({
               </svg>
               {overlay}
               {showTooltip ? (
-                <PlotTableTooltip
-                  describe={describe}
-                  render={typeof tooltip === "function" ? tooltip : undefined}
-                  table={table}
-                />
+                <PlotContext.Provider
+                  value={tooltipIndex === active ? plot : { ...plot, activeIndex: tooltipIndex }}
+                >
+                  <PlotTableTooltip
+                    describe={describe}
+                    render={typeof tooltip === "function" ? tooltip : undefined}
+                    table={table}
+                  />
+                </PlotContext.Provider>
               ) : null}
             </PlotRegistryContext.Provider>
           </PlotContext.Provider>

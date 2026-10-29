@@ -13,8 +13,10 @@ import {
   PlotHighlight,
   PlotLegend,
   PlotLine,
+  PLOT_RING,
   PlotStems,
   PlotTooltip,
+  plotColor,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -22,6 +24,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  usePlot,
+  usePlotTween,
   type PlotFill,
   type PlotTable
 } from "@repo/ui";
@@ -742,6 +746,436 @@ function Scrubbing() {
   );
 }
 
+// Fixed demo data for the options demos: open bugs per developer, visits by source, and patients
+// by species.
+const developers = [
+  { name: "Ana Ruiz", open: 12 },
+  { name: "Ben Okafor", open: 7 },
+  { name: "Chen Wei", open: 15 },
+  { name: "Dara Novak", open: 4 }
+];
+const sources = [
+  { key: "search", label: "Search", values: [60, 84, 77, 105, 118, 95, 126] },
+  { key: "direct", label: "Direct", values: [36, 50, 46, 63, 71, 57, 75] },
+  { key: "referral", label: "Referral", values: [24, 34, 31, 42, 47, 38, 50] }
+] as const;
+const sourceFills: Record<(typeof sources)[number]["key"], PlotFill> = {
+  search: { type: "solid", color: "chart-1" },
+  direct: { type: "solid", color: "chart-2", opacity: 0.35 },
+  referral: { type: "hatch", color: "chart-3", spacing: 4, angle: 45, width: 1.5 }
+};
+const species = [
+  { label: "Dogs", value: 48, color: "chart-1" },
+  { label: "Cats", value: 31, color: "chart-2" },
+  { label: "Birds", value: 6, color: "chart-3" },
+  { label: "Other", value: 15, color: "neutral" }
+] as const;
+
+/** Horizontal bars, with the names on two lines and the active name in the text color. */
+function RowBars() {
+  return (
+    <Demo
+      description='PlotBars with orientation="horizontal": the plot picks the row under the pointer, and the tooltip sits beside the bar end (side="beside"). PlotAxis starts the names at the left edge (align="start"), breaks them at "\n", and sets the active one in the text color (highlight).'
+      title="Horizontal bars and row labels"
+    >
+      <Plot
+        height={200}
+        hideTitle
+        margin={{ top: 4, right: 16, bottom: 24, left: 56 }}
+        overlay={
+          <PlotTooltip offset={{ x: 10 }} side="beside" x={(index) => developers[index]?.open ?? 0}>
+            {(index) => <p className="m-0 tabular-nums">{developers[index]?.open} open bugs</p>}
+          </PlotTooltip>
+        }
+        table={{
+          columns: ["Open bugs"],
+          rows: developers.map((row) => ({ header: row.name, cells: [String(row.open)] }))
+        }}
+        title="Open bugs per developer"
+        x={{ type: "linear", domain: [0, 20] }}
+        y={{ type: "band", domain: developers.map((row) => row.name), paddingInner: 0.35 }}
+      >
+        <PlotGrid axis="x" dash="4 4" values={[5, 10, 15, 20]} />
+        <PlotBars
+          data={developers}
+          fill={{ type: "solid", color: "chart-1" }}
+          orientation="horizontal"
+          radius={4}
+          x={(row) => row.open}
+          y={(row) => row.name}
+        />
+        <PlotAxis
+          align="start"
+          axis="y"
+          format={(name) => String(name).replace(" ", "\n")}
+          highlight
+        />
+        <PlotAxis axis="x" format={countLabel} values={[0, 5, 10, 15, 20]} />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** Bars that stack from running totals; the active day rings its whole column. */
+function StackedBars() {
+  const segments = days.flatMap((day, index) => {
+    let total = 0;
+    return sources.map((source) => {
+      const from = total;
+      total += source.values[index] ?? 0;
+      return { day, source: source.key, from, to: total };
+    });
+  });
+
+  return (
+    <Demo
+      description="One PlotBars whose y0 reads each segment's start, so the segments stack; the active day rings its column as one. The legend swatches take the same tint and hatch, with an edge in the series color."
+      title="Stacked bars and legend fills"
+    >
+      <PlotLegend
+        items={sources.map((source, index) => ({
+          key: source.key,
+          label: source.label,
+          color: (["chart-1", "chart-2", "chart-3"] as const)[index] ?? "chart-1",
+          mark: "square" as const,
+          ...(source.key === "search" ? {} : { fill: sourceFills[source.key] })
+        }))}
+      />
+      <Plot
+        height={180}
+        hideTitle
+        margin={{ top: 8, right: 0, bottom: 28, left: 40 }}
+        table={{
+          columns: sources.map((source) => source.label),
+          rows: days.map((day, index) => ({
+            header: day,
+            cells: sources.map((source) => String(source.values[index]))
+          }))
+        }}
+        title="Visits per day by source this week"
+        x={band}
+        y={visitsScale}
+      >
+        <PlotGrid axis="y" dash="4 4" values={[0, 100, 200, 300]} />
+        <PlotBars
+          cap={(segment) =>
+            segment.source === "search"
+              ? undefined
+              : { color: segment.source === "direct" ? "chart-2" : "chart-3", width: 1.5 }
+          }
+          data={segments}
+          fill={(segment) => sourceFills[segment.source]}
+          x={(segment) => segment.day}
+          y={(segment) => segment.to}
+          y0={(segment) => segment.from}
+        />
+        <PlotAxis axis="y" format={countLabel} values={[0, 100, 200, 300]} />
+        <PlotAxis axis="x" format={dayLabel} />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** A line that runs to both edges, with start-aligned value labels and the active day in ink. */
+function EdgeLine() {
+  return (
+    <Demo
+      description="PlotLine with extend continues the first and last segments to the edges of the drawing area. The y labels start at the plot's left edge, and the x axis sets the active day in the text color."
+      title="A line to the edges"
+    >
+      <Plot
+        height={180}
+        hideTitle
+        margin={{ top: 12, right: 0, bottom: 28, left: 40 }}
+        table={{
+          columns: ["Visits"],
+          rows: days.map((day, index) => ({ header: day, cells: [String(visits[index])] }))
+        }}
+        title="Visits per day this week"
+        x={{ type: "point", domain: days, padding: 0.5 }}
+        y={visitsScale}
+      >
+        <PlotGrid axis="y" values={[0, 100, 200, 300]} />
+        <PlotCrosshair />
+        <PlotLine curve="monotone" data={visits} extend x={byDay} y={asValue} />
+        <PlotDots data={visits} r={3} x={byDay} y={asValue} />
+        <PlotAxis align="start" axis="y" format={countLabel} values={[0, 100, 200, 300]} />
+        <PlotAxis axis="x" format={dayLabel} highlight />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** A pie with gaps, an edge on its pale slice, labels, and the chosen slice moved out. */
+function PieOptions() {
+  const cases = casesByMonth.june;
+  const total = cases.reduce((sum, count) => sum + count, 0);
+  const share = (count: number) => `${Math.round((count / total) * 100)}%`;
+  const [chosen, setChosen] = useState<number | null>(0);
+
+  return (
+    <Demo
+      description="PlotArcs with stroke (a surface gap between slices, and an edge on the pale slice), label (each share on its slice), and offset (the pinned slice moves out, the active one a little)."
+      title="Pie: edges, offset, and labels"
+    >
+      <Plot
+        height={200}
+        hideTitle
+        interaction={{ selectedIndex: chosen, onSelectedChange: setChosen }}
+        margin={{ top: 12, right: 12, bottom: 12, left: 12 }}
+        table={{
+          columns: ["Cases", "Share"],
+          rows: diagnoses.map((name, index) => ({
+            header: name,
+            cells: [String(cases[index] ?? 0), share(cases[index] ?? 0)]
+          }))
+        }}
+        title="Cases by diagnosis, June"
+      >
+        <PlotArcs
+          endAngle={2 * Math.PI}
+          fill={(index) =>
+            index === 4
+              ? { type: "solid", color: "neutral", opacity: 0.2 }
+              : {
+                  type: "solid",
+                  color: (["chart-1", "chart-2", "chart-3", "chart-4"] as const)[index] ?? "neutral"
+                }
+          }
+          highlight={false}
+          innerRatio={0}
+          label={(index) => share(cases[index] ?? 0)}
+          offset={(index, active) => (index === chosen ? 10 : active ? 4 : 0)}
+          padAngle={0}
+          startAngle={0}
+          stroke={(index) =>
+            index === 4 ? { color: "neutral", width: 1.5 } : { color: "surface", width: 2 }
+          }
+          values={cases}
+        />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** One bar of parts end to end, picked by each part's span, with a tooltip above it. */
+function ShareBar() {
+  const edges = species.reduce<number[]>(
+    (list, part) => [...list, (list.at(-1) ?? 0) + part.value],
+    [0]
+  );
+  const total = edges.at(-1) ?? 0;
+  const spans = species.map((_, index): [number, number] => [
+    edges[index] ?? 0,
+    edges[index + 1] ?? 0
+  ]);
+
+  return (
+    <Demo
+      description='interaction.spans picks the part under the pointer, so the short Birds part gets the pixels it covers. The tooltip sits above the part (side="above"), stays inside the plot sideways, and wraps at maxWidth.'
+      title="Parts picked by span"
+    >
+      <Plot
+        height={88}
+        hideTitle
+        interaction={{ axis: "x", spans }}
+        margin={{ top: 64, right: 0, bottom: 12, left: 0 }}
+        overlay={
+          <PlotTooltip
+            maxWidth={180}
+            offset={{ y: 8 }}
+            side="above"
+            x={(index) => {
+              const [from = 0, to = 0] = spans[index] ?? [];
+              return (from + to) / 2;
+            }}
+            y="top"
+          >
+            {(index) => (
+              <p className="m-0">
+                {species[index]?.label}: {species[index]?.value} patients, a{" "}
+                {Math.round(((species[index]?.value ?? 0) / total) * 100)}% share of the clinic
+              </p>
+            )}
+          </PlotTooltip>
+        }
+        table={{
+          columns: ["Patients"],
+          rows: species.map((part) => ({ header: part.label, cells: [String(part.value)] }))
+        }}
+        title="Patients by species"
+        x={{ type: "linear", domain: [0, total] }}
+        y={{ type: "band", domain: ["Patients"], paddingInner: 0 }}
+      >
+        <PlotBars
+          data={species}
+          fill={(part) => ({ type: "solid", color: part.color })}
+          orientation="horizontal"
+          x={(_, index) => edges[index + 1] ?? 0}
+          x0={(_, index) => edges[index] ?? 0}
+          y={() => "Patients"}
+        />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** Two plots that share one selection: only the plot people used keeps its tooltip. */
+function SharedSelection() {
+  const [selected, setSelected] = useState<number | null>(3);
+  const series = [
+    { key: "visits", label: "Visits", values: visits, scale: visitsScale },
+    {
+      key: "signups",
+      label: "Sign-ups",
+      values: signups,
+      scale: { type: "linear", domain: [0, 120] }
+    }
+  ] as const;
+
+  return (
+    <Demo
+      description='rest: "highlight" on two plots that share the pinned day: both ring it, but only the plot you used shows its tooltip at rest. Pin a day in one plot, then move the pointer away.'
+      title="A shared selection"
+    >
+      <div className="grid grid-cols-1 gap-ds-200 sm:grid-cols-2">
+        {series.map((entry) => (
+          <Plot
+            key={entry.key}
+            height={140}
+            interaction={{
+              rest: "highlight",
+              selectedIndex: selected,
+              onSelectedChange: setSelected
+            }}
+            margin={{ top: 8, right: 0, bottom: 28, left: 0 }}
+            table={{
+              columns: [entry.label],
+              rows: days.map((day, index) => ({
+                header: day,
+                cells: [String(entry.values[index])]
+              }))
+            }}
+            title={`${entry.label} per day this week`}
+            x={band}
+            y={entry.scale}
+          >
+            <PlotBars
+              data={entry.values}
+              fill={{ type: "solid", color: entry.key === "visits" ? "chart-1" : "chart-2" }}
+              radius={4}
+              x={byDay}
+              y={asValue}
+            />
+            <PlotAxis axis="x" format={dayLabel} />
+          </Plot>
+        ))}
+      </div>
+    </Demo>
+  );
+}
+
+/** A pinned bar that has its own look: at rest it takes no ring and no tooltip. */
+function PlainPin() {
+  const [pinned, setPinned] = useState<number | null>(6);
+
+  return (
+    <Demo
+      description='rest: "none": the pinned bar speaks through its own fill, so at rest it takes no ring and no tooltip. Hover or focus the chart to see the ring and the tooltip.'
+      title="A pin with its own look"
+    >
+      <Plot
+        height={160}
+        hideTitle
+        interaction={{ rest: "none", selectedIndex: pinned, onSelectedChange: setPinned }}
+        margin={{ top: 8, right: 0, bottom: 28, left: 0 }}
+        table={{
+          columns: ["Visits"],
+          rows: days.map((day, index) => ({ header: day, cells: [String(visits[index])] }))
+        }}
+        title="Visits per day this week"
+        x={band}
+        y={visitsScale}
+      >
+        <PlotBars
+          data={visits}
+          fill={(_, index) =>
+            index === pinned
+              ? { type: "gradient", color: "chart-1", from: 1, to: 0.5 }
+              : { type: "solid", color: "chart-1", opacity: 0.3 }
+          }
+          cap={(_, index) => (index === pinned ? undefined : { color: "chart-1" })}
+          radius={6}
+          x={byDay}
+          y={asValue}
+        />
+        <PlotAxis axis="x" format={dayLabel} />
+      </Plot>
+    </Demo>
+  );
+}
+
+/** A custom mark that tweens with usePlotTween and rings its active stem with PLOT_RING. */
+function Lollipops({ data }: { data: readonly number[] }) {
+  const { activeIndex, highlight, inner, x, y } = usePlot();
+  const frame = usePlotTween(data.map((value) => y?.position(value) ?? inner.bottom));
+  if (x === undefined) return null;
+
+  return (
+    <g>
+      {data.map((_, index) => {
+        const cx = x.position(days[index] ?? "");
+        const cy = frame.values[index] ?? inner.bottom;
+        return (
+          <g key={index}>
+            <line
+              stroke={plotColor("chart-2")}
+              strokeWidth={2}
+              x1={cx}
+              x2={cx}
+              y1={inner.bottom}
+              y2={cy}
+            />
+            <circle cx={cx} cy={cy} fill={plotColor("chart-2")} r={6} />
+            {highlight && activeIndex === index ? (
+              <circle {...PLOT_RING.paint} cx={cx} cy={cy} r={6 + PLOT_RING.offset} />
+            ) : null}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function CustomMark() {
+  const [week, setWeek] = useState<Week>("this");
+  const data = week === "this" ? visits : lastWeekVisits;
+
+  return (
+    <Demo
+      description="A custom mark built on usePlot: usePlotTween moves it to new data on the motion tokens and snaps under reduced motion, and PLOT_RING rings the active point as the plot's marks do."
+      title="usePlotTween and PLOT_RING"
+    >
+      <WeekToggle onChange={setWeek} value={week} />
+      <Plot
+        height={160}
+        hideTitle
+        margin={{ top: 12, right: 0, bottom: 28, left: 0 }}
+        table={{
+          columns: ["Visits"],
+          rows: days.map((day, index) => ({ header: day, cells: [String(data[index])] }))
+        }}
+        title={`Visits per day, ${week === "this" ? "this" : "last"} week`}
+        x={point}
+        y={visitsScale}
+      >
+        <Lollipops data={data} />
+        <PlotAxis axis="x" format={dayLabel} />
+      </Plot>
+    </Demo>
+  );
+}
+
 const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
 const monthNames = [
   "August 2025",
@@ -905,6 +1339,23 @@ export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
             <div className="lg:col-span-2">
               <Areas />
             </div>
+          </div>
+        </section>
+        <section aria-labelledby="charts-options" className="grid gap-ds-200">
+          <h2 className="m-0 text-heading-md" id="charts-options">
+            Options for custom charts
+          </h2>
+          <div className="grid grid-cols-1 gap-ds-200 lg:grid-cols-2">
+            <RowBars />
+            <StackedBars />
+            <EdgeLine />
+            <PieOptions />
+            <ShareBar />
+            <PlainPin />
+            <div className="lg:col-span-2">
+              <SharedSelection />
+            </div>
+            <CustomMark />
           </div>
         </section>
         <section aria-labelledby="charts-reference" className="grid gap-ds-200">

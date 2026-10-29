@@ -117,6 +117,24 @@ export function paintFill(
   }
 }
 
+const RING_WIDTH = 1.5;
+const RING_GAP = 1.75;
+
+/**
+ * The ring around an active mark: the text color, which reaches 4.5:1 on every surface, with a
+ * gap of surface between it and the mark, so it reads at 3:1 against the mark, its neighbors,
+ * and the card in every theme (COLOR-1). Dimming the other marks could not: a chart color dimmed
+ * to 30% is only 2.9:1 from itself in the light themes. A custom mark draws its ring `offset`
+ * pixels outside its own outline, such as a rect grown by `offset` on every side with its corner
+ * radius grown by `offset` too, and paints it with `paint`.
+ */
+export const PLOT_RING = {
+  /** How far the ring's center line sits outside the mark's outline, in pixels. */
+  offset: RING_GAP + RING_WIDTH / 2,
+  /** The SVG attributes that paint the ring: no fill and a 1.5px stroke in the text color. */
+  paint: { fill: "none", stroke: plotColor("ink"), strokeWidth: RING_WIDTH }
+} as const;
+
 /** The look of a plot tooltip: a translucent overlay surface that blurs what is behind it. */
 export const PLOT_TOOLTIP_CLASS =
   "grid gap-ds-075 rounded-overlay bg-ds-surface-overlay/85 px-ds-150 py-ds-100 text-body-sm text-ds-text shadow-overlay backdrop-blur-sm";

@@ -128,3 +128,19 @@ export function nearestStop(scale: PlotScale, stops: readonly PlotValue[], pixel
   });
   return nearest;
 }
+
+/**
+ * The index of the span that holds `pixel`, from its start up to its end, or -1 when none does.
+ * Spans are the extents of parts on the axis, such as the parts of a stacked bar.
+ */
+export function spanAt(
+  scale: PlotScale,
+  spans: readonly (readonly [number, number])[],
+  pixel: number
+): number {
+  return spans.findIndex(([from, to]) => {
+    const start = scale.position(from);
+    const end = scale.position(to);
+    return pixel >= Math.min(start, end) && pixel < Math.max(start, end);
+  });
+}

@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type ReactNode } from "react";
 
 import { usePlot, usePlotRegistry } from "./plot.context";
-import { PLOT_TOOLTIP_CLASS } from "./plot.paint";
+import { paintFill, PLOT_TOOLTIP_CLASS, plotColor, svgId, type PlotFill } from "./plot.paint";
 import type { PlotValue } from "./plot.scales";
 import { cn } from "../../lib/cn";
 import { seriesColor, type ChartColor } from "../composed/chart.series";
@@ -22,10 +22,21 @@ export interface PlotAnchorProps {
   /**
    * The side of the anchor that the content sits on. `"auto"` takes the right side while the
    * content fits there and the left side near the right edge; near the bottom edge it moves
-   * above the anchor, so it stays inside the plot.
+   * above the anchor, so it stays inside the plot. `"above"` and `"below"` center the content on
+   * the anchor, keep it inside the plot's left and right edges, and take the other side when
+   * only that side fits in the plot; in a plot too short for either, it stays on its side, off
+   * the marks. `"beside"` centers the content on the anchor's height, inside the plot's top and
+   * bottom edges, and takes the right side while it fits, else the left, such as beside a row.
+   * For those three the gap to the content is `offset.y` above or below and `offset.x` beside;
+   * the other offset moves the content along the anchor.
    * @defaultValue "auto"
    */
-  side?: "auto" | "right" | "left";
+  side?: "auto" | "right" | "left" | "above" | "below" | "beside";
+  /**
+   * The widest the content gets, in pixels, or a function of the point index, such as the room
+   * before the next mark; longer text wraps.
+   */
+  maxWidth?: number | ((index: number) => number);
   /**
    * Moves to a new point with a transform transition and fades in and out (`duration-control`,
    * `duration-overlay`, `ease-standard`). @defaultValue true for an anchor that follows the
@@ -35,6 +46,73 @@ export interface PlotAnchorProps {
   className?: string;
   /** The content, or a function that renders it for a point index, which follows the active point. */
   children: ReactNode | ((index: number) => ReactNode);
+}
+
+type Size = { width: number; height: number };
+type Bounds = { width: number; height: number };
+
+/** The content at its corner: right of the anchor and down, or flipped and clamped by `side`. */
+function placeCorner(
+  side: "auto" | "right" | "left",
+  { dx, dy, left, top }: { left: number; top: number; dx: number; dy: number },
+  size: Size,
+  plot: Bounds
+): { horizontal: string; vertical: string } {
+  const fitsRight = left + dx + size.width <= plot.width;
+  const fitsLeft = left - dx - size.width >= 0;
+  // The content stays inside the plot: the other side near an edge, else clamped to the edge.
+  const horizontal =
+    side === "right" || (side === "auto" && fitsRight)
+      ? `translateX(${left + dx}px)`
+      : side === "left" || fitsLeft
+        ? `translateX(${left - dx}px) translateX(-100%)`
+        : `translateX(${Math.max(Math.min(left + dx, plot.width - size.width), 0)}px)`;
+  const fitsBelow = top + dy + size.height <= plot.height;
+  const vertical =
+    side !== "auto" || fitsBelow
+      ? `translateY(${top + dy}px)`
+      : top - Math.abs(dy) - size.height >= 0
+        ? `translateY(${top - Math.abs(dy)}px) translateY(-100%)`
+        : `translateY(${Math.max(plot.height - size.height, 0)}px)`;
+  return { horizontal, vertical };
+}
+
+/** `value` kept from `low` to `high`; at `low` when the range is empty. */
+const clamp = (value: number, low: number, high: number): number =>
+  Math.max(Math.min(value, high), low);
+
+/**
+ * The content centered on the anchor across one axis and set off from it along the other: by
+ * `dy` above or below, by `dx` beside. The other offset moves it along the anchor.
+ */
+function placeCentered(
+  side: "above" | "below" | "beside",
+  { dx, dy, left, top }: { left: number; top: number; dx: number; dy: number },
+  size: Size,
+  plot: Bounds
+): { horizontal: string; vertical: string } {
+  if (side === "beside") {
+    const gap = Math.abs(dx);
+    const fitsRight = left + gap + size.width <= plot.width;
+    const fitsLeft = left - gap - size.width >= 0;
+    const start = fitsRight
+      ? left + gap
+      : fitsLeft
+        ? left - gap - size.width
+        : clamp(left + gap, 0, plot.width - size.width);
+    return {
+      horizontal: `translateX(${start}px)`,
+      vertical: `translateY(${clamp(top + dy - size.height / 2, 0, plot.height - size.height)}px)`
+    };
+  }
+  const gap = Math.abs(dy);
+  const fitsAbove = top - gap - size.height >= 0;
+  const fitsBelow = top + gap + size.height <= plot.height;
+  const above = side === "above" ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove;
+  return {
+    horizontal: `translateX(${clamp(left + dx - size.width / 2, 0, plot.width - size.width)}px)`,
+    vertical: `translateY(${above ? top - gap - size.height : top + gap}px)`
+  };
 }
 
 /** The content's box, measured before paint and again whenever its size changes. */
@@ -62,6 +140,7 @@ export function PlotAnchor({
   animate,
   children,
   className,
+  maxWidth,
   offset,
   side = "auto",
   x,
@@ -101,23 +180,16 @@ export function PlotAnchor({
   if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
   const dx = offset?.x ?? 0;
   const dy = offset?.y ?? 0;
-  const fitsRight = left + dx + size.width <= plot.width;
-  const fitsLeft = left - dx - size.width >= 0;
-  // The content stays inside the plot: the other side near an edge, else clamped to the edge.
-  const horizontal =
-    side === "right" || (side === "auto" && fitsRight)
-      ? `translateX(${left + dx}px)`
-      : side === "left" || fitsLeft
-        ? `translateX(${left - dx}px) translateX(-100%)`
-        : `translateX(${Math.max(Math.min(left + dx, plot.width - size.width), 0)}px)`;
-  const fitsBelow = top + dy + size.height <= plot.height;
-  const vertical =
-    side !== "auto" || fitsBelow
-      ? `translateY(${top + dy}px)`
-      : top - Math.abs(dy) - size.height >= 0
-        ? `translateY(${top - Math.abs(dy)}px) translateY(-100%)`
-        : `translateY(${Math.max(plot.height - size.height, 0)}px)`;
+  const { horizontal, vertical } =
+    side === "above" || side === "below" || side === "beside"
+      ? placeCentered(side, { left, top, dx, dy }, size, plot)
+      : placeCorner(side, { left, top, dx, dy }, size, plot);
   const content = typeof children === "function" ? children(point) : children;
+  const widest = typeof maxWidth === "function" ? maxWidth(point) : maxWidth;
+  const style = {
+    transform: `${horizontal} ${vertical}`,
+    ...(widest === undefined ? {} : { maxWidth: widest })
+  };
   const moving = animate ?? follows;
   const hidden = follows && plot.activeIndex === null;
 
@@ -127,7 +199,7 @@ export function PlotAnchor({
         ref={measure}
         aria-hidden="true"
         className={cn("pointer-events-none absolute left-0 top-0 w-max", className)}
-        style={{ transform: `${horizontal} ${vertical}` }}
+        style={style}
       >
         {content}
       </div>
@@ -138,7 +210,7 @@ export function PlotAnchor({
       ref={measure}
       aria-hidden="true"
       className="pointer-events-none absolute left-0 top-0 w-max transition-transform duration-control ease-standard"
-      style={{ transform: `${horizontal} ${vertical}` }}
+      style={style}
     >
       <div
         className={cn(
@@ -174,6 +246,37 @@ export interface PlotLegendItem {
   color: ChartColor;
   /** @defaultValue "line" */
   mark?: "line" | "square" | "dot";
+  /**
+   * Paints the swatch like its marks, such as a pale tint or a hatch, with an edge in `color`, so
+   * a pale swatch still reads at 3:1 (COLOR-1). Without it the swatch is solid `color`.
+   */
+  fill?: PlotFill;
+}
+
+function LegendSwatch({ item }: { item: PlotLegendItem }) {
+  const id = svgId(useId());
+  const mark = item.mark ?? "line";
+  const shape = cn(
+    "shrink-0",
+    mark === "line" && "h-ds-025 w-ds-200 rounded-full",
+    mark === "square" && "size-ds-100 rounded-sm",
+    mark === "dot" && "size-ds-100 rounded-full"
+  );
+  if (item.fill === undefined) {
+    return <span className={cn(shape, seriesColor(0, item.color).swatch)} />;
+  }
+  const paint = paintFill(item.fill, id);
+  return (
+    <span
+      className={cn(shape, "overflow-hidden border border-solid")}
+      style={{ borderColor: plotColor(item.color) }}
+    >
+      <svg className="block size-full">
+        <defs>{paint.definition}</defs>
+        <rect fill={paint.fill} fillOpacity={paint.fillOpacity} height="100%" width="100%" />
+      </svg>
+    </span>
+  );
 }
 
 /**
@@ -191,15 +294,7 @@ export function PlotLegend({ className, items }: { className?: string; items: Pl
     >
       {items.map((item) => (
         <li key={item.key} className="flex items-center gap-ds-075">
-          <span
-            className={cn(
-              "shrink-0",
-              (item.mark ?? "line") === "line" && "h-ds-025 w-ds-200 rounded-full",
-              item.mark === "square" && "size-ds-100 rounded-sm",
-              item.mark === "dot" && "size-ds-100 rounded-full",
-              seriesColor(0, item.color).swatch
-            )}
-          />
+          <LegendSwatch item={item} />
           <span>{item.label}</span>
         </li>
       ))}

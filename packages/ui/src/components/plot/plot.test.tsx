@@ -3,8 +3,18 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Plot, type PlotProps } from "./plot";
-import { PlotArcs, PlotAxis, PlotBand, PlotBars, PlotDots } from "./plot.marks";
+import { Plot, usePlot, type PlotProps } from "./plot";
+import {
+  PlotArcs,
+  PlotAxis,
+  PlotBand,
+  PlotBars,
+  PlotDots,
+  PlotLine,
+  usePlotTween,
+  type PlotArcsProps
+} from "./plot.marks";
+import { PlotAnchor, PlotLegend, type PlotAnchorProps } from "./plot.overlay";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -173,6 +183,221 @@ describe("Plot", () => {
     ).toEqual(["0", "3", "6", "10"]);
   });
 
+  it.each<
+    [string, { align?: "start"; format: (value: string | number | Date) => string }, string[][]]
+  >([
+    ["by default y labels end left of the drawing area", { format: String }, [["40", "0", "end"]]],
+    [
+      'align="start" starts y labels at the plot\'s left edge',
+      { align: "start", format: String },
+      [["0", "0", "start"]]
+    ],
+    [
+      "a line break splits a label into lines",
+      { format: () => "Anna\nKowalski" },
+      [
+        ["40", "-0.6em", "Anna"],
+        ["40", "1.2em", "Kowalski"]
+      ]
+    ]
+  ])("PlotAxis: %s", (_, props, labels) => {
+    act(() =>
+      root.render(
+        <Plot
+          height={100}
+          margin={{ left: 48 }}
+          table={{ columns: [], rows: [] }}
+          title="Steps"
+          x={{ type: "linear", domain: [0, 10] }}
+          y={{ type: "linear", domain: [0, 1] }}
+        >
+          <PlotAxis axis="y" offset={8} values={[0]} {...props} />
+        </Plot>
+      )
+    );
+
+    const text = container.querySelector("svg text");
+    const lines = text?.querySelectorAll("tspan") ?? [];
+    expect(
+      lines.length === 0
+        ? [[text?.getAttribute("x"), text?.textContent, text?.getAttribute("text-anchor")]]
+        : Array.from(lines, (line) => [
+            line.getAttribute("x"),
+            line.getAttribute("dy"),
+            line.textContent
+          ])
+    ).toEqual(labels);
+  });
+
+  it("extends a line along its end segments to the edges of the drawing area", () => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          table={{ columns: [], rows: [] }}
+          title="Trend"
+          x={{ type: "linear", domain: [0, 10] }}
+          y={{ type: "linear", domain: [0, 10] }}
+        >
+          <PlotLine data={[2, 5, 8]} extend x={(value) => value} y={(value) => value} />
+        </Plot>
+      )
+    );
+
+    // The points sit at (80, 96), (200, 60), and (320, 24); both ends fall 0.3px per pixel.
+    expect(container.querySelector("svg path")?.getAttribute("d")).toBe(
+      "M0,120L80,96L200,60L320,24L400,0"
+    );
+  });
+
+  describe("PlotArcs", () => {
+    /** Two slices of a ring around (200, 60): the first from 9 to 3 o'clock over the top. */
+    const renderRing = (props: Partial<PlotArcsProps>) =>
+      act(() =>
+        root.render(
+          <Plot height={120} interaction={false} table={{ columns: [], rows: [] }} title="Ring">
+            <PlotArcs
+              endAngle={1.5 * Math.PI}
+              fill={() => ({ type: "solid", color: "chart-1" })}
+              padAngle={0}
+              startAngle={-Math.PI / 2}
+              values={[1, 1, 0]}
+              {...props}
+            />
+          </Plot>
+        )
+      );
+    const slices = () => Array.from(container.querySelectorAll("svg path"));
+
+    it("moves a chosen slice out along its middle angle", () => {
+      renderRing({ offset: (index) => (index === 0 ? 10 : 0) });
+
+      expect(slices().map((slice) => slice.getAttribute("transform"))).toEqual([
+        "translate(0 -10)",
+        null,
+        null
+      ]);
+    });
+
+    it("draws an edge around the slices that ask for one", () => {
+      renderRing({ stroke: (index) => (index === 1 ? { color: "surface", width: 2 } : undefined) });
+
+      expect(
+        slices().map((slice) => [slice.getAttribute("stroke"), slice.getAttribute("stroke-width")])
+      ).toEqual([
+        [null, null],
+        ["var(--ds-surface-raised)", "2"],
+        [null, null]
+      ]);
+    });
+
+    it("labels each slice that has a share, and no empty one", () => {
+      renderRing({ label: (index) => ["50%", "50%", "0%"][index] ?? "" });
+
+      expect(
+        Array.from(container.querySelectorAll("svg text"), (label) => label.textContent)
+      ).toEqual(["50%", "50%"]);
+    });
+  });
+
+  describe("PlotAnchor placement", () => {
+    beforeEach(() => {
+      // jsdom lays nothing out: the content is 100 by 40px.
+      vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(100);
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(40);
+    });
+
+    /** An anchor at a pixel point of a 400 by 128px plot, whose scales map values to pixels. */
+    const renderAnchor = (at: { x: number; y: number }, props: Partial<PlotAnchorProps>) =>
+      act(() =>
+        root.render(
+          <Plot
+            height={128}
+            interaction={false}
+            overlay={
+              <PlotAnchor x={at.x} y={128 - at.y} {...props}>
+                Label
+              </PlotAnchor>
+            }
+            table={{ columns: [], rows: [] }}
+            title="Anchored"
+            x={{ type: "linear", domain: [0, 400] }}
+            y={{ type: "linear", domain: [0, 128] }}
+          />
+        )
+      );
+    const anchored = () =>
+      container.querySelector<HTMLElement>("figure [aria-hidden='true']:not(svg)")?.style;
+
+    // An 8px gap: below or above the anchor for "above" and "below", beside it for "beside".
+    it.each<[string, NonNullable<PlotAnchorProps["side"]>, { x: number; y: number }, string]>([
+      [
+        "above centers over the anchor",
+        "above",
+        { x: 200, y: 60 },
+        "translateX(150px) translateY(12px)"
+      ],
+      [
+        "above stays inside the left edge",
+        "above",
+        { x: 20, y: 60 },
+        "translateX(0px) translateY(12px)"
+      ],
+      [
+        "above flips below near the top",
+        "above",
+        { x: 200, y: 20 },
+        "translateX(150px) translateY(28px)"
+      ],
+      [
+        "below flips above near the bottom",
+        "below",
+        { x: 200, y: 100 },
+        "translateX(150px) translateY(52px)"
+      ],
+      [
+        "beside centers on the anchor's height and flips left near the right edge",
+        "beside",
+        { x: 380, y: 60 },
+        "translateX(272px) translateY(40px)"
+      ]
+    ])("%s", (_, side, at, transform) => {
+      renderAnchor(at, { side, offset: side === "beside" ? { x: 8 } : { y: 8 } });
+
+      expect(anchored()?.transform).toBe(transform);
+    });
+
+    it("caps the content at maxWidth, so longer text wraps", () => {
+      renderAnchor({ x: 200, y: 60 }, { maxWidth: 80 });
+
+      expect(anchored()?.maxWidth).toBe("80px");
+    });
+  });
+
+  it("paints a legend swatch with its fill and an edge in its color", () => {
+    act(() =>
+      root.render(
+        <PlotLegend
+          items={[
+            {
+              key: "closed",
+              label: "Closed",
+              color: "chart-2",
+              mark: "square",
+              fill: { type: "hatch", color: "chart-2", spacing: 3, angle: 45 }
+            }
+          ]}
+        />
+      )
+    );
+
+    const swatch = container.querySelector<HTMLElement>("li > span");
+    expect(swatch?.style.borderColor).toBe("var(--ds-chart-2)");
+    expect(swatch?.querySelector("pattern line")?.getAttribute("stroke")).toBe("var(--ds-chart-2)");
+    expect(swatch?.querySelector("rect")?.getAttribute("fill")).toMatch(/^url\(#.+\)$/);
+  });
+
   describe("picking points", () => {
     const visitsTable = {
       columns: ["Visits"],
@@ -330,6 +555,230 @@ describe("Plot", () => {
       });
       expect(slider()?.getAttribute("aria-valuetext")).toBe("Cold: 1");
     });
+
+    const ringPaths = () =>
+      Array.from(container.querySelectorAll('svg path[stroke="var(--ds-text)"]'), (ring) =>
+        ring.getAttribute("d")
+      );
+
+    it("draws horizontal bars along their rows and picks a row by the pointer's height", () => {
+      const regions = ["North", "South", "East"];
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            table={{
+              columns: ["Stores"],
+              rows: regions.map((region, index) => ({ header: region, cells: [String(index + 4)] }))
+            }}
+            title="Stores by region"
+            x={{ type: "linear", domain: [0, 10] }}
+            y={{ type: "band", domain: regions, paddingInner: 0 }}
+          >
+            <PlotBars
+              data={[4, 5, 6]}
+              fill={{ type: "solid", color: "chart-1" }}
+              orientation="horizontal"
+              radius={10}
+              x={(value) => value}
+              y={(_, index) => regions[index] ?? ""}
+            />
+          </Plot>
+        )
+      );
+
+      // Three 40px rows; South runs from 40 to 80px down, its value 5 ends 200px across.
+      expect(container.querySelectorAll("svg path")[1]?.getAttribute("d")).toBe(
+        "M0,40H190A10,10 0 0 1 200,50V70A10,10 0 0 1 190,80H0Z"
+      );
+      pointer("pointermove", PLOT_BOX.left + 300, 70);
+      expect(slider()?.getAttribute("aria-valuetext")).toBe("South: 5");
+      expect(rings()).toBe(1);
+    });
+
+    it("stacks bars from their own baselines and rings the column as one", () => {
+      const segments = [
+        { day: "Mon", from: 0, to: 4 },
+        { day: "Mon", from: 4, to: 10 },
+        { day: "Tue", from: 0, to: 6 }
+      ];
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            table={{
+              columns: ["Visits"],
+              rows: [
+                { header: "Mon", cells: ["10"] },
+                { header: "Tue", cells: ["6"] }
+              ]
+            }}
+            title="Visits by source"
+            x={{ type: "band", domain: ["Mon", "Tue"], paddingInner: 0 }}
+            y={{ type: "linear", domain: [0, 10] }}
+          >
+            <PlotBars
+              data={segments}
+              fill={{ type: "solid", color: "chart-1" }}
+              x={(segment) => segment.day}
+              y={(segment) => segment.to}
+              y0={(segment) => segment.from}
+            />
+          </Plot>
+        )
+      );
+
+      // Mon runs from 0 to 200px across; 4 sits 72px down and 10 at the top.
+      expect(
+        Array.from(container.querySelectorAll("svg path"), (bar) => bar.getAttribute("d")).slice(
+          0,
+          2
+        )
+      ).toEqual([
+        "M0,120V72A0,0 0 0 1 0,72H200A0,0 0 0 1 200,72V120Z",
+        "M0,72V0A0,0 0 0 1 0,0H200A0,0 0 0 1 200,0V72Z"
+      ]);
+      pointer("pointermove", PLOT_BOX.left + 100);
+      expect(ringPaths()).toEqual([
+        "M-2.5,122.5V0A2.5,2.5 0 0 1 0,-2.5H200A2.5,2.5 0 0 1 202.5,0V122.5Z"
+      ]);
+    });
+
+    it("picks the part under the pointer by its span, not the nearest middle", () => {
+      act(() =>
+        root.render(
+          <Plot
+            height={20}
+            interaction={{
+              spans: [
+                [0, 8],
+                [8, 10]
+              ]
+            }}
+            table={{
+              columns: ["Tasks"],
+              rows: [
+                { header: "Done", cells: ["8"] },
+                { header: "Left", cells: ["2"] }
+              ]
+            }}
+            title="Progress"
+            x={{ type: "linear", domain: [0, 10] }}
+          />
+        )
+      );
+
+      // 300px is 7.5 tasks: inside Done, though Left's middle (9 tasks, 360px) is nearer.
+      pointer("pointermove", PLOT_BOX.left + 300, 10);
+      expect(slider()?.getAttribute("aria-valuetext")).toBe("Done: 8");
+      pointer("pointermove", PLOT_BOX.left + 330, 10);
+      expect(slider()?.getAttribute("aria-valuetext")).toBe("Left: 2");
+    });
+
+    it('with rest: "none" a pinned bar takes no ring at rest, but a hovered one does', () => {
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            interaction={{ rest: "none" }}
+            table={visitsTable}
+            title="Visits this week"
+            x={{ type: "band", domain: days, paddingInner: 0 }}
+            y={{ type: "linear", domain: [0, 25] }}
+          >
+            <PlotBars
+              data={visits}
+              fill={{ type: "solid", color: "chart-1" }}
+              x={atDay}
+              y={(value) => value}
+            />
+          </Plot>
+        )
+      );
+
+      pointer("click", wednesday);
+      expect(rings()).toBe(1);
+      act(() => {
+        slider()?.dispatchEvent(
+          new MouseEvent("pointerout", { bubbles: true, relatedTarget: document.body })
+        );
+      });
+
+      expect(slider()?.getAttribute("aria-valuetext")).toBe("Wed: 9");
+      expect(rings()).toBe(0);
+    });
+
+    it('with rest: "highlight" only the plot people used keeps a tooltip for a shared pin', () => {
+      function SharedWeek() {
+        const [selected, setSelected] = useState<number | null>(null);
+        return (
+          <>
+            {["Visits", "Visits again"].map((title) => (
+              <Plot
+                key={title}
+                height={120}
+                interaction={{
+                  rest: "highlight",
+                  selectedIndex: selected,
+                  onSelectedChange: setSelected
+                }}
+                table={visitsTable}
+                title={title}
+                x={{ type: "band", domain: days, paddingInner: 0 }}
+                y={{ type: "linear", domain: [0, 25] }}
+              >
+                <PlotBars
+                  data={visits}
+                  fill={{ type: "solid", color: "chart-1" }}
+                  x={atDay}
+                  y={(value) => value}
+                />
+              </Plot>
+            ))}
+          </>
+        );
+      }
+      act(() => root.render(<SharedWeek />));
+
+      pointer("click", wednesday);
+      act(() => {
+        slider()?.dispatchEvent(
+          new MouseEvent("pointerout", { bubbles: true, relatedTarget: document.body })
+        );
+      });
+
+      const [used, other] = Array.from(container.querySelectorAll('[role="slider"]'), (plot) => ({
+        tooltip: plot.querySelector(":scope > div[aria-hidden='true']")?.textContent,
+        rings: plot.querySelectorAll('svg path[stroke="var(--ds-text)"]').length
+      }));
+      expect(used).toEqual({ tooltip: "Wed9", rings: 1 });
+      expect(other).toEqual({ tooltip: undefined, rings: 1 });
+    });
+
+    it("sets the axis label of the active point in the text color", () => {
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            table={visitsTable}
+            title="Visits this week"
+            x={{ type: "band", domain: days, paddingInner: 0 }}
+            y={{ type: "linear", domain: [0, 25] }}
+          >
+            <PlotAxis axis="x" format={String} highlight />
+          </Plot>
+        )
+      );
+
+      pointer("pointermove", wednesday);
+
+      expect(
+        Array.from(
+          container.querySelectorAll('svg text[fill="var(--ds-text)"]'),
+          (label) => label.textContent
+        )
+      ).toEqual(["Wed"]);
+    });
   });
 
   describe("data transitions", () => {
@@ -371,6 +820,46 @@ describe("Plot", () => {
         addEventListener: () => undefined,
         removeEventListener: () => undefined
       }));
+
+    /** A custom mark: one dot that tweens to its x with the plot's motion. */
+    function CustomDot({ at }: { at: number }) {
+      const { x } = usePlot();
+      const frame = usePlotTween([x?.position(at) ?? 0]);
+      return <circle cx={frame.values[0]} cy={0} r={2} />;
+    }
+    const dotX = () => Number(container.querySelector("svg circle")?.getAttribute("cx"));
+
+    it("tweens a custom mark with usePlotTween, as the plot's own marks move", () => {
+      reducedMotion(false);
+      const render = (at: number) =>
+        act(() =>
+          root.render(
+            <Plot
+              height={120}
+              interaction={false}
+              table={{ columns: [], rows: [] }}
+              title="Custom"
+              x={{ type: "linear", domain: [0, 10] }}
+            >
+              <CustomDot at={at} />
+            </Plot>
+          )
+        );
+      render(0);
+      render(10);
+
+      act(() => {
+        vi.advanceTimersByTime(64);
+      });
+      const halfway = dotX();
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(halfway).toBeGreaterThan(0);
+      expect(halfway).toBeLessThan(400);
+      expect(dotX()).toBe(400);
+    });
 
     it("tweens a bar to its new value with the motion tokens", () => {
       reducedMotion(false);
