@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { contrastPairs } from "@repo/theme";
-import type { ReactElement, ReactNode } from "react";
+import { act, type ReactElement, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TopNav, type TopNavItem } from "./top-nav";
 
@@ -22,6 +23,30 @@ function routerLink(href: string, content: ReactNode): ReactElement {
 }
 
 describe("TopNav", () => {
+  it("keeps placeholder links that share an address apart", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <TopNav
+          items={[
+            { current: true, href: "#", label: "Dashboard" },
+            { href: "#", label: "Events" }
+          ]}
+          label="Main"
+        />
+      )
+    );
+
+    expect(container.textContent).toContain("Events");
+    expect(error).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+    error.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
   it.each([
     ["a plain anchor", undefined, null],
     ["the router link", routerLink, ""]

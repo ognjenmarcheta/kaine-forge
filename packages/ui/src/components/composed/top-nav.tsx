@@ -88,7 +88,7 @@ export function TopNav({
           };
 
           return (
-            <li key={item.href} className="shrink-0">
+            <li key={`${item.href} ${item.label}`} className="shrink-0">
               {renderLink ? (
                 <Slot.Root {...linkProps}>{renderLink(item.href, content)}</Slot.Root>
               ) : (
